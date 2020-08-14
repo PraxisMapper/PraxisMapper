@@ -1,0 +1,8 @@
+﻿To create a database with EFCore:
+
+
+To create the migration code to move from previous to current database model
+Add-Migration DescriptiveNameHere
+
+to update a database with the current codefirst model (Package Manager Console)
+Update-Database
