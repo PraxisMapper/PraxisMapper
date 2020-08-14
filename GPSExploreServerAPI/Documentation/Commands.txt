@@ -6,3 +6,6 @@ Add-Migration DescriptiveNameHere
 
 to update a database with the current codefirst model (Package Manager Console)
 Update-Database
+
+For database-first setups, start with this instead:
+Scaffold-DbContext "ConnectionString" Microsoft.EntityFrameworkCore.SqlServer -OutputDir Model

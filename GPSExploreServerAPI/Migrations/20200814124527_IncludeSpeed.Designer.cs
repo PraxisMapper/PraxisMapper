@@ -3,14 +3,16 @@ using GPSExploreServerAPI.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace GPSExploreServerAPI.Migrations
 {
     [DbContext(typeof(GpsExploreContext))]
-    partial class GpsExploreContextModelSnapshot : ModelSnapshot
+    [Migration("20200814124527_IncludeSpeed")]
+    partial class IncludeSpeed
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -32,7 +34,7 @@ namespace GPSExploreServerAPI.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("deviceID")
-                        .HasColumnType("nvarchar(450)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("distance")
                         .HasColumnType("int");
@@ -56,8 +58,6 @@ namespace GPSExploreServerAPI.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("PlayerDataID");
-
-                    b.HasIndex("deviceID");
 
                     b.ToTable("PlayerData");
                 });
