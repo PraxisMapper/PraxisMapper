@@ -21,6 +21,7 @@ namespace GPSExploreServerAPI.Database
         public int timePlayed { get; set; }
         public int maxSpeed { get; set; }
         public int totalSpeed { get; set; }
+        public int maxAltitude { get; set; }
     }
 
     public class MapData

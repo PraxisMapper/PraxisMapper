@@ -22,16 +22,24 @@ namespace GPSExploreServerAPI.Controllers
 
         //Session is not enabled by default on API projects, which is correct.
 
-        [HttpGet]
+        [HttpPost]
         [Route("/GPSExplore/UploadData")] //use this to tag endpoints correctly.
-        public string UploadData(string allData)
+        public string UploadData() //this was't pulling allData out as a string parameter from the body request from Solar2D.
         {
+            byte[] inputStream = new byte[(int)HttpContext.Request.ContentLength];
+            HttpContext.Request.Body.ReadAsync(inputStream, 0, (int)HttpContext.Request.ContentLength - 1);
+            string allData = System.Text.Encoding.Default.GetString(inputStream);
+
             if (allData == null)
-                return "Error";
+                return "Error-Null";
 
             //TODO: take several int parameters instead of converting all these as strings.
             //Take data from a client, save it to the DB
             string[] components = allData.Split("|");
+
+            if (components.Length != 11)
+                return "Error-Length";
+
             GpsExploreContext db = new GpsExploreContext();
             var data = db.PlayerData.Where(p => p.deviceID == components[0]).FirstOrDefault();
             bool insert = false;
@@ -51,9 +59,12 @@ namespace GPSExploreServerAPI.Controllers
             data.t8Cells = components[7].ToInt();
             data.timePlayed = components[8].ToInt();
             data.totalSpeed = components[9].ToInt();
+            data.maxAltitude = components[10].ToInt();
 
             if (insert)
                 db.PlayerData.Add(data);
+
+            //TODO: add cheat detection. Mark any input that's blatantly impossible.
 
             db.SaveChanges();
 
@@ -70,11 +81,15 @@ namespace GPSExploreServerAPI.Controllers
 
         [HttpGet]
         [Route("/[controller]/10CellLeaderboard")]
-        public string Get10CellLeaderboards()
+        public string Get10CellLeaderboards(string deviceID)
         {
             //take in the device ID, return the top 10 players for this leaderboard, and the user's current rank.
             //Make into a template for other leaderboards.
-            return "OK10";
+            GpsExploreContext db = new GpsExploreContext();
+            List<int> results = db.PlayerData.OrderBy(p => p.t10Cells).Take(10).Select(p => p.t10Cells).ToList();
+            results.Add(db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.t10Cells).FirstOrDefault());
+
+            return string.Join("|", results);
         }
 
 
