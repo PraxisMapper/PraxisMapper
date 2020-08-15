@@ -23,7 +23,7 @@ namespace GPSExploreServerAPI.Controllers
         //Session is not enabled by default on API projects, which is correct.
 
         [HttpPost]
-        [Route("/GPSExplore/UploadData")] //use this to tag endpoints correctly.
+        [Route("/[controller]/UploadData")] //use this to tag endpoints correctly.
         public string UploadData() //this was't pulling allData out as a string parameter from the body request from Solar2D.
         {
             byte[] inputStream = new byte[(int)HttpContext.Request.ContentLength];
@@ -72,7 +72,7 @@ namespace GPSExploreServerAPI.Controllers
         }
 
         [HttpGet]
-        [Route("/GPSExplore/test")]
+        [Route("/[controller]/test")]
         public string TestDummyEndpoint()
         {
             //For debug purposes to confirm the server is running and reachable.
@@ -80,14 +80,14 @@ namespace GPSExploreServerAPI.Controllers
         }
 
         [HttpGet]
-        [Route("/[controller]/10CellLeaderboard")]
+        [Route("/[controller]/10CellLeaderboard/{deviceID}")]
         public string Get10CellLeaderboards(string deviceID)
         {
             //take in the device ID, return the top 10 players for this leaderboard, and the user's current rank.
             //Make into a template for other leaderboards.
             GpsExploreContext db = new GpsExploreContext();
             List<int> results = db.PlayerData.OrderBy(p => p.t10Cells).Take(10).Select(p => p.t10Cells).ToList();
-            results.Add(db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.t10Cells).FirstOrDefault());
+            results.Add(db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.t10Cells).FirstOrDefault()); //TODO: fix this to get the rownumber of the current player to indicate their place. Already know their value.
 
             return string.Join("|", results);
         }
