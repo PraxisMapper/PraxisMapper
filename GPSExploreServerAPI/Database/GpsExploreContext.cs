@@ -9,13 +9,16 @@ namespace GPSExploreServerAPI.Database
     public class GpsExploreContext : DbContext
     {
         public DbSet<PlayerData> PlayerData { get; set; }
-        //add DbSet<MapData> here when I'm ready to start messing with that.
+        public DbSet<PerformanceInfo> PerformanceInfo { get; set; }
+
+        //public DbSet<MapData> MapData { get; set; } //uncomment this when I've advanced onto the map processing project.
+        //add performance info table
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             //TODO: figure out this connection string for local testing, and for AWS use.
             //LocalHost
-            optionsBuilder.UseSqlServer(@"Data Source=DESKTOP-B977OTE\SQLEXPRESS;Integrated Security = true;Initial Catalog=GpsExplore;", x => x.UseNetTopologySuite());
+            optionsBuilder.UseSqlServer(@"Data Source=localhost\SQLEXPRESS;Integrated Security = true;Initial Catalog=GpsExplore;", x => x.UseNetTopologySuite()); //Home config
             //NetTopologySuite is for future location stuff from OSM data.
         }
 

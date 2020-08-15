@@ -22,6 +22,15 @@ namespace GPSExploreServerAPI.Database
         public int maxSpeed { get; set; }
         public int totalSpeed { get; set; }
         public int maxAltitude { get; set; }
+        public DateTime lastSyncTime { get; set; }
+    }
+
+    public class PerformanceInfo
+    {
+        public int PerformanceInfoID { get; set; }
+        public string functionName { get; set; }
+        public long runTime { get; set; }
+        public DateTime calledAt { get; set; }
     }
 
     public class MapData

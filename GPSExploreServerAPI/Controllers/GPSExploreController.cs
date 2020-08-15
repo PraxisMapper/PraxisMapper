@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.Design;
 using System.Linq;
 using System.Threading.Tasks;
+using GPSExploreServerAPI.Classes;
 using GPSExploreServerAPI.Database;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -14,18 +15,27 @@ namespace GPSExploreServerAPI.Controllers
     public class GPSExploreController : ControllerBase
     {
         /* functions needed
-         * update player stats (on login, client attempts to send playerData row, plus a couple of Count() calls, and their device ID (or google games id or something)
-         * get leaderboards
-         * -subboards: Most small cells, most big cells, highest score, most distance, most time, fastest avg speed (distance/time), most coffees purchased, time to all trophies, 
-         * Ties should be broken by date (so, who most recently did the thing that set the score), which means tracking more data client-side.
+         * -subboards TODO:  most coffees purchased (once store functions)
+         * done: Most small cells, most big cells, highest score, most distance,  most time, fastest avg speed (distance/time),
+         * Ties should be broken by date (so, who most recently did the thing that set the score), which means tracking more data client-side. 
+         * --Tiebreaker calc: .Where(p => p.value > my.value && p.dateLastUpdated > my.dateLastUpdated? 
         */
 
         //Session is not enabled by default on API projects, which is correct.
+
+        [HttpGet]
+        [Route("/[controller]/test")]
+        public string TestDummyEndpoint()
+        {
+            //For debug purposes to confirm the server is running and reachable.
+            return "OK";
+        }
 
         [HttpPost]
         [Route("/[controller]/UploadData")] //use this to tag endpoints correctly.
         public string UploadData() //this was't pulling allData out as a string parameter from the body request from Solar2D.
         {
+            PerformanceTracker pt = new PerformanceTracker("UploadData");
             byte[] inputStream = new byte[(int)HttpContext.Request.ContentLength];
             HttpContext.Request.Body.ReadAsync(inputStream, 0, (int)HttpContext.Request.ContentLength - 1);
             string allData = System.Text.Encoding.Default.GetString(inputStream);
@@ -60,6 +70,7 @@ namespace GPSExploreServerAPI.Controllers
             data.timePlayed = components[8].ToInt();
             data.totalSpeed = components[9].ToInt();
             data.maxAltitude = components[10].ToInt();
+            data.lastSyncTime = DateTime.Now;
 
             if (insert)
                 db.PlayerData.Add(data);
@@ -68,14 +79,7 @@ namespace GPSExploreServerAPI.Controllers
 
             db.SaveChanges();
 
-            return "OK";
-        }
-
-        [HttpGet]
-        [Route("/[controller]/test")]
-        public string TestDummyEndpoint()
-        {
-            //For debug purposes to confirm the server is running and reachable.
+            pt.Stop();
             return "OK";
         }
 
@@ -85,13 +89,119 @@ namespace GPSExploreServerAPI.Controllers
         {
             //take in the device ID, return the top 10 players for this leaderboard, and the user's current rank.
             //Make into a template for other leaderboards.
+            PerformanceTracker pt = new PerformanceTracker("Get10CellLeaderboard");
             GpsExploreContext db = new GpsExploreContext();
+            
             List<int> results = db.PlayerData.OrderBy(p => p.t10Cells).Take(10).Select(p => p.t10Cells).ToList();
-            results.Add(db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.t10Cells).FirstOrDefault()); //TODO: fix this to get the rownumber of the current player to indicate their place. Already know their value.
-
+            int playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.t10Cells).FirstOrDefault();
+            int playerRank = db.PlayerData.Where(p => p.t10Cells >= playerScore).Count();
+            results.Add(playerRank);
+            
+            pt.Stop();
             return string.Join("|", results);
         }
 
+        [HttpGet]
+        [Route("/[controller]/8CellLeaderboard/{deviceID}")]
+        public string Get8CellLeaderboards(string deviceID)
+        {
+            //take in the device ID, return the top 10 players for this leaderboard, and the user's current rank.
+            PerformanceTracker pt = new PerformanceTracker("Get8CellLeaderboard");
+            GpsExploreContext db = new GpsExploreContext();
 
+            List<int> results = db.PlayerData.OrderBy(p => p.t8Cells).Take(10).Select(p => p.t8Cells).ToList();
+            int playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.t8Cells).FirstOrDefault();
+            int playerRank = db.PlayerData.Where(p => p.t8Cells >= playerScore).Count();
+            results.Add(playerRank);
+
+            pt.Stop();
+            return string.Join("|", results);
+        }
+
+        [HttpGet]
+        [Route("/[controller]/ScoreLeaderboard/{deviceID}")]
+        public string GetScoreLeaderboards(string deviceID)
+        {
+            //take in the device ID, return the top 10 players for this leaderboard, and the user's current rank.
+            //Make into a template for other leaderboards.
+            PerformanceTracker pt = new PerformanceTracker("GetScoreLeaderboard");
+            GpsExploreContext db = new GpsExploreContext();
+            List<int> results = db.PlayerData.OrderBy(p => p.score).Take(10).Select(p => p.score).ToList();
+            int playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.score).FirstOrDefault();
+            int playerRank = db.PlayerData.Where(p => p.score >= playerScore).Count();
+            results.Add(playerRank);
+
+            pt.Stop();
+            return string.Join("|", results);
+        }
+
+        [HttpGet]
+        [Route("/[controller]/DistanceLeaderboard/{deviceID}")]
+        public string GetDistanceLeaderboards(string deviceID)
+        {
+            //take in the device ID, return the top 10 players for this leaderboard, and the user's current rank.
+            //Make into a template for other leaderboards.
+            PerformanceTracker pt = new PerformanceTracker("GetDistanceLeaderboard");
+            GpsExploreContext db = new GpsExploreContext();
+            List<int> results = db.PlayerData.OrderBy(p => p.distance).Take(10).Select(p => p.distance).ToList();
+            int playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.distance).FirstOrDefault();
+            int playerRank = db.PlayerData.Where(p => p.distance >= playerScore).Count();
+            results.Add(playerRank);
+
+            pt.Stop();
+            return string.Join("|", results);
+        }
+
+        [HttpGet]
+        [Route("/[controller]/TimeLeaderboard/{deviceID}")]
+        public string GetTimeLeaderboards(string deviceID)
+        {
+            //take in the device ID, return the top 10 players for this leaderboard, and the user's current rank.
+            //Make into a template for other leaderboards.
+            PerformanceTracker pt = new PerformanceTracker("GetTimeLeaderboard");
+            GpsExploreContext db = new GpsExploreContext();
+            List<int> results = db.PlayerData.OrderBy(p => p.timePlayed).Take(10).Select(p => p.timePlayed).ToList();
+            int playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.timePlayed).FirstOrDefault();
+            int playerRank = db.PlayerData.Where(p => p.timePlayed >= playerScore).Count();
+            results.Add(playerRank);
+
+            pt.Stop();
+            return string.Join("|", results);
+        }
+
+        [HttpGet]
+        [Route("/[controller]/AvgSpeedLeaderboard/{deviceID}")]
+        public string GetAvgSpeedLeaderboards(string deviceID)
+        {
+            //take in the device ID, return the top 10 players for this leaderboard, and the user's current rank.
+            //Make into a template for other leaderboards.
+            PerformanceTracker pt = new PerformanceTracker("GetAvgSpeedLeaderboard");
+            GpsExploreContext db = new GpsExploreContext();
+            //This one does a calculation, will take a bit longer.
+            List<int> results = db.PlayerData.Select(p => p.distance / p.timePlayed).OrderBy(p => p).ToList();
+            int playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.distance / p.timePlayed).FirstOrDefault();
+            int playerRank = results.Where(p => p >= playerScore).Count();
+            results = results.Take(10).ToList();
+            results.Add(playerRank);
+
+            pt.Stop();
+            return string.Join("|", results);
+        }
+
+        [HttpGet]
+        [Route("/[controller]/TrophiesLeaderboard/{deviceID}")]
+        public string GetTrophiesLeaderboards(string deviceID)
+        {
+            //take in the device ID, return the top 10 players for this leaderboard, and the user's current rank.
+            PerformanceTracker pt = new PerformanceTracker("GetTrophiesLeaderboard");
+            GpsExploreContext db = new GpsExploreContext();
+            List<int> results = db.PlayerData.OrderByDescending(p => p.DateLastTrophyBought).Take(10).Select(p => p.DateLastTrophyBought).ToList();
+            int playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.DateLastTrophyBought).FirstOrDefault();
+            int playerRank = db.PlayerData.Where(p => p.DateLastTrophyBought <= playerScore).Count(); //This one is a time, so lower is better.
+            results.Add(playerRank);
+
+            pt.Stop();
+            return string.Join("|", results);
+        }
     }
 }
