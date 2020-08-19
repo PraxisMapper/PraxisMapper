@@ -36,7 +36,7 @@ namespace GPSExploreServerAPI
                 app.UseDeveloperExceptionPage();
             }
 
-            app.UseHttpsRedirection();
+            //app.UseHttpsRedirection(); //Testing using only http on app instead of https to allow me to use a personal PC while getting a server functional
 
             app.UseRouting();
 
