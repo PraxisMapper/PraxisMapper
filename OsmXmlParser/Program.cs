@@ -60,6 +60,7 @@ namespace OsmXmlParser
                             //if (osmFile.NodeType == XmlNodeType.Element)
 
                             //Actually, I don't care about tags on an individual node right now. Removing this.
+                            //There COULD be tagged nodes that matter, and I could make a cell for them, but for now I dont know what those options are
                             //n.tags = parseTags(osmFile.ReadSubtree());
                             //TODO: delete note tags that aren't interesting //EX: created-by, 
                             //TODO: delete nodes that only belonged to boring ways/relations.
@@ -87,6 +88,7 @@ namespace OsmXmlParser
                         
                         //Trying an inclusive approach instead:
                         //Other options: landuse for various resources
+                        //Option: shop:mall for indoor stuff. (also landuse:retail?)
                         if (w.tags.Any(t => t.k == "leisure" && (t.v == "park") || (t.k == "landuse" && (t.v == "cemetery")) || t.k =="amenity" && (t.v == "grave_yard")))
                             ways.Add(w);
                         break;
@@ -146,6 +148,7 @@ namespace OsmXmlParser
                 if (xr.Name == "tag")
                 {
                     Tag t = new Tag() { k = xr.GetAttribute("k"), v = xr.GetAttribute("v") };
+                    //This is an exclusive approach. I'd prefer an inclusive approach, but I don't yet know what tags an individual node might have I want.
                     if (t.k.StartsWith("name") && t.k != "name" //purge non-English names.
                         || t.k == "created_by" //Don't need to monitor OSM users.
                         || t.k == "highway" //not interested in storing road data.
@@ -179,6 +182,7 @@ namespace OsmXmlParser
                 else if (xr.Name == "tag")
                 {
                     Tag t = new Tag() { k = xr.GetAttribute("k"), v = xr.GetAttribute("v") };
+                    //Also exclusive, want to make this inclusive? Or for Way tags do I read them all now and filter the way out later?
                     if (t.k.StartsWith("name") && t.k != "name" //purge non-English names.
                         || t.k == "created_by" //Don't need to monitor OSM users.
                         )
@@ -194,6 +198,7 @@ namespace OsmXmlParser
 
         public static void ParseRelationData(Relation r, XmlReader xr)
         {
+            //I dont think I'm actually parsing this now, since these are rarely things I'm interested in.
             List<Node> retVal = new List<Node>();
             
             while (xr.Read())
@@ -228,6 +233,14 @@ namespace OsmXmlParser
             return;
         }
 
+        public static void ParseXmlV2()
+        {
+            //For faster processing (or minimizing RAM use), we do 2 reads of the file.
+            //Run 1: Skip to Ways, save tags and a list of ref values. Filter on the existing rules for including a Way.
+            //Run 2: make a list of nodes we care about from our selected Way objects, then parse those into a list
+            //Run 2a: once we have all the nodes we care about, update the Way objects to fill in the List<Node> instead of the List<long> of refs.
+        }
+
 
         //This works with XmlDocument, but XmlReader is so much faster.
         //public static List<Tag> parseTags(XmlNode xmlNode)
@@ -254,5 +267,73 @@ namespace OsmXmlParser
 
         //    return retVal;
         //}
+
+
+        /* For reference: the tags Pokemon Go appears to be using. I don't need all of these.
+         * KIND_UNDEFINED
+KIND_BASIN
+KIND_CANAL
+KIND_CEMETERY
+KIND_CINEMA
+KIND_COLLEGE
+KIND_COMMERCIAL
+KIND_COMMON
+KIND_DAM
+KIND_DITCH
+KIND_DOCK
+KIND_DRAIN
+KIND_FARM
+KIND_FARMLAND
+KIND_FARMYARD
+KIND_FOOTWAY
+KIND_FOREST
+KIND_GARDEN
+KIND_GLACIER
+KIND_GOLF_COURSE
+KIND_GRASS
+KIND_HIGHWAY
+KIND_HOSPITAL
+KIND_HOTEL
+KIND_INDUSTRIAL
+KIND_LAKE
+KIND_LAND
+KIND_LIBRARY
+KIND_MAJOR_ROAD
+KIND_MEADOW
+KIND_MINOR_ROAD
+KIND_NATURE_RESERVE
+KIND_OCEAN
+KIND_PARK
+KIND_PARKING
+KIND_PATH
+KIND_PEDESTRIAN
+KIND_PITCH
+KIND_PLACE_OF_WORSHIP
+KIND_PLAYA
+KIND_PLAYGROUND
+KIND_QUARRY
+KIND_RAILWAY
+KIND_RECREATION_AREA
+KIND_RESERVOIR
+KIND_
+KIND_RETAIL
+KIND_RIVER
+KIND_RIVERBANK
+KIND_RUNWAY
+KIND_SCHOOL
+KIND_SPORTS_CENTER
+KIND_STADIUM
+KIND_STREAM
+KIND_TAXIWAY
+KIND_THEATRE
+KIND_UNIVERSITY
+KIND_URBAN_AREA
+KIND_WATER
+KIND_WETLAND
+KIND_WOOD
+KIND_DEBUG_TILE_OUTLINE
+KIND_DEBUG_TILE_SURFACE
+KIND_OTHER
+         */
     }
 }
