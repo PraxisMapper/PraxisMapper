@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace Google.Common.Geometry
 {
+    //Note: S2 code used in this folder is Apache-2.0 licensed.
     public static class S2
     {
         // Declare some frequently used constants

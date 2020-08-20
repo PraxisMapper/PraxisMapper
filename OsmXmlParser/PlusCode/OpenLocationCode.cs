@@ -3,6 +3,8 @@ using System.Text;
 
 namespace Google.OpenLocationCode
 {
+    //Note: the original OpenLocationCode library is Apache-2.0 licensed. This C# library doesn't seem to explicitly declare that, but it likely is also covered by it.
+
     /// <summary>
     /// Convert locations to and from convenient codes known as Open Location Codes
     /// or <see href="https://plus.codes/">Plus Codes</see>
