@@ -26,9 +26,9 @@ namespace OsmXmlParser
 
             //Hardcoding test logic here.
             //TODO: read xml from zip file. Pretty sure I can stream zipfile data to save HD space, since global XML data needs 1TB of space unzipped.
-            //string filename = @"..\..\..\jamaica-latest.osm"; //this one takes about 11 seconds to run though, 500MB
+            string filename = @"..\..\..\jamaica-latest.osm"; //this one takes about 10 seconds to run though, 500MB
             //string filename = @"C:\Users\Drake\Downloads\us-midwest-latest.osm\us-midwest-latest.osm"; //This one takes much longer to process, 28 GB
-            string filename = @"C:\Users\Drake\Downloads\LocalCity.osm"; //stuff I can actually walk to. 4MB
+            //string filename = @"C:\Users\Drake\Downloads\LocalCity.osm"; //stuff I can actually walk to. 4MB
             XmlReaderSettings xrs = new XmlReaderSettings();
             xrs.IgnoreWhitespace = true;
             XmlReader osmFile = XmlReader.Create(filename, xrs);
