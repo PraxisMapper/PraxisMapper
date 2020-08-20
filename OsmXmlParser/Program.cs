@@ -26,8 +26,9 @@ namespace OsmXmlParser
 
             //Hardcoding test logic here.
             //TODO: read xml from zip file. Pretty sure I can stream zipfile data to save HD space, since global XML data needs 1TB of space unzipped.
-            string filename = @"..\..\..\jamaica-latest.osm"; //this one takes about 11 seconds to run though, 500MB
+            //string filename = @"..\..\..\jamaica-latest.osm"; //this one takes about 11 seconds to run though, 500MB
             //string filename = @"C:\Users\Drake\Downloads\us-midwest-latest.osm\us-midwest-latest.osm"; //This one takes much longer to process, 28 GB
+            string filename = @"C:\Users\Drake\Downloads\LocalCity.osm"; //stuff I can actually walk to. 4MB
             XmlReaderSettings xrs = new XmlReaderSettings();
             xrs.IgnoreWhitespace = true;
             XmlReader osmFile = XmlReader.Create(filename, xrs);
@@ -49,16 +50,21 @@ namespace OsmXmlParser
                         break;
                     case "node":
                         //It's a shame we can't dig farther into the XML file to know if this node is needed or not until we've loaded them all.
-                        var n = new Node();
-                        n.id = osmFile.GetAttribute("id").ToLong();
-                        n.lat = osmFile.GetAttribute("lat").ToDouble();
-                        n.lon = osmFile.GetAttribute("lon").ToDouble();
-                        //nodes might have tags with useful info
-                        //if (osmFile.NodeType == XmlNodeType.Element)
-                        n.tags = parseTags(osmFile.ReadSubtree());
-                        //TODO: delete note tags that aren't interesting //EX: created-by, 
-                        //TODO: delete nodes that only belonged to boring ways/relations.
-                        nodes.Add(n);
+                        if (osmFile.NodeType == XmlNodeType.Element) //sometimes is EndElement if we had tags we ignored.
+                        {
+                            var n = new Node();
+                            n.id = osmFile.GetAttribute("id").ToLong();
+                            n.lat = osmFile.GetAttribute("lat").ToDouble();
+                            n.lon = osmFile.GetAttribute("lon").ToDouble();
+                            //nodes might have tags with useful info
+                            //if (osmFile.NodeType == XmlNodeType.Element)
+
+                            //Actually, I don't care about tags on an individual node right now. Removing this.
+                            //n.tags = parseTags(osmFile.ReadSubtree());
+                            //TODO: delete note tags that aren't interesting //EX: created-by, 
+                            //TODO: delete nodes that only belonged to boring ways/relations.
+                            nodes.Add(n);
+                        }
                         break;
                     case "way":
                         //One-shot update this for speed
@@ -74,45 +80,61 @@ namespace OsmXmlParser
                         //w.tags = parseTags(osmFile.ReadSubtree());
 
                         //TODO: delete ways that are just buildings with no additional markers.
-                        if (!w.tags.Any(t => t.k == "building"  //don't add buildings
-                                || t.k == "runway" //we dont need runways.
-                                || t.k == "highway" //ignoring roads.
-                                )) 
+                        //if (!w.tags.Any(t => t.k == "building"  //don't add buildings
+                        //        || t.k == "runway" //we dont need runways.
+                        //        || t.k == "highway" //ignoring roads.
+                        //        )) 
+                        
+                        //Trying an inclusive approach instead:
+                        //Other options: landuse for various resources
+                        if (w.tags.Any(t => t.k == "leisure" && (t.v == "park") || (t.k == "landuse" && (t.v == "cemetery")) || t.k =="amenity" && (t.v == "grave_yard")))
                             ways.Add(w);
                         break;
                     case "relation":
-                        //again, one shot update
-                        if (wayLookup == null)
-                            wayLookup = (Lookup<long, Way>)ways.ToLookup(k => k.id, v => v);
-                        //relation has 'member' with a type (usually to a 'way' entry) and a ref to their id
-                        //Can also have tags with various keys (k). Which ones are intersting?
-                        //see https://wiki.openstreetmap.org/wiki/Map_Features for what's what here.
-                        //k = "natural", "tourism", "power", "sport", "leisure", "landuse"[residential, cemetary], "Waterway", type=route, route=foot ?
-                        //Some of these will be complicated because people dont agree on which to use.
-                        //EX: leisure/park is technically a park, but could also be boundary/national_park or sometimes landuse/forest etc.
-                        //My local park is leisure/park
-                        //type=restriction is one we can ignore. I dont care about no U turn signs or whatnot.
-                        //Turning these boxes into PlusCodes is a later task.
+                        //Upon second thought, I might not actually need relations for what I'm doing. Blocking this out for now.
+                        ////again, one shot update
+                        //if (wayLookup == null)
+                        //    wayLookup = (Lookup<long, Way>)ways.ToLookup(k => k.id, v => v);
+                        ////relation has 'member' with a type (usually to a 'way' entry) and a ref to their id
+                        ////Can also have tags with various keys (k). Which ones are intersting?
+                        ////see https://wiki.openstreetmap.org/wiki/Map_Features for what's what here.
+                        ////k = "natural", "tourism", "power", "sport", "leisure", "landuse"[residential, cemetary], "Waterway", type=route, route=foot ?
+                        ////Some of these will be complicated because people dont agree on which to use.
+                        ////EX: leisure/park is technically a park, but could also be boundary/national_park or sometimes landuse/forest etc.
+                        ////My local park is leisure/park
+                        ////type=restriction is one we can ignore. I dont care about no U turn signs or whatnot.
+                        ////Turning these boxes into PlusCodes is a later task.
 
-                        Relation r = new Relation();
-                        r.id = osmFile.GetAttribute("id").ToLong();
-                        ParseRelationData(r, osmFile.ReadSubtree());
+                        //Relation r = new Relation();
+                        //r.id = osmFile.GetAttribute("id").ToLong();
+                        //ParseRelationData(r, osmFile.ReadSubtree());
 
-                        if (r.tags.Any(t => t.k == "type" && t.v == "restriction"  //This relation is a restriction on a road, not interesting
-                            || t.k == "building")  //this is a building and we're not looking for buildings right now.
-                            || r.members.Count == 0 //we didn't add any of the ways in this relation because they weren't useful.
-                            ) 
-                        {
-                            //do nothing with this entry.
-                        }
-                        else
-                            relations.Add(r);
+                        ////on local city data, I only care if the type is interesting, the rest of the tags are irrelevant right now.
+                        ////This is an inclusive approach, only include stuff I care about.
+                        ////if (r.tags.Any(t => t.k == "type" && t.v != "restriction"))
+                        ////{
+                        //    relations.Add(r);
+                        ////}
+
+                        ////exclusive approach was for discovery.
+                        ////if (r.tags.Any(t => t.k == "type" && t.v == "restriction"  //This relation is a restriction on a road, not interesting
+                        ////    || t.k == "building")  //this is a building and we're not looking for buildings right now.
+                        ////    || r.members.Count == 0 //we didn't add any of the ways in this relation because they weren't useful.
+                        ////    ) 
+
+                        ////else //do nothing with this entry.
+
                         break;
                 }
             }
 
             int counter = 0;
-            //osmFile.Save(filename); //saves our deletions to speed up future runs. Not really needed with XmlReader
+
+            //Do some checking now
+            //var wayTypes = ways.SelectMany(w => w.tags.Select(t => t.k + "|" + t.v)).Distinct().ToList();
+            //var relationTypes = relations.SelectMany(w => w.tags.Select(t => t.k + "|" + t.v)).Distinct().ToList();
+
+            //Figure out how to map up these Ways to plus codes.
         }
 
         public static List<Tag> parseTags(XmlReader xr)
