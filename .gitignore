@@ -339,3 +339,4 @@ ASALocalRun/
 # BeatPulse healthcheck temp database
 healthchecksdb
 /OsmXmlParser/jamaica-latest.osm
+/OsmXmlParser/jamaica-latest.zip

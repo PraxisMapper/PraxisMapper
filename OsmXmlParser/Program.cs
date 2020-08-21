@@ -3,11 +3,13 @@ using OsmXmlParser.Database;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.Design.Serialization;
+using System.Diagnostics.Tracing;
 using System.IO.Enumeration;
 using System.Linq;
 using System.Net;
 using System.Xml;
 using System.Xml.Serialization;
+using Google.OpenLocationCode;
 
 namespace OsmXmlParser
 {
@@ -21,6 +23,9 @@ namespace OsmXmlParser
 
         public static Lookup<long, Node> nodeLookup;
         public static Lookup<long, Way> wayLookup;
+
+        public static List<string> relevantTags = new List<string>() { "name", "leisure", "landuse" }; //The keys in tags we process to see if we want it included.
+        public static List<InterestingPoint> IPs = new List<InterestingPoint>();
 
         static void Main(string[] args)
         {
@@ -223,16 +228,12 @@ namespace OsmXmlParser
                 else if (xr.Name == "tag")
                 {
                     Tag t = new Tag() { k = xr.GetAttribute("k"), v = xr.GetAttribute("v") };
-                    //Also exclusive, want to make this inclusive? Or for Way tags do I read them all now and filter the way out later?
-                    if (t.k.StartsWith("name") && t.k != "name" //purge non-English names.
-                        || t.k == "created_by" //Don't need to monitor OSM users.
-                        )
-                    {
-                        //Ignore this tag.
-                    }
-                    else
-                        w.tags.Add(t);
+                    //I only want to include tags I'll refer to later.
+                    if (relevantTags.Contains(t.k))
+                        w.tags.Add(t);                        
                 }
+
+                w.AreaType = GetWayType(w.tags);
             }
             return;
         }
@@ -290,8 +291,8 @@ namespace OsmXmlParser
             Console.WriteLine("Starting way read at " + DateTime.Now);
             //TODO: read xml from zip file. Pretty sure I can stream zipfile data to save HD space, since global XML data needs 1TB of space unzipped.
             //string filename = @"..\..\..\jamaica-latest.osm"; //500MB, a reasonable test scenario for speed/load purposes.
-            string filename = @"C:\Users\Drake\Downloads\us-midwest-latest.osm\us-midwest-latest.osm"; //This one takes much longer to process, 28 GB
-            //string filename = @"C:\Users\Drake\Downloads\LocalCity.osm"; //stuff I can actually walk to. 4MB
+            //string filename = @"C:\Users\Drake\Downloads\us-midwest-latest.osm\us-midwest-latest.osm"; //This one takes much longer to process, 28 GB
+            string filename = @"C:\Users\Drake\Downloads\LocalCity.osm"; //stuff I can actually walk to. 4MB
             XmlReaderSettings xrs = new XmlReaderSettings();
             xrs.IgnoreWhitespace = true;
             XmlReader osmFile = XmlReader.Create(filename, xrs);
@@ -316,11 +317,11 @@ namespace OsmXmlParser
                         w.id = osmFile.GetAttribute("id").ToLong();
 
                         ParseWayDataV2(w, osmFile.ReadSubtree()); //Saves a list of nodeRefs, doesnt look for actual nodes.
-
+                        
                         //Trying an inclusive approach instead:
                         //Other options: landuse for various resources
-                        //Option: shop:mall for indoor stuff. (also landuse:retail?)
-                        if (w.tags.Any(t => t.k == "leisure" && (t.v == "park") || (t.k == "landuse" && (t.v == "cemetery")) || t.k == "amenity" && (t.v == "grave_yard")))
+                        //Option: landuse:retail?
+                        if (w.AreaType != "") 
                             ways.Add(w);
                         break;
                     case "relation":
@@ -390,22 +391,29 @@ namespace OsmXmlParser
 
             Console.WriteLine("Ways populated with Nodes at " + DateTime.Now);
 
+            //Take a second, create area types
+            var areaTypes = ways.Select(w => w.AreaType).Distinct().Select(w => new AreaType() { });
+
+
             //Time to actually create the game objects.
-            List<Database.ProcessedWays> pws = new List<Database.ProcessedWays>();
+            List<Database.ProcessedWay> pws = new List<Database.ProcessedWay>();
             foreach (Way w in ways)
             {
                 pws.Add(ProcessWay(w));
             }
-
             Console.WriteLine("Ways processed at " + DateTime.Now);
+
+            //Make InterestingPoint entries out of Processed Ways
+            MakePoints(pws);
+            Console.WriteLine("Interesting Points genereated at " + DateTime.Now);
         }
 
-        public static ProcessedWays ProcessWay(Way w)
+        public static ProcessedWay ProcessWay(Way w)
         {
             //Version 1.
             //Convert the list of nodes into a rectangle that covers the full bounds.
             //Is 'close enough' for now, should be fairly quick compared to more accurate calculations.
-            ProcessedWays pw = new ProcessedWays();
+            ProcessedWay pw = new ProcessedWay();
             pw.OsmWayId = w.id;
             pw.lastUpdated = DateTime.Now;
 
@@ -413,11 +421,62 @@ namespace OsmXmlParser
             pw.longitudeW = w.nds.Min(w => w.lon); //smaller numbers are west.
             pw.distanceN = w.nds.Max(w => w.lat) - pw.latitudeS; //should be a positive number now.
             pw.distanceE = w.nds.Max(w => w.lon) - pw.longitudeW; //same          
+
+            pw.AreaType = w.AreaType; //Should become a FK int to save space later. Is a string for now.
+
             
             return pw; //This can be used to make InterestingPoints for the actual app to read.
         }
 
-            
+        public static void MakePoints(List<ProcessedWay> pws)
+        {
+            double resolution = .000125;
+            foreach (ProcessedWay pw in pws)
+            {
+                //make first point.
+                OpenLocationCode plusCodeMain = new OpenLocationCode(pw.latitudeS, pw.longitudeW);
+                int cellsWide = (int)(pw.distanceE / resolution); //Plus code resolution in degrees.
+                int cellsTall  = (int)(pw.distanceN / resolution); //Plus code resolution in degrees.
+
+                for (int i = 0; i <= cellsWide; i++)
+                {
+                    for (int j = 0; j <= cellsTall; j++)
+                    {
+                        //new specific plus code
+                        //TODO: is it faster to shift the Plus code string manually like I do client-side, or to calculate a new plus code from lat/long?
+                        OpenLocationCode current = new OpenLocationCode(pw.latitudeS + (resolution * j), pw.longitudeW + (resolution * i));
+                        //make a DB entry for this 10cell
+                        InterestingPoint IP = new InterestingPoint();
+                        IP.PlusCode8 = current.CodeDigits.Substring(0, 8);
+                        IP.PlusCode2 = current.CodeDigits.Substring(8, 2);
+                        IP.OsmWayId = pw.OsmWayId;
+                        IP.areaType = pw.AreaType;
+
+                        IPs.Add(IP);
+                    }
+                }
+
+                //Insert these to the database now.
+            }
+        }
+
+        public static string GetWayType(List<Tag> tags)
+        {
+            //This is how we will figure out which area a cell counts as now.
+            //Should make sure all of these exist in the AreaTypes table I made.
+            if (tags.Any(t => t.k == "leisure" && t.v == "park"))
+                return "park";
+
+            if (tags.Any(t => (t.k == "landuse" && t.v == "cemetery")
+                || (t.k == "amenity" && t.v == "grave_yard")))
+                return "cemetary";
+
+            if (tags.Any(t => t.k == "shop" && t.v == "mall"))
+                return "mall";
+
+
+            return ""; //not a way we need to save right now.
+        }
         
 
         //This works with XmlDocument, but XmlReader is so much faster.

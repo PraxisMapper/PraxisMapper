@@ -1,4 +1,10 @@
 ﻿To create a database with EFCore:
+Set the project that needs to do DB work as the Startup Project.
+Inherit DbContext on the core class.
+Add DbSet<T> for each table you want.
+Add protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) function and set connection string
+Add protected override void OnModelCreating(ModelBuilder model) for manually declaring indexes or string length or other properties.
+Once this is done, treat initial creation as a migration, seen below.
 
 
 To create the migration code to move from previous to current database model
