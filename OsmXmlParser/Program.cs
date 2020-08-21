@@ -10,6 +10,7 @@ using System.Net;
 using System.Xml;
 using System.Xml.Serialization;
 using Google.OpenLocationCode;
+using EFCore.BulkExtensions;
 
 namespace OsmXmlParser
 {
@@ -24,17 +25,22 @@ namespace OsmXmlParser
         public static Lookup<long, Node> nodeLookup;
         public static Lookup<long, Way> wayLookup;
 
-        public static List<string> relevantTags = new List<string>() { "name", "leisure", "landuse" }; //The keys in tags we process to see if we want it included.
+        public static List<string> relevantTags = new List<string>() { "name", "leisure", "landuse", "amenity", "tourism", "historic", "natural" }; //The keys in tags we process to see if we want it included.
         public static List<InterestingPoint> IPs = new List<InterestingPoint>();
 
         static void Main(string[] args)
         {
+            //TODO: parallelize parsing where possible. reading a single XML file isn't parallelizable.
+            CleanDb(); //testing, to start on an empty DB each time.
             ParseXmlV2();
 
             //Serialze data, so I can process smaller files in the future?
             //Way should have all the stuff it needs in place after being parsed.
-            XmlSerializer xs = new XmlSerializer(typeof(List<Way>));
+            //XmlSerializer xs = new XmlSerializer(typeof(List<Way>));
 
+            //TODO: decide what elements I want to look up, then save only those results this way.
+            //Ways should have all the relevant data if I want to change ProcessedWays to save time in the future.
+            //TODO: also loop over a list of xml files?
             //System.IO.StreamWriter sw = new System.IO.StreamWriter("ProcessedWayData.xml");
             //xs.Serialize(sw, ways);
             return;
@@ -284,15 +290,15 @@ namespace OsmXmlParser
             //Run 2a: once we have all the nodes we care about, update the Way objects to fill in the List<Node> instead of the List<long> of refs.
 
             //Results:
-            //This takes ~7 seconds to process Jamaica's 500MB data.
-            //My local city takes under a second, no surprise.
-            //US Midwest takes 5:45 to read this way. Huge improvement.
+            //This takes 25 seconds to process Jamaica's 500MB data, including DB writes.
+            //My local city takes a second with DB writes.
+            //US Midwest takes 5:45 to read and write.
 
             Console.WriteLine("Starting way read at " + DateTime.Now);
             //TODO: read xml from zip file. Pretty sure I can stream zipfile data to save HD space, since global XML data needs 1TB of space unzipped.
             //string filename = @"..\..\..\jamaica-latest.osm"; //500MB, a reasonable test scenario for speed/load purposes.
-            //string filename = @"C:\Users\Drake\Downloads\us-midwest-latest.osm\us-midwest-latest.osm"; //This one takes much longer to process, 28 GB
-            string filename = @"C:\Users\Drake\Downloads\LocalCity.osm"; //stuff I can actually walk to. 4MB
+            string filename = @"C:\Users\Drake\Downloads\us-midwest-latest.osm\us-midwest-latest.osm"; //This one takes much longer to process, 28 GB
+            //string filename = @"C:\Users\Drake\Downloads\LocalCity.osm"; //stuff I can actually walk to. 4MB
             XmlReaderSettings xrs = new XmlReaderSettings();
             xrs.IgnoreWhitespace = true;
             XmlReader osmFile = XmlReader.Create(filename, xrs);
@@ -353,8 +359,10 @@ namespace OsmXmlParser
                         {
                             var n = new Node();
                             n.id = osmFile.GetAttribute("id").ToLong();
+
                             //see if we need this node. If not, don't save it.
-                            if (nodesToGet[n.id].Count() == 0)
+                            //we need this node IF it's part of a way we saved OR (TODO) has a tag of interest to point out. These tags are TBD.
+                            if (nodesToGet[n.id].Count() == 0) //TODO: || relevantTags.Contains(n.tags)
                                 break;
                             
                             n.lat = osmFile.GetAttribute("lat").ToDouble();
@@ -406,6 +414,27 @@ namespace OsmXmlParser
             //Make InterestingPoint entries out of Processed Ways
             MakePoints(pws);
             Console.WriteLine("Interesting Points genereated at " + DateTime.Now);
+
+            //database work now.
+            OsmParserContext db = new OsmParserContext();
+            db.BulkInsert<ProcessedWay>(pws);
+            //db.SaveChanges();
+            Console.WriteLine("Processed Ways saved to DB at " + DateTime.Now);
+
+            //db.InterestingPoints.AddRange(IPs);
+            db.BulkInsert<InterestingPoint>(IPs);
+            db.SaveChanges();
+            Console.WriteLine("Interesting Points saved to DB at " + DateTime.Now);
+        }
+
+        public static void LoadPreviouslyParsedData(string filename)
+        {
+            //Should match up to ParseXMLV2, but instead of the OSM XML file, 
+            //use a serialized value. Just un-serialize them and continue on.
+
+            XmlSerializer xs = new XmlSerializer(typeof(List<Way>));
+            System.IO.StreamReader sw = new System.IO.StreamReader(filename);
+            ways = (List<Way>)xs.Deserialize(sw);
         }
 
         public static ProcessedWay ProcessWay(Way w)
@@ -430,11 +459,11 @@ namespace OsmXmlParser
 
         public static void MakePoints(List<ProcessedWay> pws)
         {
-            double resolution = .000125;
+            double resolution = .000125; //the size in degress of a PlusCode cell at the 10-digit level.
             foreach (ProcessedWay pw in pws)
             {
-                //make first point.
-                OpenLocationCode plusCodeMain = new OpenLocationCode(pw.latitudeS, pw.longitudeW);
+                //make first point. NO, don't i'll do that on the 0/0 loop.
+                //OpenLocationCode plusCodeMain = new OpenLocationCode(pw.latitudeS, pw.longitudeW);
                 int cellsWide = (int)(pw.distanceE / resolution); //Plus code resolution in degrees.
                 int cellsTall  = (int)(pw.distanceN / resolution); //Plus code resolution in degrees.
 
@@ -455,8 +484,6 @@ namespace OsmXmlParser
                         IPs.Add(IP);
                     }
                 }
-
-                //Insert these to the database now.
             }
         }
 
@@ -476,6 +503,22 @@ namespace OsmXmlParser
 
 
             return ""; //not a way we need to save right now.
+        }
+
+        public static void CleanDb()
+        {
+            //Test function to put the DB back to empty.
+            OsmParserContext osm = new OsmParserContext();
+            osm.AreaTypes.RemoveRange(osm.AreaTypes);
+            osm.SaveChanges();
+
+            osm.InterestingPoints.RemoveRange(osm.InterestingPoints);
+            osm.SaveChanges();
+
+            osm.ProcessedWays.RemoveRange(osm.ProcessedWays);
+            osm.SaveChanges();
+
+            Console.WriteLine("DB cleaned at " + DateTime.Now);
         }
         
 
