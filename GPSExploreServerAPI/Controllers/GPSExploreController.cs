@@ -19,6 +19,11 @@ namespace GPSExploreServerAPI.Controllers
          * done: Most small cells, most big cells, highest score, most distance,  most time, fastest avg speed (distance/time),
          * Ties should be broken by date (so, who most recently did the thing that set the score), which means tracking more data client-side. 
          * --Tiebreaker calc: .Where(p => p.value > my.value && p.dateLastUpdated > my.dateLastUpdated? 
+         * 
+         * TODO:
+         * Merge with the completed OsmServer DB? Or can I use 2 DbContexts in one project?
+         * Set up API to load intersting points for tiles and return that data.
+         * (may need a couple passes on this concept to find the best answer)
         */
 
         //Session is not enabled by default on API projects, which is correct.

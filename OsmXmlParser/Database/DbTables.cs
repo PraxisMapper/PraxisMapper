@@ -38,6 +38,7 @@ namespace OsmXmlParser.Database
         [ForeignKey("AreaType")]
         public int AreaTypeId { get; set; }  //FK to what area type this row is.
         public string AreaType { get; set; } //placeholder data until I get FKs set up and worked out.
+        public string name { get; set; } //keeping for reference, in case i want to see WHAT an area is.
 
         //Might want a ModifiedLat / ModifiedLon column(s) for searching, so I could pass in coordinate points and pull back 
         //anything in bounds, bounds being (lat/lon + distance)

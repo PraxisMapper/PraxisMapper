@@ -3,15 +3,17 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using OsmXmlParser.Database;
 
 namespace OsmXmlParser.Migrations
 {
     [DbContext(typeof(OsmParserContext))]
-    partial class OsmParserContextModelSnapshot : ModelSnapshot
+    [Migration("20200821150602_nameProcessedWays")]
+    partial class nameProcessedWays
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
