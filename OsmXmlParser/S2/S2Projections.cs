@@ -45,9 +45,10 @@ namespace Google.Common.Geometry
  * from points (unit vectors) respectively.
  *
  *  Area Edge Diag ToPoint FromPoint Ratio Ratio Ratio (microseconds)
- * ------------------------------------------------------- Linear: 5.200 2.117
- * 2.959 0.103 0.123 Tangent: 1.414 1.414 1.704 0.290 0.306 Quadratic: 2.082
- * 1.802 1.932 0.116 0.161
+ * ------------------------------------------------------- 
+ * Linear: 5.200 2.117 2.959 0.103 0.123 
+ * Tangent: 1.414 1.414 1.704 0.290 0.306 
+ * Quadratic: 2.082 1.802 1.932 0.116 0.161
  *
  *  The worst-case cell aspect ratios are about the same with all three
  * projections. The maximum ratio of the longest edge to the shortest edge
