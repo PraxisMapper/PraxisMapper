@@ -12,6 +12,13 @@ using Google.OpenLocationCode;
 using EFCore.BulkExtensions;
 using DatabaseAccess;
 using static DatabaseAccess.DbTables;
+using NetTopologySuite.Geometries;
+using Microsoft.EntityFrameworkCore.ValueGeneration.Internal;
+using NetTopologySuite;
+using System.Text.Json;
+using System.IO;
+using System.Threading.Tasks;
+using System.Runtime.InteropServices;
 
 namespace OsmXmlParser
 {
@@ -24,149 +31,46 @@ namespace OsmXmlParser
         public static List<Relation> relations = new List<Relation>();
 
         public static Lookup<long, Node> nodeLookup;
-        public static Lookup<long, Way> wayLookup;
 
-        public static List<string> relevantTags = new List<string>() { "name", "natural", "leisure", "landuse", "amenity", "tourism", "historic"}; //The keys in tags we process to see if we want it included.
+        public static List<string> relevantTags = new List<string>() { "name", "natural", "leisure", "landuse", "amenity", "tourism", "historic" }; //The keys in tags we process to see if we want it included.
+        public static List<string> relevantTourismValues = new List<string>() { "artwork", "attraction", "gallery", "museum", "viewpoint", "zoo"}; //The stuff we care about in the tourism category. Zoo and attraction are debatable.
         public static List<InterestingPoint> IPs = new List<InterestingPoint>();
+        public static List<SinglePointsOfInterest> SPOI = new List<SinglePointsOfInterest>();
 
         static void Main(string[] args)
         {
             //TODO: parallelize parsing where possible. reading a single XML file isn't parallelizable.
             //CleanDb(); //testing, to start on an empty DB each time.
-            //ParseXmlV2(); //temporarily switching to making smaller files.
-            MakeAllSerializedFiles();
+            //ParseXmlV3(); //temporarily switching to making smaller files.
 
+            //testing DB support for this.
+            //LoadPreviouslyParsedWayData("LocalCity-RawWays.xml");
+            //TryRawWay(ways.First());
 
-            //Serialze data, so I can process smaller files in the future?
-            //Way should have all the stuff it needs in place after being parsed.
-            //XmlSerializer xs = new XmlSerializer(typeof(List<Way>));
-
-            //TODO: decide what elements I want to look up, then save only those results this way.
-            //Ways should have all the relevant data if I want to change ProcessedWays to save time in the future.
-            //TODO: also loop over a list of xml files?
-            //System.IO.StreamWriter sw = new System.IO.StreamWriter("ProcessedWayData.xml");
-            //xs.Serialize(sw, ways);
+            MakeAllSerializedFiles(); //Still hacking through these. 
             return;
         }
 
-        public static void ParseXmlV1() 
-        { 
-            //Hardcoding test logic here.
-            //TODO: read xml from zip file. Pretty sure I can stream zipfile data to save HD space, since global XML data needs 1TB of space unzipped.
-            string filename = @"..\..\..\jamaica-latest.osm"; //this one takes about 10 seconds to run though, 500MB
-            //string filename = @"C:\Users\Drake\Downloads\us-midwest-latest.osm\us-midwest-latest.osm"; //This one takes much longer to process, 28 GB
-            //string filename = @"C:\Users\Drake\Downloads\LocalCity.osm"; //stuff I can actually walk to. 4MB
-            XmlReaderSettings xrs = new XmlReaderSettings();
-            xrs.IgnoreWhitespace = true;
-            XmlReader osmFile = XmlReader.Create(filename, xrs);
-            osmFile.MoveToContent();
+        public static void TryRawWay(Way w)
+        {
+            //Translate a Way into a Sql Server datatype. This was confirming the minumum logic for this.
+            //Something fails if the polygon isn't a closed shape, so I should check if firstpoint == lastpoint, and if not add a copy of firstpoint as the last point?
+            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
 
-            while (osmFile.Read())
-            {
-                //This takes about 11 seconds right now to parse Jamaica's full file with XmlReader
-                //Its fast enough where I may not bother to remove unused data from the source xml.
-                switch (osmFile.Name)
-                {
-                    case "bounds": //the logical limits of the data in this file.
-                        var b = new Bounds();
-                        b.minlon = osmFile.GetAttribute("minlon").ToDouble();
-                        b.minlat = osmFile.GetAttribute("minlat").ToDouble();
-                        b.maxlon = osmFile.GetAttribute("maxlon").ToDouble();
-                        b.maxlat = osmFile.GetAttribute("maxlat").ToDouble();
-                        bounds.Add(b);
-                        break;
-                    case "node":
-                        //It's a shame we can't dig farther into the XML file to know if this node is needed or not until we've loaded them all.
-                        if (osmFile.NodeType == XmlNodeType.Element) //sometimes is EndElement if we had tags we ignored.
-                        {
-                            var n = new Node();
-                            n.id = osmFile.GetAttribute("id").ToLong();
-                            n.lat = osmFile.GetAttribute("lat").ToDouble();
-                            n.lon = osmFile.GetAttribute("lon").ToDouble();
-                            //nodes might have tags with useful info
-                            //if (osmFile.NodeType == XmlNodeType.Element)
+            MapData md = new MapData();
+            md.name = w.name;
+            md.WayId = w.id;
+            Polygon temp = factory.CreatePolygon(w.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray()); 
+            if (!temp.Shell.IsCCW)
+                temp = (Polygon)temp.Reverse();
 
-                            //Actually, I don't care about tags on an individual node right now. Removing this.
-                            //There COULD be tagged nodes that matter, and I could make a cell for them, but for now I dont know what those options are
-                            //n.tags = parseTags(osmFile.ReadSubtree());
-                            //TODO: delete note tags that aren't interesting //EX: created-by, 
-                            //TODO: delete nodes that only belonged to boring ways/relations.
-                            nodes.Add(n);
-                        }
-                        break;
-                    case "way":
-                        //One-shot update this for speed
-                        if (nodeLookup == null)
-                            nodeLookup = (Lookup<long, Node>)nodes.ToLookup(k => k.id, v => v);
-                        //way will contain 'nd' elements with 'ref' to a node by ID.
-                        //may contain tag, k is the type of thing it is.
-                        var w = new Way();
-                        w.id = osmFile.GetAttribute("id").ToLong();
-
-                        ParseWayData(w, osmFile.ReadSubtree());
-                        //w.nds = parseWayNodes(osmFile.ReadSubtree());
-                        //w.tags = parseTags(osmFile.ReadSubtree());
-
-                        //TODO: delete ways that are just buildings with no additional markers.
-                        //if (!w.tags.Any(t => t.k == "building"  //don't add buildings
-                        //        || t.k == "runway" //we dont need runways.
-                        //        || t.k == "highway" //ignoring roads.
-                        //        )) 
-                        
-                        //Trying an inclusive approach instead:
-                        //Other options: landuse for various resources
-                        //Option: shop:mall for indoor stuff. (also landuse:retail?)
-                        if (w.tags.Any(t => t.k == "leisure" && (t.v == "park") || (t.k == "landuse" && (t.v == "cemetery")) || t.k =="amenity" && (t.v == "grave_yard")))
-                            ways.Add(w);
-                        break;
-                    case "relation":
-                        //Upon second thought, I might not actually need relations for what I'm doing. Blocking this out for now.
-                        ////again, one shot update
-                        //if (wayLookup == null)
-                        //    wayLookup = (Lookup<long, Way>)ways.ToLookup(k => k.id, v => v);
-                        ////relation has 'member' with a type (usually to a 'way' entry) and a ref to their id
-                        ////Can also have tags with various keys (k). Which ones are intersting?
-                        ////see https://wiki.openstreetmap.org/wiki/Map_Features for what's what here.
-                        ////k = "natural", "tourism", "power", "sport", "leisure", "landuse"[residential, cemetary], "Waterway", type=route, route=foot ?
-                        ////Some of these will be complicated because people dont agree on which to use.
-                        ////EX: leisure/park is technically a park, but could also be boundary/national_park or sometimes landuse/forest etc.
-                        ////My local park is leisure/park
-                        ////type=restriction is one we can ignore. I dont care about no U turn signs or whatnot.
-                        ////Turning these boxes into PlusCodes is a later task.
-
-                        //Relation r = new Relation();
-                        //r.id = osmFile.GetAttribute("id").ToLong();
-                        //ParseRelationData(r, osmFile.ReadSubtree());
-
-                        ////on local city data, I only care if the type is interesting, the rest of the tags are irrelevant right now.
-                        ////This is an inclusive approach, only include stuff I care about.
-                        ////if (r.tags.Any(t => t.k == "type" && t.v != "restriction"))
-                        ////{
-                        //    relations.Add(r);
-                        ////}
-
-                        ////exclusive approach was for discovery.
-                        ////if (r.tags.Any(t => t.k == "type" && t.v == "restriction"  //This relation is a restriction on a road, not interesting
-                        ////    || t.k == "building")  //this is a building and we're not looking for buildings right now.
-                        ////    || r.members.Count == 0 //we didn't add any of the ways in this relation because they weren't useful.
-                        ////    ) 
-
-                        ////else //do nothing with this entry.
-
-                        break;
-                }
-            }
-
-            int counter = 0;
-
-            //Do some checking now
-            //var wayTypes = ways.SelectMany(w => w.tags.Select(t => t.k + "|" + t.v)).Distinct().ToList();
-            //var relationTypes = relations.SelectMany(w => w.tags.Select(t => t.k + "|" + t.v)).Distinct().ToList();
-
-            //Figure out how to map up these Ways to plus codes.
+            md.place = temp;
+            GpsExploreContext db = new GpsExploreContext();
+            db.MapData.Add(md); 
+            db.SaveChanges();
         }
 
-        public static List<Tag> parseTags(XmlReader xr)
+        public static List<Tag> parseNodeTags(XmlReader xr)
         {
             List<Tag> retVal = new List<Tag>();
 
@@ -175,52 +79,12 @@ namespace OsmXmlParser
                 if (xr.Name == "tag")
                 {
                     Tag t = new Tag() { k = xr.GetAttribute("k"), v = xr.GetAttribute("v") };
-                    //This is an exclusive approach. I'd prefer an inclusive approach, but I don't yet know what tags an individual node might have I want.
-                    if (t.k.StartsWith("name") && t.k != "name" //purge non-English names.
-                        || t.k == "created_by" //Don't need to monitor OSM users.
-                        || t.k == "highway" //not interested in storing road data.
-                        || t.k == "surface" //dont care, this is road data
-                        || t.k == "traffic_calming" //dont care, this is road data
-                        || t.k == "direction" //dont care, this is road data
-                        )
-                    { 
-                        //Ignore this tag.
-                    }
-                    else
+                    //I only want to include tags I'll refer to later.
+                    if (relevantTags.Contains(t.k))
                         retVal.Add(t);
                 }
             }
             return retVal;
-        }
-
-        public static void ParseWayData(Way w, XmlReader xr)
-        {
-            List<Node> retVal = new List<Node>();
-
-            while (xr.Read())
-            {
-                if (xr.Name == "nd")
-                {
-                    long nodeID = xr.GetAttribute("ref").ToLong();
-                    Node n = nodeLookup[nodeID].First(); // nodes.Where(n => n.id == nodeID).FirstOrDefault();
-                    if (n != null && n.id != null)
-                        w.nds.Add(n);
-                }
-                else if (xr.Name == "tag")
-                {
-                    Tag t = new Tag() { k = xr.GetAttribute("k"), v = xr.GetAttribute("v") };
-                    //Also exclusive, want to make this inclusive? Or for Way tags do I read them all now and filter the way out later?
-                    if (t.k.StartsWith("name") && t.k != "name" //purge non-English names.
-                        || t.k == "created_by" //Don't need to monitor OSM users.
-                        )
-                    {
-                        //Ignore this tag.
-                    }
-                    else
-                        w.tags.Add(t);
-                }
-            }
-            return;
         }
 
         public static void ParseWayDataV2(Way w, XmlReader xr)
@@ -239,10 +103,11 @@ namespace OsmXmlParser
                     Tag t = new Tag() { k = xr.GetAttribute("k"), v = xr.GetAttribute("v") };
                     //I only want to include tags I'll refer to later.
                     if (relevantTags.Contains(t.k))
-                        w.tags.Add(t);                        
+                        w.tags.Add(t);
                 }
 
-                w.AreaType = GetWayType(w.tags);
+                w.name = w.tags.Where(t => t.k == "name").Select(t => t.v).FirstOrDefault();
+                w.AreaType = GetType(w.tags);
             }
             return;
         }
@@ -251,7 +116,7 @@ namespace OsmXmlParser
         {
             //I dont think I'm actually parsing this now, since these are rarely things I'm interested in.
             List<Node> retVal = new List<Node>();
-            
+
             while (xr.Read())
             {
                 if (xr.Name == "member")
@@ -300,8 +165,8 @@ namespace OsmXmlParser
             Console.WriteLine("Starting way read at " + DateTime.Now);
             //TODO: read xml from zip file. Pretty sure I can stream zipfile data to save HD space, since global XML data needs 1TB of space unzipped.
             //string filename = @"..\..\..\jamaica-latest.osm"; //500MB, a reasonable test scenario for speed/load purposes.
-            string filename = @"C:\Users\Drake\Downloads\us-midwest-latest.osm\us-midwest-latest.osm"; //This one takes much longer to process, 28 GB
-            //string filename = @"C:\Users\Drake\Downloads\LocalCity.osm"; //stuff I can actually walk to. 4MB
+            //string filename = @"C:\Users\Drake\Downloads\us-midwest-latest.osm\us-midwest-latest.osm"; //This one takes much longer to process, 28 GB
+            string filename = @"C:\Users\Drake\Downloads\LocalCity.osm"; //stuff I can actually walk to. 4MB
             XmlReaderSettings xrs = new XmlReaderSettings();
             xrs.IgnoreWhitespace = true;
             XmlReader osmFile = XmlReader.Create(filename, xrs);
@@ -326,11 +191,11 @@ namespace OsmXmlParser
                         w.id = osmFile.GetAttribute("id").ToLong();
 
                         ParseWayDataV2(w, osmFile.ReadSubtree()); //Saves a list of nodeRefs, doesnt look for actual nodes.
-                        
+
                         //Trying an inclusive approach instead:
                         //Other options: landuse for various resources
                         //Option: landuse:retail?
-                        if (w.AreaType != "") 
+                        if (w.AreaType != "")
                             ways.Add(w);
                         break;
                     case "relation":
@@ -349,12 +214,12 @@ namespace OsmXmlParser
 
             var nodesToGet = ways.SelectMany(w => w.nodRefs).ToLookup(k => k, v => v);
             //var nodesByWay = ways. //Need a quicker way to find Ways that need a node?
-            
+
             Console.WriteLine("Nodes to process parsed at " + DateTime.Now);
             while (osmFile.Read() && !exitEarly)
             {
                 //Now process Nodes we need to.
-                switch (osmFile.Name) 
+                switch (osmFile.Name)
                 {
                     case "node":
                         //It's a shame we can't dig farther into the XML file to know if this node is needed or not until we've loaded them all.
@@ -367,7 +232,7 @@ namespace OsmXmlParser
                             //we need this node IF it's part of a way we saved OR (TODO) has a tag of interest to point out. These tags are TBD.
                             if (nodesToGet[n.id].Count() == 0) //TODO: || relevantTags.Contains(n.tags)
                                 break;
-                            
+
                             n.lat = osmFile.GetAttribute("lat").ToDouble();
                             n.lon = osmFile.GetAttribute("lon").ToDouble();
                             //nodes might have tags with useful info
@@ -439,22 +304,197 @@ namespace OsmXmlParser
             db.BulkInsert<InterestingPoint>(IPs);
             db.SaveChanges();
             Console.WriteLine("Interesting Points saved to DB at " + DateTime.Now);
+
+            //Make ways into geometry on the server.
         }
 
-        public static void LoadPreviouslyParsedData(string filename)
+        public static void ParseXmlV3()
         {
-            //Should match up to ParseXMLV2, but instead of the OSM XML file, 
-            //use a serialized value. Just un-serialize them and continue on.
+            //PArseXML needs an additional rethink: I'm using MakeAllSerializedFiles to reduce the amount of processing.
+            //V4 might need to check for JSON files, and if so work on those instead. 
+            //If the JSON is missing, then read and parse the XML data instead to fill the List<>s?
 
-            XmlSerializer xs = new XmlSerializer(typeof(List<Way>));
-            System.IO.StreamReader sw = new System.IO.StreamReader(filename);
-            ways = (List<Way>)xs.Deserialize(sw);
+
+            //Third re-think. Read the file once.
+            //Nodes: if a node has interesting tags, make it a SinglePointOfInterest. Otherwise, throw it in the list.
+            //Ways: works roughtly the same, except I don't need the temp-list. i have the nodes already.
+            //Relations: skip, as usual.
+
+            //Results:
+            //This takes 12 seconds to process Jamaica's 500MB data, including DB writes (without InterestingPoints)
+            //My local city takes 2 seconds with DB writes and JSON serialization
+            //US Midwest takes ? to read and write.
+
+            Console.WriteLine("Starting Node read at " + DateTime.Now);
+            //TODO: read xml from zip file. Pretty sure I can stream zipfile data to save HD space, since global XML data needs 1TB of space unzipped.
+            //string filename = @"..\..\..\jamaica-latest.osm"; //500MB, a reasonable test scenario for speed/load purposes.
+            string filename = @"C:\Users\Drake\Downloads\us-midwest-latest.osm\us-midwest-latest.osm"; //This one takes much longer to process, 28 GB
+            //string filename = @"C:\Users\Drake\Downloads\LocalCity.osm"; //stuff I can actually walk to. 4MB
+            XmlReaderSettings xrs = new XmlReaderSettings();
+            xrs.IgnoreWhitespace = true;
+            XmlReader osmFile = XmlReader.Create(filename, xrs);
+            osmFile.MoveToContent();
+
+            System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
+            timer.Start();
+
+            bool firstWay = true;
+            bool exitEarly = false;
+            while (osmFile.Read() && !exitEarly)
+            {
+                if (timer.ElapsedMilliseconds > 10000)
+                {
+                    //Report progress on the console.
+                    Console.WriteLine("Processed " + nodes.Count() + " nodes and " + ways.Count() + " ways so far");
+                    timer.Restart();
+                }
+
+                switch (osmFile.Name)
+                {
+                    case "node":
+                        if (osmFile.NodeType == XmlNodeType.Element) //sometimes is EndElement if we had tags we ignored.
+                        {
+                            var n = new Node();
+                            n.id = osmFile.GetAttribute("id").ToLong();
+                            n.lat = osmFile.GetAttribute("lat").ToDouble();
+                            n.lon = osmFile.GetAttribute("lon").ToDouble();
+                            nodes.Add(n); 
+                            //This data below doesn't need saved in RAM, so we remove it after processing for SPOI and don't include it in the base Node object.
+                            var tags = parseNodeTags(osmFile.ReadSubtree());
+                            string name = tags.Where(t => t.k == "name").Select(t => t.v).FirstOrDefault();
+                            string nodetype = GetType(tags);
+                            //Now checking if this node is individually interesting.
+                            if (nodetype != "") //a name along is not interesting
+                                SPOI.Add(new SinglePointsOfInterest() { name = name, lat = n.lat, lon = n.lon, NodeID = n.id, NodeType = nodetype });
+                        }
+                        break;
+                    case "way":
+                        if (firstWay) { Console.WriteLine("First Way entry found at " + DateTime.Now); firstWay = false; }
+
+                        //way will contain 'nd' elements with 'ref' to a node by ID.
+                        //may contain tag, k is the type of thing it is.
+                        var w = new Way();
+                        w.id = osmFile.GetAttribute("id").ToLong();
+
+                        ParseWayDataV2(w, osmFile.ReadSubtree()); //Saves a list of nodeRefs, doesnt look for actual nodes yet.
+
+                        if (w.AreaType != "")
+                            ways.Add(w);
+                        break;
+                    case "relation":
+                        //we're done with way entries.
+                        exitEarly = true;
+                        break;
+                }
+            }
+            Console.WriteLine("Done reading Way objects at " + DateTime.Now);
+
+            //We got at least partway through processing, save these now.
+            File.WriteAllText(System.IO.Path.GetFileNameWithoutExtension(filename) + "-Nodes.json", JsonSerializer.Serialize(nodes));
+            File.WriteAllText(System.IO.Path.GetFileNameWithoutExtension(filename) + "-RawWays.json", JsonSerializer.Serialize(ways));
+            File.WriteAllText(System.IO.Path.GetFileNameWithoutExtension(filename) + "-SPOI.json", JsonSerializer.Serialize(SPOI));
+            Console.WriteLine("Stuff dumped to JSON at " + DateTime.Now);
+
+            //might need to loop over Ways now, add in Nodes as needed.
+            nodeLookup = (Lookup<long, Node>)nodes.ToLookup(k => k.id, v => v);
+            Console.WriteLine("Node lookup created at " + DateTime.Now);
+
+            foreach (Way w in ways)
+            {
+                foreach (long nr in w.nodRefs)
+                {
+                    w.nds.Add(nodeLookup[nr].First());
+                }
+                w.nodRefs = null; //free up a little memory we won't use again.
+            }
+            Console.WriteLine("Ways populated with Nodes at " + DateTime.Now);
+
+            //Take a second, create area types. Actually, haven't done this stuff yet.
+            //var areaTypes = ways.Select(w => w.AreaType).Distinct().Select(w => new AreaType() { });
+
+
+            //Time to actually create the game objects.
+            List<ProcessedWay> pws = new List<ProcessedWay>();
+            foreach (Way w in ways)
+            {
+                var pw = ProcessWay(w);
+                if (pw != null)
+                    pws.Add(pw);
+            }
+            Console.WriteLine("Ways processed at " + DateTime.Now);
+
+            //Converting this to Json to minimize disk space. Json's about half the size.
+            File.WriteAllText(System.IO.Path.GetFileNameWithoutExtension(filename) + "-ProcessedWays.json", JsonSerializer.Serialize(pws));
+            Console.WriteLine("ProcessedWays dumped to JSON at " + DateTime.Now);
+
+            //Skipping this for now, this isn't a sufficient process right now. Need to think on this.
+            //Make InterestingPoint entries out of Processed Ways
+            //MakePoints(pws);
+            //Console.WriteLine("Interesting Points genereated at " + DateTime.Now);
+
+            //database work now.
+            GpsExploreContext db = new GpsExploreContext();
+            db.BulkInsert<ProcessedWay>(pws);
+            Console.WriteLine("Processed Ways saved to DB at " + DateTime.Now);
+
+            db.BulkInsert<InterestingPoint>(IPs);
+            Console.WriteLine("Interesting Points saved to DB at " + DateTime.Now);
+
+            db.BulkInsert<SinglePointsOfInterest>(SPOI);
+            Console.WriteLine("SPOI saved to DB at " + DateTime.Now);
+
+            //Make SQL geometry entries.
+            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
+            List<MapData> mapDatas = new List<MapData>();
+            foreach (Way w in ways)
+            {
+                //TODO: try/catch this, if the way's points don't make a closed polygon this errors out.
+                try
+                {
+                    MapData md = new MapData();
+                    md.name = w.name;
+                    md.type = w.AreaType;
+                    md.WayId = w.id;
+                    Polygon temp = factory.CreatePolygon(w.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray());
+                    if (!temp.Shell.IsCCW)
+                        temp = (Polygon)temp.Reverse();
+
+                    md.place = temp;
+
+                    mapDatas.Add(md);
+                }
+                catch(Exception ex)
+                {
+                    Console.WriteLine("Error making MapData entry: " + ex.Message);
+                }
+            }
+            //db.BulkInsert<MapData>(mapDatas); //Throws errors on data type.
+            db.MapData.AddRange(mapDatas);
+            db.SaveChanges(); //bulkInsert might not work on this type
+            Console.WriteLine("SQL Geometry values converted and saved to DB at " + DateTime.Now);
+
+        }
+
+        public static void LoadPreviouslyParsedWayData(string filename)
+        {
+            ways = (List<Way>)JsonSerializer.Deserialize(File.ReadAllText(filename), typeof(List<Way>));
+        }
+
+        public static void LoadPreviouslyParsedNodeData(string filename)
+        {
+            nodes = (List<Node>)JsonSerializer.Deserialize(File.ReadAllText(filename), typeof(List<Node>));
+        }
+
+        public static void LoadPreviouslyParsedSPOIData(string filename)
+        {
+            SPOI = (List<SinglePointsOfInterest>)JsonSerializer.Deserialize(File.ReadAllText(filename), typeof(List<SinglePointsOfInterest>));
         }
 
         public static ProcessedWay ProcessWay(Way w)
         {
             if (w == null)
                 return null;
+
             //Version 1.
             //Convert the list of nodes into a rectangle that covers the full bounds.
             //Is 'close enough' for now, should be fairly quick compared to more accurate calculations.
@@ -477,6 +517,7 @@ namespace OsmXmlParser
             //I could probably use the actual geolocation stuff in SQL Server 
             //and see if any Way (before this approximate processing) .Contains() the center of a Plus code.
             //Might need to start at the 8cell level, and if anything hits there, THEN check for 10cells contained by it?
+            //This is the MapData class that stores the whole vector list of nodes in SQL Server
         }
 
         public static void MakePoints(List<ProcessedWay> pws)
@@ -490,7 +531,7 @@ namespace OsmXmlParser
                 //make first point. NO, don't i'll do that on the 0/0 loop.
                 //OpenLocationCode plusCodeMain = new OpenLocationCode(pw.latitudeS, pw.longitudeW);
                 int cellsWide = (int)(pw.distanceE / resolution); //Plus code resolution in degrees.
-                int cellsTall  = (int)(pw.distanceN / resolution); //Plus code resolution in degrees.
+                int cellsTall = (int)(pw.distanceN / resolution); //Plus code resolution in degrees.
 
                 for (int i = 0; i <= cellsWide; i++)
                 {
@@ -512,7 +553,7 @@ namespace OsmXmlParser
             }
         }
 
-        public static string GetWayType(List<Tag> tags)
+        public static string GetType(List<Tag> tags)
         {
             //This is how we will figure out which area a cell counts as now.
             //Should make sure all of these exist in the AreaTypes table I made.
@@ -535,7 +576,7 @@ namespace OsmXmlParser
                 return "park";
 
             //Beaches are good. Managed beaches are less good but I'll count those too.
-            if (tags.Any(t => (t.k == "natural" && t.v == "beach") 
+            if (tags.Any(t => (t.k == "natural" && t.v == "beach")
             || (t.k == "leisure" && t.v == "beach_resort")))
                 return "beach";
 
@@ -562,12 +603,18 @@ namespace OsmXmlParser
                 return "retail";
 
             //I have tourism as a tag to save, but not necessarily sub-sets yet of whats interesting there.
-            if (tags.Any(t => (t.k == "tourism")))
-                return "tourism";
+            if (tags.Any(t => (t.k == "tourism" && relevantTourismValues.Contains(t.v))))
+                return "tourism"; //TODO: create sub-values for tourism types?
 
             //I have historical as a tag to save, but not necessarily sub-sets yet of whats interesting there.
             if (tags.Any(t => (t.k == "historical")))
                 return "historical";
+
+            //Possibly of interest:
+            //landuse:forest / landuse:orchard  / natural:wood
+            //natural:sand may be of interest for desert area?
+            //natural:spring / natural:hot_spring
+            //Anything else seems un-interesting or irrelevant.
 
             return ""; //not a way we need to save right now.
         }
@@ -585,20 +632,31 @@ namespace OsmXmlParser
             osm.ProcessedWays.RemoveRange(osm.ProcessedWays);
             osm.SaveChanges();
 
+            osm.MapData.RemoveRange(osm.MapData);
+            osm.SaveChanges();
+
+            osm.SinglePointsOfInterests.RemoveRange(osm.SinglePointsOfInterests);
+            osm.SaveChanges();
+
             Console.WriteLine("DB cleaned at " + DateTime.Now);
         }
 
         public static void MakeAllSerializedFiles()
         {
+            //This function is meant to let me save time in the future by giving me the core data I can re-process without the extra I don't need.
+            //It's also in a smaller format than XML to boot.
+            //For later processsing, I will want to work on the smaller files (unless I'm adding data to this intermediate step).
+            //Loading the smaller files directly to the in-memory representation would be so much faster than reading XML tag by tag.
             List<string> filenames = System.IO.Directory.EnumerateFiles(@"D:\Projects\OSM Server Info\XmlToProcess\", "*.osm").ToList();
 
-            //This loop takes about 10 minutes to handle one of the USA sub-region files, reading from my USB3 external HD. (Internal M2 SSD would probably be almost twice as fast)
             foreach (string filename in filenames)
             {
                 ways = null;
                 nodes = null;
+                SPOI = null;
                 ways = new List<Way>();
                 nodes = new List<Node>();
+                SPOI = new List<SinglePointsOfInterest>();
 
                 Console.WriteLine("Starting " + filename + " way read at " + DateTime.Now);
                 XmlReaderSettings xrs = new XmlReaderSettings();
@@ -606,17 +664,48 @@ namespace OsmXmlParser
                 XmlReader osmFile = XmlReader.Create(filename, xrs);
                 osmFile.MoveToContent();
 
+                System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
+                timer.Start();
+
                 bool firstWay = true;
                 bool exitEarly = false;
                 while (osmFile.Read() && !exitEarly)
                 {
+                    if (timer.ElapsedMilliseconds > 10000)
+                    {
+                        //Report progress on the console.
+                        Console.WriteLine("Processed " + nodes.Count() + " nodes and " + ways.Count() + " ways so far");
+                        timer.Restart();
+                    }
+
                     switch (osmFile.Name)
                     {
+                        case "node":
+                            if (osmFile.NodeType == XmlNodeType.Element) //sometimes is EndElement if we had tags we ignored.
+                            {
+                                var n = new Node();
+                                n.id = osmFile.GetAttribute("id").ToLong();
+                                n.lat = osmFile.GetAttribute("lat").ToDouble();
+                                n.lon = osmFile.GetAttribute("lon").ToDouble();
+                                nodes.Add(n);
+                                //This data below doesn't need saved in RAM, so we remove it after processing for SPOI and don't include it in the base Node object.
+                                var tags = parseNodeTags(osmFile.ReadSubtree());
+                                string name = tags.Where(t => t.k == "name").Select(t => t.v).FirstOrDefault();
+                                string nodetype = GetType(tags);
+                                //Now checking if this node is individually interesting.
+                                if (nodetype != "") //a name along is not interesting
+                                    SPOI.Add(new SinglePointsOfInterest() { name = name, lat = n.lat, lon = n.lon, NodeID = n.id, NodeType = nodetype });
+                            }
+                            break;
                         case "way":
                             if (firstWay) { Console.WriteLine("First Way entry found at " + DateTime.Now); firstWay = false; }
+
+                            //way will contain 'nd' elements with 'ref' to a node by ID.
+                            //may contain tag, k is the type of thing it is.
                             var w = new Way();
                             w.id = osmFile.GetAttribute("id").ToLong();
-                            ParseWayDataV2(w, osmFile.ReadSubtree()); //Saves a list of nodeRefs, doesnt look for actual nodes.
+
+                            ParseWayDataV2(w, osmFile.ReadSubtree()); //Saves a list of nodeRefs, doesnt look for actual nodes yet.
 
                             if (w.AreaType != "")
                                 ways.Add(w);
@@ -629,109 +718,39 @@ namespace OsmXmlParser
                 }
                 Console.WriteLine("Done reading Way objects at " + DateTime.Now);
 
-                //We now have all Way info. Reset the XML Reader
-                osmFile.Close(); osmFile.Dispose();
-                osmFile = XmlReader.Create(filename, xrs);
-                osmFile.MoveToContent();
-                exitEarly = false;
+                string destFolder = @"D:\Projects\OSM Server Info\Trimmed JSON Files\";
+                //We got at least partway through processing, save these now.
+                //File.WriteAllText(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-AllNodes.json", JsonSerializer.Serialize(nodes)); //I won't need nodes, since they're part of the other 2 lists.
+                File.WriteAllText(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-RawWays.json", JsonSerializer.Serialize(ways));
+                File.WriteAllText(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-SPOI.json", JsonSerializer.Serialize(SPOI));
+                Console.WriteLine("Important Stuff dumped to JSON at " + DateTime.Now);
 
-                var nodesToGet = ways.SelectMany(w => w.nodRefs).ToLookup(k => k, v => v);
-                Console.WriteLine("Nodes to process parsed at " + DateTime.Now);
-                while (osmFile.Read() && !exitEarly)
-                {
-                    //Now process Nodes we need to.
-                    switch (osmFile.Name)
-                    {
-                        case "node":
-                            if (osmFile.NodeType == XmlNodeType.Element) //sometimes is EndElement if we had tags we ignored.
-                            {
-                                var n = new Node();
-                                n.id = osmFile.GetAttribute("id").ToLong();
 
-                                //see if we need this node. If not, don't save it.
-                                //we need this node IF it's part of a way we saved OR (TODO) has a tag of interest to point out. These tags are TBD.
-                                if (nodesToGet[n.id].Count() == 0) //TODO: || relevantTags.Contains(n.tags)
-                                    break;
-
-                                n.lat = osmFile.GetAttribute("lat").ToDouble();
-                                n.lon = osmFile.GetAttribute("lon").ToDouble();
-                                nodes.Add(n);
-                            }
-                            break;
-                        case "way":
-                            exitEarly = true;
-                            break;
-                    }
-                }
-                Console.WriteLine("Nodes processed at " + DateTime.Now);
-
-                //might need to loop over Ways now, add in Nodes as needed.
-                nodeLookup = (Lookup<long, Node>)nodes.ToLookup(k => k.id, v => v); //this is where the inner engine errors occur?
-                //Hungray - 7813636589 node isn't in my list?
-                //Great Britain - 7813623051 isnt in the list
-                //Germany - 7813639268 isnt in my list? 8,356,155 nodes in the lookup
-                foreach (Way w in ways)
-                {
-                    foreach (long nr in w.nodRefs)
-                    {
-                        w.nds.Add(nodeLookup[nr].FirstOrDefault()); //means a null nd will show up eventually if this fixes the single-missing-node issue
-                    }
-                    w.nodRefs = null; //free up a little memory we won't use again.
-                }
-
-                Console.WriteLine("Ways populated with Nodes at " + DateTime.Now);
-
-                XmlSerializer xs = new XmlSerializer(typeof(List<Way>));
-                System.IO.StreamWriter sw = new System.IO.StreamWriter(System.IO.Path.GetFileNameWithoutExtension(filename) + "-RawWays.xml");
-                xs.Serialize(sw, ways);
-                sw.Close(); sw.Dispose();
-
-                List<ProcessedWay> pws = new List<ProcessedWay>();
-                foreach (Way w in ways)
-                {
+                //Multithreading this processing. Uses more RAM to hold the ToList() version in memory before writing JSON to disk.
+                System.Collections.Concurrent.ConcurrentBag<ProcessedWay> pws = new System.Collections.Concurrent.ConcurrentBag<ProcessedWay>();
+                System.Threading.Tasks.Parallel.ForEach(ways, (w) => {
                     pws.Add(ProcessWay(w));
-                }
+                });
+                var pws2 = pws.ToList();
+                File.WriteAllText(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-ProcessedWays.json", JsonSerializer.Serialize(pws2));
+                
+                //single threaded version.
+                //List<ProcessedWay> pws = new List<ProcessedWay>();
+                //foreach (Way w in ways)
+                //{
+                //    pws.Add(ProcessWay(w));
+                //}
+                //File.WriteAllText(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-ProcessedWays.json", JsonSerializer.Serialize(pws));
                 Console.WriteLine("Ways processed at " + DateTime.Now);
-
-                xs = new XmlSerializer(typeof(List<ProcessedWay>));
-                sw = new System.IO.StreamWriter(System.IO.Path.GetFileNameWithoutExtension(filename) + "-ProcessedWays.xml");
-                xs.Serialize(sw, pws);
-                sw.Close(); sw.Dispose();
-
+               
                 osmFile.Close(); osmFile.Dispose();
                 Console.WriteLine("Processed " + filename + " at " + DateTime.Now);
+                File.Delete(filename); //We made it all the way to the end, this file is done.
             }
         }
-        
-
-        //This works with XmlDocument, but XmlReader is so much faster.
-        //public static List<Tag> parseTags(XmlNode xmlNode)
-        //{
-        //    List<Tag> retVal = new List<Tag>();
-        //    List<XmlNode> stuffToRemove = new List<XmlNode>();
-        //    foreach (XmlNode t in xmlNode.ChildNodes)
-        //    {
-        //        if (t.Name == "tag")
-        //        {
-        //            //TODO: delete boring/space consuming tags from the node here
-        //            if (t.Attributes["k"].Value.StartsWith("name") && t.Attributes["k"].Value != "name" //purge non-English names.
-        //                || t.Attributes["k"].Value == "created_by"
-        //                )
-        //                stuffToRemove.Add(t);
-        //            else
-        //            {
-        //                retVal.Add(new Tag() { k = t.Attributes["k"].Value, v = t.Attributes["v"].Value });
-        //            }
-        //        }
-        //    }
-        //    foreach (XmlNode x in stuffToRemove)
-        //        xmlNode.RemoveChild(x);
-
-        //    return retVal;
-        //}
 
 
-        /* For reference: the tags Pokemon Go appears to be using. I don't need all of these.
+        /* For reference: the tags Pokemon Go appears to be using. I don't need all of these. I have a few it doesn't, as well.
 KIND_BASIN
 KIND_CANAL
 KIND_CEMETERY - Have

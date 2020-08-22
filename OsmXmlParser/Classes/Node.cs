@@ -8,9 +8,11 @@ namespace OsmXmlParser.Classes
 {
     public class Node
     {
+        //public string Name { get; set; }
         public long id { get; set; }
         public double lat { get; set; }
         public double lon { get; set; }
         //public List<Tag> tags { get; set; }
+        //public string type { get; set; }
     }
 }

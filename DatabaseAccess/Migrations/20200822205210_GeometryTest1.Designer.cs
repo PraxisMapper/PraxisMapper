@@ -4,15 +4,17 @@ using DatabaseAccess;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 
 namespace DatabaseAccess.Migrations
 {
     [DbContext(typeof(GpsExploreContext))]
-    partial class GpsExploreContextModelSnapshot : ModelSnapshot
+    [Migration("20200822205210_GeometryTest1")]
+    partial class GeometryTest1
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -84,9 +86,6 @@ namespace DatabaseAccess.Migrations
 
                     b.Property<Geometry>("place")
                         .HasColumnType("geography");
-
-                    b.Property<string>("type")
-                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("MapDataId");
 
@@ -203,33 +202,6 @@ namespace DatabaseAccess.Migrations
                     b.HasIndex("OsmWayId");
 
                     b.ToTable("ProcessedWays");
-                });
-
-            modelBuilder.Entity("DatabaseAccess.DbTables+SinglePointsOfInterest", b =>
-                {
-                    b.Property<long>("SinglePointsOfInterestId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
-
-                    b.Property<long>("NodeID")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("NodeType")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<double>("lat")
-                        .HasColumnType("float");
-
-                    b.Property<double>("lon")
-                        .HasColumnType("float");
-
-                    b.Property<string>("name")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("SinglePointsOfInterestId");
-
-                    b.ToTable("SinglePointsOfInterests");
                 });
 #pragma warning restore 612, 618
         }

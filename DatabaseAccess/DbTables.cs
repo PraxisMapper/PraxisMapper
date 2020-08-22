@@ -38,10 +38,17 @@ namespace DatabaseAccess
 
         public class MapData
         {
+            public long MapDataId { get; set; }
+            public string name { get; set; }
+            public long WayId { get; set; }
+
             [Column(TypeName = "geography")]//might explicitly need tagged as dataType = geography for EF Core? or geometry? or geometry is the C# class and geography applies some extra stuff?
-            public Geometry place { get; set; }
+            public Geometry place { get; set; } //allows any sub-type of Geometry to be used
+            public string type { get; set; }
+                
         }
 
+        //These are the individual 10-cell values.
         public class InterestingPoint
         {
             //Unique ID
@@ -90,12 +97,12 @@ namespace DatabaseAccess
 
         public class SinglePointsOfInterest
         {
-            public long SinglePointsOfInterestId;
-            public long NodeID;
-            public string name;
-            public double lat;
-            public double lon;
-            public string NodeType; //same possible results as AreaType, same function. same possible FK value.
+            public long SinglePointsOfInterestId { get; set; }
+            public long NodeID { get; set; }
+            public string name { get; set; }
+            public double lat { get; set; }
+            public double lon { get; set; }
+            public string NodeType { get; set; } //same possible results as AreaType, same function. same possible FK value.
 
         }
     }

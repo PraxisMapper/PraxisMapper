@@ -11,6 +11,9 @@ namespace DatabaseAccess
         public DbSet<InterestingPoint> InterestingPoints { get; set; }
         public DbSet<ProcessedWay> ProcessedWays { get; set; }
         public DbSet<AreaType> AreaTypes { get; set; }
+        public DbSet<MapData> MapData { get; set; }
+
+        public DbSet<SinglePointsOfInterest> SinglePointsOfInterests { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
