@@ -3,10 +3,11 @@ using System.Collections.Generic;
 using System.ComponentModel.Design;
 using System.Linq;
 using System.Threading.Tasks;
+using DatabaseAccess;
 using GPSExploreServerAPI.Classes;
-using GPSExploreServerAPI.Database;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using static DatabaseAccess.DbTables;
 
 namespace GPSExploreServerAPI.Controllers
 {

@@ -5,7 +5,9 @@ VisualStudioVersion = 16.0.30323.103
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GPSExploreServerAPI", "GPSExploreServerAPI\GPSExploreServerAPI.csproj", "{E4D95553-613D-4E01-8309-0FEF69208F35}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OsmXmlParser", "OsmXmlParser\OsmXmlParser.csproj", "{80CBA8D5-2A72-407D-81D0-4D1904F6B676}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OsmXmlParser", "OsmXmlParser\OsmXmlParser.csproj", "{80CBA8D5-2A72-407D-81D0-4D1904F6B676}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DatabaseAccess", "DatabaseAccess\DatabaseAccess.csproj", "{377129DA-BDC9-4814-99F5-9A711BBC435D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{80CBA8D5-2A72-407D-81D0-4D1904F6B676}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{80CBA8D5-2A72-407D-81D0-4D1904F6B676}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{80CBA8D5-2A72-407D-81D0-4D1904F6B676}.Release|Any CPU.Build.0 = Release|Any CPU
+		{377129DA-BDC9-4814-99F5-9A711BBC435D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{377129DA-BDC9-4814-99F5-9A711BBC435D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{377129DA-BDC9-4814-99F5-9A711BBC435D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{377129DA-BDC9-4814-99F5-9A711BBC435D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

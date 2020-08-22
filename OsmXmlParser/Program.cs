@@ -1,5 +1,4 @@
 ﻿using OsmXmlParser.Classes;
-using OsmXmlParser.Database;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.Design.Serialization;
@@ -11,6 +10,8 @@ using System.Xml;
 using System.Xml.Serialization;
 using Google.OpenLocationCode;
 using EFCore.BulkExtensions;
+using DatabaseAccess;
+using static DatabaseAccess.DbTables;
 
 namespace OsmXmlParser
 {
@@ -31,7 +32,7 @@ namespace OsmXmlParser
         static void Main(string[] args)
         {
             //TODO: parallelize parsing where possible. reading a single XML file isn't parallelizable.
-            CleanDb(); //testing, to start on an empty DB each time.
+            //CleanDb(); //testing, to start on an empty DB each time.
             //ParseXmlV2(); //temporarily switching to making smaller files.
             MakeAllSerializedFiles();
 
@@ -411,10 +412,12 @@ namespace OsmXmlParser
 
 
             //Time to actually create the game objects.
-            List<Database.ProcessedWay> pws = new List<Database.ProcessedWay>();
+            List<ProcessedWay> pws = new List<ProcessedWay>();
             foreach (Way w in ways)
             {
-                pws.Add(ProcessWay(w));
+                var pw = ProcessWay(w);
+                if (pw != null)
+                    pws.Add(pw);
             }
             Console.WriteLine("Ways processed at " + DateTime.Now);
             xs = new XmlSerializer(typeof(List<ProcessedWay>));
@@ -427,7 +430,7 @@ namespace OsmXmlParser
             Console.WriteLine("Interesting Points genereated at " + DateTime.Now);
 
             //database work now.
-            OsmParserContext db = new OsmParserContext();
+            GpsExploreContext db = new GpsExploreContext();
             db.BulkInsert<ProcessedWay>(pws);
             //db.SaveChanges();
             Console.WriteLine("Processed Ways saved to DB at " + DateTime.Now);
@@ -450,6 +453,8 @@ namespace OsmXmlParser
 
         public static ProcessedWay ProcessWay(Way w)
         {
+            if (w == null)
+                return null;
             //Version 1.
             //Convert the list of nodes into a rectangle that covers the full bounds.
             //Is 'close enough' for now, should be fairly quick compared to more accurate calculations.
@@ -570,7 +575,7 @@ namespace OsmXmlParser
         public static void CleanDb()
         {
             //Test function to put the DB back to empty.
-            OsmParserContext osm = new OsmParserContext();
+            GpsExploreContext osm = new GpsExploreContext();
             osm.AreaTypes.RemoveRange(osm.AreaTypes);
             osm.SaveChanges();
 
@@ -594,7 +599,6 @@ namespace OsmXmlParser
                 nodes = null;
                 ways = new List<Way>();
                 nodes = new List<Node>();
-                
 
                 Console.WriteLine("Starting " + filename + " way read at " + DateTime.Now);
                 XmlReaderSettings xrs = new XmlReaderSettings();
@@ -662,13 +666,15 @@ namespace OsmXmlParser
                 Console.WriteLine("Nodes processed at " + DateTime.Now);
 
                 //might need to loop over Ways now, add in Nodes as needed.
-                nodeLookup = (Lookup<long, Node>)nodes.ToLookup(k => k.id, v => v);
-
+                nodeLookup = (Lookup<long, Node>)nodes.ToLookup(k => k.id, v => v); //this is where the inner engine errors occur?
+                //Hungray - 7813636589 node isn't in my list?
+                //Great Britain - 7813623051 isnt in the list
+                //Germany - 7813639268 isnt in my list? 8,356,155 nodes in the lookup
                 foreach (Way w in ways)
                 {
                     foreach (long nr in w.nodRefs)
                     {
-                        w.nds.Add(nodeLookup[nr].First());
+                        w.nds.Add(nodeLookup[nr].FirstOrDefault()); //means a null nd will show up eventually if this fixes the single-missing-node issue
                     }
                     w.nodRefs = null; //free up a little memory we won't use again.
                 }
@@ -680,7 +686,7 @@ namespace OsmXmlParser
                 xs.Serialize(sw, ways);
                 sw.Close(); sw.Dispose();
 
-                List<Database.ProcessedWay> pws = new List<Database.ProcessedWay>();
+                List<ProcessedWay> pws = new List<ProcessedWay>();
                 foreach (Way w in ways)
                 {
                     pws.Add(ProcessWay(w));
@@ -692,6 +698,7 @@ namespace OsmXmlParser
                 xs.Serialize(sw, pws);
                 sw.Close(); sw.Dispose();
 
+                osmFile.Close(); osmFile.Dispose();
                 Console.WriteLine("Processed " + filename + " at " + DateTime.Now);
             }
         }

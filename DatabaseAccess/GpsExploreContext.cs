@@ -1,18 +1,16 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using static DatabaseAccess.DbTables;
 
-namespace GPSExploreServerAPI.Database
+namespace DatabaseAccess
 {
     public class GpsExploreContext : DbContext
     {
         public DbSet<PlayerData> PlayerData { get; set; }
         public DbSet<PerformanceInfo> PerformanceInfo { get; set; }
-
-        //public DbSet<MapData> MapData { get; set; } //uncomment this when I've advanced onto the map processing project.
-        //add performance info table
+        public DbSet<InterestingPoint> InterestingPoints { get; set; }
+        public DbSet<ProcessedWay> ProcessedWays { get; set; }
+        public DbSet<AreaType> AreaTypes { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -26,6 +24,12 @@ namespace GPSExploreServerAPI.Database
         {
             //Create indexes here.
             model.Entity<PlayerData>().HasIndex(p => p.deviceID); //for updating data
+
+            model.Entity<ProcessedWay>().HasIndex(p => p.OsmWayId); //for updating data
+            model.Entity<InterestingPoint>().HasIndex(i => i.PlusCode8); //for reading data
+
+            model.Entity<InterestingPoint>().Property(i => i.PlusCode8).HasMaxLength(8);
+            model.Entity<InterestingPoint>().Property(i => i.PlusCode2).HasMaxLength(2);
         }
     }
 }

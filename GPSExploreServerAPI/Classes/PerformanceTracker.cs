@@ -1,4 +1,5 @@
-﻿using GPSExploreServerAPI.Database;
+﻿using DatabaseAccess;
+using static DatabaseAccess.DbTables;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -9,7 +10,7 @@ namespace GPSExploreServerAPI.Classes
 {
     public class PerformanceTracker
     {
-        Database.PerformanceInfo pi = new Database.PerformanceInfo();
+        PerformanceInfo pi = new PerformanceInfo();
         System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
         public PerformanceTracker(string name)
         {
