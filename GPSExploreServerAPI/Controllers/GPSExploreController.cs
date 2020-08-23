@@ -16,7 +16,7 @@ namespace GPSExploreServerAPI.Controllers
     public class GPSExploreController : ControllerBase
     {
         /* functions needed
-         * -subboards TODO:  most coffees purchased (once store functions)
+         * -subboards TODO:  most coffees purchased (once store functions), Altitude spread (highest-lowest, need to track both in the app.)
          * done: Most small cells, most big cells, highest score, most distance,  most time, fastest avg speed (distance/time),
          * Ties should be broken by date (so, who most recently did the thing that set the score), which means tracking more data client-side. 
          * --Tiebreaker calc: .Where(p => p.value > my.value && p.dateLastUpdated > my.dateLastUpdated? 
@@ -68,20 +68,36 @@ namespace GPSExploreServerAPI.Controllers
             data.deviceID = components[0];
             data.cellVisits = components[1].ToInt();
             data.DateLastTrophyBought = components[2].ToInt();
-            data.distance = components[3].ToInt();
-            data.maxSpeed = components[4].ToInt();
+            data.distance = components[3].ToDouble();
+            data.maxSpeed = components[4].ToDouble();
             data.score = components[5].ToInt();
             data.t10Cells = components[6].ToInt();
             data.t8Cells = components[7].ToInt();
             data.timePlayed = components[8].ToInt();
-            data.totalSpeed = components[9].ToInt();
+            data.totalSpeed = components[9].ToDouble();
             data.maxAltitude = components[10].ToInt();
             data.lastSyncTime = DateTime.Now;
 
             if (insert)
                 db.PlayerData.Add(data);
+            
+            bool anticheat = false; //off for testing while I fix some saved values.
+            if (anticheat)
+            {
+                //Anti-cheat 1: if score is less than the minimum for cell count, reject the value
+                var minScore = (data.t10Cells * 16) + (data.t8Cells * 100); //If you only enter every cell once this would be your minimum score.
+                if (data.score < minScore)
+                    return "Error-Cheat";
 
-            //TODO: add cheat detection. Mark any input that's blatantly impossible.
+                //Anti-cheat 2: If your max altitude is over jet-plane cruising height, i'm rejecting your results.
+                //Anti-cheat 3: altitudes from underground do not count. Dead Sea's shore is at -413 meters, so that's the lowest legit value. No spelunking.
+                if (data.maxAltitude > 10500 || data.maxAltitude < -413)
+                    return "Error-Cheat";
+
+                //Anti-cheat 4: you can't have more cells discovered than 2x playtime seconds (location events can fire off multiple times a second, but i can only catch 2 of them.)
+                if (data.t10Cells > data.timePlayed * 2)
+                    return "Error-Cheat";
+            }
 
             db.SaveChanges();
 
@@ -98,7 +114,7 @@ namespace GPSExploreServerAPI.Controllers
             PerformanceTracker pt = new PerformanceTracker("Get10CellLeaderboard");
             GpsExploreContext db = new GpsExploreContext();
             
-            List<int> results = db.PlayerData.OrderBy(p => p.t10Cells).Take(10).Select(p => p.t10Cells).ToList();
+            List<int> results = db.PlayerData.OrderByDescending(p => p.t10Cells).Take(10).Select(p => p.t10Cells).ToList();
             int playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.t10Cells).FirstOrDefault();
             int playerRank = db.PlayerData.Where(p => p.t10Cells >= playerScore).Count();
             results.Add(playerRank);
@@ -115,7 +131,7 @@ namespace GPSExploreServerAPI.Controllers
             PerformanceTracker pt = new PerformanceTracker("Get8CellLeaderboard");
             GpsExploreContext db = new GpsExploreContext();
 
-            List<int> results = db.PlayerData.OrderBy(p => p.t8Cells).Take(10).Select(p => p.t8Cells).ToList();
+            List<int> results = db.PlayerData.OrderByDescending(p => p.t8Cells).Take(10).Select(p => p.t8Cells).ToList();
             int playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.t8Cells).FirstOrDefault();
             int playerRank = db.PlayerData.Where(p => p.t8Cells >= playerScore).Count();
             results.Add(playerRank);
@@ -132,7 +148,7 @@ namespace GPSExploreServerAPI.Controllers
             //Make into a template for other leaderboards.
             PerformanceTracker pt = new PerformanceTracker("GetScoreLeaderboard");
             GpsExploreContext db = new GpsExploreContext();
-            List<int> results = db.PlayerData.OrderBy(p => p.score).Take(10).Select(p => p.score).ToList();
+            List<int> results = db.PlayerData.OrderByDescending(p => p.score).Take(10).Select(p => p.score).ToList();
             int playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.score).FirstOrDefault();
             int playerRank = db.PlayerData.Where(p => p.score >= playerScore).Count();
             results.Add(playerRank);
@@ -149,8 +165,8 @@ namespace GPSExploreServerAPI.Controllers
             //Make into a template for other leaderboards.
             PerformanceTracker pt = new PerformanceTracker("GetDistanceLeaderboard");
             GpsExploreContext db = new GpsExploreContext();
-            List<int> results = db.PlayerData.OrderBy(p => p.distance).Take(10).Select(p => p.distance).ToList();
-            int playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.distance).FirstOrDefault();
+            List<double> results = db.PlayerData.OrderByDescending(p => p.distance).Take(10).Select(p => p.distance).ToList();
+            double playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.distance).FirstOrDefault();
             int playerRank = db.PlayerData.Where(p => p.distance >= playerScore).Count();
             results.Add(playerRank);
 
@@ -166,7 +182,7 @@ namespace GPSExploreServerAPI.Controllers
             //Make into a template for other leaderboards.
             PerformanceTracker pt = new PerformanceTracker("GetTimeLeaderboard");
             GpsExploreContext db = new GpsExploreContext();
-            List<int> results = db.PlayerData.OrderBy(p => p.timePlayed).Take(10).Select(p => p.timePlayed).ToList();
+            List<int> results = db.PlayerData.OrderByDescending(p => p.timePlayed).Take(10).Select(p => p.timePlayed).ToList();
             int playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.timePlayed).FirstOrDefault();
             int playerRank = db.PlayerData.Where(p => p.timePlayed >= playerScore).Count();
             results.Add(playerRank);
@@ -179,13 +195,14 @@ namespace GPSExploreServerAPI.Controllers
         [Route("/[controller]/AvgSpeedLeaderboard/{deviceID}")]
         public string GetAvgSpeedLeaderboards(string deviceID)
         {
+            //TODO: might calculate this on the device, send it over here, save it in its own column instead of calculating on all users each call.
             //take in the device ID, return the top 10 players for this leaderboard, and the user's current rank.
             //Make into a template for other leaderboards.
             PerformanceTracker pt = new PerformanceTracker("GetAvgSpeedLeaderboard");
             GpsExploreContext db = new GpsExploreContext();
             //This one does a calculation, will take a bit longer.
-            List<int> results = db.PlayerData.Select(p => p.distance / p.timePlayed).OrderBy(p => p).ToList();
-            int playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.distance / p.timePlayed).FirstOrDefault();
+            List<double> results = db.PlayerData.Select(p => p.distance / p.timePlayed).OrderByDescending(p => p).ToList();
+            double playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.distance / p.timePlayed).FirstOrDefault();
             int playerRank = results.Where(p => p >= playerScore).Count();
             results = results.Take(10).ToList();
             results.Add(playerRank);

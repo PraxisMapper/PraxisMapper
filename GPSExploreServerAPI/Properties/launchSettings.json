@@ -2,6 +2,10 @@
   "iisSettings": {
     "windowsAuthentication": false,
     "anonymousAuthentication": true,
+    "iis": {
+      "applicationUrl": "http://localhost/GPSExploreServerAPI",
+      "sslPort": 0
+    },
     "iisExpress": {
       "applicationUrl": "http://192.168.1.92:64374",
       "sslPort": 44384
@@ -18,7 +22,7 @@
       }
     },
     "GPSExploreServerAPI": {
-      "commandName": "Project",
+      "commandName": "IIS",
       "launchBrowser": true,
       "launchUrl": "weatherforecast",
       "environmentVariables": {

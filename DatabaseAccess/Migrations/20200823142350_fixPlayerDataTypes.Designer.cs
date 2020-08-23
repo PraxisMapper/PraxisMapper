@@ -4,15 +4,17 @@ using DatabaseAccess;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 
 namespace DatabaseAccess.Migrations
 {
     [DbContext(typeof(GpsExploreContext))]
-    partial class GpsExploreContextModelSnapshot : ModelSnapshot
+    [Migration("20200823142350_fixPlayerDataTypes")]
+    partial class fixPlayerDataTypes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -130,8 +132,8 @@ namespace DatabaseAccess.Migrations
                     b.Property<string>("deviceID")
                         .HasColumnType("nvarchar(450)");
 
-                    b.Property<double>("distance")
-                        .HasColumnType("float");
+                    b.Property<int>("distance")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("lastSyncTime")
                         .HasColumnType("datetime2");

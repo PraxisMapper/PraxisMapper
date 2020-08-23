@@ -18,12 +18,12 @@ namespace DatabaseAccess
             public int t10Cells { get; set; }
             public int t8Cells { get; set; }
             public int cellVisits { get; set; }
-            public int distance { get; set; }
+            public double distance { get; set; }
             public int score { get; set; }
             public int DateLastTrophyBought { get; set; }
             public int timePlayed { get; set; }
-            public int maxSpeed { get; set; }
-            public int totalSpeed { get; set; }
+            public double maxSpeed { get; set; }
+            public double totalSpeed { get; set; }
             public int maxAltitude { get; set; }
             public DateTime lastSyncTime { get; set; }
         }

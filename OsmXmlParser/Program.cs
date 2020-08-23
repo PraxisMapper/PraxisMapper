@@ -24,7 +24,7 @@ namespace OsmXmlParser
 {
     class Program
     {
-        //
+        //NOTE: OSM data license allows me to use the data but requires acknowleging OSM as the data source
         public static List<Bounds> bounds = new List<Bounds>();
         public static List<Node> nodes = new List<Node>();
         public static List<Way> ways = new List<Way>();
@@ -112,42 +112,42 @@ namespace OsmXmlParser
             return;
         }
 
-        public static void ParseRelationData(Relation r, XmlReader xr)
-        {
-            //I dont think I'm actually parsing this now, since these are rarely things I'm interested in.
-            List<Node> retVal = new List<Node>();
+        //public static void ParseRelationData(Relation r, XmlReader xr)
+        //{
+        //    //I dont think I'm actually parsing this now, since these are rarely things I'm interested in.
+        //    List<Node> retVal = new List<Node>();
 
-            while (xr.Read())
-            {
-                if (xr.Name == "member")
-                {
-                    var memberType = xr.GetAttribute("type");
-                    if (memberType == "way") //get ways, ignore nodes for now.
-                    {
-                        long wayID = xr.GetAttribute("ref").ToLong();
-                        if (wayLookup[wayID].Count() > 0) //we might not have added this way if it was't interesting.
-                        {
-                            Way w = wayLookup[wayID].First();
-                            if (w != null && w.id != null)
-                                r.members.Add(w);
-                        }
-                    }
-                }
-                else if (xr.Name == "tag")
-                {
-                    Tag t = new Tag() { k = xr.GetAttribute("k"), v = xr.GetAttribute("v") };
-                    if (t.k.StartsWith("name") && t.k != "name" //purge non-English names.
-                        || t.k == "created_by" //Don't need to monitor OSM users.
-                        )
-                    {
-                        //Ignore this tag.
-                    }
-                    else
-                        r.tags.Add(t);
-                }
-            }
-            return;
-        }
+        //    while (xr.Read())
+        //    {
+        //        if (xr.Name == "member")
+        //        {
+        //            var memberType = xr.GetAttribute("type");
+        //            if (memberType == "way") //get ways, ignore nodes for now.
+        //            {
+        //                long wayID = xr.GetAttribute("ref").ToLong();
+        //                if (wayLookup[wayID].Count() > 0) //we might not have added this way if it was't interesting.
+        //                {
+        //                    Way w = wayLookup[wayID].First();
+        //                    if (w != null && w.id != null)
+        //                        r.members.Add(w);
+        //                }
+        //            }
+        //        }
+        //        else if (xr.Name == "tag")
+        //        {
+        //            Tag t = new Tag() { k = xr.GetAttribute("k"), v = xr.GetAttribute("v") };
+        //            if (t.k.StartsWith("name") && t.k != "name" //purge non-English names.
+        //                || t.k == "created_by" //Don't need to monitor OSM users.
+        //                )
+        //            {
+        //                //Ignore this tag.
+        //            }
+        //            else
+        //                r.tags.Add(t);
+        //        }
+        //    }
+        //    return;
+        //}
 
 
         public static void ParseXmlV2()
@@ -492,7 +492,11 @@ namespace OsmXmlParser
 
         public static ProcessedWay ProcessWay(Way w)
         {
+            //Neither of these should happen, but they have.
             if (w == null)
+                return null;
+
+            if (w.nds.Count() == 0)
                 return null;
 
             //Version 1.
