@@ -75,7 +75,7 @@ namespace GPSExploreServerAPI.Controllers
             data.t8Cells = components[7].ToInt();
             data.timePlayed = components[8].ToInt();
             data.totalSpeed = components[9].ToDouble();
-            data.maxAltitude = components[10].ToInt();
+            data.altitudeSpread = components[10].ToInt();
             data.lastSyncTime = DateTime.Now;
 
             if (insert)
@@ -89,9 +89,8 @@ namespace GPSExploreServerAPI.Controllers
                 if (data.score < minScore)
                     return "Error-Cheat";
 
-                //Anti-cheat 2: If your max altitude is over jet-plane cruising height, i'm rejecting your results.
-                //Anti-cheat 3: altitudes from underground do not count. Dead Sea's shore is at -413 meters, so that's the lowest legit value. No spelunking.
-                if (data.maxAltitude > 10500 || data.maxAltitude < -413)
+                //Anti-cheat 2: If your altitude spread is higher than (jet-plane cruising height of 10500 plus dead sea shore of -400), i'm rejecting your results.
+                if (data.altitudeSpread > 11000)
                     return "Error-Cheat";
 
                 //Anti-cheat 4: you can't have more cells discovered than 2x playtime seconds (location events can fire off multiple times a second, but i can only catch 2 of them.)
@@ -221,6 +220,24 @@ namespace GPSExploreServerAPI.Controllers
             List<int> results = db.PlayerData.OrderByDescending(p => p.DateLastTrophyBought).Take(10).Select(p => p.DateLastTrophyBought).ToList();
             int playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.DateLastTrophyBought).FirstOrDefault();
             int playerRank = db.PlayerData.Where(p => p.DateLastTrophyBought <= playerScore).Count(); //This one is a time, so lower is better.
+            results.Add(playerRank);
+
+            pt.Stop();
+            return string.Join("|", results);
+        }
+
+        [HttpGet]
+        [Route("/[controller]/AltitudeLeaderboard/{deviceID}")]
+        public string GetAltitudeLeaderboards(string deviceID)
+        {
+            //take in the device ID, return the top 10 players for this leaderboard, and the user's current rank.
+            //Make into a template for other leaderboards.
+            PerformanceTracker pt = new PerformanceTracker("GetAltitudeLeaderboard");
+            GpsExploreContext db = new GpsExploreContext();
+
+            List<int> results = db.PlayerData.OrderByDescending(p => p.altitudeSpread).Take(10).Select(p => p.t10Cells).ToList();
+            int playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.altitudeSpread).FirstOrDefault();
+            int playerRank = db.PlayerData.Where(p => p.t10Cells >= playerScore).Count();
             results.Add(playerRank);
 
             pt.Stop();

@@ -24,7 +24,7 @@ namespace DatabaseAccess
             public int timePlayed { get; set; }
             public double maxSpeed { get; set; }
             public double totalSpeed { get; set; }
-            public int maxAltitude { get; set; }
+            public int altitudeSpread { get; set; }
             public DateTime lastSyncTime { get; set; }
         }
 
