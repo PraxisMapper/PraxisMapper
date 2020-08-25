@@ -73,7 +73,7 @@ namespace GPSExploreServerAPI.Controllers
             data.score = components[5].ToInt();
             data.t10Cells = components[6].ToInt();
             data.t8Cells = components[7].ToInt();
-            data.timePlayed = components[8].ToInt();
+            data.timePlayed = (int)components[8].ToDouble(); //This isn't being calculated right, i dont think
             data.totalSpeed = components[9].ToDouble();
             data.altitudeSpread = components[10].ToInt();
             data.lastSyncTime = DateTime.Now;
@@ -200,7 +200,7 @@ namespace GPSExploreServerAPI.Controllers
             PerformanceTracker pt = new PerformanceTracker("GetAvgSpeedLeaderboard");
             GpsExploreContext db = new GpsExploreContext();
             //This one does a calculation, will take a bit longer.
-            List<double> results = db.PlayerData.Select(p => p.distance / p.timePlayed).OrderByDescending(p => p).ToList();
+            List<double> results = db.PlayerData.Where(p => p.timePlayed > 0).Select(p => p.distance / p.timePlayed).OrderByDescending(p => p).ToList(); //divide by zero error 
             double playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.distance / p.timePlayed).FirstOrDefault();
             int playerRank = results.Where(p => p >= playerScore).Count();
             results = results.Take(10).ToList();
