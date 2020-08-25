@@ -22,9 +22,9 @@
       }
     },
     "GPSExploreServerAPI": {
-      "commandName": "IIS",
+      "commandName": "IISExpress",
       "launchBrowser": true,
-      "launchUrl": "weatherforecast",
+      "launchUrl": "GpsExplore/Test",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
@@ -36,6 +36,11 @@
       "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}/weatherforecast",
       "publishAllPorts": true,
       "useSSL": true
+    },
+    "IIS": {
+      "commandName": "IIS",
+      "launchBrowser": true,
+      "launchUrl": "http://localhost/GPSExploreServerAPI/GpsExplore/Test"
     }
   }
 }

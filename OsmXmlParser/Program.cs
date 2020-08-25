@@ -23,6 +23,9 @@ using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Net.Http.Headers;
 using Microsoft.EntityFrameworkCore.SqlServer.Query.Internal;
+using DatabaseAccess.Migrations;
+
+//Next TODO: clean up comments and scattered test code.
 
 namespace OsmXmlParser
 {
@@ -45,11 +48,11 @@ namespace OsmXmlParser
         {
             //TODO: parallelize parsing where possible. reading a single XML file isn't parallelizable.
             //CleanDb(); //testing, to start on an empty DB each time.
-            //ParseXmlV3(); //temporarily switching to making smaller files.
 
-            //testing DB support for this.
-            //LoadPreviouslyParsedWayData("LocalCity-RawWays.xml");
-            //TryRawWay(ways.First());
+            string parsedJsonPath = @"D:\Projects\OSM Server Info\Trimmed JSON Files\";
+
+            //LoadPreviouslyParsedWayData(parsedJsonPath + "LocalCity-RawWays.json");
+            //LoadPreviouslyParsedSPOIData(parsedJsonPath + "quebec-latest-SPOIs.json");
 
             //trying to reduce the amount of resizing done by setting this to a better starting amount.
             nodes.Capacity = 10000000;
@@ -123,202 +126,6 @@ namespace OsmXmlParser
             }
             return;
         }
-
-        //public static void ParseRelationData(Relation r, XmlReader xr)
-        //{
-        //    //I dont think I'm actually parsing this now, since these are rarely things I'm interested in.
-        //    List<Node> retVal = new List<Node>();
-
-        //    while (xr.Read())
-        //    {
-        //        if (xr.Name == "member")
-        //        {
-        //            var memberType = xr.GetAttribute("type");
-        //            if (memberType == "way") //get ways, ignore nodes for now.
-        //            {
-        //                long wayID = xr.GetAttribute("ref").ToLong();
-        //                if (wayLookup[wayID].Count() > 0) //we might not have added this way if it was't interesting.
-        //                {
-        //                    Way w = wayLookup[wayID].First();
-        //                    if (w != null && w.id != null)
-        //                        r.members.Add(w);
-        //                }
-        //            }
-        //        }
-        //        else if (xr.Name == "tag")
-        //        {
-        //            Tag t = new Tag() { k = xr.GetAttribute("k"), v = xr.GetAttribute("v") };
-        //            if (t.k.StartsWith("name") && t.k != "name" //purge non-English names.
-        //                || t.k == "created_by" //Don't need to monitor OSM users.
-        //                )
-        //            {
-        //                //Ignore this tag.
-        //            }
-        //            else
-        //                r.tags.Add(t);
-        //        }
-        //    }
-        //    return;
-        //}
-
-
-        //public static void ParseXmlV2()
-        //{
-        //    //For faster processing (or minimizing RAM use), we do 2 reads of the file.
-        //    //Run 1: Skip to Ways, save tags and a list of ref values. Filter on the existing rules for including a Way.
-        //    //Run 2: make a list of nodes we care about from our selected Way objects, then parse those into a list
-        //    //Run 2a: once we have all the nodes we care about, update the Way objects to fill in the List<Node> instead of the List<long> of refs.
-
-        //    //Results:
-        //    //This takes 25 seconds to process Jamaica's 500MB data, including DB writes.
-        //    //My local city takes a second with DB writes.
-        //    //US Midwest takes 5:45 to read and write.
-
-        //    Console.WriteLine("Starting way read at " + DateTime.Now);
-        //    //TODO: read xml from zip file. Pretty sure I can stream zipfile data to save HD space, since global XML data needs 1TB of space unzipped.
-        //    //string filename = @"..\..\..\jamaica-latest.osm"; //500MB, a reasonable test scenario for speed/load purposes.
-        //    //string filename = @"C:\Users\Drake\Downloads\us-midwest-latest.osm\us-midwest-latest.osm"; //This one takes much longer to process, 28 GB
-        //    string filename = @"C:\Users\Drake\Downloads\LocalCity.osm"; //stuff I can actually walk to. 4MB
-        //    XmlReaderSettings xrs = new XmlReaderSettings();
-        //    xrs.IgnoreWhitespace = true;
-        //    XmlReader osmFile = XmlReader.Create(filename, xrs);
-        //    osmFile.MoveToContent();
-
-        //    bool firstWay = true;
-        //    bool exitEarly = false;
-        //    while (osmFile.Read() && !exitEarly)
-        //    {
-        //        //First read-through, only load Way entries
-
-        //        //This takes about 11 seconds right now to parse Jamaica's full file with XmlReader
-        //        //Its fast enough where I may not bother to remove unused data from the source xml.
-        //        switch (osmFile.Name)
-        //        {
-        //            case "way":
-        //                if (firstWay) { Console.WriteLine("First Way entry found at " + DateTime.Now); firstWay = false; }
-
-        //                //way will contain 'nd' elements with 'ref' to a node by ID.
-        //                //may contain tag, k is the type of thing it is.
-        //                var w = new Way();
-        //                w.id = osmFile.GetAttribute("id").ToLong();
-
-        //                ParseWayDataV2(w, osmFile.ReadSubtree()); //Saves a list of nodeRefs, doesnt look for actual nodes.
-
-        //                //Trying an inclusive approach instead:
-        //                //Other options: landuse for various resources
-        //                //Option: landuse:retail?
-        //                if (w.AreaType != "")
-        //                    ways.Add(w);
-        //                break;
-        //            case "relation":
-        //                //we're done with way entries.
-        //                exitEarly = true;
-        //                break;
-        //        }
-        //    }
-        //    Console.WriteLine("Done reading Way objects at " + DateTime.Now);
-
-        //    //We now have all Way info. Reset the XML Reader
-        //    osmFile.Close(); osmFile.Dispose();
-        //    osmFile = XmlReader.Create(filename, xrs);
-        //    osmFile.MoveToContent();
-        //    exitEarly = false;
-
-        //    var nodesToGet = ways.SelectMany(w => w.nodRefs).ToLookup(k => k, v => v);
-        //    //var nodesByWay = ways. //Need a quicker way to find Ways that need a node?
-
-        //    Console.WriteLine("Nodes to process parsed at " + DateTime.Now);
-        //    while (osmFile.Read() && !exitEarly)
-        //    {
-        //        //Now process Nodes we need to.
-        //        switch (osmFile.Name)
-        //        {
-        //            case "node":
-        //                //It's a shame we can't dig farther into the XML file to know if this node is needed or not until we've loaded them all.
-        //                if (osmFile.NodeType == XmlNodeType.Element) //sometimes is EndElement if we had tags we ignored.
-        //                {
-        //                    var n = new Node();
-        //                    n.id = osmFile.GetAttribute("id").ToLong();
-
-        //                    //see if we need this node. If not, don't save it.
-        //                    //we need this node IF it's part of a way we saved OR (TODO) has a tag of interest to point out. These tags are TBD.
-        //                    if (nodesToGet[n.id].Count() == 0) //TODO: || relevantTags.Contains(n.tags)
-        //                        break;
-
-        //                    n.lat = osmFile.GetAttribute("lat").ToDouble();
-        //                    n.lon = osmFile.GetAttribute("lon").ToDouble();
-        //                    //nodes might have tags with useful info
-        //                    //if (osmFile.NodeType == XmlNodeType.Element)
-
-        //                    //Actually, I don't care about tags on an individual node right now. Removing this.
-        //                    //There COULD be tagged nodes that matter, and I could make a cell for them, but for now I dont know what those options are
-        //                    //n.tags = parseTags(osmFile.ReadSubtree());
-        //                    //TODO: delete note tags that aren't interesting //EX: created-by, 
-        //                    //TODO: delete nodes that only belonged to boring ways/relations.
-        //                    nodes.Add(n);
-        //                }
-        //                break;
-        //            case "way":
-        //                exitEarly = true;
-        //                break;
-        //        }
-        //    }
-        //    Console.WriteLine("Nodes processed at " + DateTime.Now);
-
-        //    //might need to loop over Ways now, add in Nodes as needed.
-        //    nodeLookup = (Lookup<long, Node>)nodes.ToLookup(k => k.id, v => v);
-
-        //    foreach (Way w in ways)
-        //    {
-        //        foreach (long nr in w.nodRefs)
-        //        {
-        //            w.nds.Add(nodeLookup[nr].First());
-        //        }
-        //        w.nodRefs = null; //free up a little memory we won't use again.
-        //    }
-
-        //    Console.WriteLine("Ways populated with Nodes at " + DateTime.Now);
-
-        //    XmlSerializer xs = new XmlSerializer(typeof(List<Way>));
-        //    System.IO.StreamWriter sw = new System.IO.StreamWriter(System.IO.Path.GetFileNameWithoutExtension(filename) + "-RawWays.xml");
-        //    xs.Serialize(sw, ways);
-        //    sw.Close(); sw.Dispose();
-
-        //    //Take a second, create area types
-        //    var areaTypes = ways.Select(w => w.AreaType).Distinct().Select(w => new AreaType() { });
-
-
-        //    //Time to actually create the game objects.
-        //    List<ProcessedWay> pws = new List<ProcessedWay>();
-        //    foreach (Way w in ways)
-        //    {
-        //        var pw = ProcessWay(w);
-        //        if (pw != null)
-        //            pws.Add(pw);
-        //    }
-        //    Console.WriteLine("Ways processed at " + DateTime.Now);
-        //    xs = new XmlSerializer(typeof(List<ProcessedWay>));
-        //    sw = new System.IO.StreamWriter(System.IO.Path.GetFileNameWithoutExtension(filename) + "-ProcessedWays.xml");
-        //    xs.Serialize(sw, ways);
-        //    sw.Close(); sw.Dispose();
-
-        //    //Make InterestingPoint entries out of Processed Ways
-        //    MakePoints(pws);
-        //    Console.WriteLine("Interesting Points genereated at " + DateTime.Now);
-
-        //    //database work now.
-        //    GpsExploreContext db = new GpsExploreContext();
-        //    db.BulkInsert<ProcessedWay>(pws);
-        //    //db.SaveChanges();
-        //    Console.WriteLine("Processed Ways saved to DB at " + DateTime.Now);
-
-        //    //db.InterestingPoints.AddRange(IPs);
-        //    db.BulkInsert<InterestingPoint>(IPs);
-        //    db.SaveChanges();
-        //    Console.WriteLine("Interesting Points saved to DB at " + DateTime.Now);
-
-        //    //Make ways into geometry on the server.
-        //}
 
         public static void ParseXmlV3()
         {
@@ -407,24 +214,6 @@ namespace OsmXmlParser
             File.WriteAllText(System.IO.Path.GetFileNameWithoutExtension(filename) + "-SPOI.json", JsonSerializer.Serialize(SPOI));
             Console.WriteLine("Stuff dumped to JSON at " + DateTime.Now);
 
-            //might need to loop over Ways now, add in Nodes as needed.
-            //nodeLookup = (Lookup<long, Node>)nodes.ToLookup(k => k.id, v => v);
-            //Console.WriteLine("Node lookup created at " + DateTime.Now);
-
-            //foreach (Way w in ways)
-            //{
-            //    foreach (long nr in w.nodRefs)
-            //    {
-            //        w.nds.Add(nodeLookup[nr].First());
-            //    }
-            //    w.nodRefs = null; //free up a little memory we won't use again.
-            //}
-            //Console.WriteLine("Ways populated with Nodes at " + DateTime.Now);
-
-            //Take a second, create area types. Actually, haven't done this stuff yet.
-            //var areaTypes = ways.Select(w => w.AreaType).Distinct().Select(w => new AreaType() { });
-
-
             //Time to actually create the game objects.
             List<ProcessedWay> pws = new List<ProcessedWay>();
             foreach (Way w in ways)
@@ -438,11 +227,6 @@ namespace OsmXmlParser
             //Converting this to Json to minimize disk space. Json's about half the size.
             File.WriteAllText(System.IO.Path.GetFileNameWithoutExtension(filename) + "-ProcessedWays.json", JsonSerializer.Serialize(pws));
             Console.WriteLine("ProcessedWays dumped to JSON at " + DateTime.Now);
-
-            //Skipping this for now, this isn't a sufficient process right now. Need to think on this.
-            //Make InterestingPoint entries out of Processed Ways
-            //MakePoints(pws);
-            //Console.WriteLine("Interesting Points genereated at " + DateTime.Now);
 
             //database work now.
             GpsExploreContext db = new GpsExploreContext();
@@ -485,6 +269,52 @@ namespace OsmXmlParser
             db.SaveChanges(); //bulkInsert might not work on this type
             Console.WriteLine("SQL Geometry values converted and saved to DB at " + DateTime.Now);
 
+        }
+
+        public static void MakeSqlEntries()
+        {
+            //temp copy of this logic from ParseXMLV3 before removing it
+            //database work now.
+            GpsExploreContext db = new GpsExploreContext();
+            //db.BulkInsert<ProcessedWay>(pws); this isnt a global.
+            Console.WriteLine("Processed Ways saved to DB at " + DateTime.Now);
+
+            db.BulkInsert<InterestingPoint>(IPs);
+            Console.WriteLine("Interesting Points saved to DB at " + DateTime.Now);
+
+            db.BulkInsert<SinglePointsOfInterest>(SPOI);
+            Console.WriteLine("SPOI saved to DB at " + DateTime.Now);
+
+
+
+            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code value for this..
+            List<MapData> mapDatas = new List<MapData>();
+            foreach (Way w in ways)
+            {
+                try
+                {
+                    MapData md = new MapData();
+                    md.name = w.name;
+                    md.type = w.AreaType;
+                    md.WayId = w.id;
+                    Polygon temp = factory.CreatePolygon(w.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray());
+                    if (!temp.Shell.IsCCW)
+                        temp = (Polygon)temp.Reverse();
+
+                    md.place = temp;
+
+                    mapDatas.Add(md);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Error making MapData entry: " + ex.Message);
+                    //Errors to consider handling/fixing: if the points aren't a closed shape, make a copy of the first point and make that the last point to close it.
+                }
+            }
+            //db.BulkInsert<MapData>(mapDatas); //Throws errors on data type. It might not support this feature.
+            db.MapData.AddRange(mapDatas);
+            db.SaveChanges(); 
+            Console.WriteLine("SQL Geometry values converted and saved to DB at " + DateTime.Now);
         }
 
         public static void LoadPreviouslyParsedWayData(string filename)
@@ -667,13 +497,10 @@ namespace OsmXmlParser
             //It's also in a smaller format than XML to boot.
             //For later processsing, I will want to work on the smaller files (unless I'm adding data to this intermediate step).
             //Loading the smaller files directly to the in-memory representation would be so much faster than reading XML tag by tag.
-
-            //I might need to go back to my old setup, where I do Way data first, then Nodes.
             List<string> filenames = System.IO.Directory.EnumerateFiles(@"D:\Projects\OSM Server Info\XmlToProcess\", "*.osm").ToList();
 
             foreach (string filename in filenames)
             {
-                //allNodeLists = null;
                 ways = null;
                 nodes = null;
                 SPOI = null;
@@ -726,9 +553,6 @@ namespace OsmXmlParser
                 osmFile = XmlReader.Create(filename, xrs);
                 osmFile.MoveToContent();
 
-                //test value
-                Console.WriteLine("Biggest way has " + ways.Select(w => w.nodRefs.Count()).Max() + " nodes");
-
                 var nodesToSave = ways.SelectMany(w => w.nodRefs).ToHashSet<long>();
 
                 //second read - load Node data for ways and SPOIs.
@@ -753,12 +577,13 @@ namespace OsmXmlParser
                                 if (nodesToSave.Contains(n.id))
                                     if (n.id != null && n.lat != null && n.lon != null)
                                     nodes.Add(n);
+                                
                                 //This data below doesn't need saved in RAM, so we remove it after processing for SPOI and don't include it in the base Node object.
                                 var tags = parseNodeTags(osmFile.ReadSubtree());
                                 string name = tags.Where(t => t.k == "name").Select(t => t.v).FirstOrDefault();
                                 string nodetype = GetType(tags);
                                 //Now checking if this node is individually interesting.
-                                if (nodetype != "") //a name along is not interesting
+                                if (nodetype != "")
                                     SPOI.Add(new SinglePointsOfInterest() { name = name, lat = n.lat, lon = n.lon, NodeID = n.id, NodeType = nodetype });
                             }
                             break;
@@ -768,7 +593,7 @@ namespace OsmXmlParser
                     }
                 }
                 Console.WriteLine("Done reading Node objects at " + DateTime.Now);
-                File.WriteAllText(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-SPOIs.json", JsonSerializer.Serialize(SPOI));
+                WriteSPOIsToFile(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-SPOIs.json");
                 SPOI = null;
                 
                 Console.WriteLine("Attempting to convert " + nodes.Count() +  " nodes to lookup at " + DateTime.Now);
@@ -784,72 +609,19 @@ namespace OsmXmlParser
                 }
                 Console.WriteLine("Ways populated with Nodes at " + DateTime.Now);
                 nodes = null; //done with these now, can free up RAM again.
-
-                //Console.WriteLine(ways.Where(w => w.nds.Any(n => n == null)).Count() + " invalid ways found and removed"); was 0.
-                ways = ways.Where(w => w.nds.All(n => n != null)).ToList();
-
-
-                //Test concept.
-                Console.WriteLine("Manually writing to a file in pieces");
-                //System.Text.StringBuilder sb = new System.Text.StringBuilder();
-                //System.IO.StreamWriter sw = new StreamWriter(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-RawWays.json");
-
+                
                 WriteRawWaysToFile(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-RawWays.json");
 
-                //File.WriteAllText(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-RawWays.json", sb.ToString());
-
-
-
-                //We got at least partway through processing, save these now.
-                //File.WriteAllText(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-AllNodes.json", JsonSerializer.Serialize(nodes)); //I shouldn't need these, they're in the Way data now.
-
-
-                //lets split this in half, just in case?
-                //Norway's first half of the ways (RawWays1) is 600mb of JSON. And that's HALF of it's data? something's up with that. Probably a single entry is too big, might need a cap on nodes for a way?
-                //What would a reasonable cap look like? 1,000? 100,000?
-                //var ways1 = ways.Take(ways.Count / 2).ToList();
-                //var ways2 = ways.Skip(ways.Count / 2).ToList();
-                //var ways4 = ways.Skip((int)(ways.Count * .75)).ToList();
-                //File.WriteAllText(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-RawWays1.json", JsonSerializer.Serialize(ways1));
-                //File.WriteAllText(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-RawWays4.json", JsonSerializer.Serialize(ways2));
-
-                //ways1 = null;
-                //ways2 = null;
-
-
-
-                //File.WriteAllText(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-RawWays.json", JsonSerializer.Serialize(ways));
-                //File.WriteAllText(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-RawWays.json", Newtonsoft.Json.JsonConvert.SerializeObject(ways)); //Seeing if Newtonsoft JSON code still errors out like JsonSerializer
-
-                Console.WriteLine("Important Stuff dumped to JSON at " + DateTime.Now);
-
-
-                //Multithreading this processing. Uses more RAM to hold the ToList() version in memory before writing JSON to disk.
-                System.Collections.Concurrent.ConcurrentBag<ProcessedWay> pws = new System.Collections.Concurrent.ConcurrentBag<ProcessedWay>();
-                System.Threading.Tasks.Parallel.ForEach(ways, (w) =>
+                List<ProcessedWay> pws = new List<ProcessedWay>();
+                foreach (Way w in ways)
                 {
                     var pw = ProcessWay(w);
                     if (pw != null)
                         pws.Add(pw);
-                });
-                var pws2 = pws.ToList();
+                }
+                WriteProcessedWaysToFile(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-ProcessedWays.json", ref pws);
                 pws = null;
-
-                WriteProcessedWaysToFile(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-ProcessedWays.json", ref pws2);
-                pws2 = null;
-
                 nodeLookup = null;
-
-                //File.WriteAllText(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-ProcessedWays.json", JsonSerializer.Serialize(pws2));
-
-                //single threaded version.
-                //List<ProcessedWay> pws = new List<ProcessedWay>();
-                //foreach (Way w in ways)
-                //{
-                //    pws.Add(ProcessWay(w));
-                //}
-                //File.WriteAllText(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-ProcessedWays.json", JsonSerializer.Serialize(pws));
-                Console.WriteLine("Ways processed at " + DateTime.Now);
 
                 osmFile.Close(); osmFile.Dispose();
                 Console.WriteLine("Processed " + filename + " at " + DateTime.Now);
@@ -857,14 +629,12 @@ namespace OsmXmlParser
             }
         }
 
-
         public static void WriteRawWaysToFile(string filename)
         {
             System.IO.StreamWriter sw = new StreamWriter(filename);
             sw.Write("[");
             foreach (var w in ways)
             {
-                long wid = w.id;
                 var test = JsonSerializer.Serialize(w, typeof(Way));
                 sw.Write(test);
                 sw.Write(",");
@@ -889,6 +659,22 @@ namespace OsmXmlParser
             sw.Close();
             sw.Dispose();
             Console.WriteLine("All processed ways were serialized individually and saved to file at " + DateTime.Now);
+        }
+
+        public static void WriteSPOIsToFile(string filename)
+        {
+            System.IO.StreamWriter sw = new StreamWriter(filename);
+            sw.Write("[");
+            foreach (var s in SPOI)
+            {
+                var test = JsonSerializer.Serialize(s, typeof(SinglePointsOfInterest));
+                sw.Write(test);
+                sw.Write(",");
+            }
+            sw.Write("]");
+            sw.Close();
+            sw.Dispose();
+            Console.WriteLine("All SPOIs were serialized individually and saved to file at " + DateTime.Now);
         }
 
 
