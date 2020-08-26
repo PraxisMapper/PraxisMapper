@@ -1,0 +1,19 @@
+﻿How to run this:
+
+1) Create and configure SQL Server for this app. Update connection string, create DB via EFCore docs in Commands file.
+
+2) Download the latest .osm files to use from Geofabrik.de and unzip them to the appropriate folder.
+
+3) Assuming this is a first setup, Run OsmXmlParser with these arguments in order (separately, not all at once):
+-trimXmlFiles(reads all .osm files in a folder, saves as JSON data to another folder. Crashes pretty often in .NET 5 Preview with extremely vague "System.EngineException" error. Will take several runs to complete)
+-readSPOIs (Reads the JSON files that cover single interesting items, saves them to DB in SinglePointsOfInterest table)
+-readRawWays (Reads the JSON files that save all the raw OSM way info, saves them to DB in MapData table)
+-readProcessedWays (Reads the JSON files that contain condensed approximations of the ways, saves to the DB in ProcessedWays table)
+
+4)... manually make spatial index in Sql Server? Still getting here
+
+for changes that affect everything (EX: I changed tag types to process, i want new ways/updates from OSM), run OsmXmlParser with -resetXml and -resetJson, then follow step 3 again
+For changes that only affect processedWays/SPOIs (EX: testing a better approximation algorithm for ProcessedWays, changing schema on SPOI db table), i can read in existing JSON files instead of OSM XML 
+
+
+

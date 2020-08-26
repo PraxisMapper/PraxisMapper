@@ -25,7 +25,9 @@ using System.Net.Http.Headers;
 using Microsoft.EntityFrameworkCore.SqlServer.Query.Internal;
 using DatabaseAccess.Migrations;
 
-//Next TODO: clean up comments and scattered test code.
+//TODO: this is saving quite a few SPOIs without a name or a type. I should check my logic for saving that.
+//TODO: dont include raw ways with null nodes? I can't process those.
+//TODO: some node names are displaying in the debug console as "?????? ????". See Siberia. This should all be unicode and that should work fine.
 
 namespace OsmXmlParser
 {
@@ -44,20 +46,65 @@ namespace OsmXmlParser
         public static List<InterestingPoint> IPs = new List<InterestingPoint>();
         public static List<SinglePointsOfInterest> SPOI = new List<SinglePointsOfInterest>();
 
+        public static string parsedJsonPath = @"D:\Projects\OSM Server Info\Trimmed JSON Files\";
+
         static void Main(string[] args)
         {
-            //TODO: parallelize parsing where possible. reading a single XML file isn't parallelizable.
-            //CleanDb(); //testing, to start on an empty DB each time.
 
-            string parsedJsonPath = @"D:\Projects\OSM Server Info\Trimmed JSON Files\";
+            if (args.Any(a => a == "-cleanDB"))
+            {
+                CleanDb();
+            }
+
+            if (args.Any(a => a == "-resetXml"))
+            {
+                List<string> filenames = System.IO.Directory.EnumerateFiles(@"D:\Projects\OSM Server Info\XmlToProcess\", "*.osmDone").ToList();
+                foreach (var file in filenames)
+                {
+                    File.Move(file, file.Substring(0, file.Length - 4));
+                }
+            }
+
+            if (args.Any(a => a == "-resetJson"))
+            {
+                List<string> filenames = System.IO.Directory.EnumerateFiles(@"D:\Projects\OSM Server Info\Trimmed JSON Files\", "*.jsonDone").ToList();
+                foreach (var file in filenames)
+                {
+                    File.Move(file, file.Substring(0, file.Length - 4));
+                }
+            }
+
+            if (args.Any(a => a == "-trimXmlFiles"))
+            {
+                nodes.Capacity = 10000000;
+                ways.Capacity = 10000000;
+                MakeAllSerializedFiles();
+            }
+
+            if (args.Any(a => a == "-readSPOIs"))
+            {
+                AddSPOItoDB(); //takes 13 seconds using bulkInserts. Takes far, far longer without.
+            }
+
+            if (args.Any(a => a == "-readRawWays"))
+            {
+                AddRawWaystoDB();
+            }
+
+            if (args.Any(a => a == "-readProcessedWays"))
+            {
+                AddProcessedWaysToDB();
+            }
 
             //LoadPreviouslyParsedWayData(parsedJsonPath + "LocalCity-RawWays.json");
             //LoadPreviouslyParsedSPOIData(parsedJsonPath + "quebec-latest-SPOIs.json");
 
             //trying to reduce the amount of resizing done by setting this to a better starting amount.
-            nodes.Capacity = 10000000;
-            ways.Capacity =  10000000;
-            MakeAllSerializedFiles();
+
+
+            //Now loading data into DB.
+            //AddSPOItoDB();
+
             return;
         }
 
@@ -144,7 +191,7 @@ namespace OsmXmlParser
             //My local city takes 2 seconds with DB writes and JSON serialization
             //US Midwest takes ? to read and write.
 
-            Console.WriteLine("Starting Node read at " + DateTime.Now);
+            Log.WriteLog("Starting Node read at " + DateTime.Now);
             //TODO: read xml from zip file. Pretty sure I can stream zipfile data to save HD space, since global XML data needs 1TB of space unzipped.
             //string filename = @"..\..\..\jamaica-latest.osm"; //500MB, a reasonable test scenario for speed/load purposes.
             string filename = @"C:\Users\Drake\Downloads\us-midwest-latest.osm\us-midwest-latest.osm"; //This one takes much longer to process, 28 GB
@@ -164,7 +211,7 @@ namespace OsmXmlParser
                 if (timer.ElapsedMilliseconds > 10000)
                 {
                     //Report progress on the console.
-                    Console.WriteLine("Processed " + nodes.Count() + " nodes and " + ways.Count() + " ways so far");
+                    Log.WriteLog("Processed " + nodes.Count() + " nodes and " + ways.Count() + " ways so far");
                     timer.Restart();
                 }
 
@@ -188,7 +235,7 @@ namespace OsmXmlParser
                         }
                         break;
                     case "way":
-                        if (firstWay) { Console.WriteLine("First Way entry found at " + DateTime.Now); firstWay = false; }
+                        if (firstWay) { Log.WriteLog("First Way entry found at " + DateTime.Now); firstWay = false; }
 
                         //way will contain 'nd' elements with 'ref' to a node by ID.
                         //may contain tag, k is the type of thing it is.
@@ -206,13 +253,13 @@ namespace OsmXmlParser
                         break;
                 }
             }
-            Console.WriteLine("Done reading Way objects at " + DateTime.Now);
+            Log.WriteLog("Done reading Way objects at " + DateTime.Now);
 
             //We got at least partway through processing, save these now.
             File.WriteAllText(System.IO.Path.GetFileNameWithoutExtension(filename) + "-Nodes.json", JsonSerializer.Serialize(nodes));
             File.WriteAllText(System.IO.Path.GetFileNameWithoutExtension(filename) + "-RawWays.json", JsonSerializer.Serialize(ways));
             File.WriteAllText(System.IO.Path.GetFileNameWithoutExtension(filename) + "-SPOI.json", JsonSerializer.Serialize(SPOI));
-            Console.WriteLine("Stuff dumped to JSON at " + DateTime.Now);
+            Log.WriteLog("Stuff dumped to JSON at " + DateTime.Now);
 
             //Time to actually create the game objects.
             List<ProcessedWay> pws = new List<ProcessedWay>();
@@ -222,22 +269,22 @@ namespace OsmXmlParser
                 if (pw != null)
                     pws.Add(pw);
             }
-            Console.WriteLine("Ways processed at " + DateTime.Now);
+            Log.WriteLog("Ways processed at " + DateTime.Now);
 
             //Converting this to Json to minimize disk space. Json's about half the size.
             File.WriteAllText(System.IO.Path.GetFileNameWithoutExtension(filename) + "-ProcessedWays.json", JsonSerializer.Serialize(pws));
-            Console.WriteLine("ProcessedWays dumped to JSON at " + DateTime.Now);
+            Log.WriteLog("ProcessedWays dumped to JSON at " + DateTime.Now);
 
             //database work now.
             GpsExploreContext db = new GpsExploreContext();
             db.BulkInsert<ProcessedWay>(pws);
-            Console.WriteLine("Processed Ways saved to DB at " + DateTime.Now);
+            Log.WriteLog("Processed Ways saved to DB at " + DateTime.Now);
 
             db.BulkInsert<InterestingPoint>(IPs);
-            Console.WriteLine("Interesting Points saved to DB at " + DateTime.Now);
+            Log.WriteLog("Interesting Points saved to DB at " + DateTime.Now);
 
             db.BulkInsert<SinglePointsOfInterest>(SPOI);
-            Console.WriteLine("SPOI saved to DB at " + DateTime.Now);
+            Log.WriteLog("SPOI saved to DB at " + DateTime.Now);
 
             //Make SQL geometry entries.
             var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
@@ -261,14 +308,133 @@ namespace OsmXmlParser
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("Error making MapData entry: " + ex.Message);
+                    Log.WriteLog("Error making MapData entry: " + ex.Message);
                 }
             }
             //db.BulkInsert<MapData>(mapDatas); //Throws errors on data type.
             db.MapData.AddRange(mapDatas);
             db.SaveChanges(); //bulkInsert might not work on this type
-            Console.WriteLine("SQL Geometry values converted and saved to DB at " + DateTime.Now);
+            Log.WriteLog("SQL Geometry values converted and saved to DB at " + DateTime.Now);
 
+        }
+
+        public static void AddSPOItoDB()
+        {
+            GpsExploreContext db = new GpsExploreContext();
+
+            foreach (var file in System.IO.Directory.EnumerateFiles(parsedJsonPath, "*-SPOIs.json"))
+            {
+                JsonSerializerOptions jso = new JsonSerializerOptions();
+                jso.AllowTrailingCommas = true;
+                List<SinglePointsOfInterest> entries = (List<SinglePointsOfInterest>)JsonSerializer.Deserialize(File.ReadAllText(file), typeof(List<SinglePointsOfInterest>), jso);
+
+                entries = entries.Where(e => !string.IsNullOrWhiteSpace(e.name)).ToList(); //Some of these exist, they're not real helpful if they're just a tag.
+                db.BulkInsert<SinglePointsOfInterest>(entries);
+                Log.WriteLog("Added " + file + " to dB at " + DateTime.Now);
+            }
+        }
+
+        public static void AddProcessedWaysToDB()
+        {
+            GpsExploreContext db = new GpsExploreContext();
+
+            foreach (var file in System.IO.Directory.EnumerateFiles(parsedJsonPath, "*-ProcessedWays.json"))
+            {
+                List<ProcessedWay> entries = (List<ProcessedWay>)JsonSerializer.Deserialize(File.ReadAllText(file), typeof(List<ProcessedWay>));
+                db.BulkInsert<ProcessedWay>(entries);
+                Log.WriteLog("Added " + file + " to dB at " + DateTime.Now);
+            }
+        }
+
+        public static void AddRawWaystoDB()
+        {
+            //These are MapData items in the DB, unlike the other types that match names in code and DB tables.
+            //This function is pretty slow. I should figure out how to speed it up.
+            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
+            foreach (var file in System.IO.Directory.EnumerateFiles(parsedJsonPath, "*-RawWays.json"))
+            {
+                GpsExploreContext db = new GpsExploreContext();
+                db.ChangeTracker.AutoDetectChangesEnabled = false; //Allows single inserts to operate at a reasonable speed. Nothing else edits this table.
+                List<Way> entries = ReadRawWaysToMemory(file);
+
+                Log.WriteLog("Processing " + entries.Count() + " ways from " + file);
+                //List<MapData> mdList = new List<MapData>();
+                int errorCount = 0;
+                int loopCount = 0;
+                System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
+                timer.Start();
+                foreach (Way w in entries)
+                {
+                    loopCount++;
+                    if (w.nds.Any(n => n == null || n.lat == null || n.lon == null))
+                    {
+                        Log.WriteLog("Way " + w.id + " " + w.name + " rejected for having unusable nodes.");
+                        errorCount++;
+                        continue;
+                    }
+                    if (timer.ElapsedMilliseconds > 10000)
+                    {
+                        Log.WriteLog("Processed " + loopCount + " ways so far"); //mdList.Count()
+                        timer.Restart();
+                    }
+                    try
+                    {
+                        //TODO consider adding a copy of the first node as the last node if a way isn't closed.
+                        MapData md = new MapData();
+                        md.name = w.name;
+                        md.WayId = w.id;
+                        md.type = w.AreaType;
+                        Polygon temp = factory.CreatePolygon(w.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray());
+                        if (!temp.Shell.IsCCW)
+                        {
+                            temp = (Polygon)temp.Reverse();
+                            if (!temp.Shell.IsCCW)
+                            {
+                                Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not counter-clockwise forward or reversed.");
+                                errorCount++;
+                                continue;
+                            }
+                            if (!temp.IsValid)
+                            {
+                                Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not valid according to its own internal check.");
+                                errorCount++;
+                                continue;
+                            }
+                        }
+
+                        //TODO: may need to do some kind of MakeValid() call on these to use them directly in SQL Server.
+                        md.place = temp;
+
+
+                        //mdList.Add(md);
+                        //Trying to add each entry indiviudally to detect additional errors for now.
+                        //But this way is slow, adding ~1 per second. with ChangeTracking on. ~2000 per second with Change Tracking off.
+                        db.MapData.Add(md);
+                        db.SaveChanges();
+                    }
+                    catch (Exception ex)
+                    {
+                        errorCount++;
+                        while (ex.InnerException != null)
+                            ex = ex.InnerException;
+
+                        Log.WriteLog(file + " | " + ex.Message + " | " + w.name + " " + w.id);
+                        //Common messages:
+                        //points must form a closed line.
+                        //Still getting a CCW error on save?
+                        //at least 1 way has nodes with null coordinates, cant use those ieth
+                    }
+                }
+                //GpsExploreContext db = new GpsExploreContext();
+                //db.MapData.AddRange(mdList);
+                //db.SaveChanges(); //The bulkInsert library does not like this type, must add the slow way.
+                //Takes 4 minutes on Netherlands to get to an error here, adding as a list.
+                //at 256,878 entries
+                Log.WriteLog("Added " + file + " to dB at " + DateTime.Now);
+                Log.WriteLog(errorCount + " ways excluded due to errors (" + ((errorCount / entries.Count()) * 100) + "%)");
+
+                File.Move(file, file + "Done");
+            }
         }
 
         public static void MakeSqlEntries()
@@ -277,13 +443,13 @@ namespace OsmXmlParser
             //database work now.
             GpsExploreContext db = new GpsExploreContext();
             //db.BulkInsert<ProcessedWay>(pws); this isnt a global.
-            Console.WriteLine("Processed Ways saved to DB at " + DateTime.Now);
+            Log.WriteLog("Processed Ways saved to DB at " + DateTime.Now);
 
             db.BulkInsert<InterestingPoint>(IPs);
-            Console.WriteLine("Interesting Points saved to DB at " + DateTime.Now);
+            Log.WriteLog("Interesting Points saved to DB at " + DateTime.Now);
 
             db.BulkInsert<SinglePointsOfInterest>(SPOI);
-            Console.WriteLine("SPOI saved to DB at " + DateTime.Now);
+            Log.WriteLog("SPOI saved to DB at " + DateTime.Now);
 
 
 
@@ -307,30 +473,30 @@ namespace OsmXmlParser
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("Error making MapData entry: " + ex.Message);
+                    Log.WriteLog("Error making MapData entry: " + ex.Message);
                     //Errors to consider handling/fixing: if the points aren't a closed shape, make a copy of the first point and make that the last point to close it.
                 }
             }
             //db.BulkInsert<MapData>(mapDatas); //Throws errors on data type. It might not support this feature.
             db.MapData.AddRange(mapDatas);
-            db.SaveChanges(); 
-            Console.WriteLine("SQL Geometry values converted and saved to DB at " + DateTime.Now);
+            db.SaveChanges();
+            Log.WriteLog("SQL Geometry values converted and saved to DB at " + DateTime.Now);
         }
 
-        public static void LoadPreviouslyParsedWayData(string filename)
-        {
-            ways = (List<Way>)JsonSerializer.Deserialize(File.ReadAllText(filename), typeof(List<Way>));
-        }
+        //public static void LoadPreviouslyParsedWayData(string filename)
+        //{
+        //    ways = (List<Way>)JsonSerializer.Deserialize(File.ReadAllText(filename), typeof(List<Way>));
+        //}
 
-        public static void LoadPreviouslyParsedNodeData(string filename)
-        {
-            nodes = (List<Node>)JsonSerializer.Deserialize(File.ReadAllText(filename), typeof(List<Node>));
-        }
+        //public static void LoadPreviouslyParsedNodeData(string filename)
+        //{
+        //    nodes = (List<Node>)JsonSerializer.Deserialize(File.ReadAllText(filename), typeof(List<Node>));
+        //}
 
-        public static void LoadPreviouslyParsedSPOIData(string filename)
-        {
-            SPOI = (List<SinglePointsOfInterest>)JsonSerializer.Deserialize(File.ReadAllText(filename), typeof(List<SinglePointsOfInterest>));
-        }
+        //public static void LoadPreviouslyParsedSPOIData(string filename)
+        //{
+        //    SPOI = (List<SinglePointsOfInterest>)JsonSerializer.Deserialize(File.ReadAllText(filename), typeof(List<SinglePointsOfInterest>));
+        //}
 
         public static ProcessedWay ProcessWay(Way w)
         {
@@ -343,7 +509,7 @@ namespace OsmXmlParser
 
             //A few files are missing a node(s), we can't use those ways.
             if (w.nds.Any(n => n == null))
-                return null; 
+                return null;
 
             //Version 1.
             //Convert the list of nodes into a rectangle that covers the full bounds.
@@ -471,24 +637,30 @@ namespace OsmXmlParser
 
         public static void CleanDb()
         {
+            //TODO: make these bulk deletes? 
             //Test function to put the DB back to empty.
             GpsExploreContext osm = new GpsExploreContext();
             osm.AreaTypes.RemoveRange(osm.AreaTypes);
             osm.SaveChanges();
+            Log.WriteLog("AreaTypes cleaned at " + DateTime.Now);
 
             osm.InterestingPoints.RemoveRange(osm.InterestingPoints);
+            Log.WriteLog("InterestingPoints cleaned at " + DateTime.Now);
             osm.SaveChanges();
 
             osm.ProcessedWays.RemoveRange(osm.ProcessedWays);
             osm.SaveChanges();
+            Log.WriteLog("ProcessedWays cleaned at " + DateTime.Now);
 
             osm.MapData.RemoveRange(osm.MapData);
             osm.SaveChanges();
+            Log.WriteLog("MapData cleaned at " + DateTime.Now);
 
             osm.SinglePointsOfInterests.RemoveRange(osm.SinglePointsOfInterests);
             osm.SaveChanges();
+            Log.WriteLog("SPOIs cleaned at " + DateTime.Now);
 
-            Console.WriteLine("DB cleaned at " + DateTime.Now);
+            Log.WriteLog("DB cleaned at " + DateTime.Now);
         }
 
         public static void MakeAllSerializedFiles()
@@ -508,7 +680,7 @@ namespace OsmXmlParser
                 nodes = new List<Node>();
                 SPOI = new List<SinglePointsOfInterest>();
 
-                Console.WriteLine("Starting " + filename + " way read at " + DateTime.Now);
+                Log.WriteLog("Starting " + filename + " way read at " + DateTime.Now);
                 XmlReaderSettings xrs = new XmlReaderSettings();
                 xrs.IgnoreWhitespace = true;
                 XmlReader osmFile = XmlReader.Create(filename, xrs);
@@ -526,14 +698,14 @@ namespace OsmXmlParser
                     if (timer.ElapsedMilliseconds > 10000)
                     {
                         //Report progress on the console.
-                        Console.WriteLine("Processed " +  ways.Count() + " ways so far");
+                        Log.WriteLog("Processed " + ways.Count() + " ways so far");
                         timer.Restart();
                     }
 
                     switch (osmFile.Name)
                     {
                         case "way":
-                            if (firstWay) { Console.WriteLine("First Way entry found at " + DateTime.Now); firstWay = false; }
+                            if (firstWay) { Log.WriteLog("First Way entry found at " + DateTime.Now); firstWay = false; }
 
                             var w = new Way();
                             w.id = osmFile.GetAttribute("id").ToLong();
@@ -561,7 +733,7 @@ namespace OsmXmlParser
                     if (timer.ElapsedMilliseconds > 10000)
                     {
                         //Report progress on the console.
-                        Console.WriteLine("Processed " + nodes.Count() + " nodes so far");
+                        Log.WriteLog("Processed " + nodes.Count() + " nodes so far");
                         timer.Restart();
                     }
 
@@ -576,8 +748,8 @@ namespace OsmXmlParser
                                 n.lon = osmFile.GetAttribute("lon").ToDouble();
                                 if (nodesToSave.Contains(n.id))
                                     if (n.id != null && n.lat != null && n.lon != null)
-                                    nodes.Add(n);
-                                
+                                        nodes.Add(n);
+
                                 //This data below doesn't need saved in RAM, so we remove it after processing for SPOI and don't include it in the base Node object.
                                 var tags = parseNodeTags(osmFile.ReadSubtree());
                                 string name = tags.Where(t => t.k == "name").Select(t => t.v).FirstOrDefault();
@@ -592,11 +764,11 @@ namespace OsmXmlParser
                             break;
                     }
                 }
-                Console.WriteLine("Done reading Node objects at " + DateTime.Now);
+                Log.WriteLog("Done reading Node objects at " + DateTime.Now);
                 WriteSPOIsToFile(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-SPOIs.json");
                 SPOI = null;
-                
-                Console.WriteLine("Attempting to convert " + nodes.Count() +  " nodes to lookup at " + DateTime.Now);
+
+                Log.WriteLog("Attempting to convert " + nodes.Count() + " nodes to lookup at " + DateTime.Now);
                 nodeLookup = (Lookup<long, Node>)nodes.ToLookup(k => k.id, v => v);
 
                 foreach (Way w in ways)
@@ -607,9 +779,9 @@ namespace OsmXmlParser
                     }
                     w.nodRefs = null; //free up a little memory we won't use again.
                 }
-                Console.WriteLine("Ways populated with Nodes at " + DateTime.Now);
+                Log.WriteLog("Ways populated with Nodes at " + DateTime.Now);
                 nodes = null; //done with these now, can free up RAM again.
-                
+
                 WriteRawWaysToFile(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-RawWays.json");
 
                 List<ProcessedWay> pws = new List<ProcessedWay>();
@@ -624,7 +796,7 @@ namespace OsmXmlParser
                 nodeLookup = null;
 
                 osmFile.Close(); osmFile.Dispose();
-                Console.WriteLine("Processed " + filename + " at " + DateTime.Now);
+                Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
                 File.Move(filename, filename + "Done"); //We made it all the way to the end, this file is done.
             }
         }
@@ -632,49 +804,97 @@ namespace OsmXmlParser
         public static void WriteRawWaysToFile(string filename)
         {
             System.IO.StreamWriter sw = new StreamWriter(filename);
-            sw.Write("[");
+            sw.Write("[" + Environment.NewLine);
             foreach (var w in ways)
             {
                 var test = JsonSerializer.Serialize(w, typeof(Way));
                 sw.Write(test);
-                sw.Write(",");
+                sw.Write("," + Environment.NewLine);
             }
             sw.Write("]");
             sw.Close();
             sw.Dispose();
-            Console.WriteLine("All ways were serialized individually and saved to file at " + DateTime.Now);
+            Log.WriteLog("All ways were serialized individually and saved to file at " + DateTime.Now);
+        }
+
+        public static List<Way> ReadRawWaysToMemory(string filename)
+        {
+            //Got out of memory errors trying to read files over 1GB through File.ReadAllText, so do those here this way.
+            StreamReader sr = new StreamReader(filename);
+            List<Way> lw = new List<Way>();
+            JsonSerializerOptions jso = new JsonSerializerOptions();
+            jso.AllowTrailingCommas = true;
+            //string firstLine = sr.ReadLine(); //2 different formats exist, either its all a single line or it's one entry per line plus square brackets on first and last lines.
+            //if (firstLine != "[")
+            //{
+            //    if (firstLine.StartsWith("["))
+            //        firstLine = firstLine.Substring(1);
+            //    //lw = (List<Way>)JsonSerializer.Deserialize(firstLine, typeof(List<Way>));
+            //    lw.Add((Way)JsonSerializer.Deserialize(firstLine, typeof(Way)));
+            //}
+            //else
+            //{
+            while (!sr.EndOfStream)
+            {
+                //It looks like there's a few different formats of JSON output I need to dig through.
+                string line = sr.ReadLine();
+                if (line == "[")
+                {
+                    //start of a file that spaced out every entry on a newline correctly. Skip.
+                }    
+                else if (line.StartsWith("[") && line.EndsWith("]"))
+                    lw.AddRange((List<Way>)JsonSerializer.Deserialize(line, typeof(List<Way>), jso)); //whole file is a list on one line. These shouldn't happen anymore.
+                else if (line.StartsWith("[") && line.EndsWith(","))
+                    lw.Add((Way)JsonSerializer.Deserialize(line.Substring(1, line.Count() -2), typeof(Way), jso)); //first entry on a file before I forced the brackets onto newlines. Comma at end causes errors, is also trimmed.
+                else if (line.StartsWith("]"))
+                {
+                    //dont do anything, this is EOF
+                    Log.WriteLog("EOF Reached for " + filename + "at " + DateTime.Now);
+                }    
+                else
+                { 
+                    lw.Add((Way)JsonSerializer.Deserialize(line.Substring(0, line.Count() -1), typeof(Way), jso)); //not starting line, trailing comma causes errors
+                }    
+            }
+            //}
+
+            if (lw.Count() == 0)
+                Log.WriteLog("No entries for " + filename + "? why?");
+
+            sr.Close(); sr.Dispose();
+            return lw;
         }
 
         public static void WriteProcessedWaysToFile(string filename, ref List<ProcessedWay> pws)
         {
             System.IO.StreamWriter sw = new StreamWriter(filename);
-            sw.Write("[");
+            sw.Write("[" + Environment.NewLine);
             foreach (var pw in pws)
             {
                 var test = JsonSerializer.Serialize(pw, typeof(ProcessedWay));
                 sw.Write(test);
-                sw.Write(",");
+                sw.Write("," + Environment.NewLine);
             }
             sw.Write("]");
             sw.Close();
             sw.Dispose();
-            Console.WriteLine("All processed ways were serialized individually and saved to file at " + DateTime.Now);
+            Log.WriteLog("All processed ways were serialized individually and saved to file at " + DateTime.Now);
         }
 
         public static void WriteSPOIsToFile(string filename)
         {
             System.IO.StreamWriter sw = new StreamWriter(filename);
-            sw.Write("[");
+            sw.Write("[" + Environment.NewLine);
             foreach (var s in SPOI)
             {
                 var test = JsonSerializer.Serialize(s, typeof(SinglePointsOfInterest));
                 sw.Write(test);
-                sw.Write(",");
+                sw.Write("," + Environment.NewLine);
             }
             sw.Write("]");
             sw.Close();
             sw.Dispose();
-            Console.WriteLine("All SPOIs were serialized individually and saved to file at " + DateTime.Now);
+            Log.WriteLog("All SPOIs were serialized individually and saved to file at " + DateTime.Now);
         }
 
 

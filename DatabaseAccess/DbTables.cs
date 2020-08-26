@@ -8,6 +8,10 @@ using System.Threading.Tasks;
 
 namespace DatabaseAccess
 {
+
+    //TODO possible changes:
+    //Add pluscode column to SinglePointsOfInterest, since that's what I'll be searching on.
+    //Might want this to be saved as 2 columns for indexing purposes (8code, 2code)
     public class DbTables
     {
         //PlayerData table in the database
