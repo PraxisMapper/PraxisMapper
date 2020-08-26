@@ -350,6 +350,7 @@ namespace OsmXmlParser
         {
             //These are MapData items in the DB, unlike the other types that match names in code and DB tables.
             //This function is pretty slow. I should figure out how to speed it up.
+            //TODO: don't insert duplicate objects. ~400,000 ways get inserted more than once for some reason. Doesn't seem to impact performance but could be improved.
             var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
             foreach (var file in System.IO.Directory.EnumerateFiles(parsedJsonPath, "*-RawWays.json"))
             {

@@ -17,3 +17,12 @@ For changes that only affect processedWays/SPOIs (EX: testing a better approxima
 
 
 
+
+Database side:
+Querying spatial data:
+DECLARE @p1 geography
+  SET @p1 = geography::STGeomFromText('POINT (-81.588722 41.511760)', 4326)
+  SELECT * FROM MapData
+  WHERE @p1.STWithin(place) = 1
+
+  returns Lakewood Cemetery and a body of water twice
