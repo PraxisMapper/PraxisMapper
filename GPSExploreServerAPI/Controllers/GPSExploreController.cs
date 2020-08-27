@@ -201,7 +201,7 @@ namespace GPSExploreServerAPI.Controllers
             GpsExploreContext db = new GpsExploreContext();
             //This one does a calculation, will take a bit longer.
             List<double> results = db.PlayerData.Where(p => p.timePlayed > 0).Select(p => p.distance / p.timePlayed).OrderByDescending(p => p).ToList(); //divide by zero error 
-            double playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.distance / p.timePlayed).FirstOrDefault();
+            double playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.timePlayed > 0 ? (double)(p.distance / p.timePlayed) : (double)0.0).FirstOrDefault();
             int playerRank = results.Where(p => p >= playerScore).Count();
             results = results.Take(10).ToList();
             results.Add(playerRank);
@@ -218,7 +218,7 @@ namespace GPSExploreServerAPI.Controllers
             PerformanceTracker pt = new PerformanceTracker("GetTrophiesLeaderboard");
             GpsExploreContext db = new GpsExploreContext();
             List<int> results = db.PlayerData.OrderByDescending(p => p.DateLastTrophyBought).Take(10).Select(p => p.DateLastTrophyBought).ToList();
-            int playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.DateLastTrophyBought).FirstOrDefault();
+            int playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.DateLastTrophyBought > 0 ? p.DateLastTrophyBought : int.MaxValue).FirstOrDefault();
             int playerRank = db.PlayerData.Where(p => p.DateLastTrophyBought <= playerScore).Count(); //This one is a time, so lower is better.
             results.Add(playerRank);
 

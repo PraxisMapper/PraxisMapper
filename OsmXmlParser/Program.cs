@@ -535,6 +535,10 @@ namespace OsmXmlParser
             //and see if any Way (before this approximate processing) .Contains() the center of a Plus code.
             //Might need to start at the 8cell level, and if anything hits there, THEN check for 10cells contained by it?
             //This is the MapData class that stores the whole vector list of nodes in SQL Server
+            //Version 2 might just be an attempt at reducing the size of a way.
+            //like, check if any of the points are within .000125 degress of another (1 10cell), and if so just use one point
+            //or shift all points to the nearest .000125 increment and eliminate duplicates?
+            //Since the raw ways data is fast enough to read once its indexed, i dont really need a super small set otherwise.
         }
 
         public static void MakePoints(List<ProcessedWay> pws)
