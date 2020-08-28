@@ -16,13 +16,11 @@ for changes that affect everything (EX: I changed tag types to process, i want n
 For changes that only affect processedWays/SPOIs (EX: testing a better approximation algorithm for ProcessedWays, changing schema on SPOI db table), i can read in existing JSON files instead of OSM XML 
 
 
-
-
 Database side:
 Querying spatial data:
 DECLARE @p1 geography
-  SET @p1 = geography::STGeomFromText('POINT (-81.588722 41.511760)', 4326)
+  SET @p1 = geography::STGeomFromText('POINT (-53.235222 21.536760)', 4326)
   SELECT * FROM MapData
   WHERE @p1.STWithin(place) = 1
 
-  returns Lakewood Cemetery and a body of water twice
+ 

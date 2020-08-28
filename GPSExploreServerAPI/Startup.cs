@@ -40,7 +40,7 @@ namespace GPSExploreServerAPI
 
             app.UseRouting();
 
-            app.UseAuthorization();
+            //app.UseAuthorization(); //I dont really use this on this API
 
             app.UseEndpoints(endpoints =>
             {

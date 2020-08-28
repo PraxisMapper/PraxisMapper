@@ -12,6 +12,7 @@ namespace DatabaseAccess
     //TODO possible changes:
     //Add pluscode column to SinglePointsOfInterest, since that's what I'll be searching on.
     //Might want this to be saved as 2 columns for indexing purposes (8code, 2code)
+    //might make it 5? might not be a big enough issue.
     public class DbTables
     {
         //PlayerData table in the database
@@ -107,6 +108,7 @@ namespace DatabaseAccess
             public double lat { get; set; }
             public double lon { get; set; }
             public string NodeType { get; set; } //same possible results as AreaType, same function. same possible FK value.
+            public string PlusCode { get; set; } //10 digit code, no plus sign.
 
         }
     }

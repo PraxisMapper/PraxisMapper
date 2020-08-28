@@ -33,6 +33,8 @@ namespace DatabaseAccess
 
             model.Entity<InterestingPoint>().Property(i => i.PlusCode8).HasMaxLength(8);
             model.Entity<InterestingPoint>().Property(i => i.PlusCode2).HasMaxLength(2);
+
+            model.Entity<SinglePointsOfInterest>().HasIndex(i => i.PlusCode); //for reading data
         }
     }
 }

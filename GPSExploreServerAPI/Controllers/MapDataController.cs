@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using System.Threading.Tasks;
+using Google.OpenLocationCode;
 using GPSExploreServerAPI.Classes;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -21,6 +22,7 @@ namespace GPSExploreServerAPI.Controllers
     {
         //Manual edits:
         //way ID 117019427 is the issue - Bay of Fundi polygon seems to be inside out, registers everywhere. Deleted.
+        //Added plusCode and index to SinglePointsOfInterest table since I uploaded it to S3. Re-run those commands.
         public static List<MapData> getInfo(double lat, double lon)
         {
             //reusable function
@@ -28,7 +30,16 @@ namespace GPSExploreServerAPI.Controllers
             var db = new DatabaseAccess.GpsExploreContext();
             var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
             var location = factory.CreatePoint(new Coordinate(lon, lat));
-            var places = db.MapData.Where(md => md.place.Contains(location)).ToList();
+            var places = db.MapData.Where(md => md.place.Contains(location)).ToList(); //Distinct occasionally throws errors here.
+            var pluscode = OpenLocationCode.Encode(lat, lon).Replace("+", "");
+            var spoi = db.SinglePointsOfInterests.Where(sp => sp.PlusCode == pluscode).FirstOrDefault();
+            if (spoi != null && spoi.SinglePointsOfInterestId != null)
+            {
+                //A single named place out-ranks the surrounding area.
+                var tempPlace = new MapData() { name = spoi.name, type = spoi.NodeType };
+                places.Clear();
+                places.Add(tempPlace);
+            }    
             pt.Stop();
             return places;
         }
@@ -38,19 +49,7 @@ namespace GPSExploreServerAPI.Controllers
         [Route("/[controller]/test")]
         public string TestDummyEndpoint()
         {
-            //testing C# side code here, to make sure i have that sorted out.
             //For debug purposes to confirm the server is running and reachable.
-            //i have lat/lon coords, whats there?
-            //double lat = 41.511760;
-            //double lon = -81.588722;
-            //var db = new DatabaseAccess.GpsExploreContext();
-            //var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
-            //var location = factory.CreatePoint(new Coordinate(lon, lat));
-            //var places = db.MapData.Where(md => md.place.Contains(location)).Select(md => new { md.name, md.type }).Distinct().ToList(); //This took about 2 seconds through C# code. Was nearly instant in SSMS
-            ////Might make a sproc for this search, since it looked like it was faster, but that could be performance variance
-            //return "OK" + places.Count();
-
-            //normal debug results, to prove the server is running right.
             return "OK";
         }
 
@@ -68,9 +67,21 @@ namespace GPSExploreServerAPI.Controllers
             if (results.Count() == 0)
                 return pluscode; //speed shortcut,no = separator indicates no special data.
 
-            var r2 = results.Select(r => new { r.name, r.type }).Distinct().ToList();
-            string strData = pluscode + "=" + string.Join("=", results.Select(r => r.name + "|" + r.type));
+            //The app only uses 1 of these results, so I sort them here.
+            //Should probably prioritize named locations first.
+            if (results.Where(r => !string.IsNullOrEmpty(r.name)).Count() == 1)
+                results = results.Where(r => !string.IsNullOrEmpty(r.name)).ToList();
 
+            //TODO: sort by type, so important types have priority displaying?
+            //or sort by area size, so smaller areas inside a bigger area count?
+
+            //Current sorting rules:
+            //1: if only one entry has a name, it gets priority over unnamed areas.
+            //last: the first out out of the database otherwise gets priority.
+
+            var r2 = results.Select(r => new { r.name, r.type }).Distinct().FirstOrDefault();
+            
+            string strData = pluscode + "=" + string.Join("=", results.Select(r => r.name + "|" + r.type));
             return strData;
         }
 

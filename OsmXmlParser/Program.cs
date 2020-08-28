@@ -51,6 +51,12 @@ namespace OsmXmlParser
         static void Main(string[] args)
         {
 
+            if (args.Count() == 0)
+            {
+                Console.WriteLine("You must pass an arguement to this application");
+                return;
+            }    
+
             if (args.Any(a => a == "-cleanDB"))
             {
                 CleanDb();
@@ -95,6 +101,11 @@ namespace OsmXmlParser
             {
                 AddProcessedWaysToDB();
             }
+
+            if (args.Any(a => a == "-plusCodeSpois"))
+            {
+                AddPlusCodesToSPOIs();
+            }    
 
             //LoadPreviouslyParsedWayData(parsedJsonPath + "LocalCity-RawWays.json");
             //LoadPreviouslyParsedSPOIData(parsedJsonPath + "quebec-latest-SPOIs.json");
@@ -761,7 +772,8 @@ namespace OsmXmlParser
                                 string nodetype = GetType(tags);
                                 //Now checking if this node is individually interesting.
                                 if (nodetype != "")
-                                    SPOI.Add(new SinglePointsOfInterest() { name = name, lat = n.lat, lon = n.lon, NodeID = n.id, NodeType = nodetype });
+
+                                    SPOI.Add(new SinglePointsOfInterest() { name = name, lat = n.lat, lon = n.lon, NodeID = n.id, NodeType = nodetype, PlusCode = GetPlusCode(n.lat, n.lon) });
                             }
                             break;
                         case "way":
@@ -900,6 +912,25 @@ namespace OsmXmlParser
             sw.Close();
             sw.Dispose();
             Log.WriteLog("All SPOIs were serialized individually and saved to file at " + DateTime.Now);
+        }
+
+        public static string GetPlusCode(double lat, double lon)
+        {
+            OpenLocationCode pluscode = new OpenLocationCode(lat, lon);
+            return pluscode.Code.Replace("+", "");
+        }
+
+        public static void AddPlusCodesToSPOIs()
+        {
+            //Should only need to run this once, since I want to add these to the return stream. Took about a minute to do.
+            var db = new GpsExploreContext();
+            var spois = db.SinglePointsOfInterests.ToList();
+            foreach (var spoi in spois)
+            {
+                spoi.PlusCode = GetPlusCode(spoi.lat, spoi.lon);
+            }
+
+            db.SaveChanges();
         }
 
 
