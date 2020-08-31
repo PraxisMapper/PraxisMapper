@@ -105,7 +105,12 @@ namespace OsmXmlParser
             if (args.Any(a => a == "-plusCodeSpois"))
             {
                 AddPlusCodesToSPOIs();
-            }    
+            }
+
+            if (args.Any(a => a == "-plusCode8Spois"))
+            {
+                AddPlusCode8sToSPOIs();
+            }
 
             //LoadPreviouslyParsedWayData(parsedJsonPath + "LocalCity-RawWays.json");
             //LoadPreviouslyParsedSPOIData(parsedJsonPath + "quebec-latest-SPOIs.json");
@@ -928,6 +933,19 @@ namespace OsmXmlParser
             foreach (var spoi in spois)
             {
                 spoi.PlusCode = GetPlusCode(spoi.lat, spoi.lon);
+            }
+
+            db.SaveChanges();
+        }
+
+        public static void AddPlusCode8sToSPOIs()
+        {
+            //Should only need to run this once, since I want to add these to the return stream. Took about a minute to do.
+            var db = new GpsExploreContext();
+            var spois = db.SinglePointsOfInterests.ToList();
+            foreach (var spoi in spois)
+            {
+                spoi.PlusCode8 = GetPlusCode(spoi.lat, spoi.lon).Substring(0,8);
             }
 
             db.SaveChanges();

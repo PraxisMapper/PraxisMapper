@@ -4,6 +4,7 @@ using System.ComponentModel.Design;
 using System.Linq;
 using System.Threading.Tasks;
 using DatabaseAccess;
+using Google.OpenLocationCode;
 using GPSExploreServerAPI.Classes;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -34,6 +35,14 @@ namespace GPSExploreServerAPI.Controllers
         public string TestDummyEndpoint()
         {
             //For debug purposes to confirm the server is running and reachable.
+
+            //var prec10 = OpenLocationCode.ComputeLatitudePrecision(10);
+            //var prec8 = OpenLocationCode.ComputeLatitudePrecision(8);
+            //var prec6 = OpenLocationCode.ComputeLatitudePrecision(6);
+
+            //var pluscode = new OpenLocationCode("9C6RVJ85+J8");
+            //var box = OpenLocationCode.DecodeValid(pluscode.Code.Substring(0, 8)); //This is the correct math I wanted for determining how big an area a plus code covers, and this direct function takes <10 character codes.
+
             return "OK";
         }
 

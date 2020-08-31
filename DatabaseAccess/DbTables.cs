@@ -109,6 +109,7 @@ namespace DatabaseAccess
             public double lon { get; set; }
             public string NodeType { get; set; } //same possible results as AreaType, same function. same possible FK value.
             public string PlusCode { get; set; } //10 digit code, no plus sign.
+            public string PlusCode8 { get; set; } //8 digit code, no plus sign, for indexing purposes.
 
         }
     }

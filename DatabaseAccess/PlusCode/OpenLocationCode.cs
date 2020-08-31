@@ -126,13 +126,16 @@ namespace Google.OpenLocationCode
         // Value of the most significant longitude digit after it has been converted to an integer.
         private const long LngMspValue = LngIntegerMultiplier * EncodingBaseSquared;
 
-
-
         // The ASCII integer of the minimum digit character used as the offset for indexed code digits
         private static readonly int IndexedDigitValueOffset = CodeAlphabet[0]; // 50
 
         // The digit values indexed by the character ASCII integer for efficient lookup of a digit value by its character
         private static readonly int[] IndexedDigitValues = new int[CodeAlphabet[CodeAlphabet.Length - 1] - IndexedDigitValueOffset + 1]; // int[38]
+
+        //These indicate the boundaries of a code cell by degrees.
+        public static readonly double Precision10 = .000125;
+        public static readonly double Precision8 = .0025;
+        public static readonly double Precision6 = .05;
 
         static OpenLocationCode()
         {
@@ -569,7 +572,7 @@ namespace Google.OpenLocationCode
             return DecodeValid(TrimCode(code));
         }
 
-        private static CodeArea DecodeValid(string codeDigits)
+        public static CodeArea DecodeValid(string codeDigits)
         {
             // Initialise the values. We work them out as integers and convert them to doubles at the end.
             long latVal = -LatitudeMax * LatIntegerMultiplier;
@@ -737,7 +740,7 @@ namespace Google.OpenLocationCode
         /// grid method having fewer columns than rows.
         /// </summary>
         /// <remarks>Copied from the JS implementation.</remarks>
-        private static double ComputeLatitudePrecision(int codeLength)
+        public static double ComputeLatitudePrecision(int codeLength)
         {
             if (codeLength <= CodePrecisionNormal)
             {
