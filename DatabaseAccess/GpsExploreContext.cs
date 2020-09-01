@@ -17,7 +17,6 @@ namespace DatabaseAccess
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             //TODO: figure out this connection string for local testing, and for AWS use.
-            //LocalHost
             //optionsBuilder.UseSqlServer(@"Data Source=localhost\SQLEXPRESS;Integrated Security = true;Initial Catalog=GpsExplore;", x => x.UseNetTopologySuite()); //Home config, SQL Express. Free, RAM limits. I think this causes the 'appdomain unloaded' error when it hits its RAM limit
             optionsBuilder.UseSqlServer(@"Data Source=localhost\SQLDEV;Integrated Security = true;Initial Catalog=GpsExplore;", x => x.UseNetTopologySuite()); //Home config, SQL Developer, Free, no limits, cant use in production
             //NetTopologySuite is for future location stuff from OSM data.

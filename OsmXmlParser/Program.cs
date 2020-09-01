@@ -109,15 +109,6 @@ namespace OsmXmlParser
                 AddPlusCode8sToSPOIs();
             }
 
-            //LoadPreviouslyParsedWayData(parsedJsonPath + "LocalCity-RawWays.json");
-            //LoadPreviouslyParsedSPOIData(parsedJsonPath + "quebec-latest-SPOIs.json");
-
-            //trying to reduce the amount of resizing done by setting this to a better starting amount.
-
-
-            //Now loading data into DB.
-            //AddSPOItoDB();
-
             return;
         }
 
@@ -125,6 +116,7 @@ namespace OsmXmlParser
         {
             //Translate a Way into a Sql Server datatype. This was confirming the minumum logic for this.
             //Something fails if the polygon isn't a closed shape, so I should check if firstpoint == lastpoint, and if not add a copy of firstpoint as the last point?
+            //Also fails if the points aren't counter-clockwise ordered. (Occasionally, a way fails to register as CCW in either direction)
             var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
 
             MapData md = new MapData();
@@ -165,13 +157,8 @@ namespace OsmXmlParser
             {
                 if (xr.Name == "nd")
                 {
-                    //Skip this step now, i have a full list of nodes in memory.
                     long nodeID = xr.GetAttribute("ref").ToLong();
-                    w.nodRefs.Add(nodeID);
-
-                    //w.nds.Add((Node)nodeLookup[xr.GetAttribute("ref").ToLong()]);
-                    //long id = xr.GetAttribute("ref").ToLong();
-                    //w.nds.Add(nodeLookup[id].FirstOrDefault());
+                    w.nodRefs.Add(nodeID);                   
                 }
                 else if (xr.Name == "tag")
                 {
@@ -185,147 +172,6 @@ namespace OsmXmlParser
                 w.AreaType = GetType(w.tags);
             }
             return;
-        }
-
-        public static void ParseXmlV3()
-        {
-            //PArseXML needs an additional rethink: I'm using MakeAllSerializedFiles to reduce the amount of processing.
-            //V4 might need to check for JSON files, and if so work on those instead. 
-            //If the JSON is missing, then read and parse the XML data instead to fill the List<>s?
-
-
-            //Third re-think. Read the file once.
-            //Nodes: if a node has interesting tags, make it a SinglePointOfInterest. Otherwise, throw it in the list.
-            //Ways: works roughtly the same, except I don't need the temp-list. i have the nodes already.
-            //Relations: skip, as usual.
-
-            //Results:
-            //This takes 12 seconds to process Jamaica's 500MB data, including DB writes (without InterestingPoints)
-            //My local city takes 2 seconds with DB writes and JSON serialization
-            //US Midwest takes ? to read and write.
-
-            Log.WriteLog("Starting Node read at " + DateTime.Now);
-            //TODO: read xml from zip file. Pretty sure I can stream zipfile data to save HD space, since global XML data needs 1TB of space unzipped.
-            //string filename = @"..\..\..\jamaica-latest.osm"; //500MB, a reasonable test scenario for speed/load purposes.
-            string filename = @"C:\Users\Drake\Downloads\us-midwest-latest.osm\us-midwest-latest.osm"; //This one takes much longer to process, 28 GB
-            //string filename = @"C:\Users\Drake\Downloads\LocalCity.osm"; //stuff I can actually walk to. 4MB
-            XmlReaderSettings xrs = new XmlReaderSettings();
-            xrs.IgnoreWhitespace = true;
-            XmlReader osmFile = XmlReader.Create(filename, xrs);
-            osmFile.MoveToContent();
-
-            System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
-            timer.Start();
-
-            bool firstWay = true;
-            bool exitEarly = false;
-            while (osmFile.Read() && !exitEarly)
-            {
-                if (timer.ElapsedMilliseconds > 10000)
-                {
-                    //Report progress on the console.
-                    Log.WriteLog("Processed " + nodes.Count() + " nodes and " + ways.Count() + " ways so far");
-                    timer.Restart();
-                }
-
-                switch (osmFile.Name)
-                {
-                    case "node":
-                        if (osmFile.NodeType == XmlNodeType.Element) //sometimes is EndElement if we had tags we ignored.
-                        {
-                            var n = new Node();
-                            n.id = osmFile.GetAttribute("id").ToLong();
-                            n.lat = osmFile.GetAttribute("lat").ToDouble();
-                            n.lon = osmFile.GetAttribute("lon").ToDouble();
-                            nodes.Add(n);
-                            //This data below doesn't need saved in RAM, so we remove it after processing for SPOI and don't include it in the base Node object.
-                            var tags = parseNodeTags(osmFile.ReadSubtree());
-                            string name = tags.Where(t => t.k == "name").Select(t => t.v).FirstOrDefault();
-                            string nodetype = GetType(tags);
-                            //Now checking if this node is individually interesting.
-                            if (nodetype != "") //a name along is not interesting
-                                SPOI.Add(new SinglePointsOfInterest() { name = name, lat = n.lat, lon = n.lon, NodeID = n.id, NodeType = nodetype });
-                        }
-                        break;
-                    case "way":
-                        if (firstWay) { Log.WriteLog("First Way entry found at " + DateTime.Now); firstWay = false; }
-
-                        //way will contain 'nd' elements with 'ref' to a node by ID.
-                        //may contain tag, k is the type of thing it is.
-                        var w = new Way();
-                        w.id = osmFile.GetAttribute("id").ToLong();
-
-                        ParseWayDataV2(w, osmFile.ReadSubtree()); //Saves a list of nodeRefs, doesnt look for actual nodes yet.
-
-                        if (w.AreaType != "")
-                            ways.Add(w);
-                        break;
-                    case "relation":
-                        //we're done with way entries.
-                        exitEarly = true;
-                        break;
-                }
-            }
-            Log.WriteLog("Done reading Way objects at " + DateTime.Now);
-
-            //We got at least partway through processing, save these now.
-            File.WriteAllText(System.IO.Path.GetFileNameWithoutExtension(filename) + "-Nodes.json", JsonSerializer.Serialize(nodes));
-            File.WriteAllText(System.IO.Path.GetFileNameWithoutExtension(filename) + "-RawWays.json", JsonSerializer.Serialize(ways));
-            File.WriteAllText(System.IO.Path.GetFileNameWithoutExtension(filename) + "-SPOI.json", JsonSerializer.Serialize(SPOI));
-            Log.WriteLog("Stuff dumped to JSON at " + DateTime.Now);
-
-            //Time to actually create the game objects.
-            List<ProcessedWay> pws = new List<ProcessedWay>();
-            foreach (Way w in ways)
-            {
-                var pw = ProcessWay(w);
-                if (pw != null)
-                    pws.Add(pw);
-            }
-            Log.WriteLog("Ways processed at " + DateTime.Now);
-
-            //Converting this to Json to minimize disk space. Json's about half the size.
-            File.WriteAllText(System.IO.Path.GetFileNameWithoutExtension(filename) + "-ProcessedWays.json", JsonSerializer.Serialize(pws));
-            Log.WriteLog("ProcessedWays dumped to JSON at " + DateTime.Now);
-
-            //database work now.
-            GpsExploreContext db = new GpsExploreContext();
-            db.BulkInsert<ProcessedWay>(pws);
-            Log.WriteLog("Processed Ways saved to DB at " + DateTime.Now);
-
-            db.BulkInsert<SinglePointsOfInterest>(SPOI);
-            Log.WriteLog("SPOI saved to DB at " + DateTime.Now);
-
-            //Make SQL geometry entries.
-            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
-            List<MapData> mapDatas = new List<MapData>();
-            foreach (Way w in ways)
-            {
-                //TODO: try/catch this, if the way's points don't make a closed polygon this errors out.
-                try
-                {
-                    MapData md = new MapData();
-                    md.name = w.name;
-                    md.type = w.AreaType;
-                    md.WayId = w.id;
-                    Polygon temp = factory.CreatePolygon(w.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray());
-                    if (!temp.Shell.IsCCW)
-                        temp = (Polygon)temp.Reverse();
-
-                    md.place = temp;
-
-                    mapDatas.Add(md);
-                }
-                catch (Exception ex)
-                {
-                    Log.WriteLog("Error making MapData entry: " + ex.Message);
-                }
-            }
-            //db.BulkInsert<MapData>(mapDatas); //Throws errors on data type.
-            db.MapData.AddRange(mapDatas);
-            db.SaveChanges(); //bulkInsert might not work on this type
-            Log.WriteLog("SQL Geometry values converted and saved to DB at " + DateTime.Now);
-
         }
 
         public static void AddSPOItoDB()
@@ -361,6 +207,7 @@ namespace OsmXmlParser
             //These are MapData items in the DB, unlike the other types that match names in code and DB tables.
             //This function is pretty slow. I should figure out how to speed it up.
             //TODO: don't insert duplicate objects. ~400,000 ways get inserted more than once for some reason. Doesn't seem to impact performance but could be improved.
+            //--Probably need to track down which partial files overlap. LocalCity.osm is a few.
             var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
             foreach (var file in System.IO.Directory.EnumerateFiles(parsedJsonPath, "*-RawWays.json"))
             {
@@ -369,7 +216,6 @@ namespace OsmXmlParser
                 List<Way> entries = ReadRawWaysToMemory(file);
 
                 Log.WriteLog("Processing " + entries.Count() + " ways from " + file);
-                //List<MapData> mdList = new List<MapData>();
                 int errorCount = 0;
                 int loopCount = 0;
                 System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
@@ -416,10 +262,8 @@ namespace OsmXmlParser
                         //TODO: may need to do some kind of MakeValid() call on these to use them directly in SQL Server.
                         md.place = temp;
 
-
-                        //mdList.Add(md);
                         //Trying to add each entry indiviudally to detect additional errors for now.
-                        //But this way is slow, adding ~1 per second. with ChangeTracking on. ~2000 per second with Change Tracking off.
+                        //But this way is slow with ChangeTracking on, adding ~1 per second. ~2000 per second with Change Tracking off.
                         db.MapData.Add(md);
                         db.SaveChanges();
                     }
@@ -433,11 +277,9 @@ namespace OsmXmlParser
                         //Common messages:
                         //points must form a closed line.
                         //Still getting a CCW error on save?
-                        //at least 1 way has nodes with null coordinates, cant use those ieth
+                        //at least 1 way has nodes with null coordinates, cant use those either
                     }
                 }
-                //db.MapData.AddRange(mdList);
-                //db.SaveChanges(); //The bulkInsert library does not like this type, must add the slow way.
                 Log.WriteLog("Added " + file + " to dB at " + DateTime.Now);
                 Log.WriteLog(errorCount + " ways excluded due to errors (" + ((errorCount / entries.Count()) * 100) + "%)");
 
@@ -445,62 +287,9 @@ namespace OsmXmlParser
             }
         }
 
-        public static void MakeSqlEntries()
-        {
-            //temp copy of this logic from ParseXMLV3 before removing it
-            //database work now.
-            GpsExploreContext db = new GpsExploreContext();
-            //db.BulkInsert<ProcessedWay>(pws); this isnt a global.
-            Log.WriteLog("Processed Ways saved to DB at " + DateTime.Now);
-
-            db.BulkInsert<SinglePointsOfInterest>(SPOI);
-            Log.WriteLog("SPOI saved to DB at " + DateTime.Now);
-
-            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code value for this..
-            List<MapData> mapDatas = new List<MapData>();
-            foreach (Way w in ways)
-            {
-                try
-                {
-                    MapData md = new MapData();
-                    md.name = w.name;
-                    md.type = w.AreaType;
-                    md.WayId = w.id;
-                    Polygon temp = factory.CreatePolygon(w.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray());
-                    if (!temp.Shell.IsCCW)
-                        temp = (Polygon)temp.Reverse();
-
-                    md.place = temp;
-
-                    mapDatas.Add(md);
-                }
-                catch (Exception ex)
-                {
-                    Log.WriteLog("Error making MapData entry: " + ex.Message);
-                    //Errors to consider handling/fixing: if the points aren't a closed shape, make a copy of the first point and make that the last point to close it.
-                }
-            }
-            //db.BulkInsert<MapData>(mapDatas); //Throws errors on data type. It might not support this feature.
-            db.MapData.AddRange(mapDatas);
-            db.SaveChanges();
-            Log.WriteLog("SQL Geometry values converted and saved to DB at " + DateTime.Now);
-        }
-
-        //public static void LoadPreviouslyParsedWayData(string filename)
-        //{
-        //    ways = (List<Way>)JsonSerializer.Deserialize(File.ReadAllText(filename), typeof(List<Way>));
-        //}
-
-        //public static void LoadPreviouslyParsedNodeData(string filename)
-        //{
-        //    nodes = (List<Node>)JsonSerializer.Deserialize(File.ReadAllText(filename), typeof(List<Node>));
-        //}
-
-        //public static void LoadPreviouslyParsedSPOIData(string filename)
-        //{
-        //    SPOI = (List<SinglePointsOfInterest>)JsonSerializer.Deserialize(File.ReadAllText(filename), typeof(List<SinglePointsOfInterest>));
-        //}
-
+        //This function has generally become unnecessary after proving that the spatial indexed RawWay type is sufficiently fast.
+        //I might still want this for a SQL Server Express edition, to cram that 10GB table down to 1.5GB or less to avoid RAM issues in Express
+        //But for any DB without an artificial RAM limit, this isn't needed.
         public static ProcessedWay ProcessWay(Way w)
         {
             //Neither of these should happen, but they have.
@@ -531,16 +320,6 @@ namespace OsmXmlParser
             pw.distanceE = w.nds.Max(n => n.lon) - pw.longitudeW; //same          
 
             return pw; //This can be used to make InterestingPoints for the actual app to read.
-
-            //Theory for Version 2:
-            //I could probably use the actual geolocation stuff in SQL Server 
-            //and see if any Way (before this approximate processing) .Contains() the center of a Plus code.
-            //Might need to start at the 8cell level, and if anything hits there, THEN check for 10cells contained by it?
-            //This is the MapData class that stores the whole vector list of nodes in SQL Server
-            //Version 2 might just be an attempt at reducing the size of a way.
-            //like, check if any of the points are within .000125 degress of another (1 10cell), and if so just use one point
-            //or shift all points to the nearest .000125 increment and eliminate duplicates?
-            //Since the raw ways data is fast enough to read once its indexed, i dont really need a super small set otherwise.
         }
 
         public static string GetType(List<Tag> tags)
@@ -614,6 +393,7 @@ namespace OsmXmlParser
             //TODO: make these bulk deletes? 
             //Test function to put the DB back to empty.
             GpsExploreContext osm = new GpsExploreContext();
+            osm.ChangeTracker.AutoDetectChangesEnabled = false; //Should speed up the clean up process.
             osm.AreaTypes.RemoveRange(osm.AreaTypes);
             osm.SaveChanges();
             Log.WriteLog("AreaTypes cleaned at " + DateTime.Now);
@@ -659,6 +439,9 @@ namespace OsmXmlParser
                 System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
                 timer.Start();
 
+                //We do this in 2 steps, because this seems to minimize memory-related errors
+                //Read the Ways first, identify the ones we want by tags, and track which nodes get referenced by those ways.
+                //The second run will load those nodes into memory to be add their data to the ways.
                 string destFolder = @"D:\Projects\OSM Server Info\Trimmed JSON Files\";
                 bool firstWay = true;
                 bool exitEarly = false;
@@ -726,7 +509,6 @@ namespace OsmXmlParser
                                 string nodetype = GetType(tags);
                                 //Now checking if this node is individually interesting.
                                 if (nodetype != "")
-
                                     SPOI.Add(new SinglePointsOfInterest() { name = name, lat = n.lat, lon = n.lon, NodeID = n.id, NodeType = nodetype, PlusCode = GetPlusCode(n.lat, n.lon) });
                             }
                             break;
@@ -755,16 +537,18 @@ namespace OsmXmlParser
 
                 WriteRawWaysToFile(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-RawWays.json");
 
-                List<ProcessedWay> pws = new List<ProcessedWay>();
-                foreach (Way w in ways)
-                {
-                    var pw = ProcessWay(w);
-                    if (pw != null)
-                        pws.Add(pw);
-                }
-                WriteProcessedWaysToFile(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-ProcessedWays.json", ref pws);
-                pws = null;
-                nodeLookup = null;
+                //I don't currently use the processed way data set, since spatial indexes are efficient enough
+                //I might return to using an abbreviated data set, but not for now, and I'll need a better way to approximate this when I do.
+                //List<ProcessedWay> pws = new List<ProcessedWay>();
+                //foreach (Way w in ways)
+                //{
+                //    var pw = ProcessWay(w);
+                //    if (pw != null)
+                //        pws.Add(pw);
+                //}
+                //WriteProcessedWaysToFile(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-ProcessedWays.json", ref pws);
+                //pws = null;
+                //nodeLookup = null;
 
                 osmFile.Close(); osmFile.Dispose();
                 Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
@@ -795,19 +579,9 @@ namespace OsmXmlParser
             List<Way> lw = new List<Way>();
             JsonSerializerOptions jso = new JsonSerializerOptions();
             jso.AllowTrailingCommas = true;
-            //string firstLine = sr.ReadLine(); //2 different formats exist, either its all a single line or it's one entry per line plus square brackets on first and last lines.
-            //if (firstLine != "[")
-            //{
-            //    if (firstLine.StartsWith("["))
-            //        firstLine = firstLine.Substring(1);
-            //    //lw = (List<Way>)JsonSerializer.Deserialize(firstLine, typeof(List<Way>));
-            //    lw.Add((Way)JsonSerializer.Deserialize(firstLine, typeof(Way)));
-            //}
-            //else
-            //{
+            
             while (!sr.EndOfStream)
             {
-                //It looks like there's a few different formats of JSON output I need to dig through.
                 string line = sr.ReadLine();
                 if (line == "[")
                 {
@@ -827,7 +601,6 @@ namespace OsmXmlParser
                     lw.Add((Way)JsonSerializer.Deserialize(line.Substring(0, line.Count() -1), typeof(Way), jso)); //not starting line, trailing comma causes errors
                 }    
             }
-            //}
 
             if (lw.Count() == 0)
                 Log.WriteLog("No entries for " + filename + "? why?");
@@ -836,21 +609,22 @@ namespace OsmXmlParser
             return lw;
         }
 
-        public static void WriteProcessedWaysToFile(string filename, ref List<ProcessedWay> pws)
-        {
-            System.IO.StreamWriter sw = new StreamWriter(filename);
-            sw.Write("[" + Environment.NewLine);
-            foreach (var pw in pws)
-            {
-                var test = JsonSerializer.Serialize(pw, typeof(ProcessedWay));
-                sw.Write(test);
-                sw.Write("," + Environment.NewLine);
-            }
-            sw.Write("]");
-            sw.Close();
-            sw.Dispose();
-            Log.WriteLog("All processed ways were serialized individually and saved to file at " + DateTime.Now);
-        }
+        //Also not using this right now.
+        //public static void WriteProcessedWaysToFile(string filename, ref List<ProcessedWay> pws)
+        //{
+        //    System.IO.StreamWriter sw = new StreamWriter(filename);
+        //    sw.Write("[" + Environment.NewLine);
+        //    foreach (var pw in pws)
+        //    {
+        //        var test = JsonSerializer.Serialize(pw, typeof(ProcessedWay));
+        //        sw.Write(test);
+        //        sw.Write("," + Environment.NewLine);
+        //    }
+        //    sw.Write("]");
+        //    sw.Close();
+        //    sw.Dispose();
+        //    Log.WriteLog("All processed ways were serialized individually and saved to file at " + DateTime.Now);
+        //}
 
         public static void WriteSPOIsToFile(string filename)
         {
@@ -870,8 +644,7 @@ namespace OsmXmlParser
 
         public static string GetPlusCode(double lat, double lon)
         {
-            OpenLocationCode pluscode = new OpenLocationCode(lat, lon);
-            return pluscode.Code.Replace("+", "");
+            return OpenLocationCode.Encode(lat, lon).Replace("+", "");
         }
 
         public static void AddPlusCodesToSPOIs()
@@ -899,8 +672,6 @@ namespace OsmXmlParser
 
             db.SaveChanges();
         }
-
-
 
         /* For reference: the tags Pokemon Go appears to be using. I don't need all of these. I have a few it doesn't, as well.
     KIND_BASIN
