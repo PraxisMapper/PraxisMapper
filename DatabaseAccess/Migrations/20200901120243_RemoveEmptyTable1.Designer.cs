@@ -4,15 +4,17 @@ using DatabaseAccess;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 
 namespace DatabaseAccess.Migrations
 {
     [DbContext(typeof(GpsExploreContext))]
-    partial class GpsExploreContextModelSnapshot : ModelSnapshot
+    [Migration("20200901120243_RemoveEmptyTable1")]
+    partial class RemoveEmptyTable1
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -36,6 +38,35 @@ namespace DatabaseAccess.Migrations
                     b.HasKey("AreaTypeId");
 
                     b.ToTable("AreaTypes");
+                });
+
+            modelBuilder.Entity("DatabaseAccess.DbTables+InterestingPoint", b =>
+                {
+                    b.Property<long>("InterestingPointId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+
+                    b.Property<long>("OsmWayId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("PlusCode2")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PlusCode8")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<long>("ProcessedWayID")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("areaType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("InterestingPointId");
+
+                    b.HasIndex("PlusCode8");
+
+                    b.ToTable("InterestingPoint");
                 });
 
             modelBuilder.Entity("DatabaseAccess.DbTables+MapData", b =>

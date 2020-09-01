@@ -10,11 +10,12 @@
 -readRawWays (Reads the JSON files that save all the raw OSM way info, saves them to DB in MapData table)
 -readProcessedWays (Reads the JSON files that contain condensed approximations of the ways, saves to the DB in ProcessedWays table)
 
-4)... manually make spatial index in Sql Server? Still getting here
+4)... manually make spatial index in Sql Server. This takes ~40 minutes, but it's core to making this app usable.
+a baseline standard config for this index seems to work fine.
 
 for changes that affect everything (EX: I changed tag types to process, i want new ways/updates from OSM), run OsmXmlParser with -resetXml and -resetJson, then follow step 3 again
 For changes that only affect processedWays/SPOIs (EX: testing a better approximation algorithm for ProcessedWays, changing schema on SPOI db table), i can read in existing JSON files instead of OSM XML 
-
+Man
 
 Database side:
 Querying spatial data:

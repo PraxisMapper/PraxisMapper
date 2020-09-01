@@ -8,7 +8,6 @@ namespace DatabaseAccess
     {
         public DbSet<PlayerData> PlayerData { get; set; }
         public DbSet<PerformanceInfo> PerformanceInfo { get; set; }
-        public DbSet<InterestingPoint> InterestingPoints { get; set; }
         public DbSet<ProcessedWay> ProcessedWays { get; set; }
         public DbSet<AreaType> AreaTypes { get; set; }
         public DbSet<MapData> MapData { get; set; }
@@ -30,10 +29,6 @@ namespace DatabaseAccess
             model.Entity<PlayerData>().HasIndex(p => p.deviceID); //for updating data
 
             model.Entity<ProcessedWay>().HasIndex(p => p.OsmWayId); //for updating data
-            model.Entity<InterestingPoint>().HasIndex(i => i.PlusCode8); //for reading data
-
-            model.Entity<InterestingPoint>().Property(i => i.PlusCode8).HasMaxLength(8);
-            model.Entity<InterestingPoint>().Property(i => i.PlusCode2).HasMaxLength(2);
 
             model.Entity<SinglePointsOfInterest>().HasIndex(i => i.PlusCode); //for reading data
             model.Entity<SinglePointsOfInterest>().HasIndex(i => i.PlusCode8); //for reading data, but actually used.

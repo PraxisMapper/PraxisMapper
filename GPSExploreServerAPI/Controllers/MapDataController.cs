@@ -49,6 +49,7 @@ namespace GPSExploreServerAPI.Controllers
 
         //Make one of these that takes in the plus code, since simulator is stuck on lat/lon i cant move
         //This one does the math to get an area equal to a PlusCode 8 cell, then finds anything that intersects it.
+        //TODO optimization: return first 8 digits as an initial string, then 2 digits for each 10cell instead of each full 10cell value.
         [HttpGet]
         [Route("/[controller]/cell8Info/{lat}/{lon}")]
         public string CellInfo(double lat, double lon)
@@ -130,18 +131,6 @@ namespace GPSExploreServerAPI.Controllers
                 }
             }
 
-            //var r2 = places.Select(r => new { r.name, r.type, r.plusCod}).Distinct().ToList();
-            //string strData = pluscode + "=" + string.Join("=", results.Select(r => r.name + "|" + r.type));
-
-
-            
-            //if (spoi != null && spoi.SinglePointsOfInterestId != null)
-            //{
-            //    //A single named place out-ranks the surrounding area.
-            //    var tempPlace = new MapData() { name = spoi.name, type = spoi.NodeType };
-            //    places.Clear();
-            //    places.Add(tempPlace);
-            //}
             pt.Stop();
             return sb.ToString();
         }

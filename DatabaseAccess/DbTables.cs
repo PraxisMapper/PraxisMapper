@@ -10,9 +10,7 @@ namespace DatabaseAccess
 {
 
     //TODO possible changes:
-    //Add pluscode column to SinglePointsOfInterest, since that's what I'll be searching on.
-    //Might want this to be saved as 2 columns for indexing purposes (8code, 2code)
-    //might make it 5? might not be a big enough issue.
+
     public class DbTables
     {
         //PlayerData table in the database
@@ -51,23 +49,7 @@ namespace DatabaseAccess
             public Geometry place { get; set; } //allows any sub-type of Geometry to be used
             public string type { get; set; }
                 
-        }
-
-        //These are the individual 10-cell values.
-        public class InterestingPoint
-        {
-            //Unique ID
-            public long InterestingPointId { get; set; }
-            //the Way ID in OSM data.
-            public long OsmWayId { get; set; }
-            //8 character Plus Code string, city-block sized. EX: 8GC4RVM2
-            public string PlusCode8 { get; set; }
-            //2 characters in a Plus Code after the plus EX: 23
-            public string PlusCode2 { get; set; }
-            //Total plus code would be PlusCode8 + "+" + PlusCode2
-            public long ProcessedWayID { get; set; }  //FK to the other table, in case I need to recalculate these?
-            public string areaType { get; set; } //what type of tile to display in this square. Matches up to some OSM tag combo.
-        }
+        }       
 
         //An attempt at storing the data as efficiently as possible.
         //Ways from OSM are reduced to rectangular abstractions.

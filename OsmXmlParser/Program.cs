@@ -25,8 +25,6 @@ using System.Net.Http.Headers;
 using Microsoft.EntityFrameworkCore.SqlServer.Query.Internal;
 using DatabaseAccess.Migrations;
 
-//TODO: this is saving quite a few SPOIs without a name or a type. I should check my logic for saving that.
-//TODO: dont include raw ways with null nodes? I can't process those.
 //TODO: some node names are displaying in the debug console as "?????? ????". See Siberia. This should all be unicode and that should work fine.
 
 namespace OsmXmlParser
@@ -43,7 +41,6 @@ namespace OsmXmlParser
 
         public static List<string> relevantTags = new List<string>() { "name", "natural", "leisure", "landuse", "amenity", "tourism", "historic" }; //The keys in tags we process to see if we want it included.
         public static List<string> relevantTourismValues = new List<string>() { "artwork", "attraction", "gallery", "museum", "viewpoint", "zoo" }; //The stuff we care about in the tourism category. Zoo and attraction are debatable.
-        public static List<InterestingPoint> IPs = new List<InterestingPoint>();
         public static List<SinglePointsOfInterest> SPOI = new List<SinglePointsOfInterest>();
 
         public static string parsedJsonPath = @"D:\Projects\OSM Server Info\Trimmed JSON Files\";
@@ -296,9 +293,6 @@ namespace OsmXmlParser
             db.BulkInsert<ProcessedWay>(pws);
             Log.WriteLog("Processed Ways saved to DB at " + DateTime.Now);
 
-            db.BulkInsert<InterestingPoint>(IPs);
-            Log.WriteLog("Interesting Points saved to DB at " + DateTime.Now);
-
             db.BulkInsert<SinglePointsOfInterest>(SPOI);
             Log.WriteLog("SPOI saved to DB at " + DateTime.Now);
 
@@ -442,11 +436,8 @@ namespace OsmXmlParser
                         //at least 1 way has nodes with null coordinates, cant use those ieth
                     }
                 }
-                //GpsExploreContext db = new GpsExploreContext();
                 //db.MapData.AddRange(mdList);
                 //db.SaveChanges(); //The bulkInsert library does not like this type, must add the slow way.
-                //Takes 4 minutes on Netherlands to get to an error here, adding as a list.
-                //at 256,878 entries
                 Log.WriteLog("Added " + file + " to dB at " + DateTime.Now);
                 Log.WriteLog(errorCount + " ways excluded due to errors (" + ((errorCount / entries.Count()) * 100) + "%)");
 
@@ -462,13 +453,8 @@ namespace OsmXmlParser
             //db.BulkInsert<ProcessedWay>(pws); this isnt a global.
             Log.WriteLog("Processed Ways saved to DB at " + DateTime.Now);
 
-            db.BulkInsert<InterestingPoint>(IPs);
-            Log.WriteLog("Interesting Points saved to DB at " + DateTime.Now);
-
             db.BulkInsert<SinglePointsOfInterest>(SPOI);
             Log.WriteLog("SPOI saved to DB at " + DateTime.Now);
-
-
 
             var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code value for this..
             List<MapData> mapDatas = new List<MapData>();
@@ -557,39 +543,6 @@ namespace OsmXmlParser
             //Since the raw ways data is fast enough to read once its indexed, i dont really need a super small set otherwise.
         }
 
-        public static void MakePoints(List<ProcessedWay> pws)
-        {
-            //Version 1:
-            //Take the southwest area 
-
-            double resolution = .000125; //the size in degress of a PlusCode cell at the 10-digit level.
-            foreach (ProcessedWay pw in pws)
-            {
-                //make first point. NO, don't i'll do that on the 0/0 loop.
-                //OpenLocationCode plusCodeMain = new OpenLocationCode(pw.latitudeS, pw.longitudeW);
-                int cellsWide = (int)(pw.distanceE / resolution); //Plus code resolution in degrees.
-                int cellsTall = (int)(pw.distanceN / resolution); //Plus code resolution in degrees.
-
-                for (int i = 0; i <= cellsWide; i++)
-                {
-                    for (int j = 0; j <= cellsTall; j++)
-                    {
-                        //new specific plus code
-                        //TODO: is it faster to shift the Plus code string manually like I do client-side, or to calculate a new plus code from lat/long?
-                        OpenLocationCode current = new OpenLocationCode(pw.latitudeS + (resolution * j), pw.longitudeW + (resolution * i));
-                        //make a DB entry for this 10cell
-                        InterestingPoint IP = new InterestingPoint();
-                        IP.PlusCode8 = current.CodeDigits.Substring(0, 8);
-                        IP.PlusCode2 = current.CodeDigits.Substring(8, 2);
-                        IP.OsmWayId = pw.OsmWayId;
-                        IP.areaType = pw.AreaType;
-
-                        IPs.Add(IP);
-                    }
-                }
-            }
-        }
-
         public static string GetType(List<Tag> tags)
         {
             //This is how we will figure out which area a cell counts as now.
@@ -664,10 +617,6 @@ namespace OsmXmlParser
             osm.AreaTypes.RemoveRange(osm.AreaTypes);
             osm.SaveChanges();
             Log.WriteLog("AreaTypes cleaned at " + DateTime.Now);
-
-            osm.InterestingPoints.RemoveRange(osm.InterestingPoints);
-            Log.WriteLog("InterestingPoints cleaned at " + DateTime.Now);
-            osm.SaveChanges();
 
             osm.ProcessedWays.RemoveRange(osm.ProcessedWays);
             osm.SaveChanges();
