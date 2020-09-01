@@ -80,6 +80,9 @@ namespace OsmXmlParser
         /// <returns>The text string without accent marks or other diacritical marks.</returns>
         public static string RemoveDiacritics(this string text)
         {
+            if (text == null)
+                return null;
+
             var normalizedString = text.Normalize(NormalizationForm.FormD);
             var stringBuilder = new StringBuilder();
 

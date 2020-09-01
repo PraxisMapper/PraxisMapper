@@ -24,6 +24,8 @@ using System.Net.Sockets;
 using System.Net.Http.Headers;
 using Microsoft.EntityFrameworkCore.SqlServer.Query.Internal;
 using DatabaseAccess.Migrations;
+using OsmSharp.Streams;
+using OsmSharp.Geo;
 
 //TODO: some node names are displaying in the debug console as "?????? ????". See Siberia. This should all be unicode and that should work fine.
 
@@ -52,7 +54,7 @@ namespace OsmXmlParser
             {
                 Console.WriteLine("You must pass an arguement to this application");
                 return;
-            }    
+            }
 
             if (args.Any(a => a == "-cleanDB"))
             {
@@ -84,6 +86,14 @@ namespace OsmXmlParser
                 MakeAllSerializedFiles();
             }
 
+
+            if (args.Any(a => a == "-trimPbfFiles"))
+            {
+                nodes.Capacity = 10000000;
+                ways.Capacity = 10000000;
+                MakeAllSerializedFilesFromPBF();
+            }
+
             if (args.Any(a => a == "-readSPOIs"))
             {
                 AddSPOItoDB(); //takes 13 seconds using bulkInserts. Takes far, far longer without.
@@ -107,6 +117,11 @@ namespace OsmXmlParser
             if (args.Any(a => a == "-plusCode8Spois"))
             {
                 AddPlusCode8sToSPOIs();
+            }
+
+            if (args.Any(a => a == "-pbfTest"))
+            {
+                Program_pbf.testPbfRead();
             }
 
             return;
@@ -158,7 +173,7 @@ namespace OsmXmlParser
                 if (xr.Name == "nd")
                 {
                     long nodeID = xr.GetAttribute("ref").ToLong();
-                    w.nodRefs.Add(nodeID);                   
+                    w.nodRefs.Add(nodeID);
                 }
                 else if (xr.Name == "tag")
                 {
@@ -388,6 +403,72 @@ namespace OsmXmlParser
             return ""; //not a way we need to save right now.
         }
 
+        public static string GetType(List<OsmSharp.Tags.Tag> tags)
+        {
+            //This is how we will figure out which area a cell counts as now.
+            //Should make sure all of these exist in the AreaTypes table I made.
+            //TODO: prioritize these tags, since each space gets one value.
+
+            if (tags.Count() == 0)
+                return ""; //Shouldn't happen, but as a sanity check if we start adding Nodes later.
+
+            //Water spaces should be displayed. Not sure if I want players to be in them for resources.
+            //Water should probably override other values as a safety concern.
+            if (tags.Any(t => t.Key == "natural" && t.Value == "water"))
+                return "water";
+
+            //Wetlands should also be high priority.
+            if (tags.Any(t => (t.Key == "natural" && t.Value == "wetland")))
+                return "wetland";
+
+            //Parks are good. Possibly core to this game.
+            if (tags.Any(t => t.Key == "leisure" && t.Value == "park"))
+                return "park";
+
+            //Beaches are good. Managed beaches are less good but I'll count those too.
+            if (tags.Any(t => (t.Key == "natural" && t.Value == "beach")
+            || (t.Key == "leisure" && t.Value == "beach_resort")))
+                return "beach";
+
+            //Universities are good. Primary schools are not so good.  Don't include all education values.
+            if (tags.Any(t => (t.Key == "amenity" && t.Value == "university")
+                || (t.Key == "amenity" && t.Value == "college")))
+                return "university";
+
+            //Nature Reserve. Should be included, but possibly secondary to other types inside it.
+            if (tags.Any(t => (t.Key == "leisure" && t.Value == "nature_reserve")))
+                return "natureReserve";
+
+            //Cemetaries are ok. They don't seem to appreciate Pokemon Go, but they're a public space and often encourage activity in them (thats not PoGo)
+            if (tags.Any(t => (t.Key == "landuse" && t.Value == "cemetery")
+                || (t.Key == "amenity" && t.Value == "grave_yard")))
+                return "cemetery";
+
+            //Malls are a good indoor area to explore.
+            if (tags.Any(t => t.Key == "shop" && t.Value == "mall"))
+                return "mall";
+
+            //Generic shopping area is ok. I don't want to advertise businesses, but this is a common area type.
+            if (tags.Any(t => (t.Key == "landuse" && t.Value == "retail")))
+                return "retail";
+
+            //I have tourism as a tag to save, but not necessarily sub-sets yet of whats interesting there.
+            if (tags.Any(t => (t.Key == "tourism" && relevantTourismValues.Contains(t.Value))))
+                return "tourism"; //TODO: create sub-values for tourism types?
+
+            //I have historical as a tag to save, but not necessarily sub-sets yet of whats interesting there.
+            if (tags.Any(t => (t.Key == "historical")))
+                return "historical";
+
+            //Possibly of interest:
+            //landuse:forest / landuse:orchard  / natural:wood
+            //natural:sand may be of interest for desert area?
+            //natural:spring / natural:hot_spring
+            //Anything else seems un-interesting or irrelevant.
+
+            return ""; //not a way we need to save right now.
+        }
+
         public static void CleanDb()
         {
             //TODO: make these bulk deletes? 
@@ -556,6 +637,137 @@ namespace OsmXmlParser
             }
         }
 
+        public static void MakeAllSerializedFilesFromPBF()
+        {
+            string destFolder = @"D:\Projects\OSM Server Info\Trimmed JSON Files\";
+            List<string> filenames = System.IO.Directory.EnumerateFiles(@"D:\Projects\OSM Server Info\XmlToProcess\", "*.pbf").ToList();
+
+            foreach (string filename in filenames)
+            {
+                ways = null;
+                //nodes = null;
+                SPOI = null;
+                ways = new List<Way>();
+                //nodes = new List<Node>();
+                SPOI = new List<SinglePointsOfInterest>();
+
+                Log.WriteLog("Starting " + filename + " way read at " + DateTime.Now);
+                var osmWays = GetWaysFromPbf(filename);
+                Lookup<long, long> nodeLookup = (Lookup<long, long>)osmWays.SelectMany(w => w.Nodes).ToLookup(k => k, v => v);
+                Log.WriteLog("Starting " + filename + " node read at " + DateTime.Now);
+                var osmNodes = GetNodesFromPbf(filename, nodeLookup);
+                var osmNodeLookup = osmNodes.ToLookup(k => k.Id.Value, v => v);
+
+                //Write SPOIs to file
+                var SpoiEntries = osmNodes.Where(n => n.Tags.Count() > 0 && GetType(n.Tags.ToList()) != "").ToList();
+                SPOI = SpoiEntries.Select(s => new SinglePointsOfInterest() { 
+                    lat = s.Latitude.Value, 
+                    lon = s.Longitude.Value, 
+                    name = s.Tags.Where(t=> t.Key == "name").FirstOrDefault().Value, 
+                    NodeID = s.Id.Value, 
+                    NodeType = GetType(s.Tags.ToList()),  
+                    PlusCode = GetPlusCode(s.Latitude.Value, s.Longitude.Value),
+                    PlusCode8 = GetPlusCode(s.Latitude.Value, s.Longitude.Value).Substring(0, 8)
+                }).ToList();
+                WriteSPOIsToFile(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-SPOIs.json");
+
+                Log.WriteLog("Converting OsmWays to my Ways at " + DateTime.Now);
+                ways = osmWays.Select(w => new OsmXmlParser.Classes.Way()
+                {
+                    id = w.Id.Value,
+                    name = w.Tags.Where(t => t.Key == "name").FirstOrDefault().Value.RemoveDiacritics(),
+                    AreaType = GetType(w.Tags.ToList()),
+                    nodRefs = w.Nodes.ToList()
+                })
+                .ToList();
+
+
+                foreach (Way w in ways)
+                {
+                    foreach (long nr in w.nodRefs)
+                    {
+                        var osmNode = osmNodeLookup[nr].FirstOrDefault();
+                        var myNode = new Node() { id = osmNode.Id.Value, lat = osmNode.Latitude.Value, lon = osmNode.Longitude.Value};
+                        w.nds.Add(myNode);
+                    }
+                    w.nodRefs = null; //free up a little memory we won't use again.
+                }
+                Log.WriteLog("Ways populated with Nodes at " + DateTime.Now);
+                osmNodes = null; //done with these now, can free up RAM again.
+
+                WriteRawWaysToFile(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-RawWays.json");
+                Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
+                File.Move(filename, filename + "Done"); //We made it all the way to the end, this file is done.
+            }
+        }
+
+        public static List<OsmSharp.Way> GetWaysFromPbf(string filename)
+        {
+            List<OsmSharp.Way> filteredWays = new List<OsmSharp.Way>();
+            using (var fs = File.OpenRead(filename))
+            {
+                var source = new PBFOsmStreamSource(fs);
+
+                var progress = source.ShowProgress();
+
+                //filter out data here
+                //Now this is my default filter.
+                filteredWays = progress.Where(p => p.Type == OsmSharp.OsmGeoType.Way && // || p.Type == OsmSharp.OsmGeoType.Node &&
+                        (p.Tags.Contains("natural", "water") ||
+                        p.Tags.Contains("natural", "wetlands") ||
+                        p.Tags.Contains("leisure", "park") ||
+                        p.Tags.Contains("natural", "beach") ||
+                        p.Tags.Contains("leisure", "beach_resort") ||
+                        p.Tags.Contains("amenity", "university") ||
+                        p.Tags.Contains("amenity", "college") ||
+                        p.Tags.Contains("leisure", "nature_reserve") ||
+                        p.Tags.Contains("landuse", "cemetery") ||
+                        p.Tags.Contains("amenity", "grave_yard") ||
+                        p.Tags.Contains("shop", "mall") ||
+                        p.Tags.Contains("landuse", "retail") ||
+                        p.Tags.Any(t => t.Key == "historical") ||
+                        p.Tags.Any(t => t.Key == "tourism" && relevantTourismValues.Contains(t.Value))
+                        ))
+                    .Select(w => (OsmSharp.Way)w)
+                    .ToList();
+            }
+            return filteredWays;
+        }
+
+        public static List<OsmSharp.Node> GetNodesFromPbf(string filename, Lookup<long, long> nLookup)
+        {
+            List<OsmSharp.Node> filteredNodes = new List<OsmSharp.Node>();
+            using (var fs = File.OpenRead(filename))
+            {
+                var source = new PBFOsmStreamSource(fs);
+
+                var progress = source.ShowProgress();
+
+                //filter out data here
+                //Now this is my default filter.
+                filteredNodes = progress.Where(p => p.Type == OsmSharp.OsmGeoType.Node &&
+                       (nLookup.Contains(p.Id.GetValueOrDefault()) ||
+                        (p.Tags.Contains("natural", "water") ||
+                        p.Tags.Contains("natural", "wetlands") ||
+                        p.Tags.Contains("leisure", "park") ||
+                        p.Tags.Contains("natural", "beach") ||
+                        p.Tags.Contains("leisure", "beach_resort") ||
+                        p.Tags.Contains("amenity", "university") ||
+                        p.Tags.Contains("amenity", "college") ||
+                        p.Tags.Contains("leisure", "nature_reserve") ||
+                        p.Tags.Contains("landuse", "cemetery") ||
+                        p.Tags.Contains("amenity", "grave_yard") ||
+                        p.Tags.Contains("shop", "mall") ||
+                        p.Tags.Contains("landuse", "retail") ||
+                        p.Tags.Any(t => t.Key == "historical") ||
+                        p.Tags.Any(t => t.Key == "tourism" && relevantTourismValues.Contains(t.Value))
+                        )))
+                    .Select(n => (OsmSharp.Node)n)
+                    .ToList();
+            }
+            return filteredNodes;
+        }
+
         public static void WriteRawWaysToFile(string filename)
         {
             System.IO.StreamWriter sw = new StreamWriter(filename);
@@ -579,27 +791,27 @@ namespace OsmXmlParser
             List<Way> lw = new List<Way>();
             JsonSerializerOptions jso = new JsonSerializerOptions();
             jso.AllowTrailingCommas = true;
-            
+
             while (!sr.EndOfStream)
             {
                 string line = sr.ReadLine();
                 if (line == "[")
                 {
                     //start of a file that spaced out every entry on a newline correctly. Skip.
-                }    
+                }
                 else if (line.StartsWith("[") && line.EndsWith("]"))
                     lw.AddRange((List<Way>)JsonSerializer.Deserialize(line, typeof(List<Way>), jso)); //whole file is a list on one line. These shouldn't happen anymore.
                 else if (line.StartsWith("[") && line.EndsWith(","))
-                    lw.Add((Way)JsonSerializer.Deserialize(line.Substring(1, line.Count() -2), typeof(Way), jso)); //first entry on a file before I forced the brackets onto newlines. Comma at end causes errors, is also trimmed.
+                    lw.Add((Way)JsonSerializer.Deserialize(line.Substring(1, line.Count() - 2), typeof(Way), jso)); //first entry on a file before I forced the brackets onto newlines. Comma at end causes errors, is also trimmed.
                 else if (line.StartsWith("]"))
                 {
                     //dont do anything, this is EOF
                     Log.WriteLog("EOF Reached for " + filename + "at " + DateTime.Now);
-                }    
+                }
                 else
-                { 
-                    lw.Add((Way)JsonSerializer.Deserialize(line.Substring(0, line.Count() -1), typeof(Way), jso)); //not starting line, trailing comma causes errors
-                }    
+                {
+                    lw.Add((Way)JsonSerializer.Deserialize(line.Substring(0, line.Count() - 1), typeof(Way), jso)); //not starting line, trailing comma causes errors
+                }
             }
 
             if (lw.Count() == 0)
@@ -667,7 +879,7 @@ namespace OsmXmlParser
             var spois = db.SinglePointsOfInterests.ToList();
             foreach (var spoi in spois)
             {
-                spoi.PlusCode8 = GetPlusCode(spoi.lat, spoi.lon).Substring(0,8);
+                spoi.PlusCode8 = GetPlusCode(spoi.lat, spoi.lon).Substring(0, 8);
             }
 
             db.SaveChanges();
