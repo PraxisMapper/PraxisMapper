@@ -119,11 +119,6 @@ namespace OsmXmlParser
                 AddPlusCode8sToSPOIs();
             }
 
-            if (args.Any(a => a == "-pbfTest"))
-            {
-                Program_pbf.testPbfRead();
-            }
-
             return;
         }
 
