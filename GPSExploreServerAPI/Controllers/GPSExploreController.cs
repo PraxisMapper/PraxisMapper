@@ -244,7 +244,7 @@ namespace GPSExploreServerAPI.Controllers
             PerformanceTracker pt = new PerformanceTracker("GetAltitudeLeaderboard");
             GpsExploreContext db = new GpsExploreContext();
 
-            List<int> results = db.PlayerData.OrderByDescending(p => p.altitudeSpread).Take(10).Select(p => p.t10Cells).ToList();
+            List<int> results = db.PlayerData.OrderByDescending(p => p.altitudeSpread).Take(10).Select(p => p.altitudeSpread).ToList();
             int playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.altitudeSpread).FirstOrDefault();
             int playerRank = db.PlayerData.Where(p => p.t10Cells >= playerScore).Count();
             results.Add(playerRank);
