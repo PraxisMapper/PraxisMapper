@@ -40,7 +40,6 @@ namespace OsmXmlParser
         public static List<Relation> relations = new List<Relation>();
 
         public static Lookup<long, Node> nodeLookup;
-
         public static List<string> relevantTags = new List<string>() { "name", "natural", "leisure", "landuse", "amenity", "tourism", "historic" }; //The keys in tags we process to see if we want it included.
         public static List<string> relevantTourismValues = new List<string>() { "artwork", "attraction", "gallery", "museum", "viewpoint", "zoo" }; //The stuff we care about in the tourism category. Zoo and attraction are debatable.
         public static List<SinglePointsOfInterest> SPOI = new List<SinglePointsOfInterest>();
@@ -772,6 +771,8 @@ namespace OsmXmlParser
 
         public static List<OsmSharp.Node> GetNodesFromPbf(string filename, Lookup<long, long> nLookup)
         {
+            //TODO:
+            //Consider adding Abandoned buildings/areas, as a brave explorer sort of location?
             List<OsmSharp.Node> filteredNodes = new List<OsmSharp.Node>();
             using (var fs = File.OpenRead(filename))
             {

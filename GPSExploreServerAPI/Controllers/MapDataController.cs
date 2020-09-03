@@ -91,47 +91,62 @@ namespace GPSExploreServerAPI.Controllers
             var spoi = db.SinglePointsOfInterests.Where(sp => sp.PlusCode8 == codeString).ToList();
 
             StringBuilder sb = new StringBuilder();
-            //pluscode=name|type per entry
+            //pluscode8
+            //pluscode2=name|type per entry
+            sb.AppendLine(codeString);
+
             
             //might want a faster loop if an 8cell has 0 interesting items.
 
             //For this, i might need to dig through each  plus code cell, but I have a much smaller set of data in memory. Might be faster ways to do this with a string array versus re-encoding OLC each loop?
             double resolution10 = .000125;
-            for(double x = box.Min.Longitude; x== box.Max.Longitude; x += resolution10)
+            for(double x = box.Min.Longitude; x <= box.Max.Longitude; x += resolution10)
             {
-                for (double y = box.Min.Latitude; y == box.Max.Latitude; y += resolution10)
+                for (double y = box.Min.Latitude; y <= box.Max.Latitude; y += resolution10)
                 {
                     //also remember these coords start at the lower-left, so i can add the resolution to get the max bounds
-                    var olc = new OpenLocationCode(x, y);
+                    var olc = new OpenLocationCode(y, x); //This takes lat, long, Coordinate takes X, Y. This line is correct.
+                    var plusCode2 = olc.Code.Substring(9, 2);
+
+                    //TODO: benchmark these 2 options. This function takes ~250ms sometimes, and I'm reasonably sure that's more SQL Server indexing issues than this code, but should confirm.
+                    //Original option: create boxes to represent the 10code
                     var cordSeq2 = new Coordinate[5] {new Coordinate(x, y), new Coordinate(x + resolution10, y), new Coordinate(x + resolution10, y + resolution10), new Coordinate(x, y + resolution10), new Coordinate(x, y)};
                     var poly2 = factory.CreatePolygon(cordSeq2);
                     var entriesHere = places.Where(md => md.place.Intersects(poly2)).ToList();
+
+                    //option 2: create a point in the middle of the 10cell, use that instead assuming its faster math.
+                    //var point = olc.Decode().Center;
+                    //var point2 = factory.CreatePoint(new Coordinate(point.Longitude, point.Latitude));
+                    //var entriesHere2 = places.Where(md => md.place.Contains(point2)).ToList();
                     
                     //First, if there's a single-point, return that.
                     var spoiToUser = spoi.Where(s => s.PlusCode == olc.Code.Replace("+", ""));
                     if (spoiToUser.Count() > 0)
-                        sb.AppendLine(spoiToUser.First().PlusCode + "=" + spoiToUser.First().name + "|" + spoiToUser.First().NodeType);
+                        sb.AppendLine(plusCode2 + "=" + spoiToUser.First().name + "|" + spoiToUser.First().NodeType);
                     else if (entriesHere.Count() == 0)
-                        sb.AppendLine(olc + "=|"); //nothing here.
+                    {
+                        //sb.AppendLine(olc + "=|"); //nothing here. don't use up space/bandwidth with empty cells. The phone will track that.
+                    }
                     else
                     {
                         if (entriesHere.Count() == 1)
-                            sb.AppendLine(olc + "=" + entriesHere.First().name + "|" + entriesHere.First().type);
+                            sb.AppendLine(plusCode2 + "=" + entriesHere.First().name + "|" + entriesHere.First().type);
                         else
                         {
                             var named = entriesHere.Where(e => !string.IsNullOrWhiteSpace(e.name)).ToList();
                             if (named.Count() == 1)
-                                sb.AppendLine(olc + "=" + named.First().name + "|" + named.First().type);
+                                sb.AppendLine(plusCode2 + "=" + named.First().name + "|" + named.First().type);
                             else
                                 //This might be where types get sorted now.
                                 //sorting should only occur if there's multiple overlapping entries to sort.
-                                sb.AppendLine(olc + "=" + named.First().name + "|" + named.First().type);
+                                sb.AppendLine(plusCode2 + "=" + named.First().name + "|" + named.First().type);
                         }
                     }
                 }
             }
 
-            pt.Stop();
+            //pt.Stop(sb.ToString()); //testing data
+            pt.Stop(); //faster
             return sb.ToString();
         }
 

@@ -37,6 +37,7 @@ namespace DatabaseAccess
             public string functionName { get; set; }
             public long runTime { get; set; }
             public DateTime calledAt { get; set; }
+            public string notes { get; set; }
         }
 
         public class MapData

@@ -31,5 +31,19 @@ namespace GPSExploreServerAPI.Classes
             });
             return;
         }
+
+        public void Stop(string notes)
+        {
+            Task.Run(() =>
+            {
+                sw.Stop();
+                pi.runTime = sw.ElapsedMilliseconds;
+                pi.notes = notes;
+                GpsExploreContext db = new GpsExploreContext();
+                db.PerformanceInfo.Add(pi);
+                db.SaveChanges();
+            });
+            return;
+        }
     }
 }
