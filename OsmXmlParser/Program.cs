@@ -118,6 +118,11 @@ namespace OsmXmlParser
                 AddPlusCode8sToSPOIs();
             }
 
+            if (args.Any(a => a == "-removeDupes"))
+            {
+                RemoveDuplicateWays();
+            }
+
             return;
         }
 
@@ -926,7 +931,10 @@ namespace OsmXmlParser
         {
             var db = new GpsExploreContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
-            var dupedWays = db.MapData.Select(md => new { md.WayId }).GroupBy(md => md.WayId).Where(md => md.Count() > 1).ToList();
+            var dupedWays = db.MapData.GroupBy(md => md.WayId)
+                .Select(m => new { m.Key, Count =  m.Count()})
+                .ToDictionary(d => d.Key, v => v.Count)
+                .Where(md => md.Value > 1);
 
             foreach (var dupe in dupedWays)
             {

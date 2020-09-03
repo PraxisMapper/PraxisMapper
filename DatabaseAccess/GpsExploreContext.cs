@@ -33,6 +33,8 @@ namespace DatabaseAccess
             model.Entity<SinglePointsOfInterest>().HasIndex(i => i.PlusCode8); //for reading data, but actually used.
             model.Entity<SinglePointsOfInterest>().Property(i => i.PlusCode8).HasMaxLength(8);
             model.Entity<SinglePointsOfInterest>().Property(i => i.PlusCode).HasMaxLength(15);
+
+            model.Entity<MapData>().HasIndex(p => p.WayId); //for checking OSM data and cleaning dupes
         }
     }
 }

@@ -76,18 +76,6 @@ namespace GPSExploreServerAPI.Controllers
             //var location = factory.CreatePoint(new Coordinate(lon, lat));
             //test list. Need to find an area that's not empty.
             var places = db.MapData.Where(md => md.place.Intersects(location)).ToList(); //areas have an intersection. This is correct upon testing a known area.
-            //var places3 = db.MapData.Where(md => md.place.Contains(location)).ToList(); //Contains only takes things totally enclosed. Might want Intersects
-            //var places5 = db.MapData.Where(md => md.place.Crosses(location)).ToList(); //says its invalid. This is PROBABLY what I want (Intersection is smaller than both areas, intersection is interior to both)?
-            //var places6 = db.MapData.Where(md => md.place.CoveredBy(location)).ToList(); //errors out
-            //var places7 = db.MapData.Where(md => md.place.Overlaps(location)).ToList(); //effectively both instances are identical areas. Not what I wanted.
-            //var places8 = db.MapData.Where(md => md.place.Touches(location)).ToList(); //Points are shared but areas are not.
-            //var places9 = db.MapData.Where(md => md.place.Within(location)).ToList(); //area 1 completely contained by area 2
-            //var places10 = db.MapData.Where(md => location.Within(md.place)).ToList(); //area 1 completely contained by area 2
-            //var places11 = db.MapData.Where(md => location.CoveredBy(md.place)).ToList(); //errors out
-
-            //var places2 = db.MapData.Where(md => location.Intersects(md.place)).ToList(); //option 2, in case this math is picky
-            //var places4 = db.MapData.Where(md => location.Contains(md.place)).ToList(); //Contains only takes things totally enclosed. Might want Intersects
-
             var spoi = db.SinglePointsOfInterests.Where(sp => sp.PlusCode8 == codeString).ToList();
 
             StringBuilder sb = new StringBuilder();
