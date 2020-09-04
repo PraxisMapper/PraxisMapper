@@ -46,6 +46,11 @@ namespace OsmXmlParser
 
         public static string parsedJsonPath = @"D:\Projects\OSM Server Info\Trimmed JSON Files\";
 
+        //Constants
+        public static double PlusCode10Resolution = .000125;
+        public static double PlusCode8Resolution = .0025;
+        public static double PlusCode6Resolution = .05;
+
         static void Main(string[] args)
         {
 
@@ -60,7 +65,7 @@ namespace OsmXmlParser
                 CleanDb();
             }
 
-            if (args.Any(a => a == "-resetXml"))
+            if (args.Any(a => a == "-resetXml" || a == "-resetPbf")) //update both anyways.
             {
                 List<string> filenames = System.IO.Directory.EnumerateFiles(@"D:\Projects\OSM Server Info\XmlToProcess\", "*.*Done").ToList();
                 foreach (var file in filenames)
@@ -88,7 +93,7 @@ namespace OsmXmlParser
 
             if (args.Any(a => a == "-trimPbfFiles"))
             {
-                nodes.Capacity = 10000000;
+                //nodes.Capacity = 10000000;
                 ways.Capacity = 10000000;
                 MakeAllSerializedFilesFromPBF();
             }
@@ -111,11 +116,6 @@ namespace OsmXmlParser
             if (args.Any(a => a == "-plusCodeSpois"))
             {
                 AddPlusCodesToSPOIs();
-            }
-
-            if (args.Any(a => a == "-plusCode8Spois"))
-            {
-                AddPlusCode8sToSPOIs();
             }
 
             if (args.Any(a => a == "-removeDupes"))
@@ -426,7 +426,8 @@ namespace OsmXmlParser
                 return "tourism"; //TODO: create sub-values for tourism types?
 
             //I have historical as a tag to save, but not necessarily sub-sets yet of whats interesting there.
-            if (tags.Any(t => (t.k == "historical")))
+            //NOTE: the OSM tag doesn't match my value
+            if (tags.Any(t => (t.k == "historic")))
                 return "historical";
 
             //Possibly of interest:
@@ -479,7 +480,7 @@ namespace OsmXmlParser
                 || (t.Key == "amenity" && t.Value == "grave_yard")))
                 return "cemetery";
 
-            //Malls are a good indoor area to explore.
+            //Malls are a good indoor area to explore. 0 hits on this set though.
             if (tags.Any(t => t.Key == "shop" && t.Value == "mall"))
                 return "mall";
 
@@ -491,8 +492,9 @@ namespace OsmXmlParser
             if (tags.Any(t => (t.Key == "tourism" && relevantTourismValues.Contains(t.Value))))
                 return "tourism"; //TODO: create sub-values for tourism types?
 
-            //I have historical as a tag to save, but not necessarily sub-sets yet of whats interesting there.
-            if (tags.Any(t => (t.Key == "historical")))
+            //I have historic as a tag to save, but not necessarily sub-sets yet of whats interesting there.
+            //NOTE: OSM tag doesn't match my node value.
+            if (tags.Any(t => (t.Key == "historic")))
                 return "historical";
 
             //Possibly of interest:
@@ -633,13 +635,11 @@ namespace OsmXmlParser
                             break;
                     }
                 }
-                Log.WriteLog("Done reading Node objects at " + DateTime.Now);
-                WriteSPOIsToFile(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-SPOIs.json");
-                SPOI = null;
 
                 Log.WriteLog("Attempting to convert " + nodes.Count() + " nodes to lookup at " + DateTime.Now);
                 nodeLookup = (Lookup<long, Node>)nodes.ToLookup(k => k.id, v => v);
 
+                List<long> waysToRemove = new List<long>();
                 foreach (Way w in ways)
                 {
                     foreach (long nr in w.nodRefs)
@@ -647,9 +647,41 @@ namespace OsmXmlParser
                         w.nds.Add(nodeLookup[nr].FirstOrDefault());
                     }
                     w.nodRefs = null; //free up a little memory we won't use again.
+
+                    //now that we have nodes, lets do a little extra processing.
+                    var latSpread = w.nds.Max(n => n.lat) - w.nds.Min(n => n.lat);
+                    var lonSpread = w.nds.Max(n => n.lon) - w.nds.Min(n => n.lon);
+
+                    if (latSpread <=  PlusCode10Resolution && lonSpread <= PlusCode10Resolution)
+                    {
+                        //this is small enough to be an SPOI instead
+                        var calcedCode = new OpenLocationCode(w.nds.Average(n => n.lat), w.nds.Average(n => n.lon));
+                        var reverseDecode = calcedCode.Decode();
+                        var spoiFromWay = new SinglePointsOfInterest() { 
+                            lat = reverseDecode.CenterLatitude , 
+                            lon =reverseDecode.CenterLongitude,
+                            NodeType = w.AreaType, 
+                            PlusCode = calcedCode.Code.Replace("+", ""),
+                            PlusCode8 = calcedCode.Code.Substring(0,8),
+                            name = w.name,
+                            NodeID = w.id //Will have to remember this could be a node or a way in the future.
+                        };
+                        SPOI.Add(spoiFromWay);
+                        waysToRemove.Add(w.id);
+                        w.nds = null; //free up a small amount of RAM now instead of later.
+                    }
                 }
+                //now remove ways we converted to SPOIs.
+                foreach (var wtr in waysToRemove)
+                    ways.Remove(ways.Where(w =>w.id == wtr).FirstOrDefault());
+
                 Log.WriteLog("Ways populated with Nodes at " + DateTime.Now);
                 nodes = null; //done with these now, can free up RAM again.
+
+                //Moved here while working on reading Ways for items that are too small.
+                Log.WriteLog("Done reading Node objects at " + DateTime.Now);
+                WriteSPOIsToFile(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-SPOIs.json");
+                SPOI = null;
 
                 WriteRawWaysToFile(destFolder + System.IO.Path.GetFileNameWithoutExtension(filename) + "-RawWays.json");
 
@@ -681,24 +713,22 @@ namespace OsmXmlParser
             {
                 string destFilename = System.IO.Path.GetFileName(filename).Replace(".osm.pbf", "");
                 ways = null;
-                //nodes = null;
                 SPOI = null;
                 ways = new List<Way>();
-                //nodes = new List<Node>();
                 SPOI = new List<SinglePointsOfInterest>();
-                GC.Collect();
 
                 Log.WriteLog("Starting " + filename + " way read at " + DateTime.Now);
                 var osmWays = GetWaysFromPbf(filename);
                 Lookup<long, long> nodeLookup = (Lookup<long, long>)osmWays.SelectMany(w => w.Nodes).ToLookup(k => k, v => v);
+
                 Log.WriteLog("Starting " + filename + " node read at " + DateTime.Now);
                 var osmNodes = GetNodesFromPbf(filename, nodeLookup);
                 var osmNodeLookup = osmNodes.ToLookup(k => k.Id.Value, v => v);
 
                 //Write SPOIs to file
                 Log.WriteLog("Finding SPOIs at " + DateTime.Now);
-                var SpoiEntries = osmNodes.AsParallel().Where(n => n.Tags.Count() > 0 && GetType(n.Tags.ToList()) != "").ToList();
-                SPOI = SpoiEntries.AsParallel().Select(s => new SinglePointsOfInterest() { 
+                var SpoiEntries = osmNodes.Where(n => n.Tags.Count() > 0 && GetType(n.Tags.ToList()) != "").ToList();
+                SPOI = SpoiEntries.Select(s => new SinglePointsOfInterest() { 
                     lat = s.Latitude.Value, 
                     lon = s.Longitude.Value, 
                     name = s.Tags.Where(t=> t.Key == "name").FirstOrDefault().Value, 
@@ -707,12 +737,10 @@ namespace OsmXmlParser
                     PlusCode = GetPlusCode(s.Latitude.Value, s.Longitude.Value),
                     PlusCode8 = GetPlusCode(s.Latitude.Value, s.Longitude.Value).Substring(0, 8)
                 }).ToList();
-                WriteSPOIsToFile(destFolder + destFilename + "-SPOIs.json");
                 SpoiEntries = null;
-                SPOI = null;
 
                 Log.WriteLog("Converting OsmWays to my Ways at " + DateTime.Now);
-                ways = osmWays.AsParallel().Select(w => new OsmXmlParser.Classes.Way()
+                ways = osmWays.Select(w => new OsmXmlParser.Classes.Way()
                 {
                     id = w.Id.Value,
                     name = w.Tags.Where(t => t.Key == "name").FirstOrDefault().Value.RemoveDiacritics(),
@@ -721,7 +749,7 @@ namespace OsmXmlParser
                 })
                 .ToList();
 
-
+                List<long> waysToRemove = new List<long>();
                 foreach (Way w in ways)
                 {
                     foreach (long nr in w.nodRefs)
@@ -731,13 +759,47 @@ namespace OsmXmlParser
                         w.nds.Add(myNode);
                     }
                     w.nodRefs = null; //free up a little memory we won't use again.
+
+                    //now that we have nodes, lets do a little extra processing.
+                    var latSpread = w.nds.Max(n => n.lat) - w.nds.Min(n => n.lat);
+                    var lonSpread = w.nds.Max(n => n.lon) - w.nds.Min(n => n.lon);
+
+                    if (latSpread <= PlusCode10Resolution && lonSpread <= PlusCode10Resolution)
+                    {
+                        //this is small enough to be an SPOI instead
+                        var calcedCode = new OpenLocationCode(w.nds.Average(n => n.lat), w.nds.Average(n => n.lon));
+                        var reverseDecode = calcedCode.Decode();
+                        var spoiFromWay = new SinglePointsOfInterest()
+                        {
+                            lat = reverseDecode.CenterLatitude,
+                            lon = reverseDecode.CenterLongitude,
+                            NodeType = w.AreaType,
+                            PlusCode = calcedCode.Code.Replace("+", ""),
+                            PlusCode8 = calcedCode.Code.Substring(0, 8),
+                            name = w.name,
+                            NodeID = w.id //Will have to remember this could be a node or a way in the future.
+                        };
+                        SPOI.Add(spoiFromWay);
+                        waysToRemove.Add(w.id);
+                        w.nds = null; //free up a small amount of RAM now instead of later.
+                    }
                 }
+                //now remove ways we converted to SPOIs.
+                foreach (var wtr in waysToRemove)
+                    ways.Remove(ways.Where(w => w.id == wtr).FirstOrDefault());
+            
                 Log.WriteLog("Ways populated with Nodes at " + DateTime.Now);
                 osmNodes = null; //done with these now, can free up RAM again.
+
+                WriteSPOIsToFile(destFolder + destFilename + "-SPOIs.json");
+                SPOI = null;
 
                 WriteRawWaysToFile(destFolder + destFilename + "-RawWays.json");
                 Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
                 File.Move(filename, filename + "Done"); //We made it all the way to the end, this file is done.
+                ways = null;
+                GC.Collect(); //Ask to clean up memory
+
             }
         }
 
@@ -765,7 +827,7 @@ namespace OsmXmlParser
                         p.Tags.Contains("amenity", "grave_yard") ||
                         p.Tags.Contains("shop", "mall") ||
                         p.Tags.Contains("landuse", "retail") ||
-                        p.Tags.Any(t => t.Key == "historical") ||
+                        p.Tags.Any(t => t.Key == "historic") ||
                         p.Tags.Any(t => t.Key == "tourism" && relevantTourismValues.Contains(t.Value))
                         ))
                     .Select(w => (OsmSharp.Way)w)
@@ -801,7 +863,7 @@ namespace OsmXmlParser
                         p.Tags.Contains("amenity", "grave_yard") ||
                         p.Tags.Contains("shop", "mall") ||
                         p.Tags.Contains("landuse", "retail") ||
-                        p.Tags.Any(t => t.Key == "historical") ||
+                        p.Tags.Any(t => t.Key == "historic") ||
                         p.Tags.Any(t => t.Key == "tourism" && relevantTourismValues.Contains(t.Value))
                         )))
                     .Select(n => (OsmSharp.Node)n)
@@ -816,9 +878,12 @@ namespace OsmXmlParser
             sw.Write("[" + Environment.NewLine);
             foreach (var w in ways)
             {
-                var test = JsonSerializer.Serialize(w, typeof(Way));
-                sw.Write(test);
-                sw.Write("," + Environment.NewLine);
+                if (w != null)
+                {
+                    var test = JsonSerializer.Serialize(w, typeof(Way));
+                    sw.Write(test);
+                    sw.Write("," + Environment.NewLine);
+                }
             }
             sw.Write("]");
             sw.Close();
