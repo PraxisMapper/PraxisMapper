@@ -26,6 +26,7 @@ using Microsoft.EntityFrameworkCore.SqlServer.Query.Internal;
 using DatabaseAccess.Migrations;
 using OsmSharp.Streams;
 using OsmSharp.Geo;
+using Microsoft.EntityFrameworkCore;
 
 //TODO: some node names are displaying in the debug console as "?????? ????". See Siberia. This should all be unicode and that should work fine.
 
@@ -62,6 +63,7 @@ namespace OsmXmlParser
 
             if (args.Any(a => a == "-cleanDB"))
             {
+                //Should take seconds using Truncate. No reason to do all the EFCore overhead for this.
                 CleanDb();
             }
 
@@ -105,6 +107,7 @@ namespace OsmXmlParser
 
             if (args.Any(a => a == "-readRawWays"))
             {
+                //Takes ~4 hours at last check.
                 AddRawWaystoDBFromFiles();
             }
 
@@ -120,6 +123,7 @@ namespace OsmXmlParser
 
             if (args.Any(a => a == "-removeDupes"))
             {
+                //a few minutes
                 RemoveDuplicateWays();
             }
 
@@ -508,24 +512,20 @@ namespace OsmXmlParser
 
         public static void CleanDb()
         {
-            //TODO: make these bulk deletes? 
             //Test function to put the DB back to empty.
             GpsExploreContext osm = new GpsExploreContext();
-            osm.ChangeTracker.AutoDetectChangesEnabled = false; //Should speed up the clean up process.
-            osm.AreaTypes.RemoveRange(osm.AreaTypes);
-            osm.SaveChanges();
+            osm.Database.SetCommandTimeout(900);
+
+            osm.Database.ExecuteSqlRaw("TRUNCATE TABLE AreaTypes");
             Log.WriteLog("AreaTypes cleaned at " + DateTime.Now);
 
-            osm.ProcessedWays.RemoveRange(osm.ProcessedWays);
-            osm.SaveChanges();
+            osm.Database.ExecuteSqlRaw("TRUNCATE TABLE ProcessedWays");
             Log.WriteLog("ProcessedWays cleaned at " + DateTime.Now);
 
-            osm.MapData.RemoveRange(osm.MapData);
-            osm.SaveChanges();
+            osm.Database.ExecuteSqlRaw("TRUNCATE TABLE MapData");
             Log.WriteLog("MapData cleaned at " + DateTime.Now);
 
-            osm.SinglePointsOfInterests.RemoveRange(osm.SinglePointsOfInterests);
-            osm.SaveChanges();
+            osm.Database.ExecuteSqlRaw("TRUNCATE TABLE SinglePointsOfInterests");
             Log.WriteLog("SPOIs cleaned at " + DateTime.Now);
 
             Log.WriteLog("DB cleaned at " + DateTime.Now);

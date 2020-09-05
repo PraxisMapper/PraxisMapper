@@ -15,7 +15,15 @@ a baseline standard config for this index seems to work fine.
 
 for changes that affect everything (EX: I changed tag types to process, i want new ways/updates from OSM), run OsmXmlParser with -resetXml and -resetJson, then follow step 3 again
 For changes that only affect processedWays/SPOIs (EX: testing a better approximation algorithm for ProcessedWays, changing schema on SPOI db table), i can read in existing JSON files instead of OSM XML 
-Man
+
+Server-side:
+deploy API app to its own folder, make sure IIS is pointing at folder with .exe and .dll files. Turn off Managed Code. 
+Upload database file to S3, copy file to server (instructions how TBD)
+Attach database to Sql Server (with or without SSMS installed? how TBD)
+
+test API endpoint. /mapdata/test should return "OK" if IIS is up and running. actual data endpoint should return stuff with valid inputs if DB is running and connected correctly.
+
+
 
 Database side:
 Querying spatial data:
