@@ -4,6 +4,7 @@ using System.Text;
 namespace Google.OpenLocationCode
 {
     //Note: the original OpenLocationCode library is Apache-2.0 licensed. This C# library doesn't seem to explicitly declare that, but it likely is also covered by it.
+    //I have made some trivial modifications, designed to make this slightly faster and make a couple private functions public.
 
     /// <summary>
     /// Convert locations to and from convenient codes known as Open Location Codes
@@ -483,7 +484,10 @@ namespace Google.OpenLocationCode
             }
 
             // Store the code - we build it in reverse and reorder it afterwards.
-            StringBuilder reverseCodeBuilder = new StringBuilder();
+            //StringBuilder reverseCodeBuilder = new StringBuilder(); //TODO: just use a char[], this uses one internally, and it gets converted a couple times this way
+            char[] pendingCode = new char[codeLength + 1];
+            pendingCode[8] = '+';
+            //Plus could add characters in the correct order to start this way.
 
             // Compute the code.
             // This approach converts each value to an integer after multiplying it by
@@ -495,14 +499,14 @@ namespace Google.OpenLocationCode
             long latVal = (long)(Math.Round((latitude + LatitudeMax) * LatIntegerMultiplier * 1e6) / 1e6);
             long lngVal = (long)(Math.Round((longitude + LongitudeMax) * LngIntegerMultiplier * 1e6) / 1e6);
 
-            if (codeLength > PairCodeLength)
+            if (codeLength > PairCodeLength) //only for length 11 and up
             {
                 for (int i = 0; i < GridCodeLength; i++)
                 {
                     long latDigit = latVal % GridRows;
                     long lngDigit = lngVal % GridColumns;
                     int ndx = (int)(latDigit * GridColumns + lngDigit);
-                    reverseCodeBuilder.Append(CodeAlphabet[ndx]);
+                    //reverseCodeBuilder.Append(CodeAlphabet[ndx]); //TODO: add pendingCode logic here
                     latVal /= GridRows;
                     lngVal /= GridColumns;
                 }
@@ -513,33 +517,52 @@ namespace Google.OpenLocationCode
                 lngVal /= GridColumnsMultiplier;
             }
             // Compute the pair section of the code.
+            int arrayPos = 10;
             for (int i = 0; i < PairCodeLength / 2; i++)
             {
-                reverseCodeBuilder.Append(CodeAlphabet[(int)(lngVal % EncodingBase)]);
-                reverseCodeBuilder.Append(CodeAlphabet[(int)(latVal % EncodingBase)]);
+                //reverseCodeBuilder.Append(CodeAlphabet[(int)(lngVal % EncodingBase)]);
+                //reverseCodeBuilder.Append(CodeAlphabet[(int)(latVal % EncodingBase)]);
+
+                //int arrayPos = PairCodeLength - (i * 2) - (i > 0 ? 1 : 0);
+                pendingCode[arrayPos] = CodeAlphabet[(int)(lngVal % EncodingBase)];
+                arrayPos--;
+                pendingCode[arrayPos] = CodeAlphabet[(int)(latVal % EncodingBase)];
+                arrayPos--;
+                if (arrayPos == 8)
+                    arrayPos--;
+
                 latVal /= EncodingBase;
                 lngVal /= EncodingBase;
                 // If we are at the separator position, add the separator.
-                if (i == 0)
-                {
-                    reverseCodeBuilder.Append(SeparatorCharacter);
-                }
+                //if (i == 0)
+                //{
+                //    reverseCodeBuilder.Append(SeparatorCharacter);
+                //}
             }
             // Reverse the code.
-            char[] reversedCode = reverseCodeBuilder.ToString().ToCharArray();
-            Array.Reverse(reversedCode);
-            StringBuilder codeBuilder = new StringBuilder(new string(reversedCode));
+            //char[] reversedCode = reverseCodeBuilder.ToString().ToCharArray();
+            //Array.Reverse(reversedCode);
+            //StringBuilder codeBuilder = new StringBuilder(new string(reversedCode));
+
+            //Debug test
+            string testCharArray = new string(pendingCode);
+            //if (testCharArray == codeBuilder.ToString())
+            //Console.WriteLine("The same!");
+
+
 
             // If we need to pad the code, replace some of the digits.
-            if (codeLength < SeparatorPosition)
-            {
-                codeBuilder.Remove(codeLength, SeparatorPosition - codeLength);
-                for (int i = codeLength; i < SeparatorPosition; i++)
-                {
-                    codeBuilder.Insert(i, PaddingCharacter);
-                }
-            }
-            return codeBuilder.ToString(0, Math.Max(SeparatorPosition + 1, codeLength + 1));
+            //if (codeLength < SeparatorPosition)
+            //{
+            //    codeBuilder.Remove(codeLength, SeparatorPosition - codeLength);
+            //    for (int i = codeLength; i < SeparatorPosition; i++)
+            //    {
+            //        codeBuilder.Insert(i, PaddingCharacter);
+            //    }
+            //}
+            //return codeBuilder.ToString(0, Math.Max(SeparatorPosition + 1, codeLength + 1));
+
+            return testCharArray;
         }
 
         /// <summary>

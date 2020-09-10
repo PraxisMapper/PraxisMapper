@@ -277,7 +277,7 @@ namespace OsmXmlParser
                             }
                         }
 
-                        //TODO: may need to do some kind of MakeValid() call on these to use them directly in SQL Server.
+                        //TODO: may need to do some kind of MakeValid() call on these to use them directly in SQL Server. Some throw errors using Contains() when i check it against Intersects.
                         md.place = temp;
 
                         //Trying to add each entry indiviudally to detect additional errors for now.
