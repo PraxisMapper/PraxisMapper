@@ -2,7 +2,7 @@
   "profiles": {
     "OsmXmlParser": {
       "commandName": "Project",
-      "commandLineArgs": "-readSPOIs -readRawWays"
+      "commandLineArgs": "-removeDupes"
     }
   }
 }

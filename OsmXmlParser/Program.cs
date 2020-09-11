@@ -124,7 +124,7 @@ namespace OsmXmlParser
             if (args.Any(a => a == "-removeDupes"))
             {
                 //a few minutes
-                RemoveDuplicateWays();
+                RemoveDuplicates();
             }
 
             return;
@@ -994,7 +994,7 @@ namespace OsmXmlParser
             db.SaveChanges();
         }
 
-        public static void RemoveDuplicateWays()
+        public static void RemoveDuplicates()
         {
             var db = new GpsExploreContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
@@ -1007,8 +1007,22 @@ namespace OsmXmlParser
             {
                 var entriesToDelete = db.MapData.Where(md => md.WayId == dupe.Key).ToList();
                 db.MapData.RemoveRange(entriesToDelete.Skip(1));
-                db.SaveChanges();
-            }    
+            }
+            db.SaveChanges();
+
+            var dupedSpoi = db.SinglePointsOfInterests.GroupBy(md => md.NodeID)
+                .Select(m => new { m.Key, Count = m.Count() })
+                .ToDictionary(d => d.Key, v => v.Count)
+                .Where(md => md.Value > 1);
+
+            foreach (var dupe in dupedSpoi)
+            {
+                var entriesToDelete = db.SinglePointsOfInterests.Where(md => md.NodeID == dupe.Key).ToList();
+                db.SinglePointsOfInterests.RemoveRange(entriesToDelete.Skip(1));
+            }
+            db.SaveChanges();
+
+
         }
 
         /* For reference: the tags Pokemon Go appears to be using. I don't need all of these. I have a few it doesn't, as well.

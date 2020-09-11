@@ -39,6 +39,7 @@ namespace DatabaseAccess
             model.Entity<SinglePointsOfInterest>().HasIndex(i => i.PlusCode); //for reading data
             model.Entity<SinglePointsOfInterest>().HasIndex(i => i.PlusCode8); //for reading data, but actually used.
             model.Entity<SinglePointsOfInterest>().HasIndex(i => i.PlusCode6); //for reading data, but actually used.
+            model.Entity<SinglePointsOfInterest>().HasIndex(i => i.NodeID); //for finding and removing duplicates, primarily
             model.Entity<SinglePointsOfInterest>().Property(i => i.PlusCode8).HasMaxLength(8);
             model.Entity<SinglePointsOfInterest>().Property(i => i.PlusCode6).HasMaxLength(6);
             model.Entity<SinglePointsOfInterest>().Property(i => i.PlusCode).HasMaxLength(15);
