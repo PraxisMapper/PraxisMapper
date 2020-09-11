@@ -735,7 +735,8 @@ namespace OsmXmlParser
                     NodeID = s.Id.Value, 
                     NodeType = GetType(s.Tags.ToList()),  
                     PlusCode = GetPlusCode(s.Latitude.Value, s.Longitude.Value),
-                    PlusCode8 = GetPlusCode(s.Latitude.Value, s.Longitude.Value).Substring(0, 8)
+                    PlusCode8 = GetPlusCode(s.Latitude.Value, s.Longitude.Value).Substring(0, 8),
+                    PlusCode6 = GetPlusCode(s.Latitude.Value, s.Longitude.Value).Substring(0, 6)
                 }).ToList();
                 SpoiEntries = null;
 
@@ -776,6 +777,7 @@ namespace OsmXmlParser
                             NodeType = w.AreaType,
                             PlusCode = calcedCode.Code.Replace("+", ""),
                             PlusCode8 = calcedCode.Code.Substring(0, 8),
+                            PlusCode6 = calcedCode.Code.Substring(0, 6),
                             name = w.name,
                             NodeID = w.id //Will have to remember this could be a node or a way in the future.
                         };

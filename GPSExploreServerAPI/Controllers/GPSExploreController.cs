@@ -43,7 +43,20 @@ namespace GPSExploreServerAPI.Controllers
             //var pluscode = new OpenLocationCode("9C6RVJ85+J8");
             //var box = OpenLocationCode.DecodeValid(pluscode.Code.Substring(0, 8)); //This is the correct math I wanted for determining how big an area a plus code covers, and this direct function takes <10 character codes.
 
-            return "OK";
+            string results = "Function OK";
+
+            try
+            {
+                var DB = new GpsExploreContext();
+                var check = DB.PlayerData.FirstOrDefault();
+                results += "|Database OK";
+            }
+            catch(Exception ex)
+            {
+                results += "|" + ex.Message + "|" + ex.StackTrace;
+            }
+
+            return results;
         }
 
         [HttpPost]

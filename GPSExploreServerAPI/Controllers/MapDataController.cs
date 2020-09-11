@@ -148,8 +148,9 @@ namespace GPSExploreServerAPI.Controllers
 
             PerformanceTracker pt = new PerformanceTracker("Cell6info");
             var pluscode = new OpenLocationCode(lat, lon);
-            var codeString = pluscode.Code.Substring(0, 6);
-            var box = OpenLocationCode.DecodeValid(codeString);
+            var codeString6 = pluscode.Code.Substring(0, 6);
+            var codeString8 = pluscode.Code.Substring(0, 8);
+            var box = OpenLocationCode.DecodeValid(codeString6);
 
             var db = new DatabaseAccess.GpsExploreContext();
             var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
@@ -161,19 +162,19 @@ namespace GPSExploreServerAPI.Controllers
             var location = factory.CreatePolygon(cordSeq);
             var places = db.MapData.Where(md => md.place.Intersects(location)).ToList(); //areas have an intersection. This is correct upon testing a known area. Contains() might also be needed, but it requires MakeValid to be called, and doesn't seem to help results quality.. // || md.place.Contains(location)
             //var indexedPlaces = places.Select(md => new {md.place,  md.name, md.type, indexed = new NetTopologySuite.Algorithm.Locate.IndexedPointInAreaLocator(md.place) }); //this should be half the time my current lookups are, but its not?
-            var spoi = db.SinglePointsOfInterests.Where(sp => sp.PlusCode8 == codeString).ToList();
+            var spoi = db.SinglePointsOfInterests.Where(sp => sp.PlusCode8 == codeString8).ToList();
 
             StringBuilder sb = new StringBuilder();
             //pluscode6 //same syntax as 8info, but for a 6
             //pluscode10|name|type  //allows for less string processing on the phone side but makes data transmit slighlty bigger
-            sb.AppendLine(codeString);
+            sb.AppendLine(codeString6);
 
             if (places.Count == 0 && spoi.Count == 0)
                 return sb.ToString();
 
             //add spois first, instead of checking 400 times if the list has entries. The app will load the first entry for each 10cell, and fail to insert a duplicate later in the return value.
             foreach (var s in spoi)
-                sb.AppendLine(s.PlusCode + "|" + s.name + "|" + s.NodeType);
+                sb.AppendLine(s.PlusCode.Substring(6, 4) + "|" + s.name + "|" + s.NodeType);
 
             //This is every 10code in a 6code.
             //For this, i might need to dig through each  plus code cell, but I have a much smaller set of data in memory. Might be faster ways to do this with a string array versus re-encoding OLC each loop?
@@ -184,8 +185,7 @@ namespace GPSExploreServerAPI.Controllers
             {
                 for (double y = box.Min.Latitude; y <= box.Max.Latitude; y += resolution10)
                 {
-                    //also remember these coords start at the lower-left, so i can add the resolution to get the max bounds
-                    var olc = new OpenLocationCode(y, x); //This takes lat, long, Coordinate takes X, Y. This line is correct.
+                    
 
                     //TODO: benchmark these 2 options. A quick check seems to suggest that this one is actually faster and more complete.
                     //Original option: create boxes to represent the 10code
@@ -212,9 +212,10 @@ namespace GPSExploreServerAPI.Controllers
                     }
                     else
                     {
-                        //Generally, if there's a smaller shape inside a bigger shape, the smaller one should take priority.
+                        //Generally, if there's a smaller shape inside a bigger shape, the smaller one should take priority. Also going to look at only sending over last 4 on each line for server speed.
+                        var olc = new OpenLocationCode(y, x).CodeDigits.Substring(6, 4); //This takes lat, long, Coordinate takes X, Y. This line is correct.
                         var smallest = entriesHere.Where(e => e.place.Area == entriesHere.Min(e => e.place.Area)).First();
-                        sb.AppendLine(olc.CodeDigits + "|" + smallest.name + "|" + smallest.type);
+                        sb.AppendLine(olc + "|" + smallest.name + "|" + smallest.type);
                     }
                 }
             }
