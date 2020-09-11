@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System;
 using static DatabaseAccess.DbTables;
+using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 
 namespace DatabaseAccess
 {
@@ -20,8 +21,12 @@ namespace DatabaseAccess
             //Current server config
             //optionsBuilder.UseSqlServer(@"Data Source=localhost\SQLEXPRESS;Integrated Security = true;Initial Catalog=GpsExplore;", x => x.UseNetTopologySuite()); //Home config, SQL Express. Free, RAM limits. I think this causes the 'appdomain unloaded' error when it hits its RAM limit
             //Current localhost config.
-            optionsBuilder.UseSqlServer(@"Data Source=localhost\SQLDEV;Integrated Security = true;Initial Catalog=GpsExplore;", x => x.UseNetTopologySuite()); //Home config, SQL Developer, Free, no limits, cant use in production
+            optionsBuilder.UseSqlServer(@"Data Source=localhost\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=GpsExplore;", x => x.UseNetTopologySuite()); //Home config, SQL Developer, Free, no limits, cant use in production
             //NetTopologySuite is for future location stuff from OSM data.
+
+            //Potential MariaDB config, which would be cheaper on AWS
+            //optionsBuilder.UseMySql("Server=localhost;Database=gpsExplore;User=root;Password=1234;");
+            
         }
 
         protected override void OnModelCreating(ModelBuilder model)

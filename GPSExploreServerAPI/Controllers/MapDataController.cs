@@ -162,7 +162,7 @@ namespace GPSExploreServerAPI.Controllers
             var location = factory.CreatePolygon(cordSeq);
             var places = db.MapData.Where(md => md.place.Intersects(location)).ToList(); //areas have an intersection. This is correct upon testing a known area. Contains() might also be needed, but it requires MakeValid to be called, and doesn't seem to help results quality.. // || md.place.Contains(location)
             //var indexedPlaces = places.Select(md => new {md.place,  md.name, md.type, indexed = new NetTopologySuite.Algorithm.Locate.IndexedPointInAreaLocator(md.place) }); //this should be half the time my current lookups are, but its not?
-            var spoi = db.SinglePointsOfInterests.Where(sp => sp.PlusCode8 == codeString8).ToList();
+            var spoi = db.SinglePointsOfInterests.Where(sp => sp.PlusCode6 == codeString6).ToList();
 
             StringBuilder sb = new StringBuilder();
             //pluscode6 //same syntax as 8info, but for a 6
