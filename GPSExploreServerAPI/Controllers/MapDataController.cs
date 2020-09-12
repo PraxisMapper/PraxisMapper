@@ -17,8 +17,11 @@ namespace GPSExploreServerAPI.Controllers
     [ApiController]
     public class MapDataController : ControllerBase
     {
-        //Manual edits:
+        //Manual map edits:
         //none
+
+        //TODO:
+        //implement caching, so a calculated 6cell's results can be reused until the app pool is reset or memory is freed.
 
         //This takes the current point, and finds any geometry that contains that point.
         public static List<MapData> getInfo(double lat, double lon)
@@ -143,7 +146,7 @@ namespace GPSExploreServerAPI.Controllers
             //Short codes trim off the front of the string for human use, i want to trim off the back for machine use.
 
             //It looks like there are some duplicate cells? I send over 4041 entries and the app saves 3588 and throws a few unique key errors on insert
-            
+
             //Now that I have waterways included, this takes ~3 seconds on nearby places instead of 1. May need to re-evaluate using the algorithm now.
 
             PerformanceTracker pt = new PerformanceTracker("Cell6info");
@@ -161,6 +164,7 @@ namespace GPSExploreServerAPI.Controllers
             var cordSeq = new Coordinate[5] { cord4, cord3, cord2, cord1, cord4 };
             var location = factory.CreatePolygon(cordSeq);
             var places = db.MapData.Where(md => md.place.Intersects(location)).ToList(); //areas have an intersection. This is correct.
+            //Indexed list isn't useful for overlapping polygons. Only points.
             //var indexedPlaces = places.Select(md => new {md.place,  md.name, md.type, indexed = new NetTopologySuite.Algorithm.Locate.IndexedPointInAreaLocator(md.place) }); //this should be half the time my current lookups are, but its not?
             var spoi = db.SinglePointsOfInterests.Where(sp => sp.PlusCode6 == codeString6).ToList();
 
@@ -176,33 +180,29 @@ namespace GPSExploreServerAPI.Controllers
             foreach (var s in spoi)
                 sb.AppendLine(s.PlusCode.Substring(6, 4) + "|" + s.name + "|" + s.NodeType);
 
+            //Notes:
+            //waterfall 6-cell has 58 entries in Places to check and 5 spoi, takes ~5 seconds. 13038 cells to send back.
+            //home 6-cell has 44 places to check and 1 spoi, takes ~2 seconds. 13532 cells to send back
+            //Thats a pretty big difference in scale for a not-huge difference in source data. I guess linestrings are way slower to compare via Intersects? Maybe there's one real complicated one to process somewhere?
+            
             //This is every 10code in a 6code.
             //For this, i might need to dig through each plus code cell, but I have a much smaller set of data in memory. Might be faster ways to do this with a string array versus re-encoding OLC each loop?
             double resolution10 = .000125; //as defined
-            //double resolution10 = (box.Max.Longitude - box.Min.Longitude) / 400; //practical answer, is slightly smaller at my long. could be double rounding error
-            //double resolution102 = (box.Max.Latitude - box.Min.Latitude) / 400; //practical answer, is slightly larget at my lat. could be double rounding error.
-            for (double x = box.Min.Longitude; x <= box.Max.Longitude; x += resolution10)
+                                           //double resolution10 = (box.Max.Longitude - box.Min.Longitude) / 400; //practical answer, is slightly smaller at my long. could be double rounding error
+                                           //double resolution102 = (box.Max.Latitude - box.Min.Latitude) / 400; //practical answer, is slightly larget at my lat. could be double rounding error.
+            //for (double x = box.Min.Longitude; x <= box.Max.Longitude; x += resolution10)
+            for (double xx = 0; xx < 400; xx += 1)
             {
-                for (double y = box.Min.Latitude; y <= box.Max.Latitude; y += resolution10)
+                //for (double y = box.Min.Latitude; y <= box.Max.Latitude; y += resolution10)
+                for (double yy = 0; yy < 400; yy++)
                 {
-                    //TODO: benchmark these 2 options. A quick check seems to suggest that this one is actually faster and more complete.
-                    //Original option: create boxes to represent the 10code
-                    //This one takes ~930ms warm, is the most consistent in time taken.
+                    double x = box.Min.Longitude + (resolution10 * xx);
+                    double y = box.Min.Latitude + (resolution10 * yy);
+
+                    //The only remaining optimzation here is to attempt to find a function that's faster than Intersects on linestrings, and if there is one to check when to use which.
                     var cordSeq2 = new Coordinate[5] { new Coordinate(x, y), new Coordinate(x + resolution10, y), new Coordinate(x + resolution10, y + resolution10), new Coordinate(x, y + resolution10), new Coordinate(x, y) };
                     var poly2 = factory.CreatePolygon(cordSeq2);
                     var entriesHere = places.Where(md => md.place.Intersects(poly2)).ToList();
-
-                    //option 2: create a point in the middle of the 10cell, use that instead assuming its faster math.
-                    //In home 6-cell, this results in almost 2x the results decoding OLC again. Try just x and y.
-                    //Local park looks square this way, instead of slightly taller on one side.
-                    //This takes 1250ms warm, is occasionally faster than option 1 but not consistently
-                    //var point2 = factory.CreatePoint(new Coordinate(x, y));
-                    //var entriesHere = places.Where(md => md.place.Contains(point2)).ToList();
-
-                    //option 3 is the built-in algorithm. Is the fastest in benchmark testing. Not in actual lookups? 200ms faster than Option 1, usually, in perfTest but way slower here.
-                    //var point3 = new Coordinate(x, y);
-                    //var entriesHere = indexedPlaces.Where(i => i.indexed.Locate(point3) == Location.Interior).ToList();
-
 
                     if (entriesHere.Count() == 0)
                     {
@@ -293,7 +293,7 @@ namespace GPSExploreServerAPI.Controllers
                 //38, -84 SW
                 //so 38 + (0-4), -84 = (0-4) coords.
                 double lat = 38 + (r.NextDouble() * 4);
-                double lon = -84 + ( r.NextDouble() * 4);
+                double lon = -84 + (r.NextDouble() * 4);
                 var olc = OpenLocationCode.Encode(lat, lon);
                 var codeString = olc.Substring(0, 6);
                 sw.Restart();
@@ -324,7 +324,7 @@ namespace GPSExploreServerAPI.Controllers
                     }
                 }
                 sw.Stop(); //measuring time it takes to parse a 6-cell down to 10-cells.and wou
-                intersectsPolygonRuntimes.Add(sw.ElapsedMilliseconds);  
+                intersectsPolygonRuntimes.Add(sw.ElapsedMilliseconds);
             }
 
             for (int i = 0; i < 50; i++)
@@ -445,7 +445,7 @@ namespace GPSExploreServerAPI.Controllers
 
             //This doesn;t work the way i want, this logic would be done on the SQL Server side via indexing/
             //yes this can, on a bigger scale. I pull in all the areas in a 6-cell, then determine what thing is in each 10cell using the indexedPointInAreaLocator function.
-            
+
 
             //previous test C# search logic speed. This takes 1ms after warming up.
             //for (int i = 0; i < 50000; i++)

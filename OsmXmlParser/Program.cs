@@ -41,8 +41,9 @@ namespace OsmXmlParser
         //public static List<Relation> relations = new List<Relation>();
 
         public static Lookup<long, Node> nodeLookup;
-        public static List<string> relevantTags = new List<string>() { "name", "natural", "leisure", "landuse", "amenity", "tourism", "historic" }; //The keys in tags we process to see if we want it included.
+        public static List<string> relevantTags = new List<string>() { "name", "natural", "leisure", "landuse", "amenity", "tourism", "historic", "highway" }; //The keys in tags we process to see if we want it included.
         public static List<string> relevantTourismValues = new List<string>() { "artwork", "attraction", "gallery", "museum", "viewpoint", "zoo" }; //The stuff we care about in the tourism category. Zoo and attraction are debatable.
+        public static List<string> relevantHighwayValues = new List<string>() { "path", "bridleway", "cycleway", "footway"}; //The stuff we care about in the tourism category. Zoo and attraction are debatable.
         public static List<SinglePointsOfInterest> SPOI = new List<SinglePointsOfInterest>();
 
         public static string parsedJsonPath = @"D:\Projects\OSM Server Info\Trimmed JSON Files\";
@@ -63,7 +64,6 @@ namespace OsmXmlParser
 
             if (args.Any(a => a == "-cleanDB"))
             {
-                //Should take seconds using Truncate. No reason to do all the EFCore overhead for this.
                 CleanDb();
             }
 
@@ -116,7 +116,7 @@ namespace OsmXmlParser
                 AddProcessedWaysToDB();
             }
 
-            if (args.Any(a => a == "-plusCodeSpois"))
+            if (args.Any(a => a == "-plusCodeSpois")) //should be removable now.
             {
                 AddPlusCodesToSPOIs();
             }
@@ -441,6 +441,20 @@ namespace OsmXmlParser
             //NOTE: the OSM tag doesn't match my value
             if (tags.Any(t => (t.k == "historic")))
                 return "historical";
+
+            //Trail. Will likely show up in varying places for various reasons. Trying to limit this down to hiking trails like in parks and similar.
+            //In my local park, i see both path and footway used (Footway is an unpaved trail, Path is a paved one)
+            //highway=track is for tractors and other vehicles.  Don't include. that.
+            //highway=path is non-motor vehicle, and otherwise very generic. 5% of all Ways in OSM.
+            //highway=footway is pedestrian traffic only, maybe including bikes. Mostly sidewalks, which I dont' want to include.
+            //highway=bridleway is horse paths, maybe including pedestrians and bikes
+            //highway=cycleway is for bikes, maybe including pedesterians.
+            if (tags.Any(t => (t.k == "highway" && t.v == "bridleway"))
+                || (tags.Any(t => t.k == "highway" && t.v == "path")) //path implies motor_vehicle = no // && !tags.Any(t => t.k =="motor_vehicle" && t.v == "yes")) //may want to check anyways?
+                || (tags.Any(t => t.k == "highway" && t.v == "cycleway"))  //I probably want to include these too, though I have none local to see.
+                || (tags.Any(t => t.k == "highway" && t.v == "footway") && !tags.Any(t => t.k == "footway" && t.v == "sidewalk"))
+                )
+                return "trail";
 
             //Possibly of interest:
             //landuse:forest / landuse:orchard  / natural:wood
@@ -780,7 +794,8 @@ namespace OsmXmlParser
                         p.Tags.Contains("landuse", "retail") ||
                         p.Tags.Any(t => t.Key == "historic") ||
                         p.Tags.Any(t => t.Key == "waterway") || //newest tag, lets me see a lot more rivers and such.
-                        p.Tags.Any(t => t.Key == "tourism" && relevantTourismValues.Contains(t.Value))
+                        p.Tags.Any(t => t.Key == "tourism" && relevantTourismValues.Contains(t.Value)) ||
+                        p.Tags.Any(t => t.Key == "highway" && relevantHighwayValues.Contains(t.Value))
                         ))
                     .Select(w => (OsmSharp.Way)w)
                     .ToList();
