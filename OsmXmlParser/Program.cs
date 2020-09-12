@@ -35,10 +35,10 @@ namespace OsmXmlParser
     class Program
     {
         //NOTE: OSM data license allows me to use the data but requires acknowleging OSM as the data source
-        public static List<Bounds> bounds = new List<Bounds>();
+        //public static List<Bounds> bounds = new List<Bounds>();
         public static List<Node> nodes = new List<Node>();
         public static List<Way> ways = new List<Way>();
-        public static List<Relation> relations = new List<Relation>();
+        //public static List<Relation> relations = new List<Relation>();
 
         public static Lookup<long, Node> nodeLookup;
         public static List<string> relevantTags = new List<string>() { "name", "natural", "leisure", "landuse", "amenity", "tourism", "historic" }; //The keys in tags we process to see if we want it included.
@@ -254,31 +254,38 @@ namespace OsmXmlParser
                     }
                     try
                     {
-                        //TODO consider adding a copy of the first node as the last node if a way isn't closed.
                         MapData md = new MapData();
                         md.name = w.name;
                         md.WayId = w.id;
                         md.type = w.AreaType;
-                        Polygon temp = factory.CreatePolygon(w.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray());
-                        if (!temp.Shell.IsCCW)
+                        
+                        //Adding support for single lines. A lot of rivers and streams are treated this way.
+                        if (w.nds.First().id != w.nds.Last().id)
                         {
-                            temp = (Polygon)temp.Reverse();
+                            LineString temp2 = factory.CreateLineString(w.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray());
+                            md.place = temp2;
+                        }
+                        else
+                        {
+                            Polygon temp = factory.CreatePolygon(w.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray());
                             if (!temp.Shell.IsCCW)
                             {
-                                Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not counter-clockwise forward or reversed.");
-                                errorCount++;
-                                continue;
+                                temp = (Polygon)temp.Reverse();
+                                if (!temp.Shell.IsCCW)
+                                {
+                                    Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not counter-clockwise forward or reversed.");
+                                    errorCount++;
+                                    continue;
+                                }
+                                if (!temp.IsValid)
+                                {
+                                    Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not valid according to its own internal check.");
+                                    errorCount++;
+                                    continue;
+                                }
                             }
-                            if (!temp.IsValid)
-                            {
-                                Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not valid according to its own internal check.");
-                                errorCount++;
-                                continue;
-                            }
+                            md.place = temp;
                         }
-
-                        //TODO: may need to do some kind of MakeValid() call on these to use them directly in SQL Server. Some throw errors using Contains() when i check it against Intersects.
-                        md.place = temp;
 
                         //Trying to add each entry indiviudally to detect additional errors for now.
                         //But this way is slow with ChangeTracking on, adding ~1 per second. ~2000 per second with Change Tracking off.
@@ -361,7 +368,7 @@ namespace OsmXmlParser
             //A) Is this area smaller than an 8cell? IF so, we should approximate it into a rectangle like before.
             //B) Is this area smaller than a 10cell? if so, it should be treated as a single point of interest.
             //C) If this area is bigger than an 8cell, should we simplify the geometry to take up a little less DB space?
-            
+
             ProcessedWay pw = new ProcessedWay();
             pw.OsmWayId = w.id;
             pw.lastUpdated = DateTime.Now;
@@ -387,7 +394,8 @@ namespace OsmXmlParser
 
             //Water spaces should be displayed. Not sure if I want players to be in them for resources.
             //Water should probably override other values as a safety concern.
-            if (tags.Any(t => t.k == "natural" && t.v == "water"))
+            if (tags.Any(t => t.k == "natural" && t.v == "water") 
+                || tags.Any(t => t.k == "waterway"))
                 return "water";
 
             //Wetlands should also be high priority.
@@ -445,69 +453,8 @@ namespace OsmXmlParser
 
         public static string GetType(List<OsmSharp.Tags.Tag> tags)
         {
-            //This is how we will figure out which area a cell counts as now.
-            //Should make sure all of these exist in the AreaTypes table I made.
-            //TODO: prioritize these tags, since each space gets one value.
-
-            if (tags.Count() == 0)
-                return ""; //Shouldn't happen, but as a sanity check if we start adding Nodes later.
-
-            //Water spaces should be displayed. Not sure if I want players to be in them for resources.
-            //Water should probably override other values as a safety concern.
-            if (tags.Any(t => t.Key == "natural" && t.Value == "water"))
-                return "water";
-
-            //Wetlands should also be high priority.
-            if (tags.Any(t => (t.Key == "natural" && t.Value == "wetland")))
-                return "wetland";
-
-            //Parks are good. Possibly core to this game.
-            if (tags.Any(t => t.Key == "leisure" && t.Value == "park"))
-                return "park";
-
-            //Beaches are good. Managed beaches are less good but I'll count those too.
-            if (tags.Any(t => (t.Key == "natural" && t.Value == "beach")
-            || (t.Key == "leisure" && t.Value == "beach_resort")))
-                return "beach";
-
-            //Universities are good. Primary schools are not so good.  Don't include all education values.
-            if (tags.Any(t => (t.Key == "amenity" && t.Value == "university")
-                || (t.Key == "amenity" && t.Value == "college")))
-                return "university";
-
-            //Nature Reserve. Should be included, but possibly secondary to other types inside it.
-            if (tags.Any(t => (t.Key == "leisure" && t.Value == "nature_reserve")))
-                return "natureReserve";
-
-            //Cemetaries are ok. They don't seem to appreciate Pokemon Go, but they're a public space and often encourage activity in them (thats not PoGo)
-            if (tags.Any(t => (t.Key == "landuse" && t.Value == "cemetery")
-                || (t.Key == "amenity" && t.Value == "grave_yard")))
-                return "cemetery";
-
-            //Malls are a good indoor area to explore. 0 hits on this set though.
-            if (tags.Any(t => t.Key == "shop" && t.Value == "mall"))
-                return "mall";
-
-            //Generic shopping area is ok. I don't want to advertise businesses, but this is a common area type.
-            if (tags.Any(t => (t.Key == "landuse" && t.Value == "retail")))
-                return "retail";
-
-            //I have tourism as a tag to save, but not necessarily sub-sets yet of whats interesting there.
-            if (tags.Any(t => (t.Key == "tourism" && relevantTourismValues.Contains(t.Value))))
-                return "tourism"; //TODO: create sub-values for tourism types?
-
-            //I have historic as a tag to save, but not necessarily sub-sets yet of whats interesting there.
-            //NOTE: OSM tag doesn't match my node value.
-            if (tags.Any(t => (t.Key == "historic")))
-                return "historical";
-
-            //Possibly of interest:
-            //landuse:forest / landuse:orchard  / natural:wood
-            //natural:sand may be of interest for desert area?
-            //natural:spring / natural:hot_spring
-            //Anything else seems un-interesting or irrelevant.
-
-            return ""; //not a way we need to save right now.
+            List<Tag> converted = tags.Select(t => new Tag() { k = t.Key, v = t.Value }).ToList();
+            return GetType(converted);
         }
 
         public static void CleanDb()
@@ -652,17 +599,18 @@ namespace OsmXmlParser
                     var latSpread = w.nds.Max(n => n.lat) - w.nds.Min(n => n.lat);
                     var lonSpread = w.nds.Max(n => n.lon) - w.nds.Min(n => n.lon);
 
-                    if (latSpread <=  PlusCode10Resolution && lonSpread <= PlusCode10Resolution)
+                    if (latSpread <= PlusCode10Resolution && lonSpread <= PlusCode10Resolution)
                     {
                         //this is small enough to be an SPOI instead
                         var calcedCode = new OpenLocationCode(w.nds.Average(n => n.lat), w.nds.Average(n => n.lon));
                         var reverseDecode = calcedCode.Decode();
-                        var spoiFromWay = new SinglePointsOfInterest() { 
-                            lat = reverseDecode.CenterLatitude , 
-                            lon =reverseDecode.CenterLongitude,
-                            NodeType = w.AreaType, 
+                        var spoiFromWay = new SinglePointsOfInterest()
+                        {
+                            lat = reverseDecode.CenterLatitude,
+                            lon = reverseDecode.CenterLongitude,
+                            NodeType = w.AreaType,
                             PlusCode = calcedCode.Code.Replace("+", ""),
-                            PlusCode8 = calcedCode.Code.Substring(0,8),
+                            PlusCode8 = calcedCode.Code.Substring(0, 8),
                             name = w.name,
                             NodeID = w.id //Will have to remember this could be a node or a way in the future.
                         };
@@ -673,7 +621,7 @@ namespace OsmXmlParser
                 }
                 //now remove ways we converted to SPOIs.
                 foreach (var wtr in waysToRemove)
-                    ways.Remove(ways.Where(w =>w.id == wtr).FirstOrDefault());
+                    ways.Remove(ways.Where(w => w.id == wtr).FirstOrDefault());
 
                 Log.WriteLog("Ways populated with Nodes at " + DateTime.Now);
                 nodes = null; //done with these now, can free up RAM again.
@@ -719,7 +667,7 @@ namespace OsmXmlParser
 
                 Log.WriteLog("Starting " + filename + " way read at " + DateTime.Now);
                 var osmWays = GetWaysFromPbf(filename);
-                Lookup<long, long> nodeLookup = (Lookup<long, long>)osmWays.SelectMany(w => w.Nodes).ToLookup(k => k, v => v);
+                Lookup<long, long> nodeLookup = (Lookup<long, long>)osmWays.SelectMany(w => w.Nodes).Distinct().ToLookup(k => k, v => v);
 
                 Log.WriteLog("Starting " + filename + " node read at " + DateTime.Now);
                 var osmNodes = GetNodesFromPbf(filename, nodeLookup);
@@ -728,12 +676,13 @@ namespace OsmXmlParser
                 //Write SPOIs to file
                 Log.WriteLog("Finding SPOIs at " + DateTime.Now);
                 var SpoiEntries = osmNodes.Where(n => n.Tags.Count() > 0 && GetType(n.Tags.ToList()) != "").ToList();
-                SPOI = SpoiEntries.Select(s => new SinglePointsOfInterest() { 
-                    lat = s.Latitude.Value, 
-                    lon = s.Longitude.Value, 
-                    name = s.Tags.Where(t=> t.Key == "name").FirstOrDefault().Value, 
-                    NodeID = s.Id.Value, 
-                    NodeType = GetType(s.Tags.ToList()),  
+                SPOI = SpoiEntries.Select(s => new SinglePointsOfInterest()
+                {
+                    lat = s.Latitude.Value,
+                    lon = s.Longitude.Value,
+                    name = s.Tags.Where(t => t.Key == "name").FirstOrDefault().Value,
+                    NodeID = s.Id.Value,
+                    NodeType = GetType(s.Tags.ToList()),
                     PlusCode = GetPlusCode(s.Latitude.Value, s.Longitude.Value),
                     PlusCode8 = GetPlusCode(s.Latitude.Value, s.Longitude.Value).Substring(0, 8),
                     PlusCode6 = GetPlusCode(s.Latitude.Value, s.Longitude.Value).Substring(0, 6)
@@ -756,7 +705,7 @@ namespace OsmXmlParser
                     foreach (long nr in w.nodRefs)
                     {
                         var osmNode = osmNodeLookup[nr].FirstOrDefault();
-                        var myNode = new Node() { id = osmNode.Id.Value, lat = osmNode.Latitude.Value, lon = osmNode.Longitude.Value};
+                        var myNode = new Node() { id = osmNode.Id.Value, lat = osmNode.Latitude.Value, lon = osmNode.Longitude.Value };
                         w.nds.Add(myNode);
                     }
                     w.nodRefs = null; //free up a little memory we won't use again.
@@ -789,7 +738,7 @@ namespace OsmXmlParser
                 //now remove ways we converted to SPOIs.
                 foreach (var wtr in waysToRemove)
                     ways.Remove(ways.Where(w => w.id == wtr).FirstOrDefault());
-            
+
                 Log.WriteLog("Ways populated with Nodes at " + DateTime.Now);
                 osmNodes = null; //done with these now, can free up RAM again.
 
@@ -830,6 +779,7 @@ namespace OsmXmlParser
                         p.Tags.Contains("shop", "mall") ||
                         p.Tags.Contains("landuse", "retail") ||
                         p.Tags.Any(t => t.Key == "historic") ||
+                        p.Tags.Any(t => t.Key == "waterway") || //newest tag, lets me see a lot more rivers and such.
                         p.Tags.Any(t => t.Key == "tourism" && relevantTourismValues.Contains(t.Value))
                         ))
                     .Select(w => (OsmSharp.Way)w)
@@ -999,7 +949,7 @@ namespace OsmXmlParser
             var db = new GpsExploreContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var dupedWays = db.MapData.GroupBy(md => md.WayId)
-                .Select(m => new { m.Key, Count =  m.Count()})
+                .Select(m => new { m.Key, Count = m.Count() })
                 .ToDictionary(d => d.Key, v => v.Count)
                 .Where(md => md.Value > 1);
 

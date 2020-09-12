@@ -20,8 +20,6 @@ namespace GPSExploreServerAPI.Controllers
         //Manual edits:
         //none
 
-        //TODO: figure out how to check on some of the pooly detected shapes I see in my area. Most are OK, some are not.
-
         //This takes the current point, and finds any geometry that contains that point.
         public static List<MapData> getInfo(double lat, double lon)
         {
@@ -145,6 +143,8 @@ namespace GPSExploreServerAPI.Controllers
             //Short codes trim off the front of the string for human use, i want to trim off the back for machine use.
 
             //It looks like there are some duplicate cells? I send over 4041 entries and the app saves 3588 and throws a few unique key errors on insert
+            
+            //Now that I have waterways included, this takes ~3 seconds on nearby places instead of 1. May need to re-evaluate using the algorithm now.
 
             PerformanceTracker pt = new PerformanceTracker("Cell6info");
             var pluscode = new OpenLocationCode(lat, lon);
@@ -160,7 +160,7 @@ namespace GPSExploreServerAPI.Controllers
             var cord4 = new Coordinate(box.Max.Longitude, box.Min.Latitude);
             var cordSeq = new Coordinate[5] { cord4, cord3, cord2, cord1, cord4 };
             var location = factory.CreatePolygon(cordSeq);
-            var places = db.MapData.Where(md => md.place.Intersects(location)).ToList(); //areas have an intersection. This is correct upon testing a known area. Contains() might also be needed, but it requires MakeValid to be called, and doesn't seem to help results quality.. // || md.place.Contains(location)
+            var places = db.MapData.Where(md => md.place.Intersects(location)).ToList(); //areas have an intersection. This is correct.
             //var indexedPlaces = places.Select(md => new {md.place,  md.name, md.type, indexed = new NetTopologySuite.Algorithm.Locate.IndexedPointInAreaLocator(md.place) }); //this should be half the time my current lookups are, but its not?
             var spoi = db.SinglePointsOfInterests.Where(sp => sp.PlusCode6 == codeString6).ToList();
 
@@ -177,7 +177,7 @@ namespace GPSExploreServerAPI.Controllers
                 sb.AppendLine(s.PlusCode.Substring(6, 4) + "|" + s.name + "|" + s.NodeType);
 
             //This is every 10code in a 6code.
-            //For this, i might need to dig through each  plus code cell, but I have a much smaller set of data in memory. Might be faster ways to do this with a string array versus re-encoding OLC each loop?
+            //For this, i might need to dig through each plus code cell, but I have a much smaller set of data in memory. Might be faster ways to do this with a string array versus re-encoding OLC each loop?
             double resolution10 = .000125; //as defined
             //double resolution10 = (box.Max.Longitude - box.Min.Longitude) / 400; //practical answer, is slightly smaller at my long. could be double rounding error
             //double resolution102 = (box.Max.Latitude - box.Min.Latitude) / 400; //practical answer, is slightly larget at my lat. could be double rounding error.
@@ -185,8 +185,6 @@ namespace GPSExploreServerAPI.Controllers
             {
                 for (double y = box.Min.Latitude; y <= box.Max.Latitude; y += resolution10)
                 {
-                    
-
                     //TODO: benchmark these 2 options. A quick check seems to suggest that this one is actually faster and more complete.
                     //Original option: create boxes to represent the 10code
                     //This one takes ~930ms warm, is the most consistent in time taken.

@@ -17,15 +17,11 @@ namespace GPSExploreServerAPI.Controllers
     public class GPSExploreController : ControllerBase
     {
         /* functions needed
-         * -subboards TODO:  most coffees purchased (once store functions), Altitude spread (highest-lowest, need to track both in the app.)
-         * done: Most small cells, most big cells, highest score, most distance,  most time, fastest avg speed (distance/time),
+         * -subboards TODO:  most coffees purchased (once store functions)
          * Ties should be broken by date (so, who most recently did the thing that set the score), which means tracking more data client-side. 
          * --Tiebreaker calc: .Where(p => p.value > my.value && p.dateLastUpdated > my.dateLastUpdated? 
          * 
          * TODO:
-         * Merge with the completed OsmServer DB? Or can I use 2 DbContexts in one project?
-         * Set up API to load intersting points for tiles and return that data.
-         * (may need a couple passes on this concept to find the best answer)
         */
 
         //Session is not enabled by default on API projects, which is correct.
@@ -35,14 +31,6 @@ namespace GPSExploreServerAPI.Controllers
         public string TestDummyEndpoint()
         {
             //For debug purposes to confirm the server is running and reachable.
-
-            //var prec10 = OpenLocationCode.ComputeLatitudePrecision(10);
-            //var prec8 = OpenLocationCode.ComputeLatitudePrecision(8);
-            //var prec6 = OpenLocationCode.ComputeLatitudePrecision(6);
-
-            //var pluscode = new OpenLocationCode("9C6RVJ85+J8");
-            //var box = OpenLocationCode.DecodeValid(pluscode.Code.Substring(0, 8)); //This is the correct math I wanted for determining how big an area a plus code covers, and this direct function takes <10 character codes.
-
             string results = "Function OK";
 
             try
