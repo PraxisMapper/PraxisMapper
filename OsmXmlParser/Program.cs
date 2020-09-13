@@ -452,7 +452,7 @@ namespace OsmXmlParser
             if (tags.Any(t => (t.k == "highway" && t.v == "bridleway"))
                 || (tags.Any(t => t.k == "highway" && t.v == "path")) //path implies motor_vehicle = no // && !tags.Any(t => t.k =="motor_vehicle" && t.v == "yes")) //may want to check anyways?
                 || (tags.Any(t => t.k == "highway" && t.v == "cycleway"))  //I probably want to include these too, though I have none local to see.
-                || (tags.Any(t => t.k == "highway" && t.v == "footway") && !tags.Any(t => t.k == "footway" && t.v == "sidewalk"))
+                || (tags.Any(t => t.k == "highway" && t.v == "footway") && !tags.Any(t => t.k == "footway" && (t.v == "sidewalk" || t.v == "crossing")))
                 )
                 return "trail";
 
