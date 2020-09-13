@@ -9,7 +9,6 @@ namespace DatabaseAccess
     {
         public DbSet<PlayerData> PlayerData { get; set; }
         public DbSet<PerformanceInfo> PerformanceInfo { get; set; }
-        public DbSet<ProcessedWay> ProcessedWays { get; set; }
         public DbSet<AreaType> AreaTypes { get; set; }
         public DbSet<MapData> MapData { get; set; }
 
@@ -34,10 +33,8 @@ namespace DatabaseAccess
             //Create indexes here.
             model.Entity<PlayerData>().HasIndex(p => p.deviceID); //for updating data
 
-            model.Entity<ProcessedWay>().HasIndex(p => p.OsmWayId); //for updating data
-
             model.Entity<SinglePointsOfInterest>().HasIndex(i => i.PlusCode); //for reading data
-            model.Entity<SinglePointsOfInterest>().HasIndex(i => i.PlusCode8); //for reading data, but actually used.
+            model.Entity<SinglePointsOfInterest>().HasIndex(i => i.PlusCode8); //for reading data, previously used.
             model.Entity<SinglePointsOfInterest>().HasIndex(i => i.PlusCode6); //for reading data, but actually used.
             model.Entity<SinglePointsOfInterest>().HasIndex(i => i.NodeID); //for finding and removing duplicates, primarily
             model.Entity<SinglePointsOfInterest>().Property(i => i.PlusCode8).HasMaxLength(8);

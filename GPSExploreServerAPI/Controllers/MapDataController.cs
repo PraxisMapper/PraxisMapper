@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using DatabaseAccess;
 using Google.OpenLocationCode;
@@ -21,42 +20,32 @@ namespace GPSExploreServerAPI.Controllers
         //none
 
         //TODO:
-        //implement caching, so a calculated 6cell's results can be reused until the app pool is reset or memory is freed.
+        //implement caching, so a calculated 6cell's results can be reused until the app pool is reset or memory is freed.     
+        //Make an endpoint that takes in the plus code, as a testing convenience
 
-        //This takes the current point, and finds any geometry that contains that point.
-        public static List<MapData> getInfo(double lat, double lon)
+        public Coordinate[] MakeBox(CodeArea plusCodeArea)
         {
-            //reusable function
-            PerformanceTracker pt = new PerformanceTracker("getInfo");
-            var db = new DatabaseAccess.GpsExploreContext();
             var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
-            var location = factory.CreatePoint(new Coordinate(lon, lat));
-            var places = db.MapData.Where(md => md.place.Contains(location)).ToList();
-            var pluscode = OpenLocationCode.Encode(lat, lon).Replace("+", "");
-            var spoi = db.SinglePointsOfInterests.Where(sp => sp.PlusCode == pluscode).FirstOrDefault();
-            if (spoi != null && spoi.SinglePointsOfInterestId != null)
-            {
-                //A single named place out-ranks the surrounding area.
-                var tempPlace = new MapData() { name = spoi.name, type = spoi.NodeType };
-                places.Clear();
-                places.Add(tempPlace);
-            }
-            pt.Stop();
-            return places;
+            var cord1 = new Coordinate(plusCodeArea.Min.Longitude, plusCodeArea.Min.Latitude);
+            var cord2 = new Coordinate(plusCodeArea.Min.Longitude, plusCodeArea.Max.Latitude);
+            var cord3 = new Coordinate(plusCodeArea.Max.Longitude, plusCodeArea.Max.Latitude);
+            var cord4 = new Coordinate(plusCodeArea.Max.Longitude, plusCodeArea.Min.Latitude);
+            var cordSeq = new Coordinate[5] { cord4, cord3, cord2, cord1, cord4 };
+
+            return cordSeq;
         }
 
-        //Make one of these that takes in the plus code, since simulator is stuck on lat/lon i cant move
         //This one does the math to get an area equal to a PlusCode 8 cell, then finds anything that intersects it.
         [HttpGet]
         [Route("/[controller]/cell8Info/{lat}/{lon}")]
         public string CellInfo(double lat, double lon)
         {
+            //TODO: if I return to this 8-cell style of logic, update this code to match the 6-cell version.
             //point 1 is southwest corner, point2 is northeast corner.
             //This works on an arbitrary sized area.
             //NOTE: the official library fails these partial codes, since it's always expecting a + and at least 2 digits after that.
-            //so I may need to do some manual manipulation or editing of the libraries to do what I want.
-            //Short codes trim off the front of the string for human use, i want to trim off the back for machine use.
-
+            //I've made a function public that returns the info I need from that library.
+            
             PerformanceTracker pt = new PerformanceTracker("Cell8info");
             var pluscode = new OpenLocationCode(lat, lon);
             var codeString = pluscode.Code.Substring(0, 8);
@@ -64,15 +53,9 @@ namespace GPSExploreServerAPI.Controllers
 
             var db = new DatabaseAccess.GpsExploreContext();
             var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
-            var cord1 = new Coordinate(box.Min.Longitude, box.Min.Latitude);
-            var cord2 = new Coordinate(box.Min.Longitude, box.Max.Latitude);
-            var cord3 = new Coordinate(box.Max.Longitude, box.Max.Latitude);
-            var cord4 = new Coordinate(box.Max.Longitude, box.Min.Latitude);
-            var cordSeq = new Coordinate[5] { cord4, cord3, cord2, cord1, cord4 };
+            var cordSeq = MakeBox(box);
             var location = factory.CreatePolygon(cordSeq);
-            //var location = factory.CreatePoint(new Coordinate(lon, lat));
-            //test list. Need to find an area that's not empty.
-            var places = db.MapData.Where(md => md.place.Intersects(location)).ToList(); //areas have an intersection. This is correct upon testing a known area.
+            var places = db.MapData.Where(md => md.place.Intersects(location)).ToList(); //Intersects is the correct function for this.
             var spoi = db.SinglePointsOfInterests.Where(sp => sp.PlusCode8 == codeString).ToList();
 
             StringBuilder sb = new StringBuilder();
@@ -83,7 +66,6 @@ namespace GPSExploreServerAPI.Controllers
             if (places.Count == 0 && spoi.Count == 0)
                 return sb.ToString();
 
-            //For this, i might need to dig through each plus code cell, but I have a much smaller set of data in memory. Might be faster ways to do this with a string array versus re-encoding OLC each loop?
             double resolution10 = .000125;
             for (double x = box.Min.Longitude; x <= box.Max.Longitude; x += resolution10)
             {
@@ -93,16 +75,9 @@ namespace GPSExploreServerAPI.Controllers
                     var olc = new OpenLocationCode(y, x); //This takes lat, long, Coordinate takes X, Y. This line is correct.
                     var plusCode2 = olc.Code.Substring(9, 2);
 
-                    //TODO: benchmark these 2 options. This function takes ~250ms sometimes, and I'm reasonably sure that's more SQL Server indexing issues than this code, but should confirm.
-                    //Original option: create boxes to represent the 10code
                     var cordSeq2 = new Coordinate[5] { new Coordinate(x, y), new Coordinate(x + resolution10, y), new Coordinate(x + resolution10, y + resolution10), new Coordinate(x, y + resolution10), new Coordinate(x, y) };
                     var poly2 = factory.CreatePolygon(cordSeq2);
                     var entriesHere = places.Where(md => md.place.Intersects(poly2)).ToList();
-
-                    //option 2: create a point in the middle of the 10cell, use that instead assuming its faster math.
-                    //var point = olc.Decode().Center;
-                    //var point2 = factory.CreatePoint(new Coordinate(point.Longitude, point.Latitude));
-                    //var entriesHere2 = places.Where(md => md.place.Contains(point2)).ToList();
 
                     //First, if there's a single-point, return that.
                     var spoiToUser = spoi.Where(s => s.PlusCode == olc.Code.Replace("+", ""));
@@ -130,8 +105,7 @@ namespace GPSExploreServerAPI.Controllers
                 }
             }
 
-            //pt.Stop(sb.ToString()); //testing data
-            pt.Stop(); //faster
+            pt.Stop();
             return sb.ToString();
         }
 
@@ -140,12 +114,8 @@ namespace GPSExploreServerAPI.Controllers
         public string Cell6Info(double lat, double lon) //The current primary function used by the app.
         {
             //point 1 is southwest corner, point2 is northeast corner.
-            //This works on an arbitrary sized area.
             //NOTE: the official library fails these partial codes, since it's always expecting a + and at least 2 digits after that.
-            //so I may need to do some manual manipulation or editing of the libraries to do what I want.
-            //Short codes trim off the front of the string for human use, i want to trim off the back for machine use.
-
-            //It looks like there are some duplicate cells? I send over 4041 entries and the app saves 3588 and throws a few unique key errors on insert
+            //I made a function public to get the data I wanted from the official library.
 
             //Now that I have waterways included, this takes ~3 seconds on nearby places instead of 1. May need to re-evaluate using the algorithm now.
 
@@ -157,20 +127,14 @@ namespace GPSExploreServerAPI.Controllers
 
             var db = new DatabaseAccess.GpsExploreContext();
             var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
-            var cord1 = new Coordinate(box.Min.Longitude, box.Min.Latitude);
-            var cord2 = new Coordinate(box.Min.Longitude, box.Max.Latitude);
-            var cord3 = new Coordinate(box.Max.Longitude, box.Max.Latitude);
-            var cord4 = new Coordinate(box.Max.Longitude, box.Min.Latitude);
-            var cordSeq = new Coordinate[5] { cord4, cord3, cord2, cord1, cord4 };
+            var cordSeq = MakeBox(box);
             var location = factory.CreatePolygon(cordSeq);
-            var places = db.MapData.Where(md => md.place.Intersects(location)).ToList(); //areas have an intersection. This is correct.
-            //Indexed list isn't useful for overlapping polygons. Only points.
-            //var indexedPlaces = places.Select(md => new {md.place,  md.name, md.type, indexed = new NetTopologySuite.Algorithm.Locate.IndexedPointInAreaLocator(md.place) }); //this should be half the time my current lookups are, but its not?
+            var places = db.MapData.Where(md => md.place.Intersects(location)).ToList(); 
             var spoi = db.SinglePointsOfInterests.Where(sp => sp.PlusCode6 == codeString6).ToList();
 
             StringBuilder sb = new StringBuilder();
-            //pluscode6 //same syntax as 8info, but for a 6
-            //pluscode10|name|type  //allows for less string processing on the phone side but makes data transmit slighlty bigger
+            //pluscode6 //first 6 digits of this pluscode. each line below is the last 4 that have an area type.
+            //pluscode4|name|type  //less data transmitted, an extra string concat per entry phone-side.
             sb.AppendLine(codeString6);
 
             if (places.Count == 0 && spoi.Count == 0)
@@ -185,15 +149,11 @@ namespace GPSExploreServerAPI.Controllers
             //home 6-cell has 44 places to check and 1 spoi, takes ~2 seconds. 13532 cells to send back
             //Thats a pretty big difference in scale for a not-huge difference in source data. I guess linestrings are way slower to compare via Intersects? Maybe there's one real complicated one to process somewhere?
             
-            //This is every 10code in a 6code.
+            //This is every 10code in a 6code. I count to 400 to avoid rounding errors on NE edges of a 6-cell resulting in empty lines.
             //For this, i might need to dig through each plus code cell, but I have a much smaller set of data in memory. Might be faster ways to do this with a string array versus re-encoding OLC each loop?
             double resolution10 = .000125; //as defined
-                                           //double resolution10 = (box.Max.Longitude - box.Min.Longitude) / 400; //practical answer, is slightly smaller at my long. could be double rounding error
-                                           //double resolution102 = (box.Max.Latitude - box.Min.Latitude) / 400; //practical answer, is slightly larget at my lat. could be double rounding error.
-            //for (double x = box.Min.Longitude; x <= box.Max.Longitude; x += resolution10)
             for (double xx = 0; xx < 400; xx += 1)
             {
-                //for (double y = box.Min.Latitude; y <= box.Max.Latitude; y += resolution10)
                 for (double yy = 0; yy < 400; yy++)
                 {
                     double x = box.Min.Longitude + (resolution10 * xx);
@@ -210,7 +170,7 @@ namespace GPSExploreServerAPI.Controllers
                     }
                     else
                     {
-                        //Generally, if there's a smaller shape inside a bigger shape, the smaller one should take priority. Also going to look at only sending over last 4 on each line for server speed.
+                        //Generally, if there's a smaller shape inside a bigger shape, the smaller one should take priority.
                         var olc = new OpenLocationCode(y, x).CodeDigits.Substring(6, 4); //This takes lat, long, Coordinate takes X, Y. This line is correct.
                         var smallest = entriesHere.Where(e => e.place.Area == entriesHere.Min(e => e.place.Area)).First();
                         sb.AppendLine(olc + "|" + smallest.name + "|" + smallest.type);
@@ -228,38 +188,6 @@ namespace GPSExploreServerAPI.Controllers
         {
             //For debug purposes to confirm the server is running and reachable.
             return "OK";
-        }
-
-        [HttpGet]
-        [Route("/[controller]/cellData/{pluscode}")]
-        public string CellData(string pluscode)
-        {
-            //This was the first check on a single 10cell area. It's reasonably fast, but Solar2D tends to choke trying to process that many network requests.
-            Google.OpenLocationCode.OpenLocationCode olc = new Google.OpenLocationCode.OpenLocationCode(pluscode);
-            var decode = olc.Decode();
-            double lat = decode.CenterLatitude;
-            double lon = decode.CenterLongitude;
-
-            var results = getInfo(lat, lon);
-            if (results.Count() == 0)
-                return pluscode; //speed shortcut,no = separator indicates no special data.
-
-            if (results.Where(r => !string.IsNullOrEmpty(r.name)).Count() == 1)
-                results = results.Where(r => !string.IsNullOrEmpty(r.name)).ToList();
-
-            var r2 = results.Select(r => new { r.name, r.type }).Distinct().FirstOrDefault();
-
-            string strData = pluscode + "=" + string.Join("=", results.Select(r => r.name + "|" + r.type));
-            return strData;
-        }
-
-        [HttpGet]
-        [Route("/[controller]/cellData/{lat}/{lon}")]
-        public string CellData(double lat, double lon)
-        {
-            var results = getInfo(lat, lon);
-            string strData = string.Join("=", results.Select(r => r.name + "|" + r.type));
-            return strData;
         }
 
         [HttpGet]
@@ -441,28 +369,6 @@ namespace GPSExploreServerAPI.Controllers
             var c = containsPointRuntimes.Average(); //700-1678ms. That's extremely swingy.
             var d = precachedAlgorithmRuntimes.Average(); //778ms, is slower than algorithmruntimes
 
-
-
-            //This doesn;t work the way i want, this logic would be done on the SQL Server side via indexing/
-            //yes this can, on a bigger scale. I pull in all the areas in a 6-cell, then determine what thing is in each 10cell using the indexedPointInAreaLocator function.
-
-
-            //previous test C# search logic speed. This takes 1ms after warming up.
-            //for (int i = 0; i < 50000; i++)
-            //{
-            //    //randomize lat and long
-            //    double lat = r.NextDouble() * 90 * (r.Next() % 2 == 0 ? 1 : -1);
-            //    double lon = r.NextDouble() * 180 * (r.Next() % 2 == 0 ? 1 : -1);
-            //    sw.Restart();
-            //    var location = factory.CreatePoint(new Coordinate(lon, lat));
-            //    var places = db.MapData.Where(md => md.place.Contains(location)).Select(md => new { md.name, md.type }).Distinct().ToList();
-            //    //Might make a sproc for this search, since it looked like it was faster, but that could be performance variance
-
-            //    sw.Stop();
-            //    //cSharpRuntimes.Add(sw.ElapsedMilliseconds);
-            //}
-
-            //return cSharpRuntimes.Average().ToString();
 
             return;
 

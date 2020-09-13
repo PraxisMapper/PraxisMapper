@@ -111,11 +111,6 @@ namespace OsmXmlParser
                 AddRawWaystoDBFromFiles();
             }
 
-            if (args.Any(a => a == "-readProcessedWays"))
-            {
-                AddProcessedWaysToDB();
-            }
-
             if (args.Any(a => a == "-plusCodeSpois")) //should be removable now.
             {
                 AddPlusCodesToSPOIs();
@@ -204,18 +199,6 @@ namespace OsmXmlParser
 
                 entries = entries.Where(e => !string.IsNullOrWhiteSpace(e.name)).ToList(); //Some of these exist, they're not real helpful if they're just a tag.
                 db.BulkInsert<SinglePointsOfInterest>(entries);
-                Log.WriteLog("Added " + file + " to dB at " + DateTime.Now);
-            }
-        }
-
-        public static void AddProcessedWaysToDB()
-        {
-            GpsExploreContext db = new GpsExploreContext();
-
-            foreach (var file in System.IO.Directory.EnumerateFiles(parsedJsonPath, "*-ProcessedWays.json"))
-            {
-                List<ProcessedWay> entries = (List<ProcessedWay>)JsonSerializer.Deserialize(File.ReadAllText(file), typeof(List<ProcessedWay>));
-                db.BulkInsert<ProcessedWay>(entries);
                 Log.WriteLog("Added " + file + " to dB at " + DateTime.Now);
             }
         }
@@ -310,77 +293,6 @@ namespace OsmXmlParser
 
                 File.Move(file, file + "Done");
             }
-        }
-
-        //This function has generally become unnecessary after proving that the spatial indexed RawWay type is sufficiently fast.
-        //I might still want this for a SQL Server Express edition, to cram that 10GB table down to 1.5GB or less to avoid RAM issues in Express
-        //But for any DB without an artificial RAM limit, this isn't needed.
-        public static ProcessedWay ProcessWay(Way w)
-        {
-            //Neither of these should happen, but they have.
-            if (w == null)
-                return null;
-
-            if (w.nds.Count() == 0)
-                return null;
-
-            //A few files are missing a node(s), we can't use those ways.
-            if (w.nds.Any(n => n == null))
-                return null;
-
-            //Version 1.
-            //Convert the list of nodes into a rectangle that covers the full bounds.
-            //Is 'close enough' for now, should be fairly quick compared to more accurate calculations.
-            //I may not want to use this for all elements, or find a better option for some extremely large 
-            //but important elements (EX: Lake Erie will cover Cleveland entirely using this approximation.
-            ProcessedWay pw = new ProcessedWay();
-            pw.OsmWayId = w.id;
-            pw.lastUpdated = DateTime.Now;
-            pw.name = w.tags.Where(t => t.k == "name").Select(t => t.v).FirstOrDefault();
-            pw.AreaType = w.AreaType; //Should become a FK int to save space later. Is a string for now.
-
-            pw.latitudeS = w.nds.Min(n => n.lat); //smaller numbers are south
-            pw.longitudeW = w.nds.Min(n => n.lon); //smaller numbers are west.
-            pw.distanceN = w.nds.Max(n => n.lat) - pw.latitudeS; //should be a positive number now.
-            pw.distanceE = w.nds.Max(n => n.lon) - pw.longitudeW; //same          
-
-            return pw; //This can be used to make InterestingPoints for the actual app to read.
-        }
-
-        //This function has generally become unnecessary after proving that the spatial indexed RawWay type is sufficiently fast.
-        //I might still want this for a SQL Server Express edition, to cram that 10GB table down to 1.5GB or less to avoid RAM issues in Express
-        //But for any DB without an artificial RAM limit, this isn't needed.
-        public static ProcessedWay ProcessWayV2(Way w)
-        {
-            //Neither of these should happen, but they have.
-            if (w == null)
-                return null;
-
-            if (w.nds.Count() == 0)
-                return null;
-
-            //A few files are missing a node(s), we can't use those ways.
-            if (w.nds.Any(n => n == null))
-                return null;
-
-            //Version 2
-            //Do some smart processing on what should belong here.
-            //A) Is this area smaller than an 8cell? IF so, we should approximate it into a rectangle like before.
-            //B) Is this area smaller than a 10cell? if so, it should be treated as a single point of interest.
-            //C) If this area is bigger than an 8cell, should we simplify the geometry to take up a little less DB space?
-
-            ProcessedWay pw = new ProcessedWay();
-            pw.OsmWayId = w.id;
-            pw.lastUpdated = DateTime.Now;
-            pw.name = w.tags.Where(t => t.k == "name").Select(t => t.v).FirstOrDefault();
-            pw.AreaType = w.AreaType; //Should become a FK int to save space later. Is a string for now.
-
-            pw.latitudeS = w.nds.Min(n => n.lat); //smaller numbers are south
-            pw.longitudeW = w.nds.Min(n => n.lon); //smaller numbers are west.
-            pw.distanceN = w.nds.Max(n => n.lat) - pw.latitudeS; //should be a positive number now.
-            pw.distanceE = w.nds.Max(n => n.lon) - pw.longitudeW; //same          
-
-            return pw; //This can be used to make InterestingPoints for the actual app to read.
         }
 
         public static string GetType(List<Tag> tags)

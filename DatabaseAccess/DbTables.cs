@@ -46,34 +46,11 @@ namespace DatabaseAccess
             public string name { get; set; }
             public long WayId { get; set; }
 
-            [Column(TypeName = "geography")]//might explicitly need tagged as dataType = geography for EF Core? or geometry? or geometry is the C# class and geography applies some extra stuff?
+            [Column(TypeName = "geography")]
             public Geometry place { get; set; } //allows any sub-type of Geometry to be used
             public string type { get; set; }
                 
         }       
-
-        //An attempt at storing the data as efficiently as possible.
-        //Ways from OSM are reduced to rectangular abstractions.
-        //These get read and processed into InterestingPoint entries.
-        public class ProcessedWay
-        {
-            public long ProcessedWayId { get; set; }
-            public long OsmWayId { get; set; } //possibly optiona, if space efficiency is an issue.
-            public double latitudeS { get; set; }
-            public double longitudeW { get; set; }
-            public double distanceE { get; set; }
-            public double distanceN { get; set; }
-            public DateTime lastUpdated { get; set; } //potentially optional, if space efficiency is an issue.
-            [ForeignKey("AreaType")]
-            public int AreaTypeId { get; set; }  //FK to what area type this row is.
-            public string AreaType { get; set; } //placeholder data until I get FKs set up and worked out.
-            public string name { get; set; } //keeping for reference, in case i want to see WHAT an area is.
-
-            //Might want a ModifiedLat / ModifiedLon column(s) for searching, so I could pass in coordinate points and pull back 
-            //anything in bounds, bounds being (lat/lon + distance)
-            //EX: my search range is 40, -80 to 41, -79
-            //Pull everything where 
-        }
 
         //Reference table for names of areas we care about storing.
         public class AreaType
