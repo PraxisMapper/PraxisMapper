@@ -383,6 +383,22 @@ namespace OsmXmlParser
             return GetType(converted);
         }
 
+        public static string GetElementName(List<OsmSharp.Tags.Tag> tags)
+        {
+            string name = tags.Where(t => t.Key == "name").FirstOrDefault().Value;
+            if (name == null)
+                return "";
+            return name; //.RemoveDiacritics(); //Not sure if my font needs this or not
+        }
+
+        public static string GetElementName(OsmSharp.Tags.TagsCollectionBase tags)
+        {
+            string name = tags.Where(t => t.Key == "name").FirstOrDefault().Value;
+            if (name == null)
+                return "";
+            return name; //.RemoveDiacritics(); //Not sure if my font needs this or not
+        }
+
         public static void CleanDb()
         {
             //Test function to put the DB back to empty.
@@ -591,8 +607,21 @@ namespace OsmXmlParser
                 ways = new List<Way>();
                 SPOI = new List<SinglePointsOfInterest>();
 
+                Log.WriteLog("Starting " + filename + " relation read at " + DateTime.Now);
+                var osmRelations = GetRelationsFromPbf(filename);
+                var wayList = osmRelations.SelectMany(r => r.Members).ToList(); //ways that need tagged as the relation's type if they dont' have their own.
+                List<RelationMember> waysFromRelations = new List<RelationMember>();
+                foreach (var stuff in osmRelations)
+                {
+                    string relationType = GetType(stuff.Tags.ToList());
+                    string name = GetElementName(stuff.Tags);
+                    foreach (var member in stuff.Members)
+                        waysFromRelations.Add(new RelationMember() { Id = member.Id,  type = relationType, name = name });
+                }
+                var wayLookup = waysFromRelations.ToLookup(k => k.Id, v => v);
+
                 Log.WriteLog("Starting " + filename + " way read at " + DateTime.Now);
-                var osmWays = GetWaysFromPbf(filename);
+                var osmWays = GetWaysFromPbf(filename, wayLookup);
                 Lookup<long, long> nodeLookup = (Lookup<long, long>)osmWays.SelectMany(w => w.Nodes).Distinct().ToLookup(k => k, v => v);
 
                 Log.WriteLog("Starting " + filename + " node read at " + DateTime.Now);
@@ -606,7 +635,7 @@ namespace OsmXmlParser
                 {
                     lat = s.Latitude.Value,
                     lon = s.Longitude.Value,
-                    name = s.Tags.Where(t => t.Key == "name").FirstOrDefault().Value,
+                    name =  GetElementName(s.Tags),
                     NodeID = s.Id.Value,
                     NodeType = GetType(s.Tags.ToList()),
                     PlusCode = GetPlusCode(s.Latitude.Value, s.Longitude.Value),
@@ -615,11 +644,13 @@ namespace OsmXmlParser
                 }).ToList();
                 SpoiEntries = null;
 
+                //This is now the slowest part of the processing function.
                 Log.WriteLog("Converting OsmWays to my Ways at " + DateTime.Now);
                 ways = osmWays.Select(w => new OsmXmlParser.Classes.Way()
                 {
+                    //TODO: add checks here to pull data from relations if the Way itself doesn't have any.
                     id = w.Id.Value,
-                    name = w.Tags.Where(t => t.Key == "name").FirstOrDefault().Value.RemoveDiacritics(),
+                    name = GetElementName(w.Tags.ToList()),
                     AreaType = GetType(w.Tags.ToList()),
                     nodRefs = w.Nodes.ToList()
                 })
@@ -635,6 +666,22 @@ namespace OsmXmlParser
                         w.nds.Add(myNode);
                     }
                     w.nodRefs = null; //free up a little memory we won't use again.
+
+                    //Check if this way is from a relation, and if so attach the relation's data.
+                    if (string.IsNullOrWhiteSpace(w.name))
+                    {
+                        var relation = wayLookup[w.id].FirstOrDefault();
+                        if (relation != null)
+                            if (!string.IsNullOrWhiteSpace(relation.name))
+                                w.name = relation.name;
+                    }
+                    if (string.IsNullOrWhiteSpace(w.AreaType))
+                    {
+                        var relation = wayLookup[w.id].FirstOrDefault();
+                        if (relation != null)
+                            if (!string.IsNullOrWhiteSpace(relation.type))
+                                w.AreaType = relation.type;
+                    }
 
                     //now that we have nodes, lets do a little extra processing.
                     var latSpread = w.nds.Max(n => n.lat) - w.nds.Min(n => n.lat);
@@ -675,14 +722,13 @@ namespace OsmXmlParser
                 Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
                 File.Move(filename, filename + "Done"); //We made it all the way to the end, this file is done.
                 ways = null;
-                GC.Collect(); //Ask to clean up memory
-
+                GC.Collect(); //Ask to clean up memory. Takes about a second.
             }
         }
 
-        public static List<OsmSharp.Way> GetWaysFromPbf(string filename)
+        private static List<OsmSharp.Relation> GetRelationsFromPbf(string filename)
         {
-            List<OsmSharp.Way> filteredWays = new List<OsmSharp.Way>();
+            List<OsmSharp.Relation> filteredRelations = new List<OsmSharp.Relation>();
             using (var fs = File.OpenRead(filename))
             {
                 var source = new PBFOsmStreamSource(fs);
@@ -691,7 +737,7 @@ namespace OsmXmlParser
 
                 //filter out data here
                 //Now this is my default filter.
-                filteredWays = progress.Where(p => p.Type == OsmSharp.OsmGeoType.Way && // || p.Type == OsmSharp.OsmGeoType.Node &&
+                filteredRelations = progress.Where(p => p.Type == OsmSharp.OsmGeoType.Relation &&
                         (p.Tags.Contains("natural", "water") ||
                         p.Tags.Contains("natural", "wetlands") ||
                         p.Tags.Contains("leisure", "park") ||
@@ -709,6 +755,42 @@ namespace OsmXmlParser
                         p.Tags.Any(t => t.Key == "tourism" && relevantTourismValues.Contains(t.Value)) ||
                         p.Tags.Any(t => t.Key == "highway" && relevantHighwayValues.Contains(t.Value))
                         ))
+                    .Select(r => (OsmSharp.Relation)r)
+                    .ToList();
+            }
+            return filteredRelations;
+        }
+
+        public static List<OsmSharp.Way> GetWaysFromPbf(string filename, ILookup<long, RelationMember> wayList)
+        {
+            List<OsmSharp.Way> filteredWays = new List<OsmSharp.Way>();
+            using (var fs = File.OpenRead(filename))
+            {
+                var source = new PBFOsmStreamSource(fs);
+
+                var progress = source.ShowProgress();
+
+                //filter out data here
+                //Now this is my default filter.
+                filteredWays = progress.Where(p => p.Type == OsmSharp.OsmGeoType.Way && 
+                    (wayList[p.Id.Value].Count() > 0 ||  
+                        (p.Tags.Contains("natural", "water") ||
+                        p.Tags.Contains("natural", "wetlands") ||
+                        p.Tags.Contains("leisure", "park") ||
+                        p.Tags.Contains("natural", "beach") ||
+                        p.Tags.Contains("leisure", "beach_resort") ||
+                        p.Tags.Contains("amenity", "university") ||
+                        p.Tags.Contains("amenity", "college") ||
+                        p.Tags.Contains("leisure", "nature_reserve") ||
+                        p.Tags.Contains("landuse", "cemetery") ||
+                        p.Tags.Contains("amenity", "grave_yard") ||
+                        p.Tags.Contains("shop", "mall") ||
+                        p.Tags.Contains("landuse", "retail") ||
+                        p.Tags.Any(t => t.Key == "historic") ||
+                        p.Tags.Any(t => t.Key == "waterway") ||
+                        p.Tags.Any(t => t.Key == "tourism" && relevantTourismValues.Contains(t.Value)) ||
+                        p.Tags.Any(t => t.Key == "highway" && relevantHighwayValues.Contains(t.Value))
+                        )))
                     .Select(w => (OsmSharp.Way)w)
                     .ToList();
             }
@@ -733,6 +815,7 @@ namespace OsmXmlParser
                         (p.Tags.Contains("natural", "water") ||
                         p.Tags.Contains("natural", "wetlands") ||
                         p.Tags.Contains("leisure", "park") ||
+                        p.Tags.Contains("leisure", "nature_reserve") ||
                         p.Tags.Contains("natural", "beach") ||
                         p.Tags.Contains("leisure", "beach_resort") ||
                         p.Tags.Contains("amenity", "university") ||

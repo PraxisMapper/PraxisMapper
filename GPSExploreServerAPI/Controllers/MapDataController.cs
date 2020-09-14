@@ -145,8 +145,8 @@ namespace GPSExploreServerAPI.Controllers
                 sb.AppendLine(s.PlusCode.Substring(6, 4) + "|" + s.name + "|" + s.NodeType);
 
             //Notes:
-            //waterfall 6-cell has 58 entries in Places to check and 5 spoi, takes ~5 seconds. 13038 cells to send back.
-            //home 6-cell has 44 places to check and 1 spoi, takes ~2 seconds. 13532 cells to send back
+            //waterfall 6-cell has 58 entries in Places to check and 5 spoi, takes ~10 seconds. 55674 cells to send back.
+            //home 6-cell has 44 places to check and 1 spoi, takes ~3 seconds. 13534 cells to send back
             //Thats a pretty big difference in scale for a not-huge difference in source data. I guess linestrings are way slower to compare via Intersects? Maybe there's one real complicated one to process somewhere?
             
             //This is every 10code in a 6code. I count to 400 to avoid rounding errors on NE edges of a 6-cell resulting in empty lines.
