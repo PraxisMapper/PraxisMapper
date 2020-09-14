@@ -145,14 +145,16 @@ namespace GPSExploreServerAPI.Controllers
                 sb.AppendLine(s.PlusCode.Substring(6, 4) + "|" + s.name + "|" + s.NodeType);
 
             //Notes:
-            //waterfall 6-cell has 58 entries in Places to check and 5 spoi, takes ~10 seconds. 55674 cells to send back.
-            //home 6-cell has 44 places to check and 1 spoi, takes ~3 seconds. 13534 cells to send back
-            //Thats a pretty big difference in scale for a not-huge difference in source data. I guess linestrings are way slower to compare via Intersects? Maybe there's one real complicated one to process somewhere?
+            //waterfall 6-cell has 222 entries in Places to check and 11 spoi, takes ~6 seconds. 55674 cells to send back. 2MB unzipped
+            //home 6-cell has 287 places to check and 1 spoi, takes ~2.5 seconds. 13534 cells to send back. 340kb unzipped
+            //Need to figure out how to reduce those numbers some. And why the first takes so much longer to process
+            //making xx a parallel for loop cuts execution times to ~2.5 and ~1 second, respectively. Good easy improvement.
             
             //This is every 10code in a 6code. I count to 400 to avoid rounding errors on NE edges of a 6-cell resulting in empty lines.
             //For this, i might need to dig through each plus code cell, but I have a much smaller set of data in memory. Might be faster ways to do this with a string array versus re-encoding OLC each loop?
             double resolution10 = .000125; //as defined
-            for (double xx = 0; xx < 400; xx += 1)
+            //for (double xx = 0; xx < 400; xx += 1)
+            System.Threading.Tasks.Parallel.For(0, 400, xx =>
             {
                 for (double yy = 0; yy < 400; yy++)
                 {
@@ -176,7 +178,7 @@ namespace GPSExploreServerAPI.Controllers
                         sb.AppendLine(olc + "|" + smallest.name + "|" + smallest.type);
                     }
                 }
-            }
+            });
 
             pt.Stop();
             return sb.ToString();
