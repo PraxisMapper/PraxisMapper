@@ -55,11 +55,16 @@ namespace OsmXmlParser
 
         static void Main(string[] args)
         {
-
             if (args.Count() == 0)
             {
                 Console.WriteLine("You must pass an arguement to this application");
                 return;
+            }
+
+            if (args.Any(a => a == "-makeTriggers"))
+            {
+                GpsExploreContext db = new GpsExploreContext();
+                db.Database.ExecuteSqlRaw(GpsExploreContext.MapDataValidTrigger);
             }
 
             if (args.Any(a => a == "-cleanDB"))

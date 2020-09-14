@@ -43,5 +43,7 @@ namespace DatabaseAccess
 
             model.Entity<MapData>().HasIndex(p => p.WayId); //for checking OSM data and cleaning dupes
         }
+
+        public static string MapDataValidTrigger = "CREATE TRIGGER dbo.MakeValid ON dbo.MapData AFTER INSERT AS BEGIN UPDATE dbo.MapData SET place = place.MakeValid() WHERE MapDataId in (SELECT MapDataId from inserted) END";
     }
 }
