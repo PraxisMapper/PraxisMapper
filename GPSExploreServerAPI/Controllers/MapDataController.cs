@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography.Xml;
 using System.Text;
 using DatabaseAccess;
 using Google.OpenLocationCode;
 using GPSExploreServerAPI.Classes;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
 using NetTopologySuite;
 using NetTopologySuite.Geometries;
 using static DatabaseAccess.DbTables;
@@ -16,6 +18,8 @@ namespace GPSExploreServerAPI.Controllers
     [ApiController]
     public class MapDataController : ControllerBase
     {
+
+        public static double resolution10 = .000125; //as defined
         //Manual map edits:
         //none
 
@@ -24,6 +28,18 @@ namespace GPSExploreServerAPI.Controllers
         //Make an endpoint that takes in the plus code, as a testing convenience
 
         public Coordinate[] MakeBox(CodeArea plusCodeArea)
+        {
+            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
+            var cord1 = new Coordinate(plusCodeArea.Min.Longitude, plusCodeArea.Min.Latitude);
+            var cord2 = new Coordinate(plusCodeArea.Min.Longitude, plusCodeArea.Max.Latitude);
+            var cord3 = new Coordinate(plusCodeArea.Max.Longitude, plusCodeArea.Max.Latitude);
+            var cord4 = new Coordinate(plusCodeArea.Max.Longitude, plusCodeArea.Min.Latitude);
+            var cordSeq = new Coordinate[5] { cord4, cord3, cord2, cord1, cord4 };
+
+            return cordSeq;
+        }
+
+        public Coordinate[] MakeBox(GeoArea plusCodeArea)
         {
             var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
             var cord1 = new Coordinate(plusCodeArea.Min.Longitude, plusCodeArea.Min.Latitude);
@@ -45,7 +61,7 @@ namespace GPSExploreServerAPI.Controllers
             //This works on an arbitrary sized area.
             //NOTE: the official library fails these partial codes, since it's always expecting a + and at least 2 digits after that.
             //I've made a function public that returns the info I need from that library.
-            
+
             PerformanceTracker pt = new PerformanceTracker("Cell8info");
             var pluscode = new OpenLocationCode(lat, lon);
             var codeString = pluscode.Code.Substring(0, 8);
@@ -66,7 +82,6 @@ namespace GPSExploreServerAPI.Controllers
             if (places.Count == 0 && spoi.Count == 0)
                 return sb.ToString();
 
-            double resolution10 = .000125;
             for (double x = box.Min.Longitude; x <= box.Max.Longitude; x += resolution10)
             {
                 for (double y = box.Min.Latitude; y <= box.Max.Latitude; y += resolution10)
@@ -129,8 +144,37 @@ namespace GPSExploreServerAPI.Controllers
             var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
             var cordSeq = MakeBox(box);
             var location = factory.CreatePolygon(cordSeq);
-            var places = db.MapData.Where(md => md.place.Intersects(location)).ToList(); 
+            var places = db.MapData.Where(md => md.place.Intersects(location)).ToList();  //Everything included in this 6-code.
             var spoi = db.SinglePointsOfInterests.Where(sp => sp.PlusCode6 == codeString6).ToList();
+
+            //optimization attempt. Split the main area into 4 smaller thing when checking in loops.
+            var box1 = new GeoArea(new GeoPoint(box.SouthLatitude, box.WestLongitude), new GeoPoint(box.CenterLatitude, box.CenterLongitude));
+            var coordSeq1 = MakeBox(box1);
+            var location1 = factory.CreatePolygon(coordSeq1);
+            var places1 = places.Where(md => md.place.Intersects(location1)).ToList();
+            var sb1 = new StringBuilder();
+
+            var box2 = new GeoArea(new GeoPoint(box.CenterLatitude, box.WestLongitude), new GeoPoint(box.NorthLatitude, box.CenterLongitude));
+            var coordSeq2 = MakeBox(box2);
+            var location2 = factory.CreatePolygon(coordSeq2);
+            var places2 = places.Where(md => md.place.Intersects(location2)).ToList();
+            var sb2 = new StringBuilder();
+
+            var box3 = new GeoArea(new GeoPoint(box.SouthLatitude, box.CenterLongitude), new GeoPoint(box.CenterLatitude, box.EastLongitude));
+            var coordSeq3 = MakeBox(box3);
+            var location3 = factory.CreatePolygon(coordSeq3);
+            var places3 = places.Where(md => md.place.Intersects(location3)).ToList();
+            var sb3 = new StringBuilder();
+
+            var box4 = new GeoArea(new GeoPoint(box.CenterLatitude, box.CenterLongitude), new GeoPoint(box.NorthLatitude, box.EastLongitude));
+            var coordSeq4 = MakeBox(box4);
+            var location4 = factory.CreatePolygon(coordSeq4);
+            var places4 = places.Where(md => md.place.Intersects(location4)).ToList();
+            var sb4 = new StringBuilder();
+
+            //takes 41ms to create 4 quadrants
+            //var placesList = new List<List<MapData>>() {places1, places2, places3, places4 };
+
 
             StringBuilder sb = new StringBuilder();
             //pluscode6 //first 6 digits of this pluscode. each line below is the last 4 that have an area type.
@@ -148,40 +192,141 @@ namespace GPSExploreServerAPI.Controllers
             //waterfall 6-cell has 222 entries in Places to check and 11 spoi, takes ~6 seconds. 55674 cells to send back. 2MB unzipped
             //home 6-cell has 287 places to check and 1 spoi, takes ~2.5 seconds. 13534 cells to send back. 340kb unzipped
             //Need to figure out how to reduce those numbers some. And why the first takes so much longer to process
-            //making xx a parallel for loop cuts execution times to ~2.5 and ~1 second, respectively. Good easy improvement.
-            
-            //This is every 10code in a 6code. I count to 400 to avoid rounding errors on NE edges of a 6-cell resulting in empty lines.
-            //For this, i might need to dig through each plus code cell, but I have a much smaller set of data in memory. Might be faster ways to do this with a string array versus re-encoding OLC each loop?
-            double resolution10 = .000125; //as defined
-            //for (double xx = 0; xx < 400; xx += 1)
-            System.Threading.Tasks.Parallel.For(0, 400, xx =>
-            {
-                for (double yy = 0; yy < 400; yy++)
+            //making xx a parallel for loop cuts execution times to ~2.5 and ~1 second, respectively, but StringBuilder isn't threadsafe, and occasionally messes up the output.
+            //making 4 quadrants cuts the time in roughly half and doesn't seem to have the same output issue.
+
+
+            //New loop, do 4 loops, 1 per quadrant.
+            System.Threading.Tasks.Parallel.Invoke(
+                () =>
                 {
-                    double x = box.Min.Longitude + (resolution10 * xx);
-                    double y = box.Min.Latitude + (resolution10 * yy);
-
-                    //The only remaining optimzation here is to attempt to find a function that's faster than Intersects on linestrings, and if there is one to check when to use which.
-                    var cordSeq2 = new Coordinate[5] { new Coordinate(x, y), new Coordinate(x + resolution10, y), new Coordinate(x + resolution10, y + resolution10), new Coordinate(x, y + resolution10), new Coordinate(x, y) };
-                    var poly2 = factory.CreatePolygon(cordSeq2);
-                    var entriesHere = places.Where(md => md.place.Intersects(poly2)).ToList();
-
-                    if (entriesHere.Count() == 0)
+                    for (double xx = 0; xx < 200; xx += 1)
                     {
-                        continue;
+                        for (double yy = 0; yy < 200; yy += 1)
+                        {
+                            //Southwest quadrant, places1
+                            double x = box.Min.Longitude + (resolution10 * xx);
+                            double y = box.Min.Latitude + (resolution10 * yy);
+
+                            var results = FindPlacesIn10Cell(x, y, ref places1);
+                            if (!string.IsNullOrWhiteSpace(results))
+                                sb1.AppendLine(results);
+                        }
                     }
-                    else
+                },
+                () =>
+                {
+                    for (double xx = 200; xx < 400; xx += 1)
                     {
-                        //Generally, if there's a smaller shape inside a bigger shape, the smaller one should take priority.
-                        var olc = new OpenLocationCode(y, x).CodeDigits.Substring(6, 4); //This takes lat, long, Coordinate takes X, Y. This line is correct.
-                        var smallest = entriesHere.Where(e => e.place.Area == entriesHere.Min(e => e.place.Area)).First();
-                        sb.AppendLine(olc + "|" + smallest.name + "|" + smallest.type);
+                        for (double yy = 0; yy < 200; yy += 1)
+                        {
+                            //northhwest quadrant, places3
+                            double x = box.Min.Longitude + (resolution10 * xx);
+                            double y = box.Min.Latitude + (resolution10 * yy);
+
+                            var results = FindPlacesIn10Cell(x, y, ref places3);
+                            if (!string.IsNullOrWhiteSpace(results))
+                                sb2.AppendLine(results);
+                        }
+                    }
+                },
+
+            () =>
+            {
+                for (double xx = 0; xx < 200; xx += 1)
+                {
+                    for (double yy = 200; yy < 400; yy += 1)
+                    {
+                        //Southeast quadrant, places2
+                        double x = box.Min.Longitude + (resolution10 * xx);
+                        double y = box.Min.Latitude + (resolution10 * yy);
+
+                        var results = FindPlacesIn10Cell(x, y, ref places2);
+                        if (!string.IsNullOrWhiteSpace(results))
+                            sb3.AppendLine(results);
                     }
                 }
-            });
+            },
 
-            pt.Stop();
+            () =>
+            {
+                for (double xx = 200; xx < 400; xx += 1)
+                {
+                    for (double yy = 200; yy < 400; yy += 1)
+                    {
+                        //northeast quadrant, places4
+                        double x = box.Min.Longitude + (resolution10 * xx);
+                        double y = box.Min.Latitude + (resolution10 * yy);
+
+                        var results = FindPlacesIn10Cell(x, y, ref places4);
+                        if (!string.IsNullOrWhiteSpace(results))
+                            sb4.AppendLine(results);
+                    }
+                }
+            }
+            );
+
+
+            sb.Append(sb1.ToString());
+            sb.Append(sb2.ToString());
+            sb.Append(sb3.ToString());
+            sb.Append(sb4.ToString());
+
+            //takes 3 seconds to do this search using 4 quadrants. That's almost twice as fast without going parallel.
+
+            //This is every 10code in a 6code. I count to 400 to avoid rounding errors on NE edges of a 6-cell resulting in empty lines.
+            //For this, i might need to dig through each plus code cell, but I have a much smaller set of data in memory. Might be faster ways to do this with a string array versus re-encoding OLC each loop?
+            //for (double xx = 0; xx < 400; xx += 1)
+            ////System.Threading.Tasks.Parallel.For(0, 400, xx =>
+            //{
+            //    for (double yy = 0; yy < 400; yy++)
+            //    {
+            //        double x = box.Min.Longitude + (resolution10 * xx);
+            //        double y = box.Min.Latitude + (resolution10 * yy);
+
+            //        //The only remaining optimzation here is to attempt to find a function that's faster than Intersects on linestrings, and if there is one to check when to use which.
+            //        var cordSeq2 = new Coordinate[5] { new Coordinate(x, y), new Coordinate(x + resolution10, y), new Coordinate(x + resolution10, y + resolution10), new Coordinate(x, y + resolution10), new Coordinate(x, y) };
+            //        var poly2 = factory.CreatePolygon(cordSeq2);
+            //        var entriesHere = places.Where(md => md.place.Intersects(poly2)).ToList();
+
+            //        if (entriesHere.Count() == 0)
+            //        {
+            //            continue;
+            //        }
+            //        else
+            //        {
+            //            //Generally, if there's a smaller shape inside a bigger shape, the smaller one should take priority.
+            //            var olc = new OpenLocationCode(y, x).CodeDigits.Substring(6, 4); //This takes lat, long, Coordinate takes X, Y. This line is correct.
+            //            var smallest = entriesHere.Where(e => e.place.Area == entriesHere.Min(e => e.place.Area)).First();
+            //            sb.AppendLine(olc + "|" + smallest.name + "|" + smallest.type);
+            //        }
+            //    }
+            //} //);
+            //takes 5.6seconds searching full 6-cell.
+
+            pt.Stop(codeString6); //track which cell this was, so I can compare easier in the database.
             return sb.ToString();
+        }
+
+        public static string FindPlacesIn10Cell(double x, double y, ref List<MapData> places)
+        {
+            //The only remaining optimzation here is to attempt to find a function that's faster than Intersects on linestrings, and if there is one to check when to use which.
+            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
+            var cordSeq2 = new Coordinate[5] { new Coordinate(x, y), new Coordinate(x + resolution10, y), new Coordinate(x + resolution10, y + resolution10), new Coordinate(x, y + resolution10), new Coordinate(x, y) };
+            var poly2 = factory.CreatePolygon(cordSeq2);
+            var entriesHere = places.Where(md => md.place.Intersects(poly2)).ToList();            
+
+            if (entriesHere.Count() == 0)
+            {
+                return "";
+            }
+            else
+            {
+                //Generally, if there's a smaller shape inside a bigger shape, the smaller one should take priority.
+                var olc = new OpenLocationCode(y, x).CodeDigits.Substring(6, 4); //This takes lat, long, Coordinate takes X, Y. This line is correct.
+                var smallest = entriesHere.Where(e => e.place.Area == entriesHere.Min(e => e.place.Area)).First();
+                return olc + "|" + smallest.name + "|" + smallest.type;
+            }
         }
 
         [HttpGet]

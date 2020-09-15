@@ -17,3 +17,7 @@ Update-Database
 
 For database-first setups, start with this instead:
 Scaffold-DbContext "ConnectionString" Microsoft.EntityFrameworkCore.SqlServer -OutputDir Model
+
+To view EF Core performance info, run this in the console: (-p is the process id, so start the app first)
+dotnet counters monitor Microsoft.EntityFrameworkCore -p 49496
+

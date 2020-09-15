@@ -1,32 +1,18 @@
-﻿using OsmXmlParser.Classes;
+﻿using DatabaseAccess;
+using EFCore.BulkExtensions;
+using Google.OpenLocationCode;
+using Microsoft.EntityFrameworkCore;
+using NetTopologySuite;
+using NetTopologySuite.Geometries;
+using OsmSharp.Streams;
+using OsmXmlParser.Classes;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.Design.Serialization;
-using System.Diagnostics.Tracing;
-using System.IO.Enumeration;
-using System.Linq;
-using System.Net;
-using System.Xml;
-using System.Xml.Serialization;
-using Google.OpenLocationCode;
-using EFCore.BulkExtensions;
-using DatabaseAccess;
-using static DatabaseAccess.DbTables;
-using NetTopologySuite.Geometries;
-using Microsoft.EntityFrameworkCore.ValueGeneration.Internal;
-using NetTopologySuite;
-using System.Text.Json;
 using System.IO;
-using System.Threading.Tasks;
-using System.Runtime.InteropServices;
-using System.Net.NetworkInformation;
-using System.Net.Sockets;
-using System.Net.Http.Headers;
-using Microsoft.EntityFrameworkCore.SqlServer.Query.Internal;
-using DatabaseAccess.Migrations;
-using OsmSharp.Streams;
-using OsmSharp.Geo;
-using Microsoft.EntityFrameworkCore;
+using System.Linq;
+using System.Text.Json;
+using System.Xml;
+using static DatabaseAccess.DbTables;
 
 //TODO: some node names are displaying in the debug console as "?????? ????". See Siberia. This should all be unicode and that should work fine.
 
@@ -61,10 +47,11 @@ namespace OsmXmlParser
                 return;
             }
 
-            if (args.Any(a => a == "-makeTriggers"))
+            if (args.Any(a => a == "-makeDbInfrastructure")) //create all the Db-side things this app needs that EFCore can't do automatically.
             {
                 GpsExploreContext db = new GpsExploreContext();
                 db.Database.ExecuteSqlRaw(GpsExploreContext.MapDataValidTrigger);
+                db.Database.ExecuteSqlRaw(GpsExploreContext.MapDataIndex);
             }
 
             if (args.Any(a => a == "-cleanDB"))
