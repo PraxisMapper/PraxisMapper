@@ -114,6 +114,13 @@ namespace OsmXmlParser
                 RemoveDuplicates();
             }
 
+            if (args.Any(a => a == "-createStandalone"))
+            {
+                //Near-future plan: make an app that covers an area and pulls in all data for it.
+                //like a university or a park. Draws ALL objects there to an SQLite DB used directly by an app, no data connection.
+                //Second arg: area covered somehow (way or relation ID of thing to use? big plus code?)
+            }
+
             return;
         }
 
@@ -291,6 +298,7 @@ namespace OsmXmlParser
         {
             //This is how we will figure out which area a cell counts as now.
             //Should make sure all of these exist in the AreaTypes table I made.
+            //REMEMBER: this list needs to match the same tags as the ones in GetWays(relations)FromPBF or else data looks weird.
             //TODO: prioritize these tags, since each space gets one value.
 
             if (tags.Count() == 0)
@@ -356,7 +364,7 @@ namespace OsmXmlParser
             if (tags.Any(t => (t.k == "highway" && t.v == "bridleway"))
                 || (tags.Any(t => t.k == "highway" && t.v == "path")) //path implies motor_vehicle = no // && !tags.Any(t => t.k =="motor_vehicle" && t.v == "yes")) //may want to check anyways?
                 || (tags.Any(t => t.k == "highway" && t.v == "cycleway"))  //I probably want to include these too, though I have none local to see.
-                || (tags.Any(t => t.k == "highway" && t.v == "footway") && !tags.Any(t => t.k == "footway" && (t.v == "sidewalk" || t.v == "crossing")))
+                || (tags.Any(t => t.k == "highway" && relevantHighwayValues.Contains(t.v)) && !tags.Any(t => t.k == "footway" && (t.v == "sidewalk" || t.v == "crossing")))
                 )
                 return "trail";
 
@@ -602,6 +610,7 @@ namespace OsmXmlParser
                 Log.WriteLog("Starting " + filename + " relation read at " + DateTime.Now);
                 var osmRelations = GetRelationsFromPbf(filename);
                 var wayList = osmRelations.SelectMany(r => r.Members).ToList(); //ways that need tagged as the relation's type if they dont' have their own.
+
                 List<RelationMember> waysFromRelations = new List<RelationMember>();
                 foreach (var stuff in osmRelations)
                 {
@@ -674,6 +683,8 @@ namespace OsmXmlParser
                             if (!string.IsNullOrWhiteSpace(relation.type))
                                 w.AreaType = relation.type;
                     }
+
+                    var typeData = waysFromRelations.Where(r => r.type == "").Select(r => r.type).ToList();
 
                     //now that we have nodes, lets do a little extra processing.
                     var latSpread = w.nds.Max(n => n.lat) - w.nds.Min(n => n.lat);
@@ -755,6 +766,7 @@ namespace OsmXmlParser
 
         public static List<OsmSharp.Way> GetWaysFromPbf(string filename, ILookup<long, RelationMember> wayList)
         {
+            //REMEMBER: if tag combos get edited, here, also update GetType to look at that combo too, or else data looks wrong.
             List<OsmSharp.Way> filteredWays = new List<OsmSharp.Way>();
             using (var fs = File.OpenRead(filename))
             {
@@ -781,7 +793,7 @@ namespace OsmXmlParser
                         p.Tags.Any(t => t.Key == "historic") ||
                         p.Tags.Any(t => t.Key == "waterway") ||
                         p.Tags.Any(t => t.Key == "tourism" && relevantTourismValues.Contains(t.Value)) ||
-                        p.Tags.Any(t => t.Key == "highway" && relevantHighwayValues.Contains(t.Value))
+                        p.Tags.Any(t => t.Key == "highway" && relevantHighwayValues.Contains(t.Value) && (!p.Tags.Any(t => t.Key == "footway" && (t.Value == "sidewalk" || t.Value == "crossing"))))
                         )))
                     .Select(w => (OsmSharp.Way)w)
                     .ToList();
@@ -802,6 +814,7 @@ namespace OsmXmlParser
 
                 //filter out data here
                 //Now this is my default filter.
+                //Single nodes are unlikley to be marked Highway. Don't check for that here.
                 filteredNodes = progress.Where(p => p.Type == OsmSharp.OsmGeoType.Node &&
                        (nLookup.Contains(p.Id.GetValueOrDefault()) ||
                         (p.Tags.Contains("natural", "water") ||
@@ -975,6 +988,11 @@ namespace OsmXmlParser
             db.SaveChanges();
 
 
+        }
+
+        public void CreateStandaloneDB()
+        {
+            //TODO: this whole feature.
         }
 
         /* For reference: the tags Pokemon Go appears to be using. I don't need all of these. I have a few it doesn't, as well.
