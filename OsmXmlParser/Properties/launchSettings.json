@@ -2,7 +2,7 @@
   "profiles": {
     "OsmXmlParser": {
       "commandName": "Project",
-      "commandLineArgs": "-cleanDB -resetPbf -resetJson -trimPbfFiles -readSPOIs -readRawWays -removeDupes"
+      "commandLineArgs": "-trimPbfFiles"
     }
   }
 }

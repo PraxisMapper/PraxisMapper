@@ -1,4 +1,6 @@
-﻿How to run this:
+﻿Requirements: 16GB RAM (Will still page frequently with the most complicated areas, but they all finish in ~45 minutes in the worst case with an SSD)
+
+How to run this:
 
 1) Create and configure SQL Server for this app. Update connection string, create DB via EFCore docs in Commands file.
 
@@ -10,7 +12,7 @@
 -readRawWays (Reads the JSON files that save all the raw OSM way info, saves them to DB in MapData table)
 -readProcessedWays (Reads the JSON files that contain condensed approximations of the ways, saves to the DB in ProcessedWays table)
 
-4)... manually make spatial index in Sql Server. This takes ~40 minutes, but it's core to making this app usable.
+4)... manually make spatial index in Sql Server. This takes ~40 minutes if you do it after importing global data, but it's core to making this app usable.
 a baseline standard config for this index seems to work fine.
 
 for changes that affect everything (EX: I changed tag types to process, i want new ways/updates from OSM), run OsmXmlParser with -resetXml and -resetJson, then follow step 3 again
@@ -24,11 +26,17 @@ Attach database to Sql Server (with or without SSMS installed? how TBD)
 test API endpoint. /mapdata/test should return "OK" if IIS is up and running. actual data endpoint should return stuff with valid inputs if DB is running and connected correctly.
 Should return something on error so I can figure out why a call doesnt work. I also think I need to upload a new DB to the server
 
+Set these as the arguments for OsmXmlParser to redo everything at once:
+-cleanDB -resetPbf -resetJson -trimPbfFiles -readSPOIs -readRawWays -removeDupes
+
+
 Database side:
 Querying spatial data:
 DECLARE @p1 geography
   SET @p1 = geography::STGeomFromText('POINT (-53.235222 21.536760)', 4326)
   SELECT * FROM MapData
   WHERE @p1.STWithin(place) = 1
+
+
 
  
