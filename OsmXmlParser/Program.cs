@@ -112,7 +112,7 @@ namespace OsmXmlParser
 
             if (args.Any(a => a == "-removeDupes"))
             {
-                //a few minutes
+                //30 minutes on global data 
                 RemoveDuplicates();
             }
 
@@ -207,7 +207,7 @@ namespace OsmXmlParser
         public static void AddRawWaystoDBFromFiles()
         {
             //These are MapData items in the DB, unlike the other types that match names in code and DB tables.
-            //This function is pretty slow. I should figure out how to speed it up.
+            //This function is pretty slow. I should figure out how to speed it up. Approx. 6,000 ways per second right now.
             //TODO: don't insert duplicate objects. ~400,000 ways get inserted more than once for some reason. Doesn't seem to impact performance but could be improved.
             //--Probably need to track down which partial files overlap. LocalCity.osm is a few.
             var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
@@ -233,7 +233,7 @@ namespace OsmXmlParser
                     }
                     if (timer.ElapsedMilliseconds > 10000)
                     {
-                        Log.WriteLog("Processed " + loopCount + " ways so far"); //mdList.Count()
+                        Log.WriteLog("Processed " + loopCount + " ways so far"); 
                         timer.Restart();
                     }
                     try
@@ -243,7 +243,7 @@ namespace OsmXmlParser
                         md.WayId = w.id;
                         md.type = w.AreaType;
 
-                        //Adding support for single lines. A lot of rivers and streams are treated this way.
+                        //Adding support for single lines. A lot of rivers/streams/footpaths are treated this way.
                         if (w.nds.First().id != w.nds.Last().id)
                         {
                             LineString temp2 = factory.CreateLineString(w.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray());
@@ -272,7 +272,6 @@ namespace OsmXmlParser
                         }
 
                         //Trying to add each entry indiviudally to detect additional errors for now.
-                        //But this way is slow with ChangeTracking on, adding ~1 per second. ~2000 per second with Change Tracking off.
                         db.MapData.Add(md);
                         db.SaveChanges();
                     }
@@ -287,6 +286,8 @@ namespace OsmXmlParser
                         //points must form a closed line.
                         //Still getting a CCW error on save?
                         //at least 1 way has nodes with null coordinates, cant use those either
+                        //number of points must be 0 or >3 - this one's new.
+                        //app domain was unloaded due to memory pressure - also new for this. SQL internal issue?
                     }
                 }
                 Log.WriteLog("Added " + file + " to dB at " + DateTime.Now);
@@ -976,33 +977,38 @@ namespace OsmXmlParser
 
         public static void RemoveDuplicates()
         {
+            Log.WriteLog("Scanning for duplicate entries at " + DateTime.Now);
             var db = new GpsExploreContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var dupedWays = db.MapData.GroupBy(md => md.WayId)
                 .Select(m => new { m.Key, Count = m.Count() })
                 .ToDictionary(d => d.Key, v => v.Count)
                 .Where(md => md.Value > 1);
+            Log.WriteLog("Duped Ways loaded at " + DateTime.Now);
 
             foreach (var dupe in dupedWays)
             {
                 var entriesToDelete = db.MapData.Where(md => md.WayId == dupe.Key).ToList();
                 db.MapData.RemoveRange(entriesToDelete.Skip(1));
+                db.SaveChanges(); //so the app can make partial progress if it needs to restart
             }
             db.SaveChanges();
+            Log.WriteLog("Duped ways deleted at " + DateTime.Now);
 
             var dupedSpoi = db.SinglePointsOfInterests.GroupBy(md => md.NodeID)
                 .Select(m => new { m.Key, Count = m.Count() })
                 .ToDictionary(d => d.Key, v => v.Count)
                 .Where(md => md.Value > 1);
+            Log.WriteLog("Duped SPOIs loaded at " + DateTime.Now);
 
             foreach (var dupe in dupedSpoi)
             {
                 var entriesToDelete = db.SinglePointsOfInterests.Where(md => md.NodeID == dupe.Key).ToList();
                 db.SinglePointsOfInterests.RemoveRange(entriesToDelete.Skip(1));
+                db.SaveChanges(); //so the app can make partial progress if it needs to restart
             }
             db.SaveChanges();
-
-
+            Log.WriteLog("All duplicates removed at " + DateTime.Now);
         }
 
         public void CreateStandaloneDB()
