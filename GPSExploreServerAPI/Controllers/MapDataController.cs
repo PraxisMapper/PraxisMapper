@@ -75,11 +75,12 @@ namespace GPSExploreServerAPI.Controllers
                 sb.AppendLine(s.PlusCode.Substring(6, 4) + "|" + s.name + "|" + s.NodeType); 
 
             //optimization. Split the main area into 4 smaller thing when checking in loops. Approximately twice as fast as checking the whole area every time.
-            //Notes:
+            //Notes: 
             //StringBuilders isn't thread-safe, so each thread needs its own, and their results combined later.
 
-            //optimization code pass 2. Much smaller, more flexible.
-            int splitcount = 2; //creates 4 entries, each 200x200 10cells wide. Should be evenly divisible into 400 or cells will be missed. (Options: 2, TBD)
+            //optimization code pass 2. Much smaller, more flexible. splitCount can be adjusted, but 2 seems to be the sweet spot for this.
+            //2 is a huge improvement over not doing this. 4 is slower. 40 is twice as fast as 2, possibly because of skipping empty areas.
+            int splitcount = 40; //creates 4 entries, each 200x200 10cells wide. Should be evenly divisible into 400 or cells will be missed. (Options: 2, 4, 40, others TBD)
             List<MapData>[] placeArray;
             GeoArea[] areaArray;
             StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
@@ -88,6 +89,13 @@ namespace GPSExploreServerAPI.Controllers
             System.Threading.Tasks.Parallel.For(0,  placeArray.Length, (i) =>
             {
                 StringBuilder localSB = new StringBuilder();
+                if (placeArray[i].Count == 0)
+                {
+                    //We won't find anything, don't bother looking.
+                    sbArray[i] = localSB;
+                    return;
+                }
+                
                 for (double xx = 0; xx < loopSize; xx += 1)
                 {
                     for (double yy = 0; yy < loopSize; yy += 1)
