@@ -21,28 +21,28 @@ namespace GPSExploreServerAPI.Classes
 
         public void Stop()
         {
-            Task.Run(() =>
-            {
+            //Task.Run(() =>
+            //{
                 sw.Stop();
                 pi.runTime = sw.ElapsedMilliseconds;
                 GpsExploreContext db = new GpsExploreContext();
                 db.PerformanceInfo.Add(pi);
                 db.SaveChanges();
-            });
+            //});
             return;
         }
 
         public void Stop(string notes)
         {
-            Task.Run(() =>
-            {
+            //Task.Run(() =>
+            //{
                 sw.Stop();
                 pi.runTime = sw.ElapsedMilliseconds;
                 pi.notes = notes;
                 GpsExploreContext db = new GpsExploreContext();
                 db.PerformanceInfo.Add(pi);
                 db.SaveChanges();
-            });
+            //});
             return;
         }
     }

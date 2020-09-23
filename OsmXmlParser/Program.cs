@@ -4,6 +4,7 @@ using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
 using NetTopologySuite;
 using NetTopologySuite.Geometries;
+using OsmSharp.Changesets;
 using OsmSharp.Streams;
 using OsmSharp.Streams.Filters;
 using OsmSharp.Tags;
@@ -19,6 +20,8 @@ using static DatabaseAccess.DbTables;
 //TODO: some node names are displaying in the debug console as "?????? ????". See Siberia. This should all be unicode and that should work fine.
 //TODO: since some of these .pbf files become larger as trimmer JSON instead of smaller, maybe I should try a path that writes directly to DB from PBF?
 //TODO: optimize data - If there are multiple nodes within a 10-cell's distance of each other, consolidate those into one node.
+//TODO: some places are named/typed from a Label node in a Relation, instead of tags on the individual area or the releation itself.
+//TODO: ponder how to remove inner polygons from a larger outer polygon. This is probably a NTS function of some kind, but only applies to relations. Ways alone won't do this. This would involve editing the data loaded, not just converting it.
 
 namespace OsmXmlParser
 {
@@ -375,6 +378,7 @@ namespace OsmXmlParser
             //landuse:forest / landuse:orchard  / natural:wood
             //natural:sand may be of interest for desert area?
             //natural:spring / natural:hot_spring
+            //amenity:theatre for plays/music/etc (amenity:cinema is a movie theater)
             //Anything else seems un-interesting or irrelevant.
 
             return ""; //not a way we need to save right now.
@@ -614,6 +618,9 @@ namespace OsmXmlParser
                 Log.WriteLog("Starting " + filename + " relation read at " + DateTime.Now);
                 var osmRelations = GetRelationsFromPbf(filename);
                 var wayList = osmRelations.SelectMany(r => r.Members).ToList(); //ways that need tagged as the relation's type if they dont' have their own.
+
+                //Test line - what are Roles in this context?
+                var roles = osmRelations.Select(r => r.Members.Select(m => m.Role)).Distinct().ToList();
 
                 Log.WriteLog("Checking " + osmRelations.Count() + " relations with " + wayList.Count() + " ways at " + DateTime.Now);
 

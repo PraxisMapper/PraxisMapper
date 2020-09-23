@@ -1,4 +1,5 @@
 ﻿Requirements: 16GB RAM (Will still page frequently with the most complicated areas, but they all finish in ~45 minutes in the worst case with an SSD)
+Global database is current ~45GB, would want at least 64GB RAM for a DB server to hold everything in memory.
 
 How to run this:
 
@@ -19,9 +20,11 @@ for changes that affect everything (EX: I changed tag types to process, i want n
 For changes that only affect processedWays/SPOIs (EX: testing a better approximation algorithm for ProcessedWays, changing schema on SPOI db table), i can read in existing JSON files instead of OSM XML 
 
 Server-side:
+Set AWS Security rules to only allow RDP from a narrow range (single IP if possible, /24 block for ISP if not.)
 deploy API app to its own folder, make sure IIS is pointing at folder with .exe and .dll files. Turn off Managed Code. 
 Upload database file to S3, copy file to server (instructions how TBD)
 Attach database to Sql Server (with or without SSMS installed? how TBD)
+
 
 test API endpoint. /mapdata/test should return "OK" if IIS is up and running. actual data endpoint should return stuff with valid inputs if DB is running and connected correctly.
 Should return something on error so I can figure out why a call doesnt work. I also think I need to upload a new DB to the server
@@ -39,4 +42,12 @@ DECLARE @p1 geography
 
 
 
- 
+ Logic:
+ * If a node has an interesting place tag, treat it as a single point of interest
+ * If a way has an interesting place tag, and is a polygon or a linestring,
+ ** Check if it's area is smaller than a 10-cell (.000125 degrees)
+ *** If so, treat it as a single point of interest
+ ** Make a MapData entry for the area.
+ * If a relation has an interesting place tag, treat any areas inside it as that type.
+ * Relations might be named by a node with a Label tag instead of a name tag on the relation.
+
