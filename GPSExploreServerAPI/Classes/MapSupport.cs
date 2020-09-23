@@ -40,8 +40,7 @@ namespace GPSExploreServerAPI.Classes
 
         public static void SplitArea(GeoArea area, int divideCount, List<MapData> places, out List<MapData>[] placeArray, out GeoArea[] areaArray)
         {
-            //Take area, divide it into a divideCount * divideCount grid of areas.
-            //Return an array of List<MapData> entries
+            //Take area, divide it into a divideCount * divideCount grid of area. Return matching arrays of MapData and GeoArea, with indexes that correspond 1:1
             //The purpose of this function is to reduce code involved in optimizing a search, and to make it more flexible to test 
             //performance improvements on area splits.
 
@@ -51,7 +50,6 @@ namespace GPSExploreServerAPI.Classes
             //Logic note 1: if divideCount is 20, this is just reducing a PlusCode to the next smaller set of PlusCodes ranges.
             if (divideCount == 0 || divideCount == 1)
                 return;
-                //return new List<MapData>[] {places};
 
             var latDivider = area.LatitudeHeight / divideCount;
             var lonDivider = area.LongitudeWidth / divideCount;
@@ -72,7 +70,7 @@ namespace GPSExploreServerAPI.Classes
             placeArray = resultsPlace.ToArray();
             areaArray = resultsArea.ToArray();
 
-            return; //results.ToArray();
+            return;
         }
     }
 }

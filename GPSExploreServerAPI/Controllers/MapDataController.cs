@@ -13,7 +13,6 @@ using NetTopologySuite;
 using NetTopologySuite.Geometries;
 using SQLitePCL;
 using static DatabaseAccess.DbTables;
-using GPSExploreServerAPI.Classes;
 
 namespace GPSExploreServerAPI.Controllers
 {
@@ -33,7 +32,7 @@ namespace GPSExploreServerAPI.Controllers
             }
         }
 
-        public static double resolution10 = .000125; //as defined
+        public static double resolution10 = .000125; //as defined by the Open Location Code spec.
         //Manual map edits:
         //none
         //TODO:
@@ -74,17 +73,17 @@ namespace GPSExploreServerAPI.Controllers
             foreach (var s in spoi)
                 sb.AppendLine(s.PlusCode.Substring(6, 4) + "|" + s.name + "|" + s.NodeType); 
 
-            //optimization. Split the main area into 4 smaller thing when checking in loops. Approximately twice as fast as checking the whole area every time.
+            //optimization. Split the main area into many smaller thing when checking in loops. Dramatically faster than looking at every place in the 6cell every time.
             //Notes: 
             //StringBuilders isn't thread-safe, so each thread needs its own, and their results combined later.
 
             //optimization code pass 2. Much smaller, more flexible. splitCount can be adjusted, but 2 seems to be the sweet spot for this.
-            //2 is a huge improvement over not doing this. 4 is slower. 40 is twice as fast as 2, possibly because of skipping empty areas.
+            //2 is a huge improvement over everything without splitting the loop. 4 is slower than 2. 40 is twice as fast as 2, probably because of skipping empty areas. 40 means we're looking at each quadrant of each 8-cell inside the 6-cell
             int splitcount = 40; //creates 4 entries, each 200x200 10cells wide. Should be evenly divisible into 400 or cells will be missed. (Options: 2, 4, 40, others TBD)
             List<MapData>[] placeArray;
             GeoArea[] areaArray;
             StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
-            MapSupport.SplitArea(box, splitcount, places, out placeArray, out areaArray); //~26ms for 2, 260ms for 50 (which is an unreasonable value, since 20 is another pair of pluscode digits)
+            MapSupport.SplitArea(box, splitcount, places, out placeArray, out areaArray);
             int loopSize = 400 / splitcount;
             System.Threading.Tasks.Parallel.For(0,  placeArray.Length, (i) =>
             {
@@ -120,7 +119,7 @@ namespace GPSExploreServerAPI.Controllers
             options.SetSize(1);
             cache.Set(codeString6, results, options);
 
-            pt.Stop(codeString6); //track which cell this was, so I can compare easier in the database.
+            pt.Stop(codeString6);
             return results;
         }
 
@@ -135,7 +134,6 @@ namespace GPSExploreServerAPI.Controllers
 
         public string FindPlacesIn10Cell(double x, double y, ref List<MapData> places)
         {
-            //The only remaining optimzation here is to attempt to find a function that's faster than Intersects on linestrings, and if there is one to check when to use which.
             var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolution10, x + resolution10));
             var entriesHere = MapSupport.GetPlaces(box, places);
 
@@ -164,6 +162,9 @@ namespace GPSExploreServerAPI.Controllers
         [Route("/[controller]/PerfTest")]
         public void PerfTest()
         {
+            //comment this to do performance testing. Keep uncommented for production use.
+            return;
+
             //testing C# side code here, to make sure i have that sorted out.
             //For debug purposes to confirm the server is running and reachable.
             //i have lat/lon coords, whats there?
@@ -357,7 +358,7 @@ namespace GPSExploreServerAPI.Controllers
             //Will load these bitmaps on the 8cell grid in the game, so you can see what's around you in a bigger area.
             //server will create and load these. Possibly cache them.
 
-            //requires a list of colors to use.
+            //requires a list of colors to use, which might vary per app
             //
         }
     }
