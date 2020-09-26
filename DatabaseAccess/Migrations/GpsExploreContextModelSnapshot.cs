@@ -16,16 +16,16 @@ namespace DatabaseAccess.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "3.1.8")
+                .UseIdentityColumns()
                 .HasAnnotation("Relational:MaxIdentifierLength", 128)
-                .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+                .HasAnnotation("ProductVersion", "5.0.0-rc.1.20451.13");
 
             modelBuilder.Entity("DatabaseAccess.DbTables+AreaType", b =>
                 {
                     b.Property<int>("AreaTypeId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+                        .UseIdentityColumn();
 
                     b.Property<string>("AreaName")
                         .HasColumnType("nvarchar(max)");
@@ -43,7 +43,7 @@ namespace DatabaseAccess.Migrations
                     b.Property<long>("MapDataId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+                        .UseIdentityColumn();
 
                     b.Property<long>("WayId")
                         .HasColumnType("bigint");
@@ -69,7 +69,7 @@ namespace DatabaseAccess.Migrations
                     b.Property<int>("PerformanceInfoID")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+                        .UseIdentityColumn();
 
                     b.Property<DateTime>("calledAt")
                         .HasColumnType("datetime2");
@@ -93,7 +93,7 @@ namespace DatabaseAccess.Migrations
                     b.Property<int>("PlayerDataID")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+                        .UseIdentityColumn();
 
                     b.Property<int>("DateLastTrophyBought")
                         .HasColumnType("int");
@@ -138,45 +138,25 @@ namespace DatabaseAccess.Migrations
                     b.ToTable("PlayerData");
                 });
 
-            modelBuilder.Entity("DatabaseAccess.DbTables+ProcessedWay", b =>
+            modelBuilder.Entity("DatabaseAccess.DbTables+PremadeResults", b =>
                 {
-                    b.Property<long>("ProcessedWayId")
+                    b.Property<long>("PremadeResultsId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+                        .UseIdentityColumn();
 
-                    b.Property<string>("AreaType")
+                    b.Property<string>("Data")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("AreaTypeId")
-                        .HasColumnType("int");
+                    b.Property<string>("PlusCode6")
+                        .HasMaxLength(6)
+                        .HasColumnType("nvarchar(6)");
 
-                    b.Property<long>("OsmWayId")
-                        .HasColumnType("bigint");
+                    b.HasKey("PremadeResultsId");
 
-                    b.Property<double>("distanceE")
-                        .HasColumnType("float");
+                    b.HasIndex("PlusCode6");
 
-                    b.Property<double>("distanceN")
-                        .HasColumnType("float");
-
-                    b.Property<DateTime>("lastUpdated")
-                        .HasColumnType("datetime2");
-
-                    b.Property<double>("latitudeS")
-                        .HasColumnType("float");
-
-                    b.Property<double>("longitudeW")
-                        .HasColumnType("float");
-
-                    b.Property<string>("name")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("ProcessedWayId");
-
-                    b.HasIndex("OsmWayId");
-
-                    b.ToTable("ProcessedWays");
+                    b.ToTable("PremadeResults");
                 });
 
             modelBuilder.Entity("DatabaseAccess.DbTables+SinglePointsOfInterest", b =>
@@ -184,7 +164,7 @@ namespace DatabaseAccess.Migrations
                     b.Property<long>("SinglePointsOfInterestId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+                        .UseIdentityColumn();
 
                     b.Property<long>("NodeID")
                         .HasColumnType("bigint");
@@ -193,16 +173,16 @@ namespace DatabaseAccess.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PlusCode")
-                        .HasColumnType("nvarchar(15)")
-                        .HasMaxLength(15);
+                        .HasMaxLength(15)
+                        .HasColumnType("nvarchar(15)");
 
                     b.Property<string>("PlusCode6")
-                        .HasColumnType("nvarchar(6)")
-                        .HasMaxLength(6);
+                        .HasMaxLength(6)
+                        .HasColumnType("nvarchar(6)");
 
                     b.Property<string>("PlusCode8")
-                        .HasColumnType("nvarchar(8)")
-                        .HasMaxLength(8);
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)");
 
                     b.Property<double>("lat")
                         .HasColumnType("float");

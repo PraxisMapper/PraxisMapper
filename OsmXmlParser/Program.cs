@@ -4,6 +4,8 @@ using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
 using NetTopologySuite;
 using NetTopologySuite.Geometries;
+using NetTopologySuite.Geometries.Utilities;
+using NetTopologySuite.Precision;
 using OsmSharp.Changesets;
 using OsmSharp.Streams;
 using OsmSharp.Streams.Filters;
@@ -19,8 +21,7 @@ using static DatabaseAccess.DbTables;
 
 //TODO: some node names are displaying in the debug console as "?????? ????". See Siberia. This should all be unicode and that should work fine.
 //TODO: since some of these .pbf files become larger as trimmer JSON instead of smaller, maybe I should try a path that writes directly to DB from PBF?
-//TODO: optimize data - If there are multiple nodes within a 10-cell's distance of each other, consolidate those into one node.
-//TODO: some places are named/typed from a Label node in a Relation, instead of tags on the individual area or the releation itself.
+//TODO: optimize data - If there are multiple nodes within a 10-cell's distance of each other, consolidate those into one node (but not if they're part of a relation)
 //TODO: ponder how to remove inner polygons from a larger outer polygon. This is probably a NTS function of some kind, but only applies to relations. Ways alone won't do this. This would involve editing the data loaded, not just converting it.
 
 namespace OsmXmlParser
@@ -236,7 +237,7 @@ namespace OsmXmlParser
                     }
                     if (timer.ElapsedMilliseconds > 10000)
                     {
-                        Log.WriteLog("Processed " + loopCount + " ways so far"); 
+                        Log.WriteLog("Processed " + loopCount + " ways so far");
                         timer.Restart();
                     }
                     try
@@ -414,9 +415,6 @@ namespace OsmXmlParser
 
             osm.Database.ExecuteSqlRaw("TRUNCATE TABLE AreaTypes");
             Log.WriteLog("AreaTypes cleaned at " + DateTime.Now);
-
-            osm.Database.ExecuteSqlRaw("TRUNCATE TABLE ProcessedWays");
-            Log.WriteLog("ProcessedWays cleaned at " + DateTime.Now);
 
             osm.Database.ExecuteSqlRaw("TRUNCATE TABLE MapData");
             Log.WriteLog("MapData cleaned at " + DateTime.Now);
@@ -641,9 +639,11 @@ namespace OsmXmlParser
 
                 Log.WriteLog("Starting " + filename + " node read at " + DateTime.Now);
                 var osmNodes = GetNodesFromPbf(filename, nodeLookup);
-                Log.WriteLog("Creating node lookup for "+ osmNodes.Count() + " nodes"); //33 million nodes across 2 million ways will tank this app at 16GB RAM
+                Log.WriteLog("Creating node lookup for " + osmNodes.Count() + " nodes"); //33 million nodes across 2 million ways will tank this app at 16GB RAM
                 var osmNodeLookup = osmNodes.ToLookup(k => k.Id, v => v); //Seeing if NodeReference saves some RAM
                 Log.WriteLog("Found " + osmNodeLookup.Count() + " unique nodes");
+
+                
 
                 //Write SPOIs to file
                 Log.WriteLog("Finding SPOIs at " + DateTime.Now);
@@ -685,7 +685,7 @@ namespace OsmXmlParser
                     foreach (long nr in w.nodRefs)
                     {
                         var osmNode = osmNodeLookup[nr].FirstOrDefault();
-                        var myNode = new Node() { id = osmNode.Id, lat = osmNode.lat, lon = osmNode.lon};
+                        var myNode = new Node() { id = osmNode.Id, lat = osmNode.lat, lon = osmNode.lon };
                         w.nds.Add(myNode);
                     }
                     w.nodRefs = null; //free up a little memory we won't use again.
@@ -710,9 +710,9 @@ namespace OsmXmlParser
                     var latSpread = w.nds.Max(n => n.lat) - w.nds.Min(n => n.lat);
                     var lonSpread = w.nds.Max(n => n.lon) - w.nds.Min(n => n.lon);
 
-                    if (latSpread <= PlusCode10Resolution && lonSpread <= PlusCode10Resolution)
+                    if (latSpread <= PlusCode10Resolution && lonSpread <= PlusCode10Resolution && wayLookup[w.id].Count() == 0)
                     {
-                        //this is small enough to be an SPOI instead
+                        //this is small enough to be an SPOI and not part of a bigger relation.
                         var calcedCode = new OpenLocationCode(w.nds.Average(n => n.lat), w.nds.Average(n => n.lon));
                         var reverseDecode = calcedCode.Decode();
                         var spoiFromWay = new SinglePointsOfInterest()
@@ -738,6 +738,172 @@ namespace OsmXmlParser
                 Log.WriteLog("Ways populated with Nodes at " + DateTime.Now);
                 osmNodes = null; //done with these now, can free up RAM again.
 
+                //TODO: Use Relations to do some work on Ways. This needs done after loading way and node data, since i'll be processing it with those coordinates.
+                //--Remove Inner ways from Outer Ways
+                //--combine multiple lines into a single polygon
+                //--combine multiple polygons into a single mapdata entry? This should be doable.
+                //--removed referenced items from additional processing, 
+                //--Save these as a separate type, since they'll be added to MapData as a very big object.
+                var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
+                GpsExploreContext db = new GpsExploreContext();
+                foreach (var r in osmRelations)
+                {
+                    //Determine if we need to process this relation.
+                    //if all ways are closed outer polygons, we can skip this.
+                    //if all ways are lines that connect, we need to make it a polygon.
+                    //We can't always rely on tags being correct.
+
+                    //I might need to check if these are usable ways before checking if they're already handled by the relation
+                    //I also wonder if a relation doesn't include all the ways if some are in different boundaries for a file?
+
+                    if (r.Members.Any(m => m.Type == OsmSharp.OsmGeoType.Relation))
+                    {
+                        Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " is a meta-relation, skipping.");
+                        continue;
+                    }
+
+                    if (r.Members.Any(m => m.Type == OsmSharp.OsmGeoType.Node))
+                    {
+                        Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " has a standalone node, skipping.");
+                        continue;
+                    }
+
+                    //if (r.Members.All(m => m.Role =="outer"))
+                    //{
+                    //    Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " will be treated as multiple separate areas, skipping.");
+                    //    continue;
+                    //}
+
+                    List<Way> localWays2 = new List<Way>();
+                    foreach (var m in r.Members)
+                    {
+                        var tempWayList = r.Members.Select(m => m.Id).ToList();
+                        var maybeWay = ways.Where(way => tempWayList.Contains(way.id)).FirstOrDefault();
+                        if (maybeWay == null)
+                        {
+                            Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " Way " + m.Id + " Not found in this file, skipping. (It is in other files?)");
+                            continue;
+                        }
+
+                        if (maybeWay.AreaType == "" && maybeWay.name == "")
+                        {
+                            //This way won't be processed on its own, so now we care about it.
+                            localWays2.Add(maybeWay);
+                        }
+                    }
+                    if (localWays2.Count == 0)
+                    {
+                        Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " already covered by existing logic, skipping.");
+                        continue;
+                    }
+
+                    
+
+                    //we now have a reference to all these ways. Time to test them?
+                    //attempt 1: extract all coordinates, make that a Polygon?
+                    List<Coordinate> allCoords = new List<Coordinate>();
+                    
+                    //var pointSet = factory.CreatePolygon();
+                    //GeometryEditor ed = new GeometryEditor(pointSet); //?
+                    foreach (var item in localWays2)
+                    {
+                        allCoords.AddRange(WayToCoordArray(item));
+                        //pointSet = pointSet.Append(factory.CreatePolygon(WayToCoordArray(item))); //?
+                    }
+
+                    try
+                    {
+                        //Polygon!
+                        var allCoordPoly = factory.CreatePolygon(allCoords.ToArray());
+                        if (!allCoordPoly.Shell.IsCCW)
+                            allCoordPoly = (Polygon)allCoordPoly.Reverse();
+                        if (!allCoordPoly.Shell.IsCCW)
+                        {
+                            Log.WriteLog("Relation " + r.Id + GetElementName(r.Tags) + " isn't CCW forward or reversed, needs more work.");
+                            continue;
+                        }
+                        //                    var outerShape = (Polygon)pointSet.ConvexHull();
+                        MapData md = new MapData();
+                        md.name = GetElementName(r.Tags);
+                        md.type = GetType(r.Tags);
+                        md.WayId = r.Id.Value;//will need to mark this holds multiple types now.
+                                              //md.place = outerShape; //TODO: apply inner shells?
+                        md.place = allCoordPoly;
+                        db.MapData.Add(md);
+                        db.SaveChanges();
+                    }
+                    catch(Exception ex)
+                    {
+                        Log.WriteLog("Relation " + r.Id + GetElementName(r.Tags) + " error: " + ex.Message);
+                        //Points dont form a closed linestring
+                        //very long linestring? something else?
+                    }
+
+
+                    //if (r.Tags.Any(t => t.Key == "type" && t.Value == "multipolygon"))
+                    //{
+
+                    //    var innerWays = r.Members.Where(m => m.Role == "inner").Select(m => m.Id).ToList();
+                    //    var outerWays = r.Members.Where(m => m.Role == "outer").Select(m => m.Id).ToList();
+                        
+                    //    if (outerWays.Count == 0)
+                    //    {
+                    //        Log.WriteLog("Relation " + r.Id + " doesn't have any outer ways. Aborting.");
+                    //        continue;
+                    //    }
+
+                    //    var collection = factory.CreatePolygon();
+                    //    foreach (var w in outerWays)
+                    //    {
+                    //        var localWay = ways.Where(way => way.id == w).First();
+                    //        var poly = factory.CreatePolygon(WayToCoordArray(localWay));
+                    //    }
+                    //    Polygon outerShape = (Polygon)collection.ConvexHull(); //maybe this is all i need to do for all the relations?
+                    //    if (!outerShape.Shell.IsCCW)
+                    //    {
+                    //        outerShape = (Polygon)outerShape.Reverse();
+                    //    }
+                    //    MapData md = new MapData();
+                    //    md.name = GetElementName(r.Tags);
+                    //    md.type = GetType(r.Tags);
+                    //    md.WayId = r.Id.Value;//will need to mark this holds multiple types now.
+                    //    md.place = outerShape; //TODO: apply inner shells?
+                    //    db.MapData.Add(md);
+                    //    db.SaveChanges();
+
+                    //    var multi = factory.CreateMultiPolygon();
+                    //    multi.Append(outerShape);
+                        
+
+                        //remove inner area from outer area, save as a multipolygon entry?
+                        //Role is 'inner' or 'outer'
+                        //Boundary might also apply to this logic, but first fixing what I can.
+
+                    //}
+
+
+                    //if all the Ways are lines, i should add them to a geometry collection and use ConvexHull to get the polygon with all the points.
+
+
+                    //else if (r.Tags.Any(t => t.Key == "type" && t.Value == "route") || r.Tags.Any(t => t.Key == "type" && t.Value == "waterway"))
+                    //{
+                    //    //route is a possible value. It seems to be a meta-relation, linking to other relations. Might not bother with that yet.
+                    //    //waterway is just a bigger river, probably.
+                    //    //connected paths, make into 1 polygon if possible.
+
+                    //}
+                    //else if (r.Tags.Any(t => t.Key == "shop" && t.Value == "mall"))
+                    //{
+                    //    //was not expecting this to appear as a relation.
+
+                    //}
+                    //else
+                    //{
+                    //    Log.WriteLog("Relation " + r.Id + " has mixed members, not sure how to handle, excluding.");
+                    //}
+                    //Mark any contents as excluded to avoid duplicates?                    
+                }
+
                 WriteSPOIsToFile(destFolder + destFilename + "-SPOIs.json");
                 SPOI = null;
 
@@ -748,6 +914,16 @@ namespace OsmXmlParser
                 Log.WriteLog("Manually calling GC at " + DateTime.Now);
                 GC.Collect(); //Ask to clean up memory. Takes about a second on small files, a while if we've been paging to disk.
             }
+        }
+
+        private static Coordinate[] WayToCoordArray(Way w)
+        {
+            List<Coordinate> results = new List<Coordinate>();
+
+            foreach (var node in w.nds)
+                results.Add(new Coordinate(node.lon, node.lat));
+
+            return results.ToArray();
         }
 
         private static List<OsmSharp.Relation> GetRelationsFromPbf(string filename)
@@ -781,6 +957,7 @@ namespace OsmXmlParser
                         ))
                     .Select(r => (OsmSharp.Relation)r)
                     .ToList();
+
                 source.Dispose();
             }
             return filteredRelations;
@@ -1018,16 +1195,41 @@ namespace OsmXmlParser
             Log.WriteLog("All duplicates removed at " + DateTime.Now);
         }
 
-        public void CreateStandaloneDB()
+        public void ImportRawData()
+        {
+            //Pass in a file, do a simple read of each element to the database.
+            //TODO: create base tables for these types.
+        }
+
+        public void CreateStandaloneDB(GeoArea box)
         {
             //TODO: this whole feature.
             //Parameter: Relation? Area? Lat/Long box covering one of those?
             //pull in all ways that intersect that 
             //process all of the 10-cells inside that area with their ways (will need more types than the current game has)
             //save this data to an SQLite DB for the app to use.
+
+            var mainDb = new GpsExploreContext();
+            var sqliteDb = "placeholder";
+            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values. //share this here, so i compare the actual algorithms instead of this boilerplate, mandatory entry.
+            var polygon = factory.CreatePolygon(MapSupport.MakeBox(box));
+
+            var content = mainDb.MapData.Where(md => md.place.Intersects(polygon)).ToList();
+            var spoiConent = mainDb.SinglePointsOfInterests.Where(s => polygon.Intersects(new Point(s.lon, s.lat))).ToList(); //I think this is the right function, but might be Covers?
+
+            //now, convert everything in content to 10-char plus code data.
+            //Is the same logic as Cell6Info, so I should functionalize that.
+        }
+
+        public void AnalyzeAllAreas()
+        {
+            //This reads all cells on the globe, saves the results to a table.
+            //Investigating if this is better or worse for a production setup.
+            //Estimated to take 54 hours to process global data on my dev PC.
         }
 
         /* For reference: the tags Pokemon Go appears to be using. I don't need all of these. I have a few it doesn't, as well.
+         * POkemon Go is using these as map tiles, not just content. This is not a maptile app.
     KIND_BASIN
     KIND_CANAL
     KIND_CEMETERY - Have

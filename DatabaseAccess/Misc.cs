@@ -52,12 +52,6 @@ namespace DatabaseAccess
             return "";
         }
 
-        public static void GetAllWaysInArea(string parentFile, GeoArea area)
-        {
-            //The main function to make a database for a dedicated area. EX: a single university or park, likely.
-
-        }
-
         public static void LoadCustomData()
         {
             //For loading in your own fixed-place files outside of OSM. Probably most useful for dedicated area games like above.

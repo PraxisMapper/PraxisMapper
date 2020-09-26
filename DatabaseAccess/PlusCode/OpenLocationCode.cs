@@ -73,7 +73,7 @@ namespace Google.OpenLocationCode
         private const char PaddingCharacter = '0';
 
         // The character set used to encode the digit values.
-        internal const string CodeAlphabet = "23456789CFGHJMPQRVWX";
+        public const string CodeAlphabet = "23456789CFGHJMPQRVWX";
 
         // The base to use to convert numbers to/from.
         private const int EncodingBase = 20; // CodeAlphabet.Length;

@@ -1,5 +1,6 @@
 ﻿using NetTopologySuite.Geometries;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DatabaseAccess
@@ -67,7 +68,33 @@ namespace DatabaseAccess
             public string PlusCode { get; set; } //10 digit code, no plus sign.
             public string PlusCode8 { get; set; } //8 digit code, no plus sign, for indexing purposes.
             public string PlusCode6 { get; set; } //6 digit code, no plus sign, for indexing purposes.
-
         }
+
+        public class PremadeResults
+        {
+            public long PremadeResultsId { get; set; }
+            public string PlusCode6 { get; set; }
+            public string Data { get; set; } 
+        }
+
+        public class OsmRelation
+        {
+            public long OsmRelationId{ get; set; }
+        }
+
+        public class OsmWay
+        {
+            public long OsmWayId { get; set; }
+            public List<OsmNode> Nodes { get; set; }
+        }
+
+        public class OsmNode
+        {
+            public long OsmNodeId { get; set; }
+            public long Lat { get; set; }
+            public long Lon { get; set; }
+        }
+
     }
 }
+

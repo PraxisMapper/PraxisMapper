@@ -1,22 +1,34 @@
 ﻿Requirements: 16GB RAM (Will still page frequently with the most complicated areas, but they all finish in ~45 minutes in the worst case with an SSD)
 Global database is current ~45GB, would want at least 64GB RAM for a DB server to hold everything in memory.
 
+
+Important Things to Remember:
+* This is not a MapTiles server, in the way that MapBox, or Google Maps Playable Locations, or Niantic etc. would provide.
+-- (Map-tile like behavior may happen on the 8-cell level in the future, but drawing every house on the world is not interesting by the definition this will use right now.)
+-- https://openmaptiles.org/ is the place to go for a server that generates map tiles.
+* This is a way to track Interesting Areas, and the game can decide how to display the map separately, or how Interesting Areas are treated.
+* It's OK to do something that's already been done your own way. It's important to have an option that isn't under corporate control.
+* We use PlusCodes instead of S2 cells.
+-- Plus Codes are more human-friendly, in that you could remember 4-10 digits for a certain area. S2 cells are much harder to remember for a person. They're designed for indexing in a DB faster.
+-- They're square along cardinal directions. S2 cells are rhombus-shaped.
+-- A human can figure out how to navigate between 2 PlusCodes with some practice. This is possible on S2 cells, but requires much, much more effort.
+
+
 How to run this:
 
 1) Create and configure SQL Server for this app. Update connection string, create DB via EFCore docs in Commands file.
 
-2) Download the latest .osm files to use from Geofabrik.de and unzip them to the appropriate folder.
+2) Download the latest .osm.pbf files to use from Geofabrik.de (or another OSM mirror) and unzip them to the appropriate folder.
+--Global data takes a long time to process, use the smallest data file/set reasonable for development and testing.
 
-3) Assuming this is a first setup, Run OsmXmlParser with these arguments in order (separately, not all at once):
--trimXmlFiles(reads all .osm files in a folder, saves as JSON data to another folder. Crashes pretty often in .NET 5 Preview with extremely vague "System.EngineException" error. Will take several runs to complete)
+3) Assuming this is a first setup, Run OsmXmlParser with these arguments in order (separately is ideal, but could do all at once with enough RAM):
+-makeDbInfrastructure (Creates triggers and indexes that EF Core cannot manage automatically)
+-trimPbfFiles(reads all .osm.pbf files in a folder, saves as JSON data to another folder. May take several runs to complete depending on RAM and file size being processed. Might get replaced or removed in the future since this no longer creates smaller files.)
 -readSPOIs (Reads the JSON files that cover single interesting items, saves them to DB in SinglePointsOfInterest table)
 -readRawWays (Reads the JSON files that save all the raw OSM way info, saves them to DB in MapData table)
--readProcessedWays (Reads the JSON files that contain condensed approximations of the ways, saves to the DB in ProcessedWays table)
+-removeDupes (Eliminiate duplicate entries. Seems to happen because a Way appears in its entirely across file boundaries (EX: the Great Lakes border the US and Canada, and might be on both files since they are a boundary)
 
-4)... manually make spatial index in Sql Server. This takes ~40 minutes if you do it after importing global data, but it's core to making this app usable.
-a baseline standard config for this index seems to work fine.
-
-for changes that affect everything (EX: I changed tag types to process, i want new ways/updates from OSM), run OsmXmlParser with -resetXml and -resetJson, then follow step 3 again
+for changes that affect everything (EX: I changed tag types to process, i want new ways/updates from OSM), run OsmXmlParser with -resetPbf and -resetJson, then follow step 3 again
 For changes that only affect processedWays/SPOIs (EX: testing a better approximation algorithm for ProcessedWays, changing schema on SPOI db table), i can read in existing JSON files instead of OSM XML 
 
 Server-side:
@@ -25,7 +37,6 @@ deploy API app to its own folder, make sure IIS is pointing at folder with .exe 
 Upload database file to S3, copy file to server (instructions how TBD)
 Attach database to Sql Server (with or without SSMS installed? how TBD)
 
-
 test API endpoint. /mapdata/test should return "OK" if IIS is up and running. actual data endpoint should return stuff with valid inputs if DB is running and connected correctly.
 Should return something on error so I can figure out why a call doesnt work. I also think I need to upload a new DB to the server
 
@@ -33,6 +44,7 @@ Set these as the arguments for OsmXmlParser to redo everything at once:
 -cleanDB -resetPbf -resetJson -trimPbfFiles -readSPOIs -readRawWays -removeDupes
 
 
+Notes:
 Database side:
 Querying spatial data:
 DECLARE @p1 geography
@@ -50,4 +62,10 @@ DECLARE @p1 geography
  ** Make a MapData entry for the area.
  * If a relation has an interesting place tag, treat any areas inside it as that type.
  * Relations might be named by a node with a Label tag instead of a name tag on the relation.
+
+
+ Test Functions:
+ -AnalyzeAllAreas
+ ** this reads every cell on the globe for info, saves it to a new DB table.
+ ** For evaluating if its better to calculate the end results once and just save that instead of looking them up every time and caching in memory.
 

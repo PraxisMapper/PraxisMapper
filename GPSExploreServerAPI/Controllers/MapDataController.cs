@@ -36,7 +36,7 @@ namespace GPSExploreServerAPI.Controllers
         //Manual map edits:
         //none
         //TODO:
-        //none currently.
+        //functionalize some code that should be in MapSupport instead of the end controller.
 
         //Cell8Data function removed, significantly out of date.
         //remaking it would mean slightly changes to a copy of Cell6Info
@@ -79,6 +79,7 @@ namespace GPSExploreServerAPI.Controllers
 
             //optimization code pass 2. Much smaller, more flexible. splitCount can be adjusted, but 2 seems to be the sweet spot for this.
             //2 is a huge improvement over everything without splitting the loop. 4 is slower than 2. 40 is twice as fast as 2, probably because of skipping empty areas. 40 means we're looking at each quadrant of each 8-cell inside the 6-cell
+            //Functionalize some of this so I can reuse it.
             int splitcount = 40; //creates 4 entries, each 200x200 10cells wide. Should be evenly divisible into 400 or cells will be missed. (Options: 2, 4, 40, others TBD)
             List<MapData>[] placeArray;
             GeoArea[] areaArray;
@@ -87,28 +88,7 @@ namespace GPSExploreServerAPI.Controllers
             int loopSize = 400 / splitcount;
             System.Threading.Tasks.Parallel.For(0,  placeArray.Length, (i) =>
             {
-                StringBuilder localSB = new StringBuilder();
-                if (placeArray[i].Count == 0)
-                {
-                    //We won't find anything, don't bother looking.
-                    sbArray[i] = localSB;
-                    return;
-                }
-                
-                for (double xx = 0; xx < loopSize; xx += 1)
-                {
-                    for (double yy = 0; yy < loopSize; yy += 1)
-                    {
-                        //Southwest quadrant, places1
-                        double x = areaArray[i].Min.Longitude + (resolution10 * xx);
-                        double y = areaArray[i].Min.Latitude + (resolution10 * yy);
-
-                        var placesFound = FindPlacesIn10Cell(x, y, ref placeArray[i]);
-                        if (!string.IsNullOrWhiteSpace(placesFound))
-                            localSB.AppendLine(placesFound);
-                    }
-                }
-                sbArray[i] = localSB;
+                sbArray[i] = MapSupport.SearchArea(areaArray[i], ref placeArray[i]);
             });
 
             foreach (StringBuilder sbPartial in sbArray)
@@ -130,24 +110,6 @@ namespace GPSExploreServerAPI.Controllers
             var codeRequested = new OpenLocationCode(lat, lon);
             var sixCell = codeRequested.CodeDigits.Substring(0, 6);
             return Cell6Info(sixCell);
-        }
-
-        public string FindPlacesIn10Cell(double x, double y, ref List<MapData> places)
-        {
-            var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolution10, x + resolution10));
-            var entriesHere = MapSupport.GetPlaces(box, places);
-
-            if (entriesHere.Count() == 0)
-            {
-                return "";
-            }
-            else
-            {
-                //Generally, if there's a smaller shape inside a bigger shape, the smaller one should take priority.
-                var olc = new OpenLocationCode(y, x).CodeDigits.Substring(6, 4); //This takes lat, long, Coordinate takes X, Y. This line is correct.
-                var smallest = entriesHere.Where(e => e.place.Area == entriesHere.Min(e => e.place.Area)).First();
-                return olc + "|" + smallest.name + "|" + smallest.type;
-            }
         }
 
         [HttpGet]
@@ -360,6 +322,50 @@ namespace GPSExploreServerAPI.Controllers
 
             //requires a list of colors to use, which might vary per app
             //
+        }
+
+        
+        public void GetAllWaysInArea(string parentFile, GeoArea area)
+        {
+            //This belongs in the OsmParser, not the web server.
+            //The main function to make a database for a dedicated area. EX: a single university or park, likely.
+            //Exports a SQLite file.
+        }
+
+        
+        public void PrefillDB()
+        {
+            //An experiment on pre-filling the DB.
+            //Global data mean this is 25 million 6cells, 
+            //Estimated to take 216 hours of CPU time on my dev PC. 9 days is impractical for a solo dev on a single PC. Maybe for a company with a cluster that can run lots of stuff.
+            //Retaining this code as a reminder.
+            return;
+
+
+            string charpos1 = OpenLocationCode.CodeAlphabet.Substring(0, 9);
+            string charpos2 = OpenLocationCode.CodeAlphabet.Substring(0, 18);
+
+            var db = new GpsExploreContext();
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
+            int counter = 0;
+
+            foreach (var c1 in charpos1)
+                foreach (var c2 in charpos2)
+                    foreach (var c3 in OpenLocationCode.CodeAlphabet)
+                        foreach (var c4 in OpenLocationCode.CodeAlphabet)
+                            foreach (var c5 in OpenLocationCode.CodeAlphabet)
+                                foreach (var c6 in OpenLocationCode.CodeAlphabet)
+                                {
+                                    string plusCode = string.Concat(c1, c2, c3, c4, c5, c6);
+                                    var data = Cell6Info(plusCode);
+                                    db.PremadeResults.Add(new PremadeResults(){ Data = data, PlusCode6 = plusCode });
+                                    counter++;
+                                    if (counter >= 1000)
+                                    {
+                                        db.SaveChanges();
+                                        counter = 0;
+                                    }
+                                }
         }
     }
 }
