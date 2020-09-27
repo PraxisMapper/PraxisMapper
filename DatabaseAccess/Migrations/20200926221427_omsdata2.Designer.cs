@@ -4,15 +4,17 @@ using DatabaseAccess;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 
 namespace DatabaseAccess.Migrations
 {
     [DbContext(typeof(GpsExploreContext))]
-    partial class GpsExploreContextModelSnapshot : ModelSnapshot
+    [Migration("20200926221427_omsdata2")]
+    partial class omsdata2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -77,9 +79,6 @@ namespace DatabaseAccess.Migrations
                     b.Property<double?>("Lon")
                         .HasColumnType("float");
 
-                    b.Property<long>("NodeId")
-                        .HasColumnType("bigint");
-
                     b.HasKey("MinimumNodeId");
 
                     b.ToTable("MinimumNodes");
@@ -92,9 +91,6 @@ namespace DatabaseAccess.Migrations
                         .HasColumnType("bigint")
                         .UseIdentityColumn();
 
-                    b.Property<long>("RelationId")
-                        .HasColumnType("bigint");
-
                     b.HasKey("MinimumRelationId");
 
                     b.ToTable("minimumRelations");
@@ -106,9 +102,6 @@ namespace DatabaseAccess.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .UseIdentityColumn();
-
-                    b.Property<long>("WayId")
-                        .HasColumnType("bigint");
 
                     b.HasKey("MinimumWayId");
 

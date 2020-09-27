@@ -4,15 +4,17 @@ using DatabaseAccess;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 
 namespace DatabaseAccess.Migrations
 {
     [DbContext(typeof(GpsExploreContext))]
-    partial class GpsExploreContextModelSnapshot : ModelSnapshot
+    [Migration("20200926220856_omsdata1")]
+    partial class omsdata1
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -77,10 +79,12 @@ namespace DatabaseAccess.Migrations
                     b.Property<double?>("Lon")
                         .HasColumnType("float");
 
-                    b.Property<long>("NodeId")
+                    b.Property<long?>("MinimumWayId")
                         .HasColumnType("bigint");
 
                     b.HasKey("MinimumNodeId");
+
+                    b.HasIndex("MinimumWayId");
 
                     b.ToTable("MinimumNodes");
                 });
@@ -91,9 +95,6 @@ namespace DatabaseAccess.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .UseIdentityColumn();
-
-                    b.Property<long>("RelationId")
-                        .HasColumnType("bigint");
 
                     b.HasKey("MinimumRelationId");
 
@@ -106,9 +107,6 @@ namespace DatabaseAccess.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .UseIdentityColumn();
-
-                    b.Property<long>("WayId")
-                        .HasColumnType("bigint");
 
                     b.HasKey("MinimumWayId");
 
@@ -257,34 +255,16 @@ namespace DatabaseAccess.Migrations
                     b.ToTable("SinglePointsOfInterests");
                 });
 
-            modelBuilder.Entity("MinimumNodeMinimumWay", b =>
+            modelBuilder.Entity("DatabaseAccess.DbTables+MinimumNode", b =>
                 {
-                    b.Property<long>("NodesMinimumNodeId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("WaysMinimumWayId")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("NodesMinimumNodeId", "WaysMinimumWayId");
-
-                    b.HasIndex("WaysMinimumWayId");
-
-                    b.ToTable("MinimumNodeMinimumWay");
+                    b.HasOne("DatabaseAccess.DbTables+MinimumWay", null)
+                        .WithMany("Nodes")
+                        .HasForeignKey("MinimumWayId");
                 });
 
-            modelBuilder.Entity("MinimumNodeMinimumWay", b =>
+            modelBuilder.Entity("DatabaseAccess.DbTables+MinimumWay", b =>
                 {
-                    b.HasOne("DatabaseAccess.DbTables+MinimumNode", null)
-                        .WithMany()
-                        .HasForeignKey("NodesMinimumNodeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("DatabaseAccess.DbTables+MinimumWay", null)
-                        .WithMany()
-                        .HasForeignKey("WaysMinimumWayId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                    b.Navigation("Nodes");
                 });
 #pragma warning restore 612, 618
         }

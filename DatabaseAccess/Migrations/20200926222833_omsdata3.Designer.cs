@@ -4,15 +4,17 @@ using DatabaseAccess;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 
 namespace DatabaseAccess.Migrations
 {
     [DbContext(typeof(GpsExploreContext))]
-    partial class GpsExploreContextModelSnapshot : ModelSnapshot
+    [Migration("20200926222833_omsdata3")]
+    partial class omsdata3
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

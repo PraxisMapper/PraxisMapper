@@ -15,14 +15,17 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text.Json;
 using System.Xml;
 using static DatabaseAccess.DbTables;
 
-//TODO: some node names are displaying in the debug console as "?????? ????". See Siberia. This should all be unicode and that should work fine.
+//TODO: some node names are displaying in the debug console as "?????? ????". See Siberia. This should all be unicode and that should work fine. Maybe check display font?
 //TODO: since some of these .pbf files become larger as trimmer JSON instead of smaller, maybe I should try a path that writes directly to DB from PBF?
 //TODO: optimize data - If there are multiple nodes within a 10-cell's distance of each other, consolidate those into one node (but not if they're part of a relation)
 //TODO: ponder how to remove inner polygons from a larger outer polygon. This is probably a NTS function of some kind, but only applies to relations. Ways alone won't do this. This would involve editing the data loaded, not just converting it.
+//TODO: functionalize stuff to smaller pieces.
+//TODO: Add high-verbosity logging messages.
 
 namespace OsmXmlParser
 {
@@ -39,6 +42,7 @@ namespace OsmXmlParser
         public static List<SinglePointsOfInterest> SPOI = new List<SinglePointsOfInterest>();
 
         public static string parsedJsonPath = @"D:\Projects\OSM Server Info\Trimmed JSON Files\";
+        public static string parsedPbfPath = @"D:\Projects\OSM Server Info\XmlToProcess\";
 
         //Constants
         public static double PlusCode10Resolution = .000125;
@@ -50,8 +54,18 @@ namespace OsmXmlParser
             if (args.Count() == 0)
             {
                 Console.WriteLine("You must pass an arguement to this application");
+                //TODO: list args
                 return;
             }
+
+            //Check for logging arguement first before running any commands.
+            if (args.Any(a => a == "-v" || a == "-verbose"))
+                Log.Verbosity = Log.VerbosityLevels.High;
+
+            if (args.Any(a => a == "-noLogs"))
+                Log.Verbosity = Log.VerbosityLevels.Off;
+
+            //If multiple args are supplied, run them in the order that make sense, not the order the args are supplied.
 
             if (args.Any(a => a == "-makeDbInfrastructure")) //create all the Db-side things this app needs that EFCore can't do automatically.
             {
@@ -85,39 +99,39 @@ namespace OsmXmlParser
 
             if (args.Any(a => a == "-trimXmlFiles"))
             {
-                //nodes.Capacity = 10000000;
-                //ways.Capacity = 10000000;
                 MakeAllSerializedFiles();
             }
 
 
             if (args.Any(a => a == "-trimPbfFiles"))
             {
-                //nodes.Capacity = 10000000;
-                //ways.Capacity = 10000000;
                 MakeAllSerializedFilesFromPBF();
             }
 
             if (args.Any(a => a == "-readSPOIs"))
             {
-                AddSPOItoDBFromFiles(); //takes 13 seconds using bulkInserts. Takes far, far longer without.
+                AddSPOItoDBFromFiles();
             }
 
             if (args.Any(a => a == "-readRawWays"))
             {
-                //Takes ~4 hours at last check.
                 AddRawWaystoDBFromFiles();
             }
 
-            if (args.Any(a => a == "-plusCodeSpois")) //should be removable now.
+            if (args.Any(a => a == "-plusCodeSpois"))
             {
                 AddPlusCodesToSPOIs();
             }
 
             if (args.Any(a => a == "-removeDupes"))
             {
-                //30 minutes on global data 
                 RemoveDuplicates();
+            }
+
+            if (args.Any(a => a == "-loadRawOsmData"))
+            {
+                //TODO: finish this logic. This does create a much bigger database than using NTS Geography types.
+                GetMinimumDataFromPbf();
             }
 
             if (args.Any(a => a == "-createStandalone"))
@@ -409,7 +423,7 @@ namespace OsmXmlParser
 
         public static void CleanDb()
         {
-            //Test function to put the DB back to empty.
+            Log.WriteLog("Cleaning DB at " + DateTime.Now);
             GpsExploreContext osm = new GpsExploreContext();
             osm.Database.SetCommandTimeout(900);
 
@@ -643,7 +657,7 @@ namespace OsmXmlParser
                 var osmNodeLookup = osmNodes.ToLookup(k => k.Id, v => v); //Seeing if NodeReference saves some RAM
                 Log.WriteLog("Found " + osmNodeLookup.Count() + " unique nodes");
 
-                
+
 
                 //Write SPOIs to file
                 Log.WriteLog("Finding SPOIs at " + DateTime.Now);
@@ -768,527 +782,501 @@ namespace OsmXmlParser
                         continue;
                     }
 
-                    //if (r.Members.All(m => m.Role =="outer"))
-                    //{
-                    //    Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " will be treated as multiple separate areas, skipping.");
-                    //    continue;
-                    //}
-
-                    List<Way> localWays2 = new List<Way>();
+                    //Check members for closed shape
+                    var shapeList = new List<Way>();
+                    //var allClosedShapes = true;
                     foreach (var m in r.Members)
                     {
-                        var tempWayList = r.Members.Select(m => m.Id).ToList();
-                        var maybeWay = ways.Where(way => tempWayList.Contains(way.id)).FirstOrDefault();
-                        if (maybeWay == null)
+                        var maybeWay = ways.Where(way => way.id == m.Id).FirstOrDefault();
+                        shapeList.Add(maybeWay);
+                    }
+                    //Now we have our list of Ways. Check if there's lines that need made into a polygon.
+                    if (shapeList.All(s => s.nds.First().id != s.nds.Last().id))
+                    {
+                        Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " made of lines instead of polygons, check this.");
+
+
+                        //A common-ish case looks like the outer entries are lines that join togetehr, and inner entries are polygons.
+                        //Let's see if we can build a polygon (or more, possibly)
+                        List<Coordinate> possiblePolygon = new List<Coordinate>();
+                        //from the first line, find the line that starts with the same endpoint.
+                        //continue until a line ends with the first node. That's a closed shape.
+                        var firstnode = shapeList.First().nds.First();
+                        var nextStartnode = shapeList.First().nds.Last();
+                        var closedShape = false;
+                        var isError = false;
+                        possiblePolygon.Add(new Coordinate(firstnode.lon, firstnode.lat));
+                        while (closedShape == false)
                         {
-                            Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " Way " + m.Id + " Not found in this file, skipping. (It is in other files?)");
+                            var lineToAdd = shapeList.Where(s => s.nds.First().id == nextStartnode.id).FirstOrDefault();
+                            if (lineToAdd == null)
+                            {
+                                Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " doesn't seem to have properly connecting lines, can't process");
+                                closedShape = true;
+                                isError = true;
+                            }
+                            possiblePolygon.AddRange(lineToAdd.nds.Skip(1).Select(n => new Coordinate(n.lon, n.lat)).ToList());
+                            nextStartnode = lineToAdd.nds.Last();
+
+                            if (possiblePolygon.First().Equals(possiblePolygon.Last()))
+                                closedShape = true;
+                        }
+                        //Now turn possiblePolygon into a mapData entry.
+                        if (isError)
                             continue;
-                        }
 
-                        if (maybeWay.AreaType == "" && maybeWay.name == "")
-                        {
-                            //This way won't be processed on its own, so now we care about it.
-                            localWays2.Add(maybeWay);
-                        }
-                    }
-                    if (localWays2.Count == 0)
-                    {
-                        Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " already covered by existing logic, skipping.");
-                        continue;
-                    }
-
-                    
-
-                    //we now have a reference to all these ways. Time to test them?
-                    //attempt 1: extract all coordinates, make that a Polygon?
-                    List<Coordinate> allCoords = new List<Coordinate>();
-                    
-                    //var pointSet = factory.CreatePolygon();
-                    //GeometryEditor ed = new GeometryEditor(pointSet); //?
-                    foreach (var item in localWays2)
-                    {
-                        allCoords.AddRange(WayToCoordArray(item));
-                        //pointSet = pointSet.Append(factory.CreatePolygon(WayToCoordArray(item))); //?
-                    }
-
-                    try
-                    {
-                        //Polygon!
-                        var allCoordPoly = factory.CreatePolygon(allCoords.ToArray());
-                        if (!allCoordPoly.Shell.IsCCW)
-                            allCoordPoly = (Polygon)allCoordPoly.Reverse();
-                        if (!allCoordPoly.Shell.IsCCW)
-                        {
-                            Log.WriteLog("Relation " + r.Id + GetElementName(r.Tags) + " isn't CCW forward or reversed, needs more work.");
-                            continue;
-                        }
-                        //                    var outerShape = (Polygon)pointSet.ConvexHull();
                         MapData md = new MapData();
                         md.name = GetElementName(r.Tags);
                         md.type = GetType(r.Tags);
-                        md.WayId = r.Id.Value;//will need to mark this holds multiple types now.
-                                              //md.place = outerShape; //TODO: apply inner shells?
-                        md.place = allCoordPoly;
+                        md.WayId = r.Id.Value;
+                        var poly = factory.CreatePolygon(possiblePolygon.ToArray());
+                        if (!poly.Shell.IsCCW)
+                            poly = (Polygon)poly.Reverse();
+                        if (!poly.Shell.IsCCW)
+                        {
+                            Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " after change to polygon, still isn't CCW in either order.");
+                            continue;
+                        }
+
+                        md.place = poly;
                         db.MapData.Add(md);
                         db.SaveChanges();
+                        //Now mark these ways to be excluded from later processing.
+                        foreach(var mw in shapeList)
+                        {
+                            ways.Remove(mw);
+                        }
                     }
-                    catch(Exception ex)
-                    {
-                        Log.WriteLog("Relation " + r.Id + GetElementName(r.Tags) + " error: " + ex.Message);
-                        //Points dont form a closed linestring
-                        //very long linestring? something else?
-                    }
-
-
-                    //if (r.Tags.Any(t => t.Key == "type" && t.Value == "multipolygon"))
-                    //{
-
-                    //    var innerWays = r.Members.Where(m => m.Role == "inner").Select(m => m.Id).ToList();
-                    //    var outerWays = r.Members.Where(m => m.Role == "outer").Select(m => m.Id).ToList();
-                        
-                    //    if (outerWays.Count == 0)
-                    //    {
-                    //        Log.WriteLog("Relation " + r.Id + " doesn't have any outer ways. Aborting.");
-                    //        continue;
-                    //    }
-
-                    //    var collection = factory.CreatePolygon();
-                    //    foreach (var w in outerWays)
-                    //    {
-                    //        var localWay = ways.Where(way => way.id == w).First();
-                    //        var poly = factory.CreatePolygon(WayToCoordArray(localWay));
-                    //    }
-                    //    Polygon outerShape = (Polygon)collection.ConvexHull(); //maybe this is all i need to do for all the relations?
-                    //    if (!outerShape.Shell.IsCCW)
-                    //    {
-                    //        outerShape = (Polygon)outerShape.Reverse();
-                    //    }
-                    //    MapData md = new MapData();
-                    //    md.name = GetElementName(r.Tags);
-                    //    md.type = GetType(r.Tags);
-                    //    md.WayId = r.Id.Value;//will need to mark this holds multiple types now.
-                    //    md.place = outerShape; //TODO: apply inner shells?
-                    //    db.MapData.Add(md);
-                    //    db.SaveChanges();
-
-                    //    var multi = factory.CreateMultiPolygon();
-                    //    multi.Append(outerShape);
-                        
-
-                        //remove inner area from outer area, save as a multipolygon entry?
-                        //Role is 'inner' or 'outer'
-                        //Boundary might also apply to this logic, but first fixing what I can.
-
-                    //}
-
-
-                    //if all the Ways are lines, i should add them to a geometry collection and use ConvexHull to get the polygon with all the points.
-
-
-                    //else if (r.Tags.Any(t => t.Key == "type" && t.Value == "route") || r.Tags.Any(t => t.Key == "type" && t.Value == "waterway"))
-                    //{
-                    //    //route is a possible value. It seems to be a meta-relation, linking to other relations. Might not bother with that yet.
-                    //    //waterway is just a bigger river, probably.
-                    //    //connected paths, make into 1 polygon if possible.
-
-                    //}
-                    //else if (r.Tags.Any(t => t.Key == "shop" && t.Value == "mall"))
-                    //{
-                    //    //was not expecting this to appear as a relation.
-
-                    //}
-                    //else
-                    //{
-                    //    Log.WriteLog("Relation " + r.Id + " has mixed members, not sure how to handle, excluding.");
-                    //}
-                    //Mark any contents as excluded to avoid duplicates?                    
-                }
-
-                WriteSPOIsToFile(destFolder + destFilename + "-SPOIs.json");
-                SPOI = null;
-
-                WriteRawWaysToFile(destFolder + destFilename + "-RawWays.json", ref ways);
-                Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
-                File.Move(filename, filename + "Done"); //We made it all the way to the end, this file is done.
-                ways = null;
-                Log.WriteLog("Manually calling GC at " + DateTime.Now);
-                GC.Collect(); //Ask to clean up memory. Takes about a second on small files, a while if we've been paging to disk.
             }
+
+            WriteSPOIsToFile(destFolder + destFilename + "-SPOIs.json");
+            SPOI = null;
+
+            WriteRawWaysToFile(destFolder + destFilename + "-RawWays.json", ref ways);
+            Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
+            File.Move(filename, filename + "Done"); //We made it all the way to the end, this file is done.
+            ways = null;
+            Log.WriteLog("Manually calling GC at " + DateTime.Now);
+            GC.Collect(); //Ask to clean up memory. Takes about a second on small files, a while if we've been paging to disk.
         }
+    }
 
-        private static Coordinate[] WayToCoordArray(Way w)
+    private static Coordinate[] WayToCoordArray(Way w)
+    {
+        List<Coordinate> results = new List<Coordinate>();
+
+        foreach (var node in w.nds)
+            results.Add(new Coordinate(node.lon, node.lat));
+
+        return results.ToArray();
+    }
+
+    private static List<OsmSharp.Relation> GetRelationsFromPbf(string filename)
+    {
+        List<OsmSharp.Relation> filteredRelations = new List<OsmSharp.Relation>();
+        using (var fs = File.OpenRead(filename))
         {
-            List<Coordinate> results = new List<Coordinate>();
+            var source = new PBFOsmStreamSource(fs);
 
-            foreach (var node in w.nds)
-                results.Add(new Coordinate(node.lon, node.lat));
+            var progress = source.ShowProgress();
 
-            return results.ToArray();
+            //filter out data here
+            //Now this is my default filter.
+            filteredRelations = progress.Where(p => p.Type == OsmSharp.OsmGeoType.Relation &&
+                    (p.Tags.Contains("natural", "water") ||
+                    p.Tags.Contains("natural", "wetlands") ||
+                    p.Tags.Contains("leisure", "park") ||
+                    p.Tags.Contains("natural", "beach") ||
+                    p.Tags.Contains("leisure", "beach_resort") ||
+                    p.Tags.Contains("amenity", "university") ||
+                    p.Tags.Contains("amenity", "college") ||
+                    p.Tags.Contains("leisure", "nature_reserve") ||
+                    p.Tags.Contains("landuse", "cemetery") ||
+                    p.Tags.Contains("amenity", "grave_yard") ||
+                    p.Tags.Contains("shop", "mall") ||
+                    p.Tags.Contains("landuse", "retail") ||
+                    p.Tags.Any(t => t.Key == "historic") ||
+                    p.Tags.Any(t => t.Key == "waterway") || //newest tag, lets me see a lot more rivers and such.
+                    p.Tags.Any(t => t.Key == "tourism" && relevantTourismValues.Contains(t.Value)) ||
+                    p.Tags.Any(t => t.Key == "highway" && relevantHighwayValues.Contains(t.Value))
+                    ))
+                .Select(r => (OsmSharp.Relation)r)
+                .ToList();
+
+            source.Dispose();
         }
+        return filteredRelations;
+    }
 
-        private static List<OsmSharp.Relation> GetRelationsFromPbf(string filename)
+    public static List<OsmSharp.Way> GetWaysFromPbf(string filename, ILookup<long, RelationMember> wayList)
+    {
+        //REMEMBER: if tag combos get edited, here, also update GetType to look at that combo too, or else data looks wrong.
+        List<OsmSharp.Way> filteredWays = new List<OsmSharp.Way>();
+        using (var fs = File.OpenRead(filename))
         {
-            List<OsmSharp.Relation> filteredRelations = new List<OsmSharp.Relation>();
+            var source = new PBFOsmStreamSource(fs);
+
+            var progress = source.ShowProgress();
+
+            //filter out data here
+            //Now this is my default filter.
+            filteredWays = progress.Where(p => p.Type == OsmSharp.OsmGeoType.Way &&
+                (wayList[p.Id.Value].Count() > 0 ||
+                    (p.Tags.Contains("natural", "water") ||
+                    p.Tags.Contains("natural", "wetlands") ||
+                    p.Tags.Contains("leisure", "park") ||
+                    p.Tags.Contains("natural", "beach") ||
+                    p.Tags.Contains("leisure", "beach_resort") ||
+                    p.Tags.Contains("amenity", "university") ||
+                    p.Tags.Contains("amenity", "college") ||
+                    p.Tags.Contains("leisure", "nature_reserve") ||
+                    p.Tags.Contains("landuse", "cemetery") ||
+                    p.Tags.Contains("amenity", "grave_yard") ||
+                    p.Tags.Contains("shop", "mall") ||
+                    p.Tags.Contains("landuse", "retail") ||
+                    p.Tags.Any(t => t.Key == "historic") ||
+                    p.Tags.Any(t => t.Key == "waterway") ||
+                    p.Tags.Any(t => t.Key == "tourism" && relevantTourismValues.Contains(t.Value)) ||
+                    p.Tags.Any(t => t.Key == "highway" && relevantHighwayValues.Contains(t.Value) && (!p.Tags.Any(t => t.Key == "footway" && (t.Value == "sidewalk" || t.Value == "crossing"))))
+                    )))
+                .Select(w => (OsmSharp.Way)w)
+                .ToList();
+            source.Dispose();
+        }
+        return filteredWays;
+    }
+
+    public static void GetMinimumDataFromPbf()
+    {
+        //A baseline import of OsmData. Only contains data I need to make stuff into geography entries.
+        //Much larger in SQL Server this way than the original PBF, or storing Geography data.
+        var db = new GpsExploreContext();
+        List<string> filenames = System.IO.Directory.EnumerateFiles(@"D:\Projects\OSM Server Info\XmlToProcess\", "*.pbf").ToList();
+        foreach (var filename in filenames)
             using (var fs = File.OpenRead(filename))
             {
                 var source = new PBFOsmStreamSource(fs);
-
                 var progress = source.ShowProgress();
 
-                //filter out data here
-                //Now this is my default filter.
-                filteredRelations = progress.Where(p => p.Type == OsmSharp.OsmGeoType.Relation &&
-                        (p.Tags.Contains("natural", "water") ||
-                        p.Tags.Contains("natural", "wetlands") ||
-                        p.Tags.Contains("leisure", "park") ||
-                        p.Tags.Contains("natural", "beach") ||
-                        p.Tags.Contains("leisure", "beach_resort") ||
-                        p.Tags.Contains("amenity", "university") ||
-                        p.Tags.Contains("amenity", "college") ||
-                        p.Tags.Contains("leisure", "nature_reserve") ||
-                        p.Tags.Contains("landuse", "cemetery") ||
-                        p.Tags.Contains("amenity", "grave_yard") ||
-                        p.Tags.Contains("shop", "mall") ||
-                        p.Tags.Contains("landuse", "retail") ||
-                        p.Tags.Any(t => t.Key == "historic") ||
-                        p.Tags.Any(t => t.Key == "waterway") || //newest tag, lets me see a lot more rivers and such.
-                        p.Tags.Any(t => t.Key == "tourism" && relevantTourismValues.Contains(t.Value)) ||
-                        p.Tags.Any(t => t.Key == "highway" && relevantHighwayValues.Contains(t.Value))
-                        ))
-                    .Select(r => (OsmSharp.Relation)r)
+                var minNodes = progress.Where(p => p.Type == OsmSharp.OsmGeoType.Node)
+                    .Select(w => new MinimumNode() { MinimumNodeId = w.Id, Lat = ((OsmSharp.Node)w).Latitude, Lon = ((OsmSharp.Node)w).Longitude })
                     .ToList();
 
-                source.Dispose();
-            }
-            return filteredRelations;
-        }
+                db.BulkInsert<MinimumNode>(minNodes);
+                var nodeLookup = minNodes.ToLookup(k => k.MinimumNodeId, v => v);
+                minNodes = null;
 
-        public static List<OsmSharp.Way> GetWaysFromPbf(string filename, ILookup<long, RelationMember> wayList)
-        {
-            //REMEMBER: if tag combos get edited, here, also update GetType to look at that combo too, or else data looks wrong.
-            List<OsmSharp.Way> filteredWays = new List<OsmSharp.Way>();
-            using (var fs = File.OpenRead(filename))
-            {
-                var source = new PBFOsmStreamSource(fs);
 
-                var progress = source.ShowProgress();
-
-                //filter out data here
-                //Now this is my default filter.
-                filteredWays = progress.Where(p => p.Type == OsmSharp.OsmGeoType.Way &&
-                    (wayList[p.Id.Value].Count() > 0 ||
-                        (p.Tags.Contains("natural", "water") ||
-                        p.Tags.Contains("natural", "wetlands") ||
-                        p.Tags.Contains("leisure", "park") ||
-                        p.Tags.Contains("natural", "beach") ||
-                        p.Tags.Contains("leisure", "beach_resort") ||
-                        p.Tags.Contains("amenity", "university") ||
-                        p.Tags.Contains("amenity", "college") ||
-                        p.Tags.Contains("leisure", "nature_reserve") ||
-                        p.Tags.Contains("landuse", "cemetery") ||
-                        p.Tags.Contains("amenity", "grave_yard") ||
-                        p.Tags.Contains("shop", "mall") ||
-                        p.Tags.Contains("landuse", "retail") ||
-                        p.Tags.Any(t => t.Key == "historic") ||
-                        p.Tags.Any(t => t.Key == "waterway") ||
-                        p.Tags.Any(t => t.Key == "tourism" && relevantTourismValues.Contains(t.Value)) ||
-                        p.Tags.Any(t => t.Key == "highway" && relevantHighwayValues.Contains(t.Value) && (!p.Tags.Any(t => t.Key == "footway" && (t.Value == "sidewalk" || t.Value == "crossing"))))
-                        )))
+                var ways = progress.Where(p => p.Type == OsmSharp.OsmGeoType.Way)
                     .Select(w => (OsmSharp.Way)w)
                     .ToList();
-                source.Dispose();
-            }
-            return filteredWays;
-        }
 
-        public static List<NodeReference> GetNodesFromPbf(string filename, Lookup<long, long> nLookup)
-        {
-            //TODO:
-            //Consider adding Abandoned buildings/areas, as a brave explorer sort of location?
-            List<NodeReference> filteredNodes = new List<NodeReference>();
-            using (var fs = File.OpenRead(filename))
-            {
-                var source = new PBFOsmStreamSource(fs);
-
-                var progress = source.ShowProgress();
-
-                //filter out data here
-                //Now this is my default filter.
-                //Single nodes are unlikley to be marked Highway. Don't check for that here.
-                filteredNodes = progress.Where(p => p.Type == OsmSharp.OsmGeoType.Node &&
-                       (nLookup.Contains(p.Id.GetValueOrDefault()) ||
-                        (p.Tags.Contains("natural", "water") ||
-                        p.Tags.Contains("natural", "wetlands") ||
-                        p.Tags.Contains("leisure", "park") ||
-                        p.Tags.Contains("leisure", "nature_reserve") ||
-                        p.Tags.Contains("natural", "beach") ||
-                        p.Tags.Contains("leisure", "beach_resort") ||
-                        p.Tags.Contains("amenity", "university") ||
-                        p.Tags.Contains("amenity", "college") ||
-                        p.Tags.Contains("leisure", "nature_reserve") ||
-                        p.Tags.Contains("landuse", "cemetery") ||
-                        p.Tags.Contains("amenity", "grave_yard") ||
-                        p.Tags.Contains("shop", "mall") ||
-                        p.Tags.Contains("landuse", "retail") ||
-                        p.Tags.Any(t => t.Key == "historic") ||
-                        p.Tags.Any(t => t.Key == "tourism" && relevantTourismValues.Contains(t.Value))
-                        )))
-                    .Select(n => new NodeReference(n.Id.Value, ((OsmSharp.Node)n).Latitude.Value, ((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), GetType(n.Tags)))
-                    .ToList();
-            }
-            return filteredNodes;
-        }
-
-        public static void WriteRawWaysToFile(string filename, ref List<Way> ways)
-        {
-            System.IO.StreamWriter sw = new StreamWriter(filename);
-            sw.Write("[" + Environment.NewLine);
-            foreach (var w in ways)
-            {
-                if (w != null && w.id > 0)
+                //This is the slow loop in this function
+                List<MinimumWay> minways = new List<MinimumWay>();
+                foreach (var w in ways)
                 {
-                    var test = JsonSerializer.Serialize(w, typeof(Way));
-                    sw.Write(test);
-                    sw.Write("," + Environment.NewLine);
+                    List<long> nodeIds = w.Nodes.ToList();
+                    var nodes = nodeLookup.Where(n => nodeIds.Contains(n.Key.Value)).Select(n => n.First()).ToList();
+                    MinimumWay mw = new MinimumWay() { MinimumWayId = w.Id, Nodes = nodes };
+                    minways.Add(mw);
                 }
+
+                db.BulkInsert<MinimumWay>(minways);
+
             }
-            sw.Write("]");
-            sw.Close();
-            sw.Dispose();
-            Log.WriteLog("All ways were serialized individually and saved to file at " + DateTime.Now);
-        }
+        return;
+    }
 
-        public static List<Way> ReadRawWaysToMemory(string filename)
+    public static List<NodeReference> GetNodesFromPbf(string filename, Lookup<long, long> nLookup)
+    {
+        //TODO:
+        //Consider adding Abandoned buildings/areas, as a brave explorer sort of location?
+        List<NodeReference> filteredNodes = new List<NodeReference>();
+        using (var fs = File.OpenRead(filename))
         {
-            //Got out of memory errors trying to read files over 1GB through File.ReadAllText, so do those here this way.
-            StreamReader sr = new StreamReader(filename);
-            List<Way> lw = new List<Way>();
-            JsonSerializerOptions jso = new JsonSerializerOptions();
-            jso.AllowTrailingCommas = true;
+            var source = new PBFOsmStreamSource(fs);
 
-            while (!sr.EndOfStream)
-            {
-                string line = sr.ReadLine();
-                if (line == "[")
-                {
-                    //start of a file that spaced out every entry on a newline correctly. Skip.
-                }
-                else if (line.StartsWith("[") && line.EndsWith("]"))
-                    lw.AddRange((List<Way>)JsonSerializer.Deserialize(line, typeof(List<Way>), jso)); //whole file is a list on one line. These shouldn't happen anymore.
-                else if (line.StartsWith("[") && line.EndsWith(","))
-                    lw.Add((Way)JsonSerializer.Deserialize(line.Substring(1, line.Count() - 2), typeof(Way), jso)); //first entry on a file before I forced the brackets onto newlines. Comma at end causes errors, is also trimmed.
-                else if (line.StartsWith("]"))
-                {
-                    //dont do anything, this is EOF
-                    Log.WriteLog("EOF Reached for " + filename + "at " + DateTime.Now);
-                }
-                else
-                {
-                    lw.Add((Way)JsonSerializer.Deserialize(line.Substring(0, line.Count() - 1), typeof(Way), jso)); //not starting line, trailing comma causes errors
-                }
-            }
+            var progress = source.ShowProgress();
 
-            if (lw.Count() == 0)
-                Log.WriteLog("No entries for " + filename + "? why?");
-
-            sr.Close(); sr.Dispose();
-            return lw;
+            //filter out data here
+            //Now this is my default filter.
+            //Single nodes are unlikley to be marked Highway. Don't check for that here.
+            filteredNodes = progress.Where(p => p.Type == OsmSharp.OsmGeoType.Node &&
+                   (nLookup.Contains(p.Id.GetValueOrDefault()) ||
+                    (p.Tags.Contains("natural", "water") ||
+                    p.Tags.Contains("natural", "wetlands") ||
+                    p.Tags.Contains("leisure", "park") ||
+                    p.Tags.Contains("leisure", "nature_reserve") ||
+                    p.Tags.Contains("natural", "beach") ||
+                    p.Tags.Contains("leisure", "beach_resort") ||
+                    p.Tags.Contains("amenity", "university") ||
+                    p.Tags.Contains("amenity", "college") ||
+                    p.Tags.Contains("leisure", "nature_reserve") ||
+                    p.Tags.Contains("landuse", "cemetery") ||
+                    p.Tags.Contains("amenity", "grave_yard") ||
+                    p.Tags.Contains("shop", "mall") ||
+                    p.Tags.Contains("landuse", "retail") ||
+                    p.Tags.Any(t => t.Key == "historic") ||
+                    p.Tags.Any(t => t.Key == "tourism" && relevantTourismValues.Contains(t.Value))
+                    )))
+                .Select(n => new NodeReference(n.Id.Value, ((OsmSharp.Node)n).Latitude.Value, ((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), GetType(n.Tags)))
+                .ToList();
         }
+        return filteredNodes;
+    }
 
-        //Also not using this right now.
-        //public static void WriteProcessedWaysToFile(string filename, ref List<ProcessedWay> pws)
-        //{
-        //    System.IO.StreamWriter sw = new StreamWriter(filename);
-        //    sw.Write("[" + Environment.NewLine);
-        //    foreach (var pw in pws)
-        //    {
-        //        var test = JsonSerializer.Serialize(pw, typeof(ProcessedWay));
-        //        sw.Write(test);
-        //        sw.Write("," + Environment.NewLine);
-        //    }
-        //    sw.Write("]");
-        //    sw.Close();
-        //    sw.Dispose();
-        //    Log.WriteLog("All processed ways were serialized individually and saved to file at " + DateTime.Now);
-        //}
-
-        public static void WriteSPOIsToFile(string filename)
+    public static void WriteRawWaysToFile(string filename, ref List<Way> ways)
+    {
+        System.IO.StreamWriter sw = new StreamWriter(filename);
+        sw.Write("[" + Environment.NewLine);
+        foreach (var w in ways)
         {
-            System.IO.StreamWriter sw = new StreamWriter(filename);
-            sw.Write("[" + Environment.NewLine);
-            foreach (var s in SPOI)
+            if (w != null && w.id > 0)
             {
-                var test = JsonSerializer.Serialize(s, typeof(SinglePointsOfInterest));
+                var test = JsonSerializer.Serialize(w, typeof(Way));
                 sw.Write(test);
                 sw.Write("," + Environment.NewLine);
             }
-            sw.Write("]");
-            sw.Close();
-            sw.Dispose();
-            Log.WriteLog("All SPOIs were serialized individually and saved to file at " + DateTime.Now);
         }
-
-        public static string GetPlusCode(double lat, double lon)
-        {
-            return OpenLocationCode.Encode(lat, lon).Replace("+", "");
-        }
-
-        public static void AddPlusCodesToSPOIs()
-        {
-            //Should only need to run this once, since I want to add these to the return stream. Took about a minute to do.
-            var db = new GpsExploreContext();
-            var spois = db.SinglePointsOfInterests.ToList();
-            foreach (var spoi in spois)
-            {
-                spoi.PlusCode = GetPlusCode(spoi.lat, spoi.lon);
-            }
-
-            db.SaveChanges();
-        }
-
-        public static void AddPlusCode8sToSPOIs()
-        {
-            //Should only need to run this once, since I want to add these to the return stream. Took about a minute to do.
-            var db = new GpsExploreContext();
-            var spois = db.SinglePointsOfInterests.ToList();
-            foreach (var spoi in spois)
-            {
-                spoi.PlusCode8 = GetPlusCode(spoi.lat, spoi.lon).Substring(0, 8);
-            }
-
-            db.SaveChanges();
-        }
-
-        public static void RemoveDuplicates()
-        {
-            Log.WriteLog("Scanning for duplicate entries at " + DateTime.Now);
-            var db = new GpsExploreContext();
-            db.ChangeTracker.AutoDetectChangesEnabled = false;
-            var dupedWays = db.MapData.GroupBy(md => md.WayId)
-                .Select(m => new { m.Key, Count = m.Count() })
-                .ToDictionary(d => d.Key, v => v.Count)
-                .Where(md => md.Value > 1);
-            Log.WriteLog("Duped Ways loaded at " + DateTime.Now);
-
-            foreach (var dupe in dupedWays)
-            {
-                var entriesToDelete = db.MapData.Where(md => md.WayId == dupe.Key).ToList();
-                db.MapData.RemoveRange(entriesToDelete.Skip(1));
-                db.SaveChanges(); //so the app can make partial progress if it needs to restart
-            }
-            db.SaveChanges();
-            Log.WriteLog("Duped ways deleted at " + DateTime.Now);
-
-            var dupedSpoi = db.SinglePointsOfInterests.GroupBy(md => md.NodeID)
-                .Select(m => new { m.Key, Count = m.Count() })
-                .ToDictionary(d => d.Key, v => v.Count)
-                .Where(md => md.Value > 1);
-            Log.WriteLog("Duped SPOIs loaded at " + DateTime.Now);
-
-            foreach (var dupe in dupedSpoi)
-            {
-                var entriesToDelete = db.SinglePointsOfInterests.Where(md => md.NodeID == dupe.Key).ToList();
-                db.SinglePointsOfInterests.RemoveRange(entriesToDelete.Skip(1));
-                db.SaveChanges(); //so the app can make partial progress if it needs to restart
-            }
-            db.SaveChanges();
-            Log.WriteLog("All duplicates removed at " + DateTime.Now);
-        }
-
-        public void ImportRawData()
-        {
-            //Pass in a file, do a simple read of each element to the database.
-            //TODO: create base tables for these types.
-        }
-
-        public void CreateStandaloneDB(GeoArea box)
-        {
-            //TODO: this whole feature.
-            //Parameter: Relation? Area? Lat/Long box covering one of those?
-            //pull in all ways that intersect that 
-            //process all of the 10-cells inside that area with their ways (will need more types than the current game has)
-            //save this data to an SQLite DB for the app to use.
-
-            var mainDb = new GpsExploreContext();
-            var sqliteDb = "placeholder";
-            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values. //share this here, so i compare the actual algorithms instead of this boilerplate, mandatory entry.
-            var polygon = factory.CreatePolygon(MapSupport.MakeBox(box));
-
-            var content = mainDb.MapData.Where(md => md.place.Intersects(polygon)).ToList();
-            var spoiConent = mainDb.SinglePointsOfInterests.Where(s => polygon.Intersects(new Point(s.lon, s.lat))).ToList(); //I think this is the right function, but might be Covers?
-
-            //now, convert everything in content to 10-char plus code data.
-            //Is the same logic as Cell6Info, so I should functionalize that.
-        }
-
-        public void AnalyzeAllAreas()
-        {
-            //This reads all cells on the globe, saves the results to a table.
-            //Investigating if this is better or worse for a production setup.
-            //Estimated to take 54 hours to process global data on my dev PC.
-        }
-
-        /* For reference: the tags Pokemon Go appears to be using. I don't need all of these. I have a few it doesn't, as well.
-         * POkemon Go is using these as map tiles, not just content. This is not a maptile app.
-    KIND_BASIN
-    KIND_CANAL
-    KIND_CEMETERY - Have
-    KIND_CINEMA
-    KIND_COLLEGE - Have
-    KIND_COMMERCIAL
-    KIND_COMMON
-    KIND_DAM
-    KIND_DITCH
-    KIND_DOCK
-    KIND_DRAIN
-    KIND_FARM
-    KIND_FARMLAND
-    KIND_FARMYARD
-    KIND_FOOTWAY
-    KIND_FOREST
-    KIND_GARDEN
-    KIND_GLACIER
-    KIND_GOLF_COURSE
-    KIND_GRASS
-    KIND_HIGHWAY
-    KIND_HOSPITAL
-    KIND_HOTEL
-    KIND_INDUSTRIAL
-    KIND_LAKE
-    KIND_LAND
-    KIND_LIBRARY
-    KIND_MAJOR_ROAD
-    KIND_MEADOW
-    KIND_MINOR_ROAD
-    KIND_NATURE_RESERVE - Have
-    KIND_OCEAN
-    KIND_PARK - Have
-    KIND_PARKING
-    KIND_PATH
-    KIND_PEDESTRIAN
-    KIND_PITCH
-    KIND_PLACE_OF_WORSHIP
-    KIND_PLAYA
-    KIND_PLAYGROUND
-    KIND_QUARRY
-    KIND_RAILWAY
-    KIND_RECREATION_AREA
-    KIND_RESERVOIR
-    KIND_RETAIL - Have
-    KIND_RIVER
-    KIND_RIVERBANK
-    KIND_RUNWAY
-    KIND_SCHOOL
-    KIND_SPORTS_CENTER
-    KIND_STADIUM
-    KIND_STREAM
-    KIND_TAXIWAY
-    KIND_THEATRE
-    KIND_UNIVERSITY - Have
-    KIND_URBAN_AREA
-    KIND_WATER - Have
-    KIND_WETLAND - Have
-    KIND_WOOD
-         */
+        sw.Write("]");
+        sw.Close();
+        sw.Dispose();
+        Log.WriteLog("All ways were serialized individually and saved to file at " + DateTime.Now);
     }
+
+    public static List<Way> ReadRawWaysToMemory(string filename)
+    {
+        //Got out of memory errors trying to read files over 1GB through File.ReadAllText, so do those here this way.
+        StreamReader sr = new StreamReader(filename);
+        List<Way> lw = new List<Way>();
+        JsonSerializerOptions jso = new JsonSerializerOptions();
+        jso.AllowTrailingCommas = true;
+
+        while (!sr.EndOfStream)
+        {
+            string line = sr.ReadLine();
+            if (line == "[")
+            {
+                //start of a file that spaced out every entry on a newline correctly. Skip.
+            }
+            else if (line.StartsWith("[") && line.EndsWith("]"))
+                lw.AddRange((List<Way>)JsonSerializer.Deserialize(line, typeof(List<Way>), jso)); //whole file is a list on one line. These shouldn't happen anymore.
+            else if (line.StartsWith("[") && line.EndsWith(","))
+                lw.Add((Way)JsonSerializer.Deserialize(line.Substring(1, line.Count() - 2), typeof(Way), jso)); //first entry on a file before I forced the brackets onto newlines. Comma at end causes errors, is also trimmed.
+            else if (line.StartsWith("]"))
+            {
+                //dont do anything, this is EOF
+                Log.WriteLog("EOF Reached for " + filename + "at " + DateTime.Now);
+            }
+            else
+            {
+                lw.Add((Way)JsonSerializer.Deserialize(line.Substring(0, line.Count() - 1), typeof(Way), jso)); //not starting line, trailing comma causes errors
+            }
+        }
+
+        if (lw.Count() == 0)
+            Log.WriteLog("No entries for " + filename + "? why?");
+
+        sr.Close(); sr.Dispose();
+        return lw;
+    }
+
+    //Also not using this right now.
+    //public static void WriteProcessedWaysToFile(string filename, ref List<ProcessedWay> pws)
+    //{
+    //    System.IO.StreamWriter sw = new StreamWriter(filename);
+    //    sw.Write("[" + Environment.NewLine);
+    //    foreach (var pw in pws)
+    //    {
+    //        var test = JsonSerializer.Serialize(pw, typeof(ProcessedWay));
+    //        sw.Write(test);
+    //        sw.Write("," + Environment.NewLine);
+    //    }
+    //    sw.Write("]");
+    //    sw.Close();
+    //    sw.Dispose();
+    //    Log.WriteLog("All processed ways were serialized individually and saved to file at " + DateTime.Now);
+    //}
+
+    public static void WriteSPOIsToFile(string filename)
+    {
+        System.IO.StreamWriter sw = new StreamWriter(filename);
+        sw.Write("[" + Environment.NewLine);
+        foreach (var s in SPOI)
+        {
+            var test = JsonSerializer.Serialize(s, typeof(SinglePointsOfInterest));
+            sw.Write(test);
+            sw.Write("," + Environment.NewLine);
+        }
+        sw.Write("]");
+        sw.Close();
+        sw.Dispose();
+        Log.WriteLog("All SPOIs were serialized individually and saved to file at " + DateTime.Now);
+    }
+
+    public static string GetPlusCode(double lat, double lon)
+    {
+        return OpenLocationCode.Encode(lat, lon).Replace("+", "");
+    }
+
+    public static void AddPlusCodesToSPOIs()
+    {
+        //Should only need to run this once, since I want to add these to the return stream. Took about a minute to do.
+        var db = new GpsExploreContext();
+        var spois = db.SinglePointsOfInterests.ToList();
+        foreach (var spoi in spois)
+        {
+            spoi.PlusCode = GetPlusCode(spoi.lat, spoi.lon);
+        }
+
+        db.SaveChanges();
+    }
+
+    public static void AddPlusCode8sToSPOIs()
+    {
+        //Should only need to run this once, since I want to add these to the return stream. Took about a minute to do.
+        var db = new GpsExploreContext();
+        var spois = db.SinglePointsOfInterests.ToList();
+        foreach (var spoi in spois)
+        {
+            spoi.PlusCode8 = GetPlusCode(spoi.lat, spoi.lon).Substring(0, 8);
+        }
+
+        db.SaveChanges();
+    }
+
+    public static void RemoveDuplicates()
+    {
+        Log.WriteLog("Scanning for duplicate entries at " + DateTime.Now);
+        var db = new GpsExploreContext();
+        db.ChangeTracker.AutoDetectChangesEnabled = false;
+        var dupedWays = db.MapData.GroupBy(md => md.WayId)
+            .Select(m => new { m.Key, Count = m.Count() })
+            .ToDictionary(d => d.Key, v => v.Count)
+            .Where(md => md.Value > 1);
+        Log.WriteLog("Duped Ways loaded at " + DateTime.Now);
+
+        foreach (var dupe in dupedWays)
+        {
+            var entriesToDelete = db.MapData.Where(md => md.WayId == dupe.Key).ToList();
+            db.MapData.RemoveRange(entriesToDelete.Skip(1));
+            db.SaveChanges(); //so the app can make partial progress if it needs to restart
+        }
+        db.SaveChanges();
+        Log.WriteLog("Duped ways deleted at " + DateTime.Now);
+
+        var dupedSpoi = db.SinglePointsOfInterests.GroupBy(md => md.NodeID)
+            .Select(m => new { m.Key, Count = m.Count() })
+            .ToDictionary(d => d.Key, v => v.Count)
+            .Where(md => md.Value > 1);
+        Log.WriteLog("Duped SPOIs loaded at " + DateTime.Now);
+
+        foreach (var dupe in dupedSpoi)
+        {
+            var entriesToDelete = db.SinglePointsOfInterests.Where(md => md.NodeID == dupe.Key).ToList();
+            db.SinglePointsOfInterests.RemoveRange(entriesToDelete.Skip(1));
+            db.SaveChanges(); //so the app can make partial progress if it needs to restart
+        }
+        db.SaveChanges();
+        Log.WriteLog("All duplicates removed at " + DateTime.Now);
+    }
+
+    public void ImportRawData()
+    {
+        //Pass in a file, do a simple read of each element to the database.
+        //TODO: create base tables for these types.
+        //TODO: read only core parts to DB
+        //var nodes =
+    }
+
+    public void CreateStandaloneDB(GeoArea box)
+    {
+        //TODO: this whole feature.
+        //Parameter: Relation? Area? Lat/Long box covering one of those?
+        //pull in all ways that intersect that 
+        //process all of the 10-cells inside that area with their ways (will need more types than the current game has)
+        //save this data to an SQLite DB for the app to use.
+
+        var mainDb = new GpsExploreContext();
+        var sqliteDb = "placeholder";
+        var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values. //share this here, so i compare the actual algorithms instead of this boilerplate, mandatory entry.
+        var polygon = factory.CreatePolygon(MapSupport.MakeBox(box));
+
+        var content = mainDb.MapData.Where(md => md.place.Intersects(polygon)).ToList();
+        var spoiConent = mainDb.SinglePointsOfInterests.Where(s => polygon.Intersects(new Point(s.lon, s.lat))).ToList(); //I think this is the right function, but might be Covers?
+
+        //now, convert everything in content to 10-char plus code data.
+        //Is the same logic as Cell6Info, so I should functionalize that.
+    }
+
+    public void AnalyzeAllAreas()
+    {
+        //This reads all cells on the globe, saves the results to a table.
+        //Investigating if this is better or worse for a production setup.
+        //Estimated to take 54 hours to process global data on my dev PC.
+    }
+
+    /* For reference: the tags Pokemon Go appears to be using. I don't need all of these. I have a few it doesn't, as well.
+     * POkemon Go is using these as map tiles, not just content. This is not a maptile app.
+KIND_BASIN
+KIND_CANAL
+KIND_CEMETERY - Have
+KIND_CINEMA
+KIND_COLLEGE - Have
+KIND_COMMERCIAL
+KIND_COMMON
+KIND_DAM
+KIND_DITCH
+KIND_DOCK
+KIND_DRAIN
+KIND_FARM
+KIND_FARMLAND
+KIND_FARMYARD
+KIND_FOOTWAY
+KIND_FOREST
+KIND_GARDEN
+KIND_GLACIER
+KIND_GOLF_COURSE
+KIND_GRASS
+KIND_HIGHWAY
+KIND_HOSPITAL
+KIND_HOTEL
+KIND_INDUSTRIAL
+KIND_LAKE
+KIND_LAND
+KIND_LIBRARY
+KIND_MAJOR_ROAD
+KIND_MEADOW
+KIND_MINOR_ROAD
+KIND_NATURE_RESERVE - Have
+KIND_OCEAN
+KIND_PARK - Have
+KIND_PARKING
+KIND_PATH
+KIND_PEDESTRIAN
+KIND_PITCH
+KIND_PLACE_OF_WORSHIP
+KIND_PLAYA
+KIND_PLAYGROUND
+KIND_QUARRY
+KIND_RAILWAY
+KIND_RECREATION_AREA
+KIND_RESERVOIR
+KIND_RETAIL - Have
+KIND_RIVER
+KIND_RIVERBANK
+KIND_RUNWAY
+KIND_SCHOOL
+KIND_SPORTS_CENTER
+KIND_STADIUM
+KIND_STREAM
+KIND_TAXIWAY
+KIND_THEATRE
+KIND_UNIVERSITY - Have
+KIND_URBAN_AREA
+KIND_WATER - Have
+KIND_WETLAND - Have
+KIND_WOOD
+     */
+}
 }

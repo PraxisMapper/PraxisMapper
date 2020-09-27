@@ -7,6 +7,7 @@ namespace DatabaseAccess
 {
 
     //TODO possible changes:
+    //Add unique keys to the OsmID columsn on MinimumX tables (if i decide to keep going on that route)
 
     public class DbTables
     {
@@ -77,24 +78,27 @@ namespace DatabaseAccess
             public string Data { get; set; } 
         }
 
-        public class OsmRelation
+        public class MinimumRelation
         {
-            public long OsmRelationId{ get; set; }
+            public long MinimumRelationId{ get; set; }
+            public long RelationId { get; set; }
         }
 
-        public class OsmWay
+        public class MinimumWay
         {
-            public long OsmWayId { get; set; }
-            public List<OsmNode> Nodes { get; set; }
+            public long? MinimumWayId { get; set; }
+            public long WayId { get; set; }
+            public ICollection<MinimumNode> Nodes { get; set; } //ICollection lets EF Core 5 generate join tables automatically this way.
         }
 
-        public class OsmNode
+        public class MinimumNode
         {
-            public long OsmNodeId { get; set; }
-            public long Lat { get; set; }
-            public long Lon { get; set; }
+            public long? MinimumNodeId { get; set; }
+            public long NodeId { get; set; }
+            public double? Lat { get; set; }
+            public double? Lon { get; set; }
+            public ICollection<MinimumWay> Ways { get; set; } //ICollection lets EF Core 5 generate join tables automatically this way.
         }
-
     }
 }
 

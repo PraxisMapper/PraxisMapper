@@ -33,10 +33,11 @@ namespace GPSExploreServerAPI.Controllers
         }
 
         public static double resolution10 = .000125; //as defined by the Open Location Code spec.
+
         //Manual map edits:
         //none
         //TODO:
-        //functionalize some code that should be in MapSupport instead of the end controller.
+        //No file-wide todos
 
         //Cell8Data function removed, significantly out of date.
         //remaking it would mean slightly changes to a copy of Cell6Info

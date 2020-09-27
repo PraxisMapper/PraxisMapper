@@ -17,6 +17,12 @@ namespace DatabaseAccess
 
         public DbSet<SinglePointsOfInterest> SinglePointsOfInterests { get; set; }
 
+        //Test table for loading osm data directly in to the DB with less processing.
+        public DbSet<MinimumNode> MinimumNodes { get; set; }
+        public DbSet<MinimumWay> MinimumWays { get; set; }
+        public DbSet<MinimumRelation> minimumRelations { get; set; }
+
+
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
