@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using static DatabaseAccess.DbTables;
+using OsmSharp;
 
 namespace DatabaseAccess
 {
@@ -41,6 +42,14 @@ namespace DatabaseAccess
 
             return cordSeq;
         }
+
+        //TODO: move support classes from XmlParser to this DLL before this can work.
+        //public static Coordinate[] MakeCoordinateArrayFromWay(Way w)
+        //{
+        //    var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
+
+        //    return cordSeq;
+        //}
 
         public static void SplitArea(GeoArea area, int divideCount, List<MapData> places, out List<MapData>[] placeArray, out GeoArea[] areaArray)
         {
@@ -118,6 +127,26 @@ namespace DatabaseAccess
                 var smallest = entriesHere.Where(e => e.place.Area == entriesHere.Min(e => e.place.Area)).First();
                 return olc + "|" + smallest.name + "|" + smallest.type;
             }
+        }
+
+        public static string LoadDataOnArea(long id)
+        {
+            var db = new GpsExploreContext();
+            var entries = db.MapData.Where(m => m.WayId == id).ToList(); //was First,  was MapDataId
+            string results = "";
+            foreach (var entry in entries)
+            {
+                var shape = entry.place;
+                
+                results += "Name: " + entry.name + Environment.NewLine;
+                results += "Game Type: " + entry.type + Environment.NewLine;
+                results += "Geometry Type: " + shape.GeometryType + Environment.NewLine;
+                results += "IsValid? : " + shape.IsValid + Environment.NewLine;
+                results += "Area: " + shape.Area + Environment.NewLine;
+                results += "As Text: " + shape.AsText() + Environment.NewLine;
+            }
+            
+            return results;
         }
     }
 }

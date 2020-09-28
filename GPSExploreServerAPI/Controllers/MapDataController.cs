@@ -368,5 +368,23 @@ namespace GPSExploreServerAPI.Controllers
                                     }
                                 }
         }
+
+        public void GetStuffAtPoint(double lat, double lon)
+        {
+            //Do a DB query on where you're standing for interesting places.
+            //might be more useful for some games that don't need a map.
+
+            //Exact point for area? or 10cell space to find trails too?
+
+
+        }
+
+        [HttpGet]
+        [Route("/[controller]/CheckArea/{id}")]
+        public string CheckOnArea(long id)
+        {
+            //Another test method exposed here for me.
+            return MapSupport.LoadDataOnArea(id);
+        }
     }
 }
