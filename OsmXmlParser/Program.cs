@@ -28,12 +28,12 @@ using static DatabaseAccess.MapSupport;
 //TODO: ponder how to remove inner polygons from a larger outer polygon. This is probably a NTS function of some kind, but only applies to relations. Ways alone won't do this. This would involve editing the data loaded, not just converting it.
 //TODO: functionalize stuff to smaller pieces.
 //TODO: Add high-verbosity logging messages.
+//TODO: set option flag to enable writing MapData entries to DB or File. Especially since bulk inserts won't fly for MapData from files, apparently.
 
 namespace OsmXmlParser
 {
     //These record trim down OSM data to just the parts I need.
-    public record WayReference(long Id, List<long> nodeRefs, double lat, double lon, string name, string type); //still needs to get actual node values later.
-    public record NodeReference(long Id, double lat, double lon, string name, string type); //record is a new C# 9 shorthand for a class you only edit on construction.
+    
     class Program
     {
         //NOTE: OSM data license allows me to use the data but requires acknowleging OSM as the data source
@@ -120,6 +120,11 @@ namespace OsmXmlParser
                 AddRawWaystoDBFromFiles();
             }
 
+            if (args.Any(a => a == "-readMapData"))
+            {
+                AddMapDataToDBFromFiles();
+            }
+
             //if (args.Any(a => a == "-plusCodeSpois"))
             //{
             //    AddPlusCodesToSPOIs();
@@ -146,25 +151,25 @@ namespace OsmXmlParser
             return;
         }
 
-        public static void TryRawWay(Way w)
-        {
-            //Translate a Way into a Sql Server datatype. This was confirming the minumum logic for this.
-            //Something fails if the polygon isn't a closed shape, so I should check if firstpoint == lastpoint, and if not add a copy of firstpoint as the last point?
-            //Also fails if the points aren't counter-clockwise ordered. (Occasionally, a way fails to register as CCW in either direction)
-            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
+        //public static void TryRawWay(Way w)
+        //{
+        //    //Translate a Way into a Sql Server datatype. This was confirming the minumum logic for this.
+        //    //Something fails if the polygon isn't a closed shape, so I should check if firstpoint == lastpoint, and if not add a copy of firstpoint as the last point?
+        //    //Also fails if the points aren't counter-clockwise ordered. (Occasionally, a way fails to register as CCW in either direction)
+        //    var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
 
-            MapData md = new MapData();
-            md.name = w.name;
-            md.WayId = w.id;
-            Polygon temp = factory.CreatePolygon(w.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray());
-            if (!temp.Shell.IsCCW)
-                temp = (Polygon)temp.Reverse();
+        //    MapData md = new MapData();
+        //    md.name = w.name;
+        //    md.WayId = w.id;
+        //    Polygon temp = factory.CreatePolygon(w.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray());
+        //    if (!temp.Shell.IsCCW)
+        //        temp = (Polygon)temp.Reverse();
 
-            md.place = temp;
-            GpsExploreContext db = new GpsExploreContext();
-            db.MapData.Add(md);
-            db.SaveChanges();
-        }
+        //    md.place = temp;
+        //    GpsExploreContext db = new GpsExploreContext();
+        //    db.MapData.Add(md);
+        //    db.SaveChanges();
+        //}
 
         //public static List<Tag> parseNodeTags(XmlReader xr)
         //{
@@ -312,6 +317,32 @@ namespace OsmXmlParser
                 }
                 Log.WriteLog("Added " + file + " to dB at " + DateTime.Now);
                 Log.WriteLog(errorCount + " ways excluded due to errors (" + ((errorCount / entries.Count()) * 100) + "%)");
+
+                File.Move(file, file + "Done");
+            }
+        }
+
+        public static void AddMapDataToDBFromFiles()
+        {
+            //This function is pretty slow. I should figure out how to speed it up. Approx. 6,000 ways per second right now.
+            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
+            foreach (var file in System.IO.Directory.EnumerateFiles(parsedJsonPath, "*-MapData.json"))
+            {
+                Log.WriteLog("Starting MapData read from  " + file + " at " + DateTime.Now);
+                GpsExploreContext db = new GpsExploreContext();
+                db.ChangeTracker.AutoDetectChangesEnabled = false; //Allows single inserts to operate at a reasonable speed (~6000 per second). Nothing else edits this table.
+                List<MapData> entries = ReadMapDataToMemory(file);
+
+                Log.WriteLog("Processing " + entries.Count() + " ways from " + file);
+                System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
+                timer.Start();
+                //db.BulkInsert<MapData>(entries); //throws errors around typing.
+
+                db.MapData.AddRange(entries);
+                db.SaveChanges();
+                
+                Log.WriteLog("Added " + file + " to dB at " + DateTime.Now);
+                //Log.WriteLog(errorCount + " ways excluded due to errors (" + ((errorCount / entries.Count()) * 100) + "%)"); //Errored entries were already excluded from the file before it was written.
 
                 File.Move(file, file + "Done");
             }
@@ -630,6 +661,9 @@ namespace OsmXmlParser
                 List<DatabaseAccess.Support.Node> nodes = new List<DatabaseAccess.Support.Node>();
                 List<DatabaseAccess.Support.Way> ways = new List<DatabaseAccess.Support.Way>();
 
+                List<MapData> processedEntries = new List<MapData>();
+                processedEntries.Capacity = 100000; //Minimizes time spend boosting capacity and copying the internal values later.
+
                 Log.WriteLog("Starting " + filename + " relation read at " + DateTime.Now);
                 var osmRelations = GetRelationsFromPbf(filename);
                 var wayList = osmRelations.SelectMany(r => r.Members).ToList(); //ways that need tagged as the relation's type if they dont' have their own.
@@ -660,26 +694,10 @@ namespace OsmXmlParser
                 var osmNodeLookup = osmNodes.ToLookup(k => k.Id, v => v); //Seeing if NodeReference saves some RAM
                 Log.WriteLog("Found " + osmNodeLookup.Count() + " unique nodes");
 
-                //Write SPOIs to file
-                Log.WriteLog("Finding SPOIs at " + DateTime.Now);
+                //Write nodes as mapdata
+                Log.WriteLog("Finding tagged nodes at " + DateTime.Now);
                 var SpoiEntries = osmNodes.Where(n => n.name != "" && n.type != "").ToList();
-                var dbEntries = SpoiEntries.Select(s => new MapData()
-                {
-                    name = s.name,
-                    type = s.type,
-                    place = factory.CreatePoint(new Coordinate(s.lon, s.lat))                 
-                }) ;
-                //SPOI = SpoiEntries.Select(s => new SinglePointsOfInterest()
-                //{
-                //    lat = s.lat,
-                //    lon = s.lon,
-                //    name = s.name,
-                //    NodeID = s.Id,
-                //    NodeType = s.type,
-                //    PlusCode = GetPlusCode(s.lat, s.lon),
-                //    PlusCode8 = GetPlusCode(s.lat, s.lon).Substring(0, 8),
-                //    PlusCode6 = GetPlusCode(s.lat, s.lon).Substring(0, 6)
-                //}).ToList();
+                processedEntries.AddRange(SpoiEntries.Select(s => MapSupport.ConvertNodeToMapData(s)));
                 SpoiEntries = null;
 
                 //This is now the slowest part of the processing function.
@@ -830,6 +848,7 @@ namespace OsmXmlParser
                         continue;
                     }
 
+
                     MapData md = new MapData();
                     md.name = GetElementName(r.Tags);
                     md.type = MapSupport.GetType(r.Tags);
@@ -844,18 +863,19 @@ namespace OsmXmlParser
                     }
 
                     md.place = poly;
-                    db.MapData.Add(md);
-                    db.SaveChanges();
+                    processedEntries.Add(md);
+                    //db.MapData.Add(md);
+                    //db.SaveChanges();
                     
                     //test code, working on fixing areas.
-                    var polyDB = db.MapData.Where(m => m.WayId == md.WayId).ToList();
-                    foreach (var p in polyDB)
-                    {
+                    //var polyDB = db.MapData.Where(m => m.WayId == md.WayId).ToList();
+                    //foreach (var p in polyDB)
+                    //{
                         //Console.WriteLine(p.place.GeometryType);
                         //Shifting to multi-polygon also adds coordinates. Interesting.
-                        if (p.place.GeometryType != md.place.GeometryType)
-                            Log.WriteLog("Way " + md.WayId + " " + md.name + " changes Geometry types after saving!");
-                    }
+                        //if (p.place.GeometryType != md.place.GeometryType)
+                            //Log.WriteLog("Way " + md.WayId + " " + md.name + " changes Geometry types after saving!");
+                    //}
                     //Now remove these ways to be excluded from later processing, since they're already handled better now.
                     foreach (var mw in listToRemoveLater)
                     {
@@ -868,7 +888,10 @@ namespace OsmXmlParser
                 //WriteSPOIsToFile(destFolder + destFilename + "-SPOIs.json");
                 //SPOI = null;
 
-                WriteRawWaysToFile(destFolder + destFilename + "-RawWays.json", ref ways);
+                processedEntries.AddRange(ways.Select(w =>ConvertWayToMapData(w)));
+
+                //WriteRawWaysToFile(destFolder + destFilename + "-RawWays.json", ref ways);
+                WriteMapDataToFile(destFolder + destFilename + "-MapData.json", ref processedEntries);
                 Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
                 File.Move(filename, filename + "Done"); //We made it all the way to the end, this file is done.
                 ways = null;
@@ -947,7 +970,7 @@ namespace OsmXmlParser
                 var allPossibleLines = shapeList.Where(s => s.nds.First().id == nextStartnode.id).ToList();
                 if (allPossibleLines.Count > 1)
                 {
-                    Log.WriteLog("Way has multiple possible lines to follow, might not process correctly.");
+                    Log.WriteLog("Relation "  +r.Id + " " + GetElementName(r.Tags) + " has multiple possible lines to follow, might not process correctly.");
                 }
                 var lineToAdd = shapeList.Where(s => s.nds.First().id == nextStartnode.id && s.nds.First().id != s.nds.Last().id).FirstOrDefault();
                 if (lineToAdd == null)
@@ -1194,7 +1217,10 @@ namespace OsmXmlParser
             {
                 if (md != null)
                 {
-                    var test = JsonSerializer.Serialize(md, typeof(MapData));
+                    var recordVersion = new MapDataForJson(md.MapDataId, md.name, md.place.AsText(), md.type, md.WayId, md.NodeId, md.RelationId);
+
+                    //This fails on MapData, presumably because md.place is a weird complex type, and I really just want to save the string representation. Record with string might be faster than a converter extension
+                    var test = JsonSerializer.Serialize(recordVersion, typeof(MapDataForJson));
                     sw.Write(test);
                     sw.Write("," + Environment.NewLine);
                 }
@@ -1240,6 +1266,54 @@ namespace OsmXmlParser
 
             sr.Close(); sr.Dispose();
             return lw;
+        }
+
+        public static List<MapData> ReadMapDataToMemory(string filename)
+        {
+            //Got out of memory errors trying to read files over 1GB through File.ReadAllText, so do those here this way.
+            StreamReader sr = new StreamReader(filename);
+            List<MapData> lm = new List<MapData>();
+            JsonSerializerOptions jso = new JsonSerializerOptions();
+            jso.AllowTrailingCommas = true;
+
+            NetTopologySuite.IO.WKTReader reader = new NetTopologySuite.IO.WKTReader();
+            reader.DefaultSRID = 4326;
+
+            while (!sr.EndOfStream)
+            {
+                string line = sr.ReadLine();
+                if (line == "[")
+                {
+                    //start of a file that spaced out every entry on a newline correctly. Skip.
+                }
+                else if (line.StartsWith("[") && line.EndsWith("]"))
+                {
+                    var jsondata = (List<MapDataForJson>)JsonSerializer.Deserialize(line, typeof(List<MapDataForJson>), jso);
+
+                    lm.AddRange(jsondata.Select(j => new MapData() { name = j.name, MapDataId = j.MapDataId, NodeId = j.NodeId, place = reader.Read(j.place), RelationId = j.RelationId, type = j.type, WayId = j.WayId  } )); //whole file is a list on one line. These shouldn't happen anymore.
+                }
+                else if (line.StartsWith("[") && line.EndsWith(","))
+                {
+                    MapDataForJson j = (MapDataForJson)JsonSerializer.Deserialize(line.Substring(1, line.Count() - 2), typeof(MapDataForJson), jso);
+                    lm.Add(new MapData() { name = j.name, MapDataId = j.MapDataId, NodeId = j.NodeId, place = reader.Read(j.place), RelationId = j.RelationId, type = j.type, WayId = j.WayId }); //first entry on a file before I forced the brackets onto newlines. Comma at end causes errors, is also trimmed.
+                }
+                else if (line.StartsWith("]"))
+                {
+                    //dont do anything, this is EOF
+                    Log.WriteLog("EOF Reached for " + filename + "at " + DateTime.Now);
+                }
+                else
+                {
+                    MapDataForJson j = (MapDataForJson)JsonSerializer.Deserialize(line.Substring(0, line.Count() - 1), typeof(MapDataForJson), jso);
+                    lm.Add(new MapData() { name = j.name, MapDataId = j.MapDataId, NodeId = j.NodeId, place = reader.Read(j.place), RelationId = j.RelationId, type = j.type, WayId = j.WayId }); //first entry on a file before I forced the brackets onto newlines. Comma at end causes errors, is also trimmed.
+                }
+            }
+
+            if (lm.Count() == 0)
+                Log.WriteLog("No entries for " + filename + "? why?");
+
+            sr.Close(); sr.Dispose();
+            return lm;
         }
 
         //public static void WriteSPOIsToFile(string filename)

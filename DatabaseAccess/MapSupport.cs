@@ -15,8 +15,14 @@ namespace DatabaseAccess
 {
     public static class MapSupport
     {
+        public record WayReference(long Id, List<long> nodeRefs, double lat, double lon, string name, string type); //still needs to get actual node values later.
+        public record NodeReference(long Id, double lat, double lon, string name, string type); //record is a new C# 9 shorthand for a class you only edit on construction.
+
+        public record MapDataForJson(long MapDataId, string name, string place, string type, long? WayId, long? NodeId, long? RelationId); //Possible answer for serializing MapData, since Geography types do not serialize nicely.
+        
 
         public const double resolution10 = .000125;
+
         public static List<string> relevantTags = new List<string>() { "name", "natural", "leisure", "landuse", "amenity", "tourism", "historic", "highway" }; //The keys in tags we process to see if we want it included.
         public static List<string> relevantTourismValues = new List<string>() { "artwork", "attraction", "gallery", "museum", "viewpoint", "zoo" }; //The stuff we care about in the tourism category. Zoo and attraction are debatable.
         public static List<string> relevantHighwayValues = new List<string>() { "path", "bridleway", "cycleway", "footway" }; //The stuff we care about in the tourism category. Zoo and attraction are debatable.
@@ -154,8 +160,6 @@ namespace DatabaseAccess
             return results;
         }
 
-        //TODO: finish and test this function
-        //TODO: make a Node version.
         public static MapData ConvertWayToMapData(DatabaseAccess.Support.Way w)
         {
             var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
@@ -199,6 +203,18 @@ namespace DatabaseAccess
                 name = GetElementName(n.Tags),
                 type = GetType(n.Tags),
                 place = factory.CreatePoint(new Coordinate(n.Longitude.Value, n.Latitude.Value)),
+                NodeId = n.Id
+            };
+        }
+
+        public static MapData ConvertNodeToMapData(NodeReference n)
+        {
+            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
+            return new MapData()
+            {
+                name = n.name,
+                type = n.type,
+                place = factory.CreatePoint(new Coordinate(n.lon, n.lat)),
                 NodeId = n.Id
             };
         }
@@ -286,6 +302,7 @@ namespace DatabaseAccess
                 return "trail";
 
             //Possibly of interest:
+            //Municipality borders: if i want to track different cities? type=boundary, admin_level=X (usually, 4=state, 6=county, larger = city/township). There is a wiki article about complications to this formula.
             //landuse:forest / landuse:orchard  / natural:wood
             //natural:sand may be of interest for desert area?
             //natural:spring / natural:hot_spring
