@@ -15,6 +15,11 @@ namespace DatabaseAccess
 {
     public static class MapSupport
     {
+        //TODO: define a real purpose and location for this stuff.
+        //Right now, this is mostly 'functions/consts I want to refer to in multiple projects'
+
+
+
         public record WayReference(long Id, List<long> nodeRefs, double lat, double lon, string name, string type); //still needs to get actual node values later.
         public record NodeReference(long Id, double lat, double lon, string name, string type); //record is a new C# 9 shorthand for a class you only edit on construction.
 
@@ -135,7 +140,16 @@ namespace DatabaseAccess
             {
                 //Generally, if there's a smaller shape inside a bigger shape, the smaller one should take priority.
                 var olc = new OpenLocationCode(y, x).CodeDigits.Substring(6, 4); //This takes lat, long, Coordinate takes X, Y. This line is correct.
-                var smallest = entriesHere.Where(e => e.place.Area == entriesHere.Min(e => e.place.Area)).First();
+                //TODO: test new sorting logic, now that all entires are MapData instead of SPOI some points don't appear in result set.
+                var point = entriesHere.Where(e => e.place.GeometryType == "Point").FirstOrDefault();
+                if (point != null)
+                    return olc + "|" + point.name + "|" + point.type;
+
+                var line = entriesHere.Where(e => e.place.GeometryType == "LineString").FirstOrDefault();
+                if (line != null)
+                    return olc + "|" + line.name + "|" + line.type;
+
+                var smallest = entriesHere.Where(e => e.place.GeometryType == "Polygon").OrderBy(e => e.place.Area).First();
                 return olc + "|" + smallest.name + "|" + smallest.type;
             }
         }
@@ -310,6 +324,21 @@ namespace DatabaseAccess
             //Anything else seems un-interesting or irrelevant.
 
             return ""; //not a way we need to save right now.
+        }
+
+        public static Coordinate[] WayToCoordArray(Support.Way w)
+        {
+            List<Coordinate> results = new List<Coordinate>();
+
+            foreach (var node in w.nds)
+                results.Add(new Coordinate(node.lon, node.lat));
+
+            return results.ToArray();
+        }
+
+        public static string GetPlusCode(double lat, double lon)
+        {
+            return OpenLocationCode.Encode(lat, lon).Replace("+", "");
         }
     }
 }
