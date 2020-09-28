@@ -15,7 +15,7 @@ namespace DatabaseAccess
         //Test table to see if its practical to save prerendered results. there's 25 million 6codes, so no.
         public DbSet<PremadeResults> PremadeResults { get; set; }
 
-        public DbSet<SinglePointsOfInterest> SinglePointsOfInterests { get; set; }
+        //public DbSet<SinglePointsOfInterest> SinglePointsOfInterests { get; set; }
 
         //Test table for loading osm data directly in to the DB with less processing.
         public DbSet<MinimumNode> MinimumNodes { get; set; }
@@ -46,13 +46,13 @@ namespace DatabaseAccess
             //Create indexes here.
             model.Entity<PlayerData>().HasIndex(p => p.deviceID); //for updating data
 
-            model.Entity<SinglePointsOfInterest>().HasIndex(i => i.PlusCode); //for reading data
-            model.Entity<SinglePointsOfInterest>().HasIndex(i => i.PlusCode8); //for reading data, previously used.
-            model.Entity<SinglePointsOfInterest>().HasIndex(i => i.PlusCode6); //for reading data, but actually used.
-            model.Entity<SinglePointsOfInterest>().HasIndex(i => i.NodeID); //for finding and removing duplicates, primarily
-            model.Entity<SinglePointsOfInterest>().Property(i => i.PlusCode8).HasMaxLength(8);
-            model.Entity<SinglePointsOfInterest>().Property(i => i.PlusCode6).HasMaxLength(6);
-            model.Entity<SinglePointsOfInterest>().Property(i => i.PlusCode).HasMaxLength(15);
+            //model.Entity<SinglePointsOfInterest>().HasIndex(i => i.PlusCode); //for reading data
+            //model.Entity<SinglePointsOfInterest>().HasIndex(i => i.PlusCode8); //for reading data, previously used.
+            //model.Entity<SinglePointsOfInterest>().HasIndex(i => i.PlusCode6); //for reading data, but actually used.
+            //model.Entity<SinglePointsOfInterest>().HasIndex(i => i.NodeID); //for finding and removing duplicates, primarily
+            //model.Entity<SinglePointsOfInterest>().Property(i => i.PlusCode8).HasMaxLength(8);
+            //model.Entity<SinglePointsOfInterest>().Property(i => i.PlusCode6).HasMaxLength(6);
+            //model.Entity<SinglePointsOfInterest>().Property(i => i.PlusCode).HasMaxLength(15);
 
             model.Entity<MapData>().HasIndex(p => p.WayId); //for checking OSM data and cleaning dupes
 

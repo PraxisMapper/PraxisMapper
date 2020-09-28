@@ -8,6 +8,8 @@ using System.Text;
 using System.Threading.Tasks;
 using static DatabaseAccess.DbTables;
 using OsmSharp;
+using DatabaseAccess.Support;
+using OsmSharp.Tags;
 
 namespace DatabaseAccess
 {
@@ -15,6 +17,9 @@ namespace DatabaseAccess
     {
 
         public const double resolution10 = .000125;
+        public static List<string> relevantTags = new List<string>() { "name", "natural", "leisure", "landuse", "amenity", "tourism", "historic", "highway" }; //The keys in tags we process to see if we want it included.
+        public static List<string> relevantTourismValues = new List<string>() { "artwork", "attraction", "gallery", "museum", "viewpoint", "zoo" }; //The stuff we care about in the tourism category. Zoo and attraction are debatable.
+        public static List<string> relevantHighwayValues = new List<string>() { "path", "bridleway", "cycleway", "footway" }; //The stuff we care about in the tourism category. Zoo and attraction are debatable.
         public static List<MapData> GetPlaces(GeoArea area, List<MapData> source = null)
         {
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
@@ -147,6 +152,147 @@ namespace DatabaseAccess
             }
             
             return results;
+        }
+
+        //TODO: finish and test this function
+        //TODO: make a Node version.
+        public static MapData ConvertWayToMapData(DatabaseAccess.Support.Way w)
+        {
+            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
+            MapData md = new MapData();
+            md.name = w.name;
+            md.WayId = w.id;
+            md.type = w.AreaType;
+
+            //Adding support for single lines. A lot of rivers/streams/footpaths are treated this way.
+            if (w.nds.First().id != w.nds.Last().id)
+            {
+                LineString temp2 = factory.CreateLineString(w.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray());
+                md.place = temp2;
+            }
+            else
+            {
+                Polygon temp = factory.CreatePolygon(w.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray());
+                if (!temp.Shell.IsCCW)
+                {
+                    temp = (Polygon)temp.Reverse();
+                    if (!temp.Shell.IsCCW)
+                    {
+                        Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not counter-clockwise forward or reversed.");
+                    }
+                    if (!temp.IsValid)
+                    {
+                        Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not valid according to its own internal check.");
+                    }
+                }
+                md.place = temp;
+                md.WayId = w.id;
+            }
+            return md;
+        }
+
+        public static MapData ConvertNodeToMapData(OsmSharp.Node n)
+        {
+            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
+            return new MapData()
+            {
+                name = GetElementName(n.Tags),
+                type = GetType(n.Tags),
+                place = factory.CreatePoint(new Coordinate(n.Longitude.Value, n.Latitude.Value)),
+                NodeId = n.Id
+            };
+        }
+
+        public static string GetElementName(TagsCollectionBase tags)
+        {
+            string name = tags.Where(t => t.Key == "name").FirstOrDefault().Value;
+            if (name == null)
+                return "";
+            return name; //.RemoveDiacritics(); //Not sure if my font needs this or not
+        }
+
+        public static string GetType(TagsCollectionBase tags)
+        {
+            //This is how we will figure out which area a cell counts as now.
+            //Should make sure all of these exist in the AreaTypes table I made.
+            //REMEMBER: this list needs to match the same tags as the ones in GetWays(relations)FromPBF or else data looks weird.
+            //TODO: prioritize these tags, since each space gets one value.
+
+            if (tags.Count() == 0)
+                return ""; //Shouldn't happen, but as a sanity check if we start adding Nodes later.
+
+            //Water spaces should be displayed. Not sure if I want players to be in them for resources.
+            //Water should probably override other values as a safety concern.
+            if (tags.Any(t => t.Key == "natural" && t.Value == "water")
+                || tags.Any(t => t.Key == "waterway"))
+                return "water";
+
+            //Wetlands should also be high priority.
+            if (tags.Any(t => (t.Key == "natural" && t.Value == "wetland")))
+                return "wetland";
+
+            //Parks are good. Possibly core to this game.
+            if (tags.Any(t => t.Key == "leisure" && t.Value == "park"))
+                return "park";
+
+            //Beaches are good. Managed beaches are less good but I'll count those too.
+            if (tags.Any(t => (t.Key == "natural" && t.Value == "beach")
+            || (t.Key == "leisure" && t.Value == "beach_resort")))
+                return "beach";
+
+            //Universities are good. Primary schools are not so good.  Don't include all education values.
+            if (tags.Any(t => (t.Key == "amenity" && t.Value == "university")
+                || (t.Key == "amenity" && t.Value == "college")))
+                return "university";
+
+            //Nature Reserve. Should be included, but possibly secondary to other types inside it.
+            if (tags.Any(t => (t.Key == "leisure" && t.Value == "nature_reserve")))
+                return "natureReserve";
+
+            //Cemetaries are ok. They don't seem to appreciate Pokemon Go, but they're a public space and often encourage activity in them (thats not PoGo)
+            if (tags.Any(t => (t.Key == "landuse" && t.Value == "cemetery")
+                || (t.Key == "amenity" && t.Value == "grave_yard")))
+                return "cemetery";
+
+            //Malls are a good indoor area to explore.
+            if (tags.Any(t => t.Key == "shop" && t.Value == "mall"))
+                return "mall";
+
+            //Generic shopping area is ok. I don't want to advertise businesses, but this is a common area type.
+            if (tags.Any(t => (t.Key == "landuse" && t.Value == "retail")))
+                return "retail";
+
+            //I have tourism as a tag to save, but not necessarily sub-sets yet of whats interesting there.
+            if (tags.Any(t => (t.Key == "tourism" && relevantTourismValues.Contains(t.Value))))
+                return "tourism"; //TODO: create sub-values for tourism types?
+
+            //I have historical as a tag to save, but not necessarily sub-sets yet of whats interesting there.
+            //NOTE: the OSM tag doesn't match my value
+            if (tags.Any(t => (t.Key == "historic")))
+                return "historical";
+
+            //Trail. Will likely show up in varying places for various reasons. Trying to limit this down to hiking trails like in parks and similar.
+            //In my local park, i see both path and footway used (Footway is an unpaved trail, Path is a paved one)
+            //highway=track is for tractors and other vehicles.  Don't include. that.
+            //highway=path is non-motor vehicle, and otherwise very generic. 5% of all Ways in OSM.
+            //highway=footway is pedestrian traffic only, maybe including bikes. Mostly sidewalks, which I dont' want to include.
+            //highway=bridleway is horse paths, maybe including pedestrians and bikes
+            //highway=cycleway is for bikes, maybe including pedesterians.
+            if (tags.Any(t => (t.Key == "highway" && t.Value == "bridleway"))
+                || (tags.Any(t => t.Key == "highway" && t.Value == "path")) //path implies motor_vehicle = no // && !tags.Any(t => t.k =="motor_vehicle" && t.v == "yes")) //may want to check anyways?
+                || (tags.Any(t => t.Key == "highway" && t.Value == "cycleway"))  //I probably want to include these too, though I have none local to see.
+                || (tags.Any(t => t.Key == "highway" && relevantHighwayValues.Contains(t.Value)) && !tags.Any(t => t.Key == "footway" && (t.Value == "sidewalk" || t.Value == "crossing")))
+                )
+                return "trail";
+
+            //Possibly of interest:
+            //landuse:forest / landuse:orchard  / natural:wood
+            //natural:sand may be of interest for desert area?
+            //natural:spring / natural:hot_spring
+            //amenity:theatre for plays/music/etc (amenity:cinema is a movie theater)
+            //Anything else seems un-interesting or irrelevant.
+
+            return ""; //not a way we need to save right now.
         }
     }
 }

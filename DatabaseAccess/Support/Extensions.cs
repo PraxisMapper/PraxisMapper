@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace OsmXmlParser
+namespace DatabaseAccess
 {
     //A bunch of exention methods I find useful.
     public static class Extensions

@@ -1,4 +1,5 @@
 ﻿using DatabaseAccess;
+using DatabaseAccess.Support;
 using EFCore.BulkExtensions;
 using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +11,6 @@ using OsmSharp.Changesets;
 using OsmSharp.Streams;
 using OsmSharp.Streams.Filters;
 using OsmSharp.Tags;
-using OsmXmlParser.Classes;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -20,6 +20,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Xml;
 using static DatabaseAccess.DbTables;
+using static DatabaseAccess.MapSupport;
 
 //TODO: some node names are displaying in the debug console as "?????? ????". See Siberia. This should all be unicode and that should work fine. Maybe check display font?
 //TODO: since some of these .pbf files become larger as trimmer JSON instead of smaller, maybe I should try a path that writes directly to DB from PBF?
@@ -37,10 +38,10 @@ namespace OsmXmlParser
     {
         //NOTE: OSM data license allows me to use the data but requires acknowleging OSM as the data source
 
-        public static List<string> relevantTags = new List<string>() { "name", "natural", "leisure", "landuse", "amenity", "tourism", "historic", "highway" }; //The keys in tags we process to see if we want it included.
-        public static List<string> relevantTourismValues = new List<string>() { "artwork", "attraction", "gallery", "museum", "viewpoint", "zoo" }; //The stuff we care about in the tourism category. Zoo and attraction are debatable.
-        public static List<string> relevantHighwayValues = new List<string>() { "path", "bridleway", "cycleway", "footway" }; //The stuff we care about in the tourism category. Zoo and attraction are debatable.
-        public static List<SinglePointsOfInterest> SPOI = new List<SinglePointsOfInterest>();
+        //public static List<string> relevantTags = new List<string>() { "name", "natural", "leisure", "landuse", "amenity", "tourism", "historic", "highway" }; //The keys in tags we process to see if we want it included.
+        //public static List<string> relevantTourismValues = new List<string>() { "artwork", "attraction", "gallery", "museum", "viewpoint", "zoo" }; //The stuff we care about in the tourism category. Zoo and attraction are debatable.
+        //public static List<string> relevantHighwayValues = new List<string>() { "path", "bridleway", "cycleway", "footway" }; //The stuff we care about in the tourism category. Zoo and attraction are debatable.
+        //public static List<SinglePointsOfInterest> SPOI = new List<SinglePointsOfInterest>(); //converting these to points in MapData instead.
 
         public static string parsedJsonPath = @"D:\Projects\OSM Server Info\Trimmed JSON Files\";
         public static string parsedPbfPath = @"D:\Projects\OSM Server Info\XmlToProcess\";
@@ -109,20 +110,20 @@ namespace OsmXmlParser
                 MakeAllSerializedFilesFromPBF();
             }
 
-            if (args.Any(a => a == "-readSPOIs"))
-            {
-                AddSPOItoDBFromFiles();
-            }
+            //if (args.Any(a => a == "-readSPOIs"))
+            //{
+                //AddSPOItoDBFromFiles();
+            //}
 
             if (args.Any(a => a == "-readRawWays"))
             {
                 AddRawWaystoDBFromFiles();
             }
 
-            if (args.Any(a => a == "-plusCodeSpois"))
-            {
-                AddPlusCodesToSPOIs();
-            }
+            //if (args.Any(a => a == "-plusCodeSpois"))
+            //{
+            //    AddPlusCodesToSPOIs();
+            //}
 
             if (args.Any(a => a == "-removeDupes"))
             {
@@ -207,21 +208,21 @@ namespace OsmXmlParser
         //    return;
         //}
 
-        public static void AddSPOItoDBFromFiles()
-        {
-            GpsExploreContext db = new GpsExploreContext();
+        //public static void AddSPOItoDBFromFiles()
+        //{
+        //    GpsExploreContext db = new GpsExploreContext();
 
-            foreach (var file in System.IO.Directory.EnumerateFiles(parsedJsonPath, "*-SPOIs.json"))
-            {
-                JsonSerializerOptions jso = new JsonSerializerOptions();
-                jso.AllowTrailingCommas = true;
-                List<SinglePointsOfInterest> entries = (List<SinglePointsOfInterest>)JsonSerializer.Deserialize(File.ReadAllText(file), typeof(List<SinglePointsOfInterest>), jso);
+        //    foreach (var file in System.IO.Directory.EnumerateFiles(parsedJsonPath, "*-SPOIs.json"))
+        //    {
+        //        JsonSerializerOptions jso = new JsonSerializerOptions();
+        //        jso.AllowTrailingCommas = true;
+        //        List<SinglePointsOfInterest> entries = (List<SinglePointsOfInterest>)JsonSerializer.Deserialize(File.ReadAllText(file), typeof(List<SinglePointsOfInterest>), jso);
 
-                entries = entries.Where(e => !string.IsNullOrWhiteSpace(e.name)).ToList(); //Some of these exist, they're not real helpful if they're just a tag.
-                db.BulkInsert<SinglePointsOfInterest>(entries);
-                Log.WriteLog("Added " + file + " to dB at " + DateTime.Now);
-            }
-        }
+        //        entries = entries.Where(e => !string.IsNullOrWhiteSpace(e.name)).ToList(); //Some of these exist, they're not real helpful if they're just a tag.
+        //        db.BulkInsert<SinglePointsOfInterest>(entries);
+        //        Log.WriteLog("Added " + file + " to dB at " + DateTime.Now);
+        //    }
+        //}
 
         public static void AddRawWaystoDBFromFiles()
         {
@@ -316,89 +317,89 @@ namespace OsmXmlParser
             }
         }
 
-        public static string GetType(TagsCollectionBase tags)
-        {
-            //This is how we will figure out which area a cell counts as now.
-            //Should make sure all of these exist in the AreaTypes table I made.
-            //REMEMBER: this list needs to match the same tags as the ones in GetWays(relations)FromPBF or else data looks weird.
-            //TODO: prioritize these tags, since each space gets one value.
+        //public static string GetType(TagsCollectionBase tags)
+        //{
+        //    //This is how we will figure out which area a cell counts as now.
+        //    //Should make sure all of these exist in the AreaTypes table I made.
+        //    //REMEMBER: this list needs to match the same tags as the ones in GetWays(relations)FromPBF or else data looks weird.
+        //    //TODO: prioritize these tags, since each space gets one value.
 
-            if (tags.Count() == 0)
-                return ""; //Shouldn't happen, but as a sanity check if we start adding Nodes later.
+        //    if (tags.Count() == 0)
+        //        return ""; //Shouldn't happen, but as a sanity check if we start adding Nodes later.
 
-            //Water spaces should be displayed. Not sure if I want players to be in them for resources.
-            //Water should probably override other values as a safety concern.
-            if (tags.Any(t => t.Key == "natural" && t.Value == "water")
-                || tags.Any(t => t.Key == "waterway"))
-                return "water";
+        //    //Water spaces should be displayed. Not sure if I want players to be in them for resources.
+        //    //Water should probably override other values as a safety concern.
+        //    if (tags.Any(t => t.Key == "natural" && t.Value == "water")
+        //        || tags.Any(t => t.Key == "waterway"))
+        //        return "water";
 
-            //Wetlands should also be high priority.
-            if (tags.Any(t => (t.Key == "natural" && t.Value == "wetland")))
-                return "wetland";
+        //    //Wetlands should also be high priority.
+        //    if (tags.Any(t => (t.Key == "natural" && t.Value == "wetland")))
+        //        return "wetland";
 
-            //Parks are good. Possibly core to this game.
-            if (tags.Any(t => t.Key == "leisure" && t.Value == "park"))
-                return "park";
+        //    //Parks are good. Possibly core to this game.
+        //    if (tags.Any(t => t.Key == "leisure" && t.Value == "park"))
+        //        return "park";
 
-            //Beaches are good. Managed beaches are less good but I'll count those too.
-            if (tags.Any(t => (t.Key == "natural" && t.Value == "beach")
-            || (t.Key == "leisure" && t.Value == "beach_resort")))
-                return "beach";
+        //    //Beaches are good. Managed beaches are less good but I'll count those too.
+        //    if (tags.Any(t => (t.Key == "natural" && t.Value == "beach")
+        //    || (t.Key == "leisure" && t.Value == "beach_resort")))
+        //        return "beach";
 
-            //Universities are good. Primary schools are not so good.  Don't include all education values.
-            if (tags.Any(t => (t.Key == "amenity" && t.Value == "university")
-                || (t.Key == "amenity" && t.Value == "college")))
-                return "university";
+        //    //Universities are good. Primary schools are not so good.  Don't include all education values.
+        //    if (tags.Any(t => (t.Key == "amenity" && t.Value == "university")
+        //        || (t.Key == "amenity" && t.Value == "college")))
+        //        return "university";
 
-            //Nature Reserve. Should be included, but possibly secondary to other types inside it.
-            if (tags.Any(t => (t.Key == "leisure" && t.Value == "nature_reserve")))
-                return "natureReserve";
+        //    //Nature Reserve. Should be included, but possibly secondary to other types inside it.
+        //    if (tags.Any(t => (t.Key == "leisure" && t.Value == "nature_reserve")))
+        //        return "natureReserve";
 
-            //Cemetaries are ok. They don't seem to appreciate Pokemon Go, but they're a public space and often encourage activity in them (thats not PoGo)
-            if (tags.Any(t => (t.Key == "landuse" && t.Value == "cemetery")
-                || (t.Key == "amenity" && t.Value == "grave_yard")))
-                return "cemetery";
+        //    //Cemetaries are ok. They don't seem to appreciate Pokemon Go, but they're a public space and often encourage activity in them (thats not PoGo)
+        //    if (tags.Any(t => (t.Key == "landuse" && t.Value == "cemetery")
+        //        || (t.Key == "amenity" && t.Value == "grave_yard")))
+        //        return "cemetery";
 
-            //Malls are a good indoor area to explore.
-            if (tags.Any(t => t.Key == "shop" && t.Value == "mall"))
-                return "mall";
+        //    //Malls are a good indoor area to explore.
+        //    if (tags.Any(t => t.Key == "shop" && t.Value == "mall"))
+        //        return "mall";
 
-            //Generic shopping area is ok. I don't want to advertise businesses, but this is a common area type.
-            if (tags.Any(t => (t.Key == "landuse" && t.Value == "retail")))
-                return "retail";
+        //    //Generic shopping area is ok. I don't want to advertise businesses, but this is a common area type.
+        //    if (tags.Any(t => (t.Key == "landuse" && t.Value == "retail")))
+        //        return "retail";
 
-            //I have tourism as a tag to save, but not necessarily sub-sets yet of whats interesting there.
-            if (tags.Any(t => (t.Key == "tourism" && relevantTourismValues.Contains(t.Value))))
-                return "tourism"; //TODO: create sub-values for tourism types?
+        //    //I have tourism as a tag to save, but not necessarily sub-sets yet of whats interesting there.
+        //    if (tags.Any(t => (t.Key == "tourism" && relevantTourismValues.Contains(t.Value))))
+        //        return "tourism"; //TODO: create sub-values for tourism types?
 
-            //I have historical as a tag to save, but not necessarily sub-sets yet of whats interesting there.
-            //NOTE: the OSM tag doesn't match my value
-            if (tags.Any(t => (t.Key == "historic")))
-                return "historical";
+        //    //I have historical as a tag to save, but not necessarily sub-sets yet of whats interesting there.
+        //    //NOTE: the OSM tag doesn't match my value
+        //    if (tags.Any(t => (t.Key == "historic")))
+        //        return "historical";
 
-            //Trail. Will likely show up in varying places for various reasons. Trying to limit this down to hiking trails like in parks and similar.
-            //In my local park, i see both path and footway used (Footway is an unpaved trail, Path is a paved one)
-            //highway=track is for tractors and other vehicles.  Don't include. that.
-            //highway=path is non-motor vehicle, and otherwise very generic. 5% of all Ways in OSM.
-            //highway=footway is pedestrian traffic only, maybe including bikes. Mostly sidewalks, which I dont' want to include.
-            //highway=bridleway is horse paths, maybe including pedestrians and bikes
-            //highway=cycleway is for bikes, maybe including pedesterians.
-            if (tags.Any(t => (t.Key == "highway" && t.Value == "bridleway"))
-                || (tags.Any(t => t.Key == "highway" && t.Value == "path")) //path implies motor_vehicle = no // && !tags.Any(t => t.k =="motor_vehicle" && t.v == "yes")) //may want to check anyways?
-                || (tags.Any(t => t.Key == "highway" && t.Value == "cycleway"))  //I probably want to include these too, though I have none local to see.
-                || (tags.Any(t => t.Key == "highway" && relevantHighwayValues.Contains(t.Value)) && !tags.Any(t => t.Key == "footway" && (t.Value == "sidewalk" || t.Value == "crossing")))
-                )
-                return "trail";
+        //    //Trail. Will likely show up in varying places for various reasons. Trying to limit this down to hiking trails like in parks and similar.
+        //    //In my local park, i see both path and footway used (Footway is an unpaved trail, Path is a paved one)
+        //    //highway=track is for tractors and other vehicles.  Don't include. that.
+        //    //highway=path is non-motor vehicle, and otherwise very generic. 5% of all Ways in OSM.
+        //    //highway=footway is pedestrian traffic only, maybe including bikes. Mostly sidewalks, which I dont' want to include.
+        //    //highway=bridleway is horse paths, maybe including pedestrians and bikes
+        //    //highway=cycleway is for bikes, maybe including pedesterians.
+        //    if (tags.Any(t => (t.Key == "highway" && t.Value == "bridleway"))
+        //        || (tags.Any(t => t.Key == "highway" && t.Value == "path")) //path implies motor_vehicle = no // && !tags.Any(t => t.k =="motor_vehicle" && t.v == "yes")) //may want to check anyways?
+        //        || (tags.Any(t => t.Key == "highway" && t.Value == "cycleway"))  //I probably want to include these too, though I have none local to see.
+        //        || (tags.Any(t => t.Key == "highway" && relevantHighwayValues.Contains(t.Value)) && !tags.Any(t => t.Key == "footway" && (t.Value == "sidewalk" || t.Value == "crossing")))
+        //        )
+        //        return "trail";
 
-            //Possibly of interest:
-            //landuse:forest / landuse:orchard  / natural:wood
-            //natural:sand may be of interest for desert area?
-            //natural:spring / natural:hot_spring
-            //amenity:theatre for plays/music/etc (amenity:cinema is a movie theater)
-            //Anything else seems un-interesting or irrelevant.
+        //    //Possibly of interest:
+        //    //landuse:forest / landuse:orchard  / natural:wood
+        //    //natural:sand may be of interest for desert area?
+        //    //natural:spring / natural:hot_spring
+        //    //amenity:theatre for plays/music/etc (amenity:cinema is a movie theater)
+        //    //Anything else seems un-interesting or irrelevant.
 
-            return ""; //not a way we need to save right now.
-        }
+        //    return ""; //not a way we need to save right now.
+        //}
 
         //public static string GetType(List<OsmSharp.Tags.Tag> tags)
         //{
@@ -414,13 +415,13 @@ namespace OsmXmlParser
         //    return name; //.RemoveDiacritics(); //Not sure if my font needs this or not
         //}
 
-        public static string GetElementName(OsmSharp.Tags.TagsCollectionBase tags)
-        {
-            string name = tags.Where(t => t.Key == "name").FirstOrDefault().Value;
-            if (name == null)
-                return "";
-            return name; //.RemoveDiacritics(); //Not sure if my font needs this or not
-        }
+        //public static string GetElementName(OsmSharp.Tags.TagsCollectionBase tags)
+        //{
+        //    string name = tags.Where(t => t.Key == "name").FirstOrDefault().Value;
+        //    if (name == null)
+        //        return "";
+        //    return name; //.RemoveDiacritics(); //Not sure if my font needs this or not
+        //}
 
         public static void CleanDb()
         {
@@ -434,8 +435,8 @@ namespace OsmXmlParser
             osm.Database.ExecuteSqlRaw("TRUNCATE TABLE MapData");
             Log.WriteLog("MapData cleaned at " + DateTime.Now);
 
-            osm.Database.ExecuteSqlRaw("TRUNCATE TABLE SinglePointsOfInterests");
-            Log.WriteLog("SPOIs cleaned at " + DateTime.Now);
+            //osm.Database.ExecuteSqlRaw("TRUNCATE TABLE SinglePointsOfInterests");
+            //Log.WriteLog("SPOIs cleaned at " + DateTime.Now);
 
             Log.WriteLog("DB cleaned at " + DateTime.Now);
         }
@@ -621,12 +622,13 @@ namespace OsmXmlParser
         {
             string destFolder = @"D:\Projects\OSM Server Info\Trimmed JSON Files\";
             List<string> filenames = System.IO.Directory.EnumerateFiles(@"D:\Projects\OSM Server Info\XmlToProcess\", "*.pbf").ToList();
+            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
 
             foreach (string filename in filenames)
             {
                 string destFilename = System.IO.Path.GetFileName(filename).Replace(".osm.pbf", "");
-                List<Node> nodes = new List<Node>();
-                List<Way> ways = new List<Way>();
+                List<DatabaseAccess.Support.Node> nodes = new List<DatabaseAccess.Support.Node>();
+                List<DatabaseAccess.Support.Way> ways = new List<DatabaseAccess.Support.Way>();
 
                 Log.WriteLog("Starting " + filename + " relation read at " + DateTime.Now);
                 var osmRelations = GetRelationsFromPbf(filename);
@@ -640,7 +642,7 @@ namespace OsmXmlParser
                 List<RelationMember> waysFromRelations = new List<RelationMember>();
                 foreach (var stuff in osmRelations)
                 {
-                    string relationType = GetType(stuff.Tags);
+                    string relationType = MapSupport.GetType(stuff.Tags);
                     string name = GetElementName(stuff.Tags);
                     foreach (var member in stuff.Members)
                         waysFromRelations.Add(new RelationMember() { Id = member.Id, type = relationType, name = name });
@@ -658,32 +660,36 @@ namespace OsmXmlParser
                 var osmNodeLookup = osmNodes.ToLookup(k => k.Id, v => v); //Seeing if NodeReference saves some RAM
                 Log.WriteLog("Found " + osmNodeLookup.Count() + " unique nodes");
 
-
-
                 //Write SPOIs to file
                 Log.WriteLog("Finding SPOIs at " + DateTime.Now);
                 var SpoiEntries = osmNodes.Where(n => n.name != "" && n.type != "").ToList();
-                SPOI = SpoiEntries.Select(s => new SinglePointsOfInterest()
+                var dbEntries = SpoiEntries.Select(s => new MapData()
                 {
-                    lat = s.lat,
-                    lon = s.lon,
                     name = s.name,
-                    NodeID = s.Id,
-                    NodeType = s.type,
-                    PlusCode = GetPlusCode(s.lat, s.lon),
-                    PlusCode8 = GetPlusCode(s.lat, s.lon).Substring(0, 8),
-                    PlusCode6 = GetPlusCode(s.lat, s.lon).Substring(0, 6)
-                }).ToList();
+                    type = s.type,
+                    place = factory.CreatePoint(new Coordinate(s.lon, s.lat))                 
+                }) ;
+                //SPOI = SpoiEntries.Select(s => new SinglePointsOfInterest()
+                //{
+                //    lat = s.lat,
+                //    lon = s.lon,
+                //    name = s.name,
+                //    NodeID = s.Id,
+                //    NodeType = s.type,
+                //    PlusCode = GetPlusCode(s.lat, s.lon),
+                //    PlusCode8 = GetPlusCode(s.lat, s.lon).Substring(0, 8),
+                //    PlusCode6 = GetPlusCode(s.lat, s.lon).Substring(0, 6)
+                //}).ToList();
                 SpoiEntries = null;
 
                 //This is now the slowest part of the processing function.
                 Log.WriteLog("Converting " + osmWays.Count() + " OsmWays to my Ways at " + DateTime.Now);
                 ways.Capacity = osmWays.Count();
-                ways = osmWays.Select(w => new OsmXmlParser.Classes.Way()
+                ways = osmWays.Select(w => new DatabaseAccess.Support.Way()
                 {
                     id = w.Id.Value,
                     name = GetElementName(w.Tags),
-                    AreaType = GetType(w.Tags),
+                    AreaType = MapSupport.GetType(w.Tags),
                     nodRefs = w.Nodes.ToList()
                 })
                 .ToList();
@@ -721,33 +727,34 @@ namespace OsmXmlParser
                                 w.AreaType = relation.type;
                     }
 
+                    //Moving SPOIs into MapData anyways. Removing this.
                     //now that we have nodes, lets do a little extra processing.
-                    var latSpread = w.nds.Max(n => n.lat) - w.nds.Min(n => n.lat);
-                    var lonSpread = w.nds.Max(n => n.lon) - w.nds.Min(n => n.lon);
+                    //var latSpread = w.nds.Max(n => n.lat) - w.nds.Min(n => n.lat);
+                    //var lonSpread = w.nds.Max(n => n.lon) - w.nds.Min(n => n.lon);
 
-                    if (latSpread <= PlusCode10Resolution && lonSpread <= PlusCode10Resolution && wayLookup[w.id].Count() == 0)
-                    {
-                        //this is small enough to be an SPOI and not part of a bigger relation.
-                        var calcedCode = new OpenLocationCode(w.nds.Average(n => n.lat), w.nds.Average(n => n.lon));
-                        var reverseDecode = calcedCode.Decode();
-                        var spoiFromWay = new SinglePointsOfInterest()
-                        {
-                            lat = reverseDecode.CenterLatitude,
-                            lon = reverseDecode.CenterLongitude,
-                            NodeType = w.AreaType,
-                            PlusCode = calcedCode.Code.Replace("+", ""),
-                            PlusCode8 = calcedCode.Code.Substring(0, 8),
-                            PlusCode6 = calcedCode.Code.Substring(0, 6),
-                            name = w.name,
-                            NodeID = w.id //Will have to remember this could be a node or a way in the future.
-                        };
-                        SPOI.Add(spoiFromWay);
-                        w.id = 0; //mark way to be ignored when writing files.
-                        //free up a small amount of RAM now instead of later.
-                        w.nds = null;
-                        w.nodRefs = null;
-                        w.tags = null;
-                    }
+                    //if (latSpread <= PlusCode10Resolution && lonSpread <= PlusCode10Resolution && wayLookup[w.id].Count() == 0)
+                    //{
+                    //    //this is small enough to be an SPOI and not part of a bigger relation.
+                    //    var calcedCode = new OpenLocationCode(w.nds.Average(n => n.lat), w.nds.Average(n => n.lon));
+                    //    var reverseDecode = calcedCode.Decode();
+                    //    var spoiFromWay = new SinglePointsOfInterest()
+                    //    {
+                    //        lat = reverseDecode.CenterLatitude,
+                    //        lon = reverseDecode.CenterLongitude,
+                    //        NodeType = w.AreaType,
+                    //        PlusCode = calcedCode.Code.Replace("+", ""),
+                    //        PlusCode8 = calcedCode.Code.Substring(0, 8),
+                    //        PlusCode6 = calcedCode.Code.Substring(0, 6),
+                    //        name = w.name,
+                    //        NodeID = w.id //Will have to remember this could be a node or a way in the future.
+                    //    };
+                    //    SPOI.Add(spoiFromWay);
+                    //    w.id = 0; //mark way to be ignored when writing files.
+                    //    //free up a small amount of RAM now instead of later.
+                    //    w.nds = null;
+                    //    w.nodRefs = null;
+                    //    w.tags = null;
+                    //}
                 }
 
                 Log.WriteLog("Ways populated with Nodes at " + DateTime.Now);
@@ -757,7 +764,7 @@ namespace OsmXmlParser
                 //--Remove Inner ways from Outer Ways
                 //--combine multiple polygons into a single mapdata entry? This should be doable.
                 //--Save these as a separate type, since they'll be added to MapData as a very big object. (or save to file separately? Am merging everything into MapData soon)
-                var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
+                
                 GpsExploreContext db = new GpsExploreContext();
                 foreach (var r in osmRelations)
                 {
@@ -825,8 +832,8 @@ namespace OsmXmlParser
 
                     MapData md = new MapData();
                     md.name = GetElementName(r.Tags);
-                    md.type = GetType(r.Tags);
-                    md.WayId = r.Id.Value;
+                    md.type = MapSupport.GetType(r.Tags);
+                    md.RelationId = r.Id.Value;
                     
                     if (!poly.Shell.IsCCW)
                         poly = (Polygon)poly.Reverse();
@@ -858,8 +865,8 @@ namespace OsmXmlParser
                     //TODO: parse inner and outer polygons to correctly create empty spaces inside larger shape.
                 }
 
-                WriteSPOIsToFile(destFolder + destFilename + "-SPOIs.json");
-                SPOI = null;
+                //WriteSPOIsToFile(destFolder + destFilename + "-SPOIs.json");
+                //SPOI = null;
 
                 WriteRawWaysToFile(destFolder + destFilename + "-RawWays.json", ref ways);
                 Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
@@ -1154,7 +1161,7 @@ namespace OsmXmlParser
                         p.Tags.Any(t => t.Key == "historic") ||
                         p.Tags.Any(t => t.Key == "tourism" && relevantTourismValues.Contains(t.Value))
                         )))
-                    .Select(n => new NodeReference(n.Id.Value, ((OsmSharp.Node)n).Latitude.Value, ((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), GetType(n.Tags)))
+                    .Select(n => new NodeReference(n.Id.Value, ((OsmSharp.Node)n).Latitude.Value, ((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), MapSupport.GetType(n.Tags)))
                     .ToList();
             }
             return filteredNodes;
@@ -1177,6 +1184,25 @@ namespace OsmXmlParser
             sw.Close();
             sw.Dispose();
             Log.WriteLog("All ways were serialized individually and saved to file at " + DateTime.Now);
+        }
+
+        public static void WriteMapDataToFile(string filename, ref List<MapData> mapdata)
+        {
+            System.IO.StreamWriter sw = new StreamWriter(filename);
+            sw.Write("[" + Environment.NewLine);
+            foreach (var md in mapdata)
+            {
+                if (md != null)
+                {
+                    var test = JsonSerializer.Serialize(md, typeof(MapData));
+                    sw.Write(test);
+                    sw.Write("," + Environment.NewLine);
+                }
+            }
+            sw.Write("]");
+            sw.Close();
+            sw.Dispose();
+            Log.WriteLog("All MapData entries were serialized individually and saved to file at " + DateTime.Now);
         }
 
         public static List<Way> ReadRawWaysToMemory(string filename)
@@ -1216,52 +1242,52 @@ namespace OsmXmlParser
             return lw;
         }
 
-        public static void WriteSPOIsToFile(string filename)
-        {
-            System.IO.StreamWriter sw = new StreamWriter(filename);
-            sw.Write("[" + Environment.NewLine);
-            foreach (var s in SPOI)
-            {
-                var test = JsonSerializer.Serialize(s, typeof(SinglePointsOfInterest));
-                sw.Write(test);
-                sw.Write("," + Environment.NewLine);
-            }
-            sw.Write("]");
-            sw.Close();
-            sw.Dispose();
-            Log.WriteLog("All SPOIs were serialized individually and saved to file at " + DateTime.Now);
-        }
+        //public static void WriteSPOIsToFile(string filename)
+        //{
+        //    System.IO.StreamWriter sw = new StreamWriter(filename);
+        //    sw.Write("[" + Environment.NewLine);
+        //    foreach (var s in SPOI)
+        //    {
+        //        var test = JsonSerializer.Serialize(s, typeof(SinglePointsOfInterest));
+        //        sw.Write(test);
+        //        sw.Write("," + Environment.NewLine);
+        //    }
+        //    sw.Write("]");
+        //    sw.Close();
+        //    sw.Dispose();
+        //    Log.WriteLog("All SPOIs were serialized individually and saved to file at " + DateTime.Now);
+        //}
 
         public static string GetPlusCode(double lat, double lon)
         {
             return OpenLocationCode.Encode(lat, lon).Replace("+", "");
         }
 
-        public static void AddPlusCodesToSPOIs()
-        {
-            //Should only need to run this once, since I want to add these to the return stream. Took about a minute to do.
-            var db = new GpsExploreContext();
-            var spois = db.SinglePointsOfInterests.ToList();
-            foreach (var spoi in spois)
-            {
-                spoi.PlusCode = GetPlusCode(spoi.lat, spoi.lon);
-            }
+        //public static void AddPlusCodesToSPOIs()
+        //{
+        //    //Should only need to run this once, since I want to add these to the return stream. Took about a minute to do.
+        //    var db = new GpsExploreContext();
+        //    var spois = db.SinglePointsOfInterests.ToList();
+        //    foreach (var spoi in spois)
+        //    {
+        //        spoi.PlusCode = GetPlusCode(spoi.lat, spoi.lon);
+        //    }
 
-            db.SaveChanges();
-        }
+        //    db.SaveChanges();
+        //}
 
-        public static void AddPlusCode8sToSPOIs()
-        {
-            //Should only need to run this once, since I want to add these to the return stream. Took about a minute to do.
-            var db = new GpsExploreContext();
-            var spois = db.SinglePointsOfInterests.ToList();
-            foreach (var spoi in spois)
-            {
-                spoi.PlusCode8 = GetPlusCode(spoi.lat, spoi.lon).Substring(0, 8);
-            }
+        //public static void AddPlusCode8sToSPOIs()
+        //{
+        //    //Should only need to run this once, since I want to add these to the return stream. Took about a minute to do.
+        //    var db = new GpsExploreContext();
+        //    var spois = db.SinglePointsOfInterests.ToList();
+        //    foreach (var spoi in spois)
+        //    {
+        //        spoi.PlusCode8 = GetPlusCode(spoi.lat, spoi.lon).Substring(0, 8);
+        //    }
 
-            db.SaveChanges();
-        }
+        //    db.SaveChanges();
+        //}
 
         public static void RemoveDuplicates()
         {
@@ -1283,18 +1309,18 @@ namespace OsmXmlParser
             db.SaveChanges();
             Log.WriteLog("Duped ways deleted at " + DateTime.Now);
 
-            var dupedSpoi = db.SinglePointsOfInterests.GroupBy(md => md.NodeID)
-                .Select(m => new { m.Key, Count = m.Count() })
-                .ToDictionary(d => d.Key, v => v.Count)
-                .Where(md => md.Value > 1);
-            Log.WriteLog("Duped SPOIs loaded at " + DateTime.Now);
+            //var dupedSpoi = db.SinglePointsOfInterests.GroupBy(md => md.NodeID)
+            //    .Select(m => new { m.Key, Count = m.Count() })
+            //    .ToDictionary(d => d.Key, v => v.Count)
+            //    .Where(md => md.Value > 1);
+            //Log.WriteLog("Duped SPOIs loaded at " + DateTime.Now);
 
-            foreach (var dupe in dupedSpoi)
-            {
-                var entriesToDelete = db.SinglePointsOfInterests.Where(md => md.NodeID == dupe.Key).ToList();
-                db.SinglePointsOfInterests.RemoveRange(entriesToDelete.Skip(1));
-                db.SaveChanges(); //so the app can make partial progress if it needs to restart
-            }
+            //foreach (var dupe in dupedSpoi)
+            //{
+            //    var entriesToDelete = db.SinglePointsOfInterests.Where(md => md.NodeID == dupe.Key).ToList();
+            //    db.SinglePointsOfInterests.RemoveRange(entriesToDelete.Skip(1));
+            //    db.SaveChanges(); //so the app can make partial progress if it needs to restart
+            //}
             db.SaveChanges();
             Log.WriteLog("All duplicates removed at " + DateTime.Now);
         }
@@ -1321,7 +1347,7 @@ namespace OsmXmlParser
             var polygon = factory.CreatePolygon(MapSupport.MakeBox(box));
 
             var content = mainDb.MapData.Where(md => md.place.Intersects(polygon)).ToList();
-            var spoiConent = mainDb.SinglePointsOfInterests.Where(s => polygon.Intersects(new Point(s.lon, s.lat))).ToList(); //I think this is the right function, but might be Covers?
+            //var spoiConent = mainDb.SinglePointsOfInterests.Where(s => polygon.Intersects(new Point(s.lon, s.lat))).ToList(); //I think this is the right function, but might be Covers?
 
             //now, convert everything in content to 10-char plus code data.
             //Is the same logic as Cell6Info, so I should functionalize that.

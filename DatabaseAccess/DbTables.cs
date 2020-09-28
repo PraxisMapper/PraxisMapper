@@ -42,12 +42,14 @@ namespace DatabaseAccess
         {
             public long MapDataId { get; set; }
             public string name { get; set; }
-            public long WayId { get; set; }
 
             [Column(TypeName = "geography")]
             public Geometry place { get; set; } //allows any sub-type of Geometry to be used
             public string type { get; set; }
-                
+            public long? WayId { get; set; }
+            public long? NodeId { get; set; }
+            public long? RelationId { get; set; }
+
         }       
 
         //Reference table for names of areas we care about storing.
@@ -58,18 +60,18 @@ namespace DatabaseAccess
             public string OsmTags { get; set; } //More important if I'm manually defining these.
         }
 
-        public class SinglePointsOfInterest
-        {
-            public long SinglePointsOfInterestId { get; set; }
-            public long NodeID { get; set; }
-            public string name { get; set; }
-            public double lat { get; set; }
-            public double lon { get; set; }
-            public string NodeType { get; set; } //same possible results as AreaType, same function. same possible FK value.
-            public string PlusCode { get; set; } //10 digit code, no plus sign.
-            public string PlusCode8 { get; set; } //8 digit code, no plus sign, for indexing purposes.
-            public string PlusCode6 { get; set; } //6 digit code, no plus sign, for indexing purposes.
-        }
+        //public class SinglePointsOfInterest
+        //{
+        //    public long SinglePointsOfInterestId { get; set; }
+        //    public long NodeID { get; set; }
+        //    public string name { get; set; }
+        //    public double lat { get; set; }
+        //    public double lon { get; set; }
+        //    public string NodeType { get; set; } //same possible results as AreaType, same function. same possible FK value.
+        //    public string PlusCode { get; set; } //10 digit code, no plus sign.
+        //    public string PlusCode8 { get; set; } //8 digit code, no plus sign, for indexing purposes.
+        //    public string PlusCode6 { get; set; } //6 digit code, no plus sign, for indexing purposes.
+        //}
 
         public class PremadeResults
         {

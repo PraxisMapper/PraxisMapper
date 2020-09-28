@@ -60,19 +60,19 @@ namespace GPSExploreServerAPI.Controllers
             var db = new DatabaseAccess.GpsExploreContext();
             var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
             var places = MapSupport.GetPlaces(OpenLocationCode.DecodeValid(codeString6));  //All the places in this 6-code
-            var spoi = db.SinglePointsOfInterests.Where(sp => sp.PlusCode6 == codeString6).ToList();
+            //var spoi = db.SinglePointsOfInterests.Where(sp => sp.PlusCode6 == codeString6).ToList();
 
             StringBuilder sb = new StringBuilder();
             //pluscode6 //first 6 digits of this pluscode. each line below is the last 4 that have an area type.
             //pluscode4|name|type  //less data transmitted, an extra string concat per entry phone-side.
             sb.AppendLine(codeString6);
 
-            if (places.Count == 0 && spoi.Count == 0)
-                return sb.ToString();
+            //if (places.Count == 0 && spoi.Count == 0)
+            //    return sb.ToString();
 
             //add spois first, instead of checking 400 times if the list has entries. The app will load the first entry for each 10cell, and fail to insert a duplicate later in the return value.
-            foreach (var s in spoi)
-                sb.AppendLine(s.PlusCode.Substring(6, 4) + "|" + s.name + "|" + s.NodeType); 
+            //foreach (var s in spoi)
+            //    sb.AppendLine(s.PlusCode.Substring(6, 4) + "|" + s.name + "|" + s.NodeType); 
 
             //optimization. Split the main area into many smaller thing when checking in loops. Dramatically faster than looking at every place in the 6cell every time.
             //Notes: 
