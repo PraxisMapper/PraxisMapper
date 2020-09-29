@@ -17,13 +17,11 @@ namespace GPSExploreServerAPI.Controllers
     public class GPSExploreController : ControllerBase
     {
         /* functions needed
-         * -subboards TODO:  most coffees purchased (once store functions)
          * Ties should be broken by date (so, who most recently did the thing that set the score), which means tracking more data client-side. 
          * --Tiebreaker calc: .Where(p => p.value > my.value && p.dateLastUpdated > my.dateLastUpdated? 
          * 
          * TODO:
         */
-
         //Session is not enabled by default on API projects, which is correct.
 
         [HttpGet]
@@ -49,7 +47,7 @@ namespace GPSExploreServerAPI.Controllers
 
         [HttpPost]
         [Route("/[controller]/UploadData")] //use this to tag endpoints correctly.
-        public string UploadData() //this was't pulling allData out as a string parameter from the body request from Solar2D.
+        public string UploadData() 
         {
             PerformanceTracker pt = new PerformanceTracker("UploadData");
             byte[] inputStream = new byte[(int)HttpContext.Request.ContentLength];
@@ -119,7 +117,6 @@ namespace GPSExploreServerAPI.Controllers
         public string Get10CellLeaderboards(string deviceID)
         {
             //take in the device ID, return the top 10 players for this leaderboard, and the user's current rank.
-            //Make into a template for other leaderboards.
             PerformanceTracker pt = new PerformanceTracker("Get10CellLeaderboard");
             GpsExploreContext db = new GpsExploreContext();
             
@@ -154,7 +151,6 @@ namespace GPSExploreServerAPI.Controllers
         public string GetScoreLeaderboards(string deviceID)
         {
             //take in the device ID, return the top 10 players for this leaderboard, and the user's current rank.
-            //Make into a template for other leaderboards.
             PerformanceTracker pt = new PerformanceTracker("GetScoreLeaderboard");
             GpsExploreContext db = new GpsExploreContext();
             List<int> results = db.PlayerData.OrderByDescending(p => p.score).Take(10).Select(p => p.score).ToList();
@@ -171,7 +167,6 @@ namespace GPSExploreServerAPI.Controllers
         public string GetDistanceLeaderboards(string deviceID)
         {
             //take in the device ID, return the top 10 players for this leaderboard, and the user's current rank.
-            //Make into a template for other leaderboards.
             PerformanceTracker pt = new PerformanceTracker("GetDistanceLeaderboard");
             GpsExploreContext db = new GpsExploreContext();
             List<double> results = db.PlayerData.OrderByDescending(p => p.distance).Take(10).Select(p => p.distance).ToList();
@@ -188,7 +183,6 @@ namespace GPSExploreServerAPI.Controllers
         public string GetTimeLeaderboards(string deviceID)
         {
             //take in the device ID, return the top 10 players for this leaderboard, and the user's current rank.
-            //Make into a template for other leaderboards.
             PerformanceTracker pt = new PerformanceTracker("GetTimeLeaderboard");
             GpsExploreContext db = new GpsExploreContext();
             List<int> results = db.PlayerData.OrderByDescending(p => p.timePlayed).Take(10).Select(p => p.timePlayed).ToList();
@@ -206,7 +200,6 @@ namespace GPSExploreServerAPI.Controllers
         {
             //TODO: might calculate this on the device, send it over here, save it in its own column instead of calculating on all users each call.
             //take in the device ID, return the top 10 players for this leaderboard, and the user's current rank.
-            //Make into a template for other leaderboards.
             PerformanceTracker pt = new PerformanceTracker("GetAvgSpeedLeaderboard");
             GpsExploreContext db = new GpsExploreContext();
             //This one does a calculation, will take a bit longer.
@@ -241,7 +234,6 @@ namespace GPSExploreServerAPI.Controllers
         public string GetAltitudeLeaderboards(string deviceID)
         {
             //take in the device ID, return the top 10 players for this leaderboard, and the user's current rank.
-            //Make into a template for other leaderboards.
             PerformanceTracker pt = new PerformanceTracker("GetAltitudeLeaderboard");
             GpsExploreContext db = new GpsExploreContext();
 

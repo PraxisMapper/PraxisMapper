@@ -1,0 +1,4 @@
+﻿Open Location Code - Apache 2.0
+S2 - Apache 2.0
+
+Apache 2.0 allows me to apply my own license to other parts of code, but any files I modify for those projects remain Apache 2.0 licensed.

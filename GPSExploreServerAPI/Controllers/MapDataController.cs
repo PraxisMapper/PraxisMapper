@@ -31,9 +31,6 @@ namespace GPSExploreServerAPI.Controllers
                 cache = new MemoryCache(options);
             }
         }
-
-        public static double resolution10 = .000125; //as defined by the Open Location Code spec.
-
         //Manual map edits:
         //none
         //TODO:
@@ -58,7 +55,7 @@ namespace GPSExploreServerAPI.Controllers
             var box = OpenLocationCode.DecodeValid(codeString6);
 
             var db = new DatabaseAccess.GpsExploreContext();
-            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
+            //var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
             var places = MapSupport.GetPlaces(OpenLocationCode.DecodeValid(codeString6));  //All the places in this 6-code
             StringBuilder sb = new StringBuilder();
             sb.AppendLine(codeString6);
@@ -69,10 +66,8 @@ namespace GPSExploreServerAPI.Controllers
             //Notes: 
             //StringBuilders isn't thread-safe, so each thread needs its own, and their results combined later.
 
-            //optimization code pass 2. Much smaller, more flexible. splitCount can be adjusted, but 2 seems to be the sweet spot for this.
-            //2 is a huge improvement over everything without splitting the loop. 4 is slower than 2. 40 is twice as fast as 2, probably because of skipping empty areas. 40 means we're looking at each quadrant of each 8-cell inside the 6-cell
-            //Functionalize some of this so I can reuse it.
-            int splitcount = 40; //creates 4 entries, each 200x200 10cells wide. Should be evenly divisible into 400 or cells will be missed. (Options: 2, 4, 40, others TBD)
+
+            int splitcount = 40; //creates 1600 entries(40x40), Should be evenly divisible into 400 or cells will be missed. (Options: 2, 4, 40, others TBD)
             List<MapData>[] placeArray;
             GeoArea[] areaArray;
             StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
@@ -118,6 +113,8 @@ namespace GPSExploreServerAPI.Controllers
         {
             //comment this to do performance testing. Keep uncommented for production use.
             return;
+
+            //TODO: make this its own thing elsewhere, instead of part of this controller. store historical results somewhere.
 
             //testing C# side code here, to make sure i have that sorted out.
             //For debug purposes to confirm the server is running and reachable.

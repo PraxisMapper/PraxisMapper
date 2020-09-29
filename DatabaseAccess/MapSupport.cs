@@ -10,6 +10,7 @@ using static DatabaseAccess.DbTables;
 using OsmSharp;
 using DatabaseAccess.Support;
 using OsmSharp.Tags;
+using NetTopologySuite.Operation.Buffer;
 
 namespace DatabaseAccess
 {
@@ -18,30 +19,36 @@ namespace DatabaseAccess
         //TODO: define a real purpose and location for this stuff.
         //Right now, this is mostly 'functions/consts I want to refer to in multiple projects'
 
+        //TODO:
+        //set up performance testing class, and a place to record results
+        //--compare PlusCode versus S2 cell creation and lookup speed
+        //set up a command line parameter for OsmXmlParser to extract certain types of value from files (so different users could pull different features out to use)
+        //continue renmaing and reorganizing things.
+        //make a global static GeometryFactory, since its used almost everywhere, confirm that works in threaded block
+        //make PerformanceInfo tracking a toggle.
 
+        //records are new C# 9.0 shorthand for an immutable class (only edit on creation)
+        public record NodeReference(long Id, double lat, double lon, string name, string type); //holds only the node data relevant to the application.
+        public record MapDataForJson(long MapDataId, string name, string place, string type, long? WayId, long? NodeId, long? RelationId); //used for serializing MapData, since Geography types do not serialize nicely.
 
-        public record WayReference(long Id, List<long> nodeRefs, double lat, double lon, string name, string type); //still needs to get actual node values later.
-        public record NodeReference(long Id, double lat, double lon, string name, string type); //record is a new C# 9 shorthand for a class you only edit on construction.
-
-        public record MapDataForJson(long MapDataId, string name, string place, string type, long? WayId, long? NodeId, long? RelationId); //Possible answer for serializing MapData, since Geography types do not serialize nicely.
-        
-
-        public const double resolution10 = .000125;
+        public const double resolution10 = .000125; //the size of a 10-digit PlusCode, in degrees.
 
         public static List<string> relevantTags = new List<string>() { "name", "natural", "leisure", "landuse", "amenity", "tourism", "historic", "highway" }; //The keys in tags we process to see if we want it included.
         public static List<string> relevantTourismValues = new List<string>() { "artwork", "attraction", "gallery", "museum", "viewpoint", "zoo" }; //The stuff we care about in the tourism category. Zoo and attraction are debatable.
-        public static List<string> relevantHighwayValues = new List<string>() { "path", "bridleway", "cycleway", "footway" }; //The stuff we care about in the tourism category. Zoo and attraction are debatable.
+        public static List<string> relevantHighwayValues = new List<string>() { "path", "bridleway", "cycleway", "footway" }; //The stuff we care about in the highway category. Still pulls in plain sidewalks with no additional tags fairly often.
+
+        public static GeometryFactory factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values. Still pending thread-safety testing.
         public static List<MapData> GetPlaces(GeoArea area, List<MapData> source = null)
         {
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
             //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
             var db = new DatabaseAccess.GpsExploreContext();
-            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
+            //var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
             var coordSeq = MakeBox(area);
             var location = factory.CreatePolygon(coordSeq);
             List<MapData> places;
             if (source == null)
-                places = db.MapData.Where(md => md.place.Intersects(location)).ToList(); //Doesn't seem to catch some very large ways, like Grand Canyon National Park. 2 ways for GCNP show up as SPOI entries. All
+                places = db.MapData.Where(md => md.place.Intersects(location)).ToList();
             else
                 places = source.Where(md => md.place.Intersects(location)).ToList();
             return places;
@@ -49,7 +56,7 @@ namespace DatabaseAccess
 
         public static Coordinate[] MakeBox(GeoArea plusCodeArea)
         {
-            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
+            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
             var cord1 = new Coordinate(plusCodeArea.Min.Longitude, plusCodeArea.Min.Latitude);
             var cord2 = new Coordinate(plusCodeArea.Min.Longitude, plusCodeArea.Max.Latitude);
             var cord3 = new Coordinate(plusCodeArea.Max.Longitude, plusCodeArea.Max.Latitude);
@@ -58,14 +65,6 @@ namespace DatabaseAccess
 
             return cordSeq;
         }
-
-        //TODO: move support classes from XmlParser to this DLL before this can work.
-        //public static Coordinate[] MakeCoordinateArrayFromWay(Way w)
-        //{
-        //    var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
-
-        //    return cordSeq;
-        //}
 
         public static void SplitArea(GeoArea area, int divideCount, List<MapData> places, out List<MapData>[] placeArray, out GeoArea[] areaArray)
         {
@@ -138,51 +137,60 @@ namespace DatabaseAccess
             }
             else
             {
-                //Generally, if there's a smaller shape inside a bigger shape, the smaller one should take priority.
+                //New sorting rules:
+                //If there's only one place, take it without any additional queries. Otherwise:
+                //if there's a Point in the mapdata list, take the first one (No additional sub-sorting applied yet)
+                //else if there's a Line in the mapdata list, take the first one (no additional sub-sorting applied yet)
+                //else if there's polygonal areas here, take the smallest one by area 
+                //(In general, the smaller areas should be overlaid on larger areas. This is more accurate than guessing by area types which one should be applied)
                 var olc = new OpenLocationCode(y, x).CodeDigits.Substring(6, 4); //This takes lat, long, Coordinate takes X, Y. This line is correct.
-                //TODO: test new sorting logic, now that all entires are MapData instead of SPOI some points don't appear in result set.
+                if (entriesHere.Count() == 1)
+                    return olc + "|" + entriesHere.First().name + "|" + entriesHere.First().type;
+
                 var point = entriesHere.Where(e => e.place.GeometryType == "Point").FirstOrDefault();
                 if (point != null)
                     return olc + "|" + point.name + "|" + point.type;
 
-                var line = entriesHere.Where(e => e.place.GeometryType == "LineString").FirstOrDefault();
+                var line = entriesHere.Where(e => e.place.GeometryType == "LineString" || e.place.GeometryType == "MultiLineString").FirstOrDefault();
                 if (line != null)
                     return olc + "|" + line.name + "|" + line.type;
 
-                var smallest = entriesHere.Where(e => e.place.GeometryType == "Polygon").OrderBy(e => e.place.Area).First();
+                var smallest = entriesHere.Where(e => e.place.GeometryType == "Polygon" || e.place.GeometryType == "MultiPolygon").OrderBy(e => e.place.Area).First();
                 return olc + "|" + smallest.name + "|" + smallest.type;
             }
         }
 
         public static string LoadDataOnArea(long id)
         {
+            //Debugging helper call. Loads up some information on an area and display it.
             var db = new GpsExploreContext();
-            var entries = db.MapData.Where(m => m.WayId == id).ToList(); //was First,  was MapDataId
+            var entries = db.MapData.Where(m => m.WayId == id || m.RelationId == id || m.NodeId == id).ToList();
             string results = "";
             foreach (var entry in entries)
             {
                 var shape = entry.place;
-                
+
                 results += "Name: " + entry.name + Environment.NewLine;
                 results += "Game Type: " + entry.type + Environment.NewLine;
                 results += "Geometry Type: " + shape.GeometryType + Environment.NewLine;
                 results += "IsValid? : " + shape.IsValid + Environment.NewLine;
-                results += "Area: " + shape.Area + Environment.NewLine;
+                results += "Area: " + shape.Area + Environment.NewLine; //Not documented, but I believe this is the area in square degrees. Is that a real unit?
                 results += "As Text: " + shape.AsText() + Environment.NewLine;
             }
-            
+
             return results;
         }
 
         public static MapData ConvertWayToMapData(DatabaseAccess.Support.Way w)
         {
-            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
+            //Take a single tagged Way, and make it a usable MapData entry for the app.
+            //var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
             MapData md = new MapData();
             md.name = w.name;
             md.WayId = w.id;
             md.type = w.AreaType;
 
-            //Adding support for single lines. A lot of rivers/streams/footpaths are treated this way.
+            //Adding support for LineStrings. A lot of rivers/streams/footpaths are treated this way.
             if (w.nds.First().id != w.nds.Last().id)
             {
                 LineString temp2 = factory.CreateLineString(w.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray());
@@ -197,10 +205,12 @@ namespace DatabaseAccess
                     if (!temp.Shell.IsCCW)
                     {
                         Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not counter-clockwise forward or reversed.");
+                        return null;
                     }
                     if (!temp.IsValid)
                     {
                         Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not valid according to its own internal check.");
+                        return null;
                     }
                 }
                 md.place = temp;
@@ -211,7 +221,8 @@ namespace DatabaseAccess
 
         public static MapData ConvertNodeToMapData(OsmSharp.Node n)
         {
-            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
+            //Takes a single tagged node, turns it into a usable MapData entry for our app
+            //var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
             return new MapData()
             {
                 name = GetElementName(n.Tags),
@@ -247,6 +258,7 @@ namespace DatabaseAccess
             //Should make sure all of these exist in the AreaTypes table I made.
             //REMEMBER: this list needs to match the same tags as the ones in GetWays(relations)FromPBF or else data looks weird.
             //TODO: prioritize these tags, since each space gets one value.
+            //TODO: consider adding municipality info here.
 
             if (tags.Count() == 0)
                 return ""; //Shouldn't happen, but as a sanity check if we start adding Nodes later.

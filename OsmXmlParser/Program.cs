@@ -41,11 +41,6 @@ namespace OsmXmlParser
         public static string parsedJsonPath = @"D:\Projects\OSM Server Info\Trimmed JSON Files\";
         public static string parsedPbfPath = @"D:\Projects\OSM Server Info\XmlToProcess\";
 
-        //Constants
-        public static double PlusCode10Resolution = .000125;
-        public static double PlusCode8Resolution = .0025;
-        public static double PlusCode6Resolution = .05;
-
         static void Main(string[] args)
         {
             if (args.Count() == 0)
@@ -136,7 +131,7 @@ namespace OsmXmlParser
             return;
         }
 
-        //This file should be obsoleted by serializing MapData types to file instead.
+        //This method should be obsoleted by serializing MapData types to file instead.
         public static void AddRawWaystoDBFromFiles()
         {
             //These are MapData items in the DB, unlike the other types that match names in code and DB tables.
@@ -577,7 +572,6 @@ namespace OsmXmlParser
 
                     //Check members for closed shape
                     var shapeList = new List<Way>();
-                    //var allClosedShapes = true;
                     foreach (var m in r.Members)
                     {
                         var maybeWay = ways.Where(way => way.id == m.Id).FirstOrDefault();
@@ -720,7 +714,7 @@ namespace OsmXmlParser
 
             var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
             var poly = factory.CreatePolygon(possiblePolygon.ToArray());
-            //TODO: add inner rings
+            //TODO: add inner rings. TEST THIS
             foreach (var ir in innerPolys)
             {
                 if (ir.nds.First().id == ir.nds.Last().id)
@@ -732,6 +726,7 @@ namespace OsmXmlParser
             return poly;
         }
 
+        //TODO: merge these 3 functions into 1, take type as a parameter
         private static List<OsmSharp.Relation> GetRelationsFromPbf(string filename)
         {
             List<OsmSharp.Relation> filteredRelations = new List<OsmSharp.Relation>();
@@ -912,7 +907,7 @@ namespace OsmXmlParser
             sw.Write("[" + Environment.NewLine);
             foreach (var md in mapdata)
             {
-                if (md != null)
+                if (md != null) //null can be returned from the functions that convert OSM entries to MapData
                 {
                     var recordVersion = new MapDataForJson(md.MapDataId, md.name, md.place.AsText(), md.type, md.WayId, md.NodeId, md.RelationId);
                     var test = JsonSerializer.Serialize(recordVersion, typeof(MapDataForJson));
@@ -1060,13 +1055,6 @@ namespace OsmXmlParser
 
             //now, convert everything in content to 10-char plus code data.
             //Is the same logic as Cell6Info, so I should functionalize that.
-        }
-
-        public void AnalyzeAllAreas()
-        {
-            //This reads all cells on the globe, saves the results to a table.
-            //Investigating if this is better or worse for a production setup.
-            //Estimated to take 54 hours to process global data on my dev PC.
         }
 
         /* For reference: the tags Pokemon Go appears to be using. I don't need all of these. I have a few it doesn't, as well.

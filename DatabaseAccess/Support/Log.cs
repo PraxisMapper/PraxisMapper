@@ -17,6 +17,7 @@ namespace DatabaseAccess
             Off = 1,
             Normal,
             High
+                //TODO: add ErrorsOnly, between Off and Normal?
         }
 
         public static void WriteLog(string message, VerbosityLevels outputLevel = VerbosityLevels.Normal)
