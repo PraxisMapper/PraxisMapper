@@ -31,6 +31,8 @@ namespace DatabaseAccess
         public record NodeReference(long Id, double lat, double lon, string name, string type); //holds only the node data relevant to the application.
         public record MapDataForJson(long MapDataId, string name, string place, string type, long? WayId, long? NodeId, long? RelationId); //used for serializing MapData, since Geography types do not serialize nicely.
 
+        public record CoordPair(double lat, double lon);
+
         public const double resolution10 = .000125; //the size of a 10-digit PlusCode, in degrees.
 
         public static List<string> relevantTags = new List<string>() { "name", "natural", "leisure", "landuse", "amenity", "tourism", "historic", "highway" }; //The keys in tags we process to see if we want it included.
@@ -351,6 +353,28 @@ namespace DatabaseAccess
         public static string GetPlusCode(double lat, double lon)
         {
             return OpenLocationCode.Encode(lat, lon).Replace("+", "");
+        }
+
+        public static CoordPair GetRandomPoint()
+        {
+
+            //Global scale testing.
+            Random r = new Random();
+            double lat = 90 * r.NextDouble() * (r.Next() % 2 == 0 ? 1 : -1);
+            double lon = 180 * r.NextDouble() * (r.Next() % 2 == 0 ? 1 : -1);
+            return new CoordPair(lat, lon);
+        }
+
+        public static CoordPair GetRandomBoundedPoint()
+        {
+            //randomize lat and long to roughly somewhere in Ohio. For testing a limited geographic area.
+            //42, -80 NE
+            //38, -84 SW
+            //so 38 + (0-4), -84 = (0-4) coords.
+            Random r = new Random();
+            double lat = 38 + (r.NextDouble() * 4);
+            double lon = -84 + (r.NextDouble() * 4);
+            return new CoordPair(lat, lon);
         }
     }
 }

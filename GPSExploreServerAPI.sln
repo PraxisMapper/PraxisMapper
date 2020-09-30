@@ -9,6 +9,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OsmXmlParser", "OsmXmlParse
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DatabaseAccess", "DatabaseAccess\DatabaseAccess.csproj", "{377129DA-BDC9-4814-99F5-9A711BBC435D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PerformanceTestApp", "PerformanceTestApp\PerformanceTestApp.csproj", "{377EE600-439D-4515-8A13-A399D53B752C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{377129DA-BDC9-4814-99F5-9A711BBC435D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{377129DA-BDC9-4814-99F5-9A711BBC435D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{377129DA-BDC9-4814-99F5-9A711BBC435D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{377EE600-439D-4515-8A13-A399D53B752C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{377EE600-439D-4515-8A13-A399D53B752C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{377EE600-439D-4515-8A13-A399D53B752C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{377EE600-439D-4515-8A13-A399D53B752C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

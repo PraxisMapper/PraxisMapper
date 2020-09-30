@@ -1,25 +1,21 @@
 ﻿using DatabaseAccess;
-using static DatabaseAccess.DbTables;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
-using System.Diagnostics.Eventing.Reader;
-using Microsoft.EntityFrameworkCore;
+using static DatabaseAccess.DbTables;
 
-namespace GPSExploreServerAPI.Classes
+namespace PerformanceTestApp
 {
     public class PerformanceTracker
     {
-        //TODO: add toggle for this somewhere in the server config.
-        public static bool EnableLogging = true;
-
+        //A slightly trimmed down version of the class from the server, to test DB insert speed.
         PerformanceInfo pi = new PerformanceInfo();
         System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
         public PerformanceTracker(string name)
         {
-            if (!EnableLogging) return;
             pi.functionName = name;
             pi.calledAt = DateTime.Now;
             sw.Start();
@@ -27,15 +23,19 @@ namespace GPSExploreServerAPI.Classes
 
         public void Stop()
         {
-            Stop("");
+            sw.Stop();
+            pi.runTime = sw.ElapsedMilliseconds;
+            GpsExploreContext db = new GpsExploreContext();
+            db.PerformanceInfo.Add(pi);
+            db.SaveChanges();
+            return;
         }
 
-        public void Stop(string notes)
+        public void StopSproc()
         {
-            if (!EnableLogging) return;
             sw.Stop();
             GpsExploreContext db = new GpsExploreContext();
-            db.Database.ExecuteSqlRaw("SavePerfInfo @p0, @p1, @p2 @p3", parameters: new object[] { pi.functionName, sw.ElapsedMilliseconds, pi.calledAt, notes });
+            db.Database.ExecuteSqlRaw("SavePerfInfo @p0, @p1, @p2, @p3", parameters: new object[] { pi.functionName, sw.ElapsedMilliseconds, pi.calledAt, "" });
             return;
         }
     }
