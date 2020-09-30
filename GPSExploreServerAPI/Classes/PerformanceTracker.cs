@@ -34,8 +34,12 @@ namespace GPSExploreServerAPI.Classes
         {
             if (!EnableLogging) return;
             sw.Stop();
+            pi.runTime = sw.ElapsedMilliseconds;
+            pi.notes = notes;
             GpsExploreContext db = new GpsExploreContext();
-            db.Database.ExecuteSqlRaw("SavePerfInfo @p0, @p1, @p2 @p3", parameters: new object[] { pi.functionName, sw.ElapsedMilliseconds, pi.calledAt, notes });
+            db.ChangeTracker.AutoDetectChangesEnabled = false; //Diabling this saves ~17ms per call, which can be important on the webserver. Sproc is trivially faster than that.
+            db.PerformanceInfo.Add(pi);
+            db.SaveChanges();
             return;
         }
     }

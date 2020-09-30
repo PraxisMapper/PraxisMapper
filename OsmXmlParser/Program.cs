@@ -64,7 +64,7 @@ namespace OsmXmlParser
                 GpsExploreContext db = new GpsExploreContext();
                 db.Database.ExecuteSqlRaw(GpsExploreContext.MapDataValidTrigger);
                 db.Database.ExecuteSqlRaw(GpsExploreContext.MapDataIndex);
-                db.Database.ExecuteSqlRaw(GpsExploreContext.PerformanceInfoSproc);
+                //db.Database.ExecuteSqlRaw(GpsExploreContext.PerformanceInfoSproc); //Disabled to keep more logic in app
 
             }
 

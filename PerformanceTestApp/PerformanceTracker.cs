@@ -31,6 +31,17 @@ namespace PerformanceTestApp
             return;
         }
 
+        public void StopNoChangeTracking()
+        {
+            sw.Stop();
+            pi.runTime = sw.ElapsedMilliseconds;
+            GpsExploreContext db = new GpsExploreContext();
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
+            db.PerformanceInfo.Add(pi);
+            db.SaveChanges();
+            return;
+        }
+
         public void StopSproc()
         {
             sw.Stop();

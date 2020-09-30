@@ -1,3 +1,4 @@
 ﻿PerformanceInfoEFCoreVsSproc 9/30/2020:
-PerformanceTracker EntityFrameworkCore average speed: 16ms.
-PerformanceTracker Sproc average speed: 0ms.
+PerformanceTracker EntityFrameworkCore total  /average speed: 1793 / 17ms.
+PerformanceTracker EntityFrameworkCore NoChangeTracking total /average speed: 80 / 0ms.
+PerformanceTracker Sproc total / average speed: 71 / 0ms.

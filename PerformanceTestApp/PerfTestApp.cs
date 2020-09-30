@@ -37,6 +37,16 @@ namespace PerformanceTestApp
             }
             sw.Stop();
             long EfCoreInsertTime = sw.ElapsedMilliseconds;
+
+            sw.Restart();
+            for (int i = 0; i < count; i++)
+            {
+                PerformanceTracker pt = new PerformanceTracker("test");
+                pt.StopNoChangeTracking();
+            }
+            sw.Stop();
+            long NoCTInsertTime = sw.ElapsedMilliseconds;
+            
             sw.Restart();
             for (int i = 0; i < count; i++)
             {
@@ -46,8 +56,9 @@ namespace PerformanceTestApp
             sw.Stop();
             long SprocInsertTime = sw.ElapsedMilliseconds;
 
-            Log.WriteLog("PerformanceTracker EntityFrameworkCore average speed: " + (EfCoreInsertTime / count) + "ms.");
-            Log.WriteLog("PerformanceTracker Sproc average speed: " + (SprocInsertTime / count) + "ms.");
+            Log.WriteLog("PerformanceTracker EntityFrameworkCore total  /average speed: " + EfCoreInsertTime + " / " + (EfCoreInsertTime / count) + "ms.");
+            Log.WriteLog("PerformanceTracker EntityFrameworkCore NoChangeTracking total /average speed: " + NoCTInsertTime + " / "  + (NoCTInsertTime / count) + "ms.");
+            Log.WriteLog("PerformanceTracker Sproc total / average speed: " + SprocInsertTime + " / " + (SprocInsertTime / count) + "ms.");
         }
     }
 }
