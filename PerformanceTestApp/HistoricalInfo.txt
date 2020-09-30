@@ -2,3 +2,9 @@
 PerformanceTracker EntityFrameworkCore total  /average speed: 1793 / 17ms.
 PerformanceTracker EntityFrameworkCore NoChangeTracking total /average speed: 80 / 0ms.
 PerformanceTracker Sproc total / average speed: 71 / 0ms.
+Decision: use entities with changetracking off.
+
+S2VsPlusCode 9/30/2020:
+PlusCode conversion total / average time: 10 / 0 ms
+S2 conversion total / average time: 7 / 0 ms
+Decision: Sticking to pluscodes. Can do 1000 conversion in 1m, and still drastically more useful for human-facing stuff than S2 cells.

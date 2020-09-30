@@ -32,8 +32,6 @@ using static DatabaseAccess.MapSupport;
 
 namespace OsmXmlParser
 {
-    //These record trim down OSM data to just the parts I need.
-    
     class Program
     {
         //NOTE: OSM data license allows me to use the data but requires acknowleging OSM as the data source
