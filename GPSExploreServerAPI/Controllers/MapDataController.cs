@@ -62,20 +62,16 @@ namespace GPSExploreServerAPI.Controllers
             //pluscode6 //first 6 digits of this pluscode. each line below is the last 4 that have an area type.
             //pluscode4|name|type  //less data transmitted, an extra string concat per entry phone-side.
 
-            //optimization. Split the main area into many smaller thing when checking in loops. Dramatically faster than looking at every place in the 6cell every time.
             //Notes: 
             //StringBuilders isn't thread-safe, so each thread needs its own, and their results combined later.
-
-
-            int splitcount = 40; //creates 1600 entries(40x40), Should be evenly divisible into 400 or cells will be missed. (Options: 2, 4, 40, others TBD)
+            int splitcount = 40; //creates 1600 entries(40x40)
             List<MapData>[] placeArray;
             GeoArea[] areaArray;
             StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
             MapSupport.SplitArea(box, splitcount, places, out placeArray, out areaArray);
-            int loopSize = 400 / splitcount;
             System.Threading.Tasks.Parallel.For(0,  placeArray.Length, (i) =>
             {
-                sbArray[i] = MapSupport.SearchArea(areaArray[i], ref placeArray[i]);
+                sbArray[i] = MapSupport.SearchArea(ref areaArray[i], ref placeArray[i]);
             });
 
             foreach (StringBuilder sbPartial in sbArray)

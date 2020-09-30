@@ -44,13 +44,14 @@ namespace DatabaseAccess
         {
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
             //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
-            var db = new DatabaseAccess.GpsExploreContext();
-            //var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
             var coordSeq = MakeBox(area);
             var location = factory.CreatePolygon(coordSeq);
             List<MapData> places;
             if (source == null)
+            {
+                var db = new DatabaseAccess.GpsExploreContext();
                 places = db.MapData.Where(md => md.place.Intersects(location)).ToList();
+            }
             else
                 places = source.Where(md => md.place.Intersects(location)).ToList();
             return places;
@@ -77,7 +78,6 @@ namespace DatabaseAccess
             placeArray = new List<MapData>[1];
             areaArray = new GeoArea[1];
 
-            //Logic note 1: if divideCount is 20, this is just reducing a PlusCode to the next smaller set of PlusCodes ranges.
             if (divideCount == 0 || divideCount == 1)
             {
                 placeArray[0] = places;
@@ -90,12 +90,17 @@ namespace DatabaseAccess
 
             List<List<MapData>> resultsPlace = new List<List<MapData>>();
             List<GeoArea> resultsArea = new List<GeoArea>();
+            resultsArea.Capacity = divideCount * divideCount;
+            resultsPlace.Capacity = divideCount * divideCount;
 
             for (var x = 0; x < divideCount; x++)
             {
                 for (var y = 0; y < divideCount; y++)
                 {
-                    var box = new GeoArea(area.SouthLatitude + (latDivider * y), area.WestLongitude + (lonDivider * x), area.SouthLatitude + (latDivider * y) + latDivider, area.WestLongitude + (lonDivider * x) + lonDivider);
+                    var box = new GeoArea(area.SouthLatitude + (latDivider * y), 
+                        area.WestLongitude + (lonDivider * x), 
+                        area.SouthLatitude + (latDivider * y) + latDivider, 
+                        area.WestLongitude + (lonDivider * x) + lonDivider);
                     resultsPlace.Add(GetPlaces(box, places));
                     resultsArea.Add(box);
                 }
@@ -107,7 +112,7 @@ namespace DatabaseAccess
             return;
         }
 
-        public static StringBuilder SearchArea(GeoArea area, ref List<MapData> mapData)
+        public static StringBuilder SearchArea(ref GeoArea area, ref List<MapData> mapData)
         {
             StringBuilder sb = new StringBuilder();
             if (mapData.Count() == 0)
