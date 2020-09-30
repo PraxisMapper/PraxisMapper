@@ -8,3 +8,18 @@ S2VsPlusCode 9/30/2020:
 PlusCode conversion total / average time: 10 / 0 ms
 S2 conversion total / average time: 7 / 0 ms
 Decision: Sticking to pluscodes. Can do 1000 conversion in 1m, and still drastically more useful for human-facing stuff than S2 cells.
+
+SplitAreaValues 9/30/2020:
+Pulling 223 places in 6-cell took 2065ms
+dividing map by 1 took 6044 ms
+dividing map by 2 took 1833 ms
+dividing map by 4 took 1531 ms
+dividing map by 8 took 800 ms
+dividing map by 10 took 900 ms
+dividing map by 20 took 519 ms
+dividing map by 25 took 440 ms
+dividing map by 32 took 465 ms
+dividing map by 40 took 392 ms
+dividing map by 80 took 501 ms
+dividing map by 100 took 603 ms
+Decision: 40 remains the fastest factor to split a 6cell by.

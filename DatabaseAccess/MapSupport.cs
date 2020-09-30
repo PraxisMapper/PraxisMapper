@@ -79,7 +79,11 @@ namespace DatabaseAccess
 
             //Logic note 1: if divideCount is 20, this is just reducing a PlusCode to the next smaller set of PlusCodes ranges.
             if (divideCount == 0 || divideCount == 1)
+            {
+                placeArray[0] = places;
+                areaArray[0] = area;
                 return;
+            }
 
             var latDivider = area.LatitudeHeight / divideCount;
             var lonDivider = area.LongitudeWidth / divideCount;

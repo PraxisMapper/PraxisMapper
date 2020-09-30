@@ -4,6 +4,8 @@ using Google.OpenLocationCode;
 using System;
 using System.Collections.Generic;
 using System.Reflection.Metadata.Ecma335;
+using System.Text;
+using static DatabaseAccess.DbTables;
 using static DatabaseAccess.MapSupport;
 
 namespace PerformanceTestApp
@@ -15,6 +17,7 @@ namespace PerformanceTestApp
             //This is for running and archiving performance tests on different code approaches.
             //PerformanceInfoEFCoreVsSproc();
             //S2VsPlusCode();
+            SplitAreaValues();
         }
 
         public static List<CoordPair> GetRandomCoords(int count)
@@ -92,6 +95,39 @@ namespace PerformanceTestApp
             Log.WriteLog("PlusCode conversion total / average time: " + PlusCodeConversion +  " / " + (PlusCodeConversion / count) + " ms");
             Log.WriteLog("S2 conversion total / average time: " + S2Conversion + " / " + (S2Conversion / count) + " ms");
 
+        }
+
+        public static void SplitAreaValues()
+        {
+            //Load an area, see what value of splits is the fastest.
+            //I currently think its 40.
+            System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+            sw.Start();
+            //Pick a specific area for testing, since we want to compare the math.
+            string plusCode6 = "8FW4V7"; //Eiffel Tower and surrounding area. Use for global data.
+            var db = new DatabaseAccess.GpsExploreContext();
+            //var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
+            var places = MapSupport.GetPlaces(OpenLocationCode.DecodeValid(plusCode6));  //All the places in this 6-code
+            var box = OpenLocationCode.DecodeValid(plusCode6);
+            sw.Stop();
+            Log.WriteLog("Pulling " + places.Count + " places in 6-cell took " + sw.ElapsedMilliseconds + "ms");
+
+            int[] splitChecks = new int[] { 1, 2, 4, 8, 10, 20, 25, 32, 40, 80, 100 };
+            foreach (int splitcount in splitChecks)
+            {
+                sw.Restart();
+                List<MapData>[] placeArray;
+                GeoArea[] areaArray;
+                StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
+                MapSupport.SplitArea(box, splitcount, places, out placeArray, out areaArray);
+                int loopSize = 400 / splitcount;
+                System.Threading.Tasks.Parallel.For(0, placeArray.Length, (i) =>
+                {
+                    sbArray[i] = MapSupport.SearchArea(areaArray[i], ref placeArray[i]);
+                });
+                sw.Stop();
+                Log.WriteLog("dividing map by " + splitcount + " took " + sw.ElapsedMilliseconds + " ms");
+            }
         }
     }
 }
