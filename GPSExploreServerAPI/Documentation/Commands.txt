@@ -6,7 +6,6 @@ Add protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder
 Add protected override void OnModelCreating(ModelBuilder model) for manually declaring indexes or string length or other properties.
 Once this is done, treat initial creation as a migration, seen below.
 
-
 To create the migration code to move from previous to current database model
 Add-Migration DescriptiveNameHere
 
@@ -15,3 +14,8 @@ Update-Database
 
 For database-first setups, start with this instead:
 Scaffold-DbContext "ConnectionString" Microsoft.EntityFrameworkCore.SqlServer -OutputDir Model
+
+To create the DB from an application, call
+context.Database.EnsureCreated()
+This creates the database if it doesn't already exist and skips the Migration logic.
+

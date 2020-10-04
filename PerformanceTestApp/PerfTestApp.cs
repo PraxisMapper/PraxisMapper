@@ -2,11 +2,16 @@
 using GeoAPI.Geometries;
 using Google.Common.Geometry;
 using Google.OpenLocationCode;
+using Microsoft.VisualBasic.CompilerServices;
 using NetTopologySuite;
+using NetTopologySuite.Geometries;
+using NetTopologySuite.GeometriesGraph.Index;
+using OsmSharp.IO.Zip.Checksum;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection.Metadata.Ecma335;
+using System.Runtime.Versioning;
 using System.Text;
 using static DatabaseAccess.DbTables;
 using static DatabaseAccess.MapSupport;
@@ -15,6 +20,15 @@ namespace PerformanceTestApp
 {
     class PerfTestApp
     {
+        //fixed values here for testing stuff later. Adjust to your own preferences or to fit your data set.
+        static string cell8 = "8FW4V722";
+        static string cell6 = "8FW4V7"; //Eiffel Tower and surrounding area. Use for global data
+        static string cell4 = "8FW4";
+        static string cell2 = "8F";
+
+        //a test structure, is slower than not using it.
+        public record MapDataAbbreviated(string name, string type, Geometry place);
+
         static void Main(string[] args)
         {
             //This is for running and archiving performance tests on different code approaches.
@@ -22,6 +36,12 @@ namespace PerformanceTestApp
             //S2VsPlusCode();
             //SplitAreaValues();
             //TestPlaceLookupPlans();
+            TestSpeedChangeByArea();
+            //TestGetPlacesPerf();
+            //TestMapDataAbbrev();
+
+
+            //TODO: consider pulling 4-cell worth of places into memory, querying against that instead of a DB lookup every time?
         }
 
         public static List<CoordPair> GetRandomCoords(int count)
@@ -120,7 +140,7 @@ namespace PerformanceTestApp
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
             sw.Start();
             //Pick a specific area for testing, since we want to compare the math.
-            string plusCode6 = "8FW4V7"; //Eiffel Tower and surrounding area. Use for global data.
+            string plusCode6 = cell6;
             var db = new DatabaseAccess.GpsExploreContext();
             var places = MapSupport.GetPlaces(OpenLocationCode.DecodeValid(plusCode6));  //All the places in this 6-code
             var box = OpenLocationCode.DecodeValid(plusCode6);
@@ -273,6 +293,194 @@ namespace PerformanceTestApp
 
 
             return;
+        }
+
+        public static void TestSpeedChangeByArea()
+        {
+            //See how fast it is to look up a bigger area vs smaller ones.
+            System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+            long avg8 = 0, avg6 = 0, avg4 = 0, avg2 = 0;
+
+            int loopCount = 5;
+            for (int i = 0; i < loopCount; i++)
+            {
+                if (i == 0)
+                    Log.WriteLog("First loop has some warmup time.");
+
+                sw.Restart();
+                GeoArea area8 = OpenLocationCode.DecodeValid(cell8);
+                var eightCodePlaces = GetPlacesNoTrack(area8);
+                sw.Stop();
+                var eightCodeTime = sw.ElapsedMilliseconds;
+                avg8 += eightCodeTime;
+
+                sw.Restart();
+                GeoArea area6 = OpenLocationCode.DecodeValid(cell6);
+                var sixCodePlaces = MapSupport.GetPlaces(area6);
+                sw.Stop();
+                var sixCodeTime = sw.ElapsedMilliseconds;
+                avg6 += sixCodeTime;
+
+                sw.Restart();
+                GeoArea area4 = OpenLocationCode.DecodeValid(cell4);
+                var fourCodePlaces = MapSupport.GetPlaces(area4);
+                sw.Stop();
+                var fourCodeTime = sw.ElapsedMilliseconds;
+                avg4 += fourCodeTime;
+
+                //2 codes on global data is silly.
+                //sw.Restart();
+                //GeoArea area2 = OpenLocationCode.DecodeValid(cell2);
+                //var twoCodePlaces = MapSupport.GetPlaces(area2);
+                //sw.Stop();
+                //var twoCodeTime = sw.ElapsedMilliseconds;
+                //avg2 += twoCodeTime;
+
+                Log.WriteLog("8-code search time is " + eightCodeTime + "ms");
+                Log.WriteLog("6-code search time is " + sixCodeTime + "ms");
+                Log.WriteLog("4-code search time is " + fourCodeTime + "ms");
+                //Log.WriteLog("2-code search time is " + twoCodeTime + "ms");
+            }
+            //If this was linear, each one should take 400x as long as the previous one. (20x20 grid = 400 calls to the smaller level)
+            Log.WriteLog("Average 8-code search time is " + (avg8 / loopCount) + "ms");
+            Log.WriteLog("6-code search time would be " +   (avg8 * 400 / loopCount) + " linearly, is actually " + avg6 + " (" + ((avg8 * 400 / loopCount) / avg6) + "x faster)");
+            Log.WriteLog("Average 6-code search time is " + (avg6 / loopCount) + "ms");
+            Log.WriteLog("4-code search time would be " + (avg6 * 400 / loopCount) + " linearly, is actually " + avg4 + " (" + ((avg6 * 400 / loopCount) / avg4) + "x faster)");
+            Log.WriteLog("Average 4-code search time is " + (avg4 / loopCount) + "ms");
+            //Log.WriteLog("2-code search time would be " + (avg4 * 400 / loopCount) + " linearly, is actually " + avg2 + " (" + ((avg4 * 400 / loopCount) / avg2) + "x faster)");
+            //Log.WriteLog("Average 2-code search time is " + (avg2 / loopCount) + "ms");
+
+
+        }
+
+        public static void TestGetPlacesPerf()
+        {
+            for (int i = 0; i < 5; i++)
+            {
+                System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                sw.Restart();
+                GeoArea area6 = OpenLocationCode.DecodeValid(cell6);
+                var sixCodePlaces = GetPlacesBase(area6);
+                sw.Stop();
+                var sixCodeTime = sw.ElapsedMilliseconds;
+                sw.Restart();
+                var sixCodePlacesNT = GetPlacesNoTrack(area6);
+                sw.Stop();
+                var sixCodeNTTime = sw.ElapsedMilliseconds;
+                sw.Restart();
+                var sixCodePlacesPrecomp = GetPlacesPrecompiled(area6);
+                sw.Stop();
+                var sixCodePrecompTime = sw.ElapsedMilliseconds;
+                Log.WriteLog("6code- Tracking: " + sixCodeTime + "ms VS NoTracking: " + sixCodeNTTime + "ms VS Precompiled: " + sixCodePrecompTime + "ms");
+
+
+                sw.Restart();
+                GeoArea area4 = OpenLocationCode.DecodeValid(cell4);
+                var fourCodePlaces = GetPlacesBase(area4);
+                sw.Stop();
+                var fourCodeTime = sw.ElapsedMilliseconds;
+                sw.Restart();
+                var fourCodePlacesNT = GetPlacesNoTrack(area4);
+                sw.Stop();
+                var fourCodeNTTime = sw.ElapsedMilliseconds;
+                sw.Restart();
+                var fourCodePlacesPrecomp = GetPlacesPrecompiled(area4);
+                sw.Stop();
+                var fourCodePrecompTime = sw.ElapsedMilliseconds;
+                Log.WriteLog("4code- Tracking: " + fourCodeTime + "ms VS NoTracking: " + fourCodeNTTime + "ms VS Precompiled: " + fourCodePrecompTime + "ms");
+            }
+        }
+
+        public static List<MapData> GetPlacesBase(GeoArea area, List<MapData> source = null)
+        {
+            var coordSeq = MakeBox(area);
+            var location = factory.CreatePolygon(coordSeq);
+            List<MapData> places;
+            if (source == null)
+            {
+                var db = new DatabaseAccess.GpsExploreContext();
+                places = db.MapData.Where(md => md.place.Intersects(location)).ToList();
+            }
+            else
+                places = source.Where(md => md.place.Intersects(location)).ToList();
+            return places;
+        }
+
+        public static List<MapData> GetPlacesPrecompiled(GeoArea area, List<MapData> source = null)
+        {
+            var coordSeq = MakeBox(area);
+            var location = factory.CreatePolygon(coordSeq);
+            List<MapData> places;
+            if (source == null)
+            {
+                var db = new DatabaseAccess.GpsExploreContext();
+                places = db.getPlaces((location)).ToList();
+            }
+            else
+                places = source.Where(md => md.place.Intersects(location)).ToList();
+            return places;
+        }
+
+        public static List<MapData> GetPlacesNoTrack(GeoArea area, List<MapData> source = null)
+        {
+            //TODO: this seems to have a lot of warmup time that I would like to get rid of. Would be a huge performance improvement.
+            //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
+            //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
+            var coordSeq = MakeBox(area);
+            var location = factory.CreatePolygon(coordSeq);
+            List<MapData> places;
+            if (source == null)
+            {
+                var db = new DatabaseAccess.GpsExploreContext();
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
+                places = db.MapData.Where(md => md.place.Intersects(location)).ToList();
+            }
+            else
+                places = source.Where(md => md.place.Intersects(location)).ToList();
+            return places;
+        }
+
+        public static void TestMapDataAbbrev()
+        {
+            System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+            var db = new DatabaseAccess.GpsExploreContext();
+
+            for (int i = 0; i < 5; i++)
+            {
+                sw.Restart();
+                var places2 = db.MapData.Take(10000).ToList();
+                sw.Stop();
+                var placesTime = sw.ElapsedMilliseconds;
+                sw.Restart();
+                var places3 = db.MapData.Take(10000).Select(m => new MapDataAbbreviated(m.name, m.type, m.place)).ToList();
+                sw.Stop();
+                var abbrevTime = sw.ElapsedMilliseconds;
+
+                Log.WriteLog("Full data time took " + placesTime + "ms");
+                Log.WriteLog("short data time took " + abbrevTime + "ms");
+            }
+        }
+
+        public static void TestPrecompiledQuery()
+        {
+            System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+            var db = new DatabaseAccess.GpsExploreContext();
+            
+
+            for (int i = 0; i < 5; i++)
+            {
+                sw.Restart();
+                var places1 = GetPlacesBase(OpenLocationCode.DecodeValid(cell6));
+                sw.Stop();
+                var placesTime = sw.ElapsedMilliseconds;
+                sw.Restart();
+                var places2 = GetPlacesPrecompiled(OpenLocationCode.DecodeValid(cell6));
+                sw.Stop();
+                var abbrevTime = sw.ElapsedMilliseconds;
+
+                Log.WriteLog("Full data time took " + placesTime + "ms");
+                Log.WriteLog("short data time took " + abbrevTime + "ms");
+            }
         }
     }
 }

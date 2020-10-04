@@ -22,13 +22,13 @@ using System.Xml;
 using static DatabaseAccess.DbTables;
 using static DatabaseAccess.MapSupport;
 
-//TODO: some node names are displaying in the debug console as "?????? ????". See Siberia. This should all be unicode and that should work fine. Maybe check display font?
-//TODO: since some of these .pbf files become larger as trimmer JSON instead of smaller, maybe I should try a path that writes directly to DB from PBF?
-//TODO: optimize data - If there are multiple nodes within a 10-cell's distance of each other, consolidate those into one node (but not if they're part of a relation)?
+//TODO: since some of these .pbf files become larger as trimmer JSON instead of smaller, maybe I should try a path that writes directly to DB from PBF? might involve 
 //TODO: ponder how to remove inner polygons from a larger outer polygon. This is probably a NTS function of some kind, but only applies to relations. Ways alone won't do this. This would involve editing the data loaded, not just converting it.
 //TODO: functionalize stuff to smaller pieces.
 //TODO: Add high-verbosity logging messages.
 //TODO: set option flag to enable writing MapData entries to DB or File. Especially since bulk inserts won't fly for MapData from files, apparently.
+//TODO: null relation entries after parsing
+//TODO: null ways after parsing (might require passing byref to processing function)
 
 namespace OsmXmlParser
 {
@@ -57,14 +57,15 @@ namespace OsmXmlParser
 
             //If multiple args are supplied, run them in the order that make sense, not the order the args are supplied.
 
-            if (args.Any(a => a == "-makeDbInfrastructure")) //create all the Db-side things this app needs that EFCore can't do automatically.
+            if (args.Any(a => a == "-createDB")) //setup the destination database
             {
                 GpsExploreContext db = new GpsExploreContext();
+                db.Database.EnsureCreated(); //all the automatic stuff EF does for us.
+                //Not automatic entries executed below:
                 db.Database.ExecuteSqlRaw(GpsExploreContext.MapDataValidTrigger);
                 db.Database.ExecuteSqlRaw(GpsExploreContext.MapDataIndex);
-                //db.Database.ExecuteSqlRaw(GpsExploreContext.PerformanceInfoSproc); //Disabled to keep more logic in app
-
             }
+            
 
             if (args.Any(a => a == "-cleanDB"))
             {
@@ -100,10 +101,10 @@ namespace OsmXmlParser
                 MakeAllSerializedFilesFromPBF();
             }
 
-            if (args.Any(a => a == "-readRawWays"))
-            {
-                AddRawWaystoDBFromFiles();
-            }
+            //if (args.Any(a => a == "-readRawWays"))
+            //{
+            //    AddRawWaystoDBFromFiles();
+            //}
 
             if (args.Any(a => a == "-readMapData"))
             {
@@ -115,11 +116,11 @@ namespace OsmXmlParser
                 RemoveDuplicates();
             }
 
-            if (args.Any(a => a == "-loadRawOsmData"))
-            {
-                //TODO: finish this logic. This does create a much bigger database than using NTS Geography types.
-                GetMinimumDataFromPbf();
-            }
+            //if (args.Any(a => a == "-loadRawOsmData"))
+            //{
+            //    //TODO: finish this logic. This does create a much bigger database than using NTS Geography types.
+            //    GetMinimumDataFromPbf();
+            //}
 
             if (args.Any(a => a == "-createStandalone"))
             {
@@ -228,25 +229,19 @@ namespace OsmXmlParser
         public static void AddMapDataToDBFromFiles()
         {
             //This function is pretty slow. I should figure out how to speed it up. Approx. 6,000 ways per second right now.
-            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
             foreach (var file in System.IO.Directory.EnumerateFiles(parsedJsonPath, "*-MapData.json"))
             {
+                Console.Title = file;
                 Log.WriteLog("Starting MapData read from  " + file + " at " + DateTime.Now);
                 GpsExploreContext db = new GpsExploreContext();
                 db.ChangeTracker.AutoDetectChangesEnabled = false; //Allows single inserts to operate at a reasonable speed (~6000 per second). Nothing else edits this table.
                 List<MapData> entries = ReadMapDataToMemory(file);
-
-                Log.WriteLog("Processing " + entries.Count() + " ways from " + file);
-                System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
-                timer.Start();
-                //db.BulkInsert<MapData>(entries); //throws errors around typing.
-
+                Log.WriteLog("Processing " + entries.Count() + " ways from " + file, Log.VerbosityLevels.High);
                 db.MapData.AddRange(entries);
+                Log.WriteLog("Entries added to entities at " + DateTime.Now, Log.VerbosityLevels.High);
                 db.SaveChanges();
                 
                 Log.WriteLog("Added " + file + " to dB at " + DateTime.Now);
-                //Log.WriteLog(errorCount + " ways excluded due to errors (" + ((errorCount / entries.Count()) * 100) + "%)"); //Errored entries were already excluded from the file before it was written.
-
                 File.Move(file, file + "Done");
             }
         }
@@ -262,6 +257,9 @@ namespace OsmXmlParser
 
             osm.Database.ExecuteSqlRaw("TRUNCATE TABLE MapData");
             Log.WriteLog("MapData cleaned at " + DateTime.Now);
+
+            osm.Database.ExecuteSqlRaw("TRUNCATE TABLE PerformanceInfo");
+            Log.WriteLog("PerformanceINf cleaned at " + DateTime.Now);
 
             Log.WriteLog("DB cleaned at " + DateTime.Now);
         }
@@ -462,19 +460,21 @@ namespace OsmXmlParser
 
                 Log.WriteLog("Starting " + filename + " relation read at " + DateTime.Now);
                 var osmRelations = GetRelationsFromPbf(filename);
-                var wayList = osmRelations.SelectMany(r => r.Members).ToList(); //ways that need tagged as the relation's type if they dont' have their own.
+                //var wayList = osmRelations.SelectMany(r => r.Members).ToList(); //ways that need tagged as the relation's type if they dont' have their own.
 
-                Log.WriteLog("Checking " + osmRelations.Count() + " relations with " + wayList.Count() + " ways at " + DateTime.Now);
+                Log.WriteLog("Checking " + osmRelations.Count() + " relations at " + DateTime.Now);
 
+                //TODO: this assumed all members are ways. They may be nodes or relations.
                 List<RelationMember> waysFromRelations = new List<RelationMember>();
                 foreach (var stuff in osmRelations)
                 {
                     string relationType = MapSupport.GetType(stuff.Tags);
                     string name = GetElementName(stuff.Tags);
                     foreach (var member in stuff.Members)
-                        waysFromRelations.Add(new RelationMember() { Id = member.Id, type = relationType, name = name });
+                        waysFromRelations.Add(new RelationMember(member.Id, name, relationType));
                 }
                 var wayLookup = waysFromRelations.ToLookup(k => k.Id, v => v);
+                waysFromRelations = null;
 
                 Log.WriteLog("Starting " + filename + " way read at " + DateTime.Now);
                 var osmWays = GetWaysFromPbf(filename, wayLookup);
@@ -486,6 +486,7 @@ namespace OsmXmlParser
                 Log.WriteLog("Creating node lookup for " + osmNodes.Count() + " nodes"); //33 million nodes across 2 million ways will tank this app at 16GB RAM
                 var osmNodeLookup = osmNodes.ToLookup(k => k.Id, v => v); //Seeing if NodeReference saves some RAM
                 Log.WriteLog("Found " + osmNodeLookup.Count() + " unique nodes");
+                nodeLookup = null;
 
                 //Write nodes as mapdata if they're tagged separately from other things.
                 Log.WriteLog("Finding tagged nodes at " + DateTime.Now);
@@ -522,9 +523,7 @@ namespace OsmXmlParser
                     }
                     w.nodRefs = null; //free up a little memory we won't use again.
 
-                    //We should now be removing any ways that are processed by a Relation, so this is unnecessary
-                    //Except that we do the relation processing after this?
-                    //Check if this way is from a relation, and if so attach the relation's data.
+                    //This is a backup check for a Way, if it's part of a relation we couldn't process entirely, this attempt to assign its name/type to a member
                     if (string.IsNullOrWhiteSpace(w.name))
                     {
                         var relation = wayLookup[w.id].FirstOrDefault();
@@ -540,8 +539,10 @@ namespace OsmXmlParser
                                 w.AreaType = relation.type;
                     }
                 }
+                wayLookup = null;
 
                 Log.WriteLog("Ways populated with Nodes at " + DateTime.Now);
+                osmNodes.RemoveRange(0, osmNodes.Count); //Not sure if this helps or not on ram usage. Should perf-test that.
                 osmNodes = null; //done with these now, can free up RAM again.
 
                 //TODO: Use Relations to do some work on Ways. This needs done after loading way and node data, since i'll be processing it with those coordinates.
@@ -623,15 +624,18 @@ namespace OsmXmlParser
                     //} //end turn-lines-into-polygon block
                     //TODO: parse inner and outer polygons to correctly create empty spaces inside larger shape.
                 }
+                osmRelations = null;
 
-                processedEntries.AddRange(ways.Select(w =>ConvertWayToMapData(w)));
+                processedEntries.AddRange(ways.Select(w =>ConvertWayToMapData(ref w)));
+                ways = null;
 
                 WriteMapDataToFile(destFolder + destFilename + "-MapData.json", ref processedEntries);
                 Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
                 File.Move(filename, filename + "Done"); //We made it all the way to the end, this file is done.
-                ways = null;
-                Log.WriteLog("Manually calling GC at " + DateTime.Now);
-                GC.Collect(); //Ask to clean up memory. Takes about a second on small files, a while if we've been paging to disk.
+                processedEntries = null;
+                //Log.WriteLog("Manually calling GC at " + DateTime.Now);
+                //GC.Collect(); //Ask to clean up memory. Takes about a second on small files, a while if we've been paging to disk.
+                //this might be causing long-term problems, since things that aren't removed get promoted and will take longer to get removed.
             }
         }
 
@@ -645,7 +649,7 @@ namespace OsmXmlParser
 
             if (shapeList.Count == 0)
             {
-                Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " has 0 ways in shapelist?");
+                Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " has 0 ways in shapelist?", Log.VerbosityLevels.High);
                 return null;
             }
 
@@ -661,7 +665,12 @@ namespace OsmXmlParser
             if (innerEntries.Count > 0)
                 innerPolys = shapeList.Where(s => innerEntries.Contains(s.id)).ToList();
 
-            var firstShape = shapeList.First();
+            var firstShape = shapeList.FirstOrDefault();
+            if (firstShape == null)
+            {
+                Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " has 0 ways in shapelist after sorting to inner/outer but not before?", Log.VerbosityLevels.High);
+                return null;
+            }
             shapeList.Remove(firstShape);
             var nextStartnode = firstShape.nds.Last();
             var closedShape = false;
@@ -672,7 +681,7 @@ namespace OsmXmlParser
                 var allPossibleLines = shapeList.Where(s => s.nds.First().id == nextStartnode.id).ToList();
                 if (allPossibleLines.Count > 1)
                 {
-                    Log.WriteLog("Relation "  +r.Id + " " + GetElementName(r.Tags) + " has multiple possible lines to follow, might not process correctly.");
+                    Log.WriteLog("Relation "  +r.Id + " " + GetElementName(r.Tags) + " has multiple possible lines to follow, might not process correctly.", Log.VerbosityLevels.High);
                 }
                 var lineToAdd = shapeList.Where(s => s.nds.First().id == nextStartnode.id && s.nds.First().id != s.nds.Last().id).FirstOrDefault();
                 if (lineToAdd == null)
@@ -686,7 +695,7 @@ namespace OsmXmlParser
                     lineToAdd = shapeList.Where(s => s.nds.Last().id == nextStartnode.id && s.nds.First().id != s.nds.Last().id).FirstOrDefault(); 
                     if (lineToAdd == null)
                     {
-                        Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " doesn't seem to have properly connecting lines, can't process");
+                        Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " doesn't seem to have properly connecting lines, can't process", Log.VerbosityLevels.High);
                         closedShape = true;
                         isError = true;
                     }
@@ -708,7 +717,7 @@ namespace OsmXmlParser
 
             if (possiblePolygon.Count <= 3)
             {
-                Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " didn't find enough points to turn into a polygon. Probably an error.");
+                Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " didn't find enough points to turn into a polygon. Probably an error.", Log.VerbosityLevels.High);
                 return null;
             }
 
@@ -754,11 +763,12 @@ namespace OsmXmlParser
                         p.Tags.Any(t => t.Key == "historic") ||
                         p.Tags.Any(t => t.Key == "waterway") || //newest tag, lets me see a lot more rivers and such.
                         p.Tags.Any(t => t.Key == "tourism" && relevantTourismValues.Contains(t.Value)) ||
-                        p.Tags.Any(t => t.Key == "highway" && relevantHighwayValues.Contains(t.Value))
+                        p.Tags.Any(t => t.Key == "highway" && relevantHighwayValues.Contains(t.Value)) ||
+                        p.Tags.Any(t => t.Key == "boundary" && t.Value == "administrative")
                         ))
                     .Select(r => (OsmSharp.Relation)r)
                     .ToList();
-
+                progress.Dispose();
                 source.Dispose();
             }
             return filteredRelations;
@@ -771,7 +781,6 @@ namespace OsmXmlParser
             using (var fs = File.OpenRead(filename))
             {
                 var source = new PBFOsmStreamSource(fs);
-
                 var progress = source.ShowProgress();
 
                 //filter out data here
@@ -793,10 +802,12 @@ namespace OsmXmlParser
                         p.Tags.Any(t => t.Key == "historic") ||
                         p.Tags.Any(t => t.Key == "waterway") ||
                         p.Tags.Any(t => t.Key == "tourism" && relevantTourismValues.Contains(t.Value)) ||
-                        p.Tags.Any(t => t.Key == "highway" && relevantHighwayValues.Contains(t.Value) && (!p.Tags.Any(t => t.Key == "footway" && (t.Value == "sidewalk" || t.Value == "crossing"))))
+                        p.Tags.Any(t => t.Key == "highway" && relevantHighwayValues.Contains(t.Value) && (!p.Tags.Any(t => t.Key == "footway" && (t.Value == "sidewalk" || t.Value == "crossing")))) ||
+                        p.Tags.Any(t => t.Key == "boundary" && t.Value == "administrative")
                         )))
                     .Select(w => (OsmSharp.Way)w)
                     .ToList();
+                progress.Dispose();
                 source.Dispose();
             }
             return filteredWays;
@@ -851,7 +862,6 @@ namespace OsmXmlParser
             using (var fs = File.OpenRead(filename))
             {
                 var source = new PBFOsmStreamSource(fs);
-
                 var progress = source.ShowProgress();
 
                 //filter out data here
@@ -873,10 +883,13 @@ namespace OsmXmlParser
                         p.Tags.Contains("shop", "mall") ||
                         p.Tags.Contains("landuse", "retail") ||
                         p.Tags.Any(t => t.Key == "historic") ||
-                        p.Tags.Any(t => t.Key == "tourism" && relevantTourismValues.Contains(t.Value))
+                        p.Tags.Any(t => t.Key == "tourism" && relevantTourismValues.Contains(t.Value)) ||
+                        p.Tags.Any(t => t.Key == "boundary" && t.Value == "administrative")
                         )))
                     .Select(n => new NodeReference(n.Id.Value, ((OsmSharp.Node)n).Latitude.Value, ((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), MapSupport.GetType(n.Tags)))
                     .ToList();
+                progress.Dispose();
+                source.Dispose();
             }
             return filteredNodes;
         }
@@ -964,6 +977,7 @@ namespace OsmXmlParser
             //Got out of memory errors trying to read files over 1GB through File.ReadAllText, so do those here this way.
             StreamReader sr = new StreamReader(filename);
             List<MapData> lm = new List<MapData>();
+            lm.Capacity = 100000;
             JsonSerializerOptions jso = new JsonSerializerOptions();
             jso.AllowTrailingCommas = true;
 

@@ -6,10 +6,5 @@ using System.Threading.Tasks;
 
 namespace DatabaseAccess.Support
 {
-    public class RelationMember
-    {
-        public long Id { get; set; }
-        public string name { get; set; }
-        public string type { get; set; }
-    }
+    public record RelationMember( long Id, string name, string type);
 }

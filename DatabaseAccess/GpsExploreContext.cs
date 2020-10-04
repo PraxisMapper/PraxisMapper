@@ -3,6 +3,12 @@ using System;
 using static DatabaseAccess.DbTables;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using Microsoft.EntityFrameworkCore.Update;
+using Microsoft.Extensions.Caching.Memory;
+using NetTopologySuite.Geometries;
+using System.Linq;
+using Microsoft.VisualBasic.CompilerServices;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace DatabaseAccess
 {
@@ -13,16 +19,17 @@ namespace DatabaseAccess
         public DbSet<AreaType> AreaTypes { get; set; }
         public DbSet<MapData> MapData { get; set; }
         //Test table to see if its practical to save prerendered results. there's 25 million 6codes, so no.
-        public DbSet<PremadeResults> PremadeResults { get; set; }
+        //public DbSet<PremadeResults> PremadeResults { get; set; }
 
         //public DbSet<SinglePointsOfInterest> SinglePointsOfInterests { get; set; }
 
         //Test table for loading osm data directly in to the DB with less processing.
-        public DbSet<MinimumNode> MinimumNodes { get; set; }
-        public DbSet<MinimumWay> MinimumWays { get; set; }
-        public DbSet<MinimumRelation> minimumRelations { get; set; }
+        //Takes up a lot more storage space this way, not as useful for app purposes. Removing for now.
+        //public DbSet<MinimumNode> MinimumNodes { get; set; }
+        //public DbSet<MinimumWay> MinimumWays { get; set; }
+        //public DbSet<MinimumRelation> minimumRelations { get; set; }
 
-
+        public static MemoryCache mc = new MemoryCache(new MemoryCacheOptions()); 
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -37,8 +44,12 @@ namespace DatabaseAccess
             //optionsBuilder.UseMySql("Server=localhost;Database=gpsExplore;User=root;Password=1234;");
 
             //SQLite config should be used for the case where I make a self-contained app for an area.
-            //like for a university or a park or something.
+            //like for a university or a park or something.           
+
+            optionsBuilder.UseMemoryCache(mc);//I think this improves performance at the cost of RAM usage. Needs additional testing.
+
             
+
         }
 
         protected override void OnModelCreating(ModelBuilder model)
@@ -59,5 +70,15 @@ namespace DatabaseAccess
 
         //This sproc is marginally faster than an insert with changetracking off (~.7 ms on average). Excluding to keep code consistent and EFCore-only where possible.
         //public static string PerformanceInfoSproc = "CREATE PROCEDURE SavePerfInfo @functionName nvarchar(500), @runtime bigint, @calledAt datetime2, @notes nvarchar(max) AS BEGIN INSERT INTO dbo.PerformanceInfo(functionName, runTime, calledAt, notes) VALUES(@functionName, @runtime, @calledAt, @notes) END";
+
+        //This doesn't appear to be any faster. Simple query.
+        public static Func<GpsExploreContext, Geometry, IEnumerable<MapData>> compiledIntersectQuery = 
+            EF.CompileQuery((GpsExploreContext context, Geometry place) =>  context.MapData.Where(md => md.place.Intersects(place)));
+
+        public IEnumerable<MapData> getPlaces(Geometry place)
+        {
+            return compiledIntersectQuery(this, place);
+
+        }
     }
 }

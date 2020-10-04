@@ -34,14 +34,17 @@ namespace DatabaseAccess
         public record CoordPair(double lat, double lon);
 
         public const double resolution10 = .000125; //the size of a 10-digit PlusCode, in degrees.
+        public const double resolution8 = .0025; //the size of a 8-digit PlusCode, in degrees.
+        public const double resolution6 = .05; //the size of a 6-digit PlusCode, in degrees.
 
-        public static List<string> relevantTags = new List<string>() { "name", "natural", "leisure", "landuse", "amenity", "tourism", "historic", "highway" }; //The keys in tags we process to see if we want it included.
+        //public static List<string> relevantTags = new List<string>() { "name", "natural", "leisure", "landuse", "amenity", "tourism", "historic", "highway", "boundary" }; //The keys in tags we process to see if we want it included.
         public static List<string> relevantTourismValues = new List<string>() { "artwork", "attraction", "gallery", "museum", "viewpoint", "zoo" }; //The stuff we care about in the tourism category. Zoo and attraction are debatable.
         public static List<string> relevantHighwayValues = new List<string>() { "path", "bridleway", "cycleway", "footway" }; //The stuff we care about in the highway category. Still pulls in plain sidewalks with no additional tags fairly often.
 
         public static GeometryFactory factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values. Still pending thread-safety testing.
         public static List<MapData> GetPlaces(GeoArea area, List<MapData> source = null)
         {
+            //TODO: this seems to have a lot of warmup time that I would like to get rid of. Would be a huge performance improvement.
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
             //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
             var coordSeq = MakeBox(area);
@@ -112,7 +115,7 @@ namespace DatabaseAccess
             return;
         }
 
-        public static StringBuilder SearchArea(ref GeoArea area, ref List<MapData> mapData)
+        public static StringBuilder SearchArea(ref GeoArea area, ref List<MapData> mapData, bool entireCode = false)
         {
             StringBuilder sb = new StringBuilder();
             if (mapData.Count() == 0)
@@ -128,7 +131,7 @@ namespace DatabaseAccess
                     double x = area.Min.Longitude + (resolution10 * xx);
                     double y = area.Min.Latitude + (resolution10 * yy);
 
-                    var placesFound = MapSupport.FindPlacesIn10Cell(x, y, ref mapData);
+                    var placesFound = MapSupport.FindPlacesIn10Cell(x, y, ref mapData, entireCode);
                     if (!string.IsNullOrWhiteSpace(placesFound))
                         sb.AppendLine(placesFound);
                 }
@@ -137,10 +140,10 @@ namespace DatabaseAccess
             return sb;
         }
 
-        public static string FindPlacesIn10Cell(double x, double y, ref List<MapData> places)
+        public static string FindPlacesIn10Cell(double x, double y, ref List<MapData> places, bool entireCode = false)
         {
             var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolution10, x + resolution10));
-            var entriesHere = MapSupport.GetPlaces(box, places);
+            var entriesHere = MapSupport.GetPlaces(box, places).Where(p => !p.type.StartsWith("admin")).ToList(); //Excluding admin boundaries from this list.  
 
             if (entriesHere.Count() == 0)
             {
@@ -154,7 +157,12 @@ namespace DatabaseAccess
                 //else if there's a Line in the mapdata list, take the first one (no additional sub-sorting applied yet)
                 //else if there's polygonal areas here, take the smallest one by area 
                 //(In general, the smaller areas should be overlaid on larger areas. This is more accurate than guessing by area types which one should be applied)
-                var olc = new OpenLocationCode(y, x).CodeDigits.Substring(6, 4); //This takes lat, long, Coordinate takes X, Y. This line is correct.
+                string olc;
+                if (entireCode)
+                    olc = new OpenLocationCode(y, x).CodeDigits;
+                else
+                    olc = new OpenLocationCode(y, x).CodeDigits.Substring(6, 4); //This takes lat, long, Coordinate takes X, Y. This line is correct.
+                
                 if (entriesHere.Count() == 1)
                     return olc + "|" + entriesHere.First().name + "|" + entriesHere.First().type;
 
@@ -192,10 +200,9 @@ namespace DatabaseAccess
             return results;
         }
 
-        public static MapData ConvertWayToMapData(DatabaseAccess.Support.Way w)
+        public static MapData ConvertWayToMapData(ref DatabaseAccess.Support.Way w)
         {
             //Take a single tagged Way, and make it a usable MapData entry for the app.
-            //var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
             MapData md = new MapData();
             md.name = w.name;
             md.WayId = w.id;
@@ -209,6 +216,12 @@ namespace DatabaseAccess
             }
             else
             {
+                if (w.nds.Count <= 3)
+                {
+                    Log.WriteLog("Way " + w.id + " doesn't have enough nodes to parse into a Polygon. This entry is an awkward line, not processing.");
+                    return null;
+                }
+
                 Polygon temp = factory.CreatePolygon(w.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray());
                 if (!temp.Shell.IsCCW)
                 {
@@ -227,7 +240,9 @@ namespace DatabaseAccess
                 md.place = temp;
                 md.WayId = w.id;
             }
+            w = null;
             return md;
+
         }
 
         public static MapData ConvertNodeToMapData(OsmSharp.Node n)
@@ -338,8 +353,18 @@ namespace DatabaseAccess
                 )
                 return "trail";
 
+            //admin boundaries: identify what political entities you're in. Smaller numbers are bigger levels (countries), bigger numbers are smaller entries (states, counties, cities, neighborhoods)
+            //This should be the lowest priority tag on a cell, since this is probably the least interesting piece of info you could know.
+            //OSM Wiki has more info on which ones mean what and where they're used.
+            if (tags.Any(t => t.Key =="boundary" && t.Value == "administrative")) //Admin_level appears on other elements, including goverment-tagged stuff, capitals, etc.
+            {
+                string level = tags.Where(t => t.Key == "admin_level").FirstOrDefault().Value;
+                if (level != null)
+                    return "admin" + level.ToInt();
+                return "admin0"; //indicates relation wasn't tagged with a level.
+            }
+
             //Possibly of interest:
-            //Municipality borders: if i want to track different cities? type=boundary, admin_level=X (usually, 4=state, 6=county, larger = city/township). There is a wiki article about complications to this formula.
             //landuse:forest / landuse:orchard  / natural:wood
             //natural:sand may be of interest for desert area?
             //natural:spring / natural:hot_spring

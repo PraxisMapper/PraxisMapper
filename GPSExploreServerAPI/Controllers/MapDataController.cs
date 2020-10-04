@@ -35,6 +35,7 @@ namespace GPSExploreServerAPI.Controllers
         //none
         //TODO:
         //No file-wide todos
+        //Add setting toggle for caching.
 
         //Cell8Data function removed, significantly out of date.
         //remaking it would mean slightly changes to a copy of Cell6Info
@@ -56,7 +57,7 @@ namespace GPSExploreServerAPI.Controllers
 
             var db = new DatabaseAccess.GpsExploreContext();
             //var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
-            var places = MapSupport.GetPlaces(OpenLocationCode.DecodeValid(codeString6));  //All the places in this 6-code
+            var places = MapSupport.GetPlaces(OpenLocationCode.DecodeValid(codeString6));  //All the places in this 6-code //NOTE: takes 500ms here, but 6-codes should take ~15ms in perftesting.
             StringBuilder sb = new StringBuilder();
             sb.AppendLine(codeString6);
             //pluscode6 //first 6 digits of this pluscode. each line below is the last 4 that have an area type.
@@ -83,6 +84,56 @@ namespace GPSExploreServerAPI.Controllers
             cache.Set(codeString6, results, options);
 
             pt.Stop(codeString6);
+            return results;
+        }
+
+        [HttpGet]
+        [Route("/[controller]/surroundingArea/{lat}/{lon}")]
+        public string GetSurroundingCell6Area(double lat, double lon)
+        {
+            //Take in GPS coords
+            //Create area the size of a 6-cell plus code centered on that point
+            //return the list of 10-cells in that area.
+            //Note: caching is disabled on this request. we can't key on lat/lon and expect the cache results to get used. Need to save these results in something more useful.
+
+            PerformanceTracker pt = new PerformanceTracker("GetSurrounding6CellArea");
+            string pointDesc = lat.ToString() + "|" + lon.ToString();
+            //string cachedResults = "";
+            //if (cache.TryGetValue(pointDesc, out cachedResults))
+            //{
+            //    pt.Stop(pointDesc);
+            //    return cachedResults;
+            //}
+            GeoArea box = new GeoArea(new GeoPoint(lat - .025, lon - .025), new GeoPoint( lat + .025, lon + .025));
+
+            var db = new DatabaseAccess.GpsExploreContext();
+            //var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values.
+            var places = MapSupport.GetPlaces(box);  //All the places in this 6-code //NOTE: takes 500ms here, but 6-codes should take ~15ms in perftesting.
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine(pointDesc);
+            //This endpoint puts the whole 10-digit plus code (without the separator) at the start of the line. I can't guarentee that any digits are shared since this isn't a grid-bound endpoint.
+
+            //Notes: 
+            //StringBuilders isn't thread-safe, so each thread needs its own, and their results combined later.
+            int splitcount = 40; //creates 1600 entries(40x40)
+            List<MapData>[] placeArray;
+            GeoArea[] areaArray;
+            StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
+            MapSupport.SplitArea(box, splitcount, places, out placeArray, out areaArray);
+            System.Threading.Tasks.Parallel.For(0, placeArray.Length, (i) =>
+            {
+                sbArray[i] = MapSupport.SearchArea(ref areaArray[i], ref placeArray[i], true);
+            });
+
+            foreach (StringBuilder sbPartial in sbArray)
+                sb.Append(sbPartial.ToString());
+
+            string results = sb.ToString();
+            //var options = new MemoryCacheEntryOptions();
+            //options.SetSize(1);
+            //cache.Set(pointDesc, results, options);
+
+            pt.Stop(pointDesc);
             return results;
         }
 
@@ -343,7 +394,7 @@ namespace GPSExploreServerAPI.Controllers
                                 {
                                     string plusCode = string.Concat(c1, c2, c3, c4, c5, c6);
                                     var data = Cell6Info(plusCode);
-                                    db.PremadeResults.Add(new PremadeResults(){ Data = data, PlusCode6 = plusCode });
+                                    //db.PremadeResults.Add(new PremadeResults(){ Data = data, PlusCode6 = plusCode });
                                     counter++;
                                     if (counter >= 1000)
                                     {
