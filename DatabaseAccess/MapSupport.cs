@@ -11,6 +11,7 @@ using OsmSharp;
 using DatabaseAccess.Support;
 using OsmSharp.Tags;
 using NetTopologySuite.Operation.Buffer;
+using Microsoft.EntityFrameworkCore;
 
 namespace DatabaseAccess
 {
@@ -20,11 +21,8 @@ namespace DatabaseAccess
         //Right now, this is mostly 'functions/consts I want to refer to in multiple projects'
 
         //TODO:
-        //set up performance testing class, and a place to record results
-        //--compare PlusCode versus S2 cell creation and lookup speed
         //set up a command line parameter for OsmXmlParser to extract certain types of value from files (so different users could pull different features out to use)
         //continue renmaing and reorganizing things.
-        //make a global static GeometryFactory, since its used almost everywhere, confirm that works in threaded block
         //make PerformanceInfo tracking a toggle.
 
         //records are new C# 9.0 shorthand for an immutable class (only edit on creation)
@@ -42,6 +40,23 @@ namespace DatabaseAccess
         public static List<string> relevantHighwayValues = new List<string>() { "path", "bridleway", "cycleway", "footway" }; //The stuff we care about in the highway category. Still pulls in plain sidewalks with no additional tags fairly often.
 
         public static GeometryFactory factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values. Still pending thread-safety testing.
+
+        public static List<AreaType> areaTypes = new List<AreaType>() {
+            new AreaType() { AreaTypeId = 1, AreaName = "water", OsmTags = "" },
+            new AreaType() { AreaTypeId = 2, AreaName = "wetland", OsmTags = "" },
+            new AreaType() { AreaTypeId = 3, AreaName = "park", OsmTags = "" },
+            new AreaType() { AreaTypeId = 4, AreaName = "beach", OsmTags = "" },
+            new AreaType() { AreaTypeId = 5, AreaName = "university", OsmTags = "" },
+            new AreaType() { AreaTypeId = 6, AreaName = "natureReserve", OsmTags = "" },
+            new AreaType() { AreaTypeId = 7, AreaName = "cemetery", OsmTags = "" },
+            new AreaType() { AreaTypeId = 8, AreaName = "mall", OsmTags = "" },
+            new AreaType() { AreaTypeId = 9, AreaName = "retail", OsmTags = "" },
+            new AreaType() { AreaTypeId = 10, AreaName = "tourism", OsmTags = "" },
+            new AreaType() { AreaTypeId = 11, AreaName = "historical", OsmTags = "" },
+            new AreaType() { AreaTypeId = 12, AreaName = "trail", OsmTags = "" },
+            new AreaType() { AreaTypeId = 13, AreaName = "admin", OsmTags = "" }
+        };
+
         public static List<MapData> GetPlaces(GeoArea area, List<MapData> source = null)
         {
             //TODO: this seems to have a lot of warmup time that I would like to get rid of. Would be a huge performance improvement.
@@ -57,6 +72,21 @@ namespace DatabaseAccess
             }
             else
                 places = source.Where(md => md.place.Intersects(location)).ToList();
+            return places;
+        }
+
+        public static List<MapData> GetPlaces(Point point, List<MapData> source = null)
+        {
+            //NOTE: Intersects doesn't seem to work here, but neither does anything else?
+            //I get back the same list of 3 entries without names.
+            List<MapData> places;
+            if (source == null)
+            {
+                var db = new DatabaseAccess.GpsExploreContext();
+                places = db.MapData.Where(md => md.place.Intersects(point)).ToList();
+            }
+            else
+                places = source.Where(md => md.place.Contains(point)).ToList();
             return places;
         }
 
@@ -200,13 +230,14 @@ namespace DatabaseAccess
             return results;
         }
 
-        public static MapData ConvertWayToMapData(ref DatabaseAccess.Support.Way w)
+        public static MapData ConvertWayToMapData(ref WayData w)
         {
             //Take a single tagged Way, and make it a usable MapData entry for the app.
             MapData md = new MapData();
             md.name = w.name;
             md.WayId = w.id;
             md.type = w.AreaType;
+            //md.AreaTypeId = MapSupport.areaTypes.Where(a => a.AreaName == md.type).First().AreaTypeId;
 
             //Adding support for LineStrings. A lot of rivers/streams/footpaths are treated this way.
             if (w.nds.First().id != w.nds.Last().id)
@@ -245,18 +276,19 @@ namespace DatabaseAccess
 
         }
 
-        public static MapData ConvertNodeToMapData(OsmSharp.Node n)
-        {
-            //Takes a single tagged node, turns it into a usable MapData entry for our app
-            //var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
-            return new MapData()
-            {
-                name = GetElementName(n.Tags),
-                type = GetType(n.Tags),
-                place = factory.CreatePoint(new Coordinate(n.Longitude.Value, n.Latitude.Value)),
-                NodeId = n.Id
-            };
-        }
+        //public static MapData ConvertNodeToMapData(OsmSharp.Node n)
+        //{
+        //    //Takes a single tagged node, turns it into a usable MapData entry for our app
+        //    //var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
+        //    return new MapData()
+        //    {
+        //        name = GetElementName(n.Tags),
+        //        type = GetType(n.Tags),
+        //        place = factory.CreatePoint(new Coordinate(n.Longitude.Value, n.Latitude.Value)),
+        //        NodeId = n.Id,
+        //        AreaTypeId = MapSupport.areaTypes.Where(a => a.AreaName == j.type).First().AreaTypeId
+        //    };
+        //}
 
         public static MapData ConvertNodeToMapData(NodeReference n)
         {
@@ -266,7 +298,8 @@ namespace DatabaseAccess
                 name = n.name,
                 type = n.type,
                 place = factory.CreatePoint(new Coordinate(n.lon, n.lat)),
-                NodeId = n.Id
+                NodeId = n.Id,
+                //AreaTypeId = MapSupport.areaTypes.Where(a => a.AreaName == n.type).First().AreaTypeId
             };
         }
 
@@ -374,7 +407,7 @@ namespace DatabaseAccess
             return ""; //not a way we need to save right now.
         }
 
-        public static Coordinate[] WayToCoordArray(Support.Way w)
+        public static Coordinate[] WayToCoordArray(Support.WayData w)
         {
             List<Coordinate> results = new List<Coordinate>();
 
@@ -409,6 +442,17 @@ namespace DatabaseAccess
             double lat = 38 + (r.NextDouble() * 4);
             double lon = -84 + (r.NextDouble() * 4);
             return new CoordPair(lat, lon);
+        }
+
+        public static void InsertAreaTypes()
+        {
+            var db = new GpsExploreContext();
+            db.Database.BeginTransaction();
+            db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT AreaTypes ON;");
+            db.AreaTypes.AddRange(areaTypes);
+            db.SaveChanges();
+            db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT dbo.AreaTypes OFF;");
+            db.Database.CommitTransaction();
         }
     }
 }

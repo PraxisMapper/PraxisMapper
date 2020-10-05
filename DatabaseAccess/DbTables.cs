@@ -7,7 +7,7 @@ namespace DatabaseAccess
 {
 
     //TODO possible changes:
-    //Add unique keys to the OsmID columsn on MinimumX tables (if i decide to keep going on that route)
+
 
     public class DbTables
     {
@@ -50,6 +50,10 @@ namespace DatabaseAccess
             public long? NodeId { get; set; }
             public long? RelationId { get; set; }
 
+            //Temporarily removing these: adding this to the global data set takes an hour and creates a log file the size of the DB.
+            //public AreaType AreaType { get; set; }
+            //public int AreaTypeId { get; set; }
+
         }       
 
         //Reference table for names of areas we care about storing.
@@ -57,7 +61,7 @@ namespace DatabaseAccess
         {
             public int AreaTypeId { get; set; }
             public string AreaName { get; set; }
-            public string OsmTags { get; set; } //More important if I'm manually defining these.
+            public string OsmTags { get; set; } //These are not 1:1, so this column may not be useful after all.
         }
 
         //public class SinglePointsOfInterest

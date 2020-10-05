@@ -16,7 +16,7 @@ namespace DatabaseAccess.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .UseIdentityColumns()
+                .UseIdentityColumns(1, 1)
                 .HasAnnotation("Relational:MaxIdentifierLength", 128)
                 .HasAnnotation("ProductVersion", "5.0.0-rc.1.20451.13");
 
@@ -25,7 +25,7 @@ namespace DatabaseAccess.Migrations
                     b.Property<int>("AreaTypeId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
-                        .UseIdentityColumn();
+                        .UseIdentityColumn(1, 1);
 
                     b.Property<string>("AreaName")
                         .HasColumnType("nvarchar(max)");
@@ -43,7 +43,7 @@ namespace DatabaseAccess.Migrations
                     b.Property<long>("MapDataId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
-                        .UseIdentityColumn();
+                        .UseIdentityColumn(1, 1);
 
                     b.Property<long?>("NodeId")
                         .HasColumnType("bigint");
@@ -75,7 +75,7 @@ namespace DatabaseAccess.Migrations
                     b.Property<long?>("MinimumNodeId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
-                        .UseIdentityColumn();
+                        .UseIdentityColumn(1, 1);
 
                     b.Property<double?>("Lat")
                         .HasColumnType("float");
@@ -96,7 +96,7 @@ namespace DatabaseAccess.Migrations
                     b.Property<long>("MinimumRelationId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
-                        .UseIdentityColumn();
+                        .UseIdentityColumn(1, 1);
 
                     b.Property<long>("RelationId")
                         .HasColumnType("bigint");
@@ -111,7 +111,7 @@ namespace DatabaseAccess.Migrations
                     b.Property<long?>("MinimumWayId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
-                        .UseIdentityColumn();
+                        .UseIdentityColumn(1, 1);
 
                     b.Property<long>("WayId")
                         .HasColumnType("bigint");
@@ -126,7 +126,7 @@ namespace DatabaseAccess.Migrations
                     b.Property<int>("PerformanceInfoID")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
-                        .UseIdentityColumn();
+                        .UseIdentityColumn(1, 1);
 
                     b.Property<DateTime>("calledAt")
                         .HasColumnType("datetime2");
@@ -150,7 +150,7 @@ namespace DatabaseAccess.Migrations
                     b.Property<int>("PlayerDataID")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
-                        .UseIdentityColumn();
+                        .UseIdentityColumn(1, 1);
 
                     b.Property<int>("DateLastTrophyBought")
                         .HasColumnType("int");
@@ -200,7 +200,7 @@ namespace DatabaseAccess.Migrations
                     b.Property<long>("PremadeResultsId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
-                        .UseIdentityColumn();
+                        .UseIdentityColumn(1, 1);
 
                     b.Property<string>("Data")
                         .HasColumnType("nvarchar(max)");

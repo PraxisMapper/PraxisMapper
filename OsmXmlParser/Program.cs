@@ -7,6 +7,7 @@ using NetTopologySuite;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Utilities;
 using NetTopologySuite.Precision;
+using OsmSharp;
 using OsmSharp.Changesets;
 using OsmSharp.Streams;
 using OsmSharp.Streams.Filters;
@@ -64,8 +65,8 @@ namespace OsmXmlParser
                 //Not automatic entries executed below:
                 db.Database.ExecuteSqlRaw(GpsExploreContext.MapDataValidTrigger);
                 db.Database.ExecuteSqlRaw(GpsExploreContext.MapDataIndex);
+                MapSupport.InsertAreaTypes();
             }
-            
 
             if (args.Any(a => a == "-cleanDB"))
             {
@@ -144,14 +145,14 @@ namespace OsmXmlParser
             {
                 GpsExploreContext db = new GpsExploreContext();
                 db.ChangeTracker.AutoDetectChangesEnabled = false; //Allows single inserts to operate at a reasonable speed. Nothing else edits this table.
-                List<Way> entries = ReadRawWaysToMemory(file);
+                List<WayData> entries = ReadRawWaysToMemory(file);
 
                 Log.WriteLog("Processing " + entries.Count() + " ways from " + file);
                 int errorCount = 0;
                 int loopCount = 0;
                 System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
                 timer.Start();
-                foreach (Way w in entries)
+                foreach (WayData w in entries)
                 {
                     loopCount++;
                     if (w.nds.Any(n => n == null || n.lat == null || n.lon == null))
@@ -252,8 +253,9 @@ namespace OsmXmlParser
             GpsExploreContext osm = new GpsExploreContext();
             osm.Database.SetCommandTimeout(900);
 
-            osm.Database.ExecuteSqlRaw("TRUNCATE TABLE AreaTypes");
-            Log.WriteLog("AreaTypes cleaned at " + DateTime.Now);
+            //Dont remove these automatically, they don't get created automatically
+            //osm.Database.ExecuteSqlRaw("TRUNCATE TABLE AreaTypes");
+            //Log.WriteLog("AreaTypes cleaned at " + DateTime.Now);
 
             osm.Database.ExecuteSqlRaw("TRUNCATE TABLE MapData");
             Log.WriteLog("MapData cleaned at " + DateTime.Now);
@@ -450,8 +452,8 @@ namespace OsmXmlParser
             foreach (string filename in filenames)
             {
                 string destFilename = System.IO.Path.GetFileName(filename).Replace(".osm.pbf", "");
-                List<DatabaseAccess.Support.Node> nodes = new List<DatabaseAccess.Support.Node>();
-                List<DatabaseAccess.Support.Way> ways = new List<DatabaseAccess.Support.Way>();
+                List<DatabaseAccess.Support.NodeData> nodes = new List<DatabaseAccess.Support.NodeData>();
+                List<WayData> ways = new List<WayData>();
                 List<MapData> processedEntries = new List<MapData>();
                 //Minimizes time spend boosting capacity and copying the internal values later.
                 nodes.Capacity = 100000;
@@ -465,13 +467,13 @@ namespace OsmXmlParser
                 Log.WriteLog("Checking " + osmRelations.Count() + " relations at " + DateTime.Now);
 
                 //TODO: this assumed all members are ways. They may be nodes or relations.
-                List<RelationMember> waysFromRelations = new List<RelationMember>();
+                List<DatabaseAccess.Support.RelationMemberData> waysFromRelations = new List<DatabaseAccess.Support.RelationMemberData>();
                 foreach (var stuff in osmRelations)
                 {
                     string relationType = MapSupport.GetType(stuff.Tags);
                     string name = GetElementName(stuff.Tags);
                     foreach (var member in stuff.Members)
-                        waysFromRelations.Add(new RelationMember(member.Id, name, relationType));
+                        waysFromRelations.Add(new DatabaseAccess.Support.RelationMemberData(member.Id, name, relationType));
                 }
                 var wayLookup = waysFromRelations.ToLookup(k => k.Id, v => v);
                 waysFromRelations = null;
@@ -497,7 +499,7 @@ namespace OsmXmlParser
                 //This is now the slowest part of the processing function.
                 Log.WriteLog("Converting " + osmWays.Count() + " OsmWays to my Ways at " + DateTime.Now);
                 ways.Capacity = osmWays.Count();
-                ways = osmWays.Select(w => new DatabaseAccess.Support.Way()
+                ways = osmWays.Select(w => new WayData()
                 {
                     id = w.Id.Value,
                     name = GetElementName(w.Tags),
@@ -509,7 +511,7 @@ namespace OsmXmlParser
                 Log.WriteLog("List created at " + DateTime.Now);
 
                 int wayCounter = 0;
-                foreach (Way w in ways)
+                foreach (WayData w in ways)
                 {
                     wayCounter++;
                     if (wayCounter % 10000 == 0)
@@ -518,7 +520,7 @@ namespace OsmXmlParser
                     foreach (long nr in w.nodRefs)
                     {
                         var osmNode = osmNodeLookup[nr].FirstOrDefault();
-                        var myNode = new Node() { id = osmNode.Id, lat = osmNode.lat, lon = osmNode.lon };
+                        var myNode = new DatabaseAccess.Support.NodeData() { id = osmNode.Id, lat = osmNode.lat, lon = osmNode.lon };
                         w.nds.Add(myNode);
                     }
                     w.nodRefs = null; //free up a little memory we won't use again.
@@ -548,82 +550,7 @@ namespace OsmXmlParser
                 //TODO: Use Relations to do some work on Ways. This needs done after loading way and node data, since i'll be processing it with those coordinates.
                 //--Remove Inner ways from Outer Ways
                 //--combine multiple polygons into a single mapdata entry? This should be doable.
-                GpsExploreContext db = new GpsExploreContext();
-                foreach (var r in osmRelations)
-                {
-                    //Determine if we need to process this relation.
-                    //if all ways are closed outer polygons, we can skip this.
-                    //if all ways are lines that connect, we need to make it a polygon.
-                    //We can't always rely on tags being correct.
-
-                    //I might need to check if these are usable ways before checking if they're already handled by the relation
-                    //I also wonder if a relation doesn't include all the ways if some are in different boundaries for a file?
-
-                    if (r.Members.Any(m => m.Type == OsmSharp.OsmGeoType.Relation))
-                    {
-                        Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " is a meta-relation, skipping.");
-                        continue;
-                    }
-
-                    if (r.Members.Any(m => m.Type == OsmSharp.OsmGeoType.Node))
-                    {
-                        Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " has a standalone node, skipping.");
-                        continue;
-                    }
-
-                    //Check members for closed shape
-                    var shapeList = new List<Way>();
-                    foreach (var m in r.Members)
-                    {
-                        var maybeWay = ways.Where(way => way.id == m.Id).FirstOrDefault();
-                        if (maybeWay != null)
-                            shapeList.Add(maybeWay);
-                        else
-                        {
-                            Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " references ways not found in the file. Cannot process.");
-                            break;
-                        }
-                    }
-                    var listToRemoveLater = shapeList.ToList();
-
-                    //Now we have our list of Ways. Check if there's lines that need made into a polygon.
-                    if (shapeList.Any(s => s.nds.Count == 0))
-                    {
-                        Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " has ways with 0 nodes.");
-                    }
-
-                    var poly = GetPolygonFromWays(shapeList, r);
-                    if (poly == null)
-                    {
-                        //error converting it
-                        Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " failed to get a polygon from ways. Error.");
-                        continue;
-                    }
-
-                    MapData md = new MapData();
-                    md.name = GetElementName(r.Tags);
-                    md.type = MapSupport.GetType(r.Tags);
-                    md.RelationId = r.Id.Value;
-                    
-                    if (!poly.Shell.IsCCW)
-                        poly = (Polygon)poly.Reverse();
-                    if (!poly.Shell.IsCCW)
-                    {
-                        Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " after change to polygon, still isn't CCW in either order.");
-                        continue;
-                    }
-
-                    md.place = poly;
-                    processedEntries.Add(md);
-                    
-                    //Now remove these ways to be excluded from later processing, since they're already handled as a mapdata entry for a relation.
-                    foreach (var mw in listToRemoveLater)
-                    {
-                        ways.Remove(mw);
-                    }
-                    //} //end turn-lines-into-polygon block
-                    //TODO: parse inner and outer polygons to correctly create empty spaces inside larger shape.
-                }
+                ProcessRelations(osmRelations, ref ways);
                 osmRelations = null;
 
                 processedEntries.AddRange(ways.Select(w =>ConvertWayToMapData(ref w)));
@@ -639,7 +566,92 @@ namespace OsmXmlParser
             }
         }
 
-        private static Polygon GetPolygonFromWays(List<Way> shapeList, OsmSharp.Relation r)
+        private static List<MapData> ProcessRelations(List<Relation> osmRelations, ref List<WayData> ways)
+        {
+            //TODO: dont skip relations with relations or nodes, just ignore those entries.
+            //Skip relations with 0 ways instead.
+            List<MapData> results = new List<MapData>();
+            GpsExploreContext db = new GpsExploreContext();
+            foreach (var r in osmRelations)
+            {
+                //Determine if we need to process this relation.
+                //if all ways are closed outer polygons, we can skip this.
+                //if all ways are lines that connect, we need to make it a polygon.
+                //We can't always rely on tags being correct.
+
+                //I might need to check if these are usable ways before checking if they're already handled by the relation
+                //I also wonder if a relation doesn't include all the ways if some are in different boundaries for a file?
+
+                if (r.Members.Any(m => m.Type == OsmSharp.OsmGeoType.Relation))
+                {
+                    Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " is a meta-relation, skipping.");
+                    continue;
+                }
+
+                if (r.Members.Any(m => m.Type == OsmSharp.OsmGeoType.Node))
+                {
+                    Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " has a standalone node, skipping.");
+                    continue;
+                }
+
+                //Check members for closed shape
+                var shapeList = new List<WayData>();
+                foreach (var m in r.Members)
+                {
+                    var maybeWay = ways.Where(way => way.id == m.Id).FirstOrDefault();
+                    if (maybeWay != null)
+                        shapeList.Add(maybeWay);
+                    else
+                    {
+                        Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " references ways not found in the file. Cannot process.");
+                        break;
+                    }
+                }
+                var listToRemoveLater = shapeList.ToList();
+
+                //Now we have our list of Ways. Check if there's lines that need made into a polygon.
+                if (shapeList.Any(s => s.nds.Count == 0))
+                {
+                    Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " has ways with 0 nodes.");
+                }
+
+                var poly = GetPolygonFromWays(shapeList, r);
+                if (poly == null)
+                {
+                    //error converting it
+                    Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " failed to get a polygon from ways. Error.");
+                    continue;
+                }
+
+                MapData md = new MapData();
+                md.name = GetElementName(r.Tags);
+                md.type = MapSupport.GetType(r.Tags);
+                //md.AreaTypeId = MapSupport.areaTypes.Where(a => a.AreaName == md.type).First().AreaTypeId;
+                md.RelationId = r.Id.Value;
+
+                if (!poly.Shell.IsCCW)
+                    poly = (Polygon)poly.Reverse();
+                if (!poly.Shell.IsCCW)
+                {
+                    Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " after change to polygon, still isn't CCW in either order.");
+                    continue;
+                }
+
+                md.place = poly;
+                results.Add(md);
+
+                //Now remove these ways to be excluded from later processing, since they're already handled as a mapdata entry for a relation.
+                foreach (var mw in listToRemoveLater)
+                {
+                    ways.Remove(mw);
+                }
+                //} //end turn-lines-into-polygon block
+                //TODO: parse inner and outer polygons to correctly create empty spaces inside larger shape.
+            }
+            return results;
+        }
+
+        private static Polygon GetPolygonFromWays(List<WayData> shapeList, OsmSharp.Relation r)
         {
             //A common-ish case looks like the outer entries are lines that join togetehr, and inner entries are polygons.
             //Let's see if we can build a polygon (or more, possibly)
@@ -656,7 +668,7 @@ namespace OsmXmlParser
             //Remove inner polygons from sets for now.
             var innerEntries = r.Members.Where(m => m.Role == "inner").Select(m => m.Id).ToList();
             var outerEntries = r.Members.Where(m => m.Role == "outer").Select(m => m.Id).ToList();
-            List<Way> innerPolys = new List<Way>();
+            var  innerPolys = new List<WayData>();
 
             //Not all ways are tagged for this, so we can't always rely on this.
             if (outerEntries.Count > 0)
@@ -736,6 +748,7 @@ namespace OsmXmlParser
         }
 
         //TODO: merge these 3 functions into 1, take type as a parameter
+        //TODO: take a list of settings to search for, so other users could pick individual types
         private static List<OsmSharp.Relation> GetRelationsFromPbf(string filename)
         {
             List<OsmSharp.Relation> filteredRelations = new List<OsmSharp.Relation>();
@@ -774,7 +787,7 @@ namespace OsmXmlParser
             return filteredRelations;
         }
 
-        public static List<OsmSharp.Way> GetWaysFromPbf(string filename, ILookup<long, RelationMember> wayList)
+        public static List<OsmSharp.Way> GetWaysFromPbf(string filename, ILookup<long, DatabaseAccess.Support.RelationMemberData> wayList)
         {
             //REMEMBER: if tag combos get edited, here, also update GetType to look at that combo too, or else data looks wrong.
             List<OsmSharp.Way> filteredWays = new List<OsmSharp.Way>();
@@ -935,11 +948,11 @@ namespace OsmXmlParser
         }
 
         //This should be removed soon in favor of MapData versions.
-        public static List<Way> ReadRawWaysToMemory(string filename)
+        public static List<WayData> ReadRawWaysToMemory(string filename)
         {
             //Got out of memory errors trying to read files over 1GB through File.ReadAllText, so do those here this way.
             StreamReader sr = new StreamReader(filename);
-            List<Way> lw = new List<Way>();
+            var lw = new List<WayData>();
             JsonSerializerOptions jso = new JsonSerializerOptions();
             jso.AllowTrailingCommas = true;
 
@@ -951,9 +964,9 @@ namespace OsmXmlParser
                     //start of a file that spaced out every entry on a newline correctly. Skip.
                 }
                 else if (line.StartsWith("[") && line.EndsWith("]"))
-                    lw.AddRange((List<Way>)JsonSerializer.Deserialize(line, typeof(List<Way>), jso)); //whole file is a list on one line. These shouldn't happen anymore.
+                    lw.AddRange((List<WayData>)JsonSerializer.Deserialize(line, typeof(List<WayData>), jso)); //whole file is a list on one line. These shouldn't happen anymore.
                 else if (line.StartsWith("[") && line.EndsWith(","))
-                    lw.Add((Way)JsonSerializer.Deserialize(line.Substring(1, line.Count() - 2), typeof(Way), jso)); //first entry on a file before I forced the brackets onto newlines. Comma at end causes errors, is also trimmed.
+                    lw.Add((WayData)JsonSerializer.Deserialize(line.Substring(1, line.Count() - 2), typeof(WayData), jso)); //first entry on a file before I forced the brackets onto newlines. Comma at end causes errors, is also trimmed.
                 else if (line.StartsWith("]"))
                 {
                     //dont do anything, this is EOF
@@ -961,7 +974,7 @@ namespace OsmXmlParser
                 }
                 else
                 {
-                    lw.Add((Way)JsonSerializer.Deserialize(line.Substring(0, line.Count() - 1), typeof(Way), jso)); //not starting line, trailing comma causes errors
+                    lw.Add((WayData)JsonSerializer.Deserialize(line.Substring(0, line.Count() - 1), typeof(WayData), jso)); //not starting line, trailing comma causes errors
                 }
             }
 
@@ -1000,7 +1013,7 @@ namespace OsmXmlParser
                 else if (line.StartsWith("[") && line.EndsWith(","))
                 {
                     MapDataForJson j = (MapDataForJson)JsonSerializer.Deserialize(line.Substring(1, line.Count() - 2), typeof(MapDataForJson), jso);
-                    lm.Add(new MapData() { name = j.name, MapDataId = j.MapDataId, NodeId = j.NodeId, place = reader.Read(j.place), RelationId = j.RelationId, type = j.type, WayId = j.WayId }); //first entry on a file before I forced the brackets onto newlines. Comma at end causes errors, is also trimmed.
+                    lm.Add(new MapData() { name = j.name, MapDataId = j.MapDataId, NodeId = j.NodeId, place = reader.Read(j.place), RelationId = j.RelationId, type = j.type, WayId = j.WayId}); //first entry on a file before I forced the brackets onto newlines. Comma at end causes errors, is also trimmed.
                 }
                 else if (line.StartsWith("]"))
                 {
@@ -1031,7 +1044,7 @@ namespace OsmXmlParser
                 .Select(m => new { m.Key, Count = m.Count() })
                 .ToDictionary(d => d.Key, v => v.Count)
                 .Where(md => md.Value > 1);
-            Log.WriteLog("Duped MapDAta loaded at " + DateTime.Now);
+            Log.WriteLog("Duped MapData loaded at " + DateTime.Now);
 
             foreach (var dupe in dupedMapDatas)
             {
@@ -1041,14 +1054,6 @@ namespace OsmXmlParser
             }
             db.SaveChanges();
             Log.WriteLog("Duped MapData entries deleted at " + DateTime.Now);
-        }
-
-        public void ImportRawData()
-        {
-            //Pass in a file, do a simple read of each element to the database.
-            //TODO: create base tables for these types.
-            //TODO: read only core parts to DB
-            //var nodes =
         }
 
         public void CreateStandaloneDB(GeoArea box)

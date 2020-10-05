@@ -6,5 +6,5 @@ using System.Threading.Tasks;
 
 namespace DatabaseAccess.Support
 {
-    public record RelationMember( long Id, string name, string type);
+    public record RelationMemberData (long Id, string name, string type);
 }

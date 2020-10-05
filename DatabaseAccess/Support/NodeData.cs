@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace DatabaseAccess.Support
 {
-    public class Node
+    public class NodeData
     {
         public long id { get; set; }
         public double lat { get; set; }

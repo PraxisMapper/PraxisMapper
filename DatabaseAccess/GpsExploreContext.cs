@@ -18,6 +18,8 @@ namespace DatabaseAccess
         public DbSet<PerformanceInfo> PerformanceInfo { get; set; }
         public DbSet<AreaType> AreaTypes { get; set; }
         public DbSet<MapData> MapData { get; set; }
+
+
         //Test table to see if its practical to save prerendered results. there's 25 million 6codes, so no.
         //public DbSet<PremadeResults> PremadeResults { get; set; }
 
@@ -38,7 +40,7 @@ namespace DatabaseAccess
             //optionsBuilder.UseSqlServer(@"Data Source=localhost\SQLEXPRESS;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=GpsExplore;", x => x.UseNetTopologySuite());
             //Current localhost config.
             optionsBuilder.UseSqlServer(@"Data Source=localhost\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=GpsExplore;", x => x.UseNetTopologySuite()); //Home config, SQL Developer, Free, no limits, cant use in production
-
+            
             //Potential MariaDB config, which would be cheaper on AWS
             //But also doesn't seem to be .NET 5 ready or compatible yet.
             //optionsBuilder.UseMySql("Server=localhost;Database=gpsExplore;User=root;Password=1234;");
