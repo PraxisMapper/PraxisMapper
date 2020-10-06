@@ -29,8 +29,6 @@ using static DatabaseAccess.MapSupport;
 //TODO: functionalize stuff to smaller pieces.
 //TODO: Add high-verbosity logging messages.
 //TODO: set option flag to enable writing MapData entries to DB or File. Especially since bulk inserts won't fly for MapData from files, apparently.
-//TODO: null relation entries after parsing
-//TODO: null ways after parsing (might require passing byref to processing function)
 
 namespace OsmXmlParser
 {
@@ -246,7 +244,7 @@ namespace OsmXmlParser
         public static void AddMapDataToDBFromFiles()
         {
             //This function is pretty slow. I should figure out how to speed it up. Approx. 6,000 ways per second right now.
-            foreach (var file in System.IO.Directory.EnumerateFiles(parsedJsonPath, "*-MapData.json"))
+            foreach (var file in System.IO.Directory.EnumerateFiles(parsedJsonPath, "*-MapData*.json"))
             {
                 Console.Title = file;
                 Log.WriteLog("Starting MapData read from  " + file + " at " + DateTime.Now);
@@ -570,7 +568,7 @@ namespace OsmXmlParser
                 //TODO: Use Relations to do some work on Ways. This needs done after loading way and node data, since i'll be processing it with those coordinates.
                 //--Remove Inner ways from Outer Ways
                 //--combine multiple polygons into a single mapdata entry? This should be doable.
-                ProcessRelations(ref osmRelations, ref ways);
+                processedEntries.AddRange(ProcessRelations(ref osmRelations, ref ways));
                 osmRelations = null;
 
                 processedEntries.AddRange(ways.Select(w => ConvertWayToMapData(ref w)));
@@ -595,8 +593,8 @@ namespace OsmXmlParser
             {
                 //if (areatype.AreaName == "water") //water is too big for my PC to handle on this scale.
                 //  continue;
-                if (areatype.AreaName != "admin")
-                    continue;
+                //if (areatype.AreaName != "admin")
+                    //continue;
 
 
                 string areatypename = areatype.AreaName;
@@ -621,16 +619,16 @@ namespace OsmXmlParser
 
                 Log.WriteLog("Checking " + osmRelations.Count() + " relations at " + DateTime.Now);
 
-                List<RelationMemberData> waysFromRelations = new List<RelationMemberData>();
-                foreach (var stuff in osmRelations)
-                {
-                    string relationType = areatypename;
-                    string name = GetElementName(stuff.Tags);
-                    foreach (var member in stuff.Members)
-                        waysFromRelations.Add(new RelationMemberData(member.Id, name, relationType));
-                }
-                var wayLookup = waysFromRelations.ToLookup(k => k.Id, v => v);
-                waysFromRelations = null;
+                //List<RelationMemberData> waysFromRelations = new List<RelationMemberData>();
+                //foreach (var stuff in osmRelations)
+                //{
+                //    string relationType = areatypename;
+                //    string name = GetElementName(stuff.Tags);
+                //    foreach (var member in stuff.Members)
+                //        waysFromRelations.Add(new RelationMemberData(member.Id, name, relationType));
+                //}
+                ////var wayLookup = waysFromRelations.ToLookup(k => k.Id, v => v);
+                //waysFromRelations = null;
 
                 //Log.WriteLog("Starting " + filename + " way read at " + DateTime.Now);
                 //var osmWays2 = GetWaysFromPbf(filename, wayLookup);
@@ -680,22 +678,23 @@ namespace OsmXmlParser
                     w.nodRefs = null; //free up a little memory we won't use again.
 
                     //This is a backup check for a Way, if it's part of a relation we couldn't process entirely, this attempt to assign its name/type to a member
-                    if (string.IsNullOrWhiteSpace(w.name))
-                    {
-                        var relation = wayLookup[w.id].FirstOrDefault();
-                        if (relation != null)
-                            if (!string.IsNullOrWhiteSpace(relation.name))
-                                w.name = relation.name;
-                    }
-                    if (string.IsNullOrWhiteSpace(w.AreaType))
-                    {
-                        var relation = wayLookup[w.id].FirstOrDefault();
-                        if (relation != null)
-                            if (!string.IsNullOrWhiteSpace(relation.type))
-                                w.AreaType = relation.type;
-                    }
+                    //Removing this for now to minimize duplicate entry processing.
+                    //if (string.IsNullOrWhiteSpace(w.name))
+                    //{
+                    //    var relation = wayLookup[w.id].FirstOrDefault();
+                    //    if (relation != null)
+                    //        if (!string.IsNullOrWhiteSpace(relation.name))
+                    //            w.name = relation.name;
+                    //}
+                    //if (string.IsNullOrWhiteSpace(w.AreaType))
+                    //{
+                    //    var relation = wayLookup[w.id].FirstOrDefault();
+                    //    if (relation != null)
+                    //        if (!string.IsNullOrWhiteSpace(relation.type))
+                    //            w.AreaType = relation.type;
+                    //}
                 }
-                wayLookup = null;
+                //wayLookup = null;
 
                 Log.WriteLog("Ways populated with Nodes at " + DateTime.Now);
                 osmNodes.RemoveRange(0, osmNodes.Count); //Not sure if this helps or not on ram usage. Should perf-test that.
@@ -704,7 +703,7 @@ namespace OsmXmlParser
                 //TODO: Use Relations to do some work on Ways. This needs done after loading way and node data, since i'll be processing it with those coordinates.
                 //--Remove Inner ways from Outer Ways
                 //--combine multiple polygons into a single mapdata entry? This should be doable.
-                ProcessRelations(ref osmRelations, ref ways);
+                processedEntries.AddRange(ProcessRelations(ref osmRelations, ref ways));
                 osmRelations = null;
 
                 processedEntries.AddRange(ways.Select(w => ConvertWayToMapData(ref w)));
@@ -722,6 +721,8 @@ namespace OsmXmlParser
         {
             List<MapData> results = new List<MapData>();
             GpsExploreContext db = new GpsExploreContext();
+            List<WayData> waysToRemove = new List<WayData>();
+
             foreach (var r in osmRelations)
             {
                 string relationName = GetElementName(r.Tags);
@@ -731,8 +732,6 @@ namespace OsmXmlParser
                 //We can't always rely on tags being correct.
 
                 //I might need to check if these are usable ways before checking if they're already handled by the relation
-                //I also wonder if a relation doesn't include all the ways if some are in different boundaries for a file?
-
                 //Remove entries we won't use.
 
                 var membersToRead = r.Members.Where(m => m.Type == OsmGeoType.Way).ToList();
@@ -756,7 +755,6 @@ namespace OsmXmlParser
                         //break;
                     }
                 }
-                var listToRemoveLater = shapeList.ToList();
 
                 //Now we have our list of Ways. Check if there's lines that need made into a polygon.
                 if (shapeList.Any(s => s.nds.Count == 0))
@@ -764,32 +762,68 @@ namespace OsmXmlParser
                     Log.WriteLog("Relation " + r.Id + " " + relationName + " has ways with 0 nodes.");
                 }
 
-                var poly = GetPolygonFromWays(shapeList, r);
-                if (poly == null)
+                //TODO: parse inner and outer polygons to correctly create empty spaces inside larger shape. Currently reads multiple outer polys.
+                Geometry poly;
+                //If all the ways are already polygons, we can do much less processing
+                if (shapeList.All(s => s.nds.First().id == s.nds.Last().id))
                 {
-                    //error converting it
-                    Log.WriteLog("Relation " + r.Id + " " + relationName + " failed to get a polygon from ways. Error.");
-                    continue;
+                    //All closed polygons, much easier.
+                    var outerEntries = r.Members.Where(m => m.Role == "outer").Select(m => m.Id).ToList();
+
+                    List<Polygon> outers = new List<Polygon>();
+                    foreach (var oe in outerEntries)
+                    {
+                        var ca = WayToCoordArray(shapeList.Where(s => s.id == oe).FirstOrDefault());
+                        if (ca == null)
+                        {
+                            //Skip, this was referncing a missing Way, but the remaining entries are all closed polygons. Attempt a partial construction.
+                            continue;
+                        }
+
+                        var o = factory.CreatePolygon(ca);
+                        if (!o.Shell.IsCCW)
+                            o = (Polygon)o.Reverse();
+                        outers.Add(o);
+                    }
+                    poly = factory.CreateMultiPolygon(outers.Distinct().ToArray());
+                    //TODO: add inner polygons.
+                }
+                else
+                {
+                    //I am assuming that the lines here will join into a single polygon. If not, this will fail.
+                    Polygon Tpoly = GetPolygonFromWays(shapeList, r);
+                    if (Tpoly == null)
+                    {
+                        //error converting it
+                        Log.WriteLog("Relation " + r.Id + " " + relationName + " failed to get a polygon from ways. Error.");
+                        continue;
+                    }
+
+                    if (!Tpoly.Shell.IsCCW)
+                        Tpoly = (Polygon)Tpoly.Reverse();
+                    if (!Tpoly.Shell.IsCCW)
+                    {
+                        Log.WriteLog("Relation " + r.Id + " " + relationName + " after change to polygon, still isn't CCW in either order.");
+                        continue;
+                    }
+                    poly = Tpoly;
                 }
 
                 MapData md = new MapData();
                 md.name = GetElementName(r.Tags);
                 md.type = MapSupport.GetType(r.Tags);
                 //md.AreaTypeId = MapSupport.areaTypes.Where(a => a.AreaName == md.type).First().AreaTypeId;
-                md.RelationId = r.Id.Value;
-
-                if (!poly.Shell.IsCCW)
-                    poly = (Polygon)poly.Reverse();
-                if (!poly.Shell.IsCCW)
-                {
-                    Log.WriteLog("Relation " + r.Id + " " + relationName + " after change to polygon, still isn't CCW in either order.");
-                    continue;
-                }
-
-                md.place = poly;
-                results.Add(md);                
-                //TODO: parse inner and outer polygons to correctly create empty spaces inside larger shape.
+                md.RelationId = r.Id.Value;              
+                md.place = MapSupport.SimplifyArea(poly);
+                results.Add(md);
+                        
+                waysToRemove.AddRange(shapeList);
             }
+
+            //Now that all relations have been processed, i can remove ways that were already handled, since many of them aren't interesting on their own or are partial data.
+            foreach (var wtr in waysToRemove.Distinct())
+                ways.Remove(wtr);
+
             return results;
         }
 

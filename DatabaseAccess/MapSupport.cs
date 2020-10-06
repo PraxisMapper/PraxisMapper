@@ -231,6 +231,10 @@ namespace DatabaseAccess
 
         public static MapData ConvertWayToMapData(ref WayData w)
         {
+
+            if (w.name == "" && w.AreaType == "")
+                return null;
+
             //Take a single tagged Way, and make it a usable MapData entry for the app.
             MapData md = new MapData();
             md.name = w.name;
@@ -422,6 +426,9 @@ namespace DatabaseAccess
 
         public static Coordinate[] WayToCoordArray(Support.WayData w)
         {
+            if (w == null)
+                return null;
+
             List<Coordinate> results = new List<Coordinate>();
 
             foreach (var node in w.nds)
