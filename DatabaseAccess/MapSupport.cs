@@ -309,9 +309,12 @@ namespace DatabaseAccess
         public static string GetElementName(TagsCollectionBase tags)
         {
             string name = tags.Where(t => t.Key == "name").FirstOrDefault().Value;
+            if (name == null || name == "")
+                //some things have a Note rather than a Name. Use that as a backup.
+                name = tags.Where(t => t.Key == "note").FirstOrDefault().Value;
             if (name == null)
                 return "";
-            return name; //.RemoveDiacritics(); //Not sure if my font needs this or not
+            return name;
         }
 
         public static int GetTypeId(TagsCollectionBase tags)

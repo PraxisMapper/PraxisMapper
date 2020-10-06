@@ -144,17 +144,13 @@ namespace GPSExploreServerAPI.Controllers
         {
             //THe main endpoint excludes admin boundaries
             //this function exclusively gets them.
-
-            //This isn't working. Ohio has 257 entries in the DB, should have 1. Is 407 total members in OSM.
-
-            //var point = MapSupport.factory.CreatePoint(new Coordinate(lon, lat));
             var box = new GeoArea(new GeoPoint(lat, lon), new GeoPoint(lat + MapSupport.resolution10, lon + MapSupport.resolution10));
 
             var entriesHere = MapSupport.GetPlaces(box).Where(p => p.type.StartsWith("admin")).OrderBy(p => p.type).ToList();
 
             StringBuilder sb = new StringBuilder();
             foreach (var entry in entriesHere)
-                sb.Append(entry.name + "|" + entry.type);
+                sb.AppendLine(entry.name + "|" + entry.type);
 
             return sb.ToString();
         }

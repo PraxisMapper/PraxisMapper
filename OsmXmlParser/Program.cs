@@ -591,11 +591,8 @@ namespace OsmXmlParser
             //var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
             foreach (var areatype in areaTypes)
             {
-                //if (areatype.AreaName == "water") //water is too big for my PC to handle on this scale.
-                //  continue;
-                //if (areatype.AreaName != "admin")
-                    //continue;
-
+                //skip entries if the settings say not to process them.
+                //ParserSettings.???
 
                 string areatypename = areatype.AreaName;
                 Log.WriteLog("Checking for " + areatypename + " members in  " + filename + " at " + DateTime.Now);
@@ -617,26 +614,6 @@ namespace OsmXmlParser
 
                 Log.WriteLog("Relevant data pulled from file at" + DateTime.Now);
 
-                Log.WriteLog("Checking " + osmRelations.Count() + " relations at " + DateTime.Now);
-
-                //List<RelationMemberData> waysFromRelations = new List<RelationMemberData>();
-                //foreach (var stuff in osmRelations)
-                //{
-                //    string relationType = areatypename;
-                //    string name = GetElementName(stuff.Tags);
-                //    foreach (var member in stuff.Members)
-                //        waysFromRelations.Add(new RelationMemberData(member.Id, name, relationType));
-                //}
-                ////var wayLookup = waysFromRelations.ToLookup(k => k.Id, v => v);
-                //waysFromRelations = null;
-
-                //Log.WriteLog("Starting " + filename + " way read at " + DateTime.Now);
-                //var osmWays2 = GetWaysFromPbf(filename, wayLookup);
-                //Lookup<long, long> nodeLookup = (Lookup<long, long>)osmWays.SelectMany(w => w.Nodes).Distinct().ToLookup(k => k, v => v);
-                //Log.WriteLog("Found " + osmWays.Count() + " ways with " + nodeLookup.Count() + " nodes");
-
-                //Log.WriteLog("Starting " + filename + " node read at " + DateTime.Now);
-                //var osmNodes2 = GetNodesFromPbf(filename, nodeLookup);
                 Log.WriteLog("Creating node lookup for " + osmNodes.Count() + " nodes"); //33 million nodes across 2 million ways will tank this app at 16GB RAM
                 var osmNodeLookup = osmNodes.ToLookup(k => k.Id, v => v);
                 Log.WriteLog("Found " + osmNodeLookup.Count() + " unique nodes");
@@ -676,23 +653,6 @@ namespace OsmXmlParser
                         w.nds.Add(myNode);
                     }
                     w.nodRefs = null; //free up a little memory we won't use again.
-
-                    //This is a backup check for a Way, if it's part of a relation we couldn't process entirely, this attempt to assign its name/type to a member
-                    //Removing this for now to minimize duplicate entry processing.
-                    //if (string.IsNullOrWhiteSpace(w.name))
-                    //{
-                    //    var relation = wayLookup[w.id].FirstOrDefault();
-                    //    if (relation != null)
-                    //        if (!string.IsNullOrWhiteSpace(relation.name))
-                    //            w.name = relation.name;
-                    //}
-                    //if (string.IsNullOrWhiteSpace(w.AreaType))
-                    //{
-                    //    var relation = wayLookup[w.id].FirstOrDefault();
-                    //    if (relation != null)
-                    //        if (!string.IsNullOrWhiteSpace(relation.type))
-                    //            w.AreaType = relation.type;
-                    //}
                 }
                 //wayLookup = null;
 
@@ -700,9 +660,6 @@ namespace OsmXmlParser
                 osmNodes.RemoveRange(0, osmNodes.Count); //Not sure if this helps or not on ram usage. Should perf-test that.
                 osmNodes = null; //done with these now, can free up RAM again.
 
-                //TODO: Use Relations to do some work on Ways. This needs done after loading way and node data, since i'll be processing it with those coordinates.
-                //--Remove Inner ways from Outer Ways
-                //--combine multiple polygons into a single mapdata entry? This should be doable.
                 processedEntries.AddRange(ProcessRelations(ref osmRelations, ref ways));
                 osmRelations = null;
 
