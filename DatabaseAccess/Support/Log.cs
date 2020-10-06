@@ -11,6 +11,8 @@ namespace DatabaseAccess
     {
         static string filename = "OsmXmlParser" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".txt";
         public static VerbosityLevels Verbosity = VerbosityLevels.Normal;
+        public static bool WriteToFile = false;
+
 
         public enum VerbosityLevels
         {
@@ -29,7 +31,7 @@ namespace DatabaseAccess
                 return;
 
             Console.WriteLine(message);
-            System.IO.File.AppendAllText(filename, message + Environment.NewLine);
+            if (WriteToFile) System.IO.File.AppendAllText(filename, message + Environment.NewLine);
         }
 
     }

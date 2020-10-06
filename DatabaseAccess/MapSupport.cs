@@ -25,15 +25,11 @@ namespace DatabaseAccess
         //continue renmaing and reorganizing things.
         //make PerformanceInfo tracking a toggle.
 
-        //records are new C# 9.0 shorthand for an immutable class (only edit on creation)
-        public record NodeReference(long Id, double lat, double lon, string name, string type); //holds only the node data relevant to the application.
-        public record MapDataForJson(long MapDataId, string name, string place, string type, long? WayId, long? NodeId, long? RelationId); //used for serializing MapData, since Geography types do not serialize nicely.
-
-        public record CoordPair(double lat, double lon);
-
         public const double resolution10 = .000125; //the size of a 10-digit PlusCode, in degrees.
         public const double resolution8 = .0025; //the size of a 8-digit PlusCode, in degrees.
         public const double resolution6 = .05; //the size of a 6-digit PlusCode, in degrees.
+        public const double resolution4 = 1; //the size of a 6-digit PlusCode, in degrees.
+        public const double resolution2 = 20; //the size of a 6-digit PlusCode, in degrees.
 
         //public static List<string> relevantTags = new List<string>() { "name", "natural", "leisure", "landuse", "amenity", "tourism", "historic", "highway", "boundary" }; //The keys in tags we process to see if we want it included.
         public static List<string> relevantTourismValues = new List<string>() { "artwork", "attraction", "gallery", "museum", "viewpoint", "zoo" }; //The stuff we care about in the tourism category. Zoo and attraction are debatable.
@@ -56,6 +52,9 @@ namespace DatabaseAccess
             new AreaType() { AreaTypeId = 12, AreaName = "trail", OsmTags = "" },
             new AreaType() { AreaTypeId = 13, AreaName = "admin", OsmTags = "" }
         };
+
+        public static ILookup<string, int> areaTypeReference = areaTypes.ToLookup(k => k.AreaName, v => v.AreaTypeId);
+        public static ILookup<int, string> areaIdReference = areaTypes.ToLookup(k => k.AreaTypeId, v => v.AreaName);
 
         public static List<MapData> GetPlaces(GeoArea area, List<MapData> source = null)
         {
@@ -311,13 +310,26 @@ namespace DatabaseAccess
             return name; //.RemoveDiacritics(); //Not sure if my font needs this or not
         }
 
+        public static int GetTypeId(TagsCollectionBase tags)
+        {
+            //gets the ID associated with a type.
+            string results = GetType(tags);
+            if (results.StartsWith("admin")) //all admin levels are treated as the same type
+                return areaTypeReference["admin"].First();
+
+            return areaTypeReference[results].First();
+        }
+
         public static string GetType(TagsCollectionBase tags)
         {
             //This is how we will figure out which area a cell counts as now.
             //Should make sure all of these exist in the AreaTypes table I made.
             //REMEMBER: this list needs to match the same tags as the ones in GetWays(relations)FromPBF or else data looks weird.
             //TODO: prioritize these tags, since each space gets one value.
-            //TODO: consider adding municipality info here.
+            //TODO: optimize this function, searching  the array 20 times in the worst-case scenario isn't good for big files. Takes an hour for a 7GB file.
+            //--re-order searches by frequency (most common on top, least common last),
+            //--use options to skip checks if they're not asked for.
+
 
             if (tags.Count() == 0)
                 return ""; //Shouldn't happen, but as a sanity check if we start adding Nodes later.
@@ -346,7 +358,7 @@ namespace DatabaseAccess
                 || (t.Key == "amenity" && t.Value == "college")))
                 return "university";
 
-            //Nature Reserve. Should be included, but possibly secondary to other types inside it.
+            //Nature Reserve. Should be included
             if (tags.Any(t => (t.Key == "leisure" && t.Value == "nature_reserve")))
                 return "natureReserve";
 
@@ -360,6 +372,7 @@ namespace DatabaseAccess
                 return "mall";
 
             //Generic shopping area is ok. I don't want to advertise businesses, but this is a common area type.
+            //TODO: expand this to buildings, not just landuse?
             if (tags.Any(t => (t.Key == "landuse" && t.Value == "retail")))
                 return "retail";
 
@@ -453,6 +466,12 @@ namespace DatabaseAccess
             db.SaveChanges();
             db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT dbo.AreaTypes OFF;");
             db.Database.CommitTransaction();
+        }
+
+        public static Geometry SimplifyArea(Geometry place)
+        {
+            var simplerPlace = NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(place, resolution10); //i can't identify details below this in the server
+            return simplerPlace;
         }
     }
 }

@@ -382,56 +382,52 @@ namespace GPSExploreServerAPI.Controllers
             //
         }
 
-        
-        public void GetAllWaysInArea(string parentFile, GeoArea area)
-        {
-            //This belongs in the OsmParser, not the web server.
-            //The main function to make a database for a dedicated area. EX: a single university or park, likely.
-            //Exports a SQLite file.
-        }
-
-        
-        public void PrefillDB()
-        {
-            //An experiment on pre-filling the DB.
-            //Global data mean this is 25 million 6cells, 
-            //Estimated to take 216 hours of CPU time on my dev PC. 9 days is impractical for a solo dev on a single PC. Maybe for a company with a cluster that can run lots of stuff.
-            //Retaining this code as a reminder.
-            return;
+        //public void PrefillDB()
+        //{
+        //    //An experiment on pre-filling the DB.
+        //    //Global data mean this is 25 million 6cells, 
+        //    //Estimated to take 216 hours of CPU time on my dev PC. 9 days is impractical for a solo dev on a single PC. Maybe for a company with a cluster that can run lots of stuff.
+        //    //Retaining this code as a reminder.
+        //    return;
 
 
-            string charpos1 = OpenLocationCode.CodeAlphabet.Substring(0, 9);
-            string charpos2 = OpenLocationCode.CodeAlphabet.Substring(0, 18);
+        //    string charpos1 = OpenLocationCode.CodeAlphabet.Substring(0, 9);
+        //    string charpos2 = OpenLocationCode.CodeAlphabet.Substring(0, 18);
 
-            var db = new GpsExploreContext();
-            db.ChangeTracker.AutoDetectChangesEnabled = false;
-            int counter = 0;
+        //    var db = new GpsExploreContext();
+        //    db.ChangeTracker.AutoDetectChangesEnabled = false;
+        //    int counter = 0;
 
-            foreach (var c1 in charpos1)
-                foreach (var c2 in charpos2)
-                    foreach (var c3 in OpenLocationCode.CodeAlphabet)
-                        foreach (var c4 in OpenLocationCode.CodeAlphabet)
-                            foreach (var c5 in OpenLocationCode.CodeAlphabet)
-                                foreach (var c6 in OpenLocationCode.CodeAlphabet)
-                                {
-                                    string plusCode = string.Concat(c1, c2, c3, c4, c5, c6);
-                                    var data = Cell6Info(plusCode);
-                                    //db.PremadeResults.Add(new PremadeResults(){ Data = data, PlusCode6 = plusCode });
-                                    counter++;
-                                    if (counter >= 1000)
-                                    {
-                                        db.SaveChanges();
-                                        counter = 0;
-                                    }
-                                }
-        }
+        //    foreach (var c1 in charpos1)
+        //        foreach (var c2 in charpos2)
+        //            foreach (var c3 in OpenLocationCode.CodeAlphabet)
+        //                foreach (var c4 in OpenLocationCode.CodeAlphabet)
+        //                    foreach (var c5 in OpenLocationCode.CodeAlphabet)
+        //                        foreach (var c6 in OpenLocationCode.CodeAlphabet)
+        //                        {
+        //                            string plusCode = string.Concat(c1, c2, c3, c4, c5, c6);
+        //                            var data = Cell6Info(plusCode);
+        //                            //db.PremadeResults.Add(new PremadeResults(){ Data = data, PlusCode6 = plusCode });
+        //                            counter++;
+        //                            if (counter >= 1000)
+        //                            {
+        //                                db.SaveChanges();
+        //                                counter = 0;
+        //                            }
+        //                        }
+        //}
 
+        [HttpGet]
+        [Route("/[controller]/GetPoint/{lat}/{lon}")]
         public void GetStuffAtPoint(double lat, double lon)
         {
             //Do a DB query on where you're standing for interesting places.
             //might be more useful for some games that don't need a map.
 
             //Exact point for area? or 10cell space to find trails too?
+            var places = MapSupport.GetPlaces(new OpenLocationCode(lat, lon).Decode());
+            var results = MapSupport.FindPlacesIn10Cell(lon, lat, ref places, true);
+         
 
 
         }
