@@ -632,17 +632,17 @@ namespace OsmXmlParser
                 var wayLookup = waysFromRelations.ToLookup(k => k.Id, v => v);
                 waysFromRelations = null;
 
-                Log.WriteLog("Starting " + filename + " way read at " + DateTime.Now);
+                //Log.WriteLog("Starting " + filename + " way read at " + DateTime.Now);
                 //var osmWays2 = GetWaysFromPbf(filename, wayLookup);
-                Lookup<long, long> nodeLookup = (Lookup<long, long>)osmWays.SelectMany(w => w.Nodes).Distinct().ToLookup(k => k, v => v);
-                Log.WriteLog("Found " + osmWays.Count() + " ways with " + nodeLookup.Count() + " nodes");
+                //Lookup<long, long> nodeLookup = (Lookup<long, long>)osmWays.SelectMany(w => w.Nodes).Distinct().ToLookup(k => k, v => v);
+                //Log.WriteLog("Found " + osmWays.Count() + " ways with " + nodeLookup.Count() + " nodes");
 
-                Log.WriteLog("Starting " + filename + " node read at " + DateTime.Now);
+                //Log.WriteLog("Starting " + filename + " node read at " + DateTime.Now);
                 //var osmNodes2 = GetNodesFromPbf(filename, nodeLookup);
                 Log.WriteLog("Creating node lookup for " + osmNodes.Count() + " nodes"); //33 million nodes across 2 million ways will tank this app at 16GB RAM
                 var osmNodeLookup = osmNodes.ToLookup(k => k.Id, v => v);
                 Log.WriteLog("Found " + osmNodeLookup.Count() + " unique nodes");
-                nodeLookup = null;
+                //nodeLookup = null;
 
                 //Write nodes as mapdata if they're tagged separately from other things.
                 Log.WriteLog("Finding tagged nodes at " + DateTime.Now);
@@ -787,14 +787,7 @@ namespace OsmXmlParser
                 }
 
                 md.place = poly;
-                results.Add(md);
-
-                //Now remove these ways to be excluded from later processing, since they're already handled as a mapdata entry for a relation.
-                foreach (var mw in listToRemoveLater)
-                {
-                    ways.Remove(mw);
-                }
-                //} //end turn-lines-into-polygon block
+                results.Add(md);                
                 //TODO: parse inner and outer polygons to correctly create empty spaces inside larger shape.
             }
             return results;
