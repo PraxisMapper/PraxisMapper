@@ -43,10 +43,39 @@ namespace PerformanceTestApp
             //TestSpeedChangeByArea();
             //TestGetPlacesPerf();
             //TestMapDataAbbrev();
-            TestFileVsMemoryStream();
+            //TestFileVsMemoryStream();
+            TestMultiPassVsSinglePass();
+
 
 
             //TODO: consider pulling 4-cell worth of places into memory, querying against that instead of a DB lookup every time?
+        }
+
+        private static void TestMultiPassVsSinglePass()
+        {
+            System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+            string filename = @"D:\Projects\OSM Server Info\XmlToProcess\ohio-latest.osm.pbf"; //160MB PBF
+            FileStream fs2 = new FileStream(filename, FileMode.Open);
+            byte[] fileInRam = new byte[fs2.Length];
+            fs2.Read(fileInRam, 0, (int)fs2.Length);
+            MemoryStream ms = new MemoryStream(fileInRam);
+            
+            sw.Start();
+            GetRelationsFromStream(ms, null);
+            sw.Stop();
+            Log.WriteLog("Reading all types took " + sw.ElapsedMilliseconds + "ms.");
+            sw.Restart();
+            ms.Position = 0;
+            GetRelationsFromStream(ms, "water");
+            sw.Stop();
+            Log.WriteLog("Reading water type took " + sw.ElapsedMilliseconds + "ms.");
+            sw.Restart();
+            ms.Position = 0;
+            GetRelationsFromStream(ms, "cemetery");
+            sw.Stop();
+            Log.WriteLog("Reading cemetery type took " + sw.ElapsedMilliseconds + "ms.");
+
+
         }
 
         public static List<CoordPair> GetRandomCoords(int count)
@@ -537,6 +566,51 @@ namespace PerformanceTestApp
 
             Log.WriteLog("Reading to MemoryStream and processing took " + sw.ElapsedMilliseconds + "ms");
 
+        }
+
+        private static List<OsmSharp.Relation> GetRelationsFromPbf(string filename, string areaType)
+        {
+            //Read through a file for stuff that matches our parameters.
+            List<OsmSharp.Relation> filteredRelations = new List<OsmSharp.Relation>();
+            using (var fs = File.OpenRead(filename))
+            {
+                filteredRelations = InnerGetRelations(fs, areaType);
+            }
+            return filteredRelations;
+        }
+
+        private static List<OsmSharp.Relation> GetRelationsFromStream(Stream file, string areaType)
+        {
+            //Read through a file for stuff that matches our parameters.
+            List<OsmSharp.Relation> filteredRelations = new List<OsmSharp.Relation>();
+            file.Position = 0;
+            return InnerGetRelations(file, areaType);
+        }
+
+        private static List<OsmSharp.Relation> InnerGetRelations(Stream stream, string areaType)
+        {
+            var source = new PBFOsmStreamSource(stream);
+            var progress = source.ShowProgress();
+
+            List<OsmSharp.Relation> filteredEntries;
+            if (areaType == null)
+                filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
+                    MapSupport.GetType(p.Tags) != "")
+                .Select(p => (OsmSharp.Relation)p)
+                .ToList();
+            else if (areaType == "admin")
+                filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
+                    MapSupport.GetType(p.Tags).StartsWith(areaType))
+                .Select(p => (OsmSharp.Relation)p)
+                .ToList();
+            else
+                filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
+                MapSupport.GetType(p.Tags) == areaType
+            )
+                .Select(p => (OsmSharp.Relation)p)
+                .ToList();
+
+            return filteredEntries;
         }
     }
 }

@@ -111,3 +111,10 @@ TestGetPlacesPerf() 10/1/2020:
 6code- Tracking: 17ms VS NoTracking: 5ms VS Precompiled: 7ms
 4code- Tracking: 412ms VS NoTracking: 448ms VS Precompiled: 451ms
 Decision: Nothing here seems to make a significant different, though precompiling the query seems slower than expected.
+
+TestMultiPassVsSinglePass() 10/7/2020:
+Reading all types took 21552ms.
+Reading water type took 21115ms.
+Reading cemetery type took 20948ms.
+Decision: Doing one pass takes the same time as doing multiple. Doing multiple passes takes up less RAM.
+May consider doing multiple passes only on problem files, but should stick to single pass otherwise.

@@ -465,141 +465,135 @@ namespace OsmXmlParser
 
             foreach (string filename in filenames)
             {
-                //shortcutting?
                 SerializeFilesFromPBF(filename);
-                continue;
-
-
-                string destFilename = System.IO.Path.GetFileName(filename).Replace(".osm.pbf", "");
-                List<NodeData> nodes = new List<NodeData>();
-                List<WayData> ways = new List<WayData>();
-                List<MapData> processedEntries = new List<MapData>();
-                //Minimizes time spend boosting capacity and copying the internal values later.
-                nodes.Capacity = 100000;
-                ways.Capacity = 100000;
-                processedEntries.Capacity = 100000;
-
-                Log.WriteLog("Starting " + filename + " relation read at " + DateTime.Now);
-                var osmRelations = GetRelationsFromPbf(filename);
-                //var wayList = osmRelations.SelectMany(r => r.Members).ToList(); //ways that need tagged as the relation's type if they dont' have their own.
-
-                Log.WriteLog("Checking " + osmRelations.Count() + " relations at " + DateTime.Now);
-
-                List<RelationMemberData> waysFromRelations = new List<RelationMemberData>();
-                foreach (var stuff in osmRelations)
-                {
-                    string relationType = MapSupport.GetType(stuff.Tags);
-                    string name = GetElementName(stuff.Tags);
-                    foreach (var member in stuff.Members)
-                        waysFromRelations.Add(new DatabaseAccess.Support.RelationMemberData(member.Id, name, relationType));
-                }
-                var wayLookup = waysFromRelations.ToLookup(k => k.Id, v => v);
-                waysFromRelations = null;
-
-                Log.WriteLog("Starting " + filename + " way read at " + DateTime.Now);
-                var osmWays = GetWaysFromPbf(filename, wayLookup);
-                Lookup<long, long> nodeLookup = (Lookup<long, long>)osmWays.SelectMany(w => w.Nodes).Distinct().ToLookup(k => k, v => v);
-                Log.WriteLog("Found " + osmWays.Count() + " ways with " + nodeLookup.Count() + " nodes");
-
-                Log.WriteLog("Starting " + filename + " node read at " + DateTime.Now);
-                var osmNodes = GetNodesFromPbf(filename, nodeLookup);
-                Log.WriteLog("Creating node lookup for " + osmNodes.Count() + " nodes"); //33 million nodes across 2 million ways will tank this app at 16GB RAM
-                var osmNodeLookup = osmNodes.ToLookup(k => k.Id, v => v); //Seeing if NodeReference saves some RAM
-                Log.WriteLog("Found " + osmNodeLookup.Count() + " unique nodes");
-                nodeLookup = null;
-
-                //Write nodes as mapdata if they're tagged separately from other things.
-                Log.WriteLog("Finding tagged nodes at " + DateTime.Now);
-                var taggedNodes = osmNodes.Where(n => n.name != "" && n.type != "").ToList();
-                processedEntries.AddRange(taggedNodes.Select(s => MapSupport.ConvertNodeToMapData(s)));
-                taggedNodes = null;
-
-                //This is now the slowest part of the processing function.
-                Log.WriteLog("Converting " + osmWays.Count() + " OsmWays to my Ways at " + DateTime.Now);
-                ways.Capacity = osmWays.Count();
-                ways = osmWays.Select(w => new WayData()
-                {
-                    id = w.Id.Value,
-                    name = GetElementName(w.Tags),
-                    AreaType = MapSupport.GetType(w.Tags),
-                    nodRefs = w.Nodes.ToList()
-                })
-                .ToList();
-                osmWays = null; //free up RAM we won't use again.
-                Log.WriteLog("List created at " + DateTime.Now);
-
-                int wayCounter = 0;
-                foreach (WayData w in ways)
-                {
-                    wayCounter++;
-                    if (wayCounter % 10000 == 0)
-                        Log.WriteLog(wayCounter + " processed so far");
-
-                    foreach (long nr in w.nodRefs)
-                    {
-                        var osmNode = osmNodeLookup[nr].FirstOrDefault();
-                        var myNode = new DatabaseAccess.Support.NodeData() { id = osmNode.Id, lat = osmNode.lat, lon = osmNode.lon };
-                        w.nds.Add(myNode);
-                    }
-                    w.nodRefs = null; //free up a little memory we won't use again.
-
-                    //This is a backup check for a Way, if it's part of a relation we couldn't process entirely, this attempt to assign its name/type to a member
-                    if (string.IsNullOrWhiteSpace(w.name))
-                    {
-                        var relation = wayLookup[w.id].FirstOrDefault();
-                        if (relation != null)
-                            if (!string.IsNullOrWhiteSpace(relation.name))
-                                w.name = relation.name;
-                    }
-                    if (string.IsNullOrWhiteSpace(w.AreaType))
-                    {
-                        var relation = wayLookup[w.id].FirstOrDefault();
-                        if (relation != null)
-                            if (!string.IsNullOrWhiteSpace(relation.type))
-                                w.AreaType = relation.type;
-                    }
-                }
-                wayLookup = null;
-
-                Log.WriteLog("Ways populated with Nodes at " + DateTime.Now);
-                osmNodes.RemoveRange(0, osmNodes.Count); //Not sure if this helps or not on ram usage. Should perf-test that.
-                osmNodes = null; //done with these now, can free up RAM again.
-
-                //TODO: Use Relations to do some work on Ways. This needs done after loading way and node data, since i'll be processing it with those coordinates.
-                //--Remove Inner ways from Outer Ways
-                //--combine multiple polygons into a single mapdata entry? This should be doable.
-                processedEntries.AddRange(ProcessRelations(ref osmRelations, ref ways));
-                osmRelations = null;
-
-                processedEntries.AddRange(ways.Select(w => ConvertWayToMapData(ref w)));
-                ways = null;
-
-                WriteMapDataToFile(destFolder + destFilename + "-MapData.json", ref processedEntries);
-                Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
-                File.Move(filename, filename + "Done"); //We made it all the way to the end, this file is done.
-                processedEntries = null;
-                //Log.WriteLog("Manually calling GC at " + DateTime.Now);
-                //GC.Collect(); //Ask to clean up memory. Takes about a second on small files, a while if we've been paging to disk.
-                //this might be causing long-term problems, since things that aren't removed get promoted and will take longer to get removed.
             }
         }
 
         public static void SerializeFilesFromPBF(string filename)
         {
-            //TODO: load files into RAM as memorystream, then feed that stream to functions for a possible performance boost?
             string destFolder = @"D:\Projects\OSM Server Info\Trimmed JSON Files\";
+            System.IO.FileInfo fi = new FileInfo(filename);
+            if (fi.Length > 400000000) //I have 28 country/state level extracts over this size, and this should include the ones that cause the most issues. TODO: make this a setting.
+            {
+                //Parse this file into area type sub-files from disk, so that I don't hit RAM limits
+                SerializeSeparateFilesFromPBF(filename);
+                return;
+            }
+            
+
+            //else parse this file all at once.
             FileStream fs = new FileStream(filename, FileMode.Open);
             byte[] fileInRam = new byte[fs.Length];
             fs.Read(fileInRam, 0, (int)fs.Length);
             MemoryStream ms = new MemoryStream(fileInRam);
+            fs.Close(); fs.Dispose();
 
-            foreach (var areatype in areaTypes)
+
+            //foreach (var areatype in areaTypes) //each pass takes roughly the same amount of time to read, but uses less ram. 
+            //{
+            //skip entries if the settings say not to process them. they'll get 0 tagged entries but don't waste time reading the file.
+            //ParserSettings.???
+
+            Log.WriteLog("Checking for members in  " + filename + " at " + DateTime.Now); //" + areatypename + "
+            string destFilename = System.IO.Path.GetFileName(filename).Replace(".osm.pbf", "");
+            List<NodeData> nodes = new List<NodeData>();
+            List<WayData> ways = new List<WayData>();
+            List<MapData> processedEntries = new List<MapData>();
+            //Minimizes time spend boosting capacity and copying the internal values later.
+            nodes.Capacity = 100000;
+            ways.Capacity = 100000;
+            processedEntries.Capacity = 100000;
+
+            Log.WriteLog("Starting " + filename + " " + " data read at " + DateTime.Now);
+            //var osmRelations = GetRelationsFromPbf(filename, areatypename);
+            var osmRelations = GetRelationsFromStream(ms, null);
+            var referencedWays = osmRelations.SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToLookup(k => k, v => v);
+            //var osmWays = GetWaysFromPbf(filename, areatypename, referencedWays);
+            var osmWays = GetWaysFromStream(ms, null, referencedWays);
+            var referencedNodes = osmWays.SelectMany(m => m.Nodes).Distinct().ToLookup(k => k, v => v);
+            //var osmNodes = GetNodesFromPbf(filename, areatypename, referencedNodes);
+            var osmNodes = GetNodesFromStream(ms, null, referencedNodes);
+
+            Log.WriteLog("Relevant data pulled from file at" + DateTime.Now);
+
+            Log.WriteLog("Creating node lookup for " + osmNodes.Count() + " nodes"); //33 million nodes across 2 million ways will tank this app at 16GB RAM
+            var osmNodeLookup = osmNodes.ToLookup(k => k.Id, v => v);
+            Log.WriteLog("Found " + osmNodeLookup.Count() + " unique nodes");
+            //nodeLookup = null;
+
+            //Write nodes as mapdata if they're tagged separately from other things.
+            Log.WriteLog("Finding tagged nodes at " + DateTime.Now);
+            var taggedNodes = osmNodes.Where(n => n.name != "" && n.type != "").ToList();
+            processedEntries.AddRange(taggedNodes.Select(s => MapSupport.ConvertNodeToMapData(s)));
+            taggedNodes = null;
+
+            //This is now the slowest part of the processing function.
+            Log.WriteLog("Converting " + osmWays.Count() + " OsmWays to my Ways at " + DateTime.Now);
+            ways.Capacity = osmWays.Count();
+            ways = osmWays.Select(w => new WayData()
             {
-                //skip entries if the settings say not to process them.
+                id = w.Id.Value,
+                name = GetElementName(w.Tags),
+                AreaType = MapSupport.GetType(w.Tags),
+                nodRefs = w.Nodes.ToList()
+            })
+            .ToList();
+            osmWays = null; //free up RAM we won't use again.
+            Log.WriteLog("List created at " + DateTime.Now);
+
+            int wayCounter = 0;
+            foreach (WayData w in ways)
+            {
+                wayCounter++;
+                if (wayCounter % 10000 == 0)
+                    Log.WriteLog(wayCounter + " processed so far");
+
+                foreach (long nr in w.nodRefs)
+                {
+                    var osmNode = osmNodeLookup[nr].FirstOrDefault();
+                    var myNode = new NodeData() { id = osmNode.Id, lat = osmNode.lat, lon = osmNode.lon };
+                    w.nds.Add(myNode);
+                }
+                w.nodRefs = null; //free up a little memory we won't use again.
+            }
+            //wayLookup = null;
+
+            Log.WriteLog("Ways populated with Nodes at " + DateTime.Now);
+            osmNodes.RemoveRange(0, osmNodes.Count); //Not sure if this helps or not on ram usage. Should perf-test that.
+            osmNodes = null; //done with these now, can free up RAM again.
+
+            processedEntries.AddRange(ProcessRelations(ref osmRelations, ref ways));
+            osmRelations = null;
+
+            processedEntries.AddRange(ways.Select(w => ConvertWayToMapData(ref w)));
+            ways = null;
+
+            WriteMapDataToFile(destFolder + destFilename + "-MapData" + ".json", ref processedEntries);
+            processedEntries = null;
+            //}
+            Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
+            ms.Close(); ms.Dispose();
+            
+
+            File.Move(filename, filename + "Done"); //We made it all the way to the end, this file is done.
+        }
+
+        public static void SerializeSeparateFilesFromPBF(string filename)
+        {
+            //This will read from disk, since we are assuming this file will hit RAM limits if we read it all at once.
+            string destFolder = @"D:\Projects\OSM Server Info\Trimmed JSON Files\";
+            //FileStream fs = new FileStream(filename, FileMode.Open);
+            //byte[] fileInRam = new byte[fs.Length];
+            //fs.Read(fileInRam, 0, (int)fs.Length);
+            //MemoryStream ms = new MemoryStream(fileInRam);
+
+            foreach (var areatype in areaTypes) //each pass takes roughly the same amount of time to read, but uses less ram. 
+            {
+                //skip entries if the settings say not to process them. they'll get 0 tagged entries but don't waste time reading the file.
                 //ParserSettings.???
 
                 string areatypename = areatype.AreaName;
-                Log.WriteLog("Checking for " + areatypename + " members in  " + filename + " at " + DateTime.Now);
+                Log.WriteLog("Checking for " + areatypename + "members in  " + filename + " at " + DateTime.Now);
                 string destFilename = System.IO.Path.GetFileName(filename).Replace(".osm.pbf", "");
                 List<NodeData> nodes = new List<NodeData>();
                 List<WayData> ways = new List<WayData>();
@@ -609,15 +603,15 @@ namespace OsmXmlParser
                 ways.Capacity = 100000;
                 processedEntries.Capacity = 100000;
 
-                Log.WriteLog("Starting " + filename + " relation read at " + DateTime.Now);
-                //var osmRelations = GetRelationsFromPbf(filename, areatypename);
-                var osmRelations = GetRelationsFromStream(ms, areatypename);
+                Log.WriteLog("Starting " + filename + " " + areatypename + " data read at " + DateTime.Now);
+                var osmRelations = GetRelationsFromPbf(filename, areatypename);
+                //var osmRelations = GetRelationsFromStream(ms, areatypename);
                 var referencedWays = osmRelations.SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToLookup(k => k, v => v);
-                //var osmWays = GetWaysFromPbf(filename, areatypename, referencedWays);
-                var osmWays = GetWaysFromStream(ms, areatypename, referencedWays);
+                var osmWays = GetWaysFromPbf(filename, areatypename, referencedWays);
+                //var osmWays = GetWaysFromStream(ms, areatypename, referencedWays);
                 var referencedNodes = osmWays.SelectMany(m => m.Nodes).Distinct().ToLookup(k => k, v => v);
-                //var osmNodes = GetNodesFromPbf(filename, areatypename, referencedNodes);
-                var osmNodes = GetNodesFromStream(ms, areatypename, referencedNodes);
+                var osmNodes = GetNodesFromPbf(filename, areatypename, referencedNodes);
+                //var osmNodes = GetNodesFromStream(ms, areatypename, referencedNodes);
 
                 Log.WriteLog("Relevant data pulled from file at" + DateTime.Now);
 
@@ -674,12 +668,11 @@ namespace OsmXmlParser
                 ways = null;
 
                 WriteMapDataToFile(destFolder + destFilename + "-MapData-" + areatypename + ".json", ref processedEntries);
-
                 processedEntries = null;
             }
             Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
-            ms.Close();  ms.Dispose();
-            fs.Close(); fs.Dispose();
+            //ms.Close(); ms.Dispose();
+            //fs.Close(); fs.Dispose();
 
             File.Move(filename, filename + "Done"); //We made it all the way to the end, this file is done.
         }
@@ -892,51 +885,35 @@ namespace OsmXmlParser
 
         private static List<OsmSharp.Relation> GetRelationsFromPbf(string filename, string areaType)
         {
-            //This might be too broad, or might need some new sub-functions to pull each set of contents in, like my current
-            //MakeAllSerializedFiles setup, but looped over per type.
-            //returns list of MapDAta eventually
             //Read through a file for stuff that matches our parameters.
             List<OsmSharp.Relation> filteredRelations = new List<OsmSharp.Relation>();
-            List<MapData> contents = new List<MapData>();
-            contents.Capacity = 100000;
             using (var fs = File.OpenRead(filename))
             {
-                var source = new PBFOsmStreamSource(fs);
-                var progress = source.ShowProgress();
-
-                List<OsmSharp.Relation> filteredEntries;
-                if (areaType == "admin")
-                    filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
-                        MapSupport.GetType(p.Tags).StartsWith(areaType))
-                    .Select(p => (OsmSharp.Relation)p)
-                    .ToList();
-                else
-                    filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
-                    MapSupport.GetType(p.Tags) == areaType
-                )
-                    .Select(p => (OsmSharp.Relation)p)
-                    .ToList();
-
-                return filteredEntries;
+                filteredRelations = InnerGetRelations(fs, areaType);
             }
+            return filteredRelations;
         }
 
         private static List<OsmSharp.Relation> GetRelationsFromStream(Stream file, string areaType)
         {
-            //This might be too broad, or might need some new sub-functions to pull each set of contents in, like my current
-            //MakeAllSerializedFiles setup, but looped over per type.
-            //returns list of MapDAta eventually
             //Read through a file for stuff that matches our parameters.
             List<OsmSharp.Relation> filteredRelations = new List<OsmSharp.Relation>();
-            List<MapData> contents = new List<MapData>();
-            contents.Capacity = 100000;
-
             file.Position = 0;
-            var source = new PBFOsmStreamSource(file);
+            return InnerGetRelations(file, areaType);
+        }
+
+        private static List<OsmSharp.Relation> InnerGetRelations(Stream stream, string areaType)
+        {
+            var source = new PBFOsmStreamSource(stream);
             var progress = source.ShowProgress();
 
             List<OsmSharp.Relation> filteredEntries;
-            if (areaType == "admin")
+            if (areaType == null)
+                filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
+                    MapSupport.GetType(p.Tags) != "")
+                .Select(p => (OsmSharp.Relation)p)
+                .ToList();
+            else if (areaType == "admin")
                 filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
                     MapSupport.GetType(p.Tags).StartsWith(areaType))
                 .Select(p => (OsmSharp.Relation)p)
@@ -949,104 +926,111 @@ namespace OsmXmlParser
                 .ToList();
 
             return filteredEntries;
-
         }
 
         private static List<OsmSharp.Way> GetWaysFromPbf(string filename, string areaType, ILookup<long, long> referencedWays)
         {
-            //This might be too broad, or might need some new sub-functions to pull each set of contents in, like my current
-            //MakeAllSerializedFiles setup, but looped over per type.
-            //returns list of MapDAta eventually
             //Read through a file for stuff that matches our parameters.
-            List<OsmSharp.Relation> filteredRelations = new List<OsmSharp.Relation>();
-            List<MapData> contents = new List<MapData>();
-            contents.Capacity = 100000;
+            List<OsmSharp.Way> filteredWays = new List<OsmSharp.Way>();
             using (var fs = File.OpenRead(filename))
             {
-                var source = new PBFOsmStreamSource(fs);
-                var progress = source.ShowProgress();
+                filteredWays = InnerGetWays(fs, areaType, referencedWays);
+            }
+            return filteredWays;
+        }
 
-                var filteredEntries = progress.Where(p => p.Type == OsmGeoType.Way &&
+        private static List<OsmSharp.Way> GetWaysFromStream(Stream file, string areaType, ILookup<long, long> referencedWays)
+        {
+            //Read through a memorystream for stuff that matches our parameters.   
+            file.Position = 0;
+            return InnerGetWays(file, areaType, referencedWays);
+        }
+
+        private static List<OsmSharp.Way> InnerGetWays(Stream file, string areaType, ILookup<long, long> referencedWays)
+        {
+            List<OsmSharp.Way> filteredWays = new List<OsmSharp.Way>();
+            var source = new PBFOsmStreamSource(file);
+            var progress = source.ShowProgress();
+
+            if (areaType == null)
+            {
+                filteredWays = progress.Where(p => p.Type == OsmGeoType.Way &&
+                (MapSupport.GetType(p.Tags) != ""
+                || referencedWays[p.Id.Value].Count() > 0)
+            )
+                .Select(p => (OsmSharp.Way)p)
+                .ToList();
+            }
+            else if (areaType == "admin")
+            {
+                filteredWays = progress.Where(p => p.Type == OsmGeoType.Way &&
+                    (MapSupport.GetType(p.Tags).StartsWith(areaType)
+                    || referencedWays[p.Id.Value].Count() > 0)
+                )
+                    .Select(p => (OsmSharp.Way)p)
+                    .ToList();
+            }
+            else
+            {
+                filteredWays = progress.Where(p => p.Type == OsmGeoType.Way &&
                     (MapSupport.GetType(p.Tags) == areaType
                     || referencedWays[p.Id.Value].Count() > 0)
                 )
                     .Select(p => (OsmSharp.Way)p)
                     .ToList();
-
-                return filteredEntries;
             }
-        }
 
-        private static List<OsmSharp.Way> GetWaysFromStream(Stream file, string areaType, ILookup<long, long> referencedWays)
-        {
-            //This might be too broad, or might need some new sub-functions to pull each set of contents in, like my current
-            //MakeAllSerializedFiles setup, but looped over per type.
-            //returns list of MapDAta eventually
-            //Read through a file for stuff that matches our parameters.
-            List<OsmSharp.Relation> filteredRelations = new List<OsmSharp.Relation>();
-            List<MapData> contents = new List<MapData>();
-            contents.Capacity = 100000;
-            file.Position = 0;
-
-            var source = new PBFOsmStreamSource(file);
-            var progress = source.ShowProgress();
-
-            var filteredEntries = progress.Where(p => p.Type == OsmGeoType.Way &&
-                (MapSupport.GetType(p.Tags) == areaType
-                || referencedWays[p.Id.Value].Count() > 0)
-            )
-                .Select(p => (OsmSharp.Way)p)
-                .ToList();
-
-            return filteredEntries;
+            return filteredWays;
         }
 
         private static List<NodeReference> GetNodesFromPbf(string filename, string areaType, ILookup<long, long> nodes)
         {
-            //This might be too broad, or might need some new sub-functions to pull each set of contents in, like my current
-            //MakeAllSerializedFiles setup, but looped over per type.
-            //returns list of MapDAta eventually
-            //Read through a file for stuff that matches our parameters.
-            List<OsmSharp.Relation> filteredRelations = new List<OsmSharp.Relation>();
-            List<MapData> contents = new List<MapData>();
-            contents.Capacity = 100000;
+            List<NodeReference> filteredEntries;
             using (var fs = File.OpenRead(filename))
             {
-                var source = new PBFOsmStreamSource(fs);
-                var progress = source.ShowProgress();
-
-                var filteredEntries = progress.Where(p => p.Type == OsmGeoType.Node &&
-                    (MapSupport.GetType(p.Tags) == areaType || nodes[p.Id.Value].Count() > 0)
-                )
-                    .Select(n => new NodeReference(n.Id.Value, ((OsmSharp.Node)n).Latitude.Value, ((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), areaType))
-                    .ToList();
-
-                return filteredEntries;
+                filteredEntries = InnerGetNodes(fs, areaType, nodes);
             }
+            return filteredEntries;
         }
 
         private static List<NodeReference> GetNodesFromStream(Stream file, string areaType, ILookup<long, long> nodes)
         {
-            //This might be too broad, or might need some new sub-functions to pull each set of contents in, like my current
-            //MakeAllSerializedFiles setup, but looped over per type.
-            //returns list of MapDAta eventually
-            //Read through a file for stuff that matches our parameters.
-            List<OsmSharp.Relation> filteredRelations = new List<OsmSharp.Relation>();
-            List<MapData> contents = new List<MapData>();
-            contents.Capacity = 100000;
             file.Position = 0;
+            return InnerGetNodes(file, areaType, nodes);
+        }
 
+        public static List<NodeReference> InnerGetNodes(Stream file, string areaType, ILookup<long, long> nodes)
+        {
             var source = new PBFOsmStreamSource(file);
             var progress = source.ShowProgress();
+            List<NodeReference> filteredEntries;
 
-            var filteredEntries = progress.Where(p => p.Type == OsmGeoType.Node &&
-                (MapSupport.GetType(p.Tags) == areaType || nodes[p.Id.Value].Count() > 0)
+            if (areaType == null)
+            {
+                filteredEntries = progress.Where(p => p.Type == OsmGeoType.Node &&
+               (MapSupport.GetType(p.Tags) != "" || nodes[p.Id.Value].Count() > 0)
+           )
+               .Select(n => new NodeReference(n.Id.Value, ((OsmSharp.Node)n).Latitude.Value, ((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), areaType))
+               .ToList();
+            }
+            else if (areaType == "admin")
+            {
+                filteredEntries = progress.Where(p => p.Type == OsmGeoType.Node &&
+               (MapSupport.GetType(p.Tags).StartsWith(areaType) || nodes[p.Id.Value].Count() > 0)
             )
-                .Select(n => new NodeReference(n.Id.Value, ((OsmSharp.Node)n).Latitude.Value, ((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), areaType))
-                .ToList();
+               .Select(n => new NodeReference(n.Id.Value, ((OsmSharp.Node)n).Latitude.Value, ((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), areaType))
+               .ToList();
+            }
+            else
+            {
+                filteredEntries = progress.Where(p => p.Type == OsmGeoType.Node &&
+                   (MapSupport.GetType(p.Tags) == areaType || nodes[p.Id.Value].Count() > 0)
+               )
+                   .Select(n => new NodeReference(n.Id.Value, ((OsmSharp.Node)n).Latitude.Value, ((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), areaType))
+                   .ToList();
+            }
 
             return filteredEntries;
-
         }
 
         //TODO: merge these 3 functions into 1, take type as a parameter
