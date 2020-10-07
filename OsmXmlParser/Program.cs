@@ -507,30 +507,30 @@ namespace OsmXmlParser
             Log.WriteLog("Starting " + filename + " " + " data read at " + DateTime.Now);
             //var osmRelations = GetRelationsFromPbf(filename, areatypename);
             var osmRelations = GetRelationsFromStream(ms, null);
-            var referencedWays = osmRelations.SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToLookup(k => k, v => v);
+            var referencedWays = osmRelations.AsParallel().SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToLookup(k => k, v => v);
             //var osmWays = GetWaysFromPbf(filename, areatypename, referencedWays);
             var osmWays = GetWaysFromStream(ms, null, referencedWays);
-            var referencedNodes = osmWays.SelectMany(m => m.Nodes).Distinct().ToLookup(k => k, v => v);
+            var referencedNodes = osmWays.AsParallel().SelectMany(m => m.Nodes).Distinct().ToLookup(k => k, v => v);
             //var osmNodes = GetNodesFromPbf(filename, areatypename, referencedNodes);
             var osmNodes = GetNodesFromStream(ms, null, referencedNodes);
 
             Log.WriteLog("Relevant data pulled from file at" + DateTime.Now);
 
             Log.WriteLog("Creating node lookup for " + osmNodes.Count() + " nodes"); //33 million nodes across 2 million ways will tank this app at 16GB RAM
-            var osmNodeLookup = osmNodes.ToLookup(k => k.Id, v => v);
+            var osmNodeLookup = osmNodes.AsParallel().ToLookup(k => k.Id, v => v);
             Log.WriteLog("Found " + osmNodeLookup.Count() + " unique nodes");
             //nodeLookup = null;
 
             //Write nodes as mapdata if they're tagged separately from other things.
             Log.WriteLog("Finding tagged nodes at " + DateTime.Now);
-            var taggedNodes = osmNodes.Where(n => n.name != "" && n.type != "").ToList();
+            var taggedNodes = osmNodes.AsParallel().Where(n => n.name != "" && n.type != "" && n.type != null).ToList();
             processedEntries.AddRange(taggedNodes.Select(s => MapSupport.ConvertNodeToMapData(s)));
             taggedNodes = null;
 
             //This is now the slowest part of the processing function.
             Log.WriteLog("Converting " + osmWays.Count() + " OsmWays to my Ways at " + DateTime.Now);
             ways.Capacity = osmWays.Count();
-            ways = osmWays.Select(w => new WayData()
+            ways = osmWays.AsParallel().Select(w => new WayData()
             {
                 id = w.Id.Value,
                 name = GetElementName(w.Tags),
@@ -542,7 +542,8 @@ namespace OsmXmlParser
             Log.WriteLog("List created at " + DateTime.Now);
 
             int wayCounter = 0;
-            foreach (WayData w in ways)
+            System.Threading.Tasks.Parallel.ForEach(ways, (w) =>
+            //foreach (WayData w in ways)
             {
                 wayCounter++;
                 if (wayCounter % 10000 == 0)
@@ -556,6 +557,7 @@ namespace OsmXmlParser
                 }
                 w.nodRefs = null; //free up a little memory we won't use again.
             }
+            );
             //wayLookup = null;
 
             Log.WriteLog("Ways populated with Nodes at " + DateTime.Now);
@@ -591,6 +593,9 @@ namespace OsmXmlParser
             {
                 //skip entries if the settings say not to process them. they'll get 0 tagged entries but don't waste time reading the file.
                 //ParserSettings.???
+
+                if (areatype.AreaName == "water")
+                    continue; //Water is too big for my PC on files this side most of the time.
 
                 string areatypename = areatype.AreaName;
                 Log.WriteLog("Checking for " + areatypename + "members in  " + filename + " at " + DateTime.Now);
@@ -681,7 +686,7 @@ namespace OsmXmlParser
         {
             List<MapData> results = new List<MapData>();
             GpsExploreContext db = new GpsExploreContext();
-            List<WayData> waysToRemove = new List<WayData>();
+            //List<WayData> waysToRemove = new List<WayData>();
 
             foreach (var r in osmRelations)
             {
@@ -743,6 +748,11 @@ namespace OsmXmlParser
                         var o = factory.CreatePolygon(ca);
                         if (!o.Shell.IsCCW)
                             o = (Polygon)o.Reverse();
+                        if (!o.Shell.IsCCW)
+                        {
+                            Log.WriteLog("Relation " + r.Id + " " + relationName + " after change to polygon, still isn't CCW in either order.");
+                            continue;
+                        }
                         outers.Add(o);
                     }
                     poly = factory.CreateMultiPolygon(outers.Distinct().ToArray());
@@ -777,12 +787,12 @@ namespace OsmXmlParser
                 md.place = MapSupport.SimplifyArea(poly);
                 results.Add(md);
 
-                waysToRemove.AddRange(shapeList);
+                //waysToRemove.AddRange(shapeList);
             }
 
             //Now that all relations have been processed, i can remove ways that were already handled, since many of them aren't interesting on their own or are partial data.
-            foreach (var wtr in waysToRemove.Distinct())
-                ways.Remove(wtr);
+            //foreach (var wtr in waysToRemove.Distinct())
+                //ways.Remove(wtr);
 
             return results;
         }
@@ -871,6 +881,14 @@ namespace OsmXmlParser
 
             var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
             var poly = factory.CreatePolygon(possiblePolygon.ToArray());
+            if (!poly.Shell.IsCCW)
+                poly = (Polygon)poly.Reverse();
+            if (!poly.Shell.IsCCW)
+            {
+                Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " isn't CCW either way. Error.", Log.VerbosityLevels.High);
+                return null;
+            }
+
             //TODO: add inner rings. TEST THIS
             foreach (var ir in innerPolys)
             {
@@ -905,7 +923,7 @@ namespace OsmXmlParser
         private static List<OsmSharp.Relation> InnerGetRelations(Stream stream, string areaType)
         {
             var source = new PBFOsmStreamSource(stream);
-            var progress = source.ShowProgress();
+            var progress = source; //.ShowProgress();
 
             List<OsmSharp.Relation> filteredEntries;
             if (areaType == null)
@@ -950,7 +968,7 @@ namespace OsmXmlParser
         {
             List<OsmSharp.Way> filteredWays = new List<OsmSharp.Way>();
             var source = new PBFOsmStreamSource(file);
-            var progress = source.ShowProgress();
+            var progress = source; //.ShowProgress();
 
             if (areaType == null)
             {
@@ -1002,7 +1020,7 @@ namespace OsmXmlParser
         public static List<NodeReference> InnerGetNodes(Stream file, string areaType, ILookup<long, long> nodes)
         {
             var source = new PBFOsmStreamSource(file);
-            var progress = source.ShowProgress();
+            var progress = source; //.ShowProgress();
             List<NodeReference> filteredEntries;
 
             if (areaType == null)
@@ -1010,7 +1028,7 @@ namespace OsmXmlParser
                 filteredEntries = progress.Where(p => p.Type == OsmGeoType.Node &&
                (MapSupport.GetType(p.Tags) != "" || nodes[p.Id.Value].Count() > 0)
            )
-               .Select(n => new NodeReference(n.Id.Value, ((OsmSharp.Node)n).Latitude.Value, ((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), areaType))
+               .Select(n => new NodeReference(n.Id.Value, ((OsmSharp.Node)n).Latitude.Value, ((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), MapSupport.GetType(n.Tags)))
                .ToList();
             }
             else if (areaType == "admin")
@@ -1033,6 +1051,7 @@ namespace OsmXmlParser
             return filteredEntries;
         }
 
+        //This is probably removeable now, i think i like my other logic.
         //TODO: merge these 3 functions into 1, take type as a parameter
         //TODO: take a list of settings to search for, so other users could pick individual types
         private static List<OsmSharp.Relation> GetRelationsFromPbf(string filename)
@@ -1326,7 +1345,7 @@ namespace OsmXmlParser
             Log.WriteLog("Scanning for duplicate entries at " + DateTime.Now);
             var db = new GpsExploreContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
-            var dupedMapDatas = db.MapData.GroupBy(md => md.WayId)
+            var dupedMapDatas = db.MapData.Where(md => md.WayId != null).GroupBy(md => md.WayId)
                 .Select(m => new { m.Key, Count = m.Count() })
                 .ToDictionary(d => d.Key, v => v.Count)
                 .Where(md => md.Value > 1);

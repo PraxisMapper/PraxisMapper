@@ -3,12 +3,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.Xml;
 using System.Text;
+using System.Xml.Xsl;
 using DatabaseAccess;
 using Google.OpenLocationCode;
 using GPSExploreServerAPI.Classes;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
 using NetTopologySuite;
 using NetTopologySuite.Geometries;
 using OsmSharp.IO.Xml;
@@ -23,9 +25,12 @@ namespace GPSExploreServerAPI.Controllers
     {
         private static MemoryCache cache;
 
-        public MapDataController()
+        private readonly IConfiguration Configuration;
+        public MapDataController(IConfiguration configuration)
         {
-            if (cache == null)
+            Configuration = configuration;
+
+            if (cache == null && Configuration.GetValue<bool>("enableCaching") == true)
             {
                 var options = new MemoryCacheOptions();
                 options.SizeLimit = 1024; //1k entries. that's 2.5 4-digit plus code blocks. If an entry is 300kb on average, this is 300MB of RAM for caching. T3.small has 2GB total, t3.medium has 4GB.
@@ -36,7 +41,6 @@ namespace GPSExploreServerAPI.Controllers
         //none
         //TODO:
         //No file-wide todos
-        //Add setting toggle for caching.
 
         //Cell8Data function removed, significantly out of date.
         //remaking it would mean slightly changes to a copy of Cell6Info
@@ -49,7 +53,7 @@ namespace GPSExploreServerAPI.Controllers
             PerformanceTracker pt = new PerformanceTracker("Cell6info");
             var codeString6 = plusCode6;
             string cachedResults = "";
-            if (cache.TryGetValue(codeString6, out cachedResults))
+            if (Configuration.GetValue<bool>("enableCaching") && cache.TryGetValue(codeString6, out cachedResults))
             {
                 pt.Stop(codeString6);
                 return cachedResults;
@@ -80,7 +84,7 @@ namespace GPSExploreServerAPI.Controllers
             string results = sb.ToString();
             var options = new MemoryCacheEntryOptions();
             options.SetSize(1);
-            cache.Set(codeString6, results, options);
+            if (Configuration.GetValue<bool>("enableCaching")) cache.Set(codeString6, results, options);
 
             pt.Stop(codeString6);
             return results;

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using GPSExploreServerAPI.Classes;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
@@ -18,6 +19,8 @@ namespace GPSExploreServerAPI
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
+            PerformanceTracker.EnableLogging = Configuration.GetValue<bool>("enablePerformanceTracker");
+            DatabaseAccess.Log.WriteToFile = Configuration.GetValue<bool>("enableFileLogging");
         }
 
         public IConfiguration Configuration { get; }

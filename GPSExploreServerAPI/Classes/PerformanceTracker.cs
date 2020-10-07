@@ -12,7 +12,6 @@ namespace GPSExploreServerAPI.Classes
 {
     public class PerformanceTracker
     {
-        //TODO: add toggle for this somewhere in the server config.
         public static bool EnableLogging = true;
 
         PerformanceInfo pi = new PerformanceInfo();

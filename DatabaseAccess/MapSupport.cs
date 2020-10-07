@@ -271,7 +271,7 @@ namespace DatabaseAccess
                         return null;
                     }
                 }
-                md.place = temp;
+                md.place = MapSupport.SimplifyArea(temp);
                 md.WayId = w.id;
             }
             w = null;
@@ -281,7 +281,6 @@ namespace DatabaseAccess
 
         public static MapData ConvertNodeToMapData(NodeReference n)
         {
-            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
             return new MapData()
             {
                 name = n.name,
@@ -292,14 +291,19 @@ namespace DatabaseAccess
             };
         }
 
-        public static string GetElementName(TagsCollectionBase tags)
+        public static string GetElementName(TagsCollectionBase tagsO)
         {
-            string name = tags.Where(t => t.Key == "name").FirstOrDefault().Value;
+            if (tagsO.Count() == 0)
+                return "";
+            var tags = tagsO.ToLookup(k => k.Key, v => v.Value);
+
+            string name = tags["name"].FirstOrDefault();
             if (name == null || name == "")
                 //some things have a Note rather than a Name. Use that as a backup.
-                name = tags.Where(t => t.Key == "note").FirstOrDefault().Value;
+                name = tags["note"].FirstOrDefault();
             if (name == null)
                 return "";
+
             return name;
         }
 
@@ -320,11 +324,10 @@ namespace DatabaseAccess
             //REMEMBER: this list needs to match the same tags as the ones in GetWays(relations)FromPBF or else data looks weird.
             //TODO: optimize this function, searching  the array 20 times in the worst-case scenario isn't good for big files. Takes an hour for a 7GB file.
 
-            var tags = tagsO.ToLookup(k => k.Key, v => v.Value);
-
-            if (tags.Count() == 0)
+            if (tagsO.Count() == 0)
                 return ""; //Sanity check
 
+            var tags = tagsO.ToLookup(k => k.Key, v => v.Value);
             //Entries are currently sorted by rough frequency of occurrence in my home area.
 
             //Water spaces should be displayed. Not sure if I want players to be in them for resources.
@@ -415,6 +418,7 @@ namespace DatabaseAccess
                 return null;
 
             List<Coordinate> results = new List<Coordinate>();
+            results.Capacity = w.nds.Count();
 
             foreach (var node in w.nds)
                 results.Add(new Coordinate(node.lon, node.lat));
@@ -463,6 +467,13 @@ namespace DatabaseAccess
         public static Geometry SimplifyArea(Geometry place)
         {
             var simplerPlace = NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(place, resolution10); //i can't identify details below this in the server
+            if (place is Polygon)
+            {
+                if (!((Polygon)simplerPlace).Shell.IsCCW)
+                    simplerPlace = simplerPlace.Reverse();
+                if (!((Polygon)simplerPlace).Shell.IsCCW)
+                    return null; //isn't correct in either orientation.
+            }
             return simplerPlace;
         }
     }
