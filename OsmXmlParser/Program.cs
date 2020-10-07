@@ -588,7 +588,11 @@ namespace OsmXmlParser
         {
             //TODO: load files into RAM as memorystream, then feed that stream to functions for a possible performance boost?
             string destFolder = @"D:\Projects\OSM Server Info\Trimmed JSON Files\";
-            //var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
+            FileStream fs = new FileStream(filename, FileMode.Open);
+            byte[] fileInRam = new byte[fs.Length];
+            fs.Read(fileInRam, 0, (int)fs.Length);
+            MemoryStream ms = new MemoryStream(fileInRam);
+
             foreach (var areatype in areaTypes)
             {
                 //skip entries if the settings say not to process them.
@@ -606,11 +610,14 @@ namespace OsmXmlParser
                 processedEntries.Capacity = 100000;
 
                 Log.WriteLog("Starting " + filename + " relation read at " + DateTime.Now);
-                var osmRelations = GetRelationsFromPbf(filename, areatypename);
+                //var osmRelations = GetRelationsFromPbf(filename, areatypename);
+                var osmRelations = GetRelationsFromStream(ms, areatypename);
                 var referencedWays = osmRelations.SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToLookup(k => k, v => v);
-                var osmWays = GetWaysFromPbf(filename, areatypename, referencedWays);
+                //var osmWays = GetWaysFromPbf(filename, areatypename, referencedWays);
+                var osmWays = GetWaysFromStream(ms, areatypename, referencedWays);
                 var referencedNodes = osmWays.SelectMany(m => m.Nodes).Distinct().ToLookup(k => k, v => v);
-                var osmNodes = GetNodesFromPbf(filename, areatypename, referencedNodes);
+                //var osmNodes = GetNodesFromPbf(filename, areatypename, referencedNodes);
+                var osmNodes = GetNodesFromStream(ms, areatypename, referencedNodes);
 
                 Log.WriteLog("Relevant data pulled from file at" + DateTime.Now);
 
@@ -671,6 +678,9 @@ namespace OsmXmlParser
                 processedEntries = null;
             }
             Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
+            ms.Close();  ms.Dispose();
+            fs.Close(); fs.Dispose();
+
             File.Move(filename, filename + "Done"); //We made it all the way to the end, this file is done.
         }
 
@@ -770,10 +780,10 @@ namespace OsmXmlParser
                 md.name = GetElementName(r.Tags);
                 md.type = MapSupport.GetType(r.Tags);
                 //md.AreaTypeId = MapSupport.areaTypes.Where(a => a.AreaName == md.type).First().AreaTypeId;
-                md.RelationId = r.Id.Value;              
+                md.RelationId = r.Id.Value;
                 md.place = MapSupport.SimplifyArea(poly);
                 results.Add(md);
-                        
+
                 waysToRemove.AddRange(shapeList);
             }
 
@@ -921,23 +931,24 @@ namespace OsmXmlParser
             List<MapData> contents = new List<MapData>();
             contents.Capacity = 100000;
 
-                var source = new PBFOsmStreamSource(file);
-                var progress = source.ShowProgress();
+            file.Position = 0;
+            var source = new PBFOsmStreamSource(file);
+            var progress = source.ShowProgress();
 
-                List<OsmSharp.Relation> filteredEntries;
-                if (areaType == "admin")
-                    filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
-                        MapSupport.GetType(p.Tags).StartsWith(areaType))
-                    .Select(p => (OsmSharp.Relation)p)
-                    .ToList();
-                else
-                    filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
-                    MapSupport.GetType(p.Tags) == areaType
-                )
-                    .Select(p => (OsmSharp.Relation)p)
-                    .ToList();
+            List<OsmSharp.Relation> filteredEntries;
+            if (areaType == "admin")
+                filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
+                    MapSupport.GetType(p.Tags).StartsWith(areaType))
+                .Select(p => (OsmSharp.Relation)p)
+                .ToList();
+            else
+                filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
+                MapSupport.GetType(p.Tags) == areaType
+            )
+                .Select(p => (OsmSharp.Relation)p)
+                .ToList();
 
-                return filteredEntries;
+            return filteredEntries;
 
         }
 
@@ -966,6 +977,30 @@ namespace OsmXmlParser
             }
         }
 
+        private static List<OsmSharp.Way> GetWaysFromStream(Stream file, string areaType, ILookup<long, long> referencedWays)
+        {
+            //This might be too broad, or might need some new sub-functions to pull each set of contents in, like my current
+            //MakeAllSerializedFiles setup, but looped over per type.
+            //returns list of MapDAta eventually
+            //Read through a file for stuff that matches our parameters.
+            List<OsmSharp.Relation> filteredRelations = new List<OsmSharp.Relation>();
+            List<MapData> contents = new List<MapData>();
+            contents.Capacity = 100000;
+            file.Position = 0;
+
+            var source = new PBFOsmStreamSource(file);
+            var progress = source.ShowProgress();
+
+            var filteredEntries = progress.Where(p => p.Type == OsmGeoType.Way &&
+                (MapSupport.GetType(p.Tags) == areaType
+                || referencedWays[p.Id.Value].Count() > 0)
+            )
+                .Select(p => (OsmSharp.Way)p)
+                .ToList();
+
+            return filteredEntries;
+        }
+
         private static List<NodeReference> GetNodesFromPbf(string filename, string areaType, ILookup<long, long> nodes)
         {
             //This might be too broad, or might need some new sub-functions to pull each set of contents in, like my current
@@ -988,6 +1023,30 @@ namespace OsmXmlParser
 
                 return filteredEntries;
             }
+        }
+
+        private static List<NodeReference> GetNodesFromStream(Stream file, string areaType, ILookup<long, long> nodes)
+        {
+            //This might be too broad, or might need some new sub-functions to pull each set of contents in, like my current
+            //MakeAllSerializedFiles setup, but looped over per type.
+            //returns list of MapDAta eventually
+            //Read through a file for stuff that matches our parameters.
+            List<OsmSharp.Relation> filteredRelations = new List<OsmSharp.Relation>();
+            List<MapData> contents = new List<MapData>();
+            contents.Capacity = 100000;
+            file.Position = 0;
+
+            var source = new PBFOsmStreamSource(file);
+            var progress = source.ShowProgress();
+
+            var filteredEntries = progress.Where(p => p.Type == OsmGeoType.Node &&
+                (MapSupport.GetType(p.Tags) == areaType || nodes[p.Id.Value].Count() > 0)
+            )
+                .Select(n => new NodeReference(n.Id.Value, ((OsmSharp.Node)n).Latitude.Value, ((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), areaType))
+                .ToList();
+
+            return filteredEntries;
+
         }
 
         //TODO: merge these 3 functions into 1, take type as a parameter
