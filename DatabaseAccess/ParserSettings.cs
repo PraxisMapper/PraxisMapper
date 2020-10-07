@@ -4,11 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace OsmXmlParser
+namespace DatabaseAccess
 {
     public static class ParserSettings
     {
-        public static bool processAdmin{ get; set; } = true;
+        public static bool processAdmin { get; set; } = true;
         public static bool processBeach { get; set; } = true;
         public static bool processCemetery { get; set; } = true;
         public static bool processHistorical { get; set; } = true;
@@ -21,5 +21,9 @@ namespace OsmXmlParser
         public static bool processUniversity { get; set; } = true;
         public static bool processWater { get; set; } = true;
         public static bool processWetland { get; set; } = true;
+        public static bool UseCaching { get; set; } = true;
+
+        //public static bool UsePerformanceTracker { get; set; } = true;  //not used in this function.
     }
 }
+

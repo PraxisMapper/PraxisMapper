@@ -2,7 +2,7 @@
   "profiles": {
     "OsmXmlParser": {
       "commandName": "Project",
-      "commandLineArgs": "-resetPbf -resetJson -trimPbfFiles -readMapData"
+      "commandLineArgs": "-resetPbf -resetJson -trimPbfFiles "
     }
   }
 }

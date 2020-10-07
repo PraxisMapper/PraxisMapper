@@ -911,6 +911,36 @@ namespace OsmXmlParser
             }
         }
 
+        private static List<OsmSharp.Relation> GetRelationsFromStream(Stream file, string areaType)
+        {
+            //This might be too broad, or might need some new sub-functions to pull each set of contents in, like my current
+            //MakeAllSerializedFiles setup, but looped over per type.
+            //returns list of MapDAta eventually
+            //Read through a file for stuff that matches our parameters.
+            List<OsmSharp.Relation> filteredRelations = new List<OsmSharp.Relation>();
+            List<MapData> contents = new List<MapData>();
+            contents.Capacity = 100000;
+
+                var source = new PBFOsmStreamSource(file);
+                var progress = source.ShowProgress();
+
+                List<OsmSharp.Relation> filteredEntries;
+                if (areaType == "admin")
+                    filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
+                        MapSupport.GetType(p.Tags).StartsWith(areaType))
+                    .Select(p => (OsmSharp.Relation)p)
+                    .ToList();
+                else
+                    filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
+                    MapSupport.GetType(p.Tags) == areaType
+                )
+                    .Select(p => (OsmSharp.Relation)p)
+                    .ToList();
+
+                return filteredEntries;
+
+        }
+
         private static List<OsmSharp.Way> GetWaysFromPbf(string filename, string areaType, ILookup<long, long> referencedWays)
         {
             //This might be too broad, or might need some new sub-functions to pull each set of contents in, like my current

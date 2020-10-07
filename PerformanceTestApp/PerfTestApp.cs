@@ -1,4 +1,5 @@
 ﻿using DatabaseAccess;
+using DatabaseAccess.Support;
 using GeoAPI.Geometries;
 using Google.Common.Geometry;
 using Google.OpenLocationCode;
@@ -6,9 +7,12 @@ using Microsoft.VisualBasic.CompilerServices;
 using NetTopologySuite;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.GeometriesGraph.Index;
+using OsmSharp;
 using OsmSharp.IO.Zip.Checksum;
+using OsmSharp.Streams;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection.Metadata.Ecma335;
 using System.Runtime.Versioning;
@@ -36,9 +40,10 @@ namespace PerformanceTestApp
             //S2VsPlusCode();
             //SplitAreaValues();
             //TestPlaceLookupPlans();
-            TestSpeedChangeByArea();
+            //TestSpeedChangeByArea();
             //TestGetPlacesPerf();
             //TestMapDataAbbrev();
+            TestFileVsMemoryStream();
 
 
             //TODO: consider pulling 4-cell worth of places into memory, querying against that instead of a DB lookup every time?
@@ -61,7 +66,7 @@ namespace PerformanceTestApp
             results.Capacity = count;
 
             for (int i = 0; i < count; i++)
-                results.Add(MapSupport.GetRandomBoundedPoint());
+                results.Add(GetRandomBoundedPoint());
 
             return results;
         }
@@ -481,6 +486,57 @@ namespace PerformanceTestApp
                 Log.WriteLog("Full data time took " + placesTime + "ms");
                 Log.WriteLog("short data time took " + abbrevTime + "ms");
             }
+        }
+
+        public static void TestFileVsMemoryStream()
+        {
+            //reading everything from disk took ~55 seconds.
+            //the memorystream alternative took ~33 seconds. But this difference goes away largely by using the filter commands
+            //eX: on relations it's 22 seconds vs 21 seconds.
+            //So there's some baseline performance floor that's probably disk dependent.
+            Log.WriteLog("Starting memorystream perf test at " + DateTime.Now);
+            System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+            string filename = @"D:\Projects\OSM Server Info\XmlToProcess\ohio-latest.osm.pbf"; //160MB PBF
+
+            sw.Start();
+            //using (var fs = System.IO.File.OpenRead(filename))
+            //{
+            //    List<OsmSharp.Relation> filteredRelations = new List<OsmSharp.Relation>();
+            //    List<MapData> contents = new List<MapData>();
+            //    contents.Capacity = 100000;
+
+            //    var source = new PBFOsmStreamSource(fs);
+            //    var progress = source.ShowProgress();
+
+            //    //List<OsmSharp.Relation> filteredEntries;
+            //        var filteredEntries = progress //.Where(p => p.Type == OsmGeoType.Relation)
+            //        //.Select(p => (OsmSharp.Relation)p)
+            //        .ToList();
+
+            //}
+            sw.Stop();
+            Log.WriteLog("Reading from file took " + sw.ElapsedMilliseconds + "ms");
+            
+            sw.Restart();
+            FileStream fs2 = new FileStream(filename, FileMode.Open);
+            byte[] fileInRam = new byte[fs2.Length];
+            fs2.Read(fileInRam, 0, (int)fs2.Length);
+            MemoryStream ms = new MemoryStream(fileInRam);
+            List<OsmSharp.Relation> filteredRelations2 = new List<OsmSharp.Relation>();
+            List<MapData> contents2 = new List<MapData>();
+            contents2.Capacity = 100000;
+
+            var source2 = new PBFOsmStreamSource(ms);
+            var progress2 = source2.ShowProgress();
+
+            //List<OsmSharp.Relation> filteredEntries2;
+            var filteredEntries2 = progress2 //.Where(p => p.Type == OsmGeoType.Relation)
+            //.Select(p => (OsmSharp.Relation)p)
+            .ToList();
+            sw.Stop();
+
+            Log.WriteLog("Reading to MemoryStream and processing took " + sw.ElapsedMilliseconds + "ms");
+
         }
     }
 }

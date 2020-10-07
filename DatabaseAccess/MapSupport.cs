@@ -28,8 +28,8 @@ namespace DatabaseAccess
         public const double resolution10 = .000125; //the size of a 10-digit PlusCode, in degrees.
         public const double resolution8 = .0025; //the size of a 8-digit PlusCode, in degrees.
         public const double resolution6 = .05; //the size of a 6-digit PlusCode, in degrees.
-        public const double resolution4 = 1; //the size of a 6-digit PlusCode, in degrees.
-        public const double resolution2 = 20; //the size of a 6-digit PlusCode, in degrees.
+        public const double resolution4 = 1; //the size of a 4-digit PlusCode, in degrees.
+        public const double resolution2 = 20; //the size of a 2-digit PlusCode, in degrees.
 
         //public static List<string> relevantTags = new List<string>() { "name", "natural", "leisure", "landuse", "amenity", "tourism", "historic", "highway", "boundary" }; //The keys in tags we process to see if we want it included.
         public static List<string> relevantTourismValues = new List<string>() { "artwork", "attraction", "gallery", "museum", "viewpoint", "zoo" }; //The stuff we care about in the tourism category. Zoo and attraction are debatable.
@@ -45,7 +45,7 @@ namespace DatabaseAccess
             new AreaType() { AreaTypeId = 5, AreaName = "university", OsmTags = "" },
             new AreaType() { AreaTypeId = 6, AreaName = "natureReserve", OsmTags = "" },
             new AreaType() { AreaTypeId = 7, AreaName = "cemetery", OsmTags = "" },
-            new AreaType() { AreaTypeId = 8, AreaName = "mall", OsmTags = "" },
+            //new AreaType() { AreaTypeId = 8, AreaName = "mall", OsmTags = "" },
             new AreaType() { AreaTypeId = 9, AreaName = "retail", OsmTags = "" },
             new AreaType() { AreaTypeId = 10, AreaName = "tourism", OsmTags = "" },
             new AreaType() { AreaTypeId = 11, AreaName = "historical", OsmTags = "" },
@@ -279,20 +279,6 @@ namespace DatabaseAccess
 
         }
 
-        //public static MapData ConvertNodeToMapData(OsmSharp.Node n)
-        //{
-        //    //Takes a single tagged node, turns it into a usable MapData entry for our app
-        //    //var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
-        //    return new MapData()
-        //    {
-        //        name = GetElementName(n.Tags),
-        //        type = GetType(n.Tags),
-        //        place = factory.CreatePoint(new Coordinate(n.Longitude.Value, n.Latitude.Value)),
-        //        NodeId = n.Id,
-        //        AreaTypeId = MapSupport.areaTypes.Where(a => a.AreaName == j.type).First().AreaTypeId
-        //    };
-        //}
-
         public static MapData ConvertNodeToMapData(NodeReference n)
         {
             var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
@@ -327,70 +313,24 @@ namespace DatabaseAccess
             return areaTypeReference[results].First();
         }
 
-        public static string GetType(TagsCollectionBase tags)
+        public static string GetType(TagsCollectionBase tagsO)
         {
             //This is how we will figure out which area a cell counts as now.
             //Should make sure all of these exist in the AreaTypes table I made.
             //REMEMBER: this list needs to match the same tags as the ones in GetWays(relations)FromPBF or else data looks weird.
-            //TODO: prioritize these tags, since each space gets one value.
             //TODO: optimize this function, searching  the array 20 times in the worst-case scenario isn't good for big files. Takes an hour for a 7GB file.
-            //--re-order searches by frequency (most common on top, least common last),
-            //--use options to skip checks if they're not asked for.
 
+            var tags = tagsO.ToLookup(k => k.Key, v => v.Value);
 
             if (tags.Count() == 0)
-                return ""; //Shouldn't happen, but as a sanity check if we start adding Nodes later.
+                return ""; //Sanity check
+
+            //Entries are currently sorted by rough frequency of occurrence in my home area.
 
             //Water spaces should be displayed. Not sure if I want players to be in them for resources.
-            //Water should probably override other values as a safety concern.
-            if (tags.Any(t => t.Key == "natural" && t.Value == "water")
-                || tags.Any(t => t.Key == "waterway"))
+            //Water should probably override other values as a safety concern?
+            if (ParserSettings.processWater && tags["natural"].Any(v => v == "water") || tags["waterway"].Count() > 0)
                 return "water";
-
-            //Wetlands should also be high priority.
-            if (tags.Any(t => (t.Key == "natural" && t.Value == "wetland")))
-                return "wetland";
-
-            //Parks are good. Possibly core to this game.
-            if (tags.Any(t => t.Key == "leisure" && t.Value == "park"))
-                return "park";
-
-            //Beaches are good. Managed beaches are less good but I'll count those too.
-            if (tags.Any(t => (t.Key == "natural" && t.Value == "beach")
-            || (t.Key == "leisure" && t.Value == "beach_resort")))
-                return "beach";
-
-            //Universities are good. Primary schools are not so good.  Don't include all education values.
-            if (tags.Any(t => (t.Key == "amenity" && t.Value == "university")
-                || (t.Key == "amenity" && t.Value == "college")))
-                return "university";
-
-            //Nature Reserve. Should be included
-            if (tags.Any(t => (t.Key == "leisure" && t.Value == "nature_reserve")))
-                return "natureReserve";
-
-            //Cemetaries are ok. They don't seem to appreciate Pokemon Go, but they're a public space and often encourage activity in them (thats not PoGo)
-            if (tags.Any(t => (t.Key == "landuse" && t.Value == "cemetery")
-                || (t.Key == "amenity" && t.Value == "grave_yard")))
-                return "cemetery";
-
-            //Malls are a good indoor area to explore.
-            if (tags.Any(t => t.Key == "shop" && t.Value == "mall"))
-                return "mall";
-
-            //Generic shopping area is ok. I don't want to advertise businesses, but this is a common area type.
-            //TODO: expand this to buildings, not just landuse?
-            if (tags.Any(t => (t.Key == "landuse" && t.Value == "retail")))
-                return "retail";
-
-            //I have tourism as a tag to save, but not necessarily sub-sets yet of whats interesting there.
-            if (tags.Any(t => (t.Key == "tourism" && relevantTourismValues.Contains(t.Value))))
-                return "tourism"; //TODO: create sub-values for tourism types?
-
-            //I have historical as a tag to save, but not necessarily sub-sets yet of whats interesting there.
-            //NOTE: the OSM tag doesn't match my value
-            if (tags.Any(t => (t.Key == "historic")))
-                return "historical";
 
             //Trail. Will likely show up in varying places for various reasons. Trying to limit this down to hiking trails like in parks and similar.
             //In my local park, i see both path and footway used (Footway is an unpaved trail, Path is a paved one)
@@ -399,23 +339,65 @@ namespace DatabaseAccess
             //highway=footway is pedestrian traffic only, maybe including bikes. Mostly sidewalks, which I dont' want to include.
             //highway=bridleway is horse paths, maybe including pedestrians and bikes
             //highway=cycleway is for bikes, maybe including pedesterians.
-            if (tags.Any(t => (t.Key == "highway" && t.Value == "bridleway"))
-                || (tags.Any(t => t.Key == "highway" && t.Value == "path")) //path implies motor_vehicle = no // && !tags.Any(t => t.k =="motor_vehicle" && t.v == "yes")) //may want to check anyways?
-                || (tags.Any(t => t.Key == "highway" && t.Value == "cycleway"))  //I probably want to include these too, though I have none local to see.
-                || (tags.Any(t => t.Key == "highway" && relevantHighwayValues.Contains(t.Value)) && !tags.Any(t => t.Key == "footway" && (t.Value == "sidewalk" || t.Value == "crossing")))
-                )
+            if (ParserSettings.processTrail && tags["highway"].Any(v => relevantHighwayValues.Contains(v) 
+                && !tags["footway"].Any(v => v == "sidewalk" || v == "crossing")))
                 return "trail";
+
+            //Parks are good. Possibly core to this game.
+            if (ParserSettings.processPark && tags["leisure"].Any(v => v == "park"))
+                return "park";
 
             //admin boundaries: identify what political entities you're in. Smaller numbers are bigger levels (countries), bigger numbers are smaller entries (states, counties, cities, neighborhoods)
             //This should be the lowest priority tag on a cell, since this is probably the least interesting piece of info you could know.
             //OSM Wiki has more info on which ones mean what and where they're used.
-            if (tags.Any(t => t.Key =="boundary" && t.Value == "administrative")) //Admin_level appears on other elements, including goverment-tagged stuff, capitals, etc.
+            if (ParserSettings.processAdmin && tags["boundary"].Any(v => v == "administrative")) //Admin_level appears on other elements, including goverment-tagged stuff, capitals, etc.
             {
-                string level = tags.Where(t => t.Key == "admin_level").FirstOrDefault().Value;
+                string level = tags["admin_level"].FirstOrDefault();
                 if (level != null)
                     return "admin" + level.ToInt();
                 return "admin0"; //indicates relation wasn't tagged with a level.
             }
+
+            //Cemetaries are ok. They don't seem to appreciate Pokemon Go, but they're a public space and often encourage activity in them (thats not PoGo)
+            if (ParserSettings.processCemetery && (tags["landuse"].Any(v => v == "cemetery") 
+                || tags["amenity"].Any(v => v == "grave_yard")))
+                return "cemetery";
+
+            //Generic shopping area is ok. I don't want to advertise businesses, but this is a common area type.
+            //TODO: expand this to buildings, not just landuse?
+            //Landuse=retail has 200k entries. building=retail has 500k entries.
+            //shop=* has about 5 million entries, mostly nodes.
+            //Malls should be merged here, and are a sub-set of shop entries
+            if (ParserSettings.processRetail && (tags["landuse"].Any(v => v == "retail")
+                || tags["building"].Any(v => v == "retail") 
+                || tags["shop"].Count() > 0)) // mall is a value of shop, so those are included here now.
+                return "retail";
+
+            //I have historical as a tag to save, but not necessarily sub-sets yet of whats interesting there.
+            //NOTE: the OSM tag doesn't match my value
+            if (ParserSettings.processHistorical && tags["historic"].Count() > 0)
+                return "historical";
+
+            //Wetlands should also be high priority.
+            if (ParserSettings.processWetland && tags["natural"].Any(v => v == "wetland"))
+                return "wetland";
+
+            //Nature Reserve. Should be included
+            if (ParserSettings.processNatureReserve && tags["leisure"].Any(v => v== "nature_reserve"))
+                return "natureReserve";
+
+            //I have tourism as a tag to save, but not necessarily sub-sets yet of whats interesting there.
+            if (ParserSettings.processTourism && tags["tourism"].Any(v => relevantTourismValues.Contains(v)))
+                return "tourism"; //TODO: create sub-values for tourism types?
+
+            //Universities are good. Primary schools are not so good.  Don't include all education values.
+            if (ParserSettings.processUniversity && tags["amenity"].Any(v => v == "university" || v =="college"))
+                return "university";
+
+            //Beaches are good. Managed beaches are less good but I'll count those too.
+            if (ParserSettings.processBeach && tags["natural"].Any(v => v == "beach")
+            || (tags["leisure"].Any(v => v  == "beach_resort")))
+                return "beach";
 
             //Possibly of interest:
             //landuse:forest / landuse:orchard  / natural:wood

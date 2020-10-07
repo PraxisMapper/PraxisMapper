@@ -17,5 +17,9 @@ namespace GPSExploreServerAPI.Controllers
 
         //Out of scope intially. First game or two will not need this.
         //Making the file to remember this idea.
+
+        //Will need db tables for this?
+        //this probably stores some baseline data, and perhaps an ID for an object for another program to pull from a DB.
+        //Yeah, this might be too game-specific to set up as a baseline past that.
     }
 }
