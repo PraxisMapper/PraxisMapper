@@ -23,15 +23,16 @@ namespace DatabaseAccess
         //TODO:
         //set up a command line parameter for OsmXmlParser to extract certain types of value from files (so different users could pull different features out to use)
         //continue renmaing and reorganizing things.
-        //make PerformanceInfo tracking a toggle.
 
+        //the 11th digit uses a 5x4 grid, not a 20x20. They need separate scaling values for X and Y and are rectangular.
+        public const double resolution11Lat = .00003125;
+        public const double resolution11Lon = .000025;
         public const double resolution10 = .000125; //the size of a 10-digit PlusCode, in degrees.
         public const double resolution8 = .0025; //the size of a 8-digit PlusCode, in degrees.
         public const double resolution6 = .05; //the size of a 6-digit PlusCode, in degrees.
         public const double resolution4 = 1; //the size of a 4-digit PlusCode, in degrees.
         public const double resolution2 = 20; //the size of a 2-digit PlusCode, in degrees.
 
-        //public static List<string> relevantTags = new List<string>() { "name", "natural", "leisure", "landuse", "amenity", "tourism", "historic", "highway", "boundary" }; //The keys in tags we process to see if we want it included.
         public static List<string> relevantTourismValues = new List<string>() { "artwork", "attraction", "gallery", "museum", "viewpoint", "zoo" }; //The stuff we care about in the tourism category. Zoo and attraction are debatable.
         public static List<string> relevantHighwayValues = new List<string>() { "path", "bridleway", "cycleway", "footway" }; //The stuff we care about in the highway category. Still pulls in plain sidewalks with no additional tags fairly often.
 
@@ -45,7 +46,7 @@ namespace DatabaseAccess
             new AreaType() { AreaTypeId = 5, AreaName = "university", OsmTags = "" },
             new AreaType() { AreaTypeId = 6, AreaName = "natureReserve", OsmTags = "" },
             new AreaType() { AreaTypeId = 7, AreaName = "cemetery", OsmTags = "" },
-            //new AreaType() { AreaTypeId = 8, AreaName = "mall", OsmTags = "" },
+            //new AreaType() { AreaTypeId = 8, AreaName = "mall", OsmTags = "" }, //is now Retail.
             new AreaType() { AreaTypeId = 9, AreaName = "retail", OsmTags = "" },
             new AreaType() { AreaTypeId = 10, AreaName = "tourism", OsmTags = "" },
             new AreaType() { AreaTypeId = 11, AreaName = "historical", OsmTags = "" },
@@ -71,21 +72,6 @@ namespace DatabaseAccess
             }
             else
                 places = source.Where(md => md.place.Intersects(location)).ToList();
-            return places;
-        }
-
-        public static List<MapData> GetPlaces(Point point, List<MapData> source = null)
-        {
-            //NOTE: Intersects doesn't seem to work here, but neither does anything else?
-            //I get back the same list of 3 entries without names.
-            List<MapData> places;
-            if (source == null)
-            {
-                var db = new DatabaseAccess.GpsExploreContext();
-                places = db.MapData.Where(md => md.place.Intersects(point)).ToList();
-            }
-            else
-                places = source.Where(md => md.place.Contains(point)).ToList();
             return places;
         }
 
@@ -129,9 +115,9 @@ namespace DatabaseAccess
             {
                 for (var y = 0; y < divideCount; y++)
                 {
-                    var box = new GeoArea(area.SouthLatitude + (latDivider * y), 
-                        area.WestLongitude + (lonDivider * x), 
-                        area.SouthLatitude + (latDivider * y) + latDivider, 
+                    var box = new GeoArea(area.SouthLatitude + (latDivider * y),
+                        area.WestLongitude + (lonDivider * x),
+                        area.SouthLatitude + (latDivider * y) + latDivider,
                         area.WestLongitude + (lonDivider * x) + lonDivider);
                     resultsPlace.Add(GetPlaces(box, places));
                     resultsArea.Add(box);
@@ -175,37 +161,65 @@ namespace DatabaseAccess
             var entriesHere = MapSupport.GetPlaces(box, places).Where(p => !p.type.StartsWith("admin")).ToList(); //Excluding admin boundaries from this list.  
 
             if (entriesHere.Count() == 0)
-            {
                 return "";
-            }
-            else
+
+            string area = DetermineAreaPoint(entriesHere);
+            if (area != "")
             {
-                //New sorting rules:
-                //If there's only one place, take it without any additional queries. Otherwise:
-                //if there's a Point in the mapdata list, take the first one (No additional sub-sorting applied yet)
-                //else if there's a Line in the mapdata list, take the first one (no additional sub-sorting applied yet)
-                //else if there's polygonal areas here, take the smallest one by area 
-                //(In general, the smaller areas should be overlaid on larger areas. This is more accurate than guessing by area types which one should be applied)
                 string olc;
                 if (entireCode)
                     olc = new OpenLocationCode(y, x).CodeDigits;
                 else
                     olc = new OpenLocationCode(y, x).CodeDigits.Substring(6, 4); //This takes lat, long, Coordinate takes X, Y. This line is correct.
-                
-                if (entriesHere.Count() == 1)
-                    return olc + "|" + entriesHere.First().name + "|" + entriesHere.First().type;
-
-                var point = entriesHere.Where(e => e.place.GeometryType == "Point").FirstOrDefault();
-                if (point != null)
-                    return olc + "|" + point.name + "|" + point.type;
-
-                var line = entriesHere.Where(e => e.place.GeometryType == "LineString" || e.place.GeometryType == "MultiLineString").FirstOrDefault();
-                if (line != null)
-                    return olc + "|" + line.name + "|" + line.type;
-
-                var smallest = entriesHere.Where(e => e.place.GeometryType == "Polygon" || e.place.GeometryType == "MultiPolygon").OrderBy(e => e.place.Area).First();
-                return olc + "|" + smallest.name + "|" + smallest.type;
+                return olc + "|" + area;
             }
+            return "";
+        }
+
+        //I don't think this is going to be a high-demand function, but I'll include it for performance comparisons or possibly low-res tiles.
+        public static string FindPlacesIn11Cell(double x, double y, ref List<MapData> places, bool entireCode = false)
+        {
+            var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolution11Lat, x + resolution11Lon));
+            var entriesHere = MapSupport.GetPlaces(box, places).Where(p => !p.type.StartsWith("admin")).ToList(); //Excluding admin boundaries from this list.  
+
+            if (entriesHere.Count() == 0)
+                return "";
+
+            string area = DetermineAreaPoint(entriesHere);
+            if (area != "")
+            {
+                string olc;
+                if (entireCode)
+                    olc = new OpenLocationCode(y, x, 11).CodeDigits;
+                else
+                    olc = new OpenLocationCode(y, x, 11).CodeDigits.Substring(6, 5); //This takes lat, long, Coordinate takes X, Y. This line is correct.
+                return olc + "|" + area;
+            }
+            return "";
+        }
+
+        public static string DetermineAreaPoint(List<MapData> entriesHere)
+        {
+            //New sorting rules:
+            //If there's only one place, take it without any additional queries. Otherwise:
+            //if there's a Point in the mapdata list, take the first one (No additional sub-sorting applied yet)
+            //else if there's a Line in the mapdata list, take the first one (no additional sub-sorting applied yet)
+            //else if there's polygonal areas here, take the smallest one by area 
+            //(In general, the smaller areas should be overlaid on larger areas. This is more accurate than guessing by area types which one should be applied)
+
+            if (entriesHere.Count() == 1)
+                return entriesHere.First().name + "|" + entriesHere.First().type;
+
+            var point = entriesHere.Where(e => e.place.GeometryType == "Point").FirstOrDefault();
+            if (point != null)
+                return point.name + "|" + point.type;
+
+            var line = entriesHere.Where(e => e.place.GeometryType == "LineString" || e.place.GeometryType == "MultiLineString").FirstOrDefault();
+            if (line != null)
+                return line.name + "|" + line.type;
+
+            var smallest = entriesHere.Where(e => e.place.GeometryType == "Polygon" || e.place.GeometryType == "MultiPolygon").OrderBy(e => e.place.Area).First();
+            return smallest.name + "|" + smallest.type;
         }
 
         public static string LoadDataOnArea(long id)
@@ -240,7 +254,7 @@ namespace DatabaseAccess
             md.name = w.name;
             md.WayId = w.id;
             md.type = w.AreaType;
-            //md.AreaTypeId = MapSupport.areaTypes.Where(a => a.AreaName == md.type).First().AreaTypeId;
+            md.AreaTypeId = MapSupport.areaTypeReference[w.AreaType.StartsWith("admin") ? "admin" : w.AreaType].First();
 
             //Adding support for LineStrings. A lot of rivers/streams/footpaths are treated this way.
             if (w.nds.First().id != w.nds.Last().id)
@@ -257,20 +271,18 @@ namespace DatabaseAccess
                 }
 
                 Polygon temp = factory.CreatePolygon(w.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray());
-                if (!temp.Shell.IsCCW)
+                temp = CCWCheck(temp);
+                if (temp == null)
                 {
-                    temp = (Polygon)temp.Reverse();
-                    if (!temp.Shell.IsCCW)
-                    {
-                        Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not counter-clockwise forward or reversed.");
-                        return null;
-                    }
-                    if (!temp.IsValid)
-                    {
-                        Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not valid according to its own internal check.");
-                        return null;
-                    }
+                    Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not counter-clockwise forward or reversed.");
+                    return null;
                 }
+                if (!temp.IsValid)
+                {
+                    Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not valid according to its own internal check.");
+                    return null;
+                }
+
                 md.place = MapSupport.SimplifyArea(temp);
                 md.WayId = w.id;
             }
@@ -287,8 +299,8 @@ namespace DatabaseAccess
                 type = n.type,
                 place = factory.CreatePoint(new Coordinate(n.lon, n.lat)),
                 NodeId = n.Id,
-                //AreaTypeId = MapSupport.areaTypes.Where(a => a.AreaName == n.type).First().AreaTypeId
-            };
+                AreaTypeId = MapSupport.areaTypeReference[n.type.StartsWith("admin") ? "admin" : n.type].First()
+        };
         }
 
         public static string GetElementName(TagsCollectionBase tagsO)
@@ -342,7 +354,7 @@ namespace DatabaseAccess
             //highway=footway is pedestrian traffic only, maybe including bikes. Mostly sidewalks, which I dont' want to include.
             //highway=bridleway is horse paths, maybe including pedestrians and bikes
             //highway=cycleway is for bikes, maybe including pedesterians.
-            if (ParserSettings.processTrail && tags["highway"].Any(v => relevantHighwayValues.Contains(v) 
+            if (ParserSettings.processTrail && tags["highway"].Any(v => relevantHighwayValues.Contains(v)
                 && !tags["footway"].Any(v => v == "sidewalk" || v == "crossing")))
                 return "trail";
 
@@ -362,7 +374,7 @@ namespace DatabaseAccess
             }
 
             //Cemetaries are ok. They don't seem to appreciate Pokemon Go, but they're a public space and often encourage activity in them (thats not PoGo)
-            if (ParserSettings.processCemetery && (tags["landuse"].Any(v => v == "cemetery") 
+            if (ParserSettings.processCemetery && (tags["landuse"].Any(v => v == "cemetery")
                 || tags["amenity"].Any(v => v == "grave_yard")))
                 return "cemetery";
 
@@ -372,7 +384,7 @@ namespace DatabaseAccess
             //shop=* has about 5 million entries, mostly nodes.
             //Malls should be merged here, and are a sub-set of shop entries
             if (ParserSettings.processRetail && (tags["landuse"].Any(v => v == "retail")
-                || tags["building"].Any(v => v == "retail") 
+                || tags["building"].Any(v => v == "retail")
                 || tags["shop"].Count() > 0)) // mall is a value of shop, so those are included here now.
                 return "retail";
 
@@ -386,7 +398,7 @@ namespace DatabaseAccess
                 return "wetland";
 
             //Nature Reserve. Should be included
-            if (ParserSettings.processNatureReserve && tags["leisure"].Any(v => v== "nature_reserve"))
+            if (ParserSettings.processNatureReserve && tags["leisure"].Any(v => v == "nature_reserve"))
                 return "natureReserve";
 
             //I have tourism as a tag to save, but not necessarily sub-sets yet of whats interesting there.
@@ -394,12 +406,12 @@ namespace DatabaseAccess
                 return "tourism"; //TODO: create sub-values for tourism types?
 
             //Universities are good. Primary schools are not so good.  Don't include all education values.
-            if (ParserSettings.processUniversity && tags["amenity"].Any(v => v == "university" || v =="college"))
+            if (ParserSettings.processUniversity && tags["amenity"].Any(v => v == "university" || v == "college"))
                 return "university";
 
             //Beaches are good. Managed beaches are less good but I'll count those too.
             if (ParserSettings.processBeach && tags["natural"].Any(v => v == "beach")
-            || (tags["leisure"].Any(v => v  == "beach_resort")))
+            || (tags["leisure"].Any(v => v == "beach_resort")))
                 return "beach";
 
             //Possibly of interest:
@@ -466,15 +478,55 @@ namespace DatabaseAccess
 
         public static Geometry SimplifyArea(Geometry place)
         {
-            var simplerPlace = NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(place, resolution10); //i can't identify details below this in the server
-            if (place is Polygon)
+            //Note: SimplifyArea CAN reverse a polygon's orientation, especially in a multi-polygon, so don't do CheckCCW until after
+            var simplerPlace = NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(place, resolution10); //This cuts storage space for files by 30-50%  (40MB Ohio-water vs 26MB simplified)
+            if (simplerPlace is Polygon)
             {
-                if (!((Polygon)simplerPlace).Shell.IsCCW)
-                    simplerPlace = simplerPlace.Reverse();
-                if (!((Polygon)simplerPlace).Shell.IsCCW)
+                simplerPlace = CCWCheck((Polygon)simplerPlace);
+                if (simplerPlace == null)
                     return null; //isn't correct in either orientation.
+                return simplerPlace;
+            }
+            else if (simplerPlace is MultiPolygon)
+            {
+                MultiPolygon mp = (MultiPolygon)simplerPlace;
+                for(int i = 0; i < mp.Geometries.Count(); i++)
+                {
+                    mp.Geometries[i] = CCWCheck((Polygon)mp.Geometries[i]);
+                }
+                if (mp.Geometries.Count(g => g == null) == 0)
+                    return mp;
+                return null; //some of the outer shells aren't compatible. Should alert this to the user if possible.
             }
             return simplerPlace;
+        }
+
+        public static GeoPoint ProxyLocation(double lat, double lon, GeoArea bounds)
+        {
+            //Treat the user like they're in the real-world location
+            //Mod their location by the box size, then add that to the minimum to get their new location
+            var shiftX = lon % bounds.LongitudeWidth;
+            var shiftY = lat % bounds.LatitudeHeight;
+
+            double newLat = bounds.SouthLatitude + shiftY;
+            double newLon = bounds.WestLongitude + shiftX;
+
+            return new GeoPoint(newLat, newLon);
+        }
+
+        public static Polygon CCWCheck(Polygon p)
+        {
+            if (p == null)
+                return null;
+
+            //Sql Server Geography type requires polygon points to be in counter-clockwise order.  This function returns the polygon in the right orientation, or null if it can't.
+            if (p.Shell.IsCCW)
+                return p;
+            p = (Polygon)p.Reverse();
+            if (p.Shell.IsCCW)
+                return p;
+
+            return null; //not CCW either way? Happen occasionally for some reason, and it will fail to write to the DB
         }
     }
 }

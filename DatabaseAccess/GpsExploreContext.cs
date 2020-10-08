@@ -23,8 +23,6 @@ namespace DatabaseAccess
         //Test table to see if its practical to save prerendered results. there's 25 million 6codes, so no.
         //public DbSet<PremadeResults> PremadeResults { get; set; }
 
-        //public DbSet<SinglePointsOfInterest> SinglePointsOfInterests { get; set; }
-
         //Test table for loading osm data directly in to the DB with less processing.
         //Takes up a lot more storage space this way, not as useful for app purposes. Removing for now.
         //public DbSet<MinimumNode> MinimumNodes { get; set; }
@@ -49,9 +47,6 @@ namespace DatabaseAccess
             //like for a university or a park or something.           
 
             optionsBuilder.UseMemoryCache(mc);//I think this improves performance at the cost of RAM usage. Needs additional testing.
-
-            
-
         }
 
         protected override void OnModelCreating(ModelBuilder model)
@@ -73,7 +68,7 @@ namespace DatabaseAccess
         //This sproc is marginally faster than an insert with changetracking off (~.7 ms on average). Excluding to keep code consistent and EFCore-only where possible.
         //public static string PerformanceInfoSproc = "CREATE PROCEDURE SavePerfInfo @functionName nvarchar(500), @runtime bigint, @calledAt datetime2, @notes nvarchar(max) AS BEGIN INSERT INTO dbo.PerformanceInfo(functionName, runTime, calledAt, notes) VALUES(@functionName, @runtime, @calledAt, @notes) END";
 
-        //This doesn't appear to be any faster. Simple query.
+        //This doesn't appear to be any faster. The query isn't the slow part.
         public static Func<GpsExploreContext, Geometry, IEnumerable<MapData>> compiledIntersectQuery = 
             EF.CompileQuery((GpsExploreContext context, Geometry place) =>  context.MapData.Where(md => md.place.Intersects(place)));
 

@@ -265,7 +265,18 @@ namespace GPSExploreServerAPI.Controllers
 
             //Notes: 
             //StringBuilders isn't thread-safe, so each thread needs its own, and their results combined later.
-            int splitcount = 40; //creates 1600 entries(40x40)
+
+            //TODO: automatically determine needs for splitcount.
+            //current rule: .05 degress = 40 splits.
+            //.0025 degrees = 10 splits?
+            //.000125 degrees = 1 split.
+            int splitcount = 1; 
+            if (size > .05) //6-digit plus code
+                splitcount = 40;
+            else if (size > .0025) //8 digit
+                splitcount = 10;
+            else
+                splitcount = 1;
             List<MapData>[] placeArray;
             GeoArea[] areaArray;
             StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
@@ -279,7 +290,7 @@ namespace GPSExploreServerAPI.Controllers
                 sb.Append(sbPartial.ToString());
 
             string results = sb.ToString();
-            pt.Stop(pointDesc);
+            pt.Stop(pointDesc + "|" + size);
             return results;
         }
 

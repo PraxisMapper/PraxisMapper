@@ -4,15 +4,17 @@ using DatabaseAccess;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 
 namespace DatabaseAccess.Migrations
 {
     [DbContext(typeof(GpsExploreContext))]
-    partial class GpsExploreContextModelSnapshot : ModelSnapshot
+    [Migration("20201008130023_dropMinTables")]
+    partial class dropMinTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -30,9 +32,6 @@ namespace DatabaseAccess.Migrations
                     b.Property<string>("AreaName")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("HtmlColorCode")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("OsmTags")
                         .HasColumnType("nvarchar(max)");
 
@@ -47,9 +46,6 @@ namespace DatabaseAccess.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .UseIdentityColumn();
-
-                    b.Property<int>("AreaTypeId")
-                        .HasColumnType("int");
 
                     b.Property<long?>("NodeId")
                         .HasColumnType("bigint");

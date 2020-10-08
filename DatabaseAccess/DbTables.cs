@@ -52,7 +52,7 @@ namespace DatabaseAccess
 
             //Temporarily removing these: adding this to the global data set takes an hour and creates a log file the size of the DB.
             //public AreaType AreaType { get; set; }
-            //public int AreaTypeId { get; set; }
+            public int AreaTypeId { get; set; }
 
         }       
 
@@ -62,6 +62,7 @@ namespace DatabaseAccess
             public int AreaTypeId { get; set; }
             public string AreaName { get; set; }
             public string OsmTags { get; set; } //These are not 1:1, so this column may not be useful after all.
+            public string HtmlColorCode { get; set; } //for potential tile-drawing operations.
         }
 
         //public class SinglePointsOfInterest
