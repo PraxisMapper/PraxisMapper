@@ -245,8 +245,11 @@ namespace DatabaseAccess
 
         public static MapData ConvertWayToMapData(ref WayData w)
         {
-
-            if (w.name == "" && w.AreaType == "")
+            //An entry with no name and no type is probably a relation support entry.
+            //Something with a type and no name was found to be interesting but not named
+            //something with a name and no type is probably an excluded entry.
+            //I always want a type. Names are optional.
+            if (w.AreaType == "") //w.name == "" && 
                 return null;
 
             //Take a single tagged Way, and make it a usable MapData entry for the app.
@@ -270,20 +273,19 @@ namespace DatabaseAccess
                     return null;
                 }
 
-                Polygon temp = factory.CreatePolygon(w.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray());
-                temp = CCWCheck(temp);
-                if (temp == null)
+                Polygon temp = factory.CreatePolygon(MapSupport.WayToCoordArray(w));
+                md.place = MapSupport.SimplifyArea(temp);
+                if (md.place == null)
                 {
                     Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not counter-clockwise forward or reversed.");
                     return null;
                 }
-                if (!temp.IsValid)
+                if (!md.place.IsValid)
                 {
                     Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not valid according to its own internal check.");
                     return null;
                 }
 
-                md.place = MapSupport.SimplifyArea(temp);
                 md.WayId = w.id;
             }
             w = null;
@@ -448,8 +450,8 @@ namespace DatabaseAccess
 
             //Global scale testing.
             Random r = new Random();
-            double lat = 90 * r.NextDouble() * (r.Next() % 2 == 0 ? 1 : -1);
-            double lon = 180 * r.NextDouble() * (r.Next() % 2 == 0 ? 1 : -1);
+            float lat = 90 * (float)r.NextDouble() * (r.Next() % 2 == 0 ? 1 : -1);
+            float lon = 180 * (float)r.NextDouble() * (r.Next() % 2 == 0 ? 1 : -1);
             return new CoordPair(lat, lon);
         }
 
@@ -460,8 +462,8 @@ namespace DatabaseAccess
             //38, -84 SW
             //so 38 + (0-4), -84 = (0-4) coords.
             Random r = new Random();
-            double lat = 38 + (r.NextDouble() * 4);
-            double lon = -84 + (r.NextDouble() * 4);
+            float lat = 38 + ((float)r.NextDouble() * 4);
+            float lon = -84 + ((float)r.NextDouble() * 4);
             return new CoordPair(lat, lon);
         }
 
