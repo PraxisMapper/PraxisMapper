@@ -1,34 +1,20 @@
 ﻿using DatabaseAccess;
 using DatabaseAccess.Support;
-using EFCore.BulkExtensions;
 using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using NetTopologySuite;
 using NetTopologySuite.Geometries;
-using NetTopologySuite.Geometries.Utilities;
-using NetTopologySuite.Precision;
 using OsmSharp;
-using OsmSharp.Changesets;
-using OsmSharp.IO.PBF;
 using OsmSharp.Streams;
-using OsmSharp.Streams.Filters;
-using OsmSharp.Tags;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
-using System.Net.WebSockets;
-using System.Runtime.InteropServices;
 using System.Text.Json;
-using System.Xml;
 using static DatabaseAccess.DbTables;
 using static DatabaseAccess.MapSupport;
 
-//TODO: since some of these .pbf files become larger as trimmer JSON instead of smaller, maybe I should try a path that writes directly to DB from PBF? might involve 
-//TODO: ponder how to remove inner polygons from a larger outer polygon. This is probably a NTS function of some kind, but only applies to relations. Ways alone won't do this. This would involve editing the data loaded, not just converting it.
-//TODO: functionalize stuff to smaller pieces.
+//TODO: since some of these .pbf files become larger as trimmed JSON instead of smaller, maybe I should try a path that writes directly to DB from PBF? might involve 
 //TODO: Add high-verbosity logging messages.
 //TODO: set option flag to enable writing MapData entries to DB or File. Especially since bulk inserts won't fly for MapData from files, apparently.
 
@@ -99,12 +85,6 @@ namespace OsmXmlParser
                 }
             }
 
-            if (args.Any(a => a == "-trimXmlFiles"))
-            {
-                //MakeAllSerializedFiles(); //Removed, XML functionality will need restored later. into the more optimized setup.
-            }
-
-
             if (args.Any(a => a == "-trimPbfFiles"))
             {
                 MakeAllSerializedFilesFromPBF();
@@ -157,13 +137,6 @@ namespace OsmXmlParser
                 GpsExploreContext db = new GpsExploreContext();
                 db.ChangeTracker.AutoDetectChangesEnabled = false; //Allows single inserts to operate at a reasonable speed (~6000 per second). Nothing else edits this table.
                 List<MapData> entries = ReadMapDataToMemory(file);
-                //testing to find which entry isn't CCW in admin file
-                //foreach (var e in entries)
-                //{
-                //    //e.place = CCWCheck(e.place);
-                //    db.MapData.Add(e);
-                //    db.SaveChanges();
-                //}
                 Log.WriteLog("Processing " + entries.Count() + " ways from " + file, Log.VerbosityLevels.High);
                 db.MapData.AddRange(entries);
                 Log.WriteLog("Entries added to entities at " + DateTime.Now, Log.VerbosityLevels.High);
@@ -206,7 +179,7 @@ namespace OsmXmlParser
             System.IO.FileInfo fi = new FileInfo(filename);
             if (ParserSettings.ForceSeparateFiles || fi.Length > 400000000) //I have 28 country/state level extracts over this size, and this should include the ones that cause the most issues. TODO: make this size a setting, so higher-ram PCs can do bigger files.
             {
-                //Parse this file into area type sub-files from disk, so that I don't hit RAM limits
+                //Parse this file into area type sub-files from disk, so that I dodge hit RAM limits
                 SerializeSeparateFilesFromPBF(filename);
                 return;
             }
@@ -235,7 +208,6 @@ namespace OsmXmlParser
             fileInRam = null;
 
             var processedEntries = ProcessData(osmNodes, ref osmWays, ref osmRelations, referencedWays);
-
             WriteMapDataToFile(destFolder + destFilename + "-MapData" + ".json", ref processedEntries);
             processedEntries = null;
 
@@ -254,7 +226,7 @@ namespace OsmXmlParser
                 //ParserSettings.???
 
                 //if (areatype.AreaName == "water")
-                //  continue; //Water is too big for my PC on files this side most of the time.
+                //  continue; //Water is too big for my PC on files this side most of the time on the 5-6 worst files.
 
                 string areatypename = areatype.AreaName;
                 Log.WriteLog("Checking for " + areatypename + " members in  " + filename + " at " + DateTime.Now);
@@ -289,10 +261,6 @@ namespace OsmXmlParser
             nodes.Capacity = 100000;
             ways.Capacity = 100000;
             processedEntries.Capacity = 100000;
-
-            //Log.WriteLog("Creating node lookup for " + osmNodes.Count() + " nodes"); //33 million nodes across 2 million ways will tank this app at 16GB RAM
-            //var osmNodeLookup = osmNodes.Distinct().AsParallel().ToLookup(k => k.Id, v => v);
-            //Log.WriteLog("Found " + osmNodeLookup.Count() + " unique nodes");
 
             //Write nodes as mapdata if they're tagged separately from other things.
             Log.WriteLog("Finding tagged nodes at " + DateTime.Now);
@@ -338,18 +306,17 @@ namespace OsmXmlParser
             //processedEntries.AddRange(ProcessRelations(ref osmRelations, ref ways)); //75580ms on OH data
             processedEntries.AddRange(osmRelations.AsParallel().Select(r => ProcessRelation(r, ref ways))); //42223ms on OH.
 
+            //Removed entries we've already looked at as part of a relation? I suspect this is one of those cases where
+            //either way I do this, something's going to get messed up. Should track what.
+            //Removing ways already in a reference screws up: Oak Grove Cemetery at BGSU
+            //Re-processing ways already in a reference screws up:
+            //ways = ways.Where(w => referencedWays[w.id].Count() == 0).ToList(); 
+            //I might want to only remove outer ways, and let inner ways remain in case they're something else.
+            //This lets Oak Grove draw correctly in my app.
             var outerWays = osmRelations.SelectMany(r => r.Members.Where(m => m.Role == "outer").Select(m => m.Id)).ToLookup(k => k, v => v);
             ways = ways.Where(w => outerWays[w.id].Count() == 0).ToList();
             outerWays = null;
             osmRelations = null;
-
-            //Removed entries we've already looked at as part of a relation? I suspect this is one of those cases where
-            //either way I do this, something's going to get messed up. Should track what.
-            //Removing ways already in a reference screws up: Oak Grove cemetery at BGSU
-            //Re-processing ways already in a reference screws up:
-            //ways = ways.Where(w => referencedWays[w.id].Count() == 0).ToList(); 
-            //I might want to only remove outer ways, and let inner ways remain in case they're something else.
-            
 
             processedEntries.AddRange(ways.AsParallel().Select(w => ConvertWayToMapData(ref w)));
             ways = null;
@@ -361,12 +328,9 @@ namespace OsmXmlParser
             List<MapData> results = new List<MapData>();
             GpsExploreContext db = new GpsExploreContext();
 
-            //results = osmRelations.AsParallel().Select(r => ProcessRelation(r, ways))
-
             foreach (var r in osmRelations)
-            {
                 results.Add(ProcessRelation(r, ref ways));
-            }
+
             return results;
         }
 
@@ -412,64 +376,23 @@ namespace OsmXmlParser
                 Log.WriteLog("Relation " + r.Id + " " + relationName + " has ways with 0 nodes.");
             }
 
-            //TODO: parse inner and outer polygons to correctly create empty spaces inside larger shape. Currently reads multiple outer polys.
-            Geometry poly;
-            //If all the ways are already polygons, we can do much less processing
-            //if (shapeList.All(s => s.nds.First().id == s.nds.Last().id))
-            //{
-            //    //All closed polygons, much easier.
-            //    var outerEntries = r.Members.Where(m => m.Role == "outer").Select(m => m.Id).ToList();
-            //    var innerEntries = r.Members.Where(m => m.Role == "inner").Select(m => m.Id).ToList();
-
-            //    List<Polygon> outers = new List<Polygon>();
-            //    foreach (var oe in outerEntries)
-            //    {
-            //        var ca = WayToCoordArray(shapeList.Where(s => s.id == oe).FirstOrDefault());
-            //        if (ca == null)
-            //        {
-            //            //Skip, this was referncing a missing Way, but the remaining entries are all closed polygons. Attempt a partial construction.
-            //            continue;
-            //        }
-
-            //        var o = factory.CreatePolygon(ca);
-            //        o = CCWCheck(o);
-            //        if (o == null)
-            //        {
-            //            Log.WriteLog("Relation " + r.Id + " " + relationName + " after change to polygon, still isn't CCW in either order.");
-            //            continue;
-            //        }
-            //        outers.Add(o);
-            //    }
-            //    poly = factory.CreateMultiPolygon(outers.Distinct().ToArray());
-            //    //TODO: add inner polygons.
-            //    //Repeat the above logic on outers, but for inners
-            //    //then take the (math function) of area in outers but not inners)
-            //    //send that multipolygon as the results.
-            //}
-            // else
-            //{
-            //I am assuming that the lines here will join into a single polygon. If not, this will fail.
             Geometry Tpoly = GetGeometryFromWays(shapeList, r);
-            //var sanityCheck1 = ((MultiPolygon)Tpoly).Geometries.Where(g => !((Polygon)g).Shell.IsCCW).ToList();
-
             if (Tpoly == null)
             {
                 //error converting it
                 Log.WriteLog("Relation " + r.Id + " " + relationName + " failed to get a polygon from ways. Error.");
                 return null;
             }
-            poly = Tpoly;
-            //}
+
             MapData md = new MapData();
             md.name = GetElementName(r.Tags);
             md.type = MapSupport.GetType(r.Tags);
             md.AreaTypeId = MapSupport.areaTypeReference[md.type.StartsWith("admin") ? "admin" : md.type].First();
             md.RelationId = r.Id.Value;
-            md.place = MapSupport.SimplifyArea(poly);
+            md.place = MapSupport.SimplifyArea(Tpoly);
             if (md.place == null)
                 return null;
 
-            //r = null;
             return md;
         }
 
@@ -536,11 +459,6 @@ namespace OsmXmlParser
                 return null;
             }
 
-
-            //This is done when the Geometry is simplified
-            //for (int i = 0; i < existingPols.Count(); i++)
-            //existingPols[i] = CCWCheck(existingPols[i]);
-
             if (existingPols.Count() == 1)
             {
                 //remove inner polygons
@@ -558,9 +476,6 @@ namespace OsmXmlParser
 
             //return a multipolygon instead.
             Geometry multiPol = factory.CreateMultiPolygon(existingPols.Distinct().ToArray());
-            //for (int i = 0; i < multiPol.Geometries.Count(); i++)
-            //  multiPol.Geometries[i] = CCWCheck((Polygon)multiPol.Geometries[i]);
-
             //A new attempt at removing inner entries from outer ones via multipolygon.
             if (innerPols.Count() > 0)
             {
@@ -793,187 +708,6 @@ namespace OsmXmlParser
             return filteredEntries;
         }
 
-        //This is probably removeable now, i think i like my other logic.
-        //TODO: merge these 3 functions into 1, take type as a parameter
-        //TODO: take a list of settings to search for, so other users could pick individual types
-        private static List<OsmSharp.Relation> GetRelationsFromPbf(string filename)
-        {
-            List<OsmSharp.Relation> filteredRelations = new List<OsmSharp.Relation>();
-            using (var fs = File.OpenRead(filename))
-            {
-                var source = new PBFOsmStreamSource(fs);
-
-                var progress = source.ShowProgress();
-
-                //filter out data here
-                //Now this is my default filter.
-                filteredRelations = progress.Where(p => p.Type == OsmSharp.OsmGeoType.Relation &&
-                        (p.Tags.Contains("natural", "water") ||
-                        p.Tags.Contains("natural", "wetlands") ||
-                        p.Tags.Contains("leisure", "park") ||
-                        p.Tags.Contains("natural", "beach") ||
-                        p.Tags.Contains("leisure", "beach_resort") ||
-                        p.Tags.Contains("amenity", "university") ||
-                        p.Tags.Contains("amenity", "college") ||
-                        p.Tags.Contains("leisure", "nature_reserve") ||
-                        p.Tags.Contains("landuse", "cemetery") ||
-                        p.Tags.Contains("amenity", "grave_yard") ||
-                        p.Tags.Contains("shop", "mall") ||
-                        p.Tags.Contains("landuse", "retail") ||
-                        p.Tags.Any(t => t.Key == "historic") ||
-                        p.Tags.Any(t => t.Key == "waterway") || //newest tag, lets me see a lot more rivers and such.
-                        p.Tags.Any(t => t.Key == "tourism" && relevantTourismValues.Contains(t.Value)) ||
-                        p.Tags.Any(t => t.Key == "highway" && relevantHighwayValues.Contains(t.Value)) ||
-                        p.Tags.Any(t => t.Key == "boundary" && t.Value == "administrative")
-                        ))
-                    .Select(r => (OsmSharp.Relation)r)
-                    .ToList();
-                progress.Dispose();
-                source.Dispose();
-            }
-            return filteredRelations;
-        }
-
-        public static List<OsmSharp.Way> GetWaysFromPbf(string filename, ILookup<long, DatabaseAccess.Support.RelationMemberData> wayList)
-        {
-            //REMEMBER: if tag combos get edited, here, also update GetType to look at that combo too, or else data looks wrong.
-            List<OsmSharp.Way> filteredWays = new List<OsmSharp.Way>();
-            using (var fs = File.OpenRead(filename))
-            {
-                var source = new PBFOsmStreamSource(fs);
-                var progress = source.ShowProgress();
-
-                //filter out data here
-                //Now this is my default filter.
-                filteredWays = progress.Where(p => p.Type == OsmSharp.OsmGeoType.Way &&
-                    (wayList[p.Id.Value].Count() > 0 ||
-                        (p.Tags.Contains("natural", "water") ||
-                        p.Tags.Contains("natural", "wetlands") ||
-                        p.Tags.Contains("leisure", "park") ||
-                        p.Tags.Contains("natural", "beach") ||
-                        p.Tags.Contains("leisure", "beach_resort") ||
-                        p.Tags.Contains("amenity", "university") ||
-                        p.Tags.Contains("amenity", "college") ||
-                        p.Tags.Contains("leisure", "nature_reserve") ||
-                        p.Tags.Contains("landuse", "cemetery") ||
-                        p.Tags.Contains("amenity", "grave_yard") ||
-                        p.Tags.Contains("shop", "mall") ||
-                        p.Tags.Contains("landuse", "retail") ||
-                        p.Tags.Any(t => t.Key == "historic") ||
-                        p.Tags.Any(t => t.Key == "waterway") ||
-                        p.Tags.Any(t => t.Key == "tourism" && relevantTourismValues.Contains(t.Value)) ||
-                        p.Tags.Any(t => t.Key == "highway" && relevantHighwayValues.Contains(t.Value) && (!p.Tags.Any(t => t.Key == "footway" && (t.Value == "sidewalk" || t.Value == "crossing")))) ||
-                        p.Tags.Any(t => t.Key == "boundary" && t.Value == "administrative")
-                        )))
-                    .Select(w => (OsmSharp.Way)w)
-                    .ToList();
-                progress.Dispose();
-                source.Dispose();
-            }
-            return filteredWays;
-        }
-
-        public static void GetMinimumDataFromPbf()
-        {
-            //A baseline import of OsmData. Only contains data I need to make stuff into geography entries.
-            //Much larger in SQL Server this way than the original PBF, or storing Geography data.
-            var db = new GpsExploreContext();
-            List<string> filenames = System.IO.Directory.EnumerateFiles(@"D:\Projects\OSM Server Info\XmlToProcess\", "*.pbf").ToList();
-            foreach (var filename in filenames)
-                using (var fs = File.OpenRead(filename))
-                {
-                    var source = new PBFOsmStreamSource(fs);
-                    var progress = source.ShowProgress();
-
-                    var minNodes = progress.Where(p => p.Type == OsmSharp.OsmGeoType.Node)
-                        .Select(w => new MinimumNode() { MinimumNodeId = w.Id, Lat = ((OsmSharp.Node)w).Latitude, Lon = ((OsmSharp.Node)w).Longitude })
-                        .ToList();
-
-                    db.BulkInsert<MinimumNode>(minNodes);
-                    var nodeLookup = minNodes.ToLookup(k => k.MinimumNodeId, v => v);
-                    minNodes = null;
-
-
-                    var ways = progress.Where(p => p.Type == OsmSharp.OsmGeoType.Way)
-                        .Select(w => (OsmSharp.Way)w)
-                        .ToList();
-
-                    //This is the slow loop in this function
-                    List<MinimumWay> minways = new List<MinimumWay>();
-                    foreach (var w in ways)
-                    {
-                        List<long> nodeIds = w.Nodes.ToList();
-                        var nodes = nodeLookup.Where(n => nodeIds.Contains(n.Key.Value)).Select(n => n.First()).ToList();
-                        MinimumWay mw = new MinimumWay() { MinimumWayId = w.Id, Nodes = nodes };
-                        minways.Add(mw);
-                    }
-
-                    db.BulkInsert<MinimumWay>(minways);
-
-                }
-            return;
-        }
-
-        public static List<NodeReference> GetNodesFromPbf(string filename, Lookup<long, long> nLookup)
-        {
-            //TODO:
-            //Consider adding Abandoned buildings/areas, as a brave explorer sort of location?
-            List<NodeReference> filteredNodes = new List<NodeReference>();
-            using (var fs = File.OpenRead(filename))
-            {
-                var source = new PBFOsmStreamSource(fs);
-                var progress = source.ShowProgress();
-
-                //filter out data here
-                //Now this is my default filter.
-                //Single nodes are unlikley to be marked Highway. Don't check for that here.
-                filteredNodes = progress.Where(p => p.Type == OsmSharp.OsmGeoType.Node &&
-                       (nLookup.Contains(p.Id.GetValueOrDefault()) ||
-                        (p.Tags.Contains("natural", "water") ||
-                        p.Tags.Contains("natural", "wetlands") ||
-                        p.Tags.Contains("leisure", "park") ||
-                        p.Tags.Contains("leisure", "nature_reserve") ||
-                        p.Tags.Contains("natural", "beach") ||
-                        p.Tags.Contains("leisure", "beach_resort") ||
-                        p.Tags.Contains("amenity", "university") ||
-                        p.Tags.Contains("amenity", "college") ||
-                        p.Tags.Contains("leisure", "nature_reserve") ||
-                        p.Tags.Contains("landuse", "cemetery") ||
-                        p.Tags.Contains("amenity", "grave_yard") ||
-                        p.Tags.Contains("shop", "mall") ||
-                        p.Tags.Contains("landuse", "retail") ||
-                        p.Tags.Any(t => t.Key == "historic") ||
-                        p.Tags.Any(t => t.Key == "tourism" && relevantTourismValues.Contains(t.Value)) ||
-                        p.Tags.Any(t => t.Key == "boundary" && t.Value == "administrative")
-                        )))
-                    .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), MapSupport.GetType(n.Tags)))
-                    .ToList();
-                progress.Dispose();
-                source.Dispose();
-            }
-            return filteredNodes;
-        }
-
-        //This should go away soon, since MapData is replacing Ways for serialization.
-        //public static void WriteRawWaysToFile(string filename, ref List<Way> ways)
-        //{
-        //    System.IO.StreamWriter sw = new StreamWriter(filename);
-        //    sw.Write("[" + Environment.NewLine);
-        //    foreach (var w in ways)
-        //    {
-        //        if (w != null && w.id > 0)
-        //        {
-        //            var test = JsonSerializer.Serialize(w, typeof(Way));
-        //            sw.Write(test);
-        //            sw.Write("," + Environment.NewLine);
-        //        }
-        //    }
-        //    sw.Write("]");
-        //    sw.Close();
-        //    sw.Dispose();
-        //    Log.WriteLog("All ways were serialized individually and saved to file at " + DateTime.Now);
-        //}
-
         public static void WriteMapDataToFile(string filename, ref List<MapData> mapdata)
         {
             System.IO.StreamWriter sw = new StreamWriter(filename);
@@ -992,44 +726,6 @@ namespace OsmXmlParser
             sw.Close();
             sw.Dispose();
             Log.WriteLog("All MapData entries were serialized individually and saved to file at " + DateTime.Now);
-        }
-
-        //This should be removed soon in favor of MapData versions.
-        public static List<WayData> ReadRawWaysToMemory(string filename)
-        {
-            //Got out of memory errors trying to read files over 1GB through File.ReadAllText, so do those here this way.
-            StreamReader sr = new StreamReader(filename);
-            var lw = new List<WayData>();
-            JsonSerializerOptions jso = new JsonSerializerOptions();
-            jso.AllowTrailingCommas = true;
-
-            while (!sr.EndOfStream)
-            {
-                string line = sr.ReadLine();
-                if (line == "[")
-                {
-                    //start of a file that spaced out every entry on a newline correctly. Skip.
-                }
-                else if (line.StartsWith("[") && line.EndsWith("]"))
-                    lw.AddRange((List<WayData>)JsonSerializer.Deserialize(line, typeof(List<WayData>), jso)); //whole file is a list on one line. These shouldn't happen anymore.
-                else if (line.StartsWith("[") && line.EndsWith(","))
-                    lw.Add((WayData)JsonSerializer.Deserialize(line.Substring(1, line.Count() - 2), typeof(WayData), jso)); //first entry on a file before I forced the brackets onto newlines. Comma at end causes errors, is also trimmed.
-                else if (line.StartsWith("]"))
-                {
-                    //dont do anything, this is EOF
-                    Log.WriteLog("EOF Reached for " + filename + "at " + DateTime.Now);
-                }
-                else
-                {
-                    lw.Add((WayData)JsonSerializer.Deserialize(line.Substring(0, line.Count() - 1), typeof(WayData), jso)); //not starting line, trailing comma causes errors
-                }
-            }
-
-            if (lw.Count() == 0)
-                Log.WriteLog("No entries for " + filename + "? why?");
-
-            sr.Close(); sr.Dispose();
-            return lw;
         }
 
         public static List<MapData> ReadMapDataToMemory(string filename)
@@ -1261,11 +957,9 @@ namespace OsmXmlParser
             });
 
             Log.WriteLog("Ways populated with Nodes at " + DateTime.Now);
-            //osmNodes.RemoveRange(0, osmNodes.Count); //Not sure if this helps or not on ram usage. Should perf-test that.
             nodes2 = null; //done with these now, can free up RAM again.
 
             processedEntries.AddRange(ProcessRelations(ref relation, ref ways));
-            //osmRelations = null;
 
             processedEntries.AddRange(ways.Select(w => ConvertWayToMapData(ref w)));
             ways = null;

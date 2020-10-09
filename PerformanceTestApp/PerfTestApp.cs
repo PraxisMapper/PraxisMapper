@@ -615,7 +615,8 @@ namespace PerformanceTestApp
 
         private static void MemoryTest()
         {
-            //floats and doubles don't seem to make an actual difference in my app's memory usage. Weird. Check that out here.
+            //floats and doubles don't seem to make an actual difference in my app's memory usage unless it's huge, like Norway. Weird. Check that out here.
+            
         }
 
 
