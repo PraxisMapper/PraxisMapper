@@ -236,13 +236,13 @@ namespace OsmXmlParser
             Log.WriteLog("Relevant data pulled from file at" + DateTime.Now);
 
             Log.WriteLog("Creating node lookup for " + osmNodes.Count() + " nodes"); //33 million nodes across 2 million ways will tank this app at 16GB RAM
-            var osmNodeLookup = osmNodes.AsParallel().ToLookup(k => k.Id, v => v);
+            var osmNodeLookup = osmNodes.Distinct().AsParallel().ToLookup(k => k.Id, v => v);
             Log.WriteLog("Found " + osmNodeLookup.Count() + " unique nodes");
 
             //Write nodes as mapdata if they're tagged separately from other things.
             Log.WriteLog("Finding tagged nodes at " + DateTime.Now);
             var taggedNodes = osmNodes.AsParallel().Where(n => n.name != "" && n.type != "" && n.type != null).ToList();
-            processedEntries.AddRange(taggedNodes.Select(s => MapSupport.ConvertNodeToMapData(s)));
+            processedEntries.AddRange(taggedNodes.AsParallel().Select(s => MapSupport.ConvertNodeToMapData(s)));
             taggedNodes = null;
 
             //This is now the slowest part of the processing function.
@@ -270,10 +270,10 @@ namespace OsmXmlParser
                 foreach (long nr in w.nodRefs)
                 {
                     var osmNode = osmNodeLookup[nr].FirstOrDefault();
-                    var myNode = new NodeData() { id = osmNode.Id, lat = osmNode.lat, lon = osmNode.lon };
+                    var myNode = new NodeData( osmNode.Id, osmNode.lat, osmNode.lon);
                     w.nds.Add(myNode);
                 }
-                w.nodRefs = null; //free up a little memory we won't use again.
+                w.nodRefs = null; //free up a little memory we won't use again?
             }
             );
 
@@ -281,10 +281,13 @@ namespace OsmXmlParser
             osmNodes.RemoveRange(0, osmNodes.Count); //Not sure if this helps or not on ram usage. Should perf-test that.
             osmNodes = null; //done with these now, can free up RAM again.
 
-            processedEntries.AddRange(ProcessRelations(ref osmRelations, ref ways));
+            //processedEntries.AddRange(ProcessRelations(ref osmRelations, ref ways)); //75580ms
+            processedEntries.AddRange(osmRelations.AsParallel().Select(r => ProcessRelation(r, ref ways))); //42223ms
             osmRelations = null;
 
-            processedEntries.AddRange(ways.Select(w => ConvertWayToMapData(ref w)));
+            ways = ways.Where(w => referencedWays[w.id].Count() == 0).ToList(); //Removed entries we've already looked at as part of a relation.
+
+            processedEntries.AddRange(ways.AsParallel().Select(w => ConvertWayToMapData(ref w)));
             ways = null;
 
             WriteMapDataToFile(destFolder + destFilename + "-MapData" + ".json", ref processedEntries);
@@ -362,7 +365,7 @@ namespace OsmXmlParser
                     foreach (long nr in w.nodRefs)
                     {
                         var osmNode = osmNodeLookup[nr].FirstOrDefault();
-                        var myNode = new NodeData() { id = osmNode.Id, lat = osmNode.lat, lon = osmNode.lon };
+                        var myNode = new NodeData(osmNode.Id,osmNode.lat,osmNode.lon );
                         w.nds.Add(myNode);
                     }
                     w.nodRefs = null; //free up a little memory we won't use again.
@@ -375,7 +378,7 @@ namespace OsmXmlParser
                 processedEntries.AddRange(ProcessRelations(ref osmRelations, ref ways));
                 osmRelations = null;
 
-                processedEntries.AddRange(ways.Select(w => ConvertWayToMapData(ref w)));
+                processedEntries.AddRange(ways.AsParallel().Select(w => ConvertWayToMapData(ref w)));
                 ways = null;
 
                 WriteMapDataToFile(destFolder + destFilename + "-MapData-" + areatypename + ".json", ref processedEntries);
@@ -498,6 +501,113 @@ namespace OsmXmlParser
                 ways.Remove(wtr);
 
             return results;
+        }
+
+        private static MapData ProcessRelation(OsmSharp.Relation r, ref List<WayData> ways)
+        {
+            GpsExploreContext db = new GpsExploreContext();
+            List<WayData> waysToRemove = new List<WayData>(); //borks up here if you edit this in parallel.
+
+            string relationName = GetElementName(r.Tags);
+                //Determine if we need to process this relation.
+                //if all ways are closed outer polygons, we can skip this.
+                //if all ways are lines that connect, we need to make it a polygon.
+                //We can't always rely on tags being correct.
+
+                //I might need to check if these are usable ways before checking if they're already handled by the relation
+                //Remove entries we won't use.
+
+                var membersToRead = r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id).ToList();
+                if (membersToRead.Count == 0)
+                {
+                    Log.WriteLog("Relation " + r.Id + " " + relationName + " has no Ways, cannot process.");
+                    return null;
+                }
+
+                //Check members for closed shape
+                var shapeList = new List<WayData>();
+                foreach (var m in membersToRead)
+                {
+                    var maybeWay = ways.Where(way => way.id == m).FirstOrDefault();
+                    if (maybeWay != null)
+                        shapeList.Add(maybeWay);
+                    else
+                    {
+                        Log.WriteLog("Relation " + r.Id + " " + relationName + " references way " + m + " not found in the file. Attempting to process without it.", Log.VerbosityLevels.High);
+                        //TODO: add some way of saving this partial data to the DB to be fixed/enhanced later.
+                        //break;
+                    }
+                }
+
+                //Now we have our list of Ways. Check if there's lines that need made into a polygon.
+                if (shapeList.Any(s => s.nds.Count == 0))
+                {
+                    Log.WriteLog("Relation " + r.Id + " " + relationName + " has ways with 0 nodes.");
+                }
+
+                //save a copy of ShapeList to remove if we succeed, to avoid inserting duplicate entries.
+                waysToRemove.AddRange(shapeList.ToList());
+
+                //TODO: parse inner and outer polygons to correctly create empty spaces inside larger shape. Currently reads multiple outer polys.
+                Geometry poly;
+                //If all the ways are already polygons, we can do much less processing
+                //if (shapeList.All(s => s.nds.First().id == s.nds.Last().id))
+                //{
+                //    //All closed polygons, much easier.
+                //    var outerEntries = r.Members.Where(m => m.Role == "outer").Select(m => m.Id).ToList();
+                //    var innerEntries = r.Members.Where(m => m.Role == "inner").Select(m => m.Id).ToList();
+
+                //    List<Polygon> outers = new List<Polygon>();
+                //    foreach (var oe in outerEntries)
+                //    {
+                //        var ca = WayToCoordArray(shapeList.Where(s => s.id == oe).FirstOrDefault());
+                //        if (ca == null)
+                //        {
+                //            //Skip, this was referncing a missing Way, but the remaining entries are all closed polygons. Attempt a partial construction.
+                //            continue;
+                //        }
+
+                //        var o = factory.CreatePolygon(ca);
+                //        o = CCWCheck(o);
+                //        if (o == null)
+                //        {
+                //            Log.WriteLog("Relation " + r.Id + " " + relationName + " after change to polygon, still isn't CCW in either order.");
+                //            continue;
+                //        }
+                //        outers.Add(o);
+                //    }
+                //    poly = factory.CreateMultiPolygon(outers.Distinct().ToArray());
+                //    //TODO: add inner polygons.
+                //    //Repeat the above logic on outers, but for inners
+                //    //then take the (math function) of area in outers but not inners)
+                //    //send that multipolygon as the results.
+                //}
+                // else
+                //{
+                //I am assuming that the lines here will join into a single polygon. If not, this will fail.
+                Geometry Tpoly = GetGeometryFromWays(shapeList, r);
+                //var sanityCheck1 = ((MultiPolygon)Tpoly).Geometries.Where(g => !((Polygon)g).Shell.IsCCW).ToList();
+
+                if (Tpoly == null)
+                {
+                    //error converting it
+                    Log.WriteLog("Relation " + r.Id + " " + relationName + " failed to get a polygon from ways. Error.");
+                    return null;
+                }
+                poly = Tpoly;
+                //}
+                MapData md = new MapData();
+                md.name = GetElementName(r.Tags);
+                md.type = MapSupport.GetType(r.Tags);
+                md.AreaTypeId = MapSupport.areaTypeReference[md.type.StartsWith("admin") ? "admin" : md.type].First();
+                md.RelationId = r.Id.Value;
+                md.place = MapSupport.SimplifyArea(poly);
+
+            //foreach (var wtr in waysToRemove.Distinct())
+                //ways.Remove(wtr);
+
+            return md;
+
         }
 
         private static Geometry GetGeometryFromWays(List<WayData> shapeList, OsmSharp.Relation r)
@@ -1264,7 +1374,7 @@ namespace OsmXmlParser
                 foreach (long nr in w.nodRefs)
                 {
                     var osmNode = osmNodeLookup[nr].FirstOrDefault();
-                    var myNode = new NodeData() { id = osmNode.Id, lat = osmNode.lat, lon = osmNode.lon };
+                    var myNode = new NodeData(osmNode.Id, osmNode.lat, osmNode.lon);
                     w.nds.Add(myNode);
                 }
                 w.nodRefs = null; //free up a little memory we won't use again.

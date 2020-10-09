@@ -613,6 +613,11 @@ namespace PerformanceTestApp
             return filteredEntries;
         }
 
+        private static void MemoryTest()
+        {
+            //floats and doubles don't seem to make an actual difference in my app's memory usage. Weird. Check that out here.
+        }
+
 
     }
 }
