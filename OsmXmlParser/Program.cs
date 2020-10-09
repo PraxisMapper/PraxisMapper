@@ -140,7 +140,7 @@ namespace OsmXmlParser
                 ValidateFile(arg);
             }
 
-            
+
 
             return;
         }
@@ -202,13 +202,13 @@ namespace OsmXmlParser
         {
             string destFolder = @"D:\Projects\OSM Server Info\Trimmed JSON Files\";
             System.IO.FileInfo fi = new FileInfo(filename);
-            if (fi.Length > 400000000) //I have 28 country/state level extracts over this size, and this should include the ones that cause the most issues. TODO: make this size a setting, so higher-ram PCs can do bigger files.
+            if (ParserSettings.ForceSeparateFiles || fi.Length > 400000000) //I have 28 country/state level extracts over this size, and this should include the ones that cause the most issues. TODO: make this size a setting, so higher-ram PCs can do bigger files.
             {
                 //Parse this file into area type sub-files from disk, so that I don't hit RAM limits
                 SerializeSeparateFilesFromPBF(filename);
                 return;
             }
-            
+
             //else parse this file all at once.
             FileStream fs = new FileStream(filename, FileMode.Open);
             byte[] fileInRam = new byte[fs.Length];
@@ -216,24 +216,77 @@ namespace OsmXmlParser
             MemoryStream ms = new MemoryStream(fileInRam);
             fs.Close(); fs.Dispose();
 
-            Log.WriteLog("Checking for members in  " + filename + " at " + DateTime.Now); 
+            Log.WriteLog("Checking for members in  " + filename + " at " + DateTime.Now);
             string destFilename = System.IO.Path.GetFileName(filename).Replace(".osm.pbf", "");
-            List<NodeData> nodes = new List<NodeData>();
-            List<WayData> ways = new List<WayData>();
-            List<MapData> processedEntries = new List<MapData>();
-            //Minimizes time spend boosting capacity and copying the internal values later.
-            nodes.Capacity = 100000;
-            ways.Capacity = 100000;
-            processedEntries.Capacity = 100000;
-
+            
             Log.WriteLog("Starting " + filename + " " + " data read at " + DateTime.Now);
             var osmRelations = GetRelationsFromStream(ms, null);
             var referencedWays = osmRelations.AsParallel().SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToLookup(k => k, v => v);
+            Log.WriteLog("Relations loaded at " + DateTime.Now);
             var osmWays = GetWaysFromStream(ms, null, referencedWays);
             var referencedNodes = osmWays.AsParallel().SelectMany(m => m.Nodes).Distinct().ToLookup(k => k, v => v);
+            Log.WriteLog("Ways loaded at " + DateTime.Now);
             var osmNodes = GetNodesFromStream(ms, null, referencedNodes);
+            referencedNodes = null;
+            Log.WriteLog("All relevant data pulled from file at " + DateTime.Now);
+            ms.Close(); ms.Dispose();
+            fileInRam = null;
 
-            Log.WriteLog("Relevant data pulled from file at" + DateTime.Now);
+            var processedEntries = ProcessData(ref osmNodes, ref osmWays, ref osmRelations, referencedWays);
+
+            WriteMapDataToFile(destFolder + destFilename + "-MapData" + ".json", ref processedEntries);
+            processedEntries = null;
+
+            Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
+            File.Move(filename, filename + "Done"); //We made it all the way to the end, this file is done.
+        }
+
+        public static void SerializeSeparateFilesFromPBF(string filename)
+        {
+            //This will read from disk, since we are assuming this file will hit RAM limits if we read it all at once.
+            string destFolder = @"D:\Projects\OSM Server Info\Trimmed JSON Files\";
+
+            foreach (var areatype in areaTypes) //each pass takes roughly the same amount of time to read, but uses less ram. 
+            {
+                //skip entries if the settings say not to process them. they'll get 0 tagged entries but don't waste time reading the file.
+                //ParserSettings.???
+
+                //if (areatype.AreaName == "water")
+                //  continue; //Water is too big for my PC on files this side most of the time.
+
+                string areatypename = areatype.AreaName;
+                Log.WriteLog("Checking for " + areatypename + " members in  " + filename + " at " + DateTime.Now);
+                string destFilename = System.IO.Path.GetFileName(filename).Replace(".osm.pbf", "");
+
+                Log.WriteLog("Starting " + filename + " " + areatypename + " data read at " + DateTime.Now);
+                var osmRelations = GetRelationsFromPbf(filename, areatypename);
+                var referencedWays = osmRelations.SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToLookup(k => k, v => v);
+                Log.WriteLog("Relations loaded at " + DateTime.Now);
+                var osmWays = GetWaysFromPbf(filename, areatypename, referencedWays);
+                var referencedNodes = osmWays.SelectMany(m => m.Nodes).Distinct().ToLookup(k => k, v => v);
+                Log.WriteLog("Ways loaded at " + DateTime.Now);
+                var osmNodes = GetNodesFromPbf(filename, areatypename, referencedNodes);
+                referencedNodes = null;
+                Log.WriteLog("Relevant data pulled from file at " + DateTime.Now);
+
+                var processedEntries = ProcessData(ref osmNodes, ref osmWays, ref osmRelations, referencedWays);
+                WriteMapDataToFile(destFolder + destFilename + "-MapData-" + areatypename + ".json", ref processedEntries);
+                processedEntries = null;
+            }
+
+            Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
+            File.Move(filename, filename + "Done"); //We made it all the way to the end, this file is done.
+        }
+
+        private static List<MapData> ProcessData(ref List<NodeReference> osmNodes, ref List<OsmSharp.Way> osmWays, ref List<OsmSharp.Relation> osmRelations, ILookup<long, long> referencedWays)
+        {
+            List<MapData> processedEntries = new List<MapData>();
+            List<NodeData> nodes = new List<NodeData>();
+            List<WayData> ways = new List<WayData>();
+
+            nodes.Capacity = 100000;
+            ways.Capacity = 100000;
+            processedEntries.Capacity = 100000;
 
             Log.WriteLog("Creating node lookup for " + osmNodes.Count() + " nodes"); //33 million nodes across 2 million ways will tank this app at 16GB RAM
             var osmNodeLookup = osmNodes.Distinct().AsParallel().ToLookup(k => k.Id, v => v);
@@ -245,7 +298,6 @@ namespace OsmXmlParser
             processedEntries.AddRange(taggedNodes.AsParallel().Select(s => MapSupport.ConvertNodeToMapData(s)));
             taggedNodes = null;
 
-            //This is now the slowest part of the processing function.
             Log.WriteLog("Converting " + osmWays.Count() + " OsmWays to my Ways at " + DateTime.Now);
             ways.Capacity = osmWays.Count();
             ways = osmWays.AsParallel().Select(w => new WayData()
@@ -261,7 +313,6 @@ namespace OsmXmlParser
 
             int wayCounter = 0;
             System.Threading.Tasks.Parallel.ForEach(ways, (w) =>
-            //foreach (WayData w in ways)
             {
                 wayCounter++;
                 if (wayCounter % 10000 == 0)
@@ -270,7 +321,7 @@ namespace OsmXmlParser
                 foreach (long nr in w.nodRefs)
                 {
                     var osmNode = osmNodeLookup[nr].FirstOrDefault();
-                    var myNode = new NodeData( osmNode.Id, osmNode.lat, osmNode.lon);
+                    var myNode = new NodeData(osmNode.Id, osmNode.lat, osmNode.lon);
                     w.nds.Add(myNode);
                 }
                 w.nodRefs = null; //free up a little memory we won't use again?
@@ -278,114 +329,19 @@ namespace OsmXmlParser
             );
 
             Log.WriteLog("Ways populated with Nodes at " + DateTime.Now);
-            osmNodes.RemoveRange(0, osmNodes.Count); //Not sure if this helps or not on ram usage. Should perf-test that.
             osmNodes = null; //done with these now, can free up RAM again.
 
-            //processedEntries.AddRange(ProcessRelations(ref osmRelations, ref ways)); //75580ms
-            processedEntries.AddRange(osmRelations.AsParallel().Select(r => ProcessRelation(r, ref ways))); //42223ms
+            //processedEntries.AddRange(ProcessRelations(ref osmRelations, ref ways)); //75580ms on OH data
+            processedEntries.AddRange(osmRelations.AsParallel().Select(r => ProcessRelation(r, ref ways))); //42223ms on OH.
             osmRelations = null;
 
-            ways = ways.Where(w => referencedWays[w.id].Count() == 0).ToList(); //Removed entries we've already looked at as part of a relation.
+            //Removed entries we've already looked at as part of a relation? I suspect this is one of those cases where
+            //either way I do this, something's going to get messed up.
+            ways = ways.Where(w => referencedWays[w.id].Count() == 0).ToList(); 
 
             processedEntries.AddRange(ways.AsParallel().Select(w => ConvertWayToMapData(ref w)));
             ways = null;
-
-            WriteMapDataToFile(destFolder + destFilename + "-MapData" + ".json", ref processedEntries);
-            processedEntries = null;
-
-            Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
-            ms.Close(); ms.Dispose();
-            File.Move(filename, filename + "Done"); //We made it all the way to the end, this file is done.
-        }
-
-        public static void SerializeSeparateFilesFromPBF(string filename)
-        {
-            //This will read from disk, since we are assuming this file will hit RAM limits if we read it all at once.
-            string destFolder = @"D:\Projects\OSM Server Info\Trimmed JSON Files\";
-
-            foreach (var areatype in areaTypes) //each pass takes roughly the same amount of time to read, but uses less ram. 
-            {
-                //skip entries if the settings say not to process them. they'll get 0 tagged entries but don't waste time reading the file.
-                //ParserSettings.???
-
-                //if (areatype.AreaName == "water")
-                  //  continue; //Water is too big for my PC on files this side most of the time.
-
-                string areatypename = areatype.AreaName;
-                Log.WriteLog("Checking for " + areatypename + " members in  " + filename + " at " + DateTime.Now);
-                string destFilename = System.IO.Path.GetFileName(filename).Replace(".osm.pbf", "");
-                List<NodeData> nodes = new List<NodeData>();
-                List<WayData> ways = new List<WayData>();
-                List<MapData> processedEntries = new List<MapData>();
-                //Minimizes time spend boosting capacity and copying the internal values later.
-                nodes.Capacity = 100000;
-                ways.Capacity = 100000;
-                processedEntries.Capacity = 100000;
-
-                Log.WriteLog("Starting " + filename + " " + areatypename + " data read at " + DateTime.Now);
-                var osmRelations = GetRelationsFromPbf(filename, areatypename);
-                var referencedWays = osmRelations.SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToLookup(k => k, v => v);
-                var osmWays = GetWaysFromPbf(filename, areatypename, referencedWays);
-                var referencedNodes = osmWays.SelectMany(m => m.Nodes).Distinct().ToLookup(k => k, v => v);
-                var osmNodes = GetNodesFromPbf(filename, areatypename, referencedNodes);
-                Log.WriteLog("Relevant data pulled from file at" + DateTime.Now);
-
-                Log.WriteLog("Creating node lookup for " + osmNodes.Count() + " nodes"); //33 million nodes across 2 million ways will tank this app at 16GB RAM
-                var osmNodeLookup = osmNodes.AsParallel().ToLookup(k => k.Id, v => v);
-                Log.WriteLog("Found " + osmNodeLookup.Count() + " unique nodes");
-
-                //Write nodes as mapdata if they're tagged separately from other things.
-                Log.WriteLog("Finding tagged nodes at " + DateTime.Now);
-                var taggedNodes = osmNodes.AsParallel().Where(n => n.name != "" && n.type != "").ToList();
-                processedEntries.AddRange(taggedNodes.Select(s => MapSupport.ConvertNodeToMapData(s)));
-                taggedNodes = null;
-
-                //This is now the slowest part of the processing function.
-                Log.WriteLog("Converting " + osmWays.Count() + " OsmWays to my Ways at " + DateTime.Now);
-                ways.Capacity = osmWays.Count();
-                ways = osmWays.AsParallel().Select(w => new WayData()
-                {
-                    id = w.Id.Value,
-                    name = GetElementName(w.Tags),
-                    AreaType = MapSupport.GetType(w.Tags),
-                    nodRefs = w.Nodes.ToList()
-                })
-                .ToList();
-                osmWays = null; //free up RAM we won't use again.
-                Log.WriteLog("List created at " + DateTime.Now);
-
-                int wayCounter = 0;
-                //foreach (WayData w in ways)
-                System.Threading.Tasks.Parallel.ForEach(ways, (w) => 
-                {
-                    wayCounter++;
-                    if (wayCounter % 10000 == 0)
-                        Log.WriteLog(wayCounter + " processed so far");
-
-                    foreach (long nr in w.nodRefs)
-                    {
-                        var osmNode = osmNodeLookup[nr].FirstOrDefault();
-                        var myNode = new NodeData(osmNode.Id,osmNode.lat,osmNode.lon );
-                        w.nds.Add(myNode);
-                    }
-                    w.nodRefs = null; //free up a little memory we won't use again.
-                });
-
-                Log.WriteLog("Ways populated with Nodes at " + DateTime.Now);
-                osmNodes.RemoveRange(0, osmNodes.Count); //Not sure if this helps or not on ram usage. Should perf-test that.
-                osmNodes = null; //done with these now, can free up RAM again.
-
-                processedEntries.AddRange(ProcessRelations(ref osmRelations, ref ways));
-                osmRelations = null;
-
-                processedEntries.AddRange(ways.AsParallel().Select(w => ConvertWayToMapData(ref w)));
-                ways = null;
-
-                WriteMapDataToFile(destFolder + destFilename + "-MapData-" + areatypename + ".json", ref processedEntries);
-                processedEntries = null;
-            }
-            Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
-            File.Move(filename, filename + "Done"); //We made it all the way to the end, this file is done.
+            return processedEntries;
         }
 
         private static List<MapData> ProcessRelations(ref List<OsmSharp.Relation> osmRelations, ref List<WayData> ways)
@@ -470,24 +426,24 @@ namespace OsmXmlParser
                 //    //then take the (math function) of area in outers but not inners)
                 //    //send that multipolygon as the results.
                 //}
-               // else
+                // else
                 //{
-                    //I am assuming that the lines here will join into a single polygon. If not, this will fail.
-                    Geometry Tpoly = GetGeometryFromWays(shapeList, r);
+                //I am assuming that the lines here will join into a single polygon. If not, this will fail.
+                Geometry Tpoly = GetGeometryFromWays(shapeList, r);
                 //var sanityCheck1 = ((MultiPolygon)Tpoly).Geometries.Where(g => !((Polygon)g).Shell.IsCCW).ToList();
 
-                    if (Tpoly == null)
-                    {
-                        //error converting it
-                        Log.WriteLog("Relation " + r.Id + " " + relationName + " failed to get a polygon from ways. Error.");
-                        continue;
-                    }
-                    poly = Tpoly;
+                if (Tpoly == null)
+                {
+                    //error converting it
+                    Log.WriteLog("Relation " + r.Id + " " + relationName + " failed to get a polygon from ways. Error.");
+                    continue;
+                }
+                poly = Tpoly;
                 //}
                 MapData md = new MapData();
                 md.name = GetElementName(r.Tags);
                 md.type = MapSupport.GetType(r.Tags);
-                md.AreaTypeId = MapSupport.areaTypeReference[md.type.StartsWith("admin") ?  "admin" : md.type].First();
+                md.AreaTypeId = MapSupport.areaTypeReference[md.type.StartsWith("admin") ? "admin" : md.type].First();
                 md.RelationId = r.Id.Value;
                 md.place = MapSupport.SimplifyArea(poly);
                 results.Add(md);
@@ -509,102 +465,102 @@ namespace OsmXmlParser
             List<WayData> waysToRemove = new List<WayData>(); //borks up here if you edit this in parallel.
 
             string relationName = GetElementName(r.Tags);
-                //Determine if we need to process this relation.
-                //if all ways are closed outer polygons, we can skip this.
-                //if all ways are lines that connect, we need to make it a polygon.
-                //We can't always rely on tags being correct.
+            //Determine if we need to process this relation.
+            //if all ways are closed outer polygons, we can skip this.
+            //if all ways are lines that connect, we need to make it a polygon.
+            //We can't always rely on tags being correct.
 
-                //I might need to check if these are usable ways before checking if they're already handled by the relation
-                //Remove entries we won't use.
+            //I might need to check if these are usable ways before checking if they're already handled by the relation
+            //Remove entries we won't use.
 
-                var membersToRead = r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id).ToList();
-                if (membersToRead.Count == 0)
+            var membersToRead = r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id).ToList();
+            if (membersToRead.Count == 0)
+            {
+                Log.WriteLog("Relation " + r.Id + " " + relationName + " has no Ways, cannot process.");
+                return null;
+            }
+
+            //Check members for closed shape
+            var shapeList = new List<WayData>();
+            foreach (var m in membersToRead)
+            {
+                var maybeWay = ways.Where(way => way.id == m).FirstOrDefault();
+                if (maybeWay != null)
+                    shapeList.Add(maybeWay);
+                else
                 {
-                    Log.WriteLog("Relation " + r.Id + " " + relationName + " has no Ways, cannot process.");
-                    return null;
+                    Log.WriteLog("Relation " + r.Id + " " + relationName + " references way " + m + " not found in the file. Attempting to process without it.", Log.VerbosityLevels.High);
+                    //TODO: add some way of saving this partial data to the DB to be fixed/enhanced later.
+                    //break;
                 }
+            }
 
-                //Check members for closed shape
-                var shapeList = new List<WayData>();
-                foreach (var m in membersToRead)
-                {
-                    var maybeWay = ways.Where(way => way.id == m).FirstOrDefault();
-                    if (maybeWay != null)
-                        shapeList.Add(maybeWay);
-                    else
-                    {
-                        Log.WriteLog("Relation " + r.Id + " " + relationName + " references way " + m + " not found in the file. Attempting to process without it.", Log.VerbosityLevels.High);
-                        //TODO: add some way of saving this partial data to the DB to be fixed/enhanced later.
-                        //break;
-                    }
-                }
+            //Now we have our list of Ways. Check if there's lines that need made into a polygon.
+            if (shapeList.Any(s => s.nds.Count == 0))
+            {
+                Log.WriteLog("Relation " + r.Id + " " + relationName + " has ways with 0 nodes.");
+            }
 
-                //Now we have our list of Ways. Check if there's lines that need made into a polygon.
-                if (shapeList.Any(s => s.nds.Count == 0))
-                {
-                    Log.WriteLog("Relation " + r.Id + " " + relationName + " has ways with 0 nodes.");
-                }
+            //save a copy of ShapeList to remove if we succeed, to avoid inserting duplicate entries.
+            waysToRemove.AddRange(shapeList.ToList());
 
-                //save a copy of ShapeList to remove if we succeed, to avoid inserting duplicate entries.
-                waysToRemove.AddRange(shapeList.ToList());
+            //TODO: parse inner and outer polygons to correctly create empty spaces inside larger shape. Currently reads multiple outer polys.
+            Geometry poly;
+            //If all the ways are already polygons, we can do much less processing
+            //if (shapeList.All(s => s.nds.First().id == s.nds.Last().id))
+            //{
+            //    //All closed polygons, much easier.
+            //    var outerEntries = r.Members.Where(m => m.Role == "outer").Select(m => m.Id).ToList();
+            //    var innerEntries = r.Members.Where(m => m.Role == "inner").Select(m => m.Id).ToList();
 
-                //TODO: parse inner and outer polygons to correctly create empty spaces inside larger shape. Currently reads multiple outer polys.
-                Geometry poly;
-                //If all the ways are already polygons, we can do much less processing
-                //if (shapeList.All(s => s.nds.First().id == s.nds.Last().id))
-                //{
-                //    //All closed polygons, much easier.
-                //    var outerEntries = r.Members.Where(m => m.Role == "outer").Select(m => m.Id).ToList();
-                //    var innerEntries = r.Members.Where(m => m.Role == "inner").Select(m => m.Id).ToList();
+            //    List<Polygon> outers = new List<Polygon>();
+            //    foreach (var oe in outerEntries)
+            //    {
+            //        var ca = WayToCoordArray(shapeList.Where(s => s.id == oe).FirstOrDefault());
+            //        if (ca == null)
+            //        {
+            //            //Skip, this was referncing a missing Way, but the remaining entries are all closed polygons. Attempt a partial construction.
+            //            continue;
+            //        }
 
-                //    List<Polygon> outers = new List<Polygon>();
-                //    foreach (var oe in outerEntries)
-                //    {
-                //        var ca = WayToCoordArray(shapeList.Where(s => s.id == oe).FirstOrDefault());
-                //        if (ca == null)
-                //        {
-                //            //Skip, this was referncing a missing Way, but the remaining entries are all closed polygons. Attempt a partial construction.
-                //            continue;
-                //        }
+            //        var o = factory.CreatePolygon(ca);
+            //        o = CCWCheck(o);
+            //        if (o == null)
+            //        {
+            //            Log.WriteLog("Relation " + r.Id + " " + relationName + " after change to polygon, still isn't CCW in either order.");
+            //            continue;
+            //        }
+            //        outers.Add(o);
+            //    }
+            //    poly = factory.CreateMultiPolygon(outers.Distinct().ToArray());
+            //    //TODO: add inner polygons.
+            //    //Repeat the above logic on outers, but for inners
+            //    //then take the (math function) of area in outers but not inners)
+            //    //send that multipolygon as the results.
+            //}
+            // else
+            //{
+            //I am assuming that the lines here will join into a single polygon. If not, this will fail.
+            Geometry Tpoly = GetGeometryFromWays(shapeList, r);
+            //var sanityCheck1 = ((MultiPolygon)Tpoly).Geometries.Where(g => !((Polygon)g).Shell.IsCCW).ToList();
 
-                //        var o = factory.CreatePolygon(ca);
-                //        o = CCWCheck(o);
-                //        if (o == null)
-                //        {
-                //            Log.WriteLog("Relation " + r.Id + " " + relationName + " after change to polygon, still isn't CCW in either order.");
-                //            continue;
-                //        }
-                //        outers.Add(o);
-                //    }
-                //    poly = factory.CreateMultiPolygon(outers.Distinct().ToArray());
-                //    //TODO: add inner polygons.
-                //    //Repeat the above logic on outers, but for inners
-                //    //then take the (math function) of area in outers but not inners)
-                //    //send that multipolygon as the results.
-                //}
-                // else
-                //{
-                //I am assuming that the lines here will join into a single polygon. If not, this will fail.
-                Geometry Tpoly = GetGeometryFromWays(shapeList, r);
-                //var sanityCheck1 = ((MultiPolygon)Tpoly).Geometries.Where(g => !((Polygon)g).Shell.IsCCW).ToList();
-
-                if (Tpoly == null)
-                {
-                    //error converting it
-                    Log.WriteLog("Relation " + r.Id + " " + relationName + " failed to get a polygon from ways. Error.");
-                    return null;
-                }
-                poly = Tpoly;
-                //}
-                MapData md = new MapData();
-                md.name = GetElementName(r.Tags);
-                md.type = MapSupport.GetType(r.Tags);
-                md.AreaTypeId = MapSupport.areaTypeReference[md.type.StartsWith("admin") ? "admin" : md.type].First();
-                md.RelationId = r.Id.Value;
-                md.place = MapSupport.SimplifyArea(poly);
+            if (Tpoly == null)
+            {
+                //error converting it
+                Log.WriteLog("Relation " + r.Id + " " + relationName + " failed to get a polygon from ways. Error.");
+                return null;
+            }
+            poly = Tpoly;
+            //}
+            MapData md = new MapData();
+            md.name = GetElementName(r.Tags);
+            md.type = MapSupport.GetType(r.Tags);
+            md.AreaTypeId = MapSupport.areaTypeReference[md.type.StartsWith("admin") ? "admin" : md.type].First();
+            md.RelationId = r.Id.Value;
+            md.place = MapSupport.SimplifyArea(poly);
 
             //foreach (var wtr in waysToRemove.Distinct())
-                //ways.Remove(wtr);
+            //ways.Remove(wtr);
 
             return md;
 
@@ -666,7 +622,7 @@ namespace OsmXmlParser
                 return null;
             }
 
-            for(int i = 0; i < existingPols.Count(); i++)
+            for (int i = 0; i < existingPols.Count(); i++)
                 existingPols[i] = CCWCheck(existingPols[i]);
 
             if (existingPols.Count() == 1)
@@ -674,7 +630,7 @@ namespace OsmXmlParser
 
             //return a multipolygon instead.
             var multiPol = factory.CreateMultiPolygon(existingPols.Distinct().ToArray()); //Sometimes a polygon is duplicated? Or perhaps this is after simplification?
-            for(int i = 0; i < multiPol.Geometries.Count(); i++)
+            for (int i = 0; i < multiPol.Geometries.Count(); i++)
                 multiPol.Geometries[i] = CCWCheck((Polygon)multiPol.Geometries[i]);
             return multiPol;
 
@@ -1319,7 +1275,7 @@ namespace OsmXmlParser
         {
             //trying to find one relation to fix.
             string filename = @"D:\Projects\OSM Server Info\XmlToProcess\ohio-latest.osm.pbf";
-            
+
             List<NodeData> nodes = new List<NodeData>();
             List<WayData> ways = new List<WayData>();
             List<MapData> processedEntries = new List<MapData>();
@@ -1394,7 +1350,7 @@ namespace OsmXmlParser
             string destFileName = System.IO.Path.GetFileNameWithoutExtension(filename);
             WriteMapDataToFile(destFolder + destFileName + "-MapData-Test.json", ref processedEntries);
             AddMapDataToDBFromFiles();
-            
+
         }
 
         /* For reference: the tags Pokemon Go appears to be using. I don't need all of these. I have a few it doesn't, as well.

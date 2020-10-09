@@ -344,7 +344,7 @@ namespace DatabaseAccess
 
             //Water spaces should be displayed. Not sure if I want players to be in them for resources.
             //Water should probably override other values as a safety concern?
-            if (ParserSettings.processWater && tags["natural"].Any(v => v == "water") || tags["waterway"].Count() > 0)
+            if (DbSettings.processWater && tags["natural"].Any(v => v == "water") || tags["waterway"].Count() > 0)
                 return "water";
 
             //Trail. Will likely show up in varying places for various reasons. Trying to limit this down to hiking trails like in parks and similar.
@@ -354,18 +354,18 @@ namespace DatabaseAccess
             //highway=footway is pedestrian traffic only, maybe including bikes. Mostly sidewalks, which I dont' want to include.
             //highway=bridleway is horse paths, maybe including pedestrians and bikes
             //highway=cycleway is for bikes, maybe including pedesterians.
-            if (ParserSettings.processTrail && tags["highway"].Any(v => relevantHighwayValues.Contains(v)
+            if (DbSettings.processTrail && tags["highway"].Any(v => relevantHighwayValues.Contains(v)
                 && !tags["footway"].Any(v => v == "sidewalk" || v == "crossing")))
                 return "trail";
 
             //Parks are good. Possibly core to this game.
-            if (ParserSettings.processPark && tags["leisure"].Any(v => v == "park"))
+            if (DbSettings.processPark && tags["leisure"].Any(v => v == "park"))
                 return "park";
 
             //admin boundaries: identify what political entities you're in. Smaller numbers are bigger levels (countries), bigger numbers are smaller entries (states, counties, cities, neighborhoods)
             //This should be the lowest priority tag on a cell, since this is probably the least interesting piece of info you could know.
             //OSM Wiki has more info on which ones mean what and where they're used.
-            if (ParserSettings.processAdmin && tags["boundary"].Any(v => v == "administrative")) //Admin_level appears on other elements, including goverment-tagged stuff, capitals, etc.
+            if (DbSettings.processAdmin && tags["boundary"].Any(v => v == "administrative")) //Admin_level appears on other elements, including goverment-tagged stuff, capitals, etc.
             {
                 string level = tags["admin_level"].FirstOrDefault();
                 if (level != null)
@@ -374,7 +374,7 @@ namespace DatabaseAccess
             }
 
             //Cemetaries are ok. They don't seem to appreciate Pokemon Go, but they're a public space and often encourage activity in them (thats not PoGo)
-            if (ParserSettings.processCemetery && (tags["landuse"].Any(v => v == "cemetery")
+            if (DbSettings.processCemetery && (tags["landuse"].Any(v => v == "cemetery")
                 || tags["amenity"].Any(v => v == "grave_yard")))
                 return "cemetery";
 
@@ -383,34 +383,34 @@ namespace DatabaseAccess
             //Landuse=retail has 200k entries. building=retail has 500k entries.
             //shop=* has about 5 million entries, mostly nodes.
             //Malls should be merged here, and are a sub-set of shop entries
-            if (ParserSettings.processRetail && (tags["landuse"].Any(v => v == "retail")
+            if (DbSettings.processRetail && (tags["landuse"].Any(v => v == "retail")
                 || tags["building"].Any(v => v == "retail")
                 || tags["shop"].Count() > 0)) // mall is a value of shop, so those are included here now.
                 return "retail";
 
             //I have historical as a tag to save, but not necessarily sub-sets yet of whats interesting there.
             //NOTE: the OSM tag doesn't match my value
-            if (ParserSettings.processHistorical && tags["historic"].Count() > 0)
+            if (DbSettings.processHistorical && tags["historic"].Count() > 0)
                 return "historical";
 
             //Wetlands should also be high priority.
-            if (ParserSettings.processWetland && tags["natural"].Any(v => v == "wetland"))
+            if (DbSettings.processWetland && tags["natural"].Any(v => v == "wetland"))
                 return "wetland";
 
             //Nature Reserve. Should be included
-            if (ParserSettings.processNatureReserve && tags["leisure"].Any(v => v == "nature_reserve"))
+            if (DbSettings.processNatureReserve && tags["leisure"].Any(v => v == "nature_reserve"))
                 return "natureReserve";
 
             //I have tourism as a tag to save, but not necessarily sub-sets yet of whats interesting there.
-            if (ParserSettings.processTourism && tags["tourism"].Any(v => relevantTourismValues.Contains(v)))
+            if (DbSettings.processTourism && tags["tourism"].Any(v => relevantTourismValues.Contains(v)))
                 return "tourism"; //TODO: create sub-values for tourism types?
 
             //Universities are good. Primary schools are not so good.  Don't include all education values.
-            if (ParserSettings.processUniversity && tags["amenity"].Any(v => v == "university" || v == "college"))
+            if (DbSettings.processUniversity && tags["amenity"].Any(v => v == "university" || v == "college"))
                 return "university";
 
             //Beaches are good. Managed beaches are less good but I'll count those too.
-            if (ParserSettings.processBeach && tags["natural"].Any(v => v == "beach")
+            if (DbSettings.processBeach && tags["natural"].Any(v => v == "beach")
             || (tags["leisure"].Any(v => v == "beach_resort")))
                 return "beach";
 

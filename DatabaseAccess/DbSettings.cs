@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace DatabaseAccess
 {
-    public static class ParserSettings
+    public static class DbSettings
     {
         public static bool processAdmin { get; set; } = true;
         public static bool processBeach { get; set; } = true;
