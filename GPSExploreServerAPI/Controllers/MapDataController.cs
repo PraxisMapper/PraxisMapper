@@ -84,7 +84,8 @@ namespace GPSExploreServerAPI.Controllers
             string results = sb.ToString();
             var options = new MemoryCacheEntryOptions();
             options.SetSize(1);
-            if (Configuration.GetValue<bool>("enableCaching")) cache.Set(codeString6, results, options);
+            if (Configuration.GetValue<bool>("enableCaching")) 
+                cache.Set(codeString6, results, options);
 
             pt.Stop(codeString6);
             return results;
@@ -250,6 +251,9 @@ namespace GPSExploreServerAPI.Controllers
 
             PerformanceTracker pt = new PerformanceTracker("GetSurroundingFlexArea");
             string pointDesc = lat.ToString() + "|" + lon.ToString();
+            //Caching for this will be keyed to the first 2? decimal places of each value, if .01 is the area, get half of that on each side (ex, at 40.00, load 39.995-40.005) 
+            //so the third digit is the lowest one that would change.
+            //This area is 
             //string cachedResults = "";
             //if (cache.TryGetValue(pointDesc, out cachedResults))
             //{
@@ -267,16 +271,23 @@ namespace GPSExploreServerAPI.Controllers
             //StringBuilders isn't thread-safe, so each thread needs its own, and their results combined later.
 
             //TODO: automatically determine needs for splitcount.
-            //current rule: .05 degress = 40 splits.
-            //.0025 degrees = 10 splits?
-            //.000125 degrees = 1 split.
-            int splitcount = 1; 
-            if (size > .05) //6-digit plus code
-                splitcount = 40;
-            else if (size > .0025) //8 digit
-                splitcount = 10;
-            else
-                splitcount = 1;
+            //current rule: .05 degress = 40 splits = 1600 searches ~.0001.
+            //.0025 degrees = 10 splits? = 100 searches ~.0002
+            //.000125 degrees = 1 split. = 1 search ~.0001
+            //Math would look like......
+            //whatever gets the input area down to about a 10-cell in size for searching.
+            //.05 / .0001 = 500, sqrt(500) = ~22 (vs 40)
+            //.0025 / .001 = 25, sqrt (25) = 5 (vs 10)
+            // Sqrt(Size / resolution10 ) * 2 is roughly my current logic.
+            int splitcount = 1;
+            splitcount = (int)Math.Floor(Math.Sqrt(size / MapSupport.resolution10) * 2);
+
+            //if (size > .05) //6-digit plus code
+                //splitcount = 40;
+            //else if (size > .0025) //8 digit
+                //splitcount = 10;
+            //else
+                //splitcount = 1;
             List<MapData>[] placeArray;
             GeoArea[] areaArray;
             StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];

@@ -9,6 +9,7 @@ namespace DatabaseAccess
 {
     public static class Log
     {
+        //TODO: make this a service? Replace with default logging class?
         static string filename = "OsmXmlParser" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".txt";
         public static VerbosityLevels Verbosity = VerbosityLevels.Normal;
         public static bool WriteToFile = false;
@@ -16,7 +17,7 @@ namespace DatabaseAccess
 
         public enum VerbosityLevels
         {
-            Off = 1,
+            Off = 1, //No calls to WriteLog pass Off as their verbosity level.
             Normal,
             High
                 //TODO: add ErrorsOnly, between Off and Normal?
@@ -24,9 +25,6 @@ namespace DatabaseAccess
 
         public static void WriteLog(string message, VerbosityLevels outputLevel = VerbosityLevels.Normal)
         {
-            //if (Verbosity != VerbosityLevels.Off)
-            //    return;
-
             if ((int)Verbosity < (int)outputLevel)
                 return;
 

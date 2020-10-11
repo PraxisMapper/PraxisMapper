@@ -4,6 +4,7 @@ using static DatabaseAccess.DbTables;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using Microsoft.EntityFrameworkCore.Update;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
 using NetTopologySuite.Geometries;
 using System.Linq;
 using Microsoft.VisualBasic.CompilerServices;
@@ -19,7 +20,7 @@ namespace DatabaseAccess
         public DbSet<AreaType> AreaTypes { get; set; }
         public DbSet<MapData> MapData { get; set; }
 
-
+        IConfiguration Config;
         //Test table to see if its practical to save prerendered results. there's 25 million 6codes, so no.
         //public DbSet<PremadeResults> PremadeResults { get; set; }
 
@@ -29,11 +30,18 @@ namespace DatabaseAccess
         //public DbSet<MinimumWay> MinimumWays { get; set; }
         //public DbSet<MinimumRelation> minimumRelations { get; set; }
 
+        //public GpsExploreContext(IConfiguration config)
+        //{
+            //Config = config;
+        //}
+
         public static MemoryCache mc = new MemoryCache(new MemoryCacheOptions()); 
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             //TODO: figure out this connection string for local testing, and for AWS use.
+            
+
             //Current server config
             //optionsBuilder.UseSqlServer(@"Data Source=localhost\SQLEXPRESS;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=GpsExplore;", x => x.UseNetTopologySuite());
             //Current localhost config.

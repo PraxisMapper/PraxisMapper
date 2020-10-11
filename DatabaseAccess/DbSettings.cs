@@ -23,7 +23,7 @@ namespace DatabaseAccess
         public static bool processWetland { get; set; } = true;
         public static bool UseCaching { get; set; } = true;
 
-        //public static bool UsePerformanceTracker { get; set; } = true;  //not used in this function.
+        //public static bool UsePerformanceTracker { get; set; } = true;  //not used in the DLL project.
     }
 }
 

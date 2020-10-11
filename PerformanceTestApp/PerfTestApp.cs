@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Reflection.Metadata.Ecma335;
 using System.Runtime.Versioning;
 using System.Text;
@@ -44,7 +45,8 @@ namespace PerformanceTestApp
             //TestGetPlacesPerf();
             //TestMapDataAbbrev();
             //TestFileVsMemoryStream();
-            TestMultiPassVsSinglePass();
+            //TestMultiPassVsSinglePass();
+            TestFlexEndpoint();
 
 
 
@@ -617,6 +619,15 @@ namespace PerformanceTestApp
         {
             //floats and doubles don't seem to make an actual difference in my app's memory usage unless it's huge, like Norway. Weird. Check that out here.
             
+        }
+
+        private static void TestFlexEndpoint()
+        {
+            string website = "http://localhost/GPSExploreServerAPI/MapData/flexarea/41.565188/-81.435063/";
+
+            WebClient wc = new WebClient();
+            for (double i = .0001; i <= 1; i += .001) //roughly a 10cell in size, expand radius by 1 each loop.
+                wc.DownloadString(website + i);
         }
 
 

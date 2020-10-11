@@ -34,6 +34,7 @@ namespace GPSExploreServerAPI.Controllers
             try
             {
                 var DB = new GpsExploreContext();
+                //var DB = (GpsExploreContext)new ServiceContainer().GetService(typeof(GpsExploreContext)); //returns null. Need an existing ServiceContainer
                 var check = DB.PlayerData.FirstOrDefault();
                 results += "|Database OK";
             }

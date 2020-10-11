@@ -2,9 +2,11 @@
 using DatabaseAccess.Support;
 using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ValueGeneration.Internal;
 using NetTopologySuite;
 using NetTopologySuite.Geometries;
 using OsmSharp;
+using OsmSharp.Geo;
 using OsmSharp.Streams;
 using System;
 using System.Collections.Generic;
@@ -113,6 +115,14 @@ namespace OsmXmlParser
                 //Near-future plan: make an app that covers an area and pulls in all data for it.
                 //like a university or a park. Draws ALL objects there to an SQLite DB used directly by an app, no data connection.
                 //Second arg: area covered somehow (way or relation ID of thing to use? big plus code?)
+                //Get a min and a max point, make a box, load all the elements in that from the parent file.
+
+                //Test sample covers OSU. OSU is .0307 x .0154 degrees.
+                GeoPoint min = new GeoPoint(39.9901, -83.0496);
+                GeoPoint max = new GeoPoint(40.0208, -83.0035);
+                GeoArea box = new GeoArea(min, max);
+                string filename = @"D:\Projects\OSM Server Info\XmlToProcess\ohio-latest.osm.pbf";
+                CreateStandaloneDB(box, filename);
             }
 
             if (args.Any(a => a.StartsWith("-checkFile:")))
@@ -121,9 +131,6 @@ namespace OsmXmlParser
                 string arg = args.Where(a => a.StartsWith("-checkFile:")).First().Replace("-checkFile:", "");
                 ValidateFile(arg);
             }
-
-
-
             return;
         }
 
@@ -177,7 +184,7 @@ namespace OsmXmlParser
         {
             string destFolder = @"D:\Projects\OSM Server Info\Trimmed JSON Files\";
             System.IO.FileInfo fi = new FileInfo(filename);
-            if (ParserSettings.ForceSeparateFiles || fi.Length > 400000000) //I have 28 country/state level extracts over this size, and this should include the ones that cause the most issues. TODO: make this size a setting, so higher-ram PCs can do bigger files.
+            if (ParserSettings.ForceSeparateFiles || fi.Length > ParserSettings.FilesizeSplit) //I have 28 country/state level extracts over this size, and this should include the ones that cause the most issues.
             {
                 //Parse this file into area type sub-files from disk, so that I dodge hit RAM limits
                 SerializeSeparateFilesFromPBF(filename);
@@ -799,7 +806,7 @@ namespace OsmXmlParser
             Log.WriteLog("Duped MapData entries deleted at " + DateTime.Now);
         }
 
-        public void CreateStandaloneDB(GeoArea box)
+        public static void CreateStandaloneDB(GeoArea box, string parentFile)
         {
             //TODO: this whole feature.
             //Parameter: Relation? Area? Lat/Long box covering one of those?
@@ -812,11 +819,32 @@ namespace OsmXmlParser
             var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values. //share this here, so i compare the actual algorithms instead of this boilerplate, mandatory entry.
             var polygon = factory.CreatePolygon(MapSupport.MakeBox(box));
 
-            var content = mainDb.MapData.Where(md => md.place.Intersects(polygon)).ToList();
+            var source = new PBFOsmStreamSource(File.OpenRead(parentFile));
+            //Using different types than my existing functions.
+
+            GeoAPI.Geometries.Coordinate[] coords = new GeoAPI.Geometries.Coordinate[] {
+                new GeoAPI.Geometries.Coordinate(box.Min.Longitude, box.Min.Latitude),
+                new GeoAPI.Geometries.Coordinate(box.Min.Longitude, box.Max.Latitude),
+                new GeoAPI.Geometries.Coordinate(box.Max.Longitude, box.Max.Latitude),
+                new GeoAPI.Geometries.Coordinate(box.Max.Longitude, box.Min.Latitude),
+                new GeoAPI.Geometries.Coordinate(box.Min.Longitude, box.Min.Latitude),
+            };
+
+            var dataFromParent = source.FilterBox((float)box.Min.Longitude, (float)box.Max.Latitude, (float)box.Max.Longitude, (float)box.Min.Longitude).ToList();
+
+            var nodes = dataFromParent.Where(d => d.Type == OsmGeoType.Node).ToList();
+            var ways = dataFromParent.Where(d => d.Type == OsmGeoType.Way).ToList();
+            var relations = dataFromParent.Where(d => d.Type == OsmGeoType.Relation).ToList();
+            dataFromParent = null;
+
+            //could now sort by tags/types. This version should track more types than the explore game, since this is a more detailed smaller area.
+            
+
+
+            //var content = mainDb.MapData.Where(md => md.place.Intersects(polygon)).ToList();
             //var spoiConent = mainDb.SinglePointsOfInterests.Where(s => polygon.Intersects(new Point(s.lon, s.lat))).ToList(); //I think this is the right function, but might be Covers?
 
             //now, convert everything in content to 10-char plus code data.
-            //Is the same logic as Cell6Info, so I should functionalize that.
         }
 
         public static void ValidateFile(string filename)

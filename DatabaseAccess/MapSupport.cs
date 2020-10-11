@@ -36,9 +36,10 @@ namespace DatabaseAccess
         public static List<string> relevantTourismValues = new List<string>() { "artwork", "attraction", "gallery", "museum", "viewpoint", "zoo" }; //The stuff we care about in the tourism category. Zoo and attraction are debatable.
         public static List<string> relevantHighwayValues = new List<string>() { "path", "bridleway", "cycleway", "footway" }; //The stuff we care about in the highway category. Still pulls in plain sidewalks with no additional tags fairly often.
 
-        public static GeometryFactory factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values. Still pending thread-safety testing.
+        public static GeometryFactory factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values. 
 
         public static List<AreaType> areaTypes = new List<AreaType>() {
+            //Areas here are for the original explore concept
             new AreaType() { AreaTypeId = 1, AreaName = "water", OsmTags = "" },
             new AreaType() { AreaTypeId = 2, AreaName = "wetland", OsmTags = "" },
             new AreaType() { AreaTypeId = 3, AreaName = "park", OsmTags = "" },
@@ -52,6 +53,11 @@ namespace DatabaseAccess
             new AreaType() { AreaTypeId = 11, AreaName = "historical", OsmTags = "" },
             new AreaType() { AreaTypeId = 12, AreaName = "trail", OsmTags = "" },
             new AreaType() { AreaTypeId = 13, AreaName = "admin", OsmTags = "" }
+
+            //These areas are for a more detailed, single area focused map game
+            //Roads
+            //Buildings
+
         };
 
         public static ILookup<string, int> areaTypeReference = areaTypes.ToLookup(k => k.AreaName, v => v.AreaTypeId);
@@ -59,7 +65,6 @@ namespace DatabaseAccess
 
         public static List<MapData> GetPlaces(GeoArea area, List<MapData> source = null)
         {
-            //TODO: this seems to have a lot of warmup time that I would like to get rid of. Would be a huge performance improvement.
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
             //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
             var coordSeq = MakeBox(area);
@@ -158,7 +163,7 @@ namespace DatabaseAccess
         public static string FindPlacesIn10Cell(double x, double y, ref List<MapData> places, bool entireCode = false)
         {
             var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolution10, x + resolution10));
-            var entriesHere = MapSupport.GetPlaces(box, places).Where(p => !p.type.StartsWith("admin")).ToList(); //Excluding admin boundaries from this list.  
+            var entriesHere = MapSupport.GetPlaces(box, places).Where(p => p.AreaTypeId !=13).ToList(); //Excluding admin boundaries from this list.  
 
             if (entriesHere.Count() == 0)
                 return "";
@@ -180,7 +185,7 @@ namespace DatabaseAccess
         public static string FindPlacesIn11Cell(double x, double y, ref List<MapData> places, bool entireCode = false)
         {
             var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolution11Lat, x + resolution11Lon));
-            var entriesHere = MapSupport.GetPlaces(box, places).Where(p => !p.type.StartsWith("admin")).ToList(); //Excluding admin boundaries from this list.  
+            var entriesHere = MapSupport.GetPlaces(box, places).Where(p => p.AreaTypeId != 13).ToList(); //Excluding admin boundaries from this list.  
 
             if (entriesHere.Count() == 0)
                 return "";
@@ -208,18 +213,18 @@ namespace DatabaseAccess
             //(In general, the smaller areas should be overlaid on larger areas. This is more accurate than guessing by area types which one should be applied)
 
             if (entriesHere.Count() == 1)
-                return entriesHere.First().name + "|" + entriesHere.First().type;
+                return entriesHere.First().name + "|" + entriesHere.First().AreaTypeId;
 
             var point = entriesHere.Where(e => e.place.GeometryType == "Point").FirstOrDefault();
             if (point != null)
-                return point.name + "|" + point.type;
+                return point.name + "|" + point.AreaTypeId;
 
             var line = entriesHere.Where(e => e.place.GeometryType == "LineString" || e.place.GeometryType == "MultiLineString").FirstOrDefault();
             if (line != null)
-                return line.name + "|" + line.type;
+                return line.name + "|" + line.AreaTypeId;
 
             var smallest = entriesHere.Where(e => e.place.GeometryType == "Polygon" || e.place.GeometryType == "MultiPolygon").OrderBy(e => e.place.Area).First();
-            return smallest.name + "|" + smallest.type;
+            return smallest.name + "|" + smallest.AreaTypeId;
         }
 
         public static string LoadDataOnArea(long id)
@@ -415,6 +420,13 @@ namespace DatabaseAccess
             if (DbSettings.processBeach && tags["natural"].Any(v => v == "beach")
             || (tags["leisure"].Any(v => v == "beach_resort")))
                 return "beach";
+
+            //These additional types below this are intended for a more detailed, single-area focused game and not
+            //the general explore game context.
+
+            //Roads will matter
+            //buildings will matter
+            //Mark abandoned/unused buildings?
 
             //Possibly of interest:
             //landuse:forest / landuse:orchard  / natural:wood
