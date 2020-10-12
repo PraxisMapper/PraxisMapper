@@ -26,9 +26,6 @@ namespace OsmXmlParser
     {
         //NOTE: OSM data license allows me to use the data but requires acknowleging OSM as the data source
 
-        public static string parsedJsonPath = @"D:\Projects\OSM Server Info\Trimmed JSON Files\";
-        public static string parsedPbfPath = @"D:\Projects\OSM Server Info\XmlToProcess\";
-
         static void Main(string[] args)
         {
             if (args.Count() == 0)
@@ -71,7 +68,7 @@ namespace OsmXmlParser
 
             if (args.Any(a => a == "-resetXml" || a == "-resetPbf")) //update both anyways.
             {
-                List<string> filenames = System.IO.Directory.EnumerateFiles(@"D:\Projects\OSM Server Info\XmlToProcess\", "*.*Done").ToList();
+                List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.*Done").ToList();
                 foreach (var file in filenames)
                 {
                     File.Move(file, file.Substring(0, file.Length - 4));
@@ -80,7 +77,7 @@ namespace OsmXmlParser
 
             if (args.Any(a => a == "-resetJson"))
             {
-                List<string> filenames = System.IO.Directory.EnumerateFiles(@"D:\Projects\OSM Server Info\Trimmed JSON Files\", "*.jsonDone").ToList();
+                List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.JsonMapDataFolder, "*.jsonDone").ToList();
                 foreach (var file in filenames)
                 {
                     File.Move(file, file.Substring(0, file.Length - 4));
@@ -94,7 +91,7 @@ namespace OsmXmlParser
 
             if (args.Any(a => a.StartsWith("-trimPbfsByType")))
             {
-                List<string> filenames = System.IO.Directory.EnumerateFiles(@"D:\Projects\OSM Server Info\XmlToProcess\", "*.pbf").ToList();
+                List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
                 foreach (string filename in filenames)
                     SerializeSeparateFilesFromPBF(filename);
 
@@ -110,19 +107,25 @@ namespace OsmXmlParser
                 RemoveDuplicates();
             }
 
-            if (args.Any(a => a == "-createStandalone"))
+            if (args.Any(a => a.StartsWith("-createStandalone")))
             {
                 //Near-future plan: make an app that covers an area and pulls in all data for it.
                 //like a university or a park. Draws ALL objects there to an SQLite DB used directly by an app, no data connection.
                 //Second arg: area covered somehow (way or relation ID of thing to use? big plus code?)
                 //Get a min and a max point, make a box, load all the elements in that from the parent file.
 
+                //TODO: switch this to make a detailed entry for a relation.
+                //So i need a second parameter for relationID, then use that to pull the envelope for its bound
+                //and output a file with all that data.
+
                 //Test sample covers OSU. OSU is .0307 x .0154 degrees.
                 GeoPoint min = new GeoPoint(39.9901, -83.0496);
                 GeoPoint max = new GeoPoint(40.0208, -83.0035);
                 GeoArea box = new GeoArea(min, max);
-                string filename = @"D:\Projects\OSM Server Info\XmlToProcess\ohio-latest.osm.pbf";
-                CreateStandaloneDB(box, filename);
+                string filename = ParserSettings.PbfFolder  + "ohio-latest.osm.pbf";
+
+                int relationId = args.Where(a => a.StartsWith("-createStandalone")).First().Split('|')[1].ToInt();
+                CreateStandaloneDB(relationId, filename);
             }
 
             if (args.Any(a => a.StartsWith("-checkFile:")))
@@ -137,7 +140,7 @@ namespace OsmXmlParser
         public static void AddMapDataToDBFromFiles()
         {
             //This function is pretty slow. I should figure out how to speed it up. Approx. 6,000 ways per second right now.
-            foreach (var file in System.IO.Directory.EnumerateFiles(parsedJsonPath, "*-MapData*.json"))
+            foreach (var file in System.IO.Directory.EnumerateFiles(ParserSettings.JsonMapDataFolder, "*-MapData*.json"))
             {
                 Console.Title = file;
                 Log.WriteLog("Starting MapData read from  " + file + " at " + DateTime.Now);
@@ -165,24 +168,23 @@ namespace OsmXmlParser
             //Log.WriteLog("AreaTypes cleaned at " + DateTime.Now);
 
             osm.Database.ExecuteSqlRaw("TRUNCATE TABLE MapData");
-            Log.WriteLog("MapData cleaned at " + DateTime.Now);
+            Log.WriteLog("MapData cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
 
             osm.Database.ExecuteSqlRaw("TRUNCATE TABLE PerformanceInfo");
-            Log.WriteLog("PerformanceINf cleaned at " + DateTime.Now);
+            Log.WriteLog("PerformanceINf cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
 
             Log.WriteLog("DB cleaned at " + DateTime.Now);
         }
 
         public static void MakeAllSerializedFilesFromPBF()
         {
-            List<string> filenames = System.IO.Directory.EnumerateFiles(@"D:\Projects\OSM Server Info\XmlToProcess\", "*.pbf").ToList();
+            List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
             foreach (string filename in filenames)
                 SerializeFilesFromPBF(filename);
         }
 
         public static void SerializeFilesFromPBF(string filename)
         {
-            string destFolder = @"D:\Projects\OSM Server Info\Trimmed JSON Files\";
             System.IO.FileInfo fi = new FileInfo(filename);
             if (ParserSettings.ForceSeparateFiles || fi.Length > ParserSettings.FilesizeSplit) //I have 28 country/state level extracts over this size, and this should include the ones that cause the most issues.
             {
@@ -215,7 +217,7 @@ namespace OsmXmlParser
             fileInRam = null;
 
             var processedEntries = ProcessData(osmNodes, ref osmWays, ref osmRelations, referencedWays);
-            WriteMapDataToFile(destFolder + destFilename + "-MapData" + ".json", ref processedEntries);
+            WriteMapDataToFile(ParserSettings.JsonMapDataFolder + destFilename + "-MapData" + ".json", ref processedEntries);
             processedEntries = null;
 
             Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
@@ -225,8 +227,6 @@ namespace OsmXmlParser
         public static void SerializeSeparateFilesFromPBF(string filename)
         {
             //This will read from disk, since we are assuming this file will hit RAM limits if we read it all at once.
-            string destFolder = @"D:\Projects\OSM Server Info\Trimmed JSON Files\";
-
             foreach (var areatype in areaTypes) //each pass takes roughly the same amount of time to read, but uses less ram. 
             {
                 //skip entries if the settings say not to process them. they'll get 0 tagged entries but don't waste time reading the file.
@@ -251,7 +251,7 @@ namespace OsmXmlParser
                 Log.WriteLog("Relevant data pulled from file at " + DateTime.Now);
 
                 var processedEntries = ProcessData(osmNodes, ref osmWays, ref osmRelations, referencedWays);
-                WriteMapDataToFile(destFolder + destFilename + "-MapData-" + areatypename + ".json", ref processedEntries);
+                WriteMapDataToFile(ParserSettings.JsonMapDataFolder + destFilename + "-MapData-" + areatypename + ".json", ref processedEntries);
                 processedEntries = null;
             }
 
@@ -297,13 +297,7 @@ namespace OsmXmlParser
                 if (wayCounter % 10000 == 0)
                     Log.WriteLog(wayCounter + " processed so far");
 
-                foreach (long nr in w.nodRefs)
-                {
-                    var osmNode = osmNodes[nr].FirstOrDefault();
-                    var myNode = new NodeData(osmNode.Id, (float)osmNode.lat, (float)osmNode.lon);
-                    w.nds.Add(myNode);
-                }
-                w.nodRefs = null; //free up a little memory we won't use again?
+                LoadNodesIntoWay(ref w, ref osmNodes);
             }
             );
 
@@ -328,6 +322,17 @@ namespace OsmXmlParser
             processedEntries.AddRange(ways.AsParallel().Select(w => ConvertWayToMapData(ref w)));
             ways = null;
             return processedEntries;
+        }
+
+        public static void LoadNodesIntoWay(ref WayData w, ref ILookup<long, NodeReference> osmNodes)
+        {
+            foreach (long nr in w.nodRefs)
+            {
+                var osmNode = osmNodes[nr].FirstOrDefault();
+                var myNode = new NodeData(osmNode.Id, osmNode.lat, osmNode.lon);
+                w.nds.Add(myNode);
+            }
+            w.nodRefs = null; //free up a little memory we won't use again?
         }
 
         private static List<MapData> ProcessRelations(ref List<OsmSharp.Relation> osmRelations, ref List<WayData> ways)
@@ -756,24 +761,66 @@ namespace OsmXmlParser
                 }
                 else if (line.StartsWith("[") && line.EndsWith("]"))
                 {
-                    var jsondata = (List<MapDataForJson>)JsonSerializer.Deserialize(line, typeof(List<MapDataForJson>), jso);
-
-                    lm.AddRange(jsondata.Select(j => new MapData() { name = j.name, MapDataId = j.MapDataId, NodeId = j.NodeId, place = reader.Read(j.place), RelationId = j.RelationId, type = j.type, WayId = j.WayId, AreaTypeId = j.AreaTypeId })); //whole file is a list on one line. These shouldn't happen anymore.
+                    ////whole file is a list on one line. These shouldn't happen anymore.
+                    //var j= (List<MapDataForJson>)JsonSerializer.Deserialize(line, typeof(List<MapDataForJson>), jso);
+                    ////var temp = new MapData() { name = j.name, MapDataId = j.MapDataId, NodeId = j.NodeId, place = reader.Read(j.place), RelationId = j.RelationId, type = j.type, WayId = j.WayId, AreaTypeId = j.AreaTypeId }; //first entry on a file before I forced the brackets onto newlines. Comma at end causes errors, is also trimmed.
+                    //if (temp.place is Polygon)
+                    //{
+                    //    temp.place = MapSupport.CCWCheck((Polygon)temp.place);
+                    //}
+                    //if (temp.place is MultiPolygon)
+                    //{
+                    //    MultiPolygon mp = (MultiPolygon)temp.place;
+                    //    for (int i = 0; i < mp.Geometries.Count(); i++)
+                    //    {
+                    //        mp.Geometries[i] = CCWCheck((Polygon)mp.Geometries[i]);
+                    //    }
+                    //    temp.place = mp;
+                    //}
+                    //lm.Add(temp); 
                 }
                 else if (line.StartsWith("[") && line.EndsWith(","))
                 {
                     MapDataForJson j = (MapDataForJson)JsonSerializer.Deserialize(line.Substring(1, line.Count() - 2), typeof(MapDataForJson), jso);
-                    lm.Add(new MapData() { name = j.name, MapDataId = j.MapDataId, NodeId = j.NodeId, place = reader.Read(j.place), RelationId = j.RelationId, type = j.type, WayId = j.WayId, AreaTypeId = j.AreaTypeId }); //first entry on a file before I forced the brackets onto newlines. Comma at end causes errors, is also trimmed.
+                    var temp = new MapData() { name = j.name, MapDataId = j.MapDataId, NodeId = j.NodeId, place = reader.Read(j.place), RelationId = j.RelationId, type = j.type, WayId = j.WayId, AreaTypeId = j.AreaTypeId }; //first entry on a file before I forced the brackets onto newlines. Comma at end causes errors, is also trimmed.
+                    if (temp.place is Polygon)
+                    {
+                        temp.place = MapSupport.CCWCheck((Polygon)temp.place);
+                    }
+                    if (temp.place is MultiPolygon)
+                    {
+                        MultiPolygon mp = (MultiPolygon)temp.place;
+                        for(int i =0; i < mp.Geometries.Count(); i++)
+                        {
+                            mp.Geometries[i] = CCWCheck((Polygon)mp.Geometries[i]);
+                        }
+                        temp.place = mp;
+                    }
+                    lm.Add(temp);
                 }
                 else if (line.StartsWith("]"))
                 {
                     //dont do anything, this is EOF
                     Log.WriteLog("EOF Reached for " + filename + " at " + DateTime.Now);
                 }
-                else
+                else //The standard line
                 {
                     MapDataForJson j = (MapDataForJson)JsonSerializer.Deserialize(line.Substring(0, line.Count() - 1), typeof(MapDataForJson), jso);
-                    lm.Add(new MapData() { name = j.name, MapDataId = j.MapDataId, NodeId = j.NodeId, place = reader.Read(j.place), RelationId = j.RelationId, type = j.type, WayId = j.WayId, AreaTypeId = j.AreaTypeId }); //first entry on a file before I forced the brackets onto newlines. Comma at end causes errors, is also trimmed.
+                    var temp = new MapData() { name = j.name, MapDataId = j.MapDataId, NodeId = j.NodeId, place = reader.Read(j.place), RelationId = j.RelationId, type = j.type, WayId = j.WayId, AreaTypeId = j.AreaTypeId }; //first entry on a file before I forced the brackets onto newlines. Comma at end causes errors, is also trimmed.
+                    if (temp.place is Polygon)
+                    {
+                        temp.place = MapSupport.CCWCheck((Polygon)temp.place);
+                    }
+                    if (temp.place is MultiPolygon)
+                    {
+                        MultiPolygon mp = (MultiPolygon)temp.place;
+                        for (int i = 0; i < mp.Geometries.Count(); i++)
+                        {
+                            mp.Geometries[i] = CCWCheck((Polygon)mp.Geometries[i]);
+                        }
+                        temp.place = mp;
+                    }
+                    lm.Add(temp);
                 }
             }
 
@@ -806,10 +853,10 @@ namespace OsmXmlParser
             Log.WriteLog("Duped MapData entries deleted at " + DateTime.Now);
         }
 
-        public static void CreateStandaloneDB(GeoArea box, string parentFile)
+        public static void CreateStandaloneDB(long relationID, string parentFile)
         {
             //TODO: this whole feature.
-            //Parameter: Relation? Area? Lat/Long box covering one of those?
+            //Parameter: RelationID?
             //pull in all ways that intersect that 
             //process all of the 10-cells inside that area with their ways (will need more types than the current game has)
             //save this data to an SQLite DB for the app to use.
@@ -817,25 +864,34 @@ namespace OsmXmlParser
             var mainDb = new GpsExploreContext();
             var sqliteDb = "placeholder";
             var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values. //share this here, so i compare the actual algorithms instead of this boilerplate, mandatory entry.
-            var polygon = factory.CreatePolygon(MapSupport.MakeBox(box));
+            //var relationToProcess = 
+
+            //var polygon = factory.CreatePolygon(MapSupport.MakeBox(box));
 
             var source = new PBFOsmStreamSource(File.OpenRead(parentFile));
             //Using different types than my existing functions.
+            //first, pull the relation out of the parent file.
+            var relation = (Relation)source.Where(s => s.Id == relationID && s.Type == OsmGeoType.Relation).FirstOrDefault();
+            if (relation == null)
+                return; //not in the parent file. TODO log.
 
-            GeoAPI.Geometries.Coordinate[] coords = new GeoAPI.Geometries.Coordinate[] {
-                new GeoAPI.Geometries.Coordinate(box.Min.Longitude, box.Min.Latitude),
-                new GeoAPI.Geometries.Coordinate(box.Min.Longitude, box.Max.Latitude),
-                new GeoAPI.Geometries.Coordinate(box.Max.Longitude, box.Max.Latitude),
-                new GeoAPI.Geometries.Coordinate(box.Max.Longitude, box.Min.Latitude),
-                new GeoAPI.Geometries.Coordinate(box.Min.Longitude, box.Min.Latitude),
-            };
+            var relationMemberIds = relation.Members.Select(m => m.Id).ToList();
+            //var 
 
-            var dataFromParent = source.FilterBox((float)box.Min.Longitude, (float)box.Max.Latitude, (float)box.Max.Longitude, (float)box.Min.Longitude).ToList();
+            //GeoAPI.Geometries.Coordinate[] coords = new GeoAPI.Geometries.Coordinate[] {
+            //    new GeoAPI.Geometries.Coordinate(box.Min.Longitude, box.Min.Latitude),
+            //    new GeoAPI.Geometries.Coordinate(box.Min.Longitude, box.Max.Latitude),
+            //    new GeoAPI.Geometries.Coordinate(box.Max.Longitude, box.Max.Latitude),
+            //    new GeoAPI.Geometries.Coordinate(box.Max.Longitude, box.Min.Latitude),
+            //    new GeoAPI.Geometries.Coordinate(box.Min.Longitude, box.Min.Latitude),
+            //};
 
-            var nodes = dataFromParent.Where(d => d.Type == OsmGeoType.Node).ToList();
-            var ways = dataFromParent.Where(d => d.Type == OsmGeoType.Way).ToList();
-            var relations = dataFromParent.Where(d => d.Type == OsmGeoType.Relation).ToList();
-            dataFromParent = null;
+            //var dataFromParent = source.FilterBox((float)box.Min.Longitude, (float)box.Max.Latitude, (float)box.Max.Longitude, (float)box.Min.Longitude).ToList();
+
+            //var nodes = dataFromParent.Where(d => d.Type == OsmGeoType.Node).ToList();
+            //var ways = dataFromParent.Where(d => d.Type == OsmGeoType.Way).ToList();
+            //var relations = dataFromParent.Where(d => d.Type == OsmGeoType.Relation).ToList();
+            //dataFromParent = null;
 
             //could now sort by tags/types. This version should track more types than the explore game, since this is a more detailed smaller area.
             
@@ -922,7 +978,7 @@ namespace OsmXmlParser
         public static void SingleTest()
         {
             //trying to find one relation to fix.
-            string filename = @"D:\Projects\OSM Server Info\XmlToProcess\ohio-latest.osm.pbf";
+            string filename = ParserSettings.PbfFolder + "ohio-latest.osm.pbf";
 
             List<NodeData> nodes = new List<NodeData>();
             List<WayData> ways = new List<WayData>();
@@ -975,13 +1031,7 @@ namespace OsmXmlParser
                 if (wayCounter % 10000 == 0)
                     Log.WriteLog(wayCounter + " processed so far");
 
-                foreach (long nr in w.nodRefs)
-                {
-                    var osmNode = osmNodeLookup[nr].FirstOrDefault();
-                    var myNode = new NodeData(osmNode.Id, (float)osmNode.lat, (float)osmNode.lon);
-                    w.nds.Add(myNode);
-                }
-                w.nodRefs = null; //free up a little memory we won't use again.
+                LoadNodesIntoWay(ref w, ref osmNodeLookup);
             });
 
             Log.WriteLog("Ways populated with Nodes at " + DateTime.Now);
@@ -992,9 +1042,8 @@ namespace OsmXmlParser
             processedEntries.AddRange(ways.Select(w => ConvertWayToMapData(ref w)));
             ways = null;
 
-            string destFolder = @"D:\Projects\OSM Server Info\Trimmed JSON Files\";
             string destFileName = System.IO.Path.GetFileNameWithoutExtension(filename);
-            WriteMapDataToFile(destFolder + destFileName + "-MapData-Test.json", ref processedEntries);
+            WriteMapDataToFile(ParserSettings.JsonMapDataFolder + destFileName + "-MapData-Test.json", ref processedEntries);
             AddMapDataToDBFromFiles();
 
         }

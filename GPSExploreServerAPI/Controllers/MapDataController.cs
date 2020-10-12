@@ -279,8 +279,7 @@ namespace GPSExploreServerAPI.Controllers
             //.05 / .0001 = 500, sqrt(500) = ~22 (vs 40)
             //.0025 / .001 = 25, sqrt (25) = 5 (vs 10)
             // Sqrt(Size / resolution10 ) * 2 is roughly my current logic.
-            int splitcount = 1;
-            splitcount = (int)Math.Floor(Math.Sqrt(size / MapSupport.resolution10) * 2);
+            int splitcount = (int)Math.Floor(Math.Sqrt(size / MapSupport.resolution10) * 2);
 
             //if (size > .05) //6-digit plus code
                 //splitcount = 40;

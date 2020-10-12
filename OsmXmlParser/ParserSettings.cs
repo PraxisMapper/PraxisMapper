@@ -11,8 +11,9 @@ namespace OsmXmlParser
         //Do multiple passes on all pbf files regardless of size.
         public static bool ForceSeparateFiles = false;
 
-        public static string PbfFolder = "";
-        public static string JsonMapDataFolder = "";
+        //TODO: load options from file somewhere.
+        public static string PbfFolder = @"D:\Projects\OSM Server Info\XmlToProcess\";
+        public static string JsonMapDataFolder = @"D:\Projects\OSM Server Info\Trimmed JSON Files\";
         public static long FilesizeSplit = 400000000;
     }
 }

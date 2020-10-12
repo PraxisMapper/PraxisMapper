@@ -12,12 +12,14 @@ using OsmSharp.IO.Zip.Checksum;
 using OsmSharp.Streams;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Reflection.Metadata.Ecma335;
 using System.Runtime.Versioning;
 using System.Text;
+using System.Text.Json;
 using static DatabaseAccess.DbTables;
 using static DatabaseAccess.MapSupport;
 
@@ -46,7 +48,8 @@ namespace PerformanceTestApp
             //TestMapDataAbbrev();
             //TestFileVsMemoryStream();
             //TestMultiPassVsSinglePass();
-            TestFlexEndpoint();
+            //TestFlexEndpoint();
+            MicroBenchmark();
 
 
 
@@ -630,6 +633,29 @@ namespace PerformanceTestApp
                 wc.DownloadString(website + i);
         }
 
+        private static void MicroBenchmark()
+        {
+            //Measure performance of various things in timer ticks instead of milliseconds.
+            Stopwatch sw = new Stopwatch();
+            
+
+            NetTopologySuite.IO.WKTReader reader = new NetTopologySuite.IO.WKTReader();
+            reader.DefaultSRID = 4326;
+            string testPlaceWKT = "POLYGON ((-83.737174987792969 40.103412628173828, -83.734664916992188 40.101036071777344, -83.732452392578125 40.100399017333984, -83.7278823852539 40.100162506103516, -83.7275390625 40.102806091308594, -83.737174987792969 40.103412628173828))";
+            //check on performance for reading and writing a MapData entry to Json file.
+            //Fixed MapData Entry
+            MapDataForJson test1 = new MapDataForJson(1, "TestPlace", testPlaceWKT, "Way", 12345, null, null, 1);
+            string tempFile = System.IO.Path.GetTempFileName();
+            sw.Start();
+            //WriteMapDataToFile(tempFile, ref l);
+            var test2 = JsonSerializer.Serialize(test1, typeof(MapDataForJson));
+            sw.Stop();
+            Log.WriteLog("Single MapData to Json took " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds + "ms)");
+            sw.Restart();
+            MapDataForJson j = (MapDataForJson)JsonSerializer.Deserialize(test2, typeof(MapDataForJson));
+            sw.Stop();
+            Log.WriteLog("Single Json to MapData took " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds + "ms)");
+        }
 
     }
 }

@@ -36,7 +36,7 @@ namespace DatabaseAccess
         public static List<string> relevantTourismValues = new List<string>() { "artwork", "attraction", "gallery", "museum", "viewpoint", "zoo" }; //The stuff we care about in the tourism category. Zoo and attraction are debatable.
         public static List<string> relevantHighwayValues = new List<string>() { "path", "bridleway", "cycleway", "footway" }; //The stuff we care about in the highway category. Still pulls in plain sidewalks with no additional tags fairly often.
 
-        public static GeometryFactory factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values. 
+        public static GeometryFactory factory = NtsGeometryServices.Instance.CreateGeometryFactory(new PrecisionModel(1000000), 4326); //SRID matches Plus code values.  Precision model means round all points to 7 decimal places to not exceed float's useful range.
 
         public static List<AreaType> areaTypes = new List<AreaType>() {
             //Areas here are for the original explore concept
@@ -541,6 +541,14 @@ namespace DatabaseAccess
                 return p;
 
             return null; //not CCW either way? Happen occasionally for some reason, and it will fail to write to the DB
+        }
+
+        public static void DownloadPbfFile(string filename)
+        {
+            //TODO: pull a fresh copy of a file from geofabrik.de (or other mirror potentially)
+            //save it to the same folder as configured for pbf files (might be passed in)
+            //web paths http://download.geofabrik.de/north-america/us/ohio-latest.osm.pbf
+            //root, then each parent division. Starting with USA isn't too hard.
         }
     }
 }

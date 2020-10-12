@@ -21,9 +21,9 @@ namespace DatabaseAccess
         public static bool processUniversity { get; set; } = true;
         public static bool processWater { get; set; } = true;
         public static bool processWetland { get; set; } = true;
-        public static bool UseCaching { get; set; } = true;
+        //public static bool UseCaching { get; set; } = true; //Set in the Website's appsettings.json file.
 
-        //public static bool UsePerformanceTracker { get; set; } = true;  //not used in the DLL project.
+        //public static bool UsePerformanceTracker { get; set; } = true;  //Set in the website's.
     }
 }
 
