@@ -205,9 +205,13 @@ namespace OsmXmlParser
             
             Log.WriteLog("Starting " + filename + " " + " data read at " + DateTime.Now);
             var osmRelations = GetRelationsFromStream(ms, null);
+            Log.WriteLog(osmRelations.Count() + " relations found", Log.VerbosityLevels.High);
             var referencedWays = osmRelations.AsParallel().SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToLookup(k => k, v => v);
+            Log.WriteLog(referencedWays.Count() + " ways used within relations", Log.VerbosityLevels.High);
             Log.WriteLog("Relations loaded at " + DateTime.Now);
             var osmWays = GetWaysFromStream(ms, null, referencedWays);
+            Log.WriteLog(osmWays.Count() + " ways found", Log.VerbosityLevels.High);
+            Log.WriteLog((osmWays.Count() - referencedWays.Count()) + " standalone ways pulled in.", Log.VerbosityLevels.High);
             var referencedNodes = osmWays.AsParallel().SelectMany(m => m.Nodes).Distinct().ToLookup(k => k, v => v);
             Log.WriteLog("Ways loaded at " + DateTime.Now);
             var osmNodes = GetNodesFromStream(ms, null, referencedNodes);
@@ -241,10 +245,15 @@ namespace OsmXmlParser
 
                 Log.WriteLog("Starting " + filename + " " + areatypename + " data read at " + DateTime.Now);
                 var osmRelations = GetRelationsFromPbf(filename, areatypename);
+                Log.WriteLog(osmRelations.Count() + " relations found", Log.VerbosityLevels.High);
                 var referencedWays = osmRelations.AsParallel().SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToLookup(k => k, v => v);
+                Log.WriteLog(referencedWays.Count() + " ways used within relations", Log.VerbosityLevels.High);
                 Log.WriteLog("Relations loaded at " + DateTime.Now);
                 var osmWays = GetWaysFromPbf(filename, areatypename, referencedWays);
+                Log.WriteLog(osmWays.Count() + " ways found", Log.VerbosityLevels.High);
+                Log.WriteLog((osmWays.Count() - referencedWays.Count())  + " standalone ways pulled in.", Log.VerbosityLevels.High);
                 var referencedNodes = osmWays.AsParallel().SelectMany(m => m.Nodes).Distinct().ToLookup(k => k, v => v);
+                Log.WriteLog(referencedNodes.Count() + " nodes used by ways", Log.VerbosityLevels.High);
                 Log.WriteLog("Ways loaded at " + DateTime.Now);
                 var osmNodes = GetNodesFromPbf(filename, areatypename, referencedNodes);
                 referencedNodes = null;
@@ -304,6 +313,9 @@ namespace OsmXmlParser
             Log.WriteLog("Ways populated with Nodes at " + DateTime.Now);
             osmNodes = null; //done with these now, can free up RAM again.
 
+            processedEntries.AddRange(ways.Where(w => referencedWays[w.id].Count() == 0).AsParallel().Select(w => ConvertWayToMapData(ref w)));
+            ways = ways.Where(w => referencedWays[w.id].Count() > 0).ToList();
+
             //processedEntries.AddRange(ProcessRelations(ref osmRelations, ref ways)); //75580ms on OH data
             processedEntries.AddRange(osmRelations.AsParallel().Select(r => ProcessRelation(r, ref ways))); //42223ms on OH.
 
@@ -314,7 +326,7 @@ namespace OsmXmlParser
             //ways = ways.Where(w => referencedWays[w.id].Count() == 0).ToList(); 
             //I might want to only remove outer ways, and let inner ways remain in case they're something else.
             //This lets Oak Grove draw correctly in my app.
-            var outerWays = osmRelations.SelectMany(r => r.Members.Where(m => m.Role == "outer").Select(m => m.Id)).ToLookup(k => k, v => v);
+            var outerWays = osmRelations.SelectMany(r => r.Members.Where(m => m.Role == "outer" && m.Type == OsmGeoType.Way).Select(m => m.Id)).ToLookup(k => k, v => v);
             ways = ways.Where(w => outerWays[w.id].Count() == 0).ToList();
             outerWays = null;
             osmRelations = null;
@@ -371,7 +383,7 @@ namespace OsmXmlParser
             foreach (var m in membersToRead)
             {
                 var maybeWay = ways.Where(way => way.id == m).FirstOrDefault();
-                if (maybeWay != null)
+                if (maybeWay != null && maybeWay.nds.Count() > 3) //2-3 is a line, 1 is a point.
                     shapeList.Add(maybeWay);
                 else
                 {
@@ -393,6 +405,13 @@ namespace OsmXmlParser
             {
                 //error converting it
                 Log.WriteLog("Relation " + r.Id + " " + relationName + " failed to get a polygon from ways. Error.");
+                return null;
+            }
+
+            if (!Tpoly.IsValid)
+            {
+                //System.Diagnostics.Debugger.Break();
+                Log.WriteLog("Relation " + r.Id + " " + relationName + " Is not valid geometry. Error.");
                 return null;
             }
 
@@ -446,10 +465,12 @@ namespace OsmXmlParser
             if (innerEntries.Count > 0)
             {
                 innerPolys = shapeList.Where(s => innerEntries.Contains(s.id)).ToList();
-                foreach (var ie in innerPolys)
-                {
-                    innerPols.Add(factory.CreatePolygon(ie.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray()));
-                }
+                //foreach (var ie in innerPolys)
+                //{
+                    while(innerPolys.Count() > 0)
+                        //TODO: confirm all of these are closed shapes.
+                        innerPols.Add(GetShapeFromLines(ref innerPolys));
+                //}
             }
 
             //Remove any closed shapes first from the outer entries.
@@ -467,7 +488,7 @@ namespace OsmXmlParser
 
             if (existingPols.Count() == 0)
             {
-                Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " has no polygons and no lines that make polygons. Is this relation supposed to be an open line?");
+                Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " has no polygons and no lines that make polygons. Is this relation supposed to be an open line?", Log.VerbosityLevels.High);
                 return null;
             }
 
@@ -491,8 +512,15 @@ namespace OsmXmlParser
             //A new attempt at removing inner entries from outer ones via multipolygon.
             if (innerPols.Count() > 0)
             {
-                var innerMultiPol = factory.CreateMultiPolygon(innerPols.Distinct().ToArray());
-                multiPol = multiPol.Difference(innerMultiPol);
+                var innerMultiPol = factory.CreateMultiPolygon(innerPols.Where(ip => ip != null).Distinct().ToArray());
+                try
+                {
+                    multiPol = multiPol.Difference(innerMultiPol);
+                }
+                catch(Exception ex)
+                {
+                    Log.WriteLog("Relation " + r.Id + " Error trying to pull difference from inner and outer polygons:" + ex.Message);
+                }
             }
             return multiPol;
         }
@@ -500,7 +528,8 @@ namespace OsmXmlParser
         private static Polygon GetShapeFromLines(ref List<WayData> shapeList)
         {
             //takes shapelist as ref, returns a polygon, leaves any other entries in shapelist to be called again.
-            //NOTE: if this is a relation of lines that aren't a polygon (EX: a very long hiking trail), this should return the combined linestring.
+            //NOTE/TODO: if this is a relation of lines that aren't a polygon (EX: a very long hiking trail), this should probably return the combined linestring?
+            //TODO: if the lines are too small, should I return a Point instead?
 
             List<Coordinate> possiblePolygon = new List<Coordinate>();
             var firstShape = shapeList.FirstOrDefault();
@@ -596,17 +625,17 @@ namespace OsmXmlParser
 
             List<OsmSharp.Relation> filteredEntries;
             if (areaType == null)
-                filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
+                filteredEntries = progress.AsParallel().Where(p => p.Type == OsmGeoType.Relation &&
                     MapSupport.GetType(p.Tags) != "")
                 .Select(p => (OsmSharp.Relation)p)
                 .ToList();
             else if (areaType == "admin")
-                filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
+                filteredEntries = progress.AsParallel().Where(p => p.Type == OsmGeoType.Relation &&
                     MapSupport.GetType(p.Tags).StartsWith(areaType))
                 .Select(p => (OsmSharp.Relation)p)
                 .ToList();
             else
-                filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
+                filteredEntries = progress.AsParallel().Where(p => p.Type == OsmGeoType.Relation &&
                 MapSupport.GetType(p.Tags) == areaType
             )
                 .Select(p => (OsmSharp.Relation)p)
@@ -641,7 +670,7 @@ namespace OsmXmlParser
 
             if (areaType == null)
             {
-                filteredWays = progress.Where(p => p.Type == OsmGeoType.Way &&
+                filteredWays = progress.AsParallel().Where(p => p.Type == OsmGeoType.Way &&
                 (MapSupport.GetType(p.Tags) != ""
                 || referencedWays[p.Id.Value].Count() > 0)
             )
@@ -650,7 +679,7 @@ namespace OsmXmlParser
             }
             else if (areaType == "admin")
             {
-                filteredWays = progress.Where(p => p.Type == OsmGeoType.Way &&
+                filteredWays = progress.AsParallel().Where(p => p.Type == OsmGeoType.Way &&
                     (MapSupport.GetType(p.Tags).StartsWith(areaType)
                     || referencedWays[p.Id.Value].Count() > 0)
                 )
@@ -659,7 +688,7 @@ namespace OsmXmlParser
             }
             else
             {
-                filteredWays = progress.Where(p => p.Type == OsmGeoType.Way &&
+                filteredWays = progress.AsParallel().Where(p => p.Type == OsmGeoType.Way &&
                     (MapSupport.GetType(p.Tags) == areaType
                     || referencedWays[p.Id.Value].Count() > 0)
                 )
@@ -694,7 +723,7 @@ namespace OsmXmlParser
 
             if (areaType == null)
             {
-                filteredEntries = progress.Where(p => p.Type == OsmGeoType.Node &&
+                filteredEntries = progress.AsParallel().Where(p => p.Type == OsmGeoType.Node &&
                (MapSupport.GetType(p.Tags) != "" || nodes[p.Id.Value].Count() > 0)
            )
                .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), MapSupport.GetType(n.Tags)))
@@ -702,7 +731,7 @@ namespace OsmXmlParser
             }
             else if (areaType == "admin")
             {
-                filteredEntries = progress.Where(p => p.Type == OsmGeoType.Node &&
+                filteredEntries = progress.AsParallel().Where(p => p.Type == OsmGeoType.Node &&
                (MapSupport.GetType(p.Tags).StartsWith(areaType) || nodes[p.Id.Value].Count() > 0)
             )
                .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), areaType))
@@ -710,8 +739,8 @@ namespace OsmXmlParser
             }
             else
             {
-                filteredEntries = progress.Where(p => p.Type == OsmGeoType.Node &&
-                   (MapSupport.GetType(p.Tags) == areaType || nodes[p.Id.Value].Count() > 0)
+                filteredEntries = progress.AsParallel().Where(p => p.Type == OsmGeoType.Node &&
+                   (MapSupport.GetType(p.Tags) == areaType || nodes.Contains(p.Id.Value)) //might use less CPU than [].count() TODO test/determine if true.
                )
                    .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), areaType))
                    .ToLookup(k => k.Id, v => v);
@@ -722,13 +751,15 @@ namespace OsmXmlParser
 
         public static void WriteMapDataToFile(string filename, ref List<MapData> mapdata)
         {
+            //TODO: i could probably parallelize the .Serialize() part by doing some kind of AsParallel.Select() on it.
+            //but StreamWriter needs to be written from one thread. Remember that if I change this.
             System.IO.StreamWriter sw = new StreamWriter(filename);
             sw.Write("[" + Environment.NewLine);
             foreach (var md in mapdata)
             {
                 if (md != null) //null can be returned from the functions that convert OSM entries to MapData
                 {
-                    var recordVersion = new MapDataForJson(md.MapDataId, md.name, md.place.AsText(), md.type, md.WayId, md.NodeId, md.RelationId, md.AreaTypeId);
+                    var recordVersion = new MapDataForJson(md.name, md.place.AsText(), md.type, md.WayId, md.NodeId, md.RelationId, md.AreaTypeId);
                     var test = JsonSerializer.Serialize(recordVersion, typeof(MapDataForJson));
                     sw.Write(test);
                     sw.Write("," + Environment.NewLine);
@@ -759,54 +790,14 @@ namespace OsmXmlParser
                 {
                     //start of a file that spaced out every entry on a newline correctly. Skip.
                 }
-                else if (line.StartsWith("[") && line.EndsWith("]"))
-                {
-                    ////whole file is a list on one line. These shouldn't happen anymore.
-                    //var j= (List<MapDataForJson>)JsonSerializer.Deserialize(line, typeof(List<MapDataForJson>), jso);
-                    ////var temp = new MapData() { name = j.name, MapDataId = j.MapDataId, NodeId = j.NodeId, place = reader.Read(j.place), RelationId = j.RelationId, type = j.type, WayId = j.WayId, AreaTypeId = j.AreaTypeId }; //first entry on a file before I forced the brackets onto newlines. Comma at end causes errors, is also trimmed.
-                    //if (temp.place is Polygon)
-                    //{
-                    //    temp.place = MapSupport.CCWCheck((Polygon)temp.place);
-                    //}
-                    //if (temp.place is MultiPolygon)
-                    //{
-                    //    MultiPolygon mp = (MultiPolygon)temp.place;
-                    //    for (int i = 0; i < mp.Geometries.Count(); i++)
-                    //    {
-                    //        mp.Geometries[i] = CCWCheck((Polygon)mp.Geometries[i]);
-                    //    }
-                    //    temp.place = mp;
-                    //}
-                    //lm.Add(temp); 
-                }
-                else if (line.StartsWith("[") && line.EndsWith(","))
-                {
-                    MapDataForJson j = (MapDataForJson)JsonSerializer.Deserialize(line.Substring(1, line.Count() - 2), typeof(MapDataForJson), jso);
-                    var temp = new MapData() { name = j.name, MapDataId = j.MapDataId, NodeId = j.NodeId, place = reader.Read(j.place), RelationId = j.RelationId, type = j.type, WayId = j.WayId, AreaTypeId = j.AreaTypeId }; //first entry on a file before I forced the brackets onto newlines. Comma at end causes errors, is also trimmed.
-                    if (temp.place is Polygon)
-                    {
-                        temp.place = MapSupport.CCWCheck((Polygon)temp.place);
-                    }
-                    if (temp.place is MultiPolygon)
-                    {
-                        MultiPolygon mp = (MultiPolygon)temp.place;
-                        for(int i =0; i < mp.Geometries.Count(); i++)
-                        {
-                            mp.Geometries[i] = CCWCheck((Polygon)mp.Geometries[i]);
-                        }
-                        temp.place = mp;
-                    }
-                    lm.Add(temp);
-                }
-                else if (line.StartsWith("]"))
+                else if (line =="]")
                 {
                     //dont do anything, this is EOF
-                    Log.WriteLog("EOF Reached for " + filename + " at " + DateTime.Now);
                 }
                 else //The standard line
                 {
                     MapDataForJson j = (MapDataForJson)JsonSerializer.Deserialize(line.Substring(0, line.Count() - 1), typeof(MapDataForJson), jso);
-                    var temp = new MapData() { name = j.name, MapDataId = j.MapDataId, NodeId = j.NodeId, place = reader.Read(j.place), RelationId = j.RelationId, type = j.type, WayId = j.WayId, AreaTypeId = j.AreaTypeId }; //first entry on a file before I forced the brackets onto newlines. Comma at end causes errors, is also trimmed.
+                    var temp = new MapData() { name = j.name, NodeId = j.NodeId, place = reader.Read(j.place), RelationId = j.RelationId, type = j.type, WayId = j.WayId, AreaTypeId = j.AreaTypeId }; //first entry on a file before I forced the brackets onto newlines. Comma at end causes errors, is also trimmed.
                     if (temp.place is Polygon)
                     {
                         temp.place = MapSupport.CCWCheck((Polygon)temp.place);
@@ -828,6 +819,7 @@ namespace OsmXmlParser
                 Log.WriteLog("No entries for " + filename + "? why?");
 
             sr.Close(); sr.Dispose();
+            Log.WriteLog("EOF Reached for " + filename + " at " + DateTime.Now);
             return lm;
         }
 

@@ -533,6 +533,10 @@ namespace DatabaseAccess
             if (p == null)
                 return null;
 
+            if (p.NumPoints < 4)
+                //can't determine orientation, because this point was shortened to an awkward line.
+                return null;
+
             //Sql Server Geography type requires polygon points to be in counter-clockwise order.  This function returns the polygon in the right orientation, or null if it can't.
             if (p.Shell.IsCCW)
                 return p;

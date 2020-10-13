@@ -10,7 +10,9 @@ using NetTopologySuite.GeometriesGraph.Index;
 using OsmSharp;
 using OsmSharp.IO.Zip.Checksum;
 using OsmSharp.Streams;
+using OsmSharp.Streams.Filters;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -38,6 +40,8 @@ namespace PerformanceTestApp
 
         static void Main(string[] args)
         {
+            if (Debugger.IsAttached)
+                Console.WriteLine("Run this in Release mode for accurate numbers!");
             //This is for running and archiving performance tests on different code approaches.
             //PerformanceInfoEFCoreVsSproc();
             //S2VsPlusCode();
@@ -49,7 +53,8 @@ namespace PerformanceTestApp
             //TestFileVsMemoryStream();
             //TestMultiPassVsSinglePass();
             //TestFlexEndpoint();
-            MicroBenchmark();
+            //MicroBenchmark();
+            ConcurrentTest();
 
 
 
@@ -636,15 +641,15 @@ namespace PerformanceTestApp
         private static void MicroBenchmark()
         {
             //Measure performance of various things in timer ticks instead of milliseconds.
+            //Might be useful to measure CPU performance across machines.
             Stopwatch sw = new Stopwatch();
-            
 
             NetTopologySuite.IO.WKTReader reader = new NetTopologySuite.IO.WKTReader();
             reader.DefaultSRID = 4326;
             string testPlaceWKT = "POLYGON ((-83.737174987792969 40.103412628173828, -83.734664916992188 40.101036071777344, -83.732452392578125 40.100399017333984, -83.7278823852539 40.100162506103516, -83.7275390625 40.102806091308594, -83.737174987792969 40.103412628173828))";
             //check on performance for reading and writing a MapData entry to Json file.
             //Fixed MapData Entry
-            MapDataForJson test1 = new MapDataForJson(1, "TestPlace", testPlaceWKT, "Way", 12345, null, null, 1);
+            MapDataForJson test1 = new MapDataForJson("TestPlace", testPlaceWKT, "Way", 12345, null, null, 1);
             string tempFile = System.IO.Path.GetTempFileName();
             sw.Start();
             //WriteMapDataToFile(tempFile, ref l);
@@ -655,7 +660,73 @@ namespace PerformanceTestApp
             MapDataForJson j = (MapDataForJson)JsonSerializer.Deserialize(test2, typeof(MapDataForJson));
             sw.Stop();
             Log.WriteLog("Single Json to MapData took " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds + "ms)");
+            File.Delete(tempFile); //Clean up after ourselves.
+            sw.Restart();
+            var test3 = reader.Read(testPlaceWKT);
+            sw.Stop();
+            Log.WriteLog("Converting 1 polygon from Text to Geometry took " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds + "ms)");
+            sw.Restart();
+            var result3 = MapSupport.CCWCheck((Polygon)test3);
+            sw.Stop();
+            Log.WriteLog("Single CCWCheck on 5-point polygon took " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds + "ms)");
         }
+
+        private static void ConcurrentTest()
+        {
+            string filename = @"D:\Projects\OSM Server Info\XmlToProcess\ohio-latest.osm.pbf"; //160MB PBF
+            FileStream fs2 = new FileStream(filename, FileMode.Open);
+            byte[] fileInRam = new byte[fs2.Length];
+            fs2.Read(fileInRam, 0, (int)fs2.Length);
+            MemoryStream ms = new MemoryStream(fileInRam);
+            List<OsmSharp.Relation> filteredRelations2 = new List<OsmSharp.Relation>();
+            List<MapData> contents2 = new List<MapData>();
+            contents2.Capacity = 100000;
+
+            var source2 = new PBFOsmStreamSource(ms);
+            var progress2 = source2.ShowProgress();
+
+            //List<OsmSharp.Relation> filteredEntries2;
+            var normalListTest = progress2
+                .Where(p => p.Type == OsmGeoType.Relation)
+                .Select(p => (Relation)p)
+            .ToList();
+
+            var concurrentTest = new ConcurrentBag<OsmSharp.Relation>(normalListTest);
+            Log.WriteLog("Both data sources populated. Starting test.");
+
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+            var data1 = normalListTest.AsParallel().Select(r => r.Members.Count()).ToList();
+            sw.Stop();
+            Log.WriteLog("Standard list took " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds + "ms)");
+            sw.Restart();
+            var data2 = concurrentTest.AsParallel().Select(r => r.Members.Count()).ToList();
+            sw.Stop();
+            Log.WriteLog("ConcurrentBag took " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds + "ms)");
+
+            //lets do lookup VS dictionary vs concurrentdictionary. This eats a lot more RAM with nodes.
+            var list = progress2.Where(p => p.Type == OsmGeoType.Way).Select(p => (OsmSharp.Way)p).ToList();
+            var lookup = list.ToLookup(k => k.Id, v => v);
+            var dictionary = list.ToDictionary(k => k.Id, v => v);
+            var conDict = new ConcurrentDictionary<long, OsmSharp.Way>();
+            foreach (var entry in list)
+                conDict.Append(new KeyValuePair<long, OsmSharp.Way>(entry.Id.Value, entry));
+
+            sw.Restart();
+            var data3 = lookup.AsParallel().Select(l => l.First()).ToList();
+            sw.Stop();
+            Log.WriteLog("Standard lookup took " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds + "ms)");
+            sw.Restart();
+            data3 = dictionary.AsParallel().Select(l => l.Value).ToList(); sw.Stop();
+            Log.WriteLog("Standard dictionary took " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds + "ms)");
+            sw.Restart();
+            data3 = conDict.AsParallel().Select(l => l.Value).ToList(); sw.Stop();
+            Log.WriteLog("Concurrent Dictionary took " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds + "ms)");
+            sw.Restart();
+
+
+        }
+
 
     }
 }

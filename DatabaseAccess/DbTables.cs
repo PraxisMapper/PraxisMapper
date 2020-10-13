@@ -45,7 +45,7 @@ namespace DatabaseAccess
 
             [Column(TypeName = "geography")]
             public Geometry place { get; set; } //allows any sub-type of Geometry to be used
-            public string type { get; set; }
+            public string type { get; set; }//Still need this for admin boundary levels.
             public long? WayId { get; set; }
             public long? NodeId { get; set; }
             public long? RelationId { get; set; }

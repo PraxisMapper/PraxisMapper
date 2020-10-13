@@ -146,7 +146,6 @@ namespace GPSExploreServerAPI.Controllers
             //THe main endpoint excludes admin boundaries
             //this function exclusively gets them.
             var box = new GeoArea(new GeoPoint(lat, lon), new GeoPoint(lat + MapSupport.resolution10, lon + MapSupport.resolution10));
-
             var entriesHere = MapSupport.GetPlaces(box).Where(p => p.type.StartsWith("admin")).OrderBy(p => p.type).ToList();
 
             StringBuilder sb = new StringBuilder();
