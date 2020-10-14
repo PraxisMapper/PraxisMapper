@@ -5,9 +5,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ValueGeneration.Internal;
 using NetTopologySuite;
 using NetTopologySuite.Geometries;
+using NetTopologySuite.Noding;
 using OsmSharp;
+using OsmSharp.Complete;
 using OsmSharp.Geo;
 using OsmSharp.Streams;
+using SQLitePCL;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -199,6 +202,15 @@ namespace OsmXmlParser
             fs.Read(fileInRam, 0, (int)fs.Length);
             MemoryStream ms = new MemoryStream(fileInRam);
             fs.Close(); fs.Dispose();
+
+            //test entries with GetAllEntriesFromPbf below.
+            //List<Relation> relList = new List<Relation>(); //2756 entries
+            //List<Way> wayList = new List<Way>(); //135724 entries 
+            //Dictionary<long, NodeReference> nodeRef = new Dictionary<long, NodeReference>(); //18313 entries
+            //List<MapData> mdEntries = new List<MapData>();
+
+            //current test option for trying to run through a file in one shot. Needs work still.
+            //GetAllEntriesFromPbf(ms, "", out relList, out wayList, out nodeRef, out mdEntries);
 
             Log.WriteLog("Checking for members in  " + filename + " at " + DateTime.Now);
             string destFilename = System.IO.Path.GetFileName(filename).Replace(".osm.pbf", "");
@@ -400,8 +412,8 @@ namespace OsmXmlParser
             //Re-processing ways already in a reference screws up:
             //ways = ways.Where(w => referencedWays[w.id].Count() == 0).ToList(); 
             //I might want to only remove outer ways, and let inner ways remain in case they're something else.
-            var outerWays = osmRelations.SelectMany(r => r.Members.Where(m => m.Role == "outer" && m.Type == OsmGeoType.Way).Select(m => m.Id)).ToLookup(k => k, v => v);
-            ways = ways.Where(w => outerWays[w.id].Count() == 0).ToList();
+            var outerWays = osmRelations.SelectMany(r => r.Members.Where(m => m.Role == "outer" && m.Type == OsmGeoType.Way).Select(m => m.Id)).ToHashSet();
+            ways = ways.Where(w => !outerWays.Contains(w.id)).ToList();
             outerWays = null;
             osmRelations = null;
 
@@ -501,6 +513,8 @@ namespace OsmXmlParser
             return md;
         }
 
+        
+
         private static Geometry GetGeometryFromWays(List<WayData> shapeList, OsmSharp.Relation r)
         {
             //A common-ish case looks like the outer entries are lines that join togetehr, and inner entries are polygons.
@@ -598,7 +612,6 @@ namespace OsmXmlParser
             }
             return multiPol;
         }
-
         private static Polygon GetShapeFromLines(ref List<WayData> shapeList)
         {
             //takes shapelist as ref, returns a polygon, leaves any other entries in shapelist to be called again.
@@ -671,6 +684,75 @@ namespace OsmXmlParser
                 return null;
             }
             return poly;
+        }
+
+        private static void GetAllEntriesFromPbf(Stream dataStream, string areaType, out List<OsmSharp.Relation> relList, out List<OsmSharp.Way> wayList, out Dictionary<long, NodeReference> nodes, out List<MapData> results)
+        {
+            //Try and pull everything out of the file at once, instead of doing 3 passes on it.
+            //This does assume, however, that everything is in order (All relations appear before a way they reference, and all ways appear before the nodes they reference.
+            //This assumption may not be true, which would justify the 3-pass effort. This could cut it down to 2 passes (one for tagged stuff, one for referenced-and-not-tagged stuff)
+            //Might also do processing here as a way to keep ram low-but-growing over time?
+            //BAH THEYRE SORTED BACKWARDS.
+            //Files have nodes first, then ways, then relations.
+            //BUT
+            //.ToComplete() gives me entries with all the members filled in, instead of doing the passes myself.
+            List<OsmSharp.Relation> rs = new List<Relation>();
+            List<OsmSharp.Way> ws = new List<Way>();
+            Dictionary<long, NodeReference> ns = new Dictionary<long, NodeReference>();
+
+            List<MapData> mds = new List<MapData>();
+
+            //use these to track referenced entries internally, instead of externally. Can then also remove items from these.
+            //THIS might be where I want to use a ConcurrentX collection instead of a baseline one, if i make this foreach parallel.
+            HashSet<long> rels = new HashSet<long>();
+            HashSet<long> ways = new HashSet<long>();
+            HashSet<long> nods = new HashSet<long>();
+
+            rs.Capacity = 100000;
+            ws.Capacity = 100000;
+
+            var source = new PBFOsmStreamSource(dataStream);
+            var source2 = source.Where(s => MapSupport.GetType(s.Tags) != "" && s.Type == OsmGeoType.Relation).ToComplete();
+
+
+            foreach(var entry in source2)
+            {
+                //switch(entry.Type)
+                //{
+                //    case OsmGeoType.Relation:
+                //        if (MapSupport.GetType(entry.Tags) != "")
+                //        {
+                            CompleteRelation temp = (CompleteRelation)entry;
+                var t = Complete.ProcessCompleteRelation(temp);
+                //I should make a function that processes this.
+
+                //            foreach (var m in temp.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id))
+                //                ways.Add(m);
+                //        }
+                //        break;
+                //    case OsmGeoType.Way:
+                //        if (MapSupport.GetType(entry.Tags) != "" || ways.Contains(entry.Id))
+                //        {
+                //            Way temp = (Way)entry;
+                //            ws.Add(temp);
+                //            foreach (var m in temp.Nodes)
+                //                nods.Add(m);
+                //        }
+                //        break;
+                //    case OsmGeoType.Node:
+                //        if (MapSupport.GetType(entry.Tags) != "" || nods.Contains(entry.Id))
+                //        {
+                //            var n = (OsmSharp.Node)entry;
+                //            ns.Add(n.Id.Value, new NodeReference(n.Id.Value, (float)n.Latitude, (float)n.Longitude, GetElementName(n.Tags), MapSupport.GetType(n.Tags)));
+                //        }
+                //        break;
+                //}
+            }
+
+            relList = rs;
+            wayList = ws;
+            nodes = ns;
+            results = mds;
         }
 
         private static List<OsmSharp.Relation> GetRelationsFromPbf(string filename, string areaType)
