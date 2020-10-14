@@ -706,6 +706,7 @@ namespace PerformanceTestApp
 
             //lets do lookup VS dictionary vs concurrentdictionary. This eats a lot more RAM with nodes.
             var list = progress2.Where(p => p.Type == OsmGeoType.Way).Select(p => (OsmSharp.Way)p).ToList();
+            //TODO: time populating these entreis.
             var lookup = list.ToLookup(k => k.Id, v => v);
             var dictionary = list.ToDictionary(k => k.Id, v => v);
             var conDict = new ConcurrentDictionary<long, OsmSharp.Way>();

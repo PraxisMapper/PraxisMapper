@@ -123,5 +123,5 @@ ConcurrentTest 10/13/2020
 Both data sources populated. Starting test.
 Standard list took 374785 ticks (37ms)
 ConcurrentBag took 46264 ticks (4ms)
-Decision: Will start using ConcurrentBag<T> instead of List<T>. its 10x faster.
-However, real-world testing shows ConcurrentBag<T> makes processing Ohio a minute slower, makes RAM contents vary a lot, never fully multi-threads. 
+However, real-world testing shows ConcurrentBag<T> makes processing Ohio a minute slower, makes RAM contents vary a lot, never fully utilizes the CPU.
+Because these use a ton of RAM, and I'm trying to work out how to limit RAM usage on the most problematic files, this won't be used.
