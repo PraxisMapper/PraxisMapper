@@ -206,13 +206,14 @@ namespace OsmXmlParser
             Log.WriteLog("Starting " + filename + " " + " data read at " + DateTime.Now);
             var osmRelations = GetRelationsFromStream(ms, null);
             Log.WriteLog(osmRelations.Count() + " relations found", Log.VerbosityLevels.High);
-            var referencedWays = osmRelations.AsParallel().SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToLookup(k => k, v => v);
+            var referencedWays = osmRelations.AsParallel().SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToHashSet();
+
             Log.WriteLog(referencedWays.Count() + " ways used within relations", Log.VerbosityLevels.High);
             Log.WriteLog("Relations loaded at " + DateTime.Now);
             var osmWays = GetWaysFromStream(ms, null, referencedWays);
             Log.WriteLog(osmWays.Count() + " ways found", Log.VerbosityLevels.High);
             Log.WriteLog((osmWays.Count() - referencedWays.Count()) + " standalone ways pulled in.", Log.VerbosityLevels.High);
-            var referencedNodes = osmWays.AsParallel().SelectMany(m => m.Nodes).Distinct().ToLookup(k => k, v => v);
+            var referencedNodes = osmWays.AsParallel().SelectMany(m => m.Nodes).Distinct().ToHashSet();
             Log.WriteLog("Ways loaded at " + DateTime.Now);
             var osmNodes = GetNodesFromStream(ms, null, referencedNodes);
             referencedNodes = null;
@@ -246,13 +247,16 @@ namespace OsmXmlParser
                 Log.WriteLog("Starting " + filename + " " + areatypename + " data read at " + DateTime.Now);
                 var osmRelations = GetRelationsFromPbf(filename, areatypename);
                 Log.WriteLog(osmRelations.Count() + " relations found", Log.VerbosityLevels.High);
-                var referencedWays = osmRelations.AsParallel().SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToLookup(k => k, v => v);
+                var referencedWays = osmRelations.AsParallel().SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToLookup(k => k, v => (short)0);
+                var refWays2 = osmRelations.AsParallel().SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToDictionary(k => k, v => (short)0);
                 Log.WriteLog(referencedWays.Count() + " ways used within relations", Log.VerbosityLevels.High);
                 Log.WriteLog("Relations loaded at " + DateTime.Now);
                 var osmWays = GetWaysFromPbf(filename, areatypename, referencedWays);
                 Log.WriteLog(osmWays.Count() + " ways found", Log.VerbosityLevels.High);
                 Log.WriteLog((osmWays.Count() - referencedWays.Count())  + " standalone ways pulled in.", Log.VerbosityLevels.High);
-                var referencedNodes = osmWays.AsParallel().SelectMany(m => m.Nodes).Distinct().ToLookup(k => k, v => v);
+                var referencedNodes = osmWays.AsParallel().SelectMany(m => m.Nodes).Distinct().ToLookup(k => k, v => (short)0);
+                var referencedNodes2 = osmWays.AsParallel().SelectMany(m => m.Nodes).Distinct().ToDictionary(k => k, v => (short)0);
+                var referencedNodes3 = osmWays.AsParallel().SelectMany(m => m.Nodes).Distinct().ToHashSet();
                 Log.WriteLog(referencedNodes.Count() + " nodes used by ways", Log.VerbosityLevels.High);
                 Log.WriteLog("Ways loaded at " + DateTime.Now);
                 var osmNodes = GetNodesFromPbf(filename, areatypename, referencedNodes);
@@ -268,7 +272,7 @@ namespace OsmXmlParser
             File.Move(filename, filename + "Done"); //We made it all the way to the end, this file is done.
         }
 
-        private static List<MapData> ProcessData(ILookup<long, NodeReference> osmNodes, ref List<OsmSharp.Way> osmWays, ref List<OsmSharp.Relation> osmRelations, ILookup<long, long> referencedWays)
+        private static List<MapData> ProcessData(ILookup<long, NodeReference> osmNodes, ref List<OsmSharp.Way> osmWays, ref List<OsmSharp.Relation> osmRelations, ILookup<long, short> referencedWays)
         {
             List<MapData> processedEntries = new List<MapData>();
             List<NodeData> nodes = new List<NodeData>();
@@ -313,6 +317,7 @@ namespace OsmXmlParser
             Log.WriteLog("Ways populated with Nodes at " + DateTime.Now);
             osmNodes = null; //done with these now, can free up RAM again.
 
+            //Process all the ways that aren't part of a relation first, then remove them.
             processedEntries.AddRange(ways.Where(w => referencedWays[w.id].Count() == 0).AsParallel().Select(w => ConvertWayToMapData(ref w)));
             ways = ways.Where(w => referencedWays[w.id].Count() > 0).ToList();
 
@@ -326,6 +331,75 @@ namespace OsmXmlParser
             //ways = ways.Where(w => referencedWays[w.id].Count() == 0).ToList(); 
             //I might want to only remove outer ways, and let inner ways remain in case they're something else.
             //This lets Oak Grove draw correctly in my app.
+            var outerWays = osmRelations.SelectMany(r => r.Members.Where(m => m.Role == "outer" && m.Type == OsmGeoType.Way).Select(m => m.Id)).ToLookup(k => k, v => v);
+            ways = ways.Where(w => outerWays[w.id].Count() == 0).ToList();
+            outerWays = null;
+            osmRelations = null;
+
+            processedEntries.AddRange(ways.AsParallel().Select(w => ConvertWayToMapData(ref w)));
+            ways = null;
+            return processedEntries;
+        }
+
+        private static List<MapData> ProcessData(ILookup<long, NodeReference> osmNodes, ref List<OsmSharp.Way> osmWays, ref List<OsmSharp.Relation> osmRelations, HashSet<long> referencedWays)
+        {
+            List<MapData> processedEntries = new List<MapData>();
+            List<NodeData> nodes = new List<NodeData>();
+            List<WayData> ways = new List<WayData>();
+
+            nodes.Capacity = 100000;
+            ways.Capacity = 100000;
+            processedEntries.Capacity = 100000;
+
+            //Write nodes as mapdata if they're tagged separately from other things.
+            Log.WriteLog("Finding tagged nodes at " + DateTime.Now);
+            var taggedNodes = osmNodes.AsParallel().Where(n => n.First().name != "" && n.First().type != "" && n.First().type != null).ToList();
+            processedEntries.AddRange(taggedNodes.AsParallel().Select(s => MapSupport.ConvertNodeToMapData(s.First())));
+            taggedNodes = null;
+
+            Log.WriteLog("Converting " + osmWays.Count() + " OsmWays to my Ways at " + DateTime.Now);
+            ways.Capacity = osmWays.Count();
+            ways = osmWays.AsParallel().Select(w => new WayData()
+            {
+                id = w.Id.Value,
+                name = GetElementName(w.Tags),
+                AreaType = MapSupport.GetType(w.Tags),
+                nodRefs = w.Nodes.ToList()
+            })
+            .ToList();
+            osmWays = null; //free up RAM we won't use again.
+            Log.WriteLog("List created at " + DateTime.Now);
+
+            int wayCounter = 0;
+
+            System.Threading.Tasks.Parallel.ForEach(ways, (w) =>
+            //foreach(var w in ways)
+            {
+                wayCounter++;
+                if (wayCounter % 10000 == 0)
+                    Log.WriteLog(wayCounter + " processed so far");
+
+                LoadNodesIntoWay(ref w, ref osmNodes);
+            }
+            );
+
+            Log.WriteLog("Ways populated with Nodes at " + DateTime.Now);
+            osmNodes = null; //done with these now, can free up RAM again.
+
+
+            //Process all the ways that aren't used by a relation, then remove them.
+            processedEntries.AddRange(ways.Where(w => !referencedWays.Contains(w.id)).AsParallel().Select(w => ConvertWayToMapData(ref w)));
+            ways = ways.Where(w => referencedWays.Contains(w.id)).ToList();
+
+            //processedEntries.AddRange(ProcessRelations(ref osmRelations, ref ways)); //75580ms on OH data
+            processedEntries.AddRange(osmRelations.AsParallel().Select(r => ProcessRelation(r, ref ways))); //42223ms on OH.
+
+            //Removed entries we've already looked at as part of a relation? I suspect this is one of those cases where
+            //either way I do this, something's going to get messed up. Should track what.
+            //Removing ways already in a reference screws up: Oak Grove Cemetery at BGSU
+            //Re-processing ways already in a reference screws up:
+            //ways = ways.Where(w => referencedWays[w.id].Count() == 0).ToList(); 
+            //I might want to only remove outer ways, and let inner ways remain in case they're something else.
             var outerWays = osmRelations.SelectMany(r => r.Members.Where(m => m.Role == "outer" && m.Type == OsmGeoType.Way).Select(m => m.Id)).ToLookup(k => k, v => v);
             ways = ways.Where(w => outerWays[w.id].Count() == 0).ToList();
             outerWays = null;
@@ -644,7 +718,7 @@ namespace OsmXmlParser
             return filteredEntries;
         }
 
-        private static List<OsmSharp.Way> GetWaysFromPbf(string filename, string areaType, ILookup<long, long> referencedWays)
+        private static List<OsmSharp.Way> GetWaysFromPbf(string filename, string areaType, ILookup<long, short> referencedWays)
         {
             //Read through a file for stuff that matches our parameters.
             List<OsmSharp.Way> filteredWays = new List<OsmSharp.Way>();
@@ -655,14 +729,21 @@ namespace OsmXmlParser
             return filteredWays;
         }
 
-        private static List<OsmSharp.Way> GetWaysFromStream(Stream file, string areaType, ILookup<long, long> referencedWays)
+        private static List<OsmSharp.Way> GetWaysFromStream(Stream file, string areaType, ILookup<long, short> referencedWays)
         {
             //Read through a memorystream for stuff that matches our parameters.   
             file.Position = 0;
             return InnerGetWays(file, areaType, referencedWays);
         }
 
-        private static List<OsmSharp.Way> InnerGetWays(Stream file, string areaType, ILookup<long, long> referencedWays)
+        private static List<OsmSharp.Way> GetWaysFromStream(Stream file, string areaType, HashSet<long> referencedWays)
+        {
+            //Read through a memorystream for stuff that matches our parameters.   
+            file.Position = 0;
+            return InnerGetWays(file, areaType, referencedWays);
+        }
+
+        private static List<OsmSharp.Way> InnerGetWays(Stream file, string areaType, ILookup<long, short> referencedWays)
         {
             List<OsmSharp.Way> filteredWays = new List<OsmSharp.Way>();
             var source = new PBFOsmStreamSource(file);
@@ -699,7 +780,44 @@ namespace OsmXmlParser
             return filteredWays;
         }
 
-        private static ILookup<long, NodeReference> GetNodesFromPbf(string filename, string areaType, ILookup<long, long> nodes)
+        private static List<OsmSharp.Way> InnerGetWays(Stream file, string areaType, HashSet<long> referencedWays)
+        {
+            List<OsmSharp.Way> filteredWays = new List<OsmSharp.Way>();
+            var source = new PBFOsmStreamSource(file);
+            var progress = source; //.ShowProgress();
+
+            if (areaType == null)
+            {
+                filteredWays = progress.AsParallel().Where(p => p.Type == OsmGeoType.Way &&
+                (MapSupport.GetType(p.Tags) != ""
+                || referencedWays.Contains(p.Id.Value))
+            )
+                .Select(p => (OsmSharp.Way)p)
+                .ToList();
+            }
+            else if (areaType == "admin")
+            {
+                filteredWays = progress.AsParallel().Where(p => p.Type == OsmGeoType.Way &&
+                    (MapSupport.GetType(p.Tags).StartsWith(areaType)
+                    || referencedWays.Contains(p.Id.Value))
+                )
+                    .Select(p => (OsmSharp.Way)p)
+                    .ToList();
+            }
+            else
+            {
+                filteredWays = progress.AsParallel().Where(p => p.Type == OsmGeoType.Way &&
+                    (MapSupport.GetType(p.Tags) == areaType
+                    || referencedWays.Contains(p.Id.Value))
+                )
+                    .Select(p => (OsmSharp.Way)p)
+                    .ToList();
+            }
+
+            return filteredWays;
+        }
+
+        private static ILookup<long, NodeReference> GetNodesFromPbf(string filename, string areaType, ILookup<long, short> nodes)
         {
             ILookup<long,NodeReference> filteredEntries;
             using (var fs = File.OpenRead(filename))
@@ -709,13 +827,19 @@ namespace OsmXmlParser
             return filteredEntries;
         }
 
-        private static ILookup<long, NodeReference> GetNodesFromStream(Stream file, string areaType, ILookup<long, long> nodes)
+        private static ILookup<long, NodeReference> GetNodesFromStream(Stream file, string areaType, ILookup<long, short> nodes)
         {
             file.Position = 0;
             return InnerGetNodes(file, areaType, nodes);
         }
 
-        public static ILookup<long, NodeReference> InnerGetNodes(Stream file, string areaType, ILookup<long, long> nodes)
+        private static ILookup<long, NodeReference> GetNodesFromStream(Stream file, string areaType, HashSet<long> nodes)
+        {
+            file.Position = 0;
+            return InnerGetNodes(file, areaType, nodes);
+        }
+
+        public static ILookup<long, NodeReference> InnerGetNodes(Stream file, string areaType, ILookup<long, short> nodes)
         {
             var source = new PBFOsmStreamSource(file);
             var progress = source; //.ShowProgress();
@@ -741,6 +865,40 @@ namespace OsmXmlParser
             {
                 filteredEntries = progress.AsParallel().Where(p => p.Type == OsmGeoType.Node &&
                    (MapSupport.GetType(p.Tags) == areaType || nodes.Contains(p.Id.Value)) //might use less CPU than [].count() TODO test/determine if true.
+               )
+                   .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), areaType))
+                   .ToLookup(k => k.Id, v => v);
+            }
+
+            return filteredEntries;
+        }
+
+        public static ILookup<long, NodeReference> InnerGetNodes(Stream file, string areaType, HashSet<long> nodes)
+        {
+            var source = new PBFOsmStreamSource(file);
+            var progress = source; //.ShowProgress();
+            ILookup<long, NodeReference> filteredEntries;
+
+            if (areaType == null)
+            {
+                filteredEntries = progress.AsParallel().Where(p => p.Type == OsmGeoType.Node &&
+               (MapSupport.GetType(p.Tags) != "" || nodes.Contains(p.Id.Value))
+           )
+               .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), MapSupport.GetType(n.Tags)))
+               .ToLookup(k => k.Id, v => v);
+            }
+            else if (areaType == "admin")
+            {
+                filteredEntries = progress.AsParallel().Where(p => p.Type == OsmGeoType.Node &&
+               (MapSupport.GetType(p.Tags).StartsWith(areaType) || nodes.Contains(p.Id.Value))
+            )
+               .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), areaType))
+               .ToLookup(k => k.Id, v => v);
+            }
+            else
+            {
+                filteredEntries = progress.AsParallel().Where(p => p.Type == OsmGeoType.Node &&
+                   (MapSupport.GetType(p.Tags) == areaType || nodes.Contains(p.Id.Value)) 
                )
                    .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), areaType))
                    .ToLookup(k => k.Id, v => v);
