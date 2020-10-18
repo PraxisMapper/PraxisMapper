@@ -52,11 +52,12 @@ namespace DatabaseAccess
             new AreaType() { AreaTypeId = 10, AreaName = "tourism", OsmTags = "" },
             new AreaType() { AreaTypeId = 11, AreaName = "historical", OsmTags = "" },
             new AreaType() { AreaTypeId = 12, AreaName = "trail", OsmTags = "" },
-            new AreaType() { AreaTypeId = 13, AreaName = "admin", OsmTags = "" }
-
+            new AreaType() { AreaTypeId = 13, AreaName = "admin", OsmTags = "" },
+            
             //These areas are for a more detailed, single area focused map game
-            //Roads
-            //Buildings
+            new AreaType() { AreaTypeId = 14, AreaName = "building", OsmTags = "" },
+            new AreaType() { AreaTypeId = 15, AreaName = "road", OsmTags = "" },
+            new AreaType() { AreaTypeId = 16, AreaName = "parking", OsmTags = "" },
 
         };
 

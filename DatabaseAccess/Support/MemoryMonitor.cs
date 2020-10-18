@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace DatabaseAccess.Support
 {
-    class MemoryMonitor
+    public class MemoryMonitor
     {
         //A class to write console output related to memory operations
         long maxRamUsed = 1;
@@ -16,9 +16,13 @@ namespace DatabaseAccess.Support
         public MemoryMonitor()
         {
             //we've been called, fire stuff up.
-            //A thread to watch RAM use.
-            Log.WriteLog("GC in server mode: " + GCSettings.IsServerGC);
+            
+            //GCSettings.LatencyMode = GCLatencyMode.Batch; //Might be best for the parser, since there's no interactivity. Might want a parameter for this.
+            Log.WriteLog("GC in server mode: " + GCSettings.IsServerGC); //Cannot be set via C# code. Set via runtimeconfig.json or an MSBuild variable.
             Log.WriteLog("GC Latency Mode: " + GCSettings.LatencyMode);
+
+            //A thread to report RAM use.
+            Task.Factory.StartNew(() => { while (true) { UpdateMaxRamUsed(); System.Threading.Thread.Sleep(15000); } });
         }
 
 

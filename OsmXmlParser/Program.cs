@@ -31,6 +31,9 @@ namespace OsmXmlParser
 
         static void Main(string[] args)
         {
+
+            var memMon = new MemoryMonitor();
+
             if (args.Count() == 0)
             {
                 Console.WriteLine("You must pass an arguement to this application");
@@ -174,7 +177,7 @@ namespace OsmXmlParser
             Log.WriteLog("MapData cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
 
             osm.Database.ExecuteSqlRaw("TRUNCATE TABLE PerformanceInfo");
-            Log.WriteLog("PerformanceINf cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
+            Log.WriteLog("PerformanceInfo cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
 
             Log.WriteLog("DB cleaned at " + DateTime.Now);
         }
@@ -250,7 +253,7 @@ namespace OsmXmlParser
                 //ParserSettings.???
 
                 //if (areatype.AreaName == "water")
-                //  continue; //Water is too big for my PC on files this side most of the time on the 5-6 worst files.
+                //  continue; //Water is too big for my PC on files this side most of the time on the 5-6 worst files. Norway.pbf can hit 39GB committed memory.
 
                 string areatypename = areatype.AreaName;
                 Log.WriteLog("Checking for " + areatypename + " members in  " + filename + " at " + DateTime.Now);
