@@ -28,7 +28,7 @@ dividing map by 100 took 464 ms
 Decision: 40 remains the fastest factor to split a 6cell by.
 Additional performance increases were gained during testing, but this function's results stayed proportionate. These are the final results. 
 
-TestSpeedChangeByArea() 10/1/2020: (Using Ohio data only)
+TestSpeedChangeByArea() 10/1/2020: (Using Ohio data only, didn't have roads/buildings)
 First loop has some warmup time.
 8-code search time is 2111ms
 6-code search time is 45ms

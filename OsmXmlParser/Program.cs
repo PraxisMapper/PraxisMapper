@@ -152,7 +152,8 @@ namespace OsmXmlParser
 
         public static void AddMapDataToDBFromFiles()
         {
-            //This function is pretty slow. I should figure out how to speed it up. Approx. 6,000 ways per second right now.
+            //This function is pretty slow. I should figure out how to speed it up. Approx. 3,000 ways per second right now.
+            //Bulk inserts fail on the Geography type, last I had checked.
             foreach (var file in System.IO.Directory.EnumerateFiles(ParserSettings.JsonMapDataFolder, "*-MapData*.json"))
             {
                 Console.Title = file;
@@ -161,9 +162,18 @@ namespace OsmXmlParser
                 db.ChangeTracker.AutoDetectChangesEnabled = false; //Allows single inserts to operate at a reasonable speed (~6000 per second). Nothing else edits this table.
                 List<MapData> entries = ReadMapDataToMemory(file);
                 Log.WriteLog("Processing " + entries.Count() + " ways from " + file, Log.VerbosityLevels.High);
-                db.MapData.AddRange(entries);
-                Log.WriteLog("Entries added to entities at " + DateTime.Now, Log.VerbosityLevels.High);
-                db.SaveChanges();
+                //Trying to make this a little bit faster by working around internal EF graph stuff.
+                for(int i = 0; i < entries.Count() / 10000; i++)
+                {
+                    var subList = entries.Skip(i * 10000).Take(10000).ToList(); 
+                    db.MapData.AddRange(subList);
+                    db.SaveChanges();//~3seconds on dev machine per pass at 10k entries at once.
+                    Log.WriteLog("Entry pass " + i + " of " + (entries.Count() / 10000) + " completed");
+                }
+
+                //db.MapData.AddRange(entries);
+                //Log.WriteLog("Entries added to entities at " + DateTime.Now, Log.VerbosityLevels.High);
+                //db.SaveChanges();
 
                 Log.WriteLog("Added " + file + " to dB at " + DateTime.Now);
                 File.Move(file, file + "Done");
@@ -1306,27 +1316,27 @@ namespace OsmXmlParser
     KIND_FARM
     KIND_FARMLAND
     KIND_FARMYARD
-    KIND_FOOTWAY
+    KIND_FOOTWAY -Have
     KIND_FOREST
     KIND_GARDEN
     KIND_GLACIER
     KIND_GOLF_COURSE
     KIND_GRASS
-    KIND_HIGHWAY
+    KIND_HIGHWAY -have
     KIND_HOSPITAL
     KIND_HOTEL
     KIND_INDUSTRIAL
-    KIND_LAKE
+    KIND_LAKE -have, as water
     KIND_LAND
     KIND_LIBRARY
-    KIND_MAJOR_ROAD
+    KIND_MAJOR_ROAD - have
     KIND_MEADOW
-    KIND_MINOR_ROAD
+    KIND_MINOR_ROAD - have
     KIND_NATURE_RESERVE - Have
-    KIND_OCEAN
+    KIND_OCEAN - have, as water
     KIND_PARK - Have
-    KIND_PARKING
-    KIND_PATH
+    KIND_PARKING - have
+    KIND_PATH - have, as trail
     KIND_PEDESTRIAN
     KIND_PITCH
     KIND_PLACE_OF_WORSHIP
@@ -1337,13 +1347,13 @@ namespace OsmXmlParser
     KIND_RECREATION_AREA
     KIND_RESERVOIR
     KIND_RETAIL - Have
-    KIND_RIVER
-    KIND_RIVERBANK
+    KIND_RIVER - have, as water
+    KIND_RIVERBANK - have, as water
     KIND_RUNWAY
     KIND_SCHOOL
     KIND_SPORTS_CENTER
     KIND_STADIUM
-    KIND_STREAM
+    KIND_STREAM - have, as water
     KIND_TAXIWAY
     KIND_THEATRE
     KIND_UNIVERSITY - Have

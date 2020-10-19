@@ -269,23 +269,9 @@ namespace GPSExploreServerAPI.Controllers
             //Notes: 
             //StringBuilders isn't thread-safe, so each thread needs its own, and their results combined later.
 
-            //TODO: automatically determine needs for splitcount.
-            //current rule: .05 degress = 40 splits = 1600 searches ~.0001.
-            //.0025 degrees = 10 splits? = 100 searches ~.0002
-            //.000125 degrees = 1 split. = 1 search ~.0001
-            //Math would look like......
-            //whatever gets the input area down to about a 10-cell in size for searching.
-            //.05 / .0001 = 500, sqrt(500) = ~22 (vs 40)
-            //.0025 / .001 = 25, sqrt (25) = 5 (vs 10)
-            // Sqrt(Size / resolution10 ) * 2 is roughly my current logic.
+            //This is sort of a magic formula I wandered into.
+            // Sqrt(Size / resolution10 ) * 2 is my current logic.
             int splitcount = (int)Math.Floor(Math.Sqrt(size / MapSupport.resolution10) * 2);
-
-            //if (size > .05) //6-digit plus code
-                //splitcount = 40;
-            //else if (size > .0025) //8 digit
-                //splitcount = 10;
-            //else
-                //splitcount = 1;
             List<MapData>[] placeArray;
             GeoArea[] areaArray;
             StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
