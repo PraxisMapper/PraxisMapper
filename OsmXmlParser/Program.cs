@@ -48,6 +48,13 @@ namespace OsmXmlParser
             if (args.Any(a => a == "-noLogs"))
                 Log.Verbosity = Log.VerbosityLevels.Off;
 
+            if (args.Any(a => a == "-processEverything"))
+            {
+                DbSettings.processRoads = true;
+                DbSettings.processBuildings = true;
+                DbSettings.processParking = true;
+            }
+
             //If multiple args are supplied, run them in the order that make sense, not the order the args are supplied.
 
             if (args.Any(a => a == "-createDB")) //setup the destination database

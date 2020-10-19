@@ -34,7 +34,8 @@ namespace DatabaseAccess
         public const double resolution2 = 20; //the size of a 2-digit PlusCode, in degrees.
 
         public static List<string> relevantTourismValues = new List<string>() { "artwork", "attraction", "gallery", "museum", "viewpoint", "zoo" }; //The stuff we care about in the tourism category. Zoo and attraction are debatable.
-        public static List<string> relevantHighwayValues = new List<string>() { "path", "bridleway", "cycleway", "footway" }; //The stuff we care about in the highway category. Still pulls in plain sidewalks with no additional tags fairly often.
+        public static List<string> relevantTrailValues = new List<string>() { "path", "bridleway", "cycleway", "footway", "living_street" }; //The stuff we care about in the highway category for trails. Living Streets are nonexistant in the US.
+        public static List<string> relevantRoadValues = new List<string>() { "motorway", "trunk", "primary", "secondary", "tertiary", "unclassified", "residential", "motorway_link", "trunk_link", "primary_link", "secondary_link", "tertiary_link", "service", "road" }; //The stuff we care about in the highway category for roads. A lot more options for this.
 
         public static GeometryFactory factory = NtsGeometryServices.Instance.CreateGeometryFactory(new PrecisionModel(1000000), 4326); //SRID matches Plus code values.  Precision model means round all points to 7 decimal places to not exceed float's useful range.
 
@@ -362,7 +363,7 @@ namespace DatabaseAccess
             //highway=footway is pedestrian traffic only, maybe including bikes. Mostly sidewalks, which I dont' want to include.
             //highway=bridleway is horse paths, maybe including pedestrians and bikes
             //highway=cycleway is for bikes, maybe including pedesterians.
-            if (DbSettings.processTrail && tags["highway"].Any(v => relevantHighwayValues.Contains(v)
+            if (DbSettings.processTrail && tags["highway"].Any(v => relevantTrailValues.Contains(v)
                 && !tags["footway"].Any(v => v == "sidewalk" || v == "crossing")))
                 return "trail";
 
@@ -426,8 +427,20 @@ namespace DatabaseAccess
             //the general explore game context.
 
             //Roads will matter
+            if (DbSettings.processRoads && tags["highway"].Any(v => relevantRoadValues.Contains(v))
+            && !tags["footway"].Any(v => v == "sidewalk" || v == "crossing"))
+                return "road";
+
+
             //buildings will matter
             //Mark abandoned/unused buildings?
+            if (DbSettings.processBuildings && tags.Contains("building"))
+                return "building";
+
+            //Parking lots should get drawn too.
+            if (DbSettings.processParking && tags["amenity"].Any(v => v == "parking"))
+                return "parking";
+
 
             //Possibly of interest:
             //landuse:forest / landuse:orchard  / natural:wood
@@ -436,7 +449,7 @@ namespace DatabaseAccess
             //amenity:theatre for plays/music/etc (amenity:cinema is a movie theater)
             //Anything else seems un-interesting or irrelevant.
 
-            return ""; //not a way we need to save right now.
+            return ""; //not a type we need to save right now.
         }
 
         public static Coordinate[] WayToCoordArray(Support.WayData w)

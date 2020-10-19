@@ -12,7 +12,7 @@ namespace DatabaseAccess
         public static bool processBeach { get; set; } = true;
         public static bool processCemetery { get; set; } = true;
         public static bool processHistorical { get; set; } = true;
-        public static bool processMall { get; set; } = true;
+        //public static bool processMall { get; set; } = true;
         public static bool processNatureReserve { get; set; } = true;
         public static bool processPark { get; set; } = true;
         public static bool processRetail { get; set; } = true;
