@@ -2,7 +2,7 @@
   "profiles": {
     "OsmXmlParser": {
       "commandName": "Project",
-      "commandLineArgs": "-Zverbose  -ZprocessEverything -cleanDB -resetPbf -ZresetJson -ZtrimPbfFiles   -ZtrimPbfsByType -readMapData -ZremoveDupes -ZsingleTest -ZcreateStandalone"
+      "commandLineArgs": "-Zverbose  -ZprocessEverything -ZcleanDB -resetPbf -ZresetJson -ZtrimPbfFiles   -ZtrimPbfsByType -readMapData -ZremoveDupes -ZsingleTest -ZcreateStandalone"
     }
   }
 }

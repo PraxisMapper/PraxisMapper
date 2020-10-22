@@ -22,6 +22,7 @@ using static DatabaseAccess.MapSupport;
 //TODO: since some of these .pbf files become larger as trimmed JSON instead of smaller, maybe I should try a path that writes directly to DB from PBF? might involve 
 //TODO: Add high-verbosity logging messages.
 //TODO: set option flag to enable writing MapData entries to DB or File. Especially since bulk inserts won't fly for MapData from files, apparently.
+//TODO: look into using Span<T> instead of lists? This might be worth looking at performance differences. (and/or Memory<T>, which might be a parent for Spans)
 
 namespace OsmXmlParser
 {

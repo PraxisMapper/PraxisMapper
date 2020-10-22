@@ -1,12 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography.Xml;
 using System.Text;
 using System.Xml.Xsl;
 using DatabaseAccess;
 using Google.OpenLocationCode;
 using GPSExploreServerAPI.Classes;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
 using Microsoft.Extensions.Caching.Memory;
@@ -14,6 +17,8 @@ using Microsoft.Extensions.Configuration;
 using NetTopologySuite;
 using NetTopologySuite.Geometries;
 using OsmSharp.IO.Xml;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 using SQLitePCL;
 using static DatabaseAccess.DbTables;
 
@@ -21,7 +26,7 @@ namespace GPSExploreServerAPI.Controllers
 {
     [Route("[controller]")]
     [ApiController]
-    public class MapDataController : ControllerBase
+    public class MapDataController : Controller
     {
         private static MemoryCache cache;
 
@@ -172,14 +177,50 @@ namespace GPSExploreServerAPI.Controllers
             return "OK";
         }
 
-        public static void Get8CellBitmap(string plusCode8)
+        [HttpGet]
+        [Route("/[controller]/8cellBitmap/{plusCode8}")]
+        public FileContentResult Get8CellBitmap(string plusCode8)
         {
             //Load terrain data for an 8cell, turn it into a bitmap
             //Will load these bitmaps on the 8cell grid in the game, so you can see what's around you in a bigger area.
             //server will create and load these. Possibly cache them.
 
             //requires a list of colors to use, which might vary per app
-            //
+            GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
+            var places = MapSupport.GetPlaces(eightCell);
+
+            var data = MapSupport.SearchArea(ref eightCell, ref places, true);
+
+            //create a new bitmap.
+            //TODO: ImageSharp? System.DRawing?
+            MemoryStream ms = new MemoryStream();
+            using (var image = new Image<Rgba32>(20, 20)) //each 10 cell in this 8cell is a pixel. Could do 11 cells at 400x400, but I don't think that's helpful
+            {
+                for (int y = 0; y < image.Height; y++)
+                {
+                    Span<Rgba32> pixelRow = image.GetPixelRowSpan(y);
+                    for (int x = 0; x < image.Width; x++)
+                    {
+                        //Set the pixel's color by its type. TODO
+                        var placeData = MapSupport.FindPlacesIn10Cell(eightCell.Min.Longitude + (MapSupport.resolution10 * x), eightCell.Min.Latitude + (MapSupport.resolution10 * y), ref places);
+                        if (placeData == "") //nothing here, use default color
+                            pixelRow[x] = new Rgba32(.5f, .5f, .5f, 1); //set to grey
+                        else
+                        {
+                            var typeName = placeData.Split('|')[2].ToInt(); //area ID. use to look up color.
+                            pixelRow[x] = new Rgba32(.5f, .5f, .5f, 1); //set to appropriate type color
+                        }
+                        
+                    }
+                }
+
+                image.SaveAsPng(ms);
+            } //image is still unmanaged and needs disposed automatically via using.
+
+            HttpContext.Response.ContentType = "image/png";
+            //ms is the image as a PNG file.
+            var array = ms.ToArray();
+            return File(array, "image/png");
         }
 
         //public void PrefillDB()

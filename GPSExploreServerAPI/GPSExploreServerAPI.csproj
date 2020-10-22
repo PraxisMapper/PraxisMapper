@@ -22,6 +22,8 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="5.0.0-rc.2.20475.5" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="5.0.0-rc.2.20475.5" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.10.9" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="1.0.1" />
+    <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="1.0.0-beta0010" />
   </ItemGroup>
 
   <ItemGroup>
