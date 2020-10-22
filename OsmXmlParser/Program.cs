@@ -164,7 +164,7 @@ namespace OsmXmlParser
                 List<MapData> entries = ReadMapDataToMemory(file);
                 Log.WriteLog("Processing " + entries.Count() + " ways from " + file, Log.VerbosityLevels.High);
                 //Trying to make this a little bit faster by working around internal EF graph stuff.
-                for(int i = 0; i < entries.Count() / 10000; i++)
+                for(int i = 0; i <= entries.Count() / 10000; i++)
                 {
                     var subList = entries.Skip(i * 10000).Take(10000).ToList(); 
                     db.MapData.AddRange(subList);

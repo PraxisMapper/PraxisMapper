@@ -121,7 +121,7 @@ namespace GPSExploreServerAPI.Controllers
             //This endpoint puts the whole 10-digit plus code (without the separator) at the start of the line. I can't guarentee that any digits are shared since this isn't a grid-bound endpoint.
 
             //Notes: 
-            //StringBuilders isn't thread-safe, so each thread needs its own, and their results combined later.
+            //StringBuilder isn't thread-safe, so each thread needs its own, and their results combined later.
             int splitcount = 40; //creates 1600 entries(40x40)
             List<MapData>[] placeArray;
             GeoArea[] areaArray;
@@ -177,6 +177,7 @@ namespace GPSExploreServerAPI.Controllers
             return "OK";
         }
 
+        //TODO: convert inner logic for 8/6cellbitmap to reusable function.
         [HttpGet]
         [Route("/[controller]/8cellBitmap/{plusCode8}")]
         public FileContentResult Get8CellBitmap(string plusCode8)
@@ -190,26 +191,27 @@ namespace GPSExploreServerAPI.Controllers
             //requires a list of colors to use, which might vary per app
             GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
             var places = MapSupport.GetPlaces(eightCell);
-
-            var data = MapSupport.SearchArea(ref eightCell, ref places, true);
+            //var data = MapSupport.SearchArea(ref eightCell, ref places, true);
 
             //create a new bitmap.
+            //This is difficult to parallelize
             MemoryStream ms = new MemoryStream();
             using (var image = new Image<Rgba32>(20, 20)) //each 10 cell in this 8cell is a pixel. Could do 11 cells at 400x400, but I don't think that's helpful
             {
                 for (int y = 0; y < image.Height; y++)
+                //System.Threading.Tasks.Parallel.For(0, image.Height, (y) => //this doesn't seem to actually run in parallel.
                 {
-                    Span<Rgba32> pixelRow = image.GetPixelRowSpan(image.Height - y - 1); //Plus code data is searched south-to-north, image is inverted otherwise.
-                    for (int x = 0; x < image.Width; x++)
+                    Span<Rgba32> pixelRow = image.GetPixelRowSpan(image.Height - y - 1); //Plus code data is searched south-to-north, image in indexed backwards here to accommodate.
+                    for (int x = 0; x < image.Width; x++) //This needs both pixelRow and X, which needs more effort than just a Parallel.For or ForEach.
                     {
-                        //Set the pixel's color by its type. TODO
+                        //Set the pixel's color by its type.
                         var placeData = MapSupport.FindPlacesIn10Cell(eightCell.Min.Longitude + (MapSupport.resolution10 * x), eightCell.Min.Latitude + (MapSupport.resolution10 * y), ref places);
                         if (placeData == "") //nothing here, use default color
                             pixelRow[x] = new Rgba32(.3f, .3f, .3f, 1); //set to grey
                         else
                         {
                             var typeId = placeData.Split('|')[2].ToInt(); //area ID. use to look up color.
-                            var color = MapSupport.areaTypes.Where(a => a.AreaTypeId == typeId).First().HtmlColorCode;
+                            var color = MapSupport.areaColorReference[typeId].First();
                             pixelRow[x] = Rgba32.ParseHex(color); //set to appropriate type color
                         }
                     }
@@ -227,17 +229,15 @@ namespace GPSExploreServerAPI.Controllers
         [Route("/[controller]/6cellBitmap/{plusCode6}")]
         public FileContentResult Get6CellBitmap(string plusCode6)
         {
-
+            //a PNG of a 6cell is roughly 22KB, but takes 10-20 seconds to create this way.
             PerformanceTracker pt = new PerformanceTracker("6CellBitmap");
             //Load terrain data for an 8cell, turn it into a bitmap
             //Will load these bitmaps on the 8cell grid in the game, so you can see what's around you in a bigger area.
             //server will create and load these. Possibly cache them.
 
-            //requires a list of colors to use, which might vary per app
+            //requires a list of colors to use, which might vary per app. Defined right now in AreaType
             GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode6);
             var places = MapSupport.GetPlaces(eightCell);
-
-            var data = MapSupport.SearchArea(ref eightCell, ref places, true);
 
             //create a new bitmap.
             MemoryStream ms = new MemoryStream();
@@ -248,14 +248,14 @@ namespace GPSExploreServerAPI.Controllers
                     Span<Rgba32> pixelRow = image.GetPixelRowSpan(image.Height - y - 1); //Plus code data is searched south-to-north, image is inverted otherwise.
                     for (int x = 0; x < image.Width; x++)
                     {
-                        //Set the pixel's color by its type. TODO
+                        //Set the pixel's color by its type.
                         var placeData = MapSupport.FindPlacesIn10Cell(eightCell.Min.Longitude + (MapSupport.resolution10 * x), eightCell.Min.Latitude + (MapSupport.resolution10 * y), ref places);
                         if (placeData == "") //nothing here, use default color
                             pixelRow[x] = new Rgba32(.3f, .3f, .3f, 1); //set to grey
                         else
                         {
                             var typeId = placeData.Split('|')[2].ToInt(); //area ID. use to look up color.
-                            var color = MapSupport.areaTypes.Where(a => a.AreaTypeId == typeId).First().HtmlColorCode;
+                            var color = MapSupport.areaColorReference[typeId].First();
                             pixelRow[x] = Rgba32.ParseHex(color); //set to appropriate type color
                         }
                     }

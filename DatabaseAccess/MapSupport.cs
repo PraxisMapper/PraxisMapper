@@ -64,6 +64,7 @@ namespace DatabaseAccess
 
         public static ILookup<string, int> areaTypeReference = areaTypes.ToLookup(k => k.AreaName, v => v.AreaTypeId);
         public static ILookup<int, string> areaIdReference = areaTypes.ToLookup(k => k.AreaTypeId, v => v.AreaName);
+        public static ILookup<int, string> areaColorReference = areaTypes.ToLookup(k => k.AreaTypeId, v => v.HtmlColorCode);
 
         public static List<MapData> GetPlaces(GeoArea area, List<MapData> source = null)
         {
