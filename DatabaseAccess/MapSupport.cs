@@ -41,24 +41,24 @@ namespace DatabaseAccess
 
         public static List<AreaType> areaTypes = new List<AreaType>() {
             //Areas here are for the original explore concept
-            new AreaType() { AreaTypeId = 1, AreaName = "water", OsmTags = "" },
-            new AreaType() { AreaTypeId = 2, AreaName = "wetland", OsmTags = "" },
-            new AreaType() { AreaTypeId = 3, AreaName = "park", OsmTags = "" },
-            new AreaType() { AreaTypeId = 4, AreaName = "beach", OsmTags = "" },
-            new AreaType() { AreaTypeId = 5, AreaName = "university", OsmTags = "" },
-            new AreaType() { AreaTypeId = 6, AreaName = "natureReserve", OsmTags = "" },
-            new AreaType() { AreaTypeId = 7, AreaName = "cemetery", OsmTags = "" },
+            new AreaType() { AreaTypeId = 1, AreaName = "water", OsmTags = "", HtmlColorCode = "0000B3"},
+            new AreaType() { AreaTypeId = 2, AreaName = "wetland", OsmTags = "", HtmlColorCode = "0C4026"},
+            new AreaType() { AreaTypeId = 3, AreaName = "park", OsmTags = "", HtmlColorCode = "00B300"},
+            new AreaType() { AreaTypeId = 4, AreaName = "beach", OsmTags = "", HtmlColorCode = "D7B526" },
+            new AreaType() { AreaTypeId = 5, AreaName = "university", OsmTags = "", HtmlColorCode = "F5F0DB" },
+            new AreaType() { AreaTypeId = 6, AreaName = "natureReserve", OsmTags = "", HtmlColorCode = "124504" },
+            new AreaType() { AreaTypeId = 7, AreaName = "cemetery", OsmTags = "", HtmlColorCode = "242420" },
             //new AreaType() { AreaTypeId = 8, AreaName = "mall", OsmTags = "" }, //is now Retail.
-            new AreaType() { AreaTypeId = 9, AreaName = "retail", OsmTags = "" },
-            new AreaType() { AreaTypeId = 10, AreaName = "tourism", OsmTags = "" },
-            new AreaType() { AreaTypeId = 11, AreaName = "historical", OsmTags = "" },
-            new AreaType() { AreaTypeId = 12, AreaName = "trail", OsmTags = "" },
-            new AreaType() { AreaTypeId = 13, AreaName = "admin", OsmTags = "" },
+            new AreaType() { AreaTypeId = 9, AreaName = "retail", OsmTags = "", HtmlColorCode = "EB63EB" },
+            new AreaType() { AreaTypeId = 10, AreaName = "tourism", OsmTags = "", HtmlColorCode = "1999D1" },
+            new AreaType() { AreaTypeId = 11, AreaName = "historical", OsmTags = "", HtmlColorCode = "B3B3B3" },
+            new AreaType() { AreaTypeId = 12, AreaName = "trail", OsmTags = "", HtmlColorCode = "782E05" },
+            new AreaType() { AreaTypeId = 13, AreaName = "admin", OsmTags = "",HtmlColorCode = "000000" },
             
             //These areas are for a more detailed, single area focused map game
-            new AreaType() { AreaTypeId = 14, AreaName = "building", OsmTags = "" },
-            new AreaType() { AreaTypeId = 15, AreaName = "road", OsmTags = "" },
-            new AreaType() { AreaTypeId = 16, AreaName = "parking", OsmTags = "" },
+            new AreaType() { AreaTypeId = 14, AreaName = "building", OsmTags = "", HtmlColorCode = "808080" },
+            new AreaType() { AreaTypeId = 15, AreaName = "road", OsmTags = "", HtmlColorCode = "0D0D0D"},
+            new AreaType() { AreaTypeId = 16, AreaName = "parking", OsmTags = "", HtmlColorCode = "0D0D0D" },
 
         };
 

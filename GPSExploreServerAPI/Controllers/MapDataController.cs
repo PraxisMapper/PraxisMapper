@@ -181,6 +181,8 @@ namespace GPSExploreServerAPI.Controllers
         [Route("/[controller]/8cellBitmap/{plusCode8}")]
         public FileContentResult Get8CellBitmap(string plusCode8)
         {
+
+            PerformanceTracker pt = new PerformanceTracker("8CellBitmap");
             //Load terrain data for an 8cell, turn it into a bitmap
             //Will load these bitmaps on the 8cell grid in the game, so you can see what's around you in a bigger area.
             //server will create and load these. Possibly cache them.
@@ -192,34 +194,78 @@ namespace GPSExploreServerAPI.Controllers
             var data = MapSupport.SearchArea(ref eightCell, ref places, true);
 
             //create a new bitmap.
-            //TODO: ImageSharp? System.DRawing?
             MemoryStream ms = new MemoryStream();
             using (var image = new Image<Rgba32>(20, 20)) //each 10 cell in this 8cell is a pixel. Could do 11 cells at 400x400, but I don't think that's helpful
             {
                 for (int y = 0; y < image.Height; y++)
                 {
-                    Span<Rgba32> pixelRow = image.GetPixelRowSpan(y);
+                    Span<Rgba32> pixelRow = image.GetPixelRowSpan(image.Height - y - 1); //Plus code data is searched south-to-north, image is inverted otherwise.
                     for (int x = 0; x < image.Width; x++)
                     {
                         //Set the pixel's color by its type. TODO
                         var placeData = MapSupport.FindPlacesIn10Cell(eightCell.Min.Longitude + (MapSupport.resolution10 * x), eightCell.Min.Latitude + (MapSupport.resolution10 * y), ref places);
                         if (placeData == "") //nothing here, use default color
-                            pixelRow[x] = new Rgba32(.5f, .5f, .5f, 1); //set to grey
+                            pixelRow[x] = new Rgba32(.3f, .3f, .3f, 1); //set to grey
                         else
                         {
-                            var typeName = placeData.Split('|')[2].ToInt(); //area ID. use to look up color.
-                            pixelRow[x] = new Rgba32(.5f, .5f, .5f, 1); //set to appropriate type color
+                            var typeId = placeData.Split('|')[2].ToInt(); //area ID. use to look up color.
+                            var color = MapSupport.areaTypes.Where(a => a.AreaTypeId == typeId).First().HtmlColorCode;
+                            pixelRow[x] = Rgba32.ParseHex(color); //set to appropriate type color
                         }
-                        
                     }
                 }
 
                 image.SaveAsPng(ms);
             } //image is still unmanaged and needs disposed automatically via using.
 
-            HttpContext.Response.ContentType = "image/png";
-            //ms is the image as a PNG file.
             var array = ms.ToArray();
+            pt.Stop();
+            return File(array, "image/png");
+        }
+
+        [HttpGet]
+        [Route("/[controller]/6cellBitmap/{plusCode6}")]
+        public FileContentResult Get6CellBitmap(string plusCode6)
+        {
+
+            PerformanceTracker pt = new PerformanceTracker("6CellBitmap");
+            //Load terrain data for an 8cell, turn it into a bitmap
+            //Will load these bitmaps on the 8cell grid in the game, so you can see what's around you in a bigger area.
+            //server will create and load these. Possibly cache them.
+
+            //requires a list of colors to use, which might vary per app
+            GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode6);
+            var places = MapSupport.GetPlaces(eightCell);
+
+            var data = MapSupport.SearchArea(ref eightCell, ref places, true);
+
+            //create a new bitmap.
+            MemoryStream ms = new MemoryStream();
+            using (var image = new Image<Rgba32>(400, 400)) //each 10 cell in this 6cell is a pixel. 
+            {
+                for (int y = 0; y < image.Height; y++)
+                {
+                    Span<Rgba32> pixelRow = image.GetPixelRowSpan(image.Height - y - 1); //Plus code data is searched south-to-north, image is inverted otherwise.
+                    for (int x = 0; x < image.Width; x++)
+                    {
+                        //Set the pixel's color by its type. TODO
+                        var placeData = MapSupport.FindPlacesIn10Cell(eightCell.Min.Longitude + (MapSupport.resolution10 * x), eightCell.Min.Latitude + (MapSupport.resolution10 * y), ref places);
+                        if (placeData == "") //nothing here, use default color
+                            pixelRow[x] = new Rgba32(.3f, .3f, .3f, 1); //set to grey
+                        else
+                        {
+                            var typeId = placeData.Split('|')[2].ToInt(); //area ID. use to look up color.
+                            var color = MapSupport.areaTypes.Where(a => a.AreaTypeId == typeId).First().HtmlColorCode;
+                            pixelRow[x] = Rgba32.ParseHex(color); //set to appropriate type color
+                        }
+                    }
+                }
+
+                image.SaveAsPng(ms);
+            } //image is still unmanaged and needs disposed automatically via using.
+
+            var array = ms.ToArray();
+            pt.Stop();
             return File(array, "image/png");
         }
 
