@@ -46,6 +46,7 @@ namespace GPSExploreServerAPI.Controllers
         //none
         //TODO:
         //No file-wide todos
+        //Evaluate threading performance with nultiple requests coming in. Many functions seem to have massive performance gains with a single request with parallel loops, not sure if thats true under load.
 
         //Cell8Data function removed, significantly out of date.
         //remaking it would mean slightly changes to a copy of Cell6Info
@@ -241,6 +242,7 @@ namespace GPSExploreServerAPI.Controllers
 
             //create a new bitmap.
             MemoryStream ms = new MemoryStream();
+            //pixel formats. RBGA32 allows for hex codes. RGB24 doesnt?
             using (var image = new Image<Rgba32>(400, 400)) //each 10 cell in this 6cell is a pixel. 
             {
                 for (int y = 0; y < image.Height; y++)
