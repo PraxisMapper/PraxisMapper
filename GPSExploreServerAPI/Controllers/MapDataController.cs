@@ -1,30 +1,19 @@
-﻿using System;
+﻿using DatabaseAccess;
+using Google.OpenLocationCode;
+using GPSExploreServerAPI.Classes;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Drawing.Processing;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Security;
-using System.Security.Cryptography.Xml;
 using System.Text;
-using System.Xml.Xsl;
-using DatabaseAccess;
-using Google.OpenLocationCode;
-using GPSExploreServerAPI.Classes;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Configuration;
-using NetTopologySuite;
-using NetTopologySuite.Geometries;
-using OsmSharp.IO.Xml;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Drawing;
-using SQLitePCL;
 using static DatabaseAccess.DbTables;
-using SixLabors.ImageSharp.Processing;
-using SixLabors.ImageSharp.Drawing.Processing;
 
 namespace GPSExploreServerAPI.Controllers
 {
@@ -234,40 +223,34 @@ namespace GPSExploreServerAPI.Controllers
         [Route("/[controller]/6cellBitmap/{plusCode6}")]
         public FileContentResult Get6CellBitmap(string plusCode6)
         {
-            //a PNG of a 6cell is roughly 22KB, but takes 10-20 seconds to create this way.?
-            //well, depends on the area. Lakeview Cemetery area took 100 seconds, nature reserve took 13.
+            //a PNG of a 6cell is roughly 22KB, and now takes 2-4 seconds to generate
             PerformanceTracker pt = new PerformanceTracker("6CellBitmap");
-            //Load terrain data for an 8cell, turn it into a bitmap
-            //Will load these bitmaps on the 8cell grid in the game, so you can see what's around you in a bigger area.
-            //server will create and load these. Possibly cache them.
+            //Load terrain data for an 6cell, turn it into a bitmap
+            //Will load these bitmaps on the 6cell grid in the game, so you can see what's around you in a bigger area?
+            //server will create and load these. Should cache them since generating them is time consuming. TODO: save tiles to db.
 
-            //requires a list of colors to use, which might vary per app. Defined right now in AreaType
+            //requires a list of colors to use, which might vary per app. Defined in AreaType
             GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
             var allPlaces = MapSupport.GetPlaces(sixCell);
-            List<MapData> halfPlaces; // = MapSupport.GetPlaces(new GeoArea(sixCell.Min, new GeoPoint(sixCell.CenterLatitude, sixCell.Max.Longitude)), allPlaces);
+            List<MapData> rowPlaces;
 
             //create a new bitmap.
             MemoryStream ms = new MemoryStream();
             //pixel formats. RBGA32 allows for hex codes. RGB24 doesnt?
             using (var image = new Image<Rgba32>(400, 400)) //each 10 cell in this 6cell is a pixel. 1600 loops means optimizing them is the best idea. 1ms per loop would mean this takes 16s
             {
-                image.Mutate(x => x.Fill(new Rgba32(.3f, .3f, .3f, 1)));
+                image.Mutate(x => x.Fill(Rgba32.ParseHex(MapSupport.areaColorReference[0].First()))); //set all the areas to the background color
                 for (int y = 0; y < image.Height; y++)
                 {
-                    //This helps a lot. lets try it per row
-                    //if (y == image.Height / 2)
-                        //halfPlaces = MapSupport.GetPlaces(new GeoArea(new GeoPoint(sixCell.CenterLatitude, sixCell.Min.Longitude), sixCell.Max), allPlaces);
-
-                    halfPlaces = MapSupport.GetPlaces(new GeoArea(new GeoPoint(sixCell.Min.Latitude + (MapSupport.resolution10 * y), sixCell.Min.Longitude), new GeoPoint(sixCell.Min.Latitude + (MapSupport.resolution10 * (y +1)), sixCell.Max.Longitude)), allPlaces);
+                     //Dramatic performance improvement by limiting this to just the row's area. from 100+ seconds to 4.
+                    rowPlaces = MapSupport.GetPlaces(new GeoArea(new GeoPoint(sixCell.Min.Latitude + (MapSupport.resolution10 * y), sixCell.Min.Longitude), new GeoPoint(sixCell.Min.Latitude + (MapSupport.resolution10 * (y +1)), sixCell.Max.Longitude)), allPlaces);
 
                     Span<Rgba32> pixelRow = image.GetPixelRowSpan(image.Height - y - 1); //Plus code data is searched south-to-north, image is inverted otherwise.
                     for (int x = 0; x < image.Width; x++)
                     {
                         //Set the pixel's color by its type.
-                        int placeData = MapSupport.GetAreaTypeFor10Cell(sixCell.Min.Longitude + (MapSupport.resolution10 * x), sixCell.Min.Latitude + (MapSupport.resolution10 * y), ref halfPlaces);
-                        if (placeData != 0) //nothing here, use default color if 0 (image starts that way via fill command.
-                            //pixelRow[x] = new Rgba32(.3f, .3f, .3f, 1); //set to grey
-                        //else
+                        int placeData = MapSupport.GetAreaTypeFor10Cell(sixCell.Min.Longitude + (MapSupport.resolution10 * x), sixCell.Min.Latitude + (MapSupport.resolution10 * y), ref rowPlaces);
+                        if (placeData != 0)
                         {
                             var color = MapSupport.areaColorReference[placeData].First();
                             pixelRow[x] = Rgba32.ParseHex(color); //set to appropriate type color
@@ -275,8 +258,8 @@ namespace GPSExploreServerAPI.Controllers
                     }
                 }
 
-                image.SaveAsPng(ms);
-            } //image is still unmanaged and needs disposed automatically via using.
+                image.SaveAsPng(ms); //~25-40ms
+            } //image disposed here.
 
             var array = ms.ToArray();
             pt.Stop(plusCode6);

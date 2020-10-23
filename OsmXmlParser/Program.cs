@@ -1228,6 +1228,40 @@ namespace OsmXmlParser
             Log.WriteLog("Total of " + badRelations.Count() + " unusable relations in a set of " + rL.Count());
         }
 
+        public static void ExtractAreasFromLargeFile(string filename)
+        {
+            //TODO and TEST THIS
+            //This should refer to a list of relations that cross multiple extract files, to get a more accurate set of data in game.
+            //I will want to get the Complete object from the data stream this time, and then cast that to MapData and save these to a separate file.
+            //Starting with North America, will test later on global data
+            //Should start with big things
+            //Great lakes, major rivers, some huge national parks. Oceans are important for global data.
+
+            string outputFile = "manualAdditions.json";
+
+            var manualRelationId = new List<long>() {
+                4039900 //Lake Erie. Use first for testing on NA file.
+            };
+
+            var stream = new FileStream(filename, FileMode.Open);
+            var source = new PBFOsmStreamSource(stream);
+
+            File.AppendAllLines(outputFile, new List<String>() { "[" });
+
+            foreach (var relation in manualRelationId)
+            {
+                var r = source.Where(s => s.Id == relation);
+                var completeR = (OsmSharp.Complete.CompleteRelation)r.ToComplete().FirstOrDefault();
+
+                var mapDataEntry = Complete.ProcessCompleteRelation(completeR);
+                //convert to jsonmapdata type
+                MapDataForJson output = new MapDataForJson(mapDataEntry.name, mapDataEntry.place.AsText(), mapDataEntry.type, mapDataEntry.WayId, mapDataEntry.NodeId, mapDataEntry.RelationId, mapDataEntry.AreaTypeId);
+                File.AppendAllLines(outputFile, new List<String>() { JsonSerializer.Serialize(output, typeof(MapDataForJson)) + "," });
+            }
+
+            File.AppendAllLines(outputFile, new List<String>() { "]" });
+        }
+
         public static void SingleTest()
         {
             //trying to find one relation to fix.
@@ -1362,6 +1396,20 @@ namespace OsmXmlParser
     KIND_WATER - Have
     KIND_WETLAND - Have
     KIND_WOOD
+         */
+
+        /*
+         * and for reference, the Google Maps Playable Locations valid types (Interaction points, not terrain types?)
+         * education
+            entertainment
+            finance
+            food_and_drink
+            outdoor_recreation
+            retail
+            tourism
+            transit
+            transportation_infrastructure
+            wellness
          */
     }
 }

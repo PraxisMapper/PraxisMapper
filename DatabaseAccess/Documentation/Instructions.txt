@@ -1,5 +1,6 @@
-﻿Requirements: 16GB RAM (Will still page frequently with the most complicated areas, but they all finish in ~45 minutes in the worst case with an SSD)
+﻿Requirements: 16+GB RAM (Will still page frequently with the most complicated areas, but they all finish in ~45 minutes in the worst case with an SSD)
 Global database is current ~45GB, would want at least 64GB RAM for a DB server to hold everything in memory.
+TODO: check if EFCore.BulkExtensions custom version is used by OsmXmlParser, or if that's being overwritten by the NuGet version. It's not used on the web server app, so im not sure i need that custom file.
 
 
 Important Things to Remember:
@@ -16,7 +17,7 @@ Important Things to Remember:
 
 How to run this:
 
-1) Create and configure SQL Server for this app. Update connection string, create DB via EFCore docs in Commands file.
+1) Create and configure SQL Server for this app. Update connection string, create DB via EFCore docs in Commands file. (or use LocalSQL instant-instance setup?)
 
 2) Download the latest .osm.pbf files to use from Geofabrik.de (or another OSM mirror) and unzip them to the appropriate folder.
 --Global data takes a long time to process, use the smallest data file/set reasonable for development and testing.

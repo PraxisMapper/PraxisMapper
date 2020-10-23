@@ -41,6 +41,7 @@ namespace DatabaseAccess
 
         public static List<AreaType> areaTypes = new List<AreaType>() {
             //Areas here are for the original explore concept
+            new AreaType() { AreaTypeId = 0, AreaName = "", OsmTags = "", HtmlColorCode = "545454"}, //the default background color.
             new AreaType() { AreaTypeId = 1, AreaName = "water", OsmTags = "", HtmlColorCode = "0000B3"},
             new AreaType() { AreaTypeId = 2, AreaName = "wetland", OsmTags = "", HtmlColorCode = "0C4026"},
             new AreaType() { AreaTypeId = 3, AreaName = "park", OsmTags = "", HtmlColorCode = "00B300"},
@@ -607,6 +608,12 @@ namespace DatabaseAccess
             //save it to the same folder as configured for pbf files (might be passed in)
             //web paths http://download.geofabrik.de/north-america/us/ohio-latest.osm.pbf
             //root, then each parent division. Starting with USA isn't too hard.
+        }
+
+        public static byte[] GetAreaMapTile(double lat, double lon, List<MapData> allPlaces, GeoArea totalArea)
+        {
+            //TODO: functionalize the logic for drawing a bitmap tile,  set it here to create arbitrary-sized tiles files.
+            return null;
         }
     }
 }

@@ -65,6 +65,16 @@ namespace DatabaseAccess
             public string HtmlColorCode { get; set; } //for potential tile-drawing operations.
         }
 
+        public class MapTile
+        { 
+            public long MapTileId { get; set; } //int should be OK for a limited range game and/or big tiles. Making this long just to make sure.
+            public string PlusCode { get; set; } //initial expectations are this will be a 6 or 8 cell drawn.
+            public byte[] tileData { get; set; } //expected to be a png binary.
+            public bool regenerate { get; set; } //If 1, re-make this tile because something's stale.
+
+        }
+
+
         //public class SinglePointsOfInterest
         //{
         //    public long SinglePointsOfInterestId { get; set; }
