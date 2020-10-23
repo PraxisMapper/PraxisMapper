@@ -222,7 +222,7 @@ namespace GPSExploreServerAPI.Controllers
             } //image is still unmanaged and needs disposed automatically via using.
 
             var array = ms.ToArray();
-            pt.Stop();
+            pt.Stop(plusCode8);
             return File(array, "image/png");
         }
 
@@ -230,7 +230,8 @@ namespace GPSExploreServerAPI.Controllers
         [Route("/[controller]/6cellBitmap/{plusCode6}")]
         public FileContentResult Get6CellBitmap(string plusCode6)
         {
-            //a PNG of a 6cell is roughly 22KB, but takes 10-20 seconds to create this way.
+            //a PNG of a 6cell is roughly 22KB, but takes 10-20 seconds to create this way.?
+            //well, depends on the area. Lakeview Cemetery area took 100 seconds, nature reserve took 13.
             PerformanceTracker pt = new PerformanceTracker("6CellBitmap");
             //Load terrain data for an 8cell, turn it into a bitmap
             //Will load these bitmaps on the 8cell grid in the game, so you can see what's around you in a bigger area.
@@ -267,7 +268,7 @@ namespace GPSExploreServerAPI.Controllers
             } //image is still unmanaged and needs disposed automatically via using.
 
             var array = ms.ToArray();
-            pt.Stop();
+            pt.Stop(plusCode6);
             return File(array, "image/png");
         }
 
