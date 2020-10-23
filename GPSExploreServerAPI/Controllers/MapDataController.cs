@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Security;
 using System.Security.Cryptography.Xml;
 using System.Text;
 using System.Xml.Xsl;
@@ -19,8 +20,11 @@ using NetTopologySuite.Geometries;
 using OsmSharp.IO.Xml;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Drawing;
 using SQLitePCL;
 using static DatabaseAccess.DbTables;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Drawing.Processing;
 
 namespace GPSExploreServerAPI.Controllers
 {
@@ -49,7 +53,7 @@ namespace GPSExploreServerAPI.Controllers
         //Evaluate threading performance with nultiple requests coming in. Many functions seem to have massive performance gains with a single request with parallel loops, not sure if thats true under load.
 
         //Cell8Data function removed, significantly out of date.
-        //remaking it would mean slightly changes to a copy of Cell6Info
+        //remaking it would mean slightly changes to a copy of Cell6Info. Perhaps just use FlexArea with size .0025 instead
 
         [HttpGet]
         [Route("/[controller]/cell6Info/{plusCode6}")]
@@ -238,27 +242,34 @@ namespace GPSExploreServerAPI.Controllers
             //server will create and load these. Possibly cache them.
 
             //requires a list of colors to use, which might vary per app. Defined right now in AreaType
-            GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode6);
-            var places = MapSupport.GetPlaces(eightCell);
+            GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
+            var allPlaces = MapSupport.GetPlaces(sixCell);
+            List<MapData> halfPlaces; // = MapSupport.GetPlaces(new GeoArea(sixCell.Min, new GeoPoint(sixCell.CenterLatitude, sixCell.Max.Longitude)), allPlaces);
 
             //create a new bitmap.
             MemoryStream ms = new MemoryStream();
             //pixel formats. RBGA32 allows for hex codes. RGB24 doesnt?
-            using (var image = new Image<Rgba32>(400, 400)) //each 10 cell in this 6cell is a pixel. 
+            using (var image = new Image<Rgba32>(400, 400)) //each 10 cell in this 6cell is a pixel. 1600 loops means optimizing them is the best idea. 1ms per loop would mean this takes 16s
             {
+                image.Mutate(x => x.Fill(new Rgba32(.3f, .3f, .3f, 1)));
                 for (int y = 0; y < image.Height; y++)
                 {
+                    //This helps a lot. lets try it per row
+                    //if (y == image.Height / 2)
+                        //halfPlaces = MapSupport.GetPlaces(new GeoArea(new GeoPoint(sixCell.CenterLatitude, sixCell.Min.Longitude), sixCell.Max), allPlaces);
+
+                    halfPlaces = MapSupport.GetPlaces(new GeoArea(new GeoPoint(sixCell.Min.Latitude + (MapSupport.resolution10 * y), sixCell.Min.Longitude), new GeoPoint(sixCell.Min.Latitude + (MapSupport.resolution10 * (y +1)), sixCell.Max.Longitude)), allPlaces);
+
                     Span<Rgba32> pixelRow = image.GetPixelRowSpan(image.Height - y - 1); //Plus code data is searched south-to-north, image is inverted otherwise.
                     for (int x = 0; x < image.Width; x++)
                     {
                         //Set the pixel's color by its type.
-                        var placeData = MapSupport.FindPlacesIn10Cell(eightCell.Min.Longitude + (MapSupport.resolution10 * x), eightCell.Min.Latitude + (MapSupport.resolution10 * y), ref places);
-                        if (placeData == "") //nothing here, use default color
-                            pixelRow[x] = new Rgba32(.3f, .3f, .3f, 1); //set to grey
-                        else
+                        int placeData = MapSupport.GetAreaTypeFor10Cell(sixCell.Min.Longitude + (MapSupport.resolution10 * x), sixCell.Min.Latitude + (MapSupport.resolution10 * y), ref halfPlaces);
+                        if (placeData != 0) //nothing here, use default color if 0 (image starts that way via fill command.
+                            //pixelRow[x] = new Rgba32(.3f, .3f, .3f, 1); //set to grey
+                        //else
                         {
-                            var typeId = placeData.Split('|')[2].ToInt(); //area ID. use to look up color.
-                            var color = MapSupport.areaColorReference[typeId].First();
+                            var color = MapSupport.areaColorReference[placeData].First();
                             pixelRow[x] = Rgba32.ParseHex(color); //set to appropriate type color
                         }
                     }

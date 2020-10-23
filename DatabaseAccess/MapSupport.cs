@@ -184,6 +184,19 @@ namespace DatabaseAccess
             return "";
         }
 
+        //As above, but only returns type ID
+        public static int GetAreaTypeFor10Cell(double x, double y, ref List<MapData> places)
+        {
+            var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolution10, x + resolution10));
+            var entriesHere = MapSupport.GetPlaces(box, places).Where(p => p.AreaTypeId != 13).ToList(); //Excluding admin boundaries from this list.  
+
+            if (entriesHere.Count() == 0)
+                return 0;
+
+            int area = DetermineAreaType(entriesHere);
+            return area;
+        }
+
         //I don't think this is going to be a high-demand function, but I'll include it for performance comparisons or possibly low-res tiles.
         public static string FindPlacesIn11Cell(double x, double y, ref List<MapData> places, bool entireCode = false)
         {
@@ -228,6 +241,32 @@ namespace DatabaseAccess
 
             var smallest = entriesHere.Where(e => e.place.GeometryType == "Polygon" || e.place.GeometryType == "MultiPolygon").OrderBy(e => e.place.Area).First();
             return smallest.name + "|" + smallest.AreaTypeId;
+        }
+
+
+        //Update this function if the logic in the above function changes too.
+        public static int DetermineAreaType(List<MapData> entriesHere)
+        {
+            //New sorting rules:
+            //If there's only one place, take it without any additional queries. Otherwise:
+            //if there's a Point in the mapdata list, take the first one (No additional sub-sorting applied yet)
+            //else if there's a Line in the mapdata list, take the first one (no additional sub-sorting applied yet)
+            //else if there's polygonal areas here, take the smallest one by area 
+            //(In general, the smaller areas should be overlaid on larger areas. This is more accurate than guessing by area types which one should be applied)
+
+            if (entriesHere.Count() == 1)
+                return entriesHere.First().AreaTypeId;
+
+            var point = entriesHere.Where(e => e.place.GeometryType == "Point").FirstOrDefault();
+            if (point != null)
+                return point.AreaTypeId;
+
+            var line = entriesHere.Where(e => e.place.GeometryType == "LineString" || e.place.GeometryType == "MultiLineString").FirstOrDefault();
+            if (line != null)
+                return line.AreaTypeId;
+
+            var smallest = entriesHere.Where(e => e.place.GeometryType == "Polygon" || e.place.GeometryType == "MultiPolygon").OrderBy(e => e.place.Area).First();
+            return smallest.AreaTypeId;
         }
 
         public static string LoadDataOnArea(long id)
