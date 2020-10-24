@@ -72,6 +72,9 @@ namespace DatabaseAccess
             public byte[] tileData { get; set; } //expected to be a png binary.
             public bool regenerate { get; set; } //If 1, re-make this tile because something's stale.
 
+            //lat/lon points? thats not real helpful for gaming, moreso for real mapping
+            //resolution scale?
+            public int resolutionScale { get; set; } //10 or 11, depending on the Pluscode size 1 pixel is
         }
 
 

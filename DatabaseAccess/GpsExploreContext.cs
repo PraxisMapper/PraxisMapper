@@ -20,6 +20,8 @@ namespace DatabaseAccess
         public DbSet<AreaType> AreaTypes { get; set; }
         public DbSet<MapData> MapData { get; set; }
 
+        public DbSet<MapTile> MapTiles { get; set; }
+
         IConfiguration Config;
         //Test table to see if its practical to save prerendered results. there's 25 million 6codes, so no.
         //public DbSet<PremadeResults> PremadeResults { get; set; }

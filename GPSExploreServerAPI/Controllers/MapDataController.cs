@@ -185,38 +185,9 @@ namespace GPSExploreServerAPI.Controllers
             //requires a list of colors to use, which might vary per app
             GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
             var places = MapSupport.GetPlaces(eightCell);
-            //var data = MapSupport.SearchArea(ref eightCell, ref places, true);
-
-            //create a new bitmap.
-            //This is difficult to parallelize
-            MemoryStream ms = new MemoryStream();
-            using (var image = new Image<Rgba32>(20, 20)) //each 10 cell in this 8cell is a pixel. Could do 11 cells at 400x400, but I don't think that's helpful
-            {
-                for (int y = 0; y < image.Height; y++)
-                //System.Threading.Tasks.Parallel.For(0, image.Height, (y) => //this doesn't seem to actually run in parallel.
-                {
-                    Span<Rgba32> pixelRow = image.GetPixelRowSpan(image.Height - y - 1); //Plus code data is searched south-to-north, image in indexed backwards here to accommodate.
-                    for (int x = 0; x < image.Width; x++) //This needs both pixelRow and X, which needs more effort than just a Parallel.For or ForEach.
-                    {
-                        //Set the pixel's color by its type.
-                        var placeData = MapSupport.FindPlacesIn10Cell(eightCell.Min.Longitude + (MapSupport.resolution10 * x), eightCell.Min.Latitude + (MapSupport.resolution10 * y), ref places);
-                        if (placeData == "") //nothing here, use default color
-                            pixelRow[x] = new Rgba32(.3f, .3f, .3f, 1); //set to grey
-                        else
-                        {
-                            var typeId = placeData.Split('|')[2].ToInt(); //area ID. use to look up color.
-                            var color = MapSupport.areaColorReference[typeId].First();
-                            pixelRow[x] = Rgba32.ParseHex(color); //set to appropriate type color
-                        }
-                    }
-                }
-
-                image.SaveAsPng(ms);
-            } //image is still unmanaged and needs disposed automatically via using.
-
-            var array = ms.ToArray();
+            var results = MapSupport.GetAreaMapTile(ref places, eightCell);
             pt.Stop(plusCode8);
-            return File(array, "image/png");
+            return File(results, "image/png");
         }
 
         [HttpGet]
@@ -232,38 +203,40 @@ namespace GPSExploreServerAPI.Controllers
             //requires a list of colors to use, which might vary per app. Defined in AreaType
             GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
             var allPlaces = MapSupport.GetPlaces(sixCell);
-            List<MapData> rowPlaces;
+            //List<MapData> rowPlaces;
 
-            //create a new bitmap.
-            MemoryStream ms = new MemoryStream();
-            //pixel formats. RBGA32 allows for hex codes. RGB24 doesnt?
-            using (var image = new Image<Rgba32>(400, 400)) //each 10 cell in this 6cell is a pixel. 1600 loops means optimizing them is the best idea. 1ms per loop would mean this takes 16s
-            {
-                image.Mutate(x => x.Fill(Rgba32.ParseHex(MapSupport.areaColorReference[0].First()))); //set all the areas to the background color
-                for (int y = 0; y < image.Height; y++)
-                {
-                     //Dramatic performance improvement by limiting this to just the row's area. from 100+ seconds to 4.
-                    rowPlaces = MapSupport.GetPlaces(new GeoArea(new GeoPoint(sixCell.Min.Latitude + (MapSupport.resolution10 * y), sixCell.Min.Longitude), new GeoPoint(sixCell.Min.Latitude + (MapSupport.resolution10 * (y +1)), sixCell.Max.Longitude)), allPlaces);
+            var results = MapSupport.GetAreaMapTile(ref allPlaces, sixCell);
 
-                    Span<Rgba32> pixelRow = image.GetPixelRowSpan(image.Height - y - 1); //Plus code data is searched south-to-north, image is inverted otherwise.
-                    for (int x = 0; x < image.Width; x++)
-                    {
-                        //Set the pixel's color by its type.
-                        int placeData = MapSupport.GetAreaTypeFor10Cell(sixCell.Min.Longitude + (MapSupport.resolution10 * x), sixCell.Min.Latitude + (MapSupport.resolution10 * y), ref rowPlaces);
-                        if (placeData != 0)
-                        {
-                            var color = MapSupport.areaColorReference[placeData].First();
-                            pixelRow[x] = Rgba32.ParseHex(color); //set to appropriate type color
-                        }
-                    }
-                }
+            ////create a new bitmap.
+            //MemoryStream ms = new MemoryStream();
+            ////pixel formats. RBGA32 allows for hex codes. RGB24 doesnt?
+            //using (var image = new Image<Rgba32>(400, 400)) //each 10 cell in this 6cell is a pixel. 1600 loops means optimizing them is the best idea. 1ms per loop would mean this takes 16s
+            //{
+            //    image.Mutate(x => x.Fill(Rgba32.ParseHex(MapSupport.areaColorReference[0].First()))); //set all the areas to the background color
+            //    for (int y = 0; y < image.Height; y++)
+            //    {
+            //         //Dramatic performance improvement by limiting this to just the row's area. from 100+ seconds to 4.
+            //        rowPlaces = MapSupport.GetPlaces(new GeoArea(new GeoPoint(sixCell.Min.Latitude + (MapSupport.resolution10 * y), sixCell.Min.Longitude), new GeoPoint(sixCell.Min.Latitude + (MapSupport.resolution10 * (y +1)), sixCell.Max.Longitude)), allPlaces);
 
-                image.SaveAsPng(ms); //~25-40ms
-            } //image disposed here.
+            //        Span<Rgba32> pixelRow = image.GetPixelRowSpan(image.Height - y - 1); //Plus code data is searched south-to-north, image is inverted otherwise.
+            //        for (int x = 0; x < image.Width; x++)
+            //        {
+            //            //Set the pixel's color by its type.
+            //            int placeData = MapSupport.GetAreaTypeFor10Cell(sixCell.Min.Longitude + (MapSupport.resolution10 * x), sixCell.Min.Latitude + (MapSupport.resolution10 * y), ref rowPlaces);
+            //            if (placeData != 0)
+            //            {
+            //                var color = MapSupport.areaColorReference[placeData].First();
+            //                pixelRow[x] = Rgba32.ParseHex(color); //set to appropriate type color
+            //            }
+            //        }
+            //    }
 
-            var array = ms.ToArray();
+            //    image.SaveAsPng(ms); //~25-40ms
+            //} //image disposed here.
+
+            //var array = ms.ToArray();
             pt.Stop(plusCode6);
-            return File(array, "image/png");
+            return File(results, "image/png");
         }
 
         //public void PrefillDB()

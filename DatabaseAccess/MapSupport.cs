@@ -14,6 +14,11 @@ using NetTopologySuite.Operation.Buffer;
 using Microsoft.EntityFrameworkCore;
 using System.Net;
 using NetTopologySuite.Simplify;
+using System.IO;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Drawing.Processing;
 
 namespace DatabaseAccess
 {
@@ -51,7 +56,6 @@ namespace DatabaseAccess
             new AreaType() { AreaTypeId = 5, AreaName = "university", OsmTags = "", HtmlColorCode = "F5F0DB" },
             new AreaType() { AreaTypeId = 6, AreaName = "natureReserve", OsmTags = "", HtmlColorCode = "124504" },
             new AreaType() { AreaTypeId = 7, AreaName = "cemetery", OsmTags = "", HtmlColorCode = "242420" },
-            //new AreaType() { AreaTypeId = 8, AreaName = "mall", OsmTags = "" }, //is now Retail.
             new AreaType() { AreaTypeId = 9, AreaName = "retail", OsmTags = "", HtmlColorCode = "EB63EB" },
             new AreaType() { AreaTypeId = 10, AreaName = "tourism", OsmTags = "", HtmlColorCode = "1999D1" },
             new AreaType() { AreaTypeId = 11, AreaName = "historical", OsmTags = "", HtmlColorCode = "B3B3B3" },
@@ -62,7 +66,9 @@ namespace DatabaseAccess
             new AreaType() { AreaTypeId = 14, AreaName = "building", OsmTags = "", HtmlColorCode = "808080" },
             new AreaType() { AreaTypeId = 15, AreaName = "road", OsmTags = "", HtmlColorCode = "0D0D0D"},
             new AreaType() { AreaTypeId = 16, AreaName = "parking", OsmTags = "", HtmlColorCode = "0D0D0D" },
-
+            //new AreaType() { AreaTypeId = 17, AreaName = "amenity", OsmTags = "", HtmlColorCode = "F2F090" }, //no idea what color this is
+            //not yet completely certain i want to pull in amenities as their own thing. its sort of like retail but somehow more generic
+            //maybe i need to add some more amenity entries to retail?
         };
 
         public static ILookup<string, int> areaTypeReference = areaTypes.ToLookup(k => k.AreaName, v => v.AreaTypeId);
@@ -199,6 +205,20 @@ namespace DatabaseAccess
             int area = DetermineAreaType(entriesHere);
             return area;
         }
+
+        public static int GetAreaTypeFor11Cell(double x, double y, ref List<MapData> places)
+        {
+            var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolution11Lat, x + resolution11Lon));
+            var entriesHere = MapSupport.GetPlaces(box, places).Where(p => p.AreaTypeId != 13).ToList(); //Excluding admin boundaries from this list.  
+
+            if (entriesHere.Count() == 0)
+                return 0;
+
+            int area = DetermineAreaType(entriesHere);
+            return area;
+        }
+
+
 
         //I don't think this is going to be a high-demand function, but I'll include it for performance comparisons or possibly low-res tiles.
         public static string FindPlacesIn11Cell(double x, double y, ref List<MapData> places, bool entireCode = false)
@@ -474,6 +494,9 @@ namespace DatabaseAccess
             && !tags["footway"].Any(v => v == "sidewalk" || v == "crossing"))
                 return "road";
 
+            //Amenities are a separate tag, so i want to pull them out separately from (and before) buildings
+            //There are lots of amenities, though, and i need to figure out the list that applies here 
+            //without interfering with other types of areas. 
 
             //buildings will matter
             //Mark abandoned/unused buildings?
@@ -483,6 +506,8 @@ namespace DatabaseAccess
             //Parking lots should get drawn too.
             if (DbSettings.processParking && tags["amenity"].Any(v => v == "parking"))
                 return "parking";
+
+            
 
 
             //Possibly of interest:
@@ -617,10 +642,74 @@ namespace DatabaseAccess
             wc.DownloadFile("http://download.geofabrik.de/" + topLevel + "/" + subLevel1 + "/" + subLevel2 + "-latest.osm.pbf", subLevel2 + "-latest.osm.pbf");
         }
 
-        public static byte[] GetAreaMapTile(double lat, double lon, List<MapData> allPlaces, GeoArea totalArea)
+        public static byte[] GetAreaMapTile(ref List<MapData> allPlaces, GeoArea totalArea)
         {
-            //TODO: functionalize the logic for drawing a bitmap tile,  set it here to create arbitrary-sized tiles files.
-            return null;
+            List<MapData> rowPlaces;
+            //create a new bitmap.
+            MemoryStream ms = new MemoryStream();
+            //pixel formats. RBGA32 allows for hex codes. RGB24 doesnt?
+            int imagesize = (int)Math.Floor(totalArea.LatitudeHeight / resolution10); //scales to area size
+            using (var image = new Image<Rgba32>(imagesize, imagesize)) //each 10 cell in this area is a pixel.
+            {
+                image.Mutate(x => x.Fill(Rgba32.ParseHex(MapSupport.areaColorReference[0].First()))); //set all the areas to the background color
+                for (int y = 0; y < image.Height; y++)
+                {
+                    //Dramatic performance improvement by limiting this to just the row's area. from 100+ seconds to 4.
+                    rowPlaces = MapSupport.GetPlaces(new GeoArea(new GeoPoint(totalArea.Min.Latitude + (MapSupport.resolution10 * y), totalArea.Min.Longitude), new GeoPoint(totalArea.Min.Latitude + (MapSupport.resolution10 * (y + 1)), totalArea.Max.Longitude)), allPlaces);
+
+                    Span<Rgba32> pixelRow = image.GetPixelRowSpan(image.Height - y - 1); //Plus code data is searched south-to-north, image is inverted otherwise.
+                    for (int x = 0; x < image.Width; x++)
+                    {
+                        //Set the pixel's color by its type.
+                        int placeData = MapSupport.GetAreaTypeFor10Cell(totalArea.Min.Longitude + (MapSupport.resolution10 * x), totalArea.Min.Latitude + (MapSupport.resolution10 * y), ref rowPlaces);
+                        if (placeData != 0)
+                        {
+                            var color = MapSupport.areaColorReference[placeData].First();
+                            pixelRow[x] = Rgba32.ParseHex(color); //set to appropriate type color
+                        }
+                    }
+                }
+
+                image.SaveAsPng(ms); //~25-40ms
+            } //image disposed here.
+
+           return ms.ToArray();
+        }
+        
+        // as above but each pixel is an 11 cell instead of a 10 cell. more detail but slower.
+        public static byte[] GetAreaMapTile11(ref List<MapData> allPlaces, GeoArea totalArea)
+        {
+            List<MapData> rowPlaces;
+            //create a new bitmap.
+            MemoryStream ms = new MemoryStream();
+            //pixel formats. RBGA32 allows for hex codes. RGB24 doesnt?
+            int imagesizeX = (int)Math.Floor(totalArea.LongitudeWidth / resolution11Lon); //scales to area size
+            int imagesizeY = (int)Math.Floor(totalArea.LatitudeHeight / resolution11Lat); //scales to area size
+            using (var image = new Image<Rgba32>(imagesizeX, imagesizeY)) //each 11 cell in this area is a pixel.
+            {
+                image.Mutate(x => x.Fill(Rgba32.ParseHex(MapSupport.areaColorReference[0].First()))); //set all the areas to the background color
+                for (int y = 0; y < image.Height; y++)
+                {
+                    //Dramatic performance improvement by limiting this to just the row's area. from 100+ seconds to 4.
+                    rowPlaces = MapSupport.GetPlaces(new GeoArea(new GeoPoint(totalArea.Min.Latitude + (MapSupport.resolution11Lat * y), totalArea.Min.Longitude), new GeoPoint(totalArea.Min.Latitude + (MapSupport.resolution11Lat * (y + 1)), totalArea.Max.Longitude)), allPlaces);
+
+                    Span<Rgba32> pixelRow = image.GetPixelRowSpan(image.Height - y - 1); //Plus code data is searched south-to-north, image is inverted otherwise.
+                    for (int x = 0; x < image.Width; x++)
+                    {
+                        //Set the pixel's color by its type.
+                        int placeData = MapSupport.GetAreaTypeFor11Cell(totalArea.Min.Longitude + (MapSupport.resolution11Lon * x), totalArea.Min.Latitude + (MapSupport.resolution11Lat * y), ref rowPlaces);
+                        if (placeData != 0)
+                        {
+                            var color = MapSupport.areaColorReference[placeData].First();
+                            pixelRow[x] = Rgba32.ParseHex(color); //set to appropriate type color
+                        }
+                    }
+                }
+
+                image.SaveAsPng(ms);
+            } //image disposed here.
+
+            return ms.ToArray();
         }
     }
 }

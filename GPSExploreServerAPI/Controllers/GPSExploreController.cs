@@ -21,6 +21,7 @@ namespace GPSExploreServerAPI.Controllers
          * --Tiebreaker calc: .Where(p => p.value > my.value && p.dateLastUpdated > my.dateLastUpdated? 
          * 
          * TODO:
+         * rename this controller to be more of a GameData endpoint, since its all leaderboards.
         */
         //Session is not enabled by default on API projects, which is correct.
 
