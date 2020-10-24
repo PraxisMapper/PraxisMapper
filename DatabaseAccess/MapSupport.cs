@@ -12,6 +12,8 @@ using DatabaseAccess.Support;
 using OsmSharp.Tags;
 using NetTopologySuite.Operation.Buffer;
 using Microsoft.EntityFrameworkCore;
+using System.Net;
+using NetTopologySuite.Simplify;
 
 namespace DatabaseAccess
 {
@@ -24,7 +26,7 @@ namespace DatabaseAccess
         //set up a command line parameter for OsmXmlParser to extract certain types of value from files (so different users could pull different features out to use)
         //continue renmaing and reorganizing things.
 
-        //the 11th digit uses a 5x4 grid, not a 20x20. They need separate scaling values for X and Y and are rectangular.
+        //the 11th digit uses a 5x4 grid, not a 20x20. They need separate scaling values for X and Y and are rectangular even at the equator.
         public const double resolution11Lat = .00003125;
         public const double resolution11Lon = .000025;
         public const double resolution10 = .000125; //the size of a 10-digit PlusCode, in degrees.
@@ -602,12 +604,17 @@ namespace DatabaseAccess
             return null; //not CCW either way? Happen occasionally for some reason, and it will fail to write to the DB
         }
 
-        public static void DownloadPbfFile(string filename)
+        public static void DownloadPbfFile(string topLevel, string subLevel1, string subLevel2)
         {
-            //TODO: pull a fresh copy of a file from geofabrik.de (or other mirror potentially)
+            //pull a fresh copy of a file from geofabrik.de (or other mirror potentially)
             //save it to the same folder as configured for pbf files (might be passed in)
             //web paths http://download.geofabrik.de/north-america/us/ohio-latest.osm.pbf
             //root, then each parent division. Starting with USA isn't too hard.
+            //topLevel = "north-america";
+            //subLevel1 = "us";
+            //subLevel2 = "ohio";
+            var wc = new WebClient();
+            wc.DownloadFile("http://download.geofabrik.de/" + topLevel + "/" + subLevel1 + "/" + subLevel2 + "-latest.osm.pbf", subLevel2 + "-latest.osm.pbf");
         }
 
         public static byte[] GetAreaMapTile(double lat, double lon, List<MapData> allPlaces, GeoArea totalArea)
