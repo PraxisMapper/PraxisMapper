@@ -194,7 +194,7 @@ namespace GPSExploreServerAPI.Controllers
         [Route("/[controller]/6cellBitmap/{plusCode6}")]
         public FileContentResult Get6CellBitmap(string plusCode6)
         {
-            //a PNG of a 6cell is roughly 22KB, and now takes 2-4 seconds to generate
+            //a 11-cell PNG of a 6cell is roughly 140KB, and now takes ~20-40 seconds to generate (20x the data processed, in ~10x the time and 7x the space)
             PerformanceTracker pt = new PerformanceTracker("6CellBitmap");
             //Load terrain data for an 6cell, turn it into a bitmap
             //Will load these bitmaps on the 6cell grid in the game, so you can see what's around you in a bigger area?
@@ -203,39 +203,43 @@ namespace GPSExploreServerAPI.Controllers
             //requires a list of colors to use, which might vary per app. Defined in AreaType
             GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
             var allPlaces = MapSupport.GetPlaces(sixCell);
-            //List<MapData> rowPlaces;
-
             var results = MapSupport.GetAreaMapTile(ref allPlaces, sixCell);
-
-            ////create a new bitmap.
-            //MemoryStream ms = new MemoryStream();
-            ////pixel formats. RBGA32 allows for hex codes. RGB24 doesnt?
-            //using (var image = new Image<Rgba32>(400, 400)) //each 10 cell in this 6cell is a pixel. 1600 loops means optimizing them is the best idea. 1ms per loop would mean this takes 16s
-            //{
-            //    image.Mutate(x => x.Fill(Rgba32.ParseHex(MapSupport.areaColorReference[0].First()))); //set all the areas to the background color
-            //    for (int y = 0; y < image.Height; y++)
-            //    {
-            //         //Dramatic performance improvement by limiting this to just the row's area. from 100+ seconds to 4.
-            //        rowPlaces = MapSupport.GetPlaces(new GeoArea(new GeoPoint(sixCell.Min.Latitude + (MapSupport.resolution10 * y), sixCell.Min.Longitude), new GeoPoint(sixCell.Min.Latitude + (MapSupport.resolution10 * (y +1)), sixCell.Max.Longitude)), allPlaces);
-
-            //        Span<Rgba32> pixelRow = image.GetPixelRowSpan(image.Height - y - 1); //Plus code data is searched south-to-north, image is inverted otherwise.
-            //        for (int x = 0; x < image.Width; x++)
-            //        {
-            //            //Set the pixel's color by its type.
-            //            int placeData = MapSupport.GetAreaTypeFor10Cell(sixCell.Min.Longitude + (MapSupport.resolution10 * x), sixCell.Min.Latitude + (MapSupport.resolution10 * y), ref rowPlaces);
-            //            if (placeData != 0)
-            //            {
-            //                var color = MapSupport.areaColorReference[placeData].First();
-            //                pixelRow[x] = Rgba32.ParseHex(color); //set to appropriate type color
-            //            }
-            //        }
-            //    }
-
-            //    image.SaveAsPng(ms); //~25-40ms
-            //} //image disposed here.
-
-            //var array = ms.ToArray();
             pt.Stop(plusCode6);
+            return File(results, "image/png");
+        }
+
+        [HttpGet]
+        [Route("/[controller]/6cellBitmap11/{plusCode6}")]
+        public FileContentResult Get6CellBitmap11(string plusCode6)
+        {
+            //a PNG of a 6cell this way is roughly KB, and now takes  seconds to generate
+            PerformanceTracker pt = new PerformanceTracker("6CellBitmap11");
+            //Load terrain data for an 6cell, turn it into a bitmap
+            //Will load these bitmaps on the 6cell grid in the game, so you can see what's around you in a bigger area?
+            //server will create and load these. Should cache them since generating them is time consuming. TODO: save tiles to db.
+
+            //requires a list of colors to use, which might vary per app. Defined in AreaType
+            GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
+            var allPlaces = MapSupport.GetPlaces(sixCell);
+            var results = MapSupport.GetAreaMapTile11(ref allPlaces, sixCell);
+            pt.Stop(plusCode6);
+            return File(results, "image/png");
+        }
+
+        [HttpGet]
+        [Route("/[controller]/flexBitmap/{lat}/{lon}/{size}")]
+        public FileContentResult GetFlexBitmap(double lat, double lon, double size)
+        {
+            PerformanceTracker pt = new PerformanceTracker("flexBitmap");
+            //Load terrain data for an 6cell, turn it into a bitmap
+            //Will load these bitmaps on the 6cell grid in the game, so you can see what's around you in a bigger area?
+            //server will create and load these. Should cache them since generating them is time consuming. TODO: save tiles to db.
+
+            //requires a list of colors to use, which might vary per app. Defined in AreaType
+            GeoArea box = new GeoArea(new GeoPoint(lat - (size / 2), lon - (size / 2)), new GeoPoint(lat + (size / 2), lon + (size / 2)));
+            var allPlaces = MapSupport.GetPlaces(box);
+            var results = MapSupport.GetAreaMapTile(ref allPlaces, box);
+            pt.Stop(lat +  "|" + lon + "|" + size);
             return File(results, "image/png");
         }
 
