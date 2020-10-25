@@ -153,32 +153,49 @@ namespace OsmXmlParser
             if (args.Any(a => a.StartsWith("-gen6CellMapTiles:")))
             {
                 //TODO still in process
+                //TODO move to function
                 //make tiles with pixels equal to the selected plus code resolution.
                 string resolution = args.Where(a => a.StartsWith("-gen6CellMapTiles:")).First().Replace("-gen6CellMapTiles:", "");
                 //I have to figure out how to find the min/max area covered by the server.
                 var db = new GpsExploreContext();
-                Log.WriteLog("Finding minimum point from DB");
-                var minPoint = db.MapData.Min(md => md.place.Boundary.Coordinates.Min());
-                Log.WriteLog("Finding maximum point from DB");
-                var maxPoint = db.MapData.Max(md => md.place.Boundary.Coordinates.Max());
 
-                var minPlusCode = new OpenLocationCode(new GeoPoint(minPoint.Y, minPoint.X));
-                var maxPlusCode = new OpenLocationCode(new GeoPoint(maxPoint.Y, maxPoint.X));
+                //still have to code this logic in somehow.
+                //Log.WriteLog("Finding minimum point from DB");
+                //var minPoint = db.MapData.Min(md => md.place.Boundary.Coordinates.Min());
+                //Log.WriteLog("Finding maximum point from DB");
+                //var maxPoint = db.MapData.Max(md => md.place.Boundary.Coordinates.Max());
+
+                //hardcoding values for now.
+                //minimumPointLon	minimumPointLat	maximumPointLon	maximumPointLat
+                //-85.111908	38.1447449	-80.3286743    42.070076
+                var minPlusCode = new OpenLocationCode(new GeoPoint(38.1447449, -85.111908));
+                var maxPlusCode = new OpenLocationCode(new GeoPoint(42.070076, -80.3286743));
                 //shift these to 8s or 6s to get a list we could enumerate over?
 
                 var minPlusCodePoint = OpenLocationCode.DecodeValid(minPlusCode.CodeDigits.Substring(0, 6));
                 var maxPlusCodePoint = OpenLocationCode.DecodeValid(maxPlusCode.CodeDigits.Substring(0, 6));
-
-
                 if (resolution == "10")
                 {
-                    for (double x = minPoint.X; x < maxPoint.X; x += MapSupport.resolution10)
-                        for (double y = minPoint.Y; y < maxPoint.Y; y += MapSupport.resolution10)
+                    for (double x = minPlusCodePoint.Min.Longitude; x <= maxPlusCodePoint.Max.Longitude; x += MapSupport.resolution6)
+                        for (double y = minPlusCodePoint.Min.Latitude; y <= maxPlusCodePoint.Max.Latitude; y += MapSupport.resolution6)
                         {
-                            GeoArea tileArea = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + MapSupport.resolution10, x + MapSupport.resolution10));
+                            GeoArea tileArea = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + MapSupport.resolution6, x + MapSupport.resolution6));
                             var places = MapSupport.GetPlaces(tileArea);
                             var tileData = MapSupport.GetAreaMapTile(ref places, tileArea);
                             db.MapTiles.Add(new MapTile() { tileData = tileData, regenerate = false, resolutionScale = 10, PlusCode = OpenLocationCode.Encode(new GeoPoint(y, x)).Substring(0, 6) });
+                            db.SaveChanges();
+                        }
+                }
+
+                if (resolution == "11")
+                {
+                    for (double x = minPlusCodePoint.Min.Longitude; x <= maxPlusCodePoint.Max.Longitude; x += MapSupport.resolution6)
+                        for (double y = minPlusCodePoint.Min.Latitude; y <= maxPlusCodePoint.Max.Latitude; y += MapSupport.resolution6)
+                        {
+                            GeoArea tileArea = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + MapSupport.resolution6, x + MapSupport.resolution6));
+                            var places = MapSupport.GetPlaces(tileArea);
+                            var tileData = MapSupport.GetAreaMapTile11(ref places, tileArea);
+                            db.MapTiles.Add(new MapTile() { tileData = tileData, regenerate = false, resolutionScale = 11, PlusCode = OpenLocationCode.Encode(new GeoPoint(y, x)).Substring(0, 6) });
                             db.SaveChanges();
                         }
                 }
