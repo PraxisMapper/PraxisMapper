@@ -48,7 +48,7 @@ namespace DatabaseAccess
 
         public static List<AreaType> areaTypes = new List<AreaType>() {
             //Areas here are for the original explore concept
-            new AreaType() { AreaTypeId = 0, AreaName = "", OsmTags = "", HtmlColorCode = "545454"}, //the default background color.
+            new AreaType() { AreaTypeId = 999, AreaName = "", OsmTags = "", HtmlColorCode = "545454"}, //the default background color. 0 causes insert to fail with an identity column
             new AreaType() { AreaTypeId = 1, AreaName = "water", OsmTags = "", HtmlColorCode = "0000B3"},
             new AreaType() { AreaTypeId = 2, AreaName = "wetland", OsmTags = "", HtmlColorCode = "0C4026"},
             new AreaType() { AreaTypeId = 3, AreaName = "park", OsmTags = "", HtmlColorCode = "00B300"},

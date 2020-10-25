@@ -14,6 +14,7 @@ using SQLitePCL;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.IsolatedStorage;
 using System.Linq;
 using System.Text.Json;
 using static DatabaseAccess.DbTables;
@@ -136,7 +137,7 @@ namespace OsmXmlParser
                 GeoPoint min = new GeoPoint(39.9901, -83.0496);
                 GeoPoint max = new GeoPoint(40.0208, -83.0035);
                 GeoArea box = new GeoArea(min, max);
-                string filename = ParserSettings.PbfFolder  + "ohio-latest.osm.pbf";
+                string filename = ParserSettings.PbfFolder + "ohio-latest.osm.pbf";
 
                 int relationId = args.Where(a => a.StartsWith("-createStandalone")).First().Split('|')[1].ToInt();
                 CreateStandaloneDB(relationId, filename);
@@ -148,6 +149,42 @@ namespace OsmXmlParser
                 string arg = args.Where(a => a.StartsWith("-checkFile:")).First().Replace("-checkFile:", "");
                 ValidateFile(arg);
             }
+
+            if (args.Any(a => a.StartsWith("-gen6CellMapTiles:")))
+            {
+                //TODO still in process
+                //make tiles with pixels equal to the selected plus code resolution.
+                string resolution = args.Where(a => a.StartsWith("-gen6CellMapTiles:")).First().Replace("-gen6CellMapTiles:", "");
+                //I have to figure out how to find the min/max area covered by the server.
+                var db = new GpsExploreContext();
+                Log.WriteLog("Finding minimum point from DB");
+                var minPoint = db.MapData.Min(md => md.place.Boundary.Coordinates.Min());
+                Log.WriteLog("Finding maximum point from DB");
+                var maxPoint = db.MapData.Max(md => md.place.Boundary.Coordinates.Max());
+
+                var minPlusCode = new OpenLocationCode(new GeoPoint(minPoint.Y, minPoint.X));
+                var maxPlusCode = new OpenLocationCode(new GeoPoint(maxPoint.Y, maxPoint.X));
+                //shift these to 8s or 6s to get a list we could enumerate over?
+
+                var minPlusCodePoint = OpenLocationCode.DecodeValid(minPlusCode.CodeDigits.Substring(0, 6));
+                var maxPlusCodePoint = OpenLocationCode.DecodeValid(maxPlusCode.CodeDigits.Substring(0, 6));
+
+
+                if (resolution == "10")
+                {
+                    for (double x = minPoint.X; x < maxPoint.X; x += MapSupport.resolution10)
+                        for (double y = minPoint.Y; y < maxPoint.Y; y += MapSupport.resolution10)
+                        {
+                            GeoArea tileArea = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + MapSupport.resolution10, x + MapSupport.resolution10));
+                            var places = MapSupport.GetPlaces(tileArea);
+                            var tileData = MapSupport.GetAreaMapTile(ref places, tileArea);
+                            db.MapTiles.Add(new MapTile() { tileData = tileData, regenerate = false, resolutionScale = 10, PlusCode = OpenLocationCode.Encode(new GeoPoint(y, x)).Substring(0, 6) });
+                            db.SaveChanges();
+                        }
+                }
+
+            }
+
             return;
         }
 
@@ -164,9 +201,9 @@ namespace OsmXmlParser
                 List<MapData> entries = ReadMapDataToMemory(file);
                 Log.WriteLog("Processing " + entries.Count() + " ways from " + file, Log.VerbosityLevels.High);
                 //Trying to make this a little bit faster by working around internal EF graph stuff.
-                for(int i = 0; i <= entries.Count() / 10000; i++)
+                for (int i = 0; i <= entries.Count() / 10000; i++)
                 {
-                    var subList = entries.Skip(i * 10000).Take(10000).ToList(); 
+                    var subList = entries.Skip(i * 10000).Take(10000).ToList();
                     db.MapData.AddRange(subList);
                     db.SaveChanges();//~3seconds on dev machine per pass at 10k entries at once.
                     Log.WriteLog("Entry pass " + i + " of " + (entries.Count() / 10000) + " completed");
@@ -235,7 +272,7 @@ namespace OsmXmlParser
 
             Log.WriteLog("Checking for members in  " + filename + " at " + DateTime.Now);
             string destFilename = System.IO.Path.GetFileName(filename).Replace(".osm.pbf", "");
-            
+
             Log.WriteLog("Starting " + filename + " " + " data read at " + DateTime.Now);
             var osmRelations = GetRelationsFromStream(ms, null);
             Log.WriteLog(osmRelations.Count() + " relations found", Log.VerbosityLevels.High);
@@ -286,7 +323,7 @@ namespace OsmXmlParser
                 Log.WriteLog("Relations loaded at " + DateTime.Now);
                 var osmWays = GetWaysFromPbf(filename, areatypename, referencedWays);
                 Log.WriteLog(osmWays.Count() + " ways found", Log.VerbosityLevels.High);
-                Log.WriteLog((osmWays.Count() - referencedWays.Count())  + " standalone ways pulled in.", Log.VerbosityLevels.High);
+                Log.WriteLog((osmWays.Count() - referencedWays.Count()) + " standalone ways pulled in.", Log.VerbosityLevels.High);
                 var referencedNodes = osmWays.AsParallel().SelectMany(m => m.Nodes).Distinct().ToLookup(k => k, v => (short)0);
                 var referencedNodes2 = osmWays.AsParallel().SelectMany(m => m.Nodes).Distinct().ToDictionary(k => k, v => (short)0);
                 var referencedNodes3 = osmWays.AsParallel().SelectMany(m => m.Nodes).Distinct().ToHashSet();
@@ -534,7 +571,7 @@ namespace OsmXmlParser
             return md;
         }
 
-        
+
 
         private static Geometry GetGeometryFromWays(List<WayData> shapeList, OsmSharp.Relation r)
         {
@@ -576,9 +613,9 @@ namespace OsmXmlParser
                 innerPolys = shapeList.Where(s => innerEntries.Contains(s.id)).ToList();
                 //foreach (var ie in innerPolys)
                 //{
-                    while(innerPolys.Count() > 0)
-                        //TODO: confirm all of these are closed shapes.
-                        innerPols.Add(GetShapeFromLines(ref innerPolys));
+                while (innerPolys.Count() > 0)
+                    //TODO: confirm all of these are closed shapes.
+                    innerPols.Add(GetShapeFromLines(ref innerPolys));
                 //}
             }
 
@@ -626,7 +663,7 @@ namespace OsmXmlParser
                 {
                     multiPol = multiPol.Difference(innerMultiPol);
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     Log.WriteLog("Relation " + r.Id + " Error trying to pull difference from inner and outer polygons:" + ex.Message);
                 }
@@ -736,14 +773,14 @@ namespace OsmXmlParser
             var source2 = source.Where(s => MapSupport.GetType(s.Tags) != "" && s.Type == OsmGeoType.Relation).ToComplete();
 
 
-            foreach(var entry in source2)
+            foreach (var entry in source2)
             {
                 //switch(entry.Type)
                 //{
                 //    case OsmGeoType.Relation:
                 //        if (MapSupport.GetType(entry.Tags) != "")
                 //        {
-                            CompleteRelation temp = (CompleteRelation)entry;
+                CompleteRelation temp = (CompleteRelation)entry;
                 var t = Complete.ProcessCompleteRelation(temp);
                 //I should make a function that processes this.
 
@@ -922,7 +959,7 @@ namespace OsmXmlParser
 
         private static ILookup<long, NodeReference> GetNodesFromPbf(string filename, string areaType, ILookup<long, short> nodes)
         {
-            ILookup<long,NodeReference> filteredEntries;
+            ILookup<long, NodeReference> filteredEntries;
             using (var fs = File.OpenRead(filename))
             {
                 filteredEntries = InnerGetNodes(fs, areaType, nodes);
@@ -1001,7 +1038,7 @@ namespace OsmXmlParser
             else
             {
                 filteredEntries = progress.AsParallel().Where(p => p.Type == OsmGeoType.Node &&
-                   (MapSupport.GetType(p.Tags) == areaType || nodes.Contains(p.Id.Value)) 
+                   (MapSupport.GetType(p.Tags) == areaType || nodes.Contains(p.Id.Value))
                )
                    .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), areaType))
                    .ToLookup(k => k.Id, v => v);
@@ -1051,7 +1088,7 @@ namespace OsmXmlParser
                 {
                     //start of a file that spaced out every entry on a newline correctly. Skip.
                 }
-                else if (line =="]")
+                else if (line == "]")
                 {
                     //dont do anything, this is EOF
                 }
@@ -1147,7 +1184,7 @@ namespace OsmXmlParser
             //dataFromParent = null;
 
             //could now sort by tags/types. This version should track more types than the explore game, since this is a more detailed smaller area.
-            
+
 
 
             //var content = mainDb.MapData.Where(md => md.place.Intersects(polygon)).ToList();
