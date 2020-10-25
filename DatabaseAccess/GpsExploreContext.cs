@@ -75,8 +75,12 @@ namespace DatabaseAccess
             model.Entity<MapTile>().Property(m => m.PlusCode).HasMaxLength(12);
         }
 
+        //A trigger to ensure all data inserted is valid by SQL Server rules.
         public static string MapDataValidTrigger = "CREATE TRIGGER dbo.MakeValid ON dbo.MapData AFTER INSERT AS BEGIN UPDATE dbo.MapData SET place = place.MakeValid() WHERE MapDataId in (SELECT MapDataId from inserted) END";
+        //An index that I don't think EFCore can create correctly automatically.
         public static string MapDataIndex = "CREATE SPATIAL INDEX MapDataSpatialIndex ON MapData(place)";
+        //This sproc pulls the min/max points covered by the current database. Useful if you want to create maptiles ahead of time. Can take a few minutes to run.
+        public static string FindDBMapDataBounds = "CREATE PROCEDURE GetMapDataBounds AS BEGIN SELECT MIN(CONVERT(float, geography::STGeomFromWKB(geometry::STGeomFromWKB(place.STAsBinary(), place.STSrid).MakeValid().STEnvelope().STAsBinary(), place.STSrid).MakeValid().STPointN(1).Long)) as minimumPointLon, MIN(CONVERT(float, geography::STGeomFromWKB(geometry::STGeomFromWKB(place.STAsBinary(), place.STSrid).MakeValid().STEnvelope().STAsBinary(), place.STSrid).MakeValid().STPointN(1).Lat)) as minimumPointLat, MAX(CONVERT(float, geography::STGeomFromWKB(geometry::STGeomFromWKB(place.STAsBinary(), place.STSrid).MakeValid().STEnvelope().STAsBinary(), place.STSrid).MakeValid().STPointN(3).Long)) as maximumPointLon, MAX(CONVERT(float, geography::STGeomFromWKB(geometry::STGeomFromWKB(place.STAsBinary(), place.STSrid).MakeValid().STEnvelope().STAsBinary(), place.STSrid).MakeValid().STPointN(3).Lat)) as maximumPointLatFROM mapdata END";
 
 
         //TODO: make a trigger that updates the min/max boundaries of the database when a Mapdata row is inserted/updated.
@@ -92,6 +96,7 @@ namespace DatabaseAccess
 
         //This sproc is marginally faster than an insert with changetracking off (~.7 ms on average). Excluding to keep code consistent and EFCore-only where possible.
         //public static string PerformanceInfoSproc = "CREATE PROCEDURE SavePerfInfo @functionName nvarchar(500), @runtime bigint, @calledAt datetime2, @notes nvarchar(max) AS BEGIN INSERT INTO dbo.PerformanceInfo(functionName, runTime, calledAt, notes) VALUES(@functionName, @runtime, @calledAt, @notes) END";
+
 
         //This doesn't appear to be any faster. The query isn't the slow part. Keeping this code as a reference for how to precompile queries.
         public static Func<GpsExploreContext, Geometry, IEnumerable<MapData>> compiledIntersectQuery = 

@@ -72,10 +72,10 @@ namespace GPSExploreServerAPI.Controllers
             GeoArea[] areaArray;
             StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
             MapSupport.SplitArea(box, splitcount, places, out placeArray, out areaArray);
-            System.Threading.Tasks.Parallel.For(0,  placeArray.Length, (i) =>
-            {
-                sbArray[i] = MapSupport.SearchArea(ref areaArray[i], ref placeArray[i]);
-            });
+            System.Threading.Tasks.Parallel.For(0, placeArray.Length, (i) =>
+           {
+               sbArray[i] = MapSupport.SearchArea(ref areaArray[i], ref placeArray[i]);
+           });
 
             foreach (StringBuilder sbPartial in sbArray)
                 sb.Append(sbPartial.ToString());
@@ -83,7 +83,7 @@ namespace GPSExploreServerAPI.Controllers
             string results = sb.ToString();
             var options = new MemoryCacheEntryOptions();
             options.SetSize(1);
-            if (Configuration.GetValue<bool>("enableCaching")) 
+            if (Configuration.GetValue<bool>("enableCaching"))
                 cache.Set(codeString6, results, options);
 
             pt.Stop(codeString6);
@@ -107,7 +107,7 @@ namespace GPSExploreServerAPI.Controllers
             //    pt.Stop(pointDesc);
             //    return cachedResults;
             //}
-            GeoArea box = new GeoArea(new GeoPoint(lat - .025, lon - .025), new GeoPoint( lat + .025, lon + .025));
+            GeoArea box = new GeoArea(new GeoPoint(lat - .025, lon - .025), new GeoPoint(lat + .025, lon + .025));
 
             var places = MapSupport.GetPlaces(box);  //All the places in this 6-code //NOTE: takes 500ms here, but 6-codes should take ~15ms in perftesting.
             StringBuilder sb = new StringBuilder();
@@ -171,7 +171,6 @@ namespace GPSExploreServerAPI.Controllers
             return "OK";
         }
 
-        //TODO: convert inner logic for 8/6cellbitmap to reusable function.
         [HttpGet]
         [Route("/[controller]/8cellBitmap/{plusCode8}")]
         public FileContentResult Get8CellBitmap(string plusCode8)
@@ -179,10 +178,9 @@ namespace GPSExploreServerAPI.Controllers
             PerformanceTracker pt = new PerformanceTracker("8CellBitmap");
             //Load terrain data for an 8cell, turn it into a bitmap
             //Will load these bitmaps on the 8cell grid in the game, so you can see what's around you in a bigger area.
-            //server will create and load these. Possibly cache them.
 
             var db = new GpsExploreContext();
-            var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode8).FirstOrDefault();
+            var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode8 && mt.resolutionScale == 10).FirstOrDefault();
             if (existingResults == null || existingResults.MapTileId == null)
             {
                 //Create this entry
@@ -190,7 +188,34 @@ namespace GPSExploreServerAPI.Controllers
                 GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
                 var places = MapSupport.GetPlaces(eightCell);
                 var results = MapSupport.GetAreaMapTile(ref places, eightCell);
-                db.MapTiles.Add(new MapTile() {PlusCode  = plusCode8, regenerate = false, resolutionScale = 10, tileData = results });
+                db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, regenerate = false, resolutionScale = 10, tileData = results });
+                db.SaveChanges();
+                pt.Stop(plusCode8);
+                return File(results, "image/png");
+            }
+
+            pt.Stop(plusCode8);
+            return File(existingResults.tileData, "image/png");
+        }
+
+        [HttpGet]
+        [Route("/[controller]/8cellBitmap11/{plusCode8}")]
+        public FileContentResult Get8CellBitmap11(string plusCode8)
+        {
+            PerformanceTracker pt = new PerformanceTracker("8CellBitmap11");
+            //Load terrain data for an 8cell, turn it into a bitmap
+            //Will load these bitmaps on the 8cell grid in the game, so you can see what's around you in a bigger area.
+
+            var db = new GpsExploreContext();
+            var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode8 && mt.resolutionScale == 11).FirstOrDefault();
+            if (existingResults == null || existingResults.MapTileId == null)
+            {
+                //Create this entry
+                //requires a list of colors to use, which might vary per app
+                GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
+                var places = MapSupport.GetPlaces(eightCell);
+                var results = MapSupport.GetAreaMapTile11(ref places, eightCell);
+                db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, regenerate = false, resolutionScale = 11, tileData = results });
                 db.SaveChanges();
                 pt.Stop(plusCode8);
                 return File(results, "image/png");
@@ -208,10 +233,9 @@ namespace GPSExploreServerAPI.Controllers
             PerformanceTracker pt = new PerformanceTracker("6CellBitmap");
             //Load terrain data for an 6cell, turn it into a bitmap
             //Will load these bitmaps on the 6cell grid in the game, so you can see what's around you in a bigger area?
-            //server will create and load these. Should cache them since generating them is time consuming. TODO: save tiles to db.
 
             var db = new GpsExploreContext();
-            var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode6).FirstOrDefault();
+            var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode6 && mt.resolutionScale == 10).FirstOrDefault();
             if (existingResults == null || existingResults.MapTileId == null)
             {
                 //Create this entry
@@ -227,9 +251,6 @@ namespace GPSExploreServerAPI.Controllers
 
             pt.Stop(plusCode6);
             return File(existingResults.tileData, "image/png");
-
-            //requires a list of colors to use, which might vary per app. Defined in AreaType
-            
         }
 
         [HttpGet]
@@ -241,31 +262,40 @@ namespace GPSExploreServerAPI.Controllers
             //Load terrain data for an 6cell, turn it into a bitmap
             //Will load these bitmaps on the 6cell grid in the game, so you can see what's around you in a bigger area?
             //server will create and load these. Should cache them since generating them is time consuming. TODO: save tiles to db.
-
-            //requires a list of colors to use, which might vary per app. Defined in AreaType
-            GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
-            var allPlaces = MapSupport.GetPlaces(sixCell);
-            var results = MapSupport.GetAreaMapTile11(ref allPlaces, sixCell);
+            var db = new GpsExploreContext();
+            var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode6 && mt.resolutionScale == 11).FirstOrDefault();
+            if (existingResults == null || existingResults.MapTileId == null)
+            {
+                //requires a list of colors to use, which might vary per app. Defined in AreaType
+                GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
+                var allPlaces = MapSupport.GetPlaces(sixCell);
+                var results = MapSupport.GetAreaMapTile11(ref allPlaces, sixCell);
+                db.MapTiles.Add(new MapTile() { PlusCode = plusCode6, regenerate = false, resolutionScale = 11, tileData = results });
+                db.SaveChanges();
+                pt.Stop(plusCode6);
+                return File(results, "image/png");
+            }
             pt.Stop(plusCode6);
-            return File(results, "image/png");
+            return File(existingResults.tileData, "image/png");
         }
 
         [HttpGet]
-        [Route("/[controller]/flexBitmap/{lat}/{lon}/{size}")]
-        public FileContentResult GetFlexBitmap(double lat, double lon, double size)
+        [Route("/[controller]/flexBitmap/{lat}/{lon}/{size}/{resolution}")]
+        public FileContentResult GetFlexBitmap(double lat, double lon, double size, int resolution)
         {
+            //Flex endpoint doesnt save data to DB or cache stuff yet.
             PerformanceTracker pt = new PerformanceTracker("flexBitmap");
-            //Load terrain data for an 6cell, turn it into a bitmap
-            //Will load these bitmaps on the 6cell grid in the game, so you can see what's around you in a bigger area?
-            //server will create and load these. Should cache them since generating them is time consuming. TODO: save tiles to db.
-
-            //requires a list of colors to use, which might vary per app. Defined in AreaType
             GeoArea box = new GeoArea(new GeoPoint(lat - (size / 2), lon - (size / 2)), new GeoPoint(lat + (size / 2), lon + (size / 2)));
             var allPlaces = MapSupport.GetPlaces(box);
-            var results = MapSupport.GetAreaMapTile(ref allPlaces, box);
-            pt.Stop(lat +  "|" + lon + "|" + size);
+            byte[] results;
+            if (resolution == 10)
+                results = MapSupport.GetAreaMapTile(ref allPlaces, box);
+            else
+                results = MapSupport.GetAreaMapTile11(ref allPlaces, box);
+            pt.Stop(lat + "|" + lon + "|" + size + "|" + resolution);
             return File(results, "image/png");
         }
+
 
         //public void PrefillDB()
         //{
@@ -344,7 +374,7 @@ namespace GPSExploreServerAPI.Controllers
             //    pt.Stop(pointDesc);
             //    return cachedResults;
             //}
-            GeoArea box = new GeoArea(new GeoPoint(lat - (size /2), lon - (size / 2)), new GeoPoint(lat + (size / 2), lon + (size / 2)));
+            GeoArea box = new GeoArea(new GeoPoint(lat - (size / 2), lon - (size / 2)), new GeoPoint(lat + (size / 2), lon + (size / 2)));
 
             var places = MapSupport.GetPlaces(box);  //All the places in this area
             StringBuilder sb = new StringBuilder();

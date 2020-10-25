@@ -66,6 +66,7 @@ namespace OsmXmlParser
                 //Not automatic entries executed below:
                 db.Database.ExecuteSqlRaw(GpsExploreContext.MapDataValidTrigger);
                 db.Database.ExecuteSqlRaw(GpsExploreContext.MapDataIndex);
+                db.Database.ExecuteSqlRaw(GpsExploreContext.FindDBMapDataBounds);
                 MapSupport.InsertAreaTypes();
             }
 
