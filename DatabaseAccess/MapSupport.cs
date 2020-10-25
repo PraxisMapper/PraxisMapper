@@ -651,7 +651,7 @@ namespace DatabaseAccess
             int imagesize = (int)Math.Floor(totalArea.LatitudeHeight / resolution10); //scales to area size
             using (var image = new Image<Rgba32>(imagesize, imagesize)) //each 10 cell in this area is a pixel.
             {
-                image.Mutate(x => x.Fill(Rgba32.ParseHex(MapSupport.areaColorReference[0].First()))); //set all the areas to the background color
+                image.Mutate(x => x.Fill(Rgba32.ParseHex(MapSupport.areaColorReference[999].First()))); //set all the areas to the background color
                 for (int y = 0; y < image.Height; y++)
                 {
                     //Dramatic performance improvement by limiting this to just the row's area. from 100+ seconds to 4.
@@ -687,7 +687,7 @@ namespace DatabaseAccess
             int imagesizeY = (int)Math.Floor(totalArea.LatitudeHeight / resolution11Lat); //scales to area size
             using (var image = new Image<Rgba32>(imagesizeX, imagesizeY)) //each 11 cell in this area is a pixel.
             {
-                image.Mutate(x => x.Fill(Rgba32.ParseHex(MapSupport.areaColorReference[0].First()))); //set all the areas to the background color
+                image.Mutate(x => x.Fill(Rgba32.ParseHex(MapSupport.areaColorReference[999].First()))); //set all the areas to the background color
                 for (int y = 0; y < image.Height; y++)
                 {
                     //Dramatic performance improvement by limiting this to just the row's area. from 100+ seconds to 4.

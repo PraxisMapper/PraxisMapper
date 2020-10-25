@@ -176,18 +176,28 @@ namespace GPSExploreServerAPI.Controllers
         [Route("/[controller]/8cellBitmap/{plusCode8}")]
         public FileContentResult Get8CellBitmap(string plusCode8)
         {
-
             PerformanceTracker pt = new PerformanceTracker("8CellBitmap");
             //Load terrain data for an 8cell, turn it into a bitmap
             //Will load these bitmaps on the 8cell grid in the game, so you can see what's around you in a bigger area.
             //server will create and load these. Possibly cache them.
 
-            //requires a list of colors to use, which might vary per app
-            GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
-            var places = MapSupport.GetPlaces(eightCell);
-            var results = MapSupport.GetAreaMapTile(ref places, eightCell);
+            var db = new GpsExploreContext();
+            var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode8).FirstOrDefault();
+            if (existingResults == null || existingResults.MapTileId == null)
+            {
+                //Create this entry
+                //requires a list of colors to use, which might vary per app
+                GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
+                var places = MapSupport.GetPlaces(eightCell);
+                var results = MapSupport.GetAreaMapTile(ref places, eightCell);
+                db.MapTiles.Add(new MapTile() {PlusCode  = plusCode8, regenerate = false, resolutionScale = 10, tileData = results });
+                db.SaveChanges();
+                pt.Stop(plusCode8);
+                return File(results, "image/png");
+            }
+
             pt.Stop(plusCode8);
-            return File(results, "image/png");
+            return File(existingResults.tileData, "image/png");
         }
 
         [HttpGet]
@@ -200,12 +210,26 @@ namespace GPSExploreServerAPI.Controllers
             //Will load these bitmaps on the 6cell grid in the game, so you can see what's around you in a bigger area?
             //server will create and load these. Should cache them since generating them is time consuming. TODO: save tiles to db.
 
-            //requires a list of colors to use, which might vary per app. Defined in AreaType
-            GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
-            var allPlaces = MapSupport.GetPlaces(sixCell);
-            var results = MapSupport.GetAreaMapTile(ref allPlaces, sixCell);
+            var db = new GpsExploreContext();
+            var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode6).FirstOrDefault();
+            if (existingResults == null || existingResults.MapTileId == null)
+            {
+                //Create this entry
+                //requires a list of colors to use, which might vary per app
+                GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
+                var allPlaces = MapSupport.GetPlaces(sixCell);
+                var results = MapSupport.GetAreaMapTile(ref allPlaces, sixCell);
+                db.MapTiles.Add(new MapTile() { PlusCode = plusCode6, regenerate = false, resolutionScale = 10, tileData = results });
+                db.SaveChanges();
+                pt.Stop(plusCode6);
+                return File(results, "image/png");
+            }
+
             pt.Stop(plusCode6);
-            return File(results, "image/png");
+            return File(existingResults.tileData, "image/png");
+
+            //requires a list of colors to use, which might vary per app. Defined in AreaType
+            
         }
 
         [HttpGet]

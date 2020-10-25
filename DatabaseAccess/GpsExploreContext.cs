@@ -70,6 +70,9 @@ namespace DatabaseAccess
             //It is not, at least not at my current scale since this is 25 million 6-cells. Takes ~9 days on a single PC.
             model.Entity<PremadeResults>().HasIndex(p => p.PlusCode6);
             model.Entity<PremadeResults>().Property(p => p.PlusCode6).HasMaxLength(6);
+
+            model.Entity<MapTile>().HasIndex(m => m.PlusCode);
+            model.Entity<MapTile>().Property(m => m.PlusCode).HasMaxLength(12);
         }
 
         public static string MapDataValidTrigger = "CREATE TRIGGER dbo.MakeValid ON dbo.MapData AFTER INSERT AS BEGIN UPDATE dbo.MapData SET place = place.MakeValid() WHERE MapDataId in (SELECT MapDataId from inserted) END";
