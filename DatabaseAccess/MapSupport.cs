@@ -31,9 +31,9 @@ namespace DatabaseAccess
         //set up a command line parameter for OsmXmlParser to extract certain types of value from files (so different users could pull different features out to use)
         //continue renmaing and reorganizing things.
 
-        //the 11th digit uses a 5x4 grid, not a 20x20. They need separate scaling values for X and Y and are rectangular even at the equator.
-        public const double resolution11Lat = .00003125;
-        public const double resolution11Lon = .000025;
+        //the 11th digit uses a 4x5 grid, not a 20x20. They need separate scaling values for X and Y and are rectangular even at the equator.
+        public const double resolution11Lat = .000025;
+        public const double resolution11Lon = .00003125;
         public const double resolution10 = .000125; //the size of a 10-digit PlusCode, in degrees.
         public const double resolution8 = .0025; //the size of a 8-digit PlusCode, in degrees.
         public const double resolution6 = .05; //the size of a 6-digit PlusCode, in degrees.
