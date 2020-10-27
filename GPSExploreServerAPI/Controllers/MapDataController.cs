@@ -446,7 +446,7 @@ namespace GPSExploreServerAPI.Controllers
         }
 
         [HttpGet]
-        [Route("/[controller]/CalcFlexAreaPoints/{lat}/{lon}/{size}")]
+        [Route("/[controller]/CalcFlexFullAreaPoints/{lat}/{lon}/{size}")]
         public string CalculateFlexFullAreasAndPoints(double lat, double lon, double size)
         {
             GeoArea box = new GeoArea(new GeoPoint(lat - (size / 2), lon - (size / 2)), new GeoPoint(lat + (size / 2), lon + (size / 2)));
