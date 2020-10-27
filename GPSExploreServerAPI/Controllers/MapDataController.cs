@@ -422,8 +422,32 @@ namespace GPSExploreServerAPI.Controllers
         }
 
         [HttpGet]
+        [Route("/[controller]/CalcFullAreaPoints/{plusCode8}")]
+        public string CalculateFullAreasAndPoints(string plusCode8)
+        {
+            //We are looking to see how to score an area by size in a given area.
+            //I think we're looking at 8-codes
+            //string PlusCode = "86FRXXWP";
+            GeoArea box = OpenLocationCode.DecodeValid(plusCode8);
+            var places = MapSupport.GetPlaces(box);
+            return MapSupport.GetPointsForFullArea(places);
+        }
+
+        [HttpGet]
         [Route("/[controller]/CalcFlexAreaPoints/{lat}/{lon}/{size}")]
         public string CalculateFlexAreasAndPoints(double lat, double lon, double size)
+        {
+            GeoArea box = new GeoArea(new GeoPoint(lat - (size / 2), lon - (size / 2)), new GeoPoint(lat + (size / 2), lon + (size / 2)));
+            var places = MapSupport.GetPlaces(box);
+            var coords = MapSupport.MakeBox(box);
+            var poly = MapSupport.factory.CreatePolygon(coords);
+
+            return MapSupport.GetPointsForArea(poly, places);
+        }
+
+        [HttpGet]
+        [Route("/[controller]/CalcFlexAreaPoints/{lat}/{lon}/{size}")]
+        public string CalculateFlexFullAreasAndPoints(double lat, double lon, double size)
         {
             GeoArea box = new GeoArea(new GeoPoint(lat - (size / 2), lon - (size / 2)), new GeoPoint(lat + (size / 2), lon + (size / 2)));
             var places = MapSupport.GetPlaces(box);
