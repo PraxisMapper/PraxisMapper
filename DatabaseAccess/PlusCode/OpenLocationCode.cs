@@ -484,7 +484,6 @@ namespace Google.OpenLocationCode
             }
 
             // Store the code - we build it in reverse and reorder it afterwards.
-            //StringBuilder reverseCodeBuilder = new StringBuilder(); //TODO: just use a char[], this uses one internally, and it gets converted a couple times this way
             char[] pendingCode = new char[codeLength + 1];
             pendingCode[8] = '+';
             //Plus could add characters in the correct order to start this way.
@@ -506,7 +505,7 @@ namespace Google.OpenLocationCode
                     long latDigit = latVal % GridRows;
                     long lngDigit = lngVal % GridColumns;
                     int ndx = (int)(latDigit * GridColumns + lngDigit);
-                    //reverseCodeBuilder.Append(CodeAlphabet[ndx]); //TODO: add pendingCode logic here
+                    pendingCode[codeLength] = CodeAlphabet[ndx];
                     latVal /= GridRows;
                     lngVal /= GridColumns;
                 }
@@ -520,10 +519,6 @@ namespace Google.OpenLocationCode
             int arrayPos = 10;
             for (int i = 0; i < PairCodeLength / 2; i++)
             {
-                //reverseCodeBuilder.Append(CodeAlphabet[(int)(lngVal % EncodingBase)]);
-                //reverseCodeBuilder.Append(CodeAlphabet[(int)(latVal % EncodingBase)]);
-
-                //int arrayPos = PairCodeLength - (i * 2) - (i > 0 ? 1 : 0);
                 pendingCode[arrayPos] = CodeAlphabet[(int)(lngVal % EncodingBase)];
                 arrayPos--;
                 pendingCode[arrayPos] = CodeAlphabet[(int)(latVal % EncodingBase)];
@@ -533,36 +528,9 @@ namespace Google.OpenLocationCode
 
                 latVal /= EncodingBase;
                 lngVal /= EncodingBase;
-                // If we are at the separator position, add the separator.
-                //if (i == 0)
-                //{
-                //    reverseCodeBuilder.Append(SeparatorCharacter);
-                //}
             }
-            // Reverse the code.
-            //char[] reversedCode = reverseCodeBuilder.ToString().ToCharArray();
-            //Array.Reverse(reversedCode);
-            //StringBuilder codeBuilder = new StringBuilder(new string(reversedCode));
-
-            //Debug test
-            string testCharArray = new string(pendingCode);
-            //if (testCharArray == codeBuilder.ToString())
-            //Console.WriteLine("The same!");
-
-
-
-            // If we need to pad the code, replace some of the digits.
-            //if (codeLength < SeparatorPosition)
-            //{
-            //    codeBuilder.Remove(codeLength, SeparatorPosition - codeLength);
-            //    for (int i = codeLength; i < SeparatorPosition; i++)
-            //    {
-            //        codeBuilder.Insert(i, PaddingCharacter);
-            //    }
-            //}
-            //return codeBuilder.ToString(0, Math.Max(SeparatorPosition + 1, codeLength + 1));
-
-            return testCharArray;
+           
+            return new string(pendingCode);
         }
 
         /// <summary>

@@ -19,6 +19,7 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.Drawing.Processing;
+using Newtonsoft.Json;
 
 namespace DatabaseAccess
 {
@@ -39,6 +40,8 @@ namespace DatabaseAccess
         public const double resolution6 = .05; //the size of a 6-digit PlusCode, in degrees.
         public const double resolution4 = 1; //the size of a 4-digit PlusCode, in degrees.
         public const double resolution2 = 20; //the size of a 2-digit PlusCode, in degrees.
+
+        public const double square10cellArea = resolution10 * resolution10; //for area-control calculations.
 
         public static List<string> relevantTourismValues = new List<string>() { "artwork", "attraction", "gallery", "museum", "viewpoint", "zoo" }; //The stuff we care about in the tourism category. Zoo and attraction are debatable.
         public static List<string> relevantTrailValues = new List<string>() { "path", "bridleway", "cycleway", "footway", "living_street" }; //The stuff we care about in the highway category for trails. Living Streets are nonexistant in the US.
@@ -710,6 +713,30 @@ namespace DatabaseAccess
             } //image disposed here.
 
             return ms.ToArray();
+        }
+
+        public static string GetPointsForArea(Polygon areaPoly, List<MapData> places)
+        {
+            Dictionary<string, double> areaSizes = new Dictionary<string, double>();
+            foreach (var place in places)
+            {
+                var containedArea = place.place.Intersection(areaPoly);
+                var containedAreaSize = containedArea.Area; //The area, in square degrees
+                if (containedAreaSize == 0)
+                {
+                    //This is a line or a point, it has no area so we need to fix the calculations to match the display grid.
+                    //Points will always be 1.
+                    //Lines will be based on distance.
+                    if (containedArea is NetTopologySuite.Geometries.Point)
+                        containedAreaSize = square10cellArea;
+                    else if (containedArea is NetTopologySuite.Geometries.LineString)
+                        containedAreaSize = ((LineString)containedArea).Length * MapSupport.resolution10;
+                    //This gives us the length of the line in 10-cell lengths, which may be slightly different from the number of 10cells draws on the map as belonging to this line.
+                }
+                var containedArea10CellCount = Math.Round(containedAreaSize / square10cellArea);
+                areaSizes.Add(place.name, containedArea10CellCount);
+            }
+            return JsonConvert.SerializeObject(areaSizes);
         }
     }
 }
