@@ -738,5 +738,29 @@ namespace DatabaseAccess
             }
             return JsonConvert.SerializeObject(areaSizes);
         }
+
+        public static string GetPointsForFullArea(List<MapData> places)
+        {
+            //As above, but counts the full area, not the area in the currently visible game area
+            Dictionary<string, double> areaSizes = new Dictionary<string, double>();
+            foreach (var place in places)
+            {
+                var containedAreaSize = place.place.Area; //The area, in square degrees
+                if (containedAreaSize == 0)
+                {
+                    //This is a line or a point, it has no area so we need to fix the calculations to match the display grid.
+                    //Points will always be 1.
+                    //Lines will be based on distance.
+                    if (place.place is NetTopologySuite.Geometries.Point)
+                        containedAreaSize = square10cellArea;
+                    else if (place.place is NetTopologySuite.Geometries.LineString)
+                        containedAreaSize = ((LineString)place.place).Length * MapSupport.resolution10;
+                    //This gives us the length of the line in 10-cell lengths, which may be slightly different from the number of 10cells draws on the map as belonging to this line.
+                }
+                var containedArea10CellCount = Math.Round(containedAreaSize / square10cellArea);
+                areaSizes.Add(place.name, containedArea10CellCount);
+            }
+            return JsonConvert.SerializeObject(areaSizes);
+        }
     }
 }
