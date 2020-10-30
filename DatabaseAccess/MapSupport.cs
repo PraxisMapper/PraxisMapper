@@ -717,7 +717,8 @@ namespace DatabaseAccess
 
         public static string GetPointsForArea(Polygon areaPoly, List<MapData> places)
         {
-            Dictionary<string, double> areaSizes = new Dictionary<string, double>();
+            //Dictionary<string, double> areaSizes = new Dictionary<string, double>();
+            List<Tuple<string, double, long>> areaSizes = new List<Tuple<string, double, long>>();
             foreach (var place in places)
             {
                 var containedArea = place.place.Intersection(areaPoly);
@@ -734,7 +735,8 @@ namespace DatabaseAccess
                     //This gives us the length of the line in 10-cell lengths, which may be slightly different from the number of 10cells draws on the map as belonging to this line.
                 }
                 var containedArea10CellCount = Math.Round(containedAreaSize / square10cellArea);
-                areaSizes.Add(place.name, containedArea10CellCount);
+                //areaSizes.Add(place.name, containedArea10CellCount);
+                areaSizes.Add(new Tuple<string, double, long>(place.name, containedArea10CellCount, place.MapDataId));
             }
             return JsonConvert.SerializeObject(areaSizes);
         }

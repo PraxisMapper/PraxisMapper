@@ -1,27 +1,28 @@
 ﻿Philosophy behind the engine
 To explain some decisions on features and their inclusion/exclusion
 
-1) MapTiles are not interesting game features.
+1) MapTiles are not interesting game features. (Revise this to be more specific, now that the server can generate maptiles)
 MapTiles make a game look nice, but having vector details small enough to see accurate building shapes is not useful for gameplay.
 Phones typically have GPS accurate to about 4 meters (12 feet). That means that area-wise, this is the smallest useful target.
 An 11-digit PlusCode has an area of ~3x3.5 meters at the equator and shrinks vertically as you get farther away. 
 A 10-digit PlusCode has an area of ~14x14 meters (same limitations as above). 
 For tracking lots of individual points (EX: pieces in an art gallery), an 11-digit PlusCode would be more useful than 10 but the user's position might drift significantly.
 For tracking areas of interest (EX: are you in a park/cemetery/etc) a 10-digit PlusCode is sufficiently accurate, given the typical acccuracy of a phone's GPS.
-There are a variety of other applications for making maptiles from OSM data. Use one of those to generate graphics, and use this to track interesting things around a player's location.0
+There are a variety of other applications for making maptiles from OSM data. Use one of those to generate graphics, and use this to track interesting things around a player's location.
 
 2) Focus on Interesting areas for the map
 Interesting, for our use here, is an algorithm to dig through tags to find places that a player could want to go to.
 Interesting means that a place must be
 A-Publicly accessible. At a minimum, this is the consideration.
 B-Walkable. Driving is not the habit we want to encourage.
-C-
+C-Spread out. We want the player to move and explore, and to go to new places (or at least a solid variety of nearby familiar places).
 
 2)The User is the Client. The person using the app is the person to think about when designing how this server and its game behave. This means:
 No user tracking. A game is an activity for fun, not another opportunity to gather data and metrics on a user to treat them as the product for advertisers. The server, and my games built on it, will not track your location history on a server.
 No corporate deals. This game and server are not intended to be a way to provide hidden advertising or change behaviors to increase consumership. Games should build good habits for the player, not sponsors.
-(Retail shops may be interesting places, but d)
+(Retail shops may be interesting places, but we do not want to make actual retail transactions a requirement, nor do we want to bias behavior towards a corporate sponsor by having a corporate sponsor.)
 Respect the user's time and attention. Minimize the amount of time a player spends not playing the game.
+
 
 3)The server and app should be efficient. Part of making a game that runs on a global scale is handling the data with the fewest resources possible. 
 Pick fast prerequisites. When the server depends on another piece of software, pick the ones that are known to perform well, particularly at scale. Performance test options if they're equally viable and make the results public.

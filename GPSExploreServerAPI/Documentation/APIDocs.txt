@@ -1,0 +1,7 @@
+﻿Controllers:
+
+GPSExplore: Basic leaderboard endpoints.  Will probably require a lot of customization per game.
+
+MapData: The core of the server. Spatial data and processing to be usable in a location based game. Imported data from OpenStreetMaps, can be updated from them via other utilities included in the solution.
+
+PlayerContent: Stuff the players add or move through gameplay. Not intended to be stuff that would change automatically. Also requires a lot of customization per game.

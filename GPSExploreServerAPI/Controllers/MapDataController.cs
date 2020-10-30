@@ -228,6 +228,34 @@ namespace GPSExploreServerAPI.Controllers
         }
 
         [HttpGet]
+        [Route("/[controller]/10cellBitmap11/{plusCode10}")]
+        public FileContentResult Get10CellBitmap11(string plusCode10)
+        {
+            PerformanceTracker pt = new PerformanceTracker("10CellBitmap11");
+            //Load terrain data for an 8cell, turn it into a bitmap
+            //Will load these bitmaps on the 8cell grid in the game, so you can see what's around you in a bigger area.
+
+            var db = new GpsExploreContext();
+            var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode10 && mt.resolutionScale == 11).FirstOrDefault();
+            if (existingResults == null || existingResults.MapTileId == null)
+            {
+                //Create this entry
+                //requires a list of colors to use, which might vary per app
+                //GeoArea TenCell = OpenLocationCode.Decode(plusCode10.Substring(0, 8) + "+" +  plusCode10.Substring(9, 2));
+                GeoArea TenCell = OpenLocationCode.DecodeValid(plusCode10);
+                var places = MapSupport.GetPlaces(TenCell);
+                var results = MapSupport.GetAreaMapTile11(ref places, TenCell);
+                db.MapTiles.Add(new MapTile() { PlusCode = plusCode10, regenerate = false, resolutionScale = 11, tileData = results });
+                db.SaveChanges();
+                pt.Stop(plusCode10);
+                return File(results, "image/png");
+            }
+
+            pt.Stop(plusCode10);
+            return File(existingResults.tileData, "image/png");
+        }
+
+        [HttpGet]
         [Route("/[controller]/6cellBitmap/{plusCode6}")]
         public FileContentResult Get6CellBitmap(string plusCode6)
         {

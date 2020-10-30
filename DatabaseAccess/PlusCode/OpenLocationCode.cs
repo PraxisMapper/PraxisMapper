@@ -498,7 +498,7 @@ namespace Google.OpenLocationCode
             long latVal = (long)(Math.Round((latitude + LatitudeMax) * LatIntegerMultiplier * 1e6) / 1e6);
             long lngVal = (long)(Math.Round((longitude + LongitudeMax) * LngIntegerMultiplier * 1e6) / 1e6);
 
-            if (codeLength > PairCodeLength) //only for length 11 and up
+            if (codeLength > PairCodeLength) //only for length 11
             {
                 for (int i = 0; i < GridCodeLength; i++)
                 {

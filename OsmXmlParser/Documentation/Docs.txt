@@ -1,0 +1,3 @@
+﻿OsmXmlParser
+
+The console app thats the start of setting up your location based game server.
