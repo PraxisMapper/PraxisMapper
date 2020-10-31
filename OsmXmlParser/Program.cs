@@ -545,7 +545,12 @@ namespace OsmXmlParser
             foreach (var m in membersToRead)
             {
                 var maybeWay = ways.Where(way => way.id == m).FirstOrDefault();
-                if (maybeWay != null && maybeWay.nds.Count() > 3) //2-3 is a line, 1 is a point.
+                //if (maybeWay.nds.Count() == 3) //possibly a line, but we don't want to remove it from shapeList
+                //{
+                    //int a = 1;
+                //}
+
+                if (maybeWay != null && maybeWay.nds.Count() >= 2) //2-3 is a line, 1 is a point. I have relations with 2- and 3-point lines. THey're just not complete shapes.
                     shapeList.Add(maybeWay);
                 else
                 {
@@ -1330,7 +1335,7 @@ namespace OsmXmlParser
             ways.Capacity = 100000;
             processedEntries.Capacity = 100000;
 
-            long oneId = 7820314;
+            long oneId = 6113131;
 
             FileStream fs = new FileStream(filename, FileMode.Open);
             var source = new PBFOsmStreamSource(fs);
