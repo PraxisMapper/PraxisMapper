@@ -764,5 +764,13 @@ namespace DatabaseAccess
             }
             return JsonConvert.SerializeObject(areaSizes);
         }
+
+        public static Tuple<double, double, double> ShiftPlusCodeToFlexParams(string plusCode)
+        {
+            //This helper method is necessary if I want to minimize code duplication.
+            //Take a plus code, convert it to the parameters i need for my Flex calls (center lat, center lon, size)
+            GeoArea box = OpenLocationCode.DecodeValid(plusCode);
+            return new Tuple<double, double, double>(box.CenterLatitude, box.CenterLongitude, box.LatitudeHeight); //Plus codes aren't square, so this over-shoots the width.
+        }
     }
 }

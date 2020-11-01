@@ -545,12 +545,7 @@ namespace OsmXmlParser
             foreach (var m in membersToRead)
             {
                 var maybeWay = ways.Where(way => way.id == m).FirstOrDefault();
-                //if (maybeWay.nds.Count() == 3) //possibly a line, but we don't want to remove it from shapeList
-                //{
-                    //int a = 1;
-                //}
-
-                if (maybeWay != null && maybeWay.nds.Count() >= 2) //2-3 is a line, 1 is a point. I have relations with 2- and 3-point lines. THey're just not complete shapes.
+                if (maybeWay != null && maybeWay.nds.Count() >= 2) //2+ is a line, 1 is a point. I have relations with 2- and 3-point lines. THey're just not complete shapes.
                     shapeList.Add(maybeWay);
                 else
                 {
