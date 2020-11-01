@@ -299,7 +299,7 @@ namespace DatabaseAccess
         {
             //Debugging helper call. Loads up some information on an area and display it.
             var db = new GpsExploreContext();
-            var entries = db.MapData.Where(m => m.WayId == id || m.RelationId == id || m.NodeId == id).ToList();
+            var entries = db.MapData.Where(m => m.WayId == id || m.RelationId == id || m.NodeId == id || m.MapDataId == id).ToList();
             string results = "";
             foreach (var entry in entries)
             {

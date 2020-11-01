@@ -12,6 +12,7 @@ namespace GPSExploreServerAPI.Classes
 {
     public class PerformanceTracker
     {
+        //A simple, short class for tracking how long each function call takes. Useful for getting an idea of function runtimes. Toggleable via EnableLogging. 
         public static bool EnableLogging = true;
 
         PerformanceInfo pi = new PerformanceInfo();

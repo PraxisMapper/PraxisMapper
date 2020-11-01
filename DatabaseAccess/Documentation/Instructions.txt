@@ -21,12 +21,13 @@ How to run this:
 
 2) Download the latest .osm.pbf files to use from Geofabrik.de (or another OSM mirror) and unzip them to the appropriate folder.
 --Global data takes a long time to process, use the smallest data file/set reasonable for development and testing.
+--State-level is usually reasonable. Some specific areas have issues processing because of the amount of detail on some things. (Norway and Quebec have a ton of water entries in tiny details, for example)
 
 3) Assuming this is a first setup, Run OsmXmlParser with these arguments in order (separately is ideal, but could do all at once with enough RAM):
 -createDB (Creates DB according to the connection string.)
 -trimPbfFiles(reads all .osm.pbf files in a folder, saves as JSON data to another folder. May take several runs to complete depending on RAM and file size being processed. Might get replaced or removed in the future since this no longer creates smaller files.)
 -readMapData (Reads the JSON files for MapData, saves to DB)
--removeDupes (Eliminiate duplicate entries. Seems to happen because a Way appears in its entirely across file boundaries (EX: the Great Lakes border the US and Canada, and might be on both files since they are a boundary)
+-(optionally, on loading multiple files) removeDupes (Eliminiate duplicate entries. Seems to happen because a Way appears in its entirely across file boundaries (EX: the Great Lakes border the US and Canada, and might be on both files since they are a boundary)
 
 for changes that affect everything (EX: I changed tag types to process, i want new ways/updates from OSM), run OsmXmlParser with -resetPbf and -resetJson, then follow step 3 again
 For changes that only affect processedWays/SPOIs (EX: testing a better approximation algorithm for ProcessedWays, changing schema on SPOI db table), i can read in existing JSON files instead of OSM XML 

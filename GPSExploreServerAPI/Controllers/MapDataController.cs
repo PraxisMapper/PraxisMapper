@@ -4,15 +4,8 @@ using GPSExploreServerAPI.Classes;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
-using NetTopologySuite.Geometries;
-using Newtonsoft.Json;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Drawing.Processing;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text;
 using static DatabaseAccess.DbTables;
@@ -319,11 +312,11 @@ namespace GPSExploreServerAPI.Controllers
 
         [HttpGet]
         [Route("/[controller]/flexBitmap/{lat}/{lon}/{size}/{resolution}")]
-        [Route("/[controller]/DrawFlexBitmap/{lat}/{lon}/{size}/{resolution}")]
-        public FileContentResult DrawFlexBitmap(double lat, double lon, double size, int resolution)
+        [Route("/[controller]/DrawFlex/{lat}/{lon}/{size}/{resolution}")]
+        public FileContentResult DrawFlex(double lat, double lon, double size, int resolution)
         {
             //Flex endpoint doesnt save data to DB or cache stuff yet.
-            PerformanceTracker pt = new PerformanceTracker("DrawFlexBitmap");
+            PerformanceTracker pt = new PerformanceTracker("DrawFlex");
             GeoArea box = new GeoArea(new GeoPoint(lat - (size / 2), lon - (size / 2)), new GeoPoint(lat + (size / 2), lon + (size / 2)));
             var allPlaces = MapSupport.GetPlaces(box);
             byte[] results;
@@ -451,9 +444,7 @@ namespace GPSExploreServerAPI.Controllers
         [Route("/[controller]/CalculateAreaPoints/{plusCode8}")]
         public string CalculateAreaPoints(string plusCode8)
         {
-            //We are looking to see how to score an area by size in a given area.
-            //I think we're looking at 8-codes
-            //string PlusCode = "86FRXXWP";
+            //If you want to own the part of a MapData entry within a cell8, this calculates how many squares it takes up (and therefore how many points it takes to claim it)
             PerformanceTracker pt = new PerformanceTracker("CalculateAreaPoints");
             GeoArea box = OpenLocationCode.DecodeValid(plusCode8);
             var places = MapSupport.GetPlaces(box);
@@ -470,9 +461,7 @@ namespace GPSExploreServerAPI.Controllers
         [Route("/[controller]/CalculateFullAreaPoints/{plusCode8}")]
         public string CalculateFullAreaPoints(string plusCode8)
         {
-            //We are looking to see how to score an area by size in a given area.
-            //I think we're looking at 8-codes
-            //string PlusCode = "86FRXXWP";
+            //If you want to claim an entire MapData entry, no matter the size, this calculates how many squares it takes up (and therefore how many points it takes to claim it)
             PerformanceTracker pt = new PerformanceTracker("CalculateFullAreaPoints");
             GeoArea box = OpenLocationCode.DecodeValid(plusCode8);
             var places = MapSupport.GetPlaces(box);

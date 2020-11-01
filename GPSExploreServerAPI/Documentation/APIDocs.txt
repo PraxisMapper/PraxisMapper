@@ -2,6 +2,36 @@
 
 GPSExplore: Basic leaderboard endpoints.  Will probably require a lot of customization per game.
 
+Keywords:
+Flex: takes lat, lon, and size parameters. Allows you to work with areas outside of the plus code grid segments.
+Cell#: takes a plus code of the # length. Ignores padding characters. (EX: the OLC spec may say to use 86CFJJ00+00, this app only wants to see 86CFJJ)
+Highres: returns data using Cell11 sizes instead of Cell10. 20x more data returned doing this.
+Learn: pull in interesting areas from the DB for a client app to use.
+Calculate: count the number of Cell10 spaces an area takes up.
+Draw: create a PNG of a given area.
+Test: A debug function for setting up your game. Not something the game should use itself. Shouldn't be enabled in a production setup.
+
 MapData: The core of the server. Spatial data and processing to be usable in a location based game. Imported data from OpenStreetMaps, can be updated from them via other utilities included in the solution.
+LearnX - Pull in the name and area type of each 10cell for a client app.
+--LearnAdminBoundaries: Get the administrative boundaries containing a point. Country, State, City, etc. Not all OSM partial files will contain all the data needed for the bounds referred to by it.
+--LearnCell6: Search the current Cell6 for interesting areas in the DB, return a list of plus codes, the name and type of the interesting area per Cell10 in the Cell6.
+--LearnSurroundingCell6: Search a Cell6 sized area centered on the given point for interesting areas in the DB, return a list of plus codes, the name and type of the interesting area per Cell10 in the area.
+--LearnSurroundingFlex: Search an area centered on the given point for interesting areas in the DB, return a list of plus codes, the name and type of the interesting area per Cell10 in the area.
+CalculateX - get the number of cells an area takes up
+--CalculateAreaPoints: how many points does each area have in the given Cell8?
+--CalculateFlexFullAreaPoints: how many points does each area in the given region(lat/lon/size) take up total?
+--CalculateFlexAreaPoints: how many points does each area have in the given region(lat/lon/size)?
+--CalculateFullAreaPoints: how many points does each area in the given Cell8 take up total?
+DrawX - get a PNG maptile of an area
+--DrawCell10Highres: Draws a 4x5 PNG of the Cell11 area type colors in a Cell10.
+--DrawCell8: draws a PNG of a Cell8. 1 pixel is 1 Cell10. 20x20 pixels.
+--DrawCell8Highres: draws a PNG of a Cell8. 1 pixel is 1 Cell11. 80x100 pixels.
+--DrawCell6: draws a PNG of a Cell6. 1 pixel is 1 Cell10. 400x400 pixels. Not fast enough to generate on the fly for a web game.
+--DrawCell6Highres: draws a PNG of a Cell6. 1 pixel is 1 Cell11. 1200x1600 pixels. Not fast enough to generate on the fly for a web game.
+--DrawFlex: Draws a PNG of the given area, at the  Cell11 resolution (unless 10 is passed in as the resolution parameter). Performance is the same as the DrawCell# calls, but centered on the point passed in.
+TestX - debugging functions. Should probably disable these in a production setup somehow.
+--TestServerUp: returns "OK". Confirms your web server is configured correctly and running separate from the database.
+--TestPoint: returns any interesting areas and their type in the Cell10 containing the given point.
+--TestMapDataEntry: Returns any MapData entries in the DB with the given NodeID, WayID, RelationID, or MapDataID, and some stats on them. Helpful to see if an entry is present and procesed correctly.
 
 PlayerContent: Stuff the players add or move through gameplay. Not intended to be stuff that would change automatically. Also requires a lot of customization per game.

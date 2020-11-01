@@ -27,7 +27,7 @@ namespace DatabaseAccess
         //public DbSet<PremadeResults> PremadeResults { get; set; }
 
         //Test table for loading osm data directly in to the DB with less processing.
-        //Takes up a lot more storage space this way, not as useful for app purposes. Removing for now.
+        //Takes up a lot more storage space this way, not as useful for app purposes. Removing
         //public DbSet<MinimumNode> MinimumNodes { get; set; }
         //public DbSet<MinimumWay> MinimumWays { get; set; }
         //public DbSet<MinimumRelation> minimumRelations { get; set; }
