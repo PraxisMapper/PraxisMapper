@@ -2,19 +2,14 @@
 using DatabaseAccess.Support;
 using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ValueGeneration.Internal;
 using NetTopologySuite;
 using NetTopologySuite.Geometries;
-using NetTopologySuite.Noding;
 using OsmSharp;
 using OsmSharp.Complete;
-using OsmSharp.Geo;
 using OsmSharp.Streams;
-using SQLitePCL;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.IsolatedStorage;
 using System.Linq;
 using System.Text.Json;
 using static DatabaseAccess.DbTables;
@@ -24,6 +19,7 @@ using static DatabaseAccess.MapSupport;
 //TODO: Add high-verbosity logging messages.
 //TODO: set option flag to enable writing MapData entries to DB or File. Especially since bulk inserts won't fly for MapData from files, apparently.
 //TODO: look into using Span<T> instead of lists? This might be worth looking at performance differences. (and/or Memory<T>, which might be a parent for Spans)
+//TODO: Ponder using https://download.bbbike.org/osm/ as a data source to get a custom extract of an area (for when users want a local-focused app, probably via a wizard GUI)
 
 namespace OsmXmlParser
 {
@@ -1148,6 +1144,7 @@ namespace OsmXmlParser
         public static void RemoveDuplicates()
         {
             //I might need to reconsider how i handle duplicates, since different files will have different pieces of some ways.
+            //Current plan: process relations bigger than the files I normally use separately from the larger files, store those in their own file.
             Log.WriteLog("Scanning for duplicate entries at " + DateTime.Now);
             var db = new GpsExploreContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
@@ -1298,10 +1295,15 @@ namespace OsmXmlParser
             //Should start with big things
             //Great lakes, major rivers, some huge national parks. Oceans are important for global data.
 
-            string outputFile = "manualAdditions.json";
+            string outputFile = "LargeAreas.json";
 
             var manualRelationId = new List<long>() {
-                4039900 //Lake Erie. Use first for testing on NA file.
+                4039900, //Lake Erie. Use first for testing on NA file.
+                //TODO: add other great lakes.
+                148838, //US Admin bounds
+                9331155, //48 Contiguous US states
+                //TODO: add oceans. these probably require the global .pbf
+                //TODO: Grand Canyon National Park (crosses multiple states)
             };
 
             var stream = new FileStream(filename, FileMode.Open);
@@ -1321,6 +1323,22 @@ namespace OsmXmlParser
             }
 
             File.AppendAllLines(outputFile, new List<String>() { "]" });
+        }
+
+        public static void ScanMapForDullAreas(GeoArea fullAreaToScan)
+        {
+            //TOOD: this function
+            //Identify which places on a map are boring.
+            //Current plan:
+            //If a Cell8 entry contains only uninteresting entries (roads, building, parking lots. Area ID > 12 is the current simple check) 
+            //then mark that area as 'dull', and use that list later to create zones
+
+            //split area into Cell8 entries
+
+            //save list of Cell8 entries that need something in them.
+            List<string> dullCell8s = new List<string>();
+            
+            
         }
 
         public static void SingleTest()
@@ -1397,7 +1415,7 @@ namespace OsmXmlParser
         }
 
         /* For reference: the tags Pokemon Go appears to be using. I don't need all of these. I have a few it doesn't, as well.
-         * POkemon Go is using these as map tiles, not just content. This is not a maptile app.
+         * POkemon Go is using these as map tiles, not just content. This is not primarily a maptile app.
     KIND_BASIN
     KIND_CANAL
     KIND_CEMETERY - Have
@@ -1461,7 +1479,7 @@ namespace OsmXmlParser
 
         /*
          * and for reference, the Google Maps Playable Locations valid types (Interaction points, not terrain types?)
-         * education
+         *  education
             entertainment
             finance
             food_and_drink

@@ -119,6 +119,17 @@ namespace DatabaseAccess
             public double? Lon { get; set; }
             public ICollection<MinimumWay> Ways { get; set; } //ICollection lets EF Core 5 generate join tables automatically this way.
         }
+
+        public class AreaControlPersonal //A table for tracking which players control which area.
+        {
+            public long AreaControlPersonalId { get; set; }
+            public int PlayerDataId { get; set; }
+            public long MapDataId { get; set; }
+            public long points { get; set; } //a quick reference of how many cells this area takes to own. Saving here to reduce calculations if/when I set up a scoreboard of areas owned.
+        }
+       
+
+
     }
 }
 
