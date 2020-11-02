@@ -57,6 +57,12 @@ namespace OsmXmlParser
                 DbSettings.processParking = true;
             }
 
+            if (args.Any(a => a == "-highAccuracy") || ParserSettings.ForceHighAccuracy)
+            {
+                MapSupport.factory = NtsGeometryServices.Instance.CreateGeometryFactory(4326); //Doesn't round coords.
+                MapSupport.SimplifyAreas = false;
+            }
+
             //If multiple args are supplied, run them in the order that make sense, not the order the args are supplied.
 
             if (args.Any(a => a == "-createDB")) //setup the destination database

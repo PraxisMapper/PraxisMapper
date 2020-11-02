@@ -48,6 +48,7 @@ namespace DatabaseAccess
         public static List<string> relevantRoadValues = new List<string>() { "motorway", "trunk", "primary", "secondary", "tertiary", "unclassified", "residential", "motorway_link", "trunk_link", "primary_link", "secondary_link", "tertiary_link", "service", "road" }; //The stuff we care about in the highway category for roads. A lot more options for this.
 
         public static GeometryFactory factory = NtsGeometryServices.Instance.CreateGeometryFactory(new PrecisionModel(1000000), 4326); //SRID matches Plus code values.  Precision model means round all points to 7 decimal places to not exceed float's useful range.
+        public static bool SimplifyAreas = true;
 
         public static List<AreaType> areaTypes = new List<AreaType>() {
             //Areas here are for the original explore concept
@@ -178,7 +179,7 @@ namespace DatabaseAccess
         public static string FindPlacesIn10Cell(double x, double y, ref List<MapData> places, bool entireCode = false)
         {
             var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolution10, x + resolution10));
-            var entriesHere = MapSupport.GetPlaces(box, places).Where(p => p.AreaTypeId !=13).ToList(); //Excluding admin boundaries from this list.  
+            var entriesHere = MapSupport.GetPlaces(box, places).Where(p => p.AreaTypeId != 13).ToList(); //Excluding admin boundaries from this list.  
 
             if (entriesHere.Count() == 0)
                 return "";
@@ -375,7 +376,7 @@ namespace DatabaseAccess
                 place = factory.CreatePoint(new Coordinate(n.lon, n.lat)),
                 NodeId = n.Id,
                 AreaTypeId = MapSupport.areaTypeReference[n.type.StartsWith("admin") ? "admin" : n.type].First()
-        };
+            };
         }
 
         public static string GetElementName(TagsCollectionBase tagsO)
@@ -510,7 +511,7 @@ namespace DatabaseAccess
             if (DbSettings.processParking && tags["amenity"].Any(v => v == "parking"))
                 return "parking";
 
-            
+
 
 
             //Possibly of interest:
@@ -577,19 +578,38 @@ namespace DatabaseAccess
 
         public static Geometry SimplifyArea(Geometry place)
         {
+            if (!SimplifyAreas)
+            {
+                //We still do a CCWCheck here, because it's always expected to be done here as part of the process.
+                //But we don't alter the geometry past that.
+                if (place is Polygon)
+                    place = CCWCheck((Polygon)place);
+                else if (place is MultiPolygon)
+                {
+                    MultiPolygon mp = (MultiPolygon)place;
+                    for (int i = 0; i < mp.Geometries.Count(); i++)
+                    {
+                        mp.Geometries[i] = CCWCheck((Polygon)mp.Geometries[i]);
+                    }
+                    if (mp.Geometries.Count(g => g == null) != 0)
+                        return null;
+                    else
+                        place = mp;
+                }
+                return place; //will be null if it fails the CCWCheck
+            }
+
             //Note: SimplifyArea CAN reverse a polygon's orientation, especially in a multi-polygon, so don't do CheckCCW until after
             var simplerPlace = NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(place, resolution10); //This cuts storage space for files by 30-50%  (40MB Ohio-water vs 26MB simplified)
             if (simplerPlace is Polygon)
             {
                 simplerPlace = CCWCheck((Polygon)simplerPlace);
-                if (simplerPlace == null)
-                    return null; //isn't correct in either orientation.
-                return simplerPlace;
+                return simplerPlace; //will be null if this object isn't correct in either orientation.
             }
             else if (simplerPlace is MultiPolygon)
             {
                 MultiPolygon mp = (MultiPolygon)simplerPlace;
-                for(int i = 0; i < mp.Geometries.Count(); i++)
+                for (int i = 0; i < mp.Geometries.Count(); i++)
                 {
                     mp.Geometries[i] = CCWCheck((Polygon)mp.Geometries[i]);
                 }
@@ -676,9 +696,9 @@ namespace DatabaseAccess
                 image.SaveAsPng(ms); //~25-40ms
             } //image disposed here.
 
-           return ms.ToArray();
+            return ms.ToArray();
         }
-        
+
         // as above but each pixel is an 11 cell instead of a 10 cell. more detail but slower.
         public static byte[] GetAreaMapTile11(ref List<MapData> allPlaces, GeoArea totalArea)
         {
