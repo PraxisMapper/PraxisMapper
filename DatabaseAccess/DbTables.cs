@@ -98,29 +98,29 @@ namespace DatabaseAccess
             public string Data { get; set; } 
         }
 
-        public class MinimumRelation
-        {
-            public long MinimumRelationId{ get; set; }
-            public long RelationId { get; set; }
-        }
+        //public class MinimumRelation
+        //{
+        //    public long MinimumRelationId{ get; set; }
+        //    public long RelationId { get; set; }
+        //}
 
-        public class MinimumWay
-        {
-            public long? MinimumWayId { get; set; }
-            public long WayId { get; set; }
-            public ICollection<MinimumNode> Nodes { get; set; } //ICollection lets EF Core 5 generate join tables automatically this way.
-        }
+        //public class MinimumWay
+        //{
+        //    public long? MinimumWayId { get; set; }
+        //    public long WayId { get; set; }
+        //    public ICollection<MinimumNode> Nodes { get; set; } //ICollection lets EF Core 5 generate join tables automatically this way.
+        //}
 
-        public class MinimumNode
-        {
-            public long? MinimumNodeId { get; set; }
-            public long NodeId { get; set; }
-            public double? Lat { get; set; }
-            public double? Lon { get; set; }
-            public ICollection<MinimumWay> Ways { get; set; } //ICollection lets EF Core 5 generate join tables automatically this way.
-        }
+        //public class MinimumNode
+        //{
+        //    public long? MinimumNodeId { get; set; }
+        //    public long NodeId { get; set; }
+        //    public double? Lat { get; set; }
+        //    public double? Lon { get; set; }
+        //    public ICollection<MinimumWay> Ways { get; set; } //ICollection lets EF Core 5 generate join tables automatically this way.
+        //}
 
-        public class AreaControlPersonal //A table for tracking which players control which area.
+        public class AreaControlPersonal //A table for tracking which players control which area. Might be used locally in the app if there's not a multiplayer component to it.
         {
             public long AreaControlPersonalId { get; set; }
             public int PlayerDataId { get; set; }
@@ -128,8 +128,6 @@ namespace DatabaseAccess
             public long points { get; set; } //a quick reference of how many cells this area takes to own. Saving here to reduce calculations if/when I set up a scoreboard of areas owned.
         }
        
-
-
     }
 }
 

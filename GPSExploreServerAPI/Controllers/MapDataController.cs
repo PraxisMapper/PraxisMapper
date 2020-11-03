@@ -16,6 +16,10 @@ namespace GPSExploreServerAPI.Controllers
     [ApiController]
     public class MapDataController : Controller
     {
+        //MapDataController handles commands related to reading MapData entries in an area. 
+        //Drawing tiles, looking up interesting areas for gameplay, etc happen here.
+        //CalculateX commands are here because they read the MapData table, but the player doing something with them happens in GameplayController.
+
         private static MemoryCache cache;
 
         private readonly IConfiguration Configuration;

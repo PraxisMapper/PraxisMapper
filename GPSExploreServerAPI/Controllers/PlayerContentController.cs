@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 
 namespace GPSExploreServerAPI.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("[controller]")]
     [ApiController]
-    public class PlayerContentController : ControllerBase
+    public class PlayerContentController : Controller
     {
 
         //A future concept

@@ -202,8 +202,23 @@ namespace OsmXmlParser
                             db.SaveChanges();
                         }
                 }
-
             }
+
+            if (args.Any(a => a == "-extractBigAreas"))
+            {
+                //TODO: finish this function
+                //ExtractAreasFromLargeFile(ParserSettings.PbfFolder + "planet-latest.osm.pbf"); //Guarenteed to have everything. Estimates 103 minutes per relation.
+                ExtractAreasFromLargeFile(ParserSettings.PbfFolder + "north-america-latest.osm.pbf");
+            }
+
+            if (args.Any(a => a == "-findDullAreas"))
+            {
+                //TODO: finish this function
+                GeoArea scanArea = new GeoArea(1, 1, 2, 2);
+                ScanMapForDullAreas(scanArea);
+            }
+
+
 
             return;
         }
@@ -1294,33 +1309,88 @@ namespace OsmXmlParser
             //Starting with North America, will test later on global data
             //Should start with big things
             //Great lakes, major rivers, some huge national parks. Oceans are important for global data.
+            //Rough math suggests that this will take 103 minutes to skim planet-latest.osm.pbf per entry.
+            //and 20 minutes for North America's pbf file. Actually took 33 minutes trying for complete, 17 minutes per pass the 'standard' way.
 
-            string outputFile = "LargeAreas.json";
+            //Kinda bummed out the Complete() stuff didn't work here.
+
+            string outputFile = ParserSettings.JsonMapDataFolder + "LargeAreas.json";
 
             var manualRelationId = new List<long>() {
-                4039900, //Lake Erie. Use first for testing on NA file.
-                //TODO: add other great lakes.
+                //Great Lakes:
+                4039900, //Lake Erie
+                1205151, //Lake Huron
+                1206310, //lake ontario
+                1205149, //lake michigan
+                4039486, //lake superior
+                //Admin boundaries:
                 148838, //US Admin bounds
                 9331155, //48 Contiguous US states
-                //TODO: add oceans. these probably require the global .pbf
-                //TODO: Grand Canyon National Park (crosses multiple states)
+                1428125, //Canada
+                //TODO: add oceans. these might not actually exist as a single entry in OSM
+                //TODO: multi-state or multi-nation rivers.
+                2182501, //Ohio River
+                1756854, //Mississippi river
             };
 
+            //Might want to pass an option for MemoryStream on this, since I can store the 7GB continent file in RAM but not the 54GB Planet file.
             var stream = new FileStream(filename, FileMode.Open);
             var source = new PBFOsmStreamSource(stream);
+            File.Delete(outputFile); //Clear out any existing entries.
 
             File.AppendAllLines(outputFile, new List<String>() { "[" });
 
-            foreach (var relation in manualRelationId)
-            {
-                var r = source.Where(s => s.Id == relation);
-                var completeR = (OsmSharp.Complete.CompleteRelation)r.ToComplete().FirstOrDefault();
+            //foreach (var relationID in manualRelationId) //don't foreach this, it will take multiple hours to process the list. These relations are big, but i can handle them in RAM.
+            //{
+            var rs = source.Where(s => s.Type == OsmGeoType.Relation && manualRelationId.Contains(s.Id.Value)).Select(s => (OsmSharp.Relation)s).ToList();
+                //var completeR = (OsmSharp.Complete.CompleteRelation)r.ToComplete().FirstOrDefault();
+                List<WayData> ways = new List<WayData>();
 
-                var mapDataEntry = Complete.ProcessCompleteRelation(completeR);
-                //convert to jsonmapdata type
+            //var relation = (OsmSharp.Relation)r;
+            var referencedWays = rs.SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToLookup(k => k, v => v);
+            var ways2 = source.Where(s => s.Type == OsmGeoType.Way && referencedWays[s.Id.Value].Count() > 0).Select(s => (OsmSharp.Way)s).ToList();
+                var referencedNodes = ways2.SelectMany(m => m.Nodes).Distinct().ToLookup(k => k, v => v);
+                var nodes2 = source.Where(s => s.Type == OsmGeoType.Node && referencedNodes[s.Id.Value].Count() > 0).Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), MapSupport.GetType(n.Tags))).ToList();
+                Log.WriteLog("Relevant data pulled from file at" + DateTime.Now);
+
+                var osmNodeLookup = nodes2.AsParallel().ToLookup(k => k.Id, v => v);
+                Log.WriteLog("Found " + osmNodeLookup.Count() + " unique nodes");
+
+                ways.Capacity = ways2.Count();
+                ways = ways2.AsParallel().Select(w => new WayData()
+                {
+                    id = w.Id.Value,
+                    name = GetElementName(w.Tags),
+                    AreaType = MapSupport.GetType(w.Tags),
+                    nodRefs = w.Nodes.ToList()
+                })
+                .ToList();
+                ways2 = null; //free up RAM we won't use again.
+                Log.WriteLog("List created at " + DateTime.Now);
+
+                int wayCounter = 0;
+                //foreach (WayData w in ways)
+                System.Threading.Tasks.Parallel.ForEach(ways, (w) =>
+                {
+                    wayCounter++;
+                    if (wayCounter % 10000 == 0)
+                        Log.WriteLog(wayCounter + " processed so far");
+
+                    LoadNodesIntoWay(ref w, ref osmNodeLookup);
+                });
+
+                Log.WriteLog("Ways populated with Nodes at " + DateTime.Now);
+                nodes2 = null; //done with these now, can free up RAM again.
+                var mapDataEntries = ProcessRelations(ref rs, ref ways);
+
+            //var mapDataEntry = Complete.ProcessCompleteRelation(completeR);
+            //convert to jsonmapdata type
+            foreach (var mapDataEntry in mapDataEntries)
+            {
                 MapDataForJson output = new MapDataForJson(mapDataEntry.name, mapDataEntry.place.AsText(), mapDataEntry.type, mapDataEntry.WayId, mapDataEntry.NodeId, mapDataEntry.RelationId, mapDataEntry.AreaTypeId);
                 File.AppendAllLines(outputFile, new List<String>() { JsonSerializer.Serialize(output, typeof(MapDataForJson)) + "," });
             }
+            //}
 
             File.AppendAllLines(outputFile, new List<String>() { "]" });
         }
