@@ -327,7 +327,7 @@ namespace OsmXmlParser
             fileInRam = null;
 
             var processedEntries = ProcessData(osmNodes, ref osmWays, ref osmRelations, referencedWays);
-            WriteMapDataToFile(ParserSettings.JsonMapDataFolder + destFilename + "-MapData" + ".json", ref processedEntries);
+            WriteMapDataToFile(ParserSettings.JsonMapDataFolder + destFilename + "-MapData" + (ParserSettings.ForceHighAccuracy ? "-highAcc" : "") + ".json", ref processedEntries);
             processedEntries = null;
 
             Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
@@ -369,7 +369,7 @@ namespace OsmXmlParser
                 Log.WriteLog("Relevant data pulled from file at " + DateTime.Now);
 
                 var processedEntries = ProcessData(osmNodes, ref osmWays, ref osmRelations, referencedWays);
-                WriteMapDataToFile(ParserSettings.JsonMapDataFolder + destFilename + "-MapData-" + areatypename + ".json", ref processedEntries);
+                WriteMapDataToFile(ParserSettings.JsonMapDataFolder + destFilename + "-MapData-" + areatypename + (ParserSettings.ForceHighAccuracy ? "-highAcc" : "") + ".json", ref processedEntries);
                 processedEntries = null;
             }
 
@@ -1303,34 +1303,30 @@ namespace OsmXmlParser
 
         public static void ExtractAreasFromLargeFile(string filename)
         {
-            //TODO and TEST THIS
             //This should refer to a list of relations that cross multiple extract files, to get a more accurate set of data in game.
-            //I will want to get the Complete object from the data stream this time, and then cast that to MapData and save these to a separate file.
             //Starting with North America, will test later on global data
             //Should start with big things
             //Great lakes, major rivers, some huge national parks. Oceans are important for global data.
-            //Rough math suggests that this will take 103 minutes to skim planet-latest.osm.pbf per entry.
-            //and 20 minutes for North America's pbf file. Actually took 33 minutes trying for complete, 17 minutes per pass the 'standard' way.
+            //Rough math suggests that this will take 103 minutes to skim planet-latest.osm.pbf per pass.
+            //Takes ~17 minutes per pass the 'standard' way on north-america-latest.
 
-            //Kinda bummed out the Complete() stuff didn't work here.
-
-            string outputFile = ParserSettings.JsonMapDataFolder + "LargeAreas.json";
+            string outputFile = ParserSettings.JsonMapDataFolder + "LargeAreas" + (ParserSettings.ForceHighAccuracy ? "-highAcc" : "") + ".json";
 
             var manualRelationId = new List<long>() {
                 //Great Lakes:
                 4039900, //Lake Erie
                 1205151, //Lake Huron
                 1206310, //lake ontario
-                1205149, //lake michigan
+                1205149, //lake michigan --not valid geometry?
                 4039486, //lake superior
                 //Admin boundaries:
                 148838, //US Admin bounds
                 9331155, //48 Contiguous US states
                 1428125, //Canada
-                //TODO: add oceans. these might not actually exist as a single entry in OSM
+                //TODO: add oceans. these might not actually exist as a single entry in OSM. Will have to check why
                 //TODO: multi-state or multi-nation rivers.
                 2182501, //Ohio River
-                1756854, //Mississippi river
+                1756854, //Mississippi river --failed to get a polygon?
             };
 
             //Might want to pass an option for MemoryStream on this, since I can store the 7GB continent file in RAM but not the 54GB Planet file.
@@ -1339,59 +1335,53 @@ namespace OsmXmlParser
             File.Delete(outputFile); //Clear out any existing entries.
 
             File.AppendAllLines(outputFile, new List<String>() { "[" });
-
-            //foreach (var relationID in manualRelationId) //don't foreach this, it will take multiple hours to process the list. These relations are big, but i can handle them in RAM.
-            //{
             var rs = source.Where(s => s.Type == OsmGeoType.Relation && manualRelationId.Contains(s.Id.Value)).Select(s => (OsmSharp.Relation)s).ToList();
-                //var completeR = (OsmSharp.Complete.CompleteRelation)r.ToComplete().FirstOrDefault();
-                List<WayData> ways = new List<WayData>();
-
-            //var relation = (OsmSharp.Relation)r;
+            Log.WriteLog("Relation data pass completed at " + DateTime.Now);
+            List<WayData> ways = new List<WayData>();
             var referencedWays = rs.SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToLookup(k => k, v => v);
             var ways2 = source.Where(s => s.Type == OsmGeoType.Way && referencedWays[s.Id.Value].Count() > 0).Select(s => (OsmSharp.Way)s).ToList();
-                var referencedNodes = ways2.SelectMany(m => m.Nodes).Distinct().ToLookup(k => k, v => v);
-                var nodes2 = source.Where(s => s.Type == OsmGeoType.Node && referencedNodes[s.Id.Value].Count() > 0).Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), MapSupport.GetType(n.Tags))).ToList();
-                Log.WriteLog("Relevant data pulled from file at" + DateTime.Now);
+            var referencedNodes = ways2.SelectMany(m => m.Nodes).Distinct().ToLookup(k => k, v => v);
+            var nodes2 = source.Where(s => s.Type == OsmGeoType.Node && referencedNodes[s.Id.Value].Count() > 0).Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), MapSupport.GetType(n.Tags))).ToList();
+            Log.WriteLog("Relevant data pulled from file at" + DateTime.Now);
 
-                var osmNodeLookup = nodes2.AsParallel().ToLookup(k => k.Id, v => v);
-                Log.WriteLog("Found " + osmNodeLookup.Count() + " unique nodes");
+            var osmNodeLookup = nodes2.AsParallel().ToLookup(k => k.Id, v => v);
+            Log.WriteLog("Found " + osmNodeLookup.Count() + " unique nodes");
 
-                ways.Capacity = ways2.Count();
-                ways = ways2.AsParallel().Select(w => new WayData()
-                {
-                    id = w.Id.Value,
-                    name = GetElementName(w.Tags),
-                    AreaType = MapSupport.GetType(w.Tags),
-                    nodRefs = w.Nodes.ToList()
-                })
-                .ToList();
-                ways2 = null; //free up RAM we won't use again.
-                Log.WriteLog("List created at " + DateTime.Now);
+            ways.Capacity = ways2.Count();
+            ways = ways2.AsParallel().Select(w => new WayData()
+            {
+                id = w.Id.Value,
+                name = GetElementName(w.Tags),
+                AreaType = MapSupport.GetType(w.Tags),
+                nodRefs = w.Nodes.ToList()
+            })
+            .ToList();
+            ways2 = null; //free up RAM we won't use again.
+            Log.WriteLog("List created at " + DateTime.Now);
 
-                int wayCounter = 0;
-                //foreach (WayData w in ways)
-                System.Threading.Tasks.Parallel.ForEach(ways, (w) =>
-                {
-                    wayCounter++;
-                    if (wayCounter % 10000 == 0)
-                        Log.WriteLog(wayCounter + " processed so far");
+            int wayCounter = 0;
+            System.Threading.Tasks.Parallel.ForEach(ways, (w) =>
+            {
+                wayCounter++;
+                if (wayCounter % 10000 == 0)
+                    Log.WriteLog(wayCounter + " processed so far");
 
-                    LoadNodesIntoWay(ref w, ref osmNodeLookup);
-                });
+                LoadNodesIntoWay(ref w, ref osmNodeLookup);
+            });
 
-                Log.WriteLog("Ways populated with Nodes at " + DateTime.Now);
-                nodes2 = null; //done with these now, can free up RAM again.
-                var mapDataEntries = ProcessRelations(ref rs, ref ways);
+            Log.WriteLog("Ways populated with Nodes at " + DateTime.Now);
+            nodes2 = null; //done with these now, can free up RAM again.
+            var mapDataEntries = ProcessRelations(ref rs, ref ways);
 
-            //var mapDataEntry = Complete.ProcessCompleteRelation(completeR);
             //convert to jsonmapdata type
             foreach (var mapDataEntry in mapDataEntries)
             {
-                MapDataForJson output = new MapDataForJson(mapDataEntry.name, mapDataEntry.place.AsText(), mapDataEntry.type, mapDataEntry.WayId, mapDataEntry.NodeId, mapDataEntry.RelationId, mapDataEntry.AreaTypeId);
-                File.AppendAllLines(outputFile, new List<String>() { JsonSerializer.Serialize(output, typeof(MapDataForJson)) + "," });
+                if (mapDataEntry != null)
+                {
+                    MapDataForJson output = new MapDataForJson(mapDataEntry.name, mapDataEntry.place.AsText(), mapDataEntry.type, mapDataEntry.WayId, mapDataEntry.NodeId, mapDataEntry.RelationId, mapDataEntry.AreaTypeId);
+                    File.AppendAllLines(outputFile, new List<String>() { JsonSerializer.Serialize(output, typeof(MapDataForJson)) + "," });
+                }
             }
-            //}
-
             File.AppendAllLines(outputFile, new List<String>() { "]" });
         }
 
@@ -1407,8 +1397,8 @@ namespace OsmXmlParser
 
             //save list of Cell8 entries that need something in them.
             List<string> dullCell8s = new List<string>();
-            
-            
+
+
         }
 
         public static void SingleTest()
