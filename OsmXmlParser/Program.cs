@@ -1327,6 +1327,9 @@ namespace OsmXmlParser
                 //TODO: multi-state or multi-nation rivers.
                 2182501, //Ohio River
                 1756854, //Mississippi river --failed to get a polygon?
+                //other places:
+                //yellowstone?
+                //grand canyon?
             };
 
             //Might want to pass an option for MemoryStream on this, since I can store the 7GB continent file in RAM but not the 54GB Planet file.

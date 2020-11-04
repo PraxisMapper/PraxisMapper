@@ -20,6 +20,7 @@ using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.Drawing.Processing;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace DatabaseAccess
 {
@@ -256,18 +257,21 @@ namespace DatabaseAccess
             //(In general, the smaller areas should be overlaid on larger areas. This is more accurate than guessing by area types which one should be applied)
 
             if (entriesHere.Count() == 1)
-                return entriesHere.First().name + "|" + entriesHere.First().AreaTypeId;
+            {
+                var first = entriesHere.First();
+                return first.name + "|" + first.AreaTypeId + "|" + first.MapDataId;
+            }
 
             var point = entriesHere.Where(e => e.place.GeometryType == "Point").FirstOrDefault();
             if (point != null)
-                return point.name + "|" + point.AreaTypeId;
+                return point.name + "|" + point.AreaTypeId + "|" + point.MapDataId;
 
             var line = entriesHere.Where(e => e.place.GeometryType == "LineString" || e.place.GeometryType == "MultiLineString").FirstOrDefault();
             if (line != null)
-                return line.name + "|" + line.AreaTypeId;
+                return line.name + "|" + line.AreaTypeId + "|" + line.MapDataId;
 
             var smallest = entriesHere.Where(e => e.place.GeometryType == "Polygon" || e.place.GeometryType == "MultiPolygon").OrderBy(e => e.place.Area).First();
-            return smallest.name + "|" + smallest.AreaTypeId;
+            return smallest.name + "|" + smallest.AreaTypeId + "|" + smallest.MapDataId;
         }
 
 
