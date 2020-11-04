@@ -61,7 +61,7 @@ namespace GPSExploreServerAPI.Controllers
             StringBuilder sb = new StringBuilder();
             sb.AppendLine(codeString6);
             //pluscode6 //first 6 digits of this pluscode. each line below is the last 4 that have an area type.
-            //pluscode4|name|type  //less data transmitted, an extra string concat per entry phone-side.
+            //pluscode4|name|type|MapDataID  //less data transmitted, an extra string concat per entry phone-side.
 
             //Notes: 
             //StringBuilder isn't thread-safe, so each thread needs its own, and their results combined later.
@@ -150,7 +150,7 @@ namespace GPSExploreServerAPI.Controllers
 
             StringBuilder sb = new StringBuilder();
             foreach (var entry in entriesHere)
-                sb.AppendLine(entry.name + "|" + entry.type);
+                sb.AppendLine(entry.name + "|" + entry.type + "|" + entry.MapDataId);
 
             pt.Stop();
             return sb.ToString();
@@ -375,6 +375,7 @@ namespace GPSExploreServerAPI.Controllers
         {
             //Do a DB query on where you're standing for interesting places.
             //might be more useful for some games that don't need a map.
+            //attach a debug point here and read the results.
 
             //Exact point for area? or 10cell space to find trails too?
             var places = MapSupport.GetPlaces(new OpenLocationCode(lat, lon).Decode());
