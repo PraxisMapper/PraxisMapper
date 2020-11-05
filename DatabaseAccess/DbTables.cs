@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace DatabaseAccess
+namespace CoreComponents
 {
 
     //TODO possible changes:
@@ -120,12 +120,18 @@ namespace DatabaseAccess
         //    public ICollection<MinimumWay> Ways { get; set; } //ICollection lets EF Core 5 generate join tables automatically this way.
         //}
 
-        public class AreaControlPersonal //A table for tracking which players control which area. Might be used locally in the app if there's not a multiplayer component to it.
+        public class AreaControlTeam //A table for tracking which player faction controls which area (we dont store data on player location on the servers)
         {
-            public long AreaControlPersonalId { get; set; }
-            public int PlayerDataId { get; set; }
+            public long AreaControlTeamId { get; set; }
+            public int factionId { get; set; }
             public long MapDataId { get; set; }
             public long points { get; set; } //a quick reference of how many cells this area takes to own. Saving here to reduce calculations if/when I set up a scoreboard of areas owned.
+        }
+
+        public class Faction
+        {
+            public long FactionId { get; set; }
+            public string Name { get; set; }
         }
        
     }

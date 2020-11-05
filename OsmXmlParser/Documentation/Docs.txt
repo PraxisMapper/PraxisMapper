@@ -1,3 +1,4 @@
-﻿OsmXmlParser
+﻿Larry
+Larry is the behind-the-scenes guy that gets all the work done for you.
 
 The console app thats the start of setting up your location based game server.

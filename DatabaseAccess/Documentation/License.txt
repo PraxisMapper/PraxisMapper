@@ -5,7 +5,7 @@ S2 library files (S2 folder) use the Apache 2.0 license, C# port copyright Oren 
 
 OpenStreetMap data is covered by the Open Data Commons Open Database License (https://www.openstreetmap.org/copyright)
 and © OpenStreetMap contributors 
-(Which means that the MapData entries from OsmXmlParser and DrawX/LearnX/CalculateX results from the MapDataController logic in GPSExploreServerAPI also uses that license, as a derivative work)
+(Which means that the MapData entries from Larry and DrawX/LearnX/CalculateX results from the MapDataController logic in PraxisMapper also uses that license, as a derivative work)
 
 All projects in this solution not mentioned above are released under the Apache 2.0 license
 Copyright 2020 Drake Williams

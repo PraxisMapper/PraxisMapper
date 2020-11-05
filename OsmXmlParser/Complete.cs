@@ -1,16 +1,14 @@
-﻿using DatabaseAccess;
-using DatabaseAccess.Support;
+﻿using CoreComponents;
+using CoreComponents.Support;
 using NetTopologySuite.Geometries;
 using OsmSharp.Complete;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static DatabaseAccess.DbTables;
-using static DatabaseAccess.MapSupport;
+using static CoreComponents.DbTables;
+using static CoreComponents.MapSupport;
 
-namespace OsmXmlParser
+namespace Larry
 {
     public static class Complete
     {
@@ -19,7 +17,7 @@ namespace OsmXmlParser
         public static MapData ProcessCompleteRelation(CompleteRelation r)
         {
             //This relation should contain all the ways it uses and their nodes, so I shouldn't need all my extra lookup stuff.
-            GpsExploreContext db = new GpsExploreContext();
+            PraxisContext db = new PraxisContext();
 
             string relationName = MapSupport.GetElementName(r.Tags);
             //Determine if we need to process this relation.

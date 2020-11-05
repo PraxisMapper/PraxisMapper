@@ -1,11 +1,11 @@
-﻿using DatabaseAccess;
+﻿using CoreComponents;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using static DatabaseAccess.DbTables;
+using static CoreComponents.DbTables;
 
 namespace PerformanceTestApp
 {
@@ -25,7 +25,7 @@ namespace PerformanceTestApp
         {
             sw.Stop();
             pi.runTime = sw.ElapsedMilliseconds;
-            GpsExploreContext db = new GpsExploreContext();
+            PraxisContext db = new PraxisContext();
             db.PerformanceInfo.Add(pi);
             db.SaveChanges();
             return;
@@ -35,7 +35,7 @@ namespace PerformanceTestApp
         {
             sw.Stop();
             pi.runTime = sw.ElapsedMilliseconds;
-            GpsExploreContext db = new GpsExploreContext();
+            PraxisContext db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             db.PerformanceInfo.Add(pi);
             db.SaveChanges();
@@ -45,7 +45,7 @@ namespace PerformanceTestApp
         public void StopSproc()
         {
             sw.Stop();
-            GpsExploreContext db = new GpsExploreContext();
+            PraxisContext db = new PraxisContext();
             db.Database.ExecuteSqlRaw("SavePerfInfo @p0, @p1, @p2, @p3", parameters: new object[] { pi.functionName, sw.ElapsedMilliseconds, pi.calledAt, "" });
             return;
         }

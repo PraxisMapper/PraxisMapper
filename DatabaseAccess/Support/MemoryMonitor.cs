@@ -6,7 +6,7 @@ using System.Runtime;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DatabaseAccess.Support
+namespace CoreComponents.Support
 {
     public class MemoryMonitor
     {

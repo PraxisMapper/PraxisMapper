@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DatabaseAccess
+namespace CoreComponents
 {
     public static class DbSettings
     {

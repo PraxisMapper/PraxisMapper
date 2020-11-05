@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace GPSExploreServerAPI.Controllers
+namespace PraxisMapper.Controllers
 {
     [Route("[controller]")]
     [ApiController]

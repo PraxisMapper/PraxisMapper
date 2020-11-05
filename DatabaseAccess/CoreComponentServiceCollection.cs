@@ -6,17 +6,17 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DatabaseAccess
+namespace CoreComponents
 {
     //For Dependency Injection?
-    public static class GpsAppServiceCollectionExtension
+    public static class CoreComponentServiceCollectionExtension
     {
 
-        public static IServiceCollection AddGpsAppServiceCollection(this IServiceCollection services)
+        public static IServiceCollection AddCoreComponentServiceCollection(this IServiceCollection services)
         {
             //create services? 
 
-            services.AddDbContext<GpsExploreContext>(ServiceLifetime.Scoped, ServiceLifetime.Scoped);
+            services.AddDbContext<PraxisContext>(ServiceLifetime.Scoped, ServiceLifetime.Scoped);
             //Add other services here.
 
             return services;

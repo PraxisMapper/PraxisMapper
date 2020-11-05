@@ -1,5 +1,5 @@
-﻿using DatabaseAccess;
-using DatabaseAccess.Support;
+﻿using CoreComponents;
+using CoreComponents.Support;
 using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
 using NetTopologySuite;
@@ -12,8 +12,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
-using static DatabaseAccess.DbTables;
-using static DatabaseAccess.MapSupport;
+using static CoreComponents.DbTables;
+using static CoreComponents.MapSupport;
 
 //TODO: since some of these .pbf files become larger as trimmed JSON instead of smaller, maybe I should try a path that writes directly to DB from PBF? might involve 
 //TODO: Add high-verbosity logging messages.
@@ -21,7 +21,7 @@ using static DatabaseAccess.MapSupport;
 //TODO: look into using Span<T> instead of lists? This might be worth looking at performance differences. (and/or Memory<T>, which might be a parent for Spans)
 //TODO: Ponder using https://download.bbbike.org/osm/ as a data source to get a custom extract of an area (for when users want a local-focused app, probably via a wizard GUI)
 
-namespace OsmXmlParser
+namespace Larry
 {
     class Program
     {
@@ -63,12 +63,12 @@ namespace OsmXmlParser
 
             if (args.Any(a => a == "-createDB")) //setup the destination database
             {
-                GpsExploreContext db = new GpsExploreContext();
+                PraxisContext db = new PraxisContext();
                 db.Database.EnsureCreated(); //all the automatic stuff EF does for us.
                 //Not automatic entries executed below:
-                db.Database.ExecuteSqlRaw(GpsExploreContext.MapDataValidTrigger);
-                db.Database.ExecuteSqlRaw(GpsExploreContext.MapDataIndex);
-                db.Database.ExecuteSqlRaw(GpsExploreContext.FindDBMapDataBounds);
+                db.Database.ExecuteSqlRaw(PraxisContext.MapDataValidTrigger);
+                db.Database.ExecuteSqlRaw(PraxisContext.MapDataIndex);
+                db.Database.ExecuteSqlRaw(PraxisContext.FindDBMapDataBounds);
                 MapSupport.InsertAreaTypes();
             }
 
@@ -160,7 +160,7 @@ namespace OsmXmlParser
                 //make tiles with pixels equal to the selected plus code resolution.
                 string resolution = args.Where(a => a.StartsWith("-gen6CellMapTiles:")).First().Replace("-gen6CellMapTiles:", "");
                 //I have to figure out how to find the min/max area covered by the server.
-                var db = new GpsExploreContext();
+                var db = new PraxisContext();
 
                 //still have to code this logic in somehow.
                 //Log.WriteLog("Finding minimum point from DB");
@@ -231,7 +231,7 @@ namespace OsmXmlParser
             {
                 Console.Title = file;
                 Log.WriteLog("Starting MapData read from  " + file + " at " + DateTime.Now);
-                GpsExploreContext db = new GpsExploreContext();
+                PraxisContext db = new PraxisContext();
                 db.ChangeTracker.AutoDetectChangesEnabled = false; //Allows single inserts to operate at a reasonable speed (~6000 per second). Nothing else edits this table.
                 List<MapData> entries = ReadMapDataToMemory(file);
                 Log.WriteLog("Processing " + entries.Count() + " ways from " + file, Log.VerbosityLevels.High);
@@ -256,7 +256,7 @@ namespace OsmXmlParser
         public static void CleanDb()
         {
             Log.WriteLog("Cleaning DB at " + DateTime.Now);
-            GpsExploreContext osm = new GpsExploreContext();
+            PraxisContext osm = new PraxisContext();
             osm.Database.SetCommandTimeout(900);
 
             //Dont remove these automatically, these only get filled on DB creation
@@ -529,7 +529,7 @@ namespace OsmXmlParser
         private static List<MapData> ProcessRelations(ref List<OsmSharp.Relation> osmRelations, ref List<WayData> ways)
         {
             List<MapData> results = new List<MapData>();
-            GpsExploreContext db = new GpsExploreContext();
+            PraxisContext db = new PraxisContext();
 
             foreach (var r in osmRelations)
                 results.Add(ProcessRelation(r, ref ways));
@@ -539,7 +539,7 @@ namespace OsmXmlParser
 
         private static MapData ProcessRelation(OsmSharp.Relation r, ref List<WayData> ways)
         {
-            GpsExploreContext db = new GpsExploreContext();
+            PraxisContext db = new PraxisContext();
 
             string relationName = GetElementName(r.Tags);
             //Determine if we need to process this relation.
@@ -1161,7 +1161,7 @@ namespace OsmXmlParser
             //I might need to reconsider how i handle duplicates, since different files will have different pieces of some ways.
             //Current plan: process relations bigger than the files I normally use separately from the larger files, store those in their own file.
             Log.WriteLog("Scanning for duplicate entries at " + DateTime.Now);
-            var db = new GpsExploreContext();
+            var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var dupedMapDatas = db.MapData.Where(md => md.WayId != null).GroupBy(md => md.WayId)
                 .Select(m => new { m.Key, Count = m.Count() })
@@ -1187,7 +1187,7 @@ namespace OsmXmlParser
             //process all of the 10-cells inside that area with their ways (will need more types than the current game has)
             //save this data to an SQLite DB for the app to use.
 
-            var mainDb = new GpsExploreContext();
+            var mainDb = new PraxisContext();
             var sqliteDb = "placeholder";
             var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values. //share this here, so i compare the actual algorithms instead of this boilerplate, mandatory entry.
             //var relationToProcess = 

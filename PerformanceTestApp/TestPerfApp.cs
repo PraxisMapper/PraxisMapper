@@ -1,16 +1,11 @@
-﻿using DatabaseAccess;
-using DatabaseAccess.Support;
-using GeoAPI.Geometries;
+﻿using CoreComponents;
+using CoreComponents.Support;
 using Google.Common.Geometry;
 using Google.OpenLocationCode;
-using Microsoft.VisualBasic.CompilerServices;
 using NetTopologySuite;
 using NetTopologySuite.Geometries;
-using NetTopologySuite.GeometriesGraph.Index;
 using OsmSharp;
-using OsmSharp.IO.Zip.Checksum;
 using OsmSharp.Streams;
-using OsmSharp.Streams.Filters;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -18,16 +13,14 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Reflection.Metadata.Ecma335;
-using System.Runtime.Versioning;
 using System.Text;
 using System.Text.Json;
-using static DatabaseAccess.DbTables;
-using static DatabaseAccess.MapSupport;
+using static CoreComponents.DbTables;
+using static CoreComponents.MapSupport;
 
 namespace PerformanceTestApp
 {
-    class PerfTestApp
+    class TestPerfApp
     {
         //fixed values here for testing stuff later. Adjust to your own preferences or to fit your data set.
         static string cell8 = "8FW4V722";
@@ -185,7 +178,7 @@ namespace PerformanceTestApp
             sw.Start();
             //Pick a specific area for testing, since we want to compare the math.
             string plusCode6 = cell6;
-            var db = new DatabaseAccess.GpsExploreContext();
+            var db = new CoreComponents.PraxisContext();
             var places = MapSupport.GetPlaces(OpenLocationCode.DecodeValid(plusCode6));  //All the places in this 6-code
             var box = OpenLocationCode.DecodeValid(plusCode6);
             sw.Stop();
@@ -226,7 +219,7 @@ namespace PerformanceTestApp
             //Option 4: consider using Contains against something like NetTopologySuite.Geometries.Prepared.PreparedGeometryFactory().Prepare(geom) instead of just Place? This might be outdated
 
             var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values. //share this here, so i compare the actual algorithms instead of this boilerplate, mandatory entry.
-            var db = new GpsExploreContext();
+            var db = new PraxisContext();
 
             for (int i = 0; i < 50; i++)
             {
@@ -442,7 +435,7 @@ namespace PerformanceTestApp
             List<MapData> places;
             if (source == null)
             {
-                var db = new DatabaseAccess.GpsExploreContext();
+                var db = new CoreComponents.PraxisContext();
                 places = db.MapData.Where(md => md.place.Intersects(location)).ToList();
             }
             else
@@ -457,7 +450,7 @@ namespace PerformanceTestApp
             List<MapData> places;
             if (source == null)
             {
-                var db = new DatabaseAccess.GpsExploreContext();
+                var db = new CoreComponents.PraxisContext();
                 places = db.getPlaces((location)).ToList();
             }
             else
@@ -475,7 +468,7 @@ namespace PerformanceTestApp
             List<MapData> places;
             if (source == null)
             {
-                var db = new DatabaseAccess.GpsExploreContext();
+                var db = new CoreComponents.PraxisContext();
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
                 places = db.MapData.Where(md => md.place.Intersects(location)).ToList();
             }
@@ -487,7 +480,7 @@ namespace PerformanceTestApp
         public static void TestMapDataAbbrev()
         {
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-            var db = new DatabaseAccess.GpsExploreContext();
+            var db = new CoreComponents.PraxisContext();
 
             for (int i = 0; i < 5; i++)
             {
@@ -508,7 +501,7 @@ namespace PerformanceTestApp
         public static void TestPrecompiledQuery()
         {
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-            var db = new DatabaseAccess.GpsExploreContext();
+            var db = new CoreComponents.PraxisContext();
             
 
             for (int i = 0; i < 5; i++)

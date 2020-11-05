@@ -1,6 +1,6 @@
-﻿using DatabaseAccess;
+﻿using CoreComponents;
 using Google.OpenLocationCode;
-using GPSExploreServerAPI.Classes;
+using PraxisMapper.Classes;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
@@ -8,9 +8,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using static DatabaseAccess.DbTables;
+using static CoreComponents.DbTables;
 
-namespace GPSExploreServerAPI.Controllers
+namespace PraxisMapper.Controllers
 {
     [Route("[controller]")]
     [ApiController]
@@ -183,7 +183,7 @@ namespace GPSExploreServerAPI.Controllers
             //Load terrain data for an 8cell, turn it into a bitmap
             //Will load these bitmaps on the 8cell grid in the game, so you can see what's around you in a bigger area.
 
-            var db = new GpsExploreContext();
+            var db = new PraxisContext();
             var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode8 && mt.resolutionScale == 10).FirstOrDefault();
             if (existingResults == null || existingResults.MapTileId == null)
             {
@@ -211,7 +211,7 @@ namespace GPSExploreServerAPI.Controllers
             //Load terrain data for an 8cell, turn it into a bitmap
             //Will load these bitmaps on the 8cell grid in the game, so you can see what's around you in a bigger area.
 
-            var db = new GpsExploreContext();
+            var db = new PraxisContext();
             var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode8 && mt.resolutionScale == 11).FirstOrDefault();
             if (existingResults == null || existingResults.MapTileId == null)
             {
@@ -239,7 +239,7 @@ namespace GPSExploreServerAPI.Controllers
             //Load terrain data for an 8cell, turn it into a bitmap
             //Will load these bitmaps on the 8cell grid in the game, so you can see what's around you in a bigger area.
 
-            var db = new GpsExploreContext();
+            var db = new PraxisContext();
             var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode10 && mt.resolutionScale == 11).FirstOrDefault();
             if (existingResults == null || existingResults.MapTileId == null)
             {
@@ -269,7 +269,7 @@ namespace GPSExploreServerAPI.Controllers
             //Load terrain data for an 6cell, turn it into a bitmap
             //Will load these bitmaps on the 6cell grid in the game, so you can see what's around you in a bigger area?
 
-            var db = new GpsExploreContext();
+            var db = new PraxisContext();
             var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode6 && mt.resolutionScale == 10).FirstOrDefault();
             if (existingResults == null || existingResults.MapTileId == null)
             {
@@ -297,7 +297,7 @@ namespace GPSExploreServerAPI.Controllers
             PerformanceTracker pt = new PerformanceTracker("DrawCell6Highres");
             //Load terrain data for an 6cell, turn it into a bitmap
             //Will load these bitmaps on the 6cell grid in the game, so you can see what's around you in a bigger area?
-            var db = new GpsExploreContext();
+            var db = new PraxisContext();
             var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode6 && mt.resolutionScale == 11).FirstOrDefault();
             if (existingResults == null || existingResults.MapTileId == null)
             {
@@ -345,7 +345,7 @@ namespace GPSExploreServerAPI.Controllers
         //    string charpos1 = OpenLocationCode.CodeAlphabet.Substring(0, 9);
         //    string charpos2 = OpenLocationCode.CodeAlphabet.Substring(0, 18);
 
-        //    var db = new GpsExploreContext();
+        //    var db = new PraxisContext();
         //    db.ChangeTracker.AutoDetectChangesEnabled = false;
         //    int counter = 0;
 

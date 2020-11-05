@@ -1,6 +1,6 @@
 {
   "profiles": {
-    "OsmXmlParser": {
+    "Larry": {
       "commandName": "Project",
       "commandLineArgs": "-verbose  -ZcreateDB -ZprocessEverything -ZcleanDB -ZresetPbf -ZresetJson -ZtrimPbfFiles   -ZtrimPbfsByType -ZreadMapData -ZremoveDupes -ZsingleTest -ZcreateStandalone -Zgen6CellMapTiles:10 -extractBigAreas"
     }

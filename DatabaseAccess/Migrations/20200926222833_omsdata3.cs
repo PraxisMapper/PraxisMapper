@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore.Migrations;
 
-namespace DatabaseAccess.Migrations
+namespace CoreComponents.Migrations
 {
     public partial class omsdata3 : Migration
     {

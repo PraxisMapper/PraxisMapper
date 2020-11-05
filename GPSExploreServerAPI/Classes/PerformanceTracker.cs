@@ -1,5 +1,5 @@
-﻿using DatabaseAccess;
-using static DatabaseAccess.DbTables;
+﻿using CoreComponents;
+using static CoreComponents.DbTables;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using System.Diagnostics.Eventing.Reader;
 using Microsoft.EntityFrameworkCore;
 
-namespace GPSExploreServerAPI.Classes
+namespace PraxisMapper.Classes
 {
     public class PerformanceTracker
     {
@@ -36,7 +36,7 @@ namespace GPSExploreServerAPI.Classes
             sw.Stop();
             pi.runTime = sw.ElapsedMilliseconds;
             pi.notes = notes;
-            GpsExploreContext db = new GpsExploreContext();
+            PraxisContext db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false; //Diabling this saves ~17ms per call, which can be important on the webserver. Sproc is trivially faster than that.
             db.PerformanceInfo.Add(pi);
             db.SaveChanges();

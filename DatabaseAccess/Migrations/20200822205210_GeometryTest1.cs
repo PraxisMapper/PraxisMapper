@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore.Migrations;
 using NetTopologySuite.Geometries;
 
-namespace DatabaseAccess.Migrations
+namespace CoreComponents.Migrations
 {
     public partial class GeometryTest1 : Migration
     {

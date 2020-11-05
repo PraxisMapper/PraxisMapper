@@ -1,8 +1,4 @@
-﻿Controllers:
-
-GPSExplore: Basic leaderboard endpoints.  Will probably require a lot of customization per game.
-
-Keywords:
+﻿Keywords:
 Flex: takes lat, lon, and size parameters. Allows you to work with areas outside of the plus code grid segments.
 Cell#: takes a plus code of the # length. Ignores padding characters. (EX: the OLC spec may say to use 86CFJJ00+00, this app only wants to see 86CFJJ)
 Highres: returns data using Cell11 sizes instead of Cell10. 20x more data returned doing this.
@@ -10,6 +6,12 @@ Learn: pull in interesting areas from the DB for a client app to use.
 Calculate: count the number of Cell10 spaces an area takes up.
 Draw: create a PNG of a given area.
 Test: A debug function for setting up your game. Not something the game should use itself. Shouldn't be enabled in a production setup.
+
+Controllers:
+
+GPSExplore: Basic leaderboard endpoints.  Will probably require a lot of customization per game.
+
+Gameplay: Functions for different gameplay modes. Initial one is for Area Control, using factions.
 
 MapData: The core of the server. Spatial data and processing to be usable in a location based game. Imported data from OpenStreetMaps, can be updated from them via other utilities included in the solution.
 LearnX - Pull in the name and area type of each 10cell for a client app.

@@ -3,14 +3,14 @@ using System.Collections.Generic;
 using System.ComponentModel.Design;
 using System.Linq;
 using System.Threading.Tasks;
-using DatabaseAccess;
+using CoreComponents;
 using Google.OpenLocationCode;
-using GPSExploreServerAPI.Classes;
+using PraxisMapper.Classes;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using static DatabaseAccess.DbTables;
+using static CoreComponents.DbTables;
 
-namespace GPSExploreServerAPI.Controllers
+namespace PraxisMapper.Controllers
 {
     [Route("[controller]")]
     [ApiController]
@@ -34,8 +34,8 @@ namespace GPSExploreServerAPI.Controllers
 
             try
             {
-                var DB = new GpsExploreContext();
-                //var DB = (GpsExploreContext)new ServiceContainer().GetService(typeof(GpsExploreContext)); //returns null. Need an existing ServiceContainer
+                var DB = new PraxisContext();
+                //var DB = (PraxisContext)new ServiceContainer().GetService(typeof(PraxisContext)); //returns null. Need an existing ServiceContainer
                 var check = DB.PlayerData.FirstOrDefault();
                 results += "|Database OK";
             }
@@ -66,7 +66,7 @@ namespace GPSExploreServerAPI.Controllers
             if (components.Length != 11)
                 return "Error-Length";
 
-            GpsExploreContext db = new GpsExploreContext();
+            PraxisContext db = new PraxisContext();
             var data = db.PlayerData.Where(p => p.deviceID == components[0]).FirstOrDefault();
             bool insert = false;
             if (data == null || data.deviceID == null)
@@ -120,7 +120,7 @@ namespace GPSExploreServerAPI.Controllers
         {
             //take in the device ID, return the top 10 players for this leaderboard, and the user's current rank.
             PerformanceTracker pt = new PerformanceTracker("Get10CellLeaderboard");
-            GpsExploreContext db = new GpsExploreContext();
+            PraxisContext db = new PraxisContext();
             
             List<int> results = db.PlayerData.OrderByDescending(p => p.t10Cells).Take(10).Select(p => p.t10Cells).ToList();
             int playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.t10Cells).FirstOrDefault();
@@ -137,7 +137,7 @@ namespace GPSExploreServerAPI.Controllers
         {
             //take in the device ID, return the top 10 players for this leaderboard, and the user's current rank.
             PerformanceTracker pt = new PerformanceTracker("Get8CellLeaderboard");
-            GpsExploreContext db = new GpsExploreContext();
+            PraxisContext db = new PraxisContext();
 
             List<int> results = db.PlayerData.OrderByDescending(p => p.t8Cells).Take(10).Select(p => p.t8Cells).ToList();
             int playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.t8Cells).FirstOrDefault();
@@ -154,7 +154,7 @@ namespace GPSExploreServerAPI.Controllers
         {
             //take in the device ID, return the top 10 players for this leaderboard, and the user's current rank.
             PerformanceTracker pt = new PerformanceTracker("GetScoreLeaderboard");
-            GpsExploreContext db = new GpsExploreContext();
+            PraxisContext db = new PraxisContext();
             List<int> results = db.PlayerData.OrderByDescending(p => p.score).Take(10).Select(p => p.score).ToList();
             int playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.score).FirstOrDefault();
             int playerRank = db.PlayerData.Where(p => p.score >= playerScore).Count();
@@ -170,7 +170,7 @@ namespace GPSExploreServerAPI.Controllers
         {
             //take in the device ID, return the top 10 players for this leaderboard, and the user's current rank.
             PerformanceTracker pt = new PerformanceTracker("GetDistanceLeaderboard");
-            GpsExploreContext db = new GpsExploreContext();
+            PraxisContext db = new PraxisContext();
             List<double> results = db.PlayerData.OrderByDescending(p => p.distance).Take(10).Select(p => p.distance).ToList();
             double playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.distance).FirstOrDefault();
             int playerRank = db.PlayerData.Where(p => p.distance >= playerScore).Count();
@@ -186,7 +186,7 @@ namespace GPSExploreServerAPI.Controllers
         {
             //take in the device ID, return the top 10 players for this leaderboard, and the user's current rank.
             PerformanceTracker pt = new PerformanceTracker("GetTimeLeaderboard");
-            GpsExploreContext db = new GpsExploreContext();
+            PraxisContext db = new PraxisContext();
             List<int> results = db.PlayerData.OrderByDescending(p => p.timePlayed).Take(10).Select(p => p.timePlayed).ToList();
             int playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.timePlayed).FirstOrDefault();
             int playerRank = db.PlayerData.Where(p => p.timePlayed >= playerScore).Count();
@@ -203,7 +203,7 @@ namespace GPSExploreServerAPI.Controllers
             //TODO: might calculate this on the device, send it over here, save it in its own column instead of calculating on all users each call.
             //take in the device ID, return the top 10 players for this leaderboard, and the user's current rank.
             PerformanceTracker pt = new PerformanceTracker("GetAvgSpeedLeaderboard");
-            GpsExploreContext db = new GpsExploreContext();
+            PraxisContext db = new PraxisContext();
             //This one does a calculation, will take a bit longer.
             List<double> results = db.PlayerData.Where(p => p.timePlayed > 0).Select(p => p.distance / p.timePlayed).OrderByDescending(p => p).ToList(); //divide by zero error 
             double playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.timePlayed > 0 ? (double)(p.distance / p.timePlayed) : (double)0.0).FirstOrDefault();
@@ -221,7 +221,7 @@ namespace GPSExploreServerAPI.Controllers
         {
             //take in the device ID, return the top 10 players for this leaderboard, and the user's current rank.
             PerformanceTracker pt = new PerformanceTracker("GetTrophiesLeaderboard");
-            GpsExploreContext db = new GpsExploreContext();
+            PraxisContext db = new PraxisContext();
             List<int> results = db.PlayerData.OrderByDescending(p => p.DateLastTrophyBought).Take(10).Select(p => p.DateLastTrophyBought).ToList();
             int playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.DateLastTrophyBought > 0 ? p.DateLastTrophyBought : int.MaxValue).FirstOrDefault();
             int playerRank = db.PlayerData.Where(p => p.DateLastTrophyBought <= playerScore).Count(); //This one is a time, so lower is better.
@@ -237,7 +237,7 @@ namespace GPSExploreServerAPI.Controllers
         {
             //take in the device ID, return the top 10 players for this leaderboard, and the user's current rank.
             PerformanceTracker pt = new PerformanceTracker("GetAltitudeLeaderboard");
-            GpsExploreContext db = new GpsExploreContext();
+            PraxisContext db = new PraxisContext();
 
             List<int> results = db.PlayerData.OrderByDescending(p => p.altitudeSpread).Take(10).Select(p => p.altitudeSpread).ToList();
             int playerScore = db.PlayerData.Where(p => p.deviceID == deviceID).Select(p => p.altitudeSpread).FirstOrDefault();

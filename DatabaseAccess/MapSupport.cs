@@ -1,28 +1,23 @@
-﻿using Google.OpenLocationCode;
+﻿using CoreComponents.Support;
+using Google.OpenLocationCode;
+using Microsoft.EntityFrameworkCore;
 using NetTopologySuite;
 using NetTopologySuite.Geometries;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static DatabaseAccess.DbTables;
-using OsmSharp;
-using DatabaseAccess.Support;
+using Newtonsoft.Json;
 using OsmSharp.Tags;
-using NetTopologySuite.Operation.Buffer;
-using Microsoft.EntityFrameworkCore;
-using System.Net;
-using NetTopologySuite.Simplify;
-using System.IO;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Drawing.Processing;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
-using SixLabors.ImageSharp.Drawing.Processing;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Text;
+using static CoreComponents.DbTables;
 
-namespace DatabaseAccess
+namespace CoreComponents
 {
     public static class MapSupport
     {
@@ -30,7 +25,6 @@ namespace DatabaseAccess
         //Right now, this is mostly 'functions/consts I want to refer to in multiple projects'
 
         //TODO:
-        //set up a command line parameter for OsmXmlParser to extract certain types of value from files (so different users could pull different features out to use)
         //continue renmaing and reorganizing things.
 
         //the 11th digit uses a 4x5 grid, not a 20x20. They need separate scaling values for X and Y and are rectangular even at the equator.
@@ -89,7 +83,7 @@ namespace DatabaseAccess
             List<MapData> places;
             if (source == null)
             {
-                var db = new DatabaseAccess.GpsExploreContext();
+                var db = new CoreComponents.PraxisContext();
                 places = db.MapData.Where(md => md.place.Intersects(location)).ToList();
             }
             else
@@ -303,7 +297,7 @@ namespace DatabaseAccess
         public static string LoadDataOnArea(long id)
         {
             //Debugging helper call. Loads up some information on an area and display it.
-            var db = new GpsExploreContext();
+            var db = new PraxisContext();
             var entries = db.MapData.Where(m => m.WayId == id || m.RelationId == id || m.NodeId == id || m.MapDataId == id).ToList();
             string results = "";
             foreach (var entry in entries)
@@ -571,7 +565,7 @@ namespace DatabaseAccess
 
         public static void InsertAreaTypes()
         {
-            var db = new GpsExploreContext();
+            var db = new PraxisContext();
             db.Database.BeginTransaction();
             db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT AreaTypes ON;");
             db.AreaTypes.AddRange(areaTypes);

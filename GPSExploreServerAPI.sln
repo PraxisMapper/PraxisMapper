@@ -3,13 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30323.103
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GPSExploreServerAPI", "GPSExploreServerAPI\GPSExploreServerAPI.csproj", "{E4D95553-613D-4E01-8309-0FEF69208F35}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PraxisMapper", "GPSExploreServerAPI\PraxisMapper.csproj", "{E4D95553-613D-4E01-8309-0FEF69208F35}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OsmXmlParser", "OsmXmlParser\OsmXmlParser.csproj", "{80CBA8D5-2A72-407D-81D0-4D1904F6B676}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Larry", "OsmXmlParser\Larry.csproj", "{80CBA8D5-2A72-407D-81D0-4D1904F6B676}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DatabaseAccess", "DatabaseAccess\DatabaseAccess.csproj", "{377129DA-BDC9-4814-99F5-9A711BBC435D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoreComponents", "DatabaseAccess\CoreComponents.csproj", "{377129DA-BDC9-4814-99F5-9A711BBC435D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PerformanceTestApp", "PerformanceTestApp\PerformanceTestApp.csproj", "{377EE600-439D-4515-8A13-A399D53B752C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestPerformanceApp", "PerformanceTestApp\TestPerformanceApp.csproj", "{377EE600-439D-4515-8A13-A399D53B752C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

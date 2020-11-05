@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using DatabaseAccess;
-using GPSExploreServerAPI.Classes;
+using CoreComponents;
+using PraxisMapper.Classes;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
@@ -13,7 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace GPSExploreServerAPI
+namespace PraxisMapper
 {
     public class Startup
     {
@@ -21,7 +21,7 @@ namespace GPSExploreServerAPI
         {
             Configuration = configuration;
             PerformanceTracker.EnableLogging = Configuration.GetValue<bool>("enablePerformanceTracker");
-            DatabaseAccess.Log.WriteToFile = Configuration.GetValue<bool>("enableFileLogging");
+            CoreComponents.Log.WriteToFile = Configuration.GetValue<bool>("enableFileLogging");
         }
 
         public IConfiguration Configuration { get; }
@@ -30,7 +30,7 @@ namespace GPSExploreServerAPI
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllers();
-            services.AddGpsAppServiceCollection(); //injects the DbContext and other services into this collection. (Eventually, still working on that)
+            services.AddCoreComponentServiceCollection(); //injects the DbContext and other services into this collection. (Eventually, still working on that)
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

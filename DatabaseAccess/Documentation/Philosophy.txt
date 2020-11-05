@@ -19,10 +19,10 @@ C-Spread out. We want the player to move and explore, and to go to new places (o
 
 2)The User is the Client. The person using the app is the person to think about when designing how this server and its game behave. This means:
 No user tracking. A game is an activity for fun, not another opportunity to gather data and metrics on a user to treat them as the product for advertisers. The server, and my games built on it, will not track your location history on a server.
+(Activities that require data to be stored on the server needs to do so in a way that doesn't identify a single user. Fixed teams is the easiest solution to this.)
 No corporate deals. This game and server are not intended to be a way to provide hidden advertising or change behaviors to increase consumership. Games should build good habits for the player, not sponsors.
 (Retail shops may be interesting places, but we do not want to make actual retail transactions a requirement, nor do we want to bias behavior towards a corporate sponsor by having a corporate sponsor.)
 Respect the user's time and attention. Minimize the amount of time a player spends not playing the game.
-
 
 3)The server and app should be efficient. Part of making a game that runs on a global scale is handling the data with the fewest resources possible. 
 Pick fast prerequisites. When the server depends on another piece of software, pick the ones that are known to perform well, particularly at scale. Performance test options if they're equally viable and make the results public.

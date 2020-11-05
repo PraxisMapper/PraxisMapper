@@ -1,19 +1,15 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using System;
-using static DatabaseAccess.DbTables;
-using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
-using Microsoft.EntityFrameworkCore.Update;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using NetTopologySuite.Geometries;
-using System.Linq;
-using Microsoft.VisualBasic.CompilerServices;
+using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
+using System.Linq;
+using static CoreComponents.DbTables;
 
-namespace DatabaseAccess
+namespace CoreComponents
 {
-    public class GpsExploreContext : DbContext
+    public class PraxisContext : DbContext
     {
         public DbSet<PlayerData> PlayerData { get; set; }
         public DbSet<PerformanceInfo> PerformanceInfo { get; set; }
@@ -33,7 +29,7 @@ namespace DatabaseAccess
         //public DbSet<MinimumWay> MinimumWays { get; set; }
         //public DbSet<MinimumRelation> minimumRelations { get; set; }
 
-        //public GpsExploreContext(IConfiguration config)
+        //public PraxisContext(IConfiguration config)
         //{
             //Config = config;
         //}
@@ -90,8 +86,8 @@ namespace DatabaseAccess
         //public static string PerformanceInfoSproc = "CREATE PROCEDURE SavePerfInfo @functionName nvarchar(500), @runtime bigint, @calledAt datetime2, @notes nvarchar(max) AS BEGIN INSERT INTO dbo.PerformanceInfo(functionName, runTime, calledAt, notes) VALUES(@functionName, @runtime, @calledAt, @notes) END";
 
         //This doesn't appear to be any faster. The query isn't the slow part. Keeping this code as a reference for how to precompile queries.
-        public static Func<GpsExploreContext, Geometry, IEnumerable<MapData>> compiledIntersectQuery = 
-            EF.CompileQuery((GpsExploreContext context, Geometry place) =>  context.MapData.Where(md => md.place.Intersects(place)));
+        public static Func<PraxisContext, Geometry, IEnumerable<MapData>> compiledIntersectQuery = 
+            EF.CompileQuery((PraxisContext context, Geometry place) =>  context.MapData.Where(md => md.place.Intersects(place)));
 
         public IEnumerable<MapData> getPlaces(Geometry place)
         {

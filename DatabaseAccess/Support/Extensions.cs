@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DatabaseAccess
+namespace CoreComponents
 {
     //A bunch of exention methods I find useful.
     public static class Extensions

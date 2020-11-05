@@ -1,5 +1,5 @@
 ﻿for all commands:
-set "Default Project" DDL in Package Manager Console to DatabaseAccess to avoid "could not load assembly" errors.
+set "Default Project" DDL in Package Manager Console to CoreComponents to avoid "could not load assembly" errors.
 
 To create a database with EFCore:
 Set the project that needs to do DB work as the Startup Project.
