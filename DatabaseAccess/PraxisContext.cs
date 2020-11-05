@@ -92,7 +92,6 @@ namespace CoreComponents
         public IEnumerable<MapData> getPlaces(Geometry place)
         {
             return compiledIntersectQuery(this, place);
-
         }
     }
 }
