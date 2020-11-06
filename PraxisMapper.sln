@@ -9,7 +9,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Larry", "OsmXmlParser\Larry
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoreComponents", "CoreComponents\CoreComponents.csproj", "{377129DA-BDC9-4814-99F5-9A711BBC435D}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestPerformanceApp", "PerformanceTestApp\TestPerformanceApp.csproj", "{377EE600-439D-4515-8A13-A399D53B752C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestPerformanceApp", "TestPerformanceApp\TestPerformanceApp.csproj", "{377EE600-439D-4515-8A13-A399D53B752C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
