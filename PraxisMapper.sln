@@ -5,7 +5,7 @@ VisualStudioVersion = 16.0.30323.103
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PraxisMapper", "PraxisMapper\PraxisMapper.csproj", "{E4D95553-613D-4E01-8309-0FEF69208F35}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Larry", "OsmXmlParser\Larry.csproj", "{80CBA8D5-2A72-407D-81D0-4D1904F6B676}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Larry", "Larry\Larry.csproj", "{80CBA8D5-2A72-407D-81D0-4D1904F6B676}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoreComponents", "CoreComponents\CoreComponents.csproj", "{377129DA-BDC9-4814-99F5-9A711BBC435D}"
 EndProject
