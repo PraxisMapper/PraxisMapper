@@ -57,7 +57,7 @@ namespace PraxisMapper.Controllers
             }
             var box = OpenLocationCode.DecodeValid(codeString6);
 
-            var places = MapSupport.GetPlaces(OpenLocationCode.DecodeValid(codeString6));  //All the places in this 6-code //NOTE: takes 500ms here, but 6-codes should take ~15ms in perftesting.
+            var places = MapSupport.GetPlaces(OpenLocationCode.DecodeValid(codeString6));  //All the places in this 6-code
             StringBuilder sb = new StringBuilder();
             sb.AppendLine(codeString6);
             //pluscode6 //first 6 digits of this pluscode. each line below is the last 4 that have an area type.

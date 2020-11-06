@@ -10,7 +10,9 @@
         public static string JsonMapDataFolder = @"D:\Projects\OSM Server Info\Trimmed JSON Files\";
         public static long FilesizeSplit = 400000000;
 
-        //If true, don't round locations to 7 points and don't simplify entries during processing.
-        public static bool ForceHighAccuracy = false;
+        //If false, round coords to 7 decimal places and simplify paths to a Cell10's width.
+        //If true, use coords as-is (cast to float from double), and don't simplify path data.
+        //Allowing paths to be simplified and coords rounded to 7 places uses significantly less storage (945MB of MapData.json vs 596MB, 36% smaller)
+        public static bool UseHighAccuracy = true;
     }
 }

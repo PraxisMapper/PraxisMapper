@@ -42,8 +42,8 @@ namespace CoreComponents
         public static List<string> relevantTrailValues = new List<string>() { "path", "bridleway", "cycleway", "footway", "living_street" }; //The stuff we care about in the highway category for trails. Living Streets are nonexistant in the US.
         public static List<string> relevantRoadValues = new List<string>() { "motorway", "trunk", "primary", "secondary", "tertiary", "unclassified", "residential", "motorway_link", "trunk_link", "primary_link", "secondary_link", "tertiary_link", "service", "road" }; //The stuff we care about in the highway category for roads. A lot more options for this.
 
-        public static GeometryFactory factory = NtsGeometryServices.Instance.CreateGeometryFactory(new PrecisionModel(1000000), 4326); //SRID matches Plus code values.  Precision model means round all points to 7 decimal places to not exceed float's useful range.
-        public static bool SimplifyAreas = true;
+        public static GeometryFactory factory = NtsGeometryServices.Instance.CreateGeometryFactory(4326); //Doesn't round coords.
+        public static bool SimplifyAreas = false;
 
         public static List<AreaType> areaTypes = new List<AreaType>() {
             //Areas here are for the original explore concept
