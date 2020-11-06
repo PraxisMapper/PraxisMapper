@@ -53,10 +53,11 @@ namespace Larry
                 DbSettings.processParking = true;
             }
 
-            if (args.Any(a => a == "-highAccuracy") || ParserSettings.ForceHighAccuracy)
+            if (args.Any(a => a == "-spaceSaver"))
             {
-                MapSupport.factory = NtsGeometryServices.Instance.CreateGeometryFactory(4326); //Doesn't round coords.
-                MapSupport.SimplifyAreas = false;
+                ParserSettings.UseHighAccuracy = false;
+                MapSupport.factory = NtsGeometryServices.Instance.CreateGeometryFactory(new PrecisionModel(1000000), 4326); //SRID matches Plus code values.  Precision model means round all points to 7 decimal places to not exceed float's useful range.
+                MapSupport.SimplifyAreas = true;
             }
 
             //If multiple args are supplied, run them in the order that make sense, not the order the args are supplied.
@@ -265,7 +266,8 @@ namespace Larry
 
             osm.Database.ExecuteSqlRaw("TRUNCATE TABLE MapData");
             Log.WriteLog("MapData cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
-
+            osm.Database.ExecuteSqlRaw("TRUNCATE TABLE MapTiles");
+            Log.WriteLog("MapTiles cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
             osm.Database.ExecuteSqlRaw("TRUNCATE TABLE PerformanceInfo");
             Log.WriteLog("PerformanceInfo cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
 
@@ -327,7 +329,7 @@ namespace Larry
             fileInRam = null;
 
             var processedEntries = ProcessData(osmNodes, ref osmWays, ref osmRelations, referencedWays);
-            WriteMapDataToFile(ParserSettings.JsonMapDataFolder + destFilename + "-MapData" + (ParserSettings.ForceHighAccuracy ? "-highAcc" : "") + ".json", ref processedEntries);
+            WriteMapDataToFile(ParserSettings.JsonMapDataFolder + destFilename + "-MapData" + (ParserSettings.UseHighAccuracy ? "-highAcc" : "") + ".json", ref processedEntries);
             processedEntries = null;
 
             Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
@@ -369,7 +371,7 @@ namespace Larry
                 Log.WriteLog("Relevant data pulled from file at " + DateTime.Now);
 
                 var processedEntries = ProcessData(osmNodes, ref osmWays, ref osmRelations, referencedWays);
-                WriteMapDataToFile(ParserSettings.JsonMapDataFolder + destFilename + "-MapData-" + areatypename + (ParserSettings.ForceHighAccuracy ? "-highAcc" : "") + ".json", ref processedEntries);
+                WriteMapDataToFile(ParserSettings.JsonMapDataFolder + destFilename + "-MapData-" + areatypename + (ParserSettings.UseHighAccuracy ? "-highAcc" : "") + ".json", ref processedEntries);
                 processedEntries = null;
             }
 
@@ -1310,7 +1312,7 @@ namespace Larry
             //Rough math suggests that this will take 103 minutes to skim planet-latest.osm.pbf per pass.
             //Takes ~17 minutes per pass the 'standard' way on north-america-latest.
 
-            string outputFile = ParserSettings.JsonMapDataFolder + "LargeAreas" + (ParserSettings.ForceHighAccuracy ? "-highAcc" : "") + ".json";
+            string outputFile = ParserSettings.JsonMapDataFolder + "LargeAreas" + (ParserSettings.UseHighAccuracy ? "-highAcc" : "") + ".json";
 
             var manualRelationId = new List<long>() {
                 //Great Lakes:

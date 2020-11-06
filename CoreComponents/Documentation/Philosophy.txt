@@ -1,8 +1,10 @@
 ﻿Philosophy behind the engine
 To explain some decisions on features and their inclusion/exclusion
 
-1) MapTiles are not interesting game features. (Revise this to be more specific, now that the server can generate maptiles)
+1) MapTiles are not interesting game features.
 MapTiles make a game look nice, but having vector details small enough to see accurate building shapes is not useful for gameplay.
+It IS useful for players, since it lets them orient themselves on the map, but for gameplay purposes the super-fine detail you see aren't helpful.
+(Notice, on Pokemon Go, how the player's avatar is about 30 feet tall. This partially allows the small details rendered to be plainly irrelevant compared to the in-game interactible objects)
 Phones typically have GPS accurate to about 4 meters (12 feet). That means that area-wise, this is the smallest useful target.
 An 11-digit PlusCode has an area of ~3x3.5 meters at the equator and shrinks vertically as you get farther away. 
 A 10-digit PlusCode has an area of ~14x14 meters (same limitations as above). 
@@ -14,20 +16,21 @@ There are a variety of other applications for making maptiles from OSM data. Use
 Interesting, for our use here, is an algorithm to dig through tags to find places that a player could want to go to.
 Interesting means that a place must be
 A-Publicly accessible. At a minimum, this is the consideration.
-B-Walkable. Driving is not the habit we want to encourage.
-C-Spread out. We want the player to move and explore, and to go to new places (or at least a solid variety of nearby familiar places).
+B-Walkable. We do want players to go new places and interact with them in-game, but we don't want players driving around the block for points they should get by walking or exercising.
+C-Spread out. We want the player to move and explore, and to go to new places (or at least a solid variety of nearby familiar places). The smallest interactible distance is going to be one 10Cell (~30feet).
 
-2)The User is the Client. The person using the app is the person to think about when designing how this server and its game behave. This means:
+3)The User is the Client. The person using the app is the person to think about when designing how this server and its game behave. This means:
 No user tracking. A game is an activity for fun, not another opportunity to gather data and metrics on a user to treat them as the product for advertisers. The server, and my games built on it, will not track your location history on a server.
-(Activities that require data to be stored on the server needs to do so in a way that doesn't identify a single user. Fixed teams is the easiest solution to this.)
+(Activities that require data to be stored on the server needs to do so in a way that doesn't identify a single user. Fixed teams is the easiest solution to this, though some solid cryptography might allow individuals to store info the server can't read.)
 No corporate deals. This game and server are not intended to be a way to provide hidden advertising or change behaviors to increase consumership. Games should build good habits for the player, not sponsors.
 (Retail shops may be interesting places, but we do not want to make actual retail transactions a requirement, nor do we want to bias behavior towards a corporate sponsor by having a corporate sponsor.)
 Respect the user's time and attention. Minimize the amount of time a player spends not playing the game.
+Also, remember that not every user has a top-end phone, and make games that don't demand tons of CPU power or RAM. The server should do most of the heavy lifting when possible.
 
-3)The server and app should be efficient. Part of making a game that runs on a global scale is handling the data with the fewest resources possible. 
+4)The server and app should be efficient. Part of making a game that runs on a global scale is handling the data with the fewest resources possible. 
 Pick fast prerequisites. When the server depends on another piece of software, pick the ones that are known to perform well, particularly at scale. Performance test options if they're equally viable and make the results public.
-Understand the useful scope of things. If a typical phone's GPS is only accurate to ~15 feet, don't make features that require dramatically higher accuracy or resolution.
+Understand the useful scope of things. If a typical phone's GPS is only accurate to ~12 feet, don't make features that require dramatically higher accuracy or resolution.
     
-4)Everyone is always learning. This means that anyone participating in the development of the server or games around it should be able to read and understand the code involved.
+5)Everyone is always learning. This means that anyone participating in the development of the server or games around it should be able to read and understand the code involved.
 Comment code thoroughly to help new developers understand what it's doing.
 Keep code open and well organized.
