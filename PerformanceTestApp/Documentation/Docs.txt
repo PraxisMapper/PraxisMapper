@@ -1,7 +1,0 @@
-﻿PerformanceTestApp
-
-This is a place to compare approaches and test performance for various parts of the app.
-This app will not be held to a high standard of readability. It's entirely for developers to experiment and keep their process persistent.
-
-Developers curious about performance differences are encourages to uncomment the test they want to see on their machine and run them individually.
-Any major deviations from the historical run data should be looked at.
