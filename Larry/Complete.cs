@@ -74,7 +74,7 @@ namespace Larry
 
             MapData md = new MapData();
             md.name = MapSupport.GetElementName(r.Tags);
-            md.type = MapSupport.GetType(r.Tags);
+            md.type = MapSupport.GetElementType(r.Tags);
             md.AreaTypeId = MapSupport.areaTypeReference[md.type.StartsWith("admin") ? "admin" : md.type].First();
             md.RelationId = r.Id;
             md.place = MapSupport.SimplifyArea(Tpoly);

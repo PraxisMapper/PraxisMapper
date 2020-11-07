@@ -191,7 +191,7 @@ namespace PraxisMapper.Controllers
                 //requires a list of colors to use, which might vary per app
                 GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
                 var places = MapSupport.GetPlaces(eightCell);
-                var results = MapSupport.GetAreaMapTile(ref places, eightCell);
+                var results = MapSupport.DrawAreaMapTile(ref places, eightCell);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, regenerate = false, resolutionScale = 10, tileData = results });
                 db.SaveChanges();
                 pt.Stop(plusCode8);
@@ -219,7 +219,7 @@ namespace PraxisMapper.Controllers
                 //requires a list of colors to use, which might vary per app
                 GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
                 var places = MapSupport.GetPlaces(eightCell);
-                var results = MapSupport.GetAreaMapTile11(ref places, eightCell);
+                var results = MapSupport.DrawAreaMapTile11(ref places, eightCell);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, regenerate = false, resolutionScale = 11, tileData = results });
                 db.SaveChanges();
                 pt.Stop(plusCode8);
@@ -248,7 +248,7 @@ namespace PraxisMapper.Controllers
                 //GeoArea TenCell = OpenLocationCode.Decode(plusCode10.Substring(0, 8) + "+" +  plusCode10.Substring(9, 2));
                 GeoArea TenCell = OpenLocationCode.DecodeValid(plusCode10);
                 var places = MapSupport.GetPlaces(TenCell);
-                var results = MapSupport.GetAreaMapTile11(ref places, TenCell);
+                var results = MapSupport.DrawAreaMapTile11(ref places, TenCell);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode10, regenerate = false, resolutionScale = 11, tileData = results });
                 db.SaveChanges();
                 pt.Stop(plusCode10);
@@ -277,7 +277,7 @@ namespace PraxisMapper.Controllers
                 //requires a list of colors to use, which might vary per app
                 GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
                 var allPlaces = MapSupport.GetPlaces(sixCell);
-                var results = MapSupport.GetAreaMapTile(ref allPlaces, sixCell);
+                var results = MapSupport.DrawAreaMapTile(ref allPlaces, sixCell);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode6, regenerate = false, resolutionScale = 10, tileData = results });
                 db.SaveChanges();
                 pt.Stop(plusCode6);
@@ -304,7 +304,7 @@ namespace PraxisMapper.Controllers
                 //requires a list of colors to use, which might vary per app. Defined in AreaType
                 GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
                 var allPlaces = MapSupport.GetPlaces(sixCell);
-                var results = MapSupport.GetAreaMapTile11(ref allPlaces, sixCell);
+                var results = MapSupport.DrawAreaMapTile11(ref allPlaces, sixCell);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode6, regenerate = false, resolutionScale = 11, tileData = results });
                 db.SaveChanges();
                 pt.Stop(plusCode6);
@@ -325,9 +325,9 @@ namespace PraxisMapper.Controllers
             var allPlaces = MapSupport.GetPlaces(box);
             byte[] results;
             if (resolution == 10)
-                results = MapSupport.GetAreaMapTile(ref allPlaces, box);
+                results = MapSupport.DrawAreaMapTile(ref allPlaces, box);
             else
-                results = MapSupport.GetAreaMapTile11(ref allPlaces, box);
+                results = MapSupport.DrawAreaMapTile11(ref allPlaces, box);
             pt.Stop(lat + "|" + lon + "|" + size + "|" + resolution);
             return File(results, "image/png");
         }
@@ -453,9 +453,9 @@ namespace PraxisMapper.Controllers
             PerformanceTracker pt = new PerformanceTracker("CalculateAreaPoints");
             GeoArea box = OpenLocationCode.DecodeValid(plusCode8);
             var places = MapSupport.GetPlaces(box);
-            var plusCodeCoords = MapSupport.MakeBox(box);
+            var plusCodeCoords = MapSupport.GeoAreaToCoordArray(box);
             var plusCodePoly = MapSupport.factory.CreatePolygon(plusCodeCoords);
-            var results = MapSupport.GetPointsForArea(plusCodePoly, places);
+            var results = MapSupport.GetScoresForArea(plusCodePoly, places);
             pt.Stop();
 
             return results;
@@ -470,7 +470,7 @@ namespace PraxisMapper.Controllers
             PerformanceTracker pt = new PerformanceTracker("CalculateFullAreaPoints");
             GeoArea box = OpenLocationCode.DecodeValid(plusCode8);
             var places = MapSupport.GetPlaces(box);
-            var results =  MapSupport.GetPointsForFullArea(places);
+            var results =  MapSupport.GetScoresForFullArea(places);
             pt.Stop();
             return results;
         }
@@ -483,9 +483,9 @@ namespace PraxisMapper.Controllers
             PerformanceTracker pt = new PerformanceTracker("CalculateFlexAreaPoints");
             GeoArea box = new GeoArea(new GeoPoint(lat - (size / 2), lon - (size / 2)), new GeoPoint(lat + (size / 2), lon + (size / 2)));
             var places = MapSupport.GetPlaces(box);
-            var coords = MapSupport.MakeBox(box);
+            var coords = MapSupport.GeoAreaToCoordArray(box);
             var poly = MapSupport.factory.CreatePolygon(coords);
-            var results = MapSupport.GetPointsForArea(poly, places);
+            var results = MapSupport.GetScoresForArea(poly, places);
             pt.Stop();
             return results;
         }
@@ -498,9 +498,9 @@ namespace PraxisMapper.Controllers
             PerformanceTracker pt = new PerformanceTracker("CalculateFlexFullAreaPoints");
             GeoArea box = new GeoArea(new GeoPoint(lat - (size / 2), lon - (size / 2)), new GeoPoint(lat + (size / 2), lon + (size / 2)));
             var places = MapSupport.GetPlaces(box);
-            var coords = MapSupport.MakeBox(box);
+            var coords = MapSupport.GeoAreaToCoordArray(box);
             var poly = MapSupport.factory.CreatePolygon(coords);
-            var results =  MapSupport.GetPointsForArea(poly, places);
+            var results =  MapSupport.GetScoresForArea(poly, places);
             pt.Stop();
             return results;
         }
