@@ -24,6 +24,7 @@ namespace CoreComponents
         //TODO:
         //continue renmaing and reorganizing things.
         //figure out a better, consistent way to differentiate Points(locations) from Points(gameplay score counter)
+        //use Score for gameplay score, use CoordPair for single GPS location
         //Make all references to plus code area sizes consistent (CellX, with X the number of digits in that code)
         //Break this out into multiple classes? How so?
 
@@ -78,7 +79,7 @@ namespace CoreComponents
         {
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
             //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
-            var coordSeq = MakeBox(area);
+            var coordSeq = GeoAreaToCoordArray(area);
             var location = factory.CreatePolygon(coordSeq);
             List<MapData> places;
             if (source == null)
@@ -91,7 +92,7 @@ namespace CoreComponents
             return places;
         }
 
-        public static Coordinate[] MakeBox(GeoArea plusCodeArea)
+        public static Coordinate[] GeoAreaToCoordArray(GeoArea plusCodeArea)
         {
             var cord1 = new Coordinate(plusCodeArea.Min.Longitude, plusCodeArea.Min.Latitude);
             var cord2 = new Coordinate(plusCodeArea.Min.Longitude, plusCodeArea.Max.Latitude);
@@ -249,16 +250,12 @@ namespace CoreComponents
             if (entries.Count() == 1)
                 return entries.First();
 
-            var point = entries.Where(e => e.place.GeometryType == "Point").FirstOrDefault();
-            if (point != null)
-                return point;
-
-            var line = entries.Where(e => e.place.GeometryType == "LineString" || e.place.GeometryType == "MultiLineString").FirstOrDefault();
-            if (line != null)
-                return line;
-
-            var smallest = entries.Where(e => e.place.GeometryType == "Polygon" || e.place.GeometryType == "MultiPolygon").OrderBy(e => e.place.Area).First();
-            return smallest;
+            var place = entries.Where(e => e.place.GeometryType == "Point").FirstOrDefault();
+            if (place == null)
+                 place= entries.Where(e => e.place.GeometryType == "LineString" || e.place.GeometryType == "MultiLineString").FirstOrDefault();
+            if (place == null)
+                place = entries.Where(e => e.place.GeometryType == "Polygon" || e.place.GeometryType == "MultiPolygon").OrderBy(e => e.place.Area).First();
+            return place;
         }
 
         public static string DetermineAreaPoint(List<MapData> entriesHere)
@@ -374,14 +371,14 @@ namespace CoreComponents
         public static int GetTypeId(TagsCollectionBase tags)
         {
             //gets the ID associated with a type.
-            string results = GetType(tags);
+            string results = GetElementType(tags);
             if (results.StartsWith("admin")) //all admin levels are treated as the same type
                 return areaTypeReference["admin"].First();
 
             return areaTypeReference[results].First();
         }
 
-        public static string GetType(TagsCollectionBase tagsO)
+        public static string GetElementType(TagsCollectionBase tagsO)
         {
             //This is how we will figure out which area a cell counts as now.
             //Should make sure all of these exist in the AreaTypes table I made.
@@ -508,7 +505,7 @@ namespace CoreComponents
             return results.ToArray();
         }
 
-        public static CoordPair GetRandomPoint()
+        public static CoordPair GetRandomCoordPair()
         {
             //Global scale testing.
             Random r = new Random();
@@ -517,7 +514,7 @@ namespace CoreComponents
             return new CoordPair(lat, lon);
         }
 
-        public static CoordPair GetRandomBoundedPoint()
+        public static CoordPair GetRandomBoundedCoordPair()
         {
             //randomize lat and long to roughly somewhere in Ohio. For testing a limited geographic area.
             //42, -80 NE
@@ -529,7 +526,7 @@ namespace CoreComponents
             return new CoordPair(lat, lon);
         }
 
-        public static void InsertAreaTypes()
+        public static void InsertAreaTypesToDb()
         {
             var db = new PraxisContext();
             db.Database.BeginTransaction();
@@ -629,7 +626,7 @@ namespace CoreComponents
             wc.DownloadFile("http://download.geofabrik.de/" + topLevel + "/" + subLevel1 + "/" + subLevel2 + "-latest.osm.pbf", subLevel2 + "-latest.osm.pbf");
         }
 
-        public static byte[] GetAreaMapTile(ref List<MapData> allPlaces, GeoArea totalArea)
+        public static byte[] DrawAreaMapTile(ref List<MapData> allPlaces, GeoArea totalArea)
         {
             List<MapData> rowPlaces;
             //create a new bitmap.
@@ -664,7 +661,7 @@ namespace CoreComponents
         }
 
         // as above but each pixel is an 11 cell instead of a 10 cell. more detail but slower.
-        public static byte[] GetAreaMapTile11(ref List<MapData> allPlaces, GeoArea totalArea)
+        public static byte[] DrawAreaMapTile11(ref List<MapData> allPlaces, GeoArea totalArea)
         {
             List<MapData> rowPlaces;
             //create a new bitmap.
@@ -699,9 +696,9 @@ namespace CoreComponents
             return ms.ToArray();
         }
 
-        public static string GetPointsForArea(Polygon areaPoly, List<MapData> places)
+        //This is Points as in scoring, not Points as in coord pair location.
+        public static string GetScoresForArea(Polygon areaPoly, List<MapData> places)
         {
-            //Dictionary<string, double> areaSizes = new Dictionary<string, double>();
             List<Tuple<string, double, long>> areaSizes = new List<Tuple<string, double, long>>();
             foreach (var place in places)
             {
@@ -725,7 +722,7 @@ namespace CoreComponents
             return JsonConvert.SerializeObject(areaSizes);
         }
 
-        public static string GetPointsForFullArea(List<MapData> places)
+        public static string GetScoresForFullArea(List<MapData> places)
         {
             //As above, but counts the full area, not the area in the currently visible game area
             Dictionary<string, double> areaSizes = new Dictionary<string, double>();

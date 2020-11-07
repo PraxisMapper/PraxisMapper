@@ -70,7 +70,7 @@ namespace Larry
                 db.Database.ExecuteSqlRaw(PraxisContext.MapDataValidTrigger);
                 db.Database.ExecuteSqlRaw(PraxisContext.MapDataIndex);
                 db.Database.ExecuteSqlRaw(PraxisContext.FindDBMapDataBounds);
-                MapSupport.InsertAreaTypes();
+                MapSupport.InsertAreaTypesToDb();
             }
 
             if (args.Any(a => a == "-cleanDB"))
@@ -185,7 +185,7 @@ namespace Larry
                         {
                             GeoArea tileArea = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + MapSupport.resolutionCell6, x + MapSupport.resolutionCell6));
                             var places = MapSupport.GetPlaces(tileArea);
-                            var tileData = MapSupport.GetAreaMapTile(ref places, tileArea);
+                            var tileData = MapSupport.DrawAreaMapTile(ref places, tileArea);
                             db.MapTiles.Add(new MapTile() { tileData = tileData, regenerate = false, resolutionScale = 10, PlusCode = OpenLocationCode.Encode(new GeoPoint(y, x)).Substring(0, 6) });
                             db.SaveChanges();
                         }
@@ -198,7 +198,7 @@ namespace Larry
                         {
                             GeoArea tileArea = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + MapSupport.resolutionCell6, x + MapSupport.resolutionCell6));
                             var places = MapSupport.GetPlaces(tileArea);
-                            var tileData = MapSupport.GetAreaMapTile11(ref places, tileArea);
+                            var tileData = MapSupport.DrawAreaMapTile11(ref places, tileArea);
                             db.MapTiles.Add(new MapTile() { tileData = tileData, regenerate = false, resolutionScale = 11, PlusCode = OpenLocationCode.Encode(new GeoPoint(y, x)).Substring(0, 6) });
                             db.SaveChanges();
                         }
@@ -207,7 +207,6 @@ namespace Larry
 
             if (args.Any(a => a == "-extractBigAreas"))
             {
-                //TODO: finish this function
                 //ExtractAreasFromLargeFile(ParserSettings.PbfFolder + "planet-latest.osm.pbf"); //Guarenteed to have everything. Estimates 103 minutes per relation.
                 ExtractAreasFromLargeFile(ParserSettings.PbfFolder + "north-america-latest.osm.pbf");
             }
@@ -218,9 +217,6 @@ namespace Larry
                 GeoArea scanArea = new GeoArea(1, 1, 2, 2);
                 ScanMapForDullAreas(scanArea);
             }
-
-
-
             return;
         }
 
@@ -297,15 +293,6 @@ namespace Larry
             fs.Read(fileInRam, 0, (int)fs.Length);
             MemoryStream ms = new MemoryStream(fileInRam);
             fs.Close(); fs.Dispose();
-
-            //test entries with GetAllEntriesFromPbf below.
-            //List<Relation> relList = new List<Relation>(); //2756 entries
-            //List<Way> wayList = new List<Way>(); //135724 entries 
-            //Dictionary<long, NodeReference> nodeRef = new Dictionary<long, NodeReference>(); //18313 entries
-            //List<MapData> mdEntries = new List<MapData>();
-
-            //current test option for trying to run through a file in one shot. Needs work still.
-            //GetAllEntriesFromPbf(ms, "", out relList, out wayList, out nodeRef, out mdEntries);
 
             Log.WriteLog("Checking for members in  " + filename + " at " + DateTime.Now);
             string destFilename = System.IO.Path.GetFileName(filename).Replace(".osm.pbf", "");
@@ -401,7 +388,7 @@ namespace Larry
             {
                 id = w.Id.Value,
                 name = GetElementName(w.Tags),
-                AreaType = MapSupport.GetType(w.Tags),
+                AreaType = MapSupport.GetElementType(w.Tags),
                 nodRefs = w.Nodes.ToList()
             })
             .ToList();
@@ -409,17 +396,14 @@ namespace Larry
             Log.WriteLog("List created at " + DateTime.Now);
 
             int wayCounter = 0;
-
             System.Threading.Tasks.Parallel.ForEach(ways, (w) =>
-            //foreach(var w in ways)
             {
                 wayCounter++;
                 if (wayCounter % 10000 == 0)
                     Log.WriteLog(wayCounter + " processed so far");
 
                 LoadNodesIntoWay(ref w, ref osmNodes);
-            }
-            );
+            });
 
             Log.WriteLog("Ways populated with Nodes at " + DateTime.Now);
             osmNodes = null; //done with these now, can free up RAM again.
@@ -428,8 +412,7 @@ namespace Larry
             processedEntries.AddRange(ways.Where(w => referencedWays[w.id].Count() == 0).AsParallel().Select(w => ConvertWayToMapData(ref w)));
             ways = ways.Where(w => referencedWays[w.id].Count() > 0).ToList();
 
-            //processedEntries.AddRange(ProcessRelations(ref osmRelations, ref ways)); //75580ms on OH data
-            processedEntries.AddRange(osmRelations.AsParallel().Select(r => ProcessRelation(r, ref ways))); //42223ms on OH.
+            processedEntries.AddRange(osmRelations.AsParallel().Select(r => ProcessRelation(r, ref ways))); //Approx. twice as fast as ProcessRelations() without parallel.
 
             //Removed entries we've already looked at as part of a relation? I suspect this is one of those cases where
             //either way I do this, something's going to get messed up. Should track what.
@@ -437,7 +420,6 @@ namespace Larry
             //Re-processing ways already in a reference screws up:
             //ways = ways.Where(w => referencedWays[w.id].Count() == 0).ToList(); 
             //I might want to only remove outer ways, and let inner ways remain in case they're something else.
-            //This lets Oak Grove draw correctly in my app.
             var outerWays = osmRelations.SelectMany(r => r.Members.Where(m => m.Role == "outer" && m.Type == OsmGeoType.Way).Select(m => m.Id)).ToLookup(k => k, v => v);
             ways = ways.Where(w => outerWays[w.id].Count() == 0).ToList();
             outerWays = null;
@@ -470,7 +452,7 @@ namespace Larry
             {
                 id = w.Id.Value,
                 name = GetElementName(w.Tags),
-                AreaType = MapSupport.GetType(w.Tags),
+                AreaType = MapSupport.GetElementType(w.Tags),
                 nodRefs = w.Nodes.ToList()
             })
             .ToList();
@@ -598,7 +580,7 @@ namespace Larry
 
             MapData md = new MapData();
             md.name = GetElementName(r.Tags);
-            md.type = MapSupport.GetType(r.Tags);
+            md.type = MapSupport.GetElementType(r.Tags);
             md.AreaTypeId = MapSupport.areaTypeReference[md.type.StartsWith("admin") ? "admin" : md.type].First();
             md.RelationId = r.Id.Value;
             md.place = MapSupport.SimplifyArea(Tpoly);
@@ -607,8 +589,6 @@ namespace Larry
 
             return md;
         }
-
-
 
         private static Geometry GetGeometryFromWays(List<WayData> shapeList, OsmSharp.Relation r)
         {
@@ -807,7 +787,7 @@ namespace Larry
             ws.Capacity = 100000;
 
             var source = new PBFOsmStreamSource(dataStream);
-            var source2 = source.Where(s => MapSupport.GetType(s.Tags) != "" && s.Type == OsmGeoType.Relation).ToComplete();
+            var source2 = source.Where(s => MapSupport.GetElementType(s.Tags) != "" && s.Type == OsmGeoType.Relation).ToComplete();
 
 
             foreach (var entry in source2)
@@ -815,7 +795,7 @@ namespace Larry
                 //switch(entry.Type)
                 //{
                 //    case OsmGeoType.Relation:
-                //        if (MapSupport.GetType(entry.Tags) != "")
+                //        if (MapSupport.GetElementType(entry.Tags) != "")
                 //        {
                 CompleteRelation temp = (CompleteRelation)entry;
                 var t = Complete.ProcessCompleteRelation(temp);
@@ -826,7 +806,7 @@ namespace Larry
                 //        }
                 //        break;
                 //    case OsmGeoType.Way:
-                //        if (MapSupport.GetType(entry.Tags) != "" || ways.Contains(entry.Id))
+                //        if (MapSupport.GetElementType(entry.Tags) != "" || ways.Contains(entry.Id))
                 //        {
                 //            Way temp = (Way)entry;
                 //            ws.Add(temp);
@@ -835,10 +815,10 @@ namespace Larry
                 //        }
                 //        break;
                 //    case OsmGeoType.Node:
-                //        if (MapSupport.GetType(entry.Tags) != "" || nods.Contains(entry.Id))
+                //        if (MapSupport.GetElementType(entry.Tags) != "" || nods.Contains(entry.Id))
                 //        {
                 //            var n = (OsmSharp.Node)entry;
-                //            ns.Add(n.Id.Value, new NodeReference(n.Id.Value, (float)n.Latitude, (float)n.Longitude, GetElementName(n.Tags), MapSupport.GetType(n.Tags)));
+                //            ns.Add(n.Id.Value, new NodeReference(n.Id.Value, (float)n.Latitude, (float)n.Longitude, GetElementName(n.Tags), MapSupport.GetElementType(n.Tags)));
                 //        }
                 //        break;
                 //}
@@ -877,17 +857,17 @@ namespace Larry
             List<OsmSharp.Relation> filteredEntries;
             if (areaType == null)
                 filteredEntries = progress.AsParallel().Where(p => p.Type == OsmGeoType.Relation &&
-                    MapSupport.GetType(p.Tags) != "")
+                    MapSupport.GetElementType(p.Tags) != "")
                 .Select(p => (OsmSharp.Relation)p)
                 .ToList();
             else if (areaType == "admin")
                 filteredEntries = progress.AsParallel().Where(p => p.Type == OsmGeoType.Relation &&
-                    MapSupport.GetType(p.Tags).StartsWith(areaType))
+                    MapSupport.GetElementType(p.Tags).StartsWith(areaType))
                 .Select(p => (OsmSharp.Relation)p)
                 .ToList();
             else
                 filteredEntries = progress.AsParallel().Where(p => p.Type == OsmGeoType.Relation &&
-                MapSupport.GetType(p.Tags) == areaType
+                MapSupport.GetElementType(p.Tags) == areaType
             )
                 .Select(p => (OsmSharp.Relation)p)
                 .ToList();
@@ -929,7 +909,7 @@ namespace Larry
             if (areaType == null)
             {
                 filteredWays = progress.AsParallel().Where(p => p.Type == OsmGeoType.Way &&
-                (MapSupport.GetType(p.Tags) != ""
+                (MapSupport.GetElementType(p.Tags) != ""
                 || referencedWays[p.Id.Value].Count() > 0)
             )
                 .Select(p => (OsmSharp.Way)p)
@@ -938,7 +918,7 @@ namespace Larry
             else if (areaType == "admin")
             {
                 filteredWays = progress.AsParallel().Where(p => p.Type == OsmGeoType.Way &&
-                    (MapSupport.GetType(p.Tags).StartsWith(areaType)
+                    (MapSupport.GetElementType(p.Tags).StartsWith(areaType)
                     || referencedWays[p.Id.Value].Count() > 0)
                 )
                     .Select(p => (OsmSharp.Way)p)
@@ -947,7 +927,7 @@ namespace Larry
             else
             {
                 filteredWays = progress.AsParallel().Where(p => p.Type == OsmGeoType.Way &&
-                    (MapSupport.GetType(p.Tags) == areaType
+                    (MapSupport.GetElementType(p.Tags) == areaType
                     || referencedWays[p.Id.Value].Count() > 0)
                 )
                     .Select(p => (OsmSharp.Way)p)
@@ -966,7 +946,7 @@ namespace Larry
             if (areaType == null)
             {
                 filteredWays = progress.AsParallel().Where(p => p.Type == OsmGeoType.Way &&
-                (MapSupport.GetType(p.Tags) != ""
+                (MapSupport.GetElementType(p.Tags) != ""
                 || referencedWays.Contains(p.Id.Value))
             )
                 .Select(p => (OsmSharp.Way)p)
@@ -975,7 +955,7 @@ namespace Larry
             else if (areaType == "admin")
             {
                 filteredWays = progress.AsParallel().Where(p => p.Type == OsmGeoType.Way &&
-                    (MapSupport.GetType(p.Tags).StartsWith(areaType)
+                    (MapSupport.GetElementType(p.Tags).StartsWith(areaType)
                     || referencedWays.Contains(p.Id.Value))
                 )
                     .Select(p => (OsmSharp.Way)p)
@@ -984,7 +964,7 @@ namespace Larry
             else
             {
                 filteredWays = progress.AsParallel().Where(p => p.Type == OsmGeoType.Way &&
-                    (MapSupport.GetType(p.Tags) == areaType
+                    (MapSupport.GetElementType(p.Tags) == areaType
                     || referencedWays.Contains(p.Id.Value))
                 )
                     .Select(p => (OsmSharp.Way)p)
@@ -1025,15 +1005,15 @@ namespace Larry
             if (areaType == null)
             {
                 filteredEntries = progress.AsParallel().Where(p => p.Type == OsmGeoType.Node &&
-               (MapSupport.GetType(p.Tags) != "" || nodes[p.Id.Value].Count() > 0)
+               (MapSupport.GetElementType(p.Tags) != "" || nodes[p.Id.Value].Count() > 0)
            )
-               .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), MapSupport.GetType(n.Tags)))
+               .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), MapSupport.GetElementType(n.Tags)))
                .ToLookup(k => k.Id, v => v);
             }
             else if (areaType == "admin")
             {
                 filteredEntries = progress.AsParallel().Where(p => p.Type == OsmGeoType.Node &&
-               (MapSupport.GetType(p.Tags).StartsWith(areaType) || nodes[p.Id.Value].Count() > 0)
+               (MapSupport.GetElementType(p.Tags).StartsWith(areaType) || nodes[p.Id.Value].Count() > 0)
             )
                .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), areaType))
                .ToLookup(k => k.Id, v => v);
@@ -1041,7 +1021,7 @@ namespace Larry
             else
             {
                 filteredEntries = progress.AsParallel().Where(p => p.Type == OsmGeoType.Node &&
-                   (MapSupport.GetType(p.Tags) == areaType || nodes.Contains(p.Id.Value)) //might use less CPU than [].count() TODO test/determine if true.
+                   (MapSupport.GetElementType(p.Tags) == areaType || nodes.Contains(p.Id.Value)) //might use less CPU than [].count() TODO test/determine if true.
                )
                    .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), areaType))
                    .ToLookup(k => k.Id, v => v);
@@ -1059,15 +1039,15 @@ namespace Larry
             if (areaType == null)
             {
                 filteredEntries = progress.AsParallel().Where(p => p.Type == OsmGeoType.Node &&
-               (MapSupport.GetType(p.Tags) != "" || nodes.Contains(p.Id.Value))
+               (MapSupport.GetElementType(p.Tags) != "" || nodes.Contains(p.Id.Value))
            )
-               .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), MapSupport.GetType(n.Tags)))
+               .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), MapSupport.GetElementType(n.Tags)))
                .ToLookup(k => k.Id, v => v);
             }
             else if (areaType == "admin")
             {
                 filteredEntries = progress.AsParallel().Where(p => p.Type == OsmGeoType.Node &&
-               (MapSupport.GetType(p.Tags).StartsWith(areaType) || nodes.Contains(p.Id.Value))
+               (MapSupport.GetElementType(p.Tags).StartsWith(areaType) || nodes.Contains(p.Id.Value))
             )
                .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), areaType))
                .ToLookup(k => k.Id, v => v);
@@ -1075,7 +1055,7 @@ namespace Larry
             else
             {
                 filteredEntries = progress.AsParallel().Where(p => p.Type == OsmGeoType.Node &&
-                   (MapSupport.GetType(p.Tags) == areaType || nodes.Contains(p.Id.Value))
+                   (MapSupport.GetElementType(p.Tags) == areaType || nodes.Contains(p.Id.Value))
                )
                    .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), areaType))
                    .ToLookup(k => k.Id, v => v);
@@ -1194,7 +1174,7 @@ namespace Larry
             var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values. //share this here, so i compare the actual algorithms instead of this boilerplate, mandatory entry.
             //var relationToProcess = 
 
-            //var polygon = factory.CreatePolygon(MapSupport.MakeBox(box));
+            //var polygon = factory.CreatePolygon(MapSupport.GeoAreaToCoordArray(box));
 
             var source = new PBFOsmStreamSource(File.OpenRead(parentFile));
             //Using different types than my existing functions.
@@ -1346,7 +1326,7 @@ namespace Larry
             var referencedWays = rs.SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToLookup(k => k, v => v);
             var ways2 = source.Where(s => s.Type == OsmGeoType.Way && referencedWays[s.Id.Value].Count() > 0).Select(s => (OsmSharp.Way)s).ToList();
             var referencedNodes = ways2.SelectMany(m => m.Nodes).Distinct().ToLookup(k => k, v => v);
-            var nodes2 = source.Where(s => s.Type == OsmGeoType.Node && referencedNodes[s.Id.Value].Count() > 0).Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), MapSupport.GetType(n.Tags))).ToList();
+            var nodes2 = source.Where(s => s.Type == OsmGeoType.Node && referencedNodes[s.Id.Value].Count() > 0).Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), MapSupport.GetElementType(n.Tags))).ToList();
             Log.WriteLog("Relevant data pulled from file at" + DateTime.Now);
 
             var osmNodeLookup = nodes2.AsParallel().ToLookup(k => k.Id, v => v);
@@ -1357,7 +1337,7 @@ namespace Larry
             {
                 id = w.Id.Value,
                 name = GetElementName(w.Tags),
-                AreaType = MapSupport.GetType(w.Tags),
+                AreaType = MapSupport.GetElementType(w.Tags),
                 nodRefs = w.Nodes.ToList()
             })
             .ToList();
@@ -1427,7 +1407,7 @@ namespace Larry
             var referencedWays = relation.SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToLookup(k => k, v => v);
             var ways2 = source.Where(s => s.Type == OsmGeoType.Way && referencedWays[s.Id.Value].Count() > 0).Select(s => (OsmSharp.Way)s).ToList();
             var referencedNodes = ways2.SelectMany(m => m.Nodes).Distinct().ToLookup(k => k, v => v);
-            var nodes2 = source.Where(s => s.Type == OsmGeoType.Node && referencedNodes[s.Id.Value].Count() > 0).Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), MapSupport.GetType(n.Tags))).ToList();
+            var nodes2 = source.Where(s => s.Type == OsmGeoType.Node && referencedNodes[s.Id.Value].Count() > 0).Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetElementName(n.Tags), MapSupport.GetElementType(n.Tags))).ToList();
             Log.WriteLog("Relevant data pulled from file at" + DateTime.Now);
 
             //Log.WriteLog("Creating node lookup for " + osmNodes.Count() + " nodes"); //33 million nodes across 2 million ways will tank this app at 16GB RAM
@@ -1447,7 +1427,7 @@ namespace Larry
             {
                 id = w.Id.Value,
                 name = GetElementName(w.Tags),
-                AreaType = MapSupport.GetType(w.Tags),
+                AreaType = MapSupport.GetElementType(w.Tags),
                 nodRefs = w.Nodes.ToList()
             })
             .ToList();

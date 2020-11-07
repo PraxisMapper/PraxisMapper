@@ -87,7 +87,7 @@ namespace PerformanceTestApp
             results.Capacity = count;
 
             for (int i = 0; i < count; i++)
-                results.Add(MapSupport.GetRandomPoint());
+                results.Add(MapSupport.GetRandomCoordPair());
 
             return results;
         }
@@ -98,7 +98,7 @@ namespace PerformanceTestApp
             results.Capacity = count;
 
             for (int i = 0; i < count; i++)
-                results.Add(GetRandomBoundedPoint());
+                results.Add(GetRandomBoundedCoordPair());
 
             return results;
         }
@@ -224,7 +224,7 @@ namespace PerformanceTestApp
             for (int i = 0; i < 50; i++)
             {
 
-                var point = MapSupport.GetRandomBoundedPoint();
+                var point = MapSupport.GetRandomBoundedCoordPair();
                 var olc = OpenLocationCode.Encode(point.lat, point.lon);
                 var codeString = olc.Substring(0, 6);
                 sw.Restart();
@@ -256,7 +256,7 @@ namespace PerformanceTestApp
 
             for (int i = 0; i < 50; i++)
             {
-                var point = MapSupport.GetRandomBoundedPoint();
+                var point = MapSupport.GetRandomBoundedCoordPair();
                 var olc = OpenLocationCode.Encode(point.lat, point.lon);
                 var codeString = olc.Substring(0, 6);
                 sw.Restart();
@@ -286,7 +286,7 @@ namespace PerformanceTestApp
 
             for (int i = 0; i < 50; i++)
             {
-                var point = MapSupport.GetRandomBoundedPoint();
+                var point = MapSupport.GetRandomBoundedCoordPair();
                 var olc = OpenLocationCode.Encode(point.lat, point.lon);
                 var codeString = olc.Substring(0, 6);
                 sw.Restart();
@@ -430,7 +430,7 @@ namespace PerformanceTestApp
 
         public static List<MapData> GetPlacesBase(GeoArea area, List<MapData> source = null)
         {
-            var coordSeq = MakeBox(area);
+            var coordSeq = GeoAreaToCoordArray(area);
             var location = factory.CreatePolygon(coordSeq);
             List<MapData> places;
             if (source == null)
@@ -445,7 +445,7 @@ namespace PerformanceTestApp
 
         public static List<MapData> GetPlacesPrecompiled(GeoArea area, List<MapData> source = null)
         {
-            var coordSeq = MakeBox(area);
+            var coordSeq = GeoAreaToCoordArray(area);
             var location = factory.CreatePolygon(coordSeq);
             List<MapData> places;
             if (source == null)
@@ -463,7 +463,7 @@ namespace PerformanceTestApp
             //TODO: this seems to have a lot of warmup time that I would like to get rid of. Would be a huge performance improvement.
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
             //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
-            var coordSeq = MakeBox(area);
+            var coordSeq = GeoAreaToCoordArray(area);
             var location = factory.CreatePolygon(coordSeq);
             List<MapData> places;
             if (source == null)
@@ -598,17 +598,17 @@ namespace PerformanceTestApp
             List<OsmSharp.Relation> filteredEntries;
             if (areaType == null)
                 filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
-                    MapSupport.GetType(p.Tags) != "")
+                    MapSupport.GetElementType(p.Tags) != "")
                 .Select(p => (OsmSharp.Relation)p)
                 .ToList();
             else if (areaType == "admin")
                 filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
-                    MapSupport.GetType(p.Tags).StartsWith(areaType))
+                    MapSupport.GetElementType(p.Tags).StartsWith(areaType))
                 .Select(p => (OsmSharp.Relation)p)
                 .ToList();
             else
                 filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
-                MapSupport.GetType(p.Tags) == areaType
+                MapSupport.GetElementType(p.Tags) == areaType
             )
                 .Select(p => (OsmSharp.Relation)p)
                 .ToList();
