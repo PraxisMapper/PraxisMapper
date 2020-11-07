@@ -5,3 +5,9 @@ This app will not be held to a high standard of readability. It's entirely for d
 
 Developers curious about performance differences are encourages to uncomment the test they want to see on their machine and run them individually.
 Any major deviations from the historical run data should be looked at.
+
+When possible, use ohio-latest.osm.pbf to compare data. Ohio is a resonably sized and diverse area to use as a baseline.
+All of the initial development and testing is done on Ohio to determine correctness before attempting to jump to global scale.
+You should use your local area in your own development and testing, to get an idea of what you'll need, but for comparing to other users Ohio is our standard.
+Note that requirements can vary widely. Ohio is a ~150MB PBF file that uses 8GB of RAM to process, 
+while Norway, a country with 3x the area of Ohio, has a ~850MB PBF that takes up at least 39GB RAM to process because of the amount of detail involved in the 'water' areas.

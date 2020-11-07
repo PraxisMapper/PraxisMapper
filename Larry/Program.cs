@@ -180,10 +180,10 @@ namespace Larry
                 var maxPlusCodePoint = OpenLocationCode.DecodeValid(maxPlusCode.CodeDigits.Substring(0, 6));
                 if (resolution == "10")
                 {
-                    for (double x = minPlusCodePoint.Min.Longitude; x <= maxPlusCodePoint.Max.Longitude; x += MapSupport.resolution6)
-                        for (double y = minPlusCodePoint.Min.Latitude; y <= maxPlusCodePoint.Max.Latitude; y += MapSupport.resolution6)
+                    for (double x = minPlusCodePoint.Min.Longitude; x <= maxPlusCodePoint.Max.Longitude; x += MapSupport.resolutionCell6)
+                        for (double y = minPlusCodePoint.Min.Latitude; y <= maxPlusCodePoint.Max.Latitude; y += MapSupport.resolutionCell6)
                         {
-                            GeoArea tileArea = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + MapSupport.resolution6, x + MapSupport.resolution6));
+                            GeoArea tileArea = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + MapSupport.resolutionCell6, x + MapSupport.resolutionCell6));
                             var places = MapSupport.GetPlaces(tileArea);
                             var tileData = MapSupport.GetAreaMapTile(ref places, tileArea);
                             db.MapTiles.Add(new MapTile() { tileData = tileData, regenerate = false, resolutionScale = 10, PlusCode = OpenLocationCode.Encode(new GeoPoint(y, x)).Substring(0, 6) });
@@ -193,10 +193,10 @@ namespace Larry
 
                 if (resolution == "11")
                 {
-                    for (double x = minPlusCodePoint.Min.Longitude; x <= maxPlusCodePoint.Max.Longitude; x += MapSupport.resolution6)
-                        for (double y = minPlusCodePoint.Min.Latitude; y <= maxPlusCodePoint.Max.Latitude; y += MapSupport.resolution6)
+                    for (double x = minPlusCodePoint.Min.Longitude; x <= maxPlusCodePoint.Max.Longitude; x += MapSupport.resolutionCell6)
+                        for (double y = minPlusCodePoint.Min.Latitude; y <= maxPlusCodePoint.Max.Latitude; y += MapSupport.resolutionCell6)
                         {
-                            GeoArea tileArea = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + MapSupport.resolution6, x + MapSupport.resolution6));
+                            GeoArea tileArea = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + MapSupport.resolutionCell6, x + MapSupport.resolutionCell6));
                             var places = MapSupport.GetPlaces(tileArea);
                             var tileData = MapSupport.GetAreaMapTile11(ref places, tileArea);
                             db.MapTiles.Add(new MapTile() { tileData = tileData, regenerate = false, resolutionScale = 11, PlusCode = OpenLocationCode.Encode(new GeoPoint(y, x)).Substring(0, 6) });

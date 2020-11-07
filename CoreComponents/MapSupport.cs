@@ -21,28 +21,28 @@ namespace CoreComponents
 {
     public static class MapSupport
     {
-        //TODO: define a real purpose and location for this stuff.
-        //Right now, this is mostly 'functions/consts I want to refer to in multiple projects'
-
         //TODO:
         //continue renmaing and reorganizing things.
+        //figure out a better, consistent way to differentiate Points(locations) from Points(gameplay score counter)
+        //Make all references to plus code area sizes consistent (CellX, with X the number of digits in that code)
+        //Break this out into multiple classes? How so?
 
         //the 11th digit uses a 4x5 grid, not a 20x20. They need separate scaling values for X and Y and are rectangular even at the equator.
-        public const double resolution11Lat = .000025;
-        public const double resolution11Lon = .00003125; //11-digit plus codes are approx. 3.5m ^2
-        public const double resolution10 = .000125; //the size of a 10-digit PlusCode, in degrees. Approx. 14 meters^2
-        public const double resolution8 = .0025; //the size of a 8-digit PlusCode, in degrees. Approx. 275 meters^2
-        public const double resolution6 = .05; //the size of a 6-digit PlusCode, in degrees. Approx. 5.5 km^2
-        public const double resolution4 = 1; //the size of a 4-digit PlusCode, in degrees. Approx. 110km ^2
-        public const double resolution2 = 20; //the size of a 2-digit PlusCode, in degrees. Approx 2200km ^2
+        public const double resolutionCell11Lat = .000025;
+        public const double resolutionCell11Lon = .00003125; //11-digit plus codes are approx. 3.5m ^2
+        public const double resolutionCell10 = .000125; //the size of a 10-digit PlusCode, in degrees. Approx. 14 meters^2
+        public const double resolutionCell8 = .0025; //the size of a 8-digit PlusCode, in degrees. Approx. 275 meters^2
+        public const double resolutionCell6 = .05; //the size of a 6-digit PlusCode, in degrees. Approx. 5.5 km^2
+        public const double resolutionCell4 = 1; //the size of a 4-digit PlusCode, in degrees. Approx. 110km ^2
+        public const double resolutionCell2 = 20; //the size of a 2-digit PlusCode, in degrees. Approx 2200km ^2
 
-        public const double square10cellArea = resolution10 * resolution10; //for area-control calculations.
+        public const double squareCell10Area = resolutionCell10 * resolutionCell10; //for area-control calculations.
 
         public static List<string> relevantTourismValues = new List<string>() { "artwork", "attraction", "gallery", "museum", "viewpoint", "zoo" }; //The stuff we care about in the tourism category. Zoo and attraction are debatable.
         public static List<string> relevantTrailValues = new List<string>() { "path", "bridleway", "cycleway", "footway", "living_street" }; //The stuff we care about in the highway category for trails. Living Streets are nonexistant in the US.
         public static List<string> relevantRoadValues = new List<string>() { "motorway", "trunk", "primary", "secondary", "tertiary", "unclassified", "residential", "motorway_link", "trunk_link", "primary_link", "secondary_link", "tertiary_link", "service", "road" }; //The stuff we care about in the highway category for roads. A lot more options for this.
 
-        public static GeometryFactory factory = NtsGeometryServices.Instance.CreateGeometryFactory(4326); //Doesn't round coords.
+        public static GeometryFactory factory = NtsGeometryServices.Instance.CreateGeometryFactory(4326);
         public static bool SimplifyAreas = false;
 
         public static List<AreaType> areaTypes = new List<AreaType>() {
@@ -61,7 +61,7 @@ namespace CoreComponents
             new AreaType() { AreaTypeId = 12, AreaName = "trail", OsmTags = "", HtmlColorCode = "782E05" },
             new AreaType() { AreaTypeId = 13, AreaName = "admin", OsmTags = "",HtmlColorCode = "000000" },
             
-            //These areas are for a more detailed, single area focused map game
+            //These areas are more for map tiles than gameplay
             new AreaType() { AreaTypeId = 14, AreaName = "building", OsmTags = "", HtmlColorCode = "808080" },
             new AreaType() { AreaTypeId = 15, AreaName = "road", OsmTags = "", HtmlColorCode = "0D0D0D"},
             new AreaType() { AreaTypeId = 16, AreaName = "parking", OsmTags = "", HtmlColorCode = "0D0D0D" },
@@ -93,7 +93,6 @@ namespace CoreComponents
 
         public static Coordinate[] MakeBox(GeoArea plusCodeArea)
         {
-            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
             var cord1 = new Coordinate(plusCodeArea.Min.Longitude, plusCodeArea.Min.Latitude);
             var cord2 = new Coordinate(plusCodeArea.Min.Longitude, plusCodeArea.Max.Latitude);
             var cord3 = new Coordinate(plusCodeArea.Max.Longitude, plusCodeArea.Max.Latitude);
@@ -112,7 +111,7 @@ namespace CoreComponents
             placeArray = new List<MapData>[1];
             areaArray = new GeoArea[1];
 
-            if (divideCount == 0 || divideCount == 1)
+            if (divideCount <= 1)
             {
                 placeArray[0] = places;
                 areaArray[0] = area;
@@ -152,15 +151,15 @@ namespace CoreComponents
             if (mapData.Count() == 0)
                 return sb;
 
-            var xCells = area.LongitudeWidth / resolution10;
-            var yCells = area.LatitudeHeight / resolution10;
+            var xCells = area.LongitudeWidth / resolutionCell10;
+            var yCells = area.LatitudeHeight / resolutionCell10;
 
             for (double xx = 0; xx < xCells; xx += 1)
             {
                 for (double yy = 0; yy < yCells; yy += 1)
                 {
-                    double x = area.Min.Longitude + (resolution10 * xx);
-                    double y = area.Min.Latitude + (resolution10 * yy);
+                    double x = area.Min.Longitude + (resolutionCell10 * xx);
+                    double y = area.Min.Latitude + (resolutionCell10 * yy);
 
                     var placesFound = MapSupport.FindPlacesIn10Cell(x, y, ref mapData, entireCode);
                     if (!string.IsNullOrWhiteSpace(placesFound))
@@ -173,7 +172,7 @@ namespace CoreComponents
 
         public static string FindPlacesIn10Cell(double x, double y, ref List<MapData> places, bool entireCode = false)
         {
-            var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolution10, x + resolution10));
+            var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell10, x + resolutionCell10));
             var entriesHere = MapSupport.GetPlaces(box, places).Where(p => p.AreaTypeId != 13).ToList(); //Excluding admin boundaries from this list.  
 
             if (entriesHere.Count() == 0)
@@ -195,7 +194,7 @@ namespace CoreComponents
         //As above, but only returns type ID
         public static int GetAreaTypeFor10Cell(double x, double y, ref List<MapData> places)
         {
-            var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolution10, x + resolution10));
+            var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell10, x + resolutionCell10));
             var entriesHere = MapSupport.GetPlaces(box, places).Where(p => p.AreaTypeId != 13).ToList(); //Excluding admin boundaries from this list.  
 
             if (entriesHere.Count() == 0)
@@ -207,7 +206,7 @@ namespace CoreComponents
 
         public static int GetAreaTypeFor11Cell(double x, double y, ref List<MapData> places)
         {
-            var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolution11Lat, x + resolution11Lon));
+            var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell11Lat, x + resolutionCell11Lon));
             var entriesHere = MapSupport.GetPlaces(box, places).Where(p => p.AreaTypeId != 13).ToList(); //Excluding admin boundaries from this list.  
 
             if (entriesHere.Count() == 0)
@@ -217,12 +216,10 @@ namespace CoreComponents
             return area;
         }
 
-
-
-        //I don't think this is going to be a high-demand function, but I'll include it for performance comparisons or possibly low-res tiles.
+        //I don't think this is going to be a high-demand function, but I'll include it for performance comparisons.
         public static string FindPlacesIn11Cell(double x, double y, ref List<MapData> places, bool entireCode = false)
         {
-            var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolution11Lat, x + resolution11Lon));
+            var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell11Lat, x + resolutionCell11Lon));
             var entriesHere = MapSupport.GetPlaces(box, places).Where(p => p.AreaTypeId != 13).ToList(); //Excluding admin boundaries from this list.  
 
             if (entriesHere.Count() == 0)
@@ -241,57 +238,39 @@ namespace CoreComponents
             return "";
         }
 
-        public static string DetermineAreaPoint(List<MapData> entriesHere)
+        public static MapData PickSortedEntry(List<MapData> entries)
         {
-            //New sorting rules:
+            //Current sorting rules:
             //If there's only one place, take it without any additional queries. Otherwise:
             //if there's a Point in the mapdata list, take the first one (No additional sub-sorting applied yet)
             //else if there's a Line in the mapdata list, take the first one (no additional sub-sorting applied yet)
             //else if there's polygonal areas here, take the smallest one by area 
             //(In general, the smaller areas should be overlaid on larger areas. This is more accurate than guessing by area types which one should be applied)
+            if (entries.Count() == 1)
+                return entries.First();
 
-            if (entriesHere.Count() == 1)
-            {
-                var first = entriesHere.First();
-                return first.name + "|" + first.AreaTypeId + "|" + first.MapDataId;
-            }
-
-            var point = entriesHere.Where(e => e.place.GeometryType == "Point").FirstOrDefault();
+            var point = entries.Where(e => e.place.GeometryType == "Point").FirstOrDefault();
             if (point != null)
-                return point.name + "|" + point.AreaTypeId + "|" + point.MapDataId;
+                return point;
 
-            var line = entriesHere.Where(e => e.place.GeometryType == "LineString" || e.place.GeometryType == "MultiLineString").FirstOrDefault();
+            var line = entries.Where(e => e.place.GeometryType == "LineString" || e.place.GeometryType == "MultiLineString").FirstOrDefault();
             if (line != null)
-                return line.name + "|" + line.AreaTypeId + "|" + line.MapDataId;
+                return line;
 
-            var smallest = entriesHere.Where(e => e.place.GeometryType == "Polygon" || e.place.GeometryType == "MultiPolygon").OrderBy(e => e.place.Area).First();
-            return smallest.name + "|" + smallest.AreaTypeId + "|" + smallest.MapDataId;
+            var smallest = entries.Where(e => e.place.GeometryType == "Polygon" || e.place.GeometryType == "MultiPolygon").OrderBy(e => e.place.Area).First();
+            return smallest;
         }
 
+        public static string DetermineAreaPoint(List<MapData> entriesHere)
+        {
+            var entry = PickSortedEntry(entriesHere);
+            return entry.name + "|" + entry.AreaTypeId + "|" + entry.MapDataId;
+        }
 
-        //Update this function if the logic in the above function changes too.
         public static int DetermineAreaType(List<MapData> entriesHere)
         {
-            //New sorting rules:
-            //If there's only one place, take it without any additional queries. Otherwise:
-            //if there's a Point in the mapdata list, take the first one (No additional sub-sorting applied yet)
-            //else if there's a Line in the mapdata list, take the first one (no additional sub-sorting applied yet)
-            //else if there's polygonal areas here, take the smallest one by area 
-            //(In general, the smaller areas should be overlaid on larger areas. This is more accurate than guessing by area types which one should be applied)
-
-            if (entriesHere.Count() == 1)
-                return entriesHere.First().AreaTypeId;
-
-            var point = entriesHere.Where(e => e.place.GeometryType == "Point").FirstOrDefault();
-            if (point != null)
-                return point.AreaTypeId;
-
-            var line = entriesHere.Where(e => e.place.GeometryType == "LineString" || e.place.GeometryType == "MultiLineString").FirstOrDefault();
-            if (line != null)
-                return line.AreaTypeId;
-
-            var smallest = entriesHere.Where(e => e.place.GeometryType == "Polygon" || e.place.GeometryType == "MultiPolygon").OrderBy(e => e.place.Area).First();
-            return smallest.AreaTypeId;
+            var entry = PickSortedEntry(entriesHere);
+            return entry.AreaTypeId;
         }
 
         public static string LoadDataOnArea(long id)
@@ -321,7 +300,7 @@ namespace CoreComponents
             //Something with a type and no name was found to be interesting but not named
             //something with a name and no type is probably an excluded entry.
             //I always want a type. Names are optional.
-            if (w.AreaType == "") //w.name == "" && 
+            if (w.AreaType == "")
                 return null;
 
             //Take a single tagged Way, and make it a usable MapData entry for the app.
@@ -341,7 +320,7 @@ namespace CoreComponents
             {
                 if (w.nds.Count <= 3)
                 {
-                    Log.WriteLog("Way " + w.id + " doesn't have enough nodes to parse into a Polygon. This entry is an awkward line, not processing.");
+                    Log.WriteLog("Way " + w.id + " doesn't have enough nodes to parse into a Polygon and first/last points are the same. This entry is an awkward line, not processing.");
                     return null;
                 }
 
@@ -362,7 +341,6 @@ namespace CoreComponents
             }
             w = null;
             return md;
-
         }
 
         public static MapData ConvertNodeToMapData(NodeReference n)
@@ -408,13 +386,12 @@ namespace CoreComponents
             //This is how we will figure out which area a cell counts as now.
             //Should make sure all of these exist in the AreaTypes table I made.
             //REMEMBER: this list needs to match the same tags as the ones in GetWays(relations)FromPBF or else data looks weird.
-            //TODO: optimize this function, searching  the array 20 times in the worst-case scenario isn't good for big files. Takes an hour for a 7GB file.
 
             if (tagsO.Count() == 0)
                 return ""; //Sanity check
 
             var tags = tagsO.ToLookup(k => k.Key, v => v.Value);
-            //Entries are currently sorted by rough frequency of occurrence in my home area.
+            //Entries are currently sorted by rough frequency of occurrence
 
             //Water spaces should be displayed. Not sure if I want players to be in them for resources.
             //Water should probably override other values as a safety concern?
@@ -453,17 +430,15 @@ namespace CoreComponents
                 return "cemetery";
 
             //Generic shopping area is ok. I don't want to advertise businesses, but this is a common area type.
-            //TODO: expand this to buildings, not just landuse?
             //Landuse=retail has 200k entries. building=retail has 500k entries.
             //shop=* has about 5 million entries, mostly nodes.
-            //Malls should be merged here, and are a sub-set of shop entries
             if (DbSettings.processRetail && (tags["landuse"].Any(v => v == "retail")
                 || tags["building"].Any(v => v == "retail")
                 || tags["shop"].Count() > 0)) // mall is a value of shop, so those are included here now.
                 return "retail";
 
             //I have historical as a tag to save, but not necessarily sub-sets yet of whats interesting there.
-            //NOTE: the OSM tag doesn't match my value
+            //NOTE: the OSM tag (historic) doesn't match my name (historical)
             if (DbSettings.processHistorical && tags["historic"].Count() > 0)
                 return "historical";
 
@@ -475,7 +450,7 @@ namespace CoreComponents
             if (DbSettings.processNatureReserve && tags["leisure"].Any(v => v == "nature_reserve"))
                 return "natureReserve";
 
-            //I have tourism as a tag to save, but not necessarily sub-sets yet of whats interesting there.
+            //Tourist locations that aren' specifically businesses (public art and educational stuff is good. Hotels aren't).
             if (DbSettings.processTourism && tags["tourism"].Any(v => relevantTourismValues.Contains(v)))
                 return "tourism"; //TODO: create sub-values for tourism types?
 
@@ -488,8 +463,8 @@ namespace CoreComponents
             || (tags["leisure"].Any(v => v == "beach_resort")))
                 return "beach";
 
-            //These additional types below this are intended for a more detailed, single-area focused game and not
-            //the general explore game context.
+            //These additional types below this are intended for making map tiles more readable.
+            //They can be used for gameplay purposes, though they shouldn't be a primary focus.
 
             //Roads will matter
             if (DbSettings.processRoads && tags["highway"].Any(v => relevantRoadValues.Contains(v))
@@ -505,12 +480,9 @@ namespace CoreComponents
             if (DbSettings.processBuildings && tags.Contains("building"))
                 return "building";
 
-            //Parking lots should get drawn too.
+            //Parking lots should get drawn too. Same color as roads ideally.
             if (DbSettings.processParking && tags["amenity"].Any(v => v == "parking"))
                 return "parking";
-
-
-
 
             //Possibly of interest:
             //landuse:forest / landuse:orchard  / natural:wood
@@ -536,14 +508,8 @@ namespace CoreComponents
             return results.ToArray();
         }
 
-        public static string GetPlusCode(double lat, double lon)
-        {
-            return OpenLocationCode.Encode(lat, lon).Replace("+", "");
-        }
-
         public static CoordPair GetRandomPoint()
         {
-
             //Global scale testing.
             Random r = new Random();
             float lat = 90 * (float)r.NextDouble() * (r.Next() % 2 == 0 ? 1 : -1);
@@ -598,7 +564,7 @@ namespace CoreComponents
             }
 
             //Note: SimplifyArea CAN reverse a polygon's orientation, especially in a multi-polygon, so don't do CheckCCW until after
-            var simplerPlace = NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(place, resolution10); //This cuts storage space for files by 30-50%  (40MB Ohio-water vs 26MB simplified)
+            var simplerPlace = NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(place, resolutionCell10); //This cuts storage space for files by 30-50%  (40MB Ohio-water vs 26MB simplified)
             if (simplerPlace is Polygon)
             {
                 simplerPlace = CCWCheck((Polygon)simplerPlace);
@@ -669,20 +635,20 @@ namespace CoreComponents
             //create a new bitmap.
             MemoryStream ms = new MemoryStream();
             //pixel formats. RBGA32 allows for hex codes. RGB24 doesnt?
-            int imagesize = (int)Math.Floor(totalArea.LatitudeHeight / resolution10); //scales to area size
+            int imagesize = (int)Math.Floor(totalArea.LatitudeHeight / resolutionCell10); //scales to area size
             using (var image = new Image<Rgba32>(imagesize, imagesize)) //each 10 cell in this area is a pixel.
             {
                 image.Mutate(x => x.Fill(Rgba32.ParseHex(MapSupport.areaColorReference[999].First()))); //set all the areas to the background color
                 for (int y = 0; y < image.Height; y++)
                 {
-                    //Dramatic performance improvement by limiting this to just the row's area. from 100+ seconds to 4.
-                    rowPlaces = MapSupport.GetPlaces(new GeoArea(new GeoPoint(totalArea.Min.Latitude + (MapSupport.resolution10 * y), totalArea.Min.Longitude), new GeoPoint(totalArea.Min.Latitude + (MapSupport.resolution10 * (y + 1)), totalArea.Max.Longitude)), allPlaces);
+                    //Dramatic performance improvement by limiting this to just the row's area.
+                    rowPlaces = MapSupport.GetPlaces(new GeoArea(new GeoPoint(totalArea.Min.Latitude + (MapSupport.resolutionCell10 * y), totalArea.Min.Longitude), new GeoPoint(totalArea.Min.Latitude + (MapSupport.resolutionCell10 * (y + 1)), totalArea.Max.Longitude)), allPlaces);
 
                     Span<Rgba32> pixelRow = image.GetPixelRowSpan(image.Height - y - 1); //Plus code data is searched south-to-north, image is inverted otherwise.
                     for (int x = 0; x < image.Width; x++)
                     {
                         //Set the pixel's color by its type.
-                        int placeData = MapSupport.GetAreaTypeFor10Cell(totalArea.Min.Longitude + (MapSupport.resolution10 * x), totalArea.Min.Latitude + (MapSupport.resolution10 * y), ref rowPlaces);
+                        int placeData = MapSupport.GetAreaTypeFor10Cell(totalArea.Min.Longitude + (MapSupport.resolutionCell10 * x), totalArea.Min.Latitude + (MapSupport.resolutionCell10 * y), ref rowPlaces);
                         if (placeData != 0)
                         {
                             var color = MapSupport.areaColorReference[placeData].First();
@@ -691,7 +657,7 @@ namespace CoreComponents
                     }
                 }
 
-                image.SaveAsPng(ms); //~25-40ms
+                image.SaveAsPng(ms);
             } //image disposed here.
 
             return ms.ToArray();
@@ -704,21 +670,21 @@ namespace CoreComponents
             //create a new bitmap.
             MemoryStream ms = new MemoryStream();
             //pixel formats. RBGA32 allows for hex codes. RGB24 doesnt?
-            int imagesizeX = (int)Math.Floor(totalArea.LongitudeWidth / resolution11Lon); //scales to area size
-            int imagesizeY = (int)Math.Floor(totalArea.LatitudeHeight / resolution11Lat); //scales to area size
+            int imagesizeX = (int)Math.Floor(totalArea.LongitudeWidth / resolutionCell11Lon); //scales to area size
+            int imagesizeY = (int)Math.Floor(totalArea.LatitudeHeight / resolutionCell11Lat); //scales to area size
             using (var image = new Image<Rgba32>(imagesizeX, imagesizeY)) //each 11 cell in this area is a pixel.
             {
                 image.Mutate(x => x.Fill(Rgba32.ParseHex(MapSupport.areaColorReference[999].First()))); //set all the areas to the background color
                 for (int y = 0; y < image.Height; y++)
                 {
-                    //Dramatic performance improvement by limiting this to just the row's area. from 100+ seconds to 4.
-                    rowPlaces = MapSupport.GetPlaces(new GeoArea(new GeoPoint(totalArea.Min.Latitude + (MapSupport.resolution11Lat * y), totalArea.Min.Longitude), new GeoPoint(totalArea.Min.Latitude + (MapSupport.resolution11Lat * (y + 1)), totalArea.Max.Longitude)), allPlaces);
+                    //Dramatic performance improvement by limiting this to just the row's area.
+                    rowPlaces = MapSupport.GetPlaces(new GeoArea(new GeoPoint(totalArea.Min.Latitude + (MapSupport.resolutionCell11Lat * y), totalArea.Min.Longitude), new GeoPoint(totalArea.Min.Latitude + (MapSupport.resolutionCell11Lat * (y + 1)), totalArea.Max.Longitude)), allPlaces);
 
                     Span<Rgba32> pixelRow = image.GetPixelRowSpan(image.Height - y - 1); //Plus code data is searched south-to-north, image is inverted otherwise.
                     for (int x = 0; x < image.Width; x++)
                     {
                         //Set the pixel's color by its type.
-                        int placeData = MapSupport.GetAreaTypeFor11Cell(totalArea.Min.Longitude + (MapSupport.resolution11Lon * x), totalArea.Min.Latitude + (MapSupport.resolution11Lat * y), ref rowPlaces);
+                        int placeData = MapSupport.GetAreaTypeFor11Cell(totalArea.Min.Longitude + (MapSupport.resolutionCell11Lon * x), totalArea.Min.Latitude + (MapSupport.resolutionCell11Lat * y), ref rowPlaces);
                         if (placeData != 0)
                         {
                             var color = MapSupport.areaColorReference[placeData].First();
@@ -747,12 +713,12 @@ namespace CoreComponents
                     //Points will always be 1.
                     //Lines will be based on distance.
                     if (containedArea is NetTopologySuite.Geometries.Point)
-                        containedAreaSize = square10cellArea;
+                        containedAreaSize = squareCell10Area;
                     else if (containedArea is NetTopologySuite.Geometries.LineString)
-                        containedAreaSize = ((LineString)containedArea).Length * MapSupport.resolution10;
+                        containedAreaSize = ((LineString)containedArea).Length * MapSupport.resolutionCell10;
                     //This gives us the length of the line in 10-cell lengths, which may be slightly different from the number of 10cells draws on the map as belonging to this line.
                 }
-                var containedArea10CellCount = Math.Round(containedAreaSize / square10cellArea);
+                var containedArea10CellCount = Math.Round(containedAreaSize / squareCell10Area);
                 //areaSizes.Add(place.name, containedArea10CellCount);
                 areaSizes.Add(new Tuple<string, double, long>(place.name, containedArea10CellCount, place.MapDataId));
             }
@@ -772,12 +738,12 @@ namespace CoreComponents
                     //Points will always be 1.
                     //Lines will be based on distance.
                     if (place.place is NetTopologySuite.Geometries.Point)
-                        containedAreaSize = square10cellArea;
+                        containedAreaSize = squareCell10Area;
                     else if (place.place is NetTopologySuite.Geometries.LineString)
-                        containedAreaSize = ((LineString)place.place).Length * MapSupport.resolution10;
+                        containedAreaSize = ((LineString)place.place).Length * MapSupport.resolutionCell10;
                     //This gives us the length of the line in 10-cell lengths, which may be slightly different from the number of 10cells draws on the map as belonging to this line.
                 }
-                var containedArea10CellCount = Math.Round(containedAreaSize / square10cellArea);
+                var containedArea10CellCount = Math.Round(containedAreaSize / squareCell10Area);
                 areaSizes.Add(place.name, containedArea10CellCount);
             }
             return JsonConvert.SerializeObject(areaSizes);

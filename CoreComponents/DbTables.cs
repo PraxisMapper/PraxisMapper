@@ -8,10 +8,8 @@ namespace CoreComponents
 
     //TODO possible changes:
 
-
     public class DbTables
     {
-        //PlayerData table in the database
         public class PlayerData
         {
             public int PlayerDataID { get; set; }
@@ -62,34 +60,17 @@ namespace CoreComponents
             public int AreaTypeId { get; set; }
             public string AreaName { get; set; }
             public string OsmTags { get; set; } //These are not 1:1, so this column may not be useful after all.
-            public string HtmlColorCode { get; set; } //for potential tile-drawing operations.
+            public string HtmlColorCode { get; set; } //for tile-drawing operations, possibly in-app stuff too.
         }
 
         public class MapTile
         { 
             public long MapTileId { get; set; } //int should be OK for a limited range game and/or big tiles. Making this long just to make sure.
-            public string PlusCode { get; set; } //initial expectations are this will be a 6 or 8 cell drawn.
-            public byte[] tileData { get; set; } //expected to be a png binary.
-            public bool regenerate { get; set; } //If 1, re-make this tile because something's stale.
-
-            //lat/lon points? thats not real helpful for gaming, moreso for real mapping
-            //resolution scale?
-            public int resolutionScale { get; set; } //10 or 11, depending on the Pluscode size 1 pixel is
+            public string PlusCode { get; set; } //MapTiles are drawn for Cell8 or Cell10 areas.
+            public byte[] tileData { get; set; } //png binary data.
+            public bool regenerate { get; set; } //TODO: If 1, re-make this tile because MapData for the area has changed
+            public int resolutionScale { get; set; } //10 or 11, depending on the Cell size 1 pixel is. Usually 11
         }
-
-
-        //public class SinglePointsOfInterest
-        //{
-        //    public long SinglePointsOfInterestId { get; set; }
-        //    public long NodeID { get; set; }
-        //    public string name { get; set; }
-        //    public double lat { get; set; }
-        //    public double lon { get; set; }
-        //    public string NodeType { get; set; } //same possible results as AreaType, same function. same possible FK value.
-        //    public string PlusCode { get; set; } //10 digit code, no plus sign.
-        //    public string PlusCode8 { get; set; } //8 digit code, no plus sign, for indexing purposes.
-        //    public string PlusCode6 { get; set; } //6 digit code, no plus sign, for indexing purposes.
-        //}
 
         public class PremadeResults
         {
@@ -97,28 +78,6 @@ namespace CoreComponents
             public string PlusCode6 { get; set; }
             public string Data { get; set; } 
         }
-
-        //public class MinimumRelation
-        //{
-        //    public long MinimumRelationId{ get; set; }
-        //    public long RelationId { get; set; }
-        //}
-
-        //public class MinimumWay
-        //{
-        //    public long? MinimumWayId { get; set; }
-        //    public long WayId { get; set; }
-        //    public ICollection<MinimumNode> Nodes { get; set; } //ICollection lets EF Core 5 generate join tables automatically this way.
-        //}
-
-        //public class MinimumNode
-        //{
-        //    public long? MinimumNodeId { get; set; }
-        //    public long NodeId { get; set; }
-        //    public double? Lat { get; set; }
-        //    public double? Lon { get; set; }
-        //    public ICollection<MinimumWay> Ways { get; set; } //ICollection lets EF Core 5 generate join tables automatically this way.
-        //}
 
         public class AreaControlTeam //A table for tracking which player faction controls which area (we dont store data on player location on the servers)
         {
