@@ -12,7 +12,6 @@ namespace CoreComponents
         public static bool processBeach { get; set; } = true;
         public static bool processCemetery { get; set; } = true;
         public static bool processHistorical { get; set; } = true;
-        //public static bool processMall { get; set; } = true;
         public static bool processNatureReserve { get; set; } = true;
         public static bool processPark { get; set; } = true;
         public static bool processRetail { get; set; } = true;
@@ -22,13 +21,10 @@ namespace CoreComponents
         public static bool processWater { get; set; } = true;
         public static bool processWetland { get; set; } = true;
 
-        //These ones are for a more thorough area-specific version.
+        //These ones are for a more thorough area-specific settting.
         public static bool processRoads { get; set; } = false;
         public static bool processBuildings { get; set; } = false;
         public static bool processParking{ get; set; } = false;
-        //public static bool UseCaching { get; set; } = true; //Set in the Website's appsettings.json file.
-
-        //public static bool UsePerformanceTracker { get; set; } = true;  //Set in the website's.
     }
 }
 

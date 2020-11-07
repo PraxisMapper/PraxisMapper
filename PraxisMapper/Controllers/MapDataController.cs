@@ -145,7 +145,7 @@ namespace PraxisMapper.Controllers
             //THe main endpoint excludes admin boundaries
             //this function exclusively gets them.
             PerformanceTracker pt = new PerformanceTracker("LearnAdminBoundaries");
-            var box = new GeoArea(new GeoPoint(lat, lon), new GeoPoint(lat + MapSupport.resolution10, lon + MapSupport.resolution10));
+            var box = new GeoArea(new GeoPoint(lat, lon), new GeoPoint(lat + MapSupport.resolutionCell10, lon + MapSupport.resolutionCell10));
             var entriesHere = MapSupport.GetPlaces(box).Where(p => p.type.StartsWith("admin")).OrderBy(p => p.type).ToList();
 
             StringBuilder sb = new StringBuilder();
@@ -426,7 +426,7 @@ namespace PraxisMapper.Controllers
 
             //This is sort of a magic formula I wandered into.
             // Sqrt(Size / resolution10 ) * 2 is my current logic.
-            int splitcount = (int)Math.Floor(Math.Sqrt(size / MapSupport.resolution10) * 2);
+            int splitcount = (int)Math.Floor(Math.Sqrt(size / MapSupport.resolutionCell10) * 2);
             List<MapData>[] placeArray;
             GeoArea[] areaArray;
             StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
