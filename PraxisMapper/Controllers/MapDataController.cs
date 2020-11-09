@@ -505,5 +505,16 @@ namespace PraxisMapper.Controllers
             return results;
         }
 
+        [HttpGet]
+        [Route("/[controller]/CalculateMapDataScore/{MapDataId}")]
+        public string CalculateMapDataScore(long MapDataId)
+        {
+            PerformanceTracker pt = new PerformanceTracker("CalculateMapDataScore");
+            var db = new PraxisContext();
+            var places = db.MapData.Where(m => m.MapDataId == MapDataId).ToList();
+            var results = MapSupport.GetScoresForFullArea(places);
+            pt.Stop(MapDataId.ToString());
+            return results;
+        }
     }
 }

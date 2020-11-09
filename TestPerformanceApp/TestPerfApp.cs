@@ -47,7 +47,8 @@ namespace PerformanceTestApp
             //TestMultiPassVsSinglePass();
             //TestFlexEndpoint();
             //MicroBenchmark();
-            ConcurrentTest();
+            //ConcurrentTest();
+            CalculateScoreTest();
 
 
 
@@ -57,7 +58,7 @@ namespace PerformanceTestApp
         private static void TestMultiPassVsSinglePass()
         {
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-            string filename = @"D:\Projects\OSM Server Info\XmlToProcess\ohio-latest.osm.pbf"; //160MB PBF
+            string filename = @"D:\Projects\PraxisMapper Files\XmlToProcess\ohio-latest.osm.pbf"; //160MB PBF
             FileStream fs2 = new FileStream(filename, FileMode.Open);
             byte[] fileInRam = new byte[fs2.Length];
             fs2.Read(fileInRam, 0, (int)fs2.Length);
@@ -528,7 +529,7 @@ namespace PerformanceTestApp
             //So there's some baseline performance floor that's probably disk dependent.
             Log.WriteLog("Starting memorystream perf test at " + DateTime.Now);
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-            string filename = @"D:\Projects\OSM Server Info\XmlToProcess\ohio-latest.osm.pbf"; //160MB PBF
+            string filename = @"D:\Projects\PraxisMapper Files\XmlToProcess\ohio-latest.osm.pbf"; //160MB PBF
 
             sw.Start();
             //using (var fs = System.IO.File.OpenRead(filename))
@@ -666,7 +667,7 @@ namespace PerformanceTestApp
 
         private static void ConcurrentTest()
         {
-            string filename = @"D:\Projects\OSM Server Info\XmlToProcess\ohio-latest.osm.pbf"; //160MB PBF
+            string filename = @"D:\Projects\PraxisMapper Files\XmlToProcess\ohio-latest.osm.pbf"; //160MB PBF
             FileStream fs2 = new FileStream(filename, FileMode.Open);
             byte[] fileInRam = new byte[fs2.Length];
             fs2.Read(fileInRam, 0, (int)fs2.Length);
@@ -717,10 +718,20 @@ namespace PerformanceTestApp
             data3 = conDict.AsParallel().Select(l => l.Value).ToList(); sw.Stop();
             Log.WriteLog("Concurrent Dictionary took " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds + "ms)");
             sw.Restart();
-
-
         }
 
-
+        public static void CalculateScoreTest()
+        {
+            //on testing, the slowest random result was 13ms.  Most are 0-1ms.
+            var db = new PraxisContext();
+            var randomCap = db.MapData.Count();
+            Random r = new Random();
+            string website = "http://localhost/GPSExploreServerAPI/MapData/CalculateMapDataScore/";
+            for (int i = 0; i <100; i++)
+            {
+                WebClient wc = new WebClient();
+                wc.DownloadString(website + r.Next(1, randomCap));
+            }
+        }
     }
 }

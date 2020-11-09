@@ -61,6 +61,8 @@
     <Compile Include="Migrations\20201025133650_maptileTable.Designer.cs" />
     <Compile Include="Migrations\20201025163737_maptileTableindex.cs" />
     <Compile Include="Migrations\20201025163737_maptileTableindex.Designer.cs" />
+    <Compile Include="Migrations\20201109135146_factions.cs" />
+    <Compile Include="Migrations\20201109135146_factions.Designer.cs" />
     <Compile Include="Migrations\GpsExploreContextModelSnapshot.cs" />
   </ItemGroup>
 
