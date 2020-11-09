@@ -46,6 +46,7 @@ namespace CoreComponents
         public static GeometryFactory factory = NtsGeometryServices.Instance.CreateGeometryFactory(4326);
         public static bool SimplifyAreas = false;
 
+        //TOD: make this the default list, then load the list from the DB? Works for PraxisMapper, but not Larry without some rules to parse tags.
         public static List<AreaType> areaTypes = new List<AreaType>() {
             //Areas here are for the original explore concept
             new AreaType() { AreaTypeId = 999, AreaName = "", OsmTags = "", HtmlColorCode = "545454"}, //the default background color. 0 causes insert to fail with an identity column
@@ -388,7 +389,8 @@ namespace CoreComponents
                 return ""; //Sanity check
 
             var tags = tagsO.ToLookup(k => k.Key, v => v.Value);
-            //Entries are currently sorted by rough frequency of occurrence
+            //Entries are currently sorted by rough frequency of occurrence for gameplay
+            //for -processEverything, move road and buildings to the top in that order, move parking after admin.
 
             //Water spaces should be displayed. Not sure if I want players to be in them for resources.
             //Water should probably override other values as a safety concern?
@@ -719,7 +721,7 @@ namespace CoreComponents
                 //areaSizes.Add(place.name, containedArea10CellCount);
                 areaSizes.Add(new Tuple<string, double, long>(place.name, containedArea10CellCount, place.MapDataId));
             }
-            return JsonConvert.SerializeObject(areaSizes);
+            return string.Join(Environment.NewLine, areaSizes.Select(a => a.Item1 + "|" + a.Item1 + "|" + a.Item3));
         }
 
         public static string GetScoresForFullArea(List<MapData> places)
@@ -738,12 +740,12 @@ namespace CoreComponents
                         containedAreaSize = squareCell10Area;
                     else if (place.place is NetTopologySuite.Geometries.LineString)
                         containedAreaSize = ((LineString)place.place).Length * MapSupport.resolutionCell10;
-                    //This gives us the length of the line in 10-cell lengths, which may be slightly different from the number of 10cells draws on the map as belonging to this line.
+                    //This gives us the length of the line in Cell10 lengths, which may be slightly different from the number of Cell10 draws on the map as belonging to this line.
                 }
                 var containedArea10CellCount = Math.Round(containedAreaSize / squareCell10Area);
                 areaSizes.Add(place.name, containedArea10CellCount);
             }
-            return JsonConvert.SerializeObject(areaSizes);
+            return string.Join(Environment.NewLine, areaSizes.Select(a => a.Key + "|" + a.Value));
         }
 
         public static Tuple<double, double, double> ShiftPlusCodeToFlexParams(string plusCode)

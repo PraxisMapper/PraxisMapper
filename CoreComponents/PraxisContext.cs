@@ -15,8 +15,9 @@ namespace CoreComponents
         public DbSet<PerformanceInfo> PerformanceInfo { get; set; }
         public DbSet<AreaType> AreaTypes { get; set; }
         public DbSet<MapData> MapData { get; set; }
-
         public DbSet<MapTile> MapTiles { get; set; }
+        public DbSet<Faction> Factions { get; set; }
+        public DbSet<AreaControlTeam> AreaControlTeams { get; set; }
 
         IConfiguration Config;
 
