@@ -89,6 +89,53 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
+        [Route("/[controller]/cell8Info/{plusCode8}")]
+        [Route("/[controller]/LearnCell8/{plusCode8}")]
+        public string LearnCell8(string plusCode8) //The current primary function used by the app. Uses the Cell6 area given to it
+        {
+            //Send over the plus code to look up.
+            PerformanceTracker pt = new PerformanceTracker("LearnCell8");
+            var codeString8 = plusCode8;
+            string cachedResults = "";
+            if (Configuration.GetValue<bool>("enableCaching") && cache.TryGetValue(codeString8, out cachedResults))
+            {
+                pt.Stop(codeString8);
+                return cachedResults;
+            }
+            var box = OpenLocationCode.DecodeValid(codeString8);
+
+            var places = MapSupport.GetPlaces(OpenLocationCode.DecodeValid(codeString8));  //All the places in this 8-code
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine(codeString8);
+            //pluscode6 //first 6 digits of this pluscode. each line below is the last 4 that have an area type.
+            //pluscode4|name|type|MapDataID  //less data transmitted, an extra string concat per entry phone-side.
+
+            //Notes: 
+            //StringBuilder isn't thread-safe, so each thread needs its own, and their results combined later.
+            int splitcount = 40; //creates 1600 entries(40x40)
+            List<MapData>[] placeArray;
+            GeoArea[] areaArray;
+            StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
+            MapSupport.SplitArea(box, splitcount, places, out placeArray, out areaArray);
+            System.Threading.Tasks.Parallel.For(0, placeArray.Length, (i) =>
+            {
+                sbArray[i] = MapSupport.SearchArea(ref areaArray[i], ref placeArray[i]);
+            });
+
+            foreach (StringBuilder sbPartial in sbArray)
+                sb.Append(sbPartial.ToString());
+
+            string results = sb.ToString();
+            var options = new MemoryCacheEntryOptions();
+            options.SetSize(1);
+            if (Configuration.GetValue<bool>("enableCaching"))
+                cache.Set(codeString8, results, options);
+
+            pt.Stop(codeString8);
+            return results;
+        }
+
+        [HttpGet]
         [Route("/[controller]/surroundingArea/{lat}/{lon}")]
         [Route("/[controller]/LearnSurroundingCell6/{lat}/{lon}")]
         public string LearnSurroundingCell6(double lat, double lon) // pulls in a Cell6 sized area centered on the coords given. Returns full PlusCode name for each Cell10
@@ -164,6 +211,16 @@ namespace PraxisMapper.Controllers
             var codeRequested = new OpenLocationCode(lat, lon);
             var sixCell = codeRequested.CodeDigits.Substring(0, 6);
             return LearnCell6(sixCell);
+        }
+
+        [HttpGet]
+        [Route("/[controller]/cell8Info/{lat}/{lon}")]
+        [Route("/[controller]/LearnCell8/{lat}/{lon}")]
+        public string LearnCell8(double lat, double lon) //convenience method, makes the server do the plusCode grid encode.
+        {
+            var codeRequested = new OpenLocationCode(lat, lon);
+            var Cell8 = codeRequested.CodeDigits.Substring(0, 8);
+            return LearnCell8(Cell8);
         }
 
         [HttpGet]

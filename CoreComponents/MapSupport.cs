@@ -187,7 +187,9 @@ namespace CoreComponents
                 if (entireCode)
                     olc = new OpenLocationCode(y, x).CodeDigits;
                 else
-                    olc = new OpenLocationCode(y, x).CodeDigits.Substring(6, 4); //This takes lat, long, Coordinate takes X, Y. This line is correct.
+                    //TODO: decide on passing in a value for the split instead of a bool so this can be reused a little more
+                    //olc = new OpenLocationCode(y, x).CodeDigits.Substring(6, 4); //This takes lat, long, Coordinate takes X, Y. This line is correct.
+                    olc = new OpenLocationCode(y, x).CodeDigits.Substring(8, 2); //This takes lat, long, Coordinate takes X, Y. This line is correct.
                 return olc + "|" + area;
             }
             return "";
