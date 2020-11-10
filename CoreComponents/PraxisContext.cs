@@ -40,8 +40,7 @@ namespace CoreComponents
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             //TODO: figure out this connection string for local testing, and for AWS use.
-            
-
+           
             //Current server config
             //optionsBuilder.UseSqlServer(@"Data Source=localhost\SQLEXPRESS;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;", x => x.UseNetTopologySuite());
             //Current localhost config.
