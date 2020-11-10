@@ -7,7 +7,9 @@ To focus on the player, and to let them play without tracking them.
 
 
 Requirements:
+
 Visual Studio 2019 16.8 Community (or the mac/linux equivalent)
+
 .NET 5.0
 
 
