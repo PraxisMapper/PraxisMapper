@@ -16,4 +16,7 @@ namespace CoreComponents.Support
     public record CoordPair(float lat, float lon);
 
     public record RelationMemberData(long Id, string name, string type);
+
+    //for investigating if its faster to return the places and their Cel10 entries instead of a Cell10 and its properties
+    public record Cell10Info(string placeName, string Cell10, int areaTypeId);
 }

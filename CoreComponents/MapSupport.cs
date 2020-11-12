@@ -3,6 +3,8 @@ using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
 using NetTopologySuite;
 using NetTopologySuite.Geometries;
+using NetTopologySuite.Index.IntervalRTree;
+using NetTopologySuite.Operation.Buffer;
 using Newtonsoft.Json;
 using OsmSharp.Tags;
 using SixLabors.ImageSharp;
@@ -170,6 +172,30 @@ namespace CoreComponents
             }
 
             return sb;
+        }
+        //testing if this is better/more efficient (on the phone side) than passing strings along
+        public static Cell10Info CellInfoFindPlacesIn10Cell(double x, double y, ref List<MapData> places)
+        {
+            var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell10, x + resolutionCell10));
+            var entriesHere = MapSupport.GetPlaces(box, places).Where(p => p.AreaTypeId != 13).ToList(); //Excluding admin boundaries from this list.  
+
+            if (entriesHere.Count() == 0)
+                return null;
+
+            //string area = DetermineAreaPoint(entriesHere);
+            var area = PickSortedEntry(entriesHere);
+            if (area != null)
+            {
+                string olc;
+                //if (entireCode)
+                    olc = new OpenLocationCode(y, x).CodeDigits;
+                //else
+                    //TODO: decide on passing in a value for the split instead of a bool so this can be reused a little more
+                    //olc = new OpenLocationCode(y, x).CodeDigits.Substring(6, 4); //This takes lat, long, Coordinate takes X, Y. This line is correct.
+                   // olc = new OpenLocationCode(y, x).CodeDigits.Substring(8, 2); //This takes lat, long, Coordinate takes X, Y. This line is correct.
+                return new Cell10Info(area.name, olc, area.AreaTypeId);
+            }
+            return null;
         }
 
         public static string FindPlacesIn10Cell(double x, double y, ref List<MapData> places, bool entireCode = false)
