@@ -13,8 +13,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
+using System.Xml.Schema;
 using static CoreComponents.DbTables;
 using static CoreComponents.MapSupport;
 
@@ -732,6 +734,63 @@ namespace PerformanceTestApp
                 WebClient wc = new WebClient();
                 wc.DownloadString(website + r.Next(1, randomCap));
             }
+        }
+
+        public static void TestRecordVsStringBuilders()
+        {
+            List<MapData> mapData = new List<MapData>();
+            StringBuilder sb = new StringBuilder();
+            GeoArea area = new GeoArea(1, 2, 3, 4);
+
+
+            var xCells = area.LongitudeWidth / resolutionCell10;
+            var yCells = area.LatitudeHeight / resolutionCell10;
+
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+            for (double xx = 0; xx < xCells; xx += 1)
+            {
+                for (double yy = 0; yy < yCells; yy += 1)
+                {
+                    double x = area.Min.Longitude + (resolutionCell10 * xx);
+                    double y = area.Min.Latitude + (resolutionCell10 * yy);
+
+                    var placesFound = MapSupport.FindPlacesIn10Cell(x, y, ref mapData, true);
+                    if (!string.IsNullOrWhiteSpace(placesFound))
+                        sb.AppendLine(placesFound);
+                }
+            }
+            sw.Stop();
+            Log.WriteLog("Searched and built String response in " + sw.ElapsedMilliseconds);
+
+            //now test again with new function
+            List<Cell10Info> info = new List<Cell10Info>();
+            sw.Restart();
+            for (double xx = 0; xx < xCells; xx += 1)
+            {
+                for (double yy = 0; yy < yCells; yy += 1)
+                {
+                    double x = area.Min.Longitude + (resolutionCell10 * xx);
+                    double y = area.Min.Latitude + (resolutionCell10 * yy);
+
+                    var placesFound = MapSupport.CellInfoFindPlacesIn10Cell(x, y, ref mapData);
+                    if (placesFound != null)
+                        info.Add(placesFound);
+                }
+            }
+            sw.Stop();
+            Log.WriteLog("Searched and built Cell10Info Record response in " + sw.ElapsedMilliseconds);
+
+            //todo: also check parsing record results to string for api endpoint
+            StringBuilder sb2 = new StringBuilder();
+            sw.Restart();
+            foreach (var place in info.Select(i => i.placeName).Distinct())
+            {
+                var codes = string.Join(",", info.Where(i => i.placeName == place).Select(i => i.Cell10));
+                sb.Append(place + "|" + codes + Environment.NewLine);
+            }
+            sw.Stop();
+            Log.WriteLog("converted record list to string output in " + sw.ElapsedMilliseconds);
         }
     }
 }
