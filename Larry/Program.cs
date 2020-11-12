@@ -31,6 +31,7 @@ namespace Larry
         {
 
             var memMon = new MemoryMonitor();
+            PraxisContext.connectionString = ParserSettings.DbConnectionString;
 
             if (args.Count() == 0)
             {

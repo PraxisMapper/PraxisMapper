@@ -31,7 +31,6 @@ namespace PraxisMapper.Controllers
         {
             //For debug purposes to confirm the server is running and reachable.
             string results = "Function OK";
-
             try
             {
                 var DB = new PraxisContext();

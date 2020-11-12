@@ -20,6 +20,8 @@ namespace CoreComponents
         public DbSet<AreaControlTeam> AreaControlTeams { get; set; }
 
         IConfiguration Config;
+        public static string connectionString;
+        string serverMode = "SQLServer";
 
         //Test table to see if its practical to save prerendered results. there's 25 million 6codes, so no.
         //public DbSet<PremadeResults> PremadeResults { get; set; }
@@ -30,9 +32,9 @@ namespace CoreComponents
         //public DbSet<MinimumWay> MinimumWays { get; set; }
         //public DbSet<MinimumRelation> minimumRelations { get; set; }
 
-        //public PraxisContext(IConfiguration config)
+        //public PraxisContext(string conString)
         //{
-            //Config = config;
+            //connectionString = conString;
         //}
 
         public static MemoryCache mc = new MemoryCache(new MemoryCacheOptions()); 
@@ -40,15 +42,23 @@ namespace CoreComponents
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             //TODO: figure out this connection string for local testing, and for AWS use.
-           
+            //This is the next top priority.
+            if (serverMode == "SQLServer")
+                optionsBuilder.UseSqlServer(connectionString, x => x.UseNetTopologySuite());
+            else if (serverMode == "MariaDB")
+            {
+                //Potential MariaDB config, which would be cheaper on AWS
+                //But also doesn't seem to be .NET 5 ready or compatible yet.
+                //optionsBuilder.UseMySql("Server=localhost;Database=praxis;User=root;Password=1234;");
+            }
+
+
             //Current server config
             //optionsBuilder.UseSqlServer(@"Data Source=localhost\SQLEXPRESS;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;", x => x.UseNetTopologySuite());
             //Current localhost config.
-            optionsBuilder.UseSqlServer(@"Data Source=localhost\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;", x => x.UseNetTopologySuite()); //Home config, SQL Developer, Free, no limits, cant use in production
-            
-            //Potential MariaDB config, which would be cheaper on AWS
-            //But also doesn't seem to be .NET 5 ready or compatible yet.
-            //optionsBuilder.UseMySql("Server=localhost;Database=praxis;User=root;Password=1234;");
+            //optionsBuilder.UseSqlServer(@"Data Source=localhost\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;", x => x.UseNetTopologySuite()); //Home config, SQL Developer, Free, no limits, cant use in production
+
+
 
             //SQLite config should be used for the case where I make a self-contained app for an area.
             //like for a university or a park or something.           
