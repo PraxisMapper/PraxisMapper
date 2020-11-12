@@ -13,10 +13,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
-using System.Xml.Schema;
 using static CoreComponents.DbTables;
 using static CoreComponents.MapSupport;
 
@@ -35,6 +33,8 @@ namespace PerformanceTestApp
 
         static void Main(string[] args)
         {
+            PraxisContext.connectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;";
+
             if (Debugger.IsAttached)
                 Console.WriteLine("Run this in Release mode for accurate numbers!");
             //This is for running and archiving performance tests on different code approaches.

@@ -2,6 +2,8 @@
 {
     public static class ParserSettings
     {
+        //TODO: should these be in another appsettings.json file? Probably
+
         //Do multiple passes on all pbf files regardless of size.
         public static bool ForceSeparateFiles = false;
 
@@ -16,5 +18,7 @@
         //and keeps areas very close to the same for Cell10 gameplay purposes but maptiless look worse.
         //TODO: investigate how helpful it is having separate gameplay and maptile server instances with these value set differently
         public static bool UseHighAccuracy = true;
+
+        public static string DbConnectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;";
     }
 }
