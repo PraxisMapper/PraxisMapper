@@ -647,7 +647,7 @@ namespace CoreComponents
             if (p.Shell.IsCCW)
                 return p;
 
-            return null; //not CCW either way? Happen occasionally for some reason, and it will fail to write to the DB
+            return null; //not CCW either way? Happen occasionally for some reason, and it will fail to write to the DB. I think its related to lines crossing over each other multiple times.
         }
 
         public static void DownloadPbfFile(string topLevel, string subLevel1, string subLevel2)
@@ -809,8 +809,11 @@ namespace CoreComponents
             for (int i =0; i < shapeCount; i++)
             {
                 //Pick a shape
-                var shapeToAdd = possibleShapes.OrderBy(s => r.Next()).First();
+                var masterShape = possibleShapes.OrderBy(s => r.Next()).First();
+                var shapeToAdd = new List<Coordinate>();
+                shapeToAdd.AddRange(masterShape);
                 var scaleFactor = r.NextDouble();
+                var positionFactor = r.NextDouble() * resolutionCell8;
                 foreach (Coordinate c in shapeToAdd)
                 {
                     //scale it to our resolution
@@ -827,8 +830,11 @@ namespace CoreComponents
                     //TODO: how to rotate these?
 
                     //Place the shape somewhere randomly by adding a random value less than the resolution
-                    c.X += (r.NextDouble() * resolutionCell8);
-                    c.Y += (r.NextDouble() * resolutionCell8);
+                    //NOTE: doing this per vertex makes the shapes very randomly skewed. Would need this to be a static position factor to make evenly patterned shapes.
+                    //I might like the look of randomly skewed shapes, so this might also get a toggle or a config to determine behavior.
+                    c.X += positionFactor;
+                    c.Y += positionFactor;
+                    
 
                     //And now add the minimum values for the given Cell8 to finish up coordinates.
                     c.X += cell8.Min.Longitude;
@@ -838,7 +844,14 @@ namespace CoreComponents
                 //ShapeToAdd now has a randomized layout, convert it to a polygon.
                 shapeToAdd.Add(shapeToAdd.First());
                 var polygon = factory.CreatePolygon(shapeToAdd.ToArray());
-                polygon = CCWCheck(polygon);
+                polygon = CCWCheck(polygon); //Sometimes squares still aren't CCW?
+                if (!polygon.IsValid || !polygon.Shell.IsCCW)
+                {
+                    Log.WriteLog("Invalid geometry generated, retrying", Log.VerbosityLevels.High);
+                    i--;
+                    continue;
+                }
+
                 if (polygon != null)
                 {
                     GeneratedMapData gmd = new GeneratedMapData();
@@ -847,8 +860,7 @@ namespace CoreComponents
                     gmd.name = ""; //not using this on this level. 
                     gmd.place = polygon;
                     gmd.type = "generated";
-
-                    areasToAdd.Add(gmd);
+                    areasToAdd.Add(gmd); //this is the line that makes some objects occasionally not be CCW that were CCW before. Maybe its the cast to the generic Geometry item?
                 }
                 else
                 {
@@ -858,8 +870,16 @@ namespace CoreComponents
                 }
             }
 
-            return areasToAdd;
+            //Making this function self-contained.
+            var db = new PraxisContext();
+            foreach (var area in areasToAdd)
+            {
+                area.place = CCWCheck((Polygon)area.place); //fixes errors that reappeared above
+            }    
+            db.GeneratedMapData.AddRange(areasToAdd);
+            db.SaveChanges();
 
+            return areasToAdd;
         }
     }
 }
