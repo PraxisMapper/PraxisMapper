@@ -26,7 +26,7 @@ namespace PerformanceTestApp
         static string cell8 = "8FW4V722";
         static string cell6 = "8FW4V7"; //Eiffel Tower and surrounding area. Use for global data
         static string cell4 = "8FW4";
-        static string cell2 = "8F";
+        //static string cell2 = "8F";
 
         //a test structure, is slower than not using it.
         public record MapDataAbbreviated(string name, string type, Geometry place);
@@ -339,7 +339,7 @@ namespace PerformanceTestApp
         {
             //See how fast it is to look up a bigger area vs smaller ones.
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-            long avg8 = 0, avg6 = 0, avg4 = 0, avg2 = 0;
+            long avg8 = 0, avg6 = 0, avg4 = 0; //, avg2 = 0;
 
             int loopCount = 5;
             for (int i = 0; i < loopCount; i++)

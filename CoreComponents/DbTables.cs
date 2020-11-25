@@ -92,7 +92,20 @@ namespace CoreComponents
             public long FactionId { get; set; }
             public string Name { get; set; }
         }
-       
+
+        public class GeneratedMapData
+        {
+            public long GeneratedMapDataId { get; set; } //TODO: determine the best way to make this separate table not have ID collisions, if possible, with the main MapData table.
+            public string name { get; set; } //probably won't get a specific name by default, but games may want one here.
+
+            [Column(TypeName = "geography")]
+            public Geometry place { get; set; } //allows any sub-type of Geometry to be used
+            public string type { get; set; }// not apparently used in this table, but kept for possible compatibility depending on how AreaTypeId ends up being used.
+
+            public int AreaTypeId { get; set; } //This will probably be a fixed value.
+
+        }
+
     }
 }
 

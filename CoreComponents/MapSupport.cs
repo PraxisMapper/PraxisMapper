@@ -63,15 +63,17 @@ namespace CoreComponents
             new AreaType() { AreaTypeId = 10, AreaName = "tourism", OsmTags = "", HtmlColorCode = "1999D1" },
             new AreaType() { AreaTypeId = 11, AreaName = "historical", OsmTags = "", HtmlColorCode = "B3B3B3" },
             new AreaType() { AreaTypeId = 12, AreaName = "trail", OsmTags = "", HtmlColorCode = "782E05" },
-            new AreaType() { AreaTypeId = 13, AreaName = "admin", OsmTags = "",HtmlColorCode = "000000" },
             
             //These areas are more for map tiles than gameplay
+            new AreaType() { AreaTypeId = 13, AreaName = "admin", OsmTags = "",HtmlColorCode = "000000" }, //Though there could be some gameplay or leaderboarding about cities/states/countries visited using this.
             new AreaType() { AreaTypeId = 14, AreaName = "building", OsmTags = "", HtmlColorCode = "808080" },
             new AreaType() { AreaTypeId = 15, AreaName = "road", OsmTags = "", HtmlColorCode = "0D0D0D"},
             new AreaType() { AreaTypeId = 16, AreaName = "parking", OsmTags = "", HtmlColorCode = "0D0D0D" },
             //new AreaType() { AreaTypeId = 17, AreaName = "amenity", OsmTags = "", HtmlColorCode = "F2F090" }, //no idea what color this is
             //not yet completely certain i want to pull in amenities as their own thing. its sort of like retail but somehow more generic
             //maybe i need to add some more amenity entries to retail?
+
+            new AreaType() { AreaTypeId = 100, AreaName = "generated", OsmTags = "", HtmlColorCode = "FFFFFF" }, //Static values right now for auto-generated areas for empty spaces.
         };
 
         public static ILookup<string, int> areaTypeReference = areaTypes.ToLookup(k => k.AreaName, v => v.AreaTypeId);
@@ -89,9 +91,13 @@ namespace CoreComponents
             {
                 var db = new CoreComponents.PraxisContext();
                 places = db.MapData.Where(md => md.place.Intersects(location)).ToList();
+                //TODO: make adding generated areas a toggle? or assume that this call is trivial performance-wise on an empty table
+                places.AddRange(db.GeneratedMapData.Where(md => md.place.Intersects(location)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name }));
             }
             else
+            {
                 places = source.Where(md => md.place.Intersects(location)).ToList();
+            }
             return places;
         }
 
@@ -782,6 +788,75 @@ namespace CoreComponents
             //Take a plus code, convert it to the parameters i need for my Flex calls (center lat, center lon, size)
             GeoArea box = OpenLocationCode.DecodeValid(plusCode);
             return new Tuple<double, double, double>(box.CenterLatitude, box.CenterLongitude, box.LatitudeHeight); //Plus codes aren't square, so this over-shoots the width.
+        }
+
+        public static List<GeneratedMapData> CreateInterestingAreas(string plusCode)
+        {
+            //expected to receive a Cell8
+            // populate it with some interesting regions for players.
+
+            Random r = new Random();
+            CodeArea cell8 = OpenLocationCode.Decode(plusCode); //Reminder: resolution is .0025 on a Cell8
+            int shapeCount = 2; //number of shapes to apply to the Cell8
+            List<GeneratedMapData> areasToAdd = new List<GeneratedMapData>();
+            List<List<Coordinate>> possibleShapes = new List<List<Coordinate>>(); //TOOD: confirm this is the right type.
+
+            //Here create the shapes on a 0-1 scale, so that we can scale them to a cell's resolution later separately without having to re-do all these if I change my mind.
+            possibleShapes.Add(new List<Coordinate>() { new Coordinate(0, 0), new Coordinate(0, 1), new Coordinate(1, 1), new Coordinate(1, 0), new Coordinate(0, 0) }); //square.
+            
+            for (int i =0; i < shapeCount; i++)
+            {
+                //Pick a shape
+                var shapeToAdd = possibleShapes.OrderBy(s => r.Next()).First();
+                var scaleFactor = r.NextDouble();
+                foreach (Coordinate c in shapeToAdd)
+                {
+                    //scale it to our resolution
+                    c.X *= resolutionCell8;
+                    c.Y *= resolutionCell8;
+
+                    //multiply this by some factor smaller than .5, so it doesn't take up the entire Cell
+                    //If we use NextDouble() here, it scales each coordinate randomly, which would look very unpredictable. Use the results of one call twice to scale proportionally. 
+                    //but ponder how good/bad it looks for various shapes if each coordinate is scaled differently.
+                    c.X *= scaleFactor;
+                    c.Y *= scaleFactor;
+
+                    //Rotate the coordinate set some random number of degrees
+                    //TODO: how to rotate these?
+
+                    //Place the shape somewhere randomly by adding a random value less than the resolution
+                    c.X += (r.NextDouble() * resolutionCell8);
+                    c.Y += (r.NextDouble() * resolutionCell8);
+
+                    //And now add the minimum values for the given Cell8 to finish up coordinates.
+                    c.X += cell8.Min.Longitude;
+                    c.Y += cell8.Min.Latitude;
+                }
+
+                //ShapeToAdd now has a randomized layout, convert it to a polygon.
+                var polygon = factory.CreatePolygon(shapeToAdd.ToArray());
+                polygon = CCWCheck(polygon);
+                if (polygon != null)
+                {
+                    GeneratedMapData gmd = new GeneratedMapData();
+                    gmd.AreaTypeId = 100; //a fixed type for when we want to treat generated areas differently than fixed, real world areas.
+                    //gmd.AreaTypeId = r.Next(1, 13); //Randomly assign this area an interesting area type, for games that want one.
+                    gmd.name = ""; //not using this on this level. 
+                    gmd.place = polygon;
+                    gmd.type = "generated";
+
+                    areasToAdd.Add(gmd);
+                }
+                else
+                {
+                    //Inform me that I did something wrong.
+                    Log.WriteLog("failed to convert a randomized shape to a polygon.");
+                    continue;
+                }
+            }
+
+            return areasToAdd;
+
         }
     }
 }
