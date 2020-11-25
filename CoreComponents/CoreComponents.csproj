@@ -63,6 +63,8 @@
     <Compile Include="Migrations\20201025163737_maptileTableindex.Designer.cs" />
     <Compile Include="Migrations\20201109135146_factions.cs" />
     <Compile Include="Migrations\20201109135146_factions.Designer.cs" />
+    <Compile Include="Migrations\20201125133950_MakeGmdTable.cs" />
+    <Compile Include="Migrations\20201125133950_MakeGmdTable.Designer.cs" />
     <Compile Include="Migrations\GpsExploreContextModelSnapshot.cs" />
   </ItemGroup>
 
@@ -83,9 +85,9 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="5.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="5.0.0" />
     <PackageReference Include="OsmSharp.Geo" Version="6.2.0" />
-    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="5.0.0-alpha.1" />
+    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="5.0.0-alpha.2" />
     <PackageReference Include="SixLabors.ImageSharp" Version="1.0.2" />
-    <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="1.0.0-beta0010" />
+    <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="1.0.0-beta11" />
   </ItemGroup>
 
   <ItemGroup>

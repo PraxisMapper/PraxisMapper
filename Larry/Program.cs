@@ -29,7 +29,6 @@ namespace Larry
 
         static void Main(string[] args)
         {
-
             var memMon = new MemoryMonitor();
             PraxisContext.connectionString = ParserSettings.DbConnectionString;
 
@@ -66,11 +65,12 @@ namespace Larry
             if (args.Any(a => a == "-createDB")) //setup the destination database
             {
                 PraxisContext db = new PraxisContext();
-                db.Database.EnsureCreated(); //all the automatic stuff EF does for us.
+                db.Database.EnsureCreated(); //all the automatic stuff EF does for us, without migrations.
                 //Not automatic entries executed below:
                 db.Database.ExecuteSqlRaw(PraxisContext.MapDataValidTrigger);
+                db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataValidTrigger);
                 db.Database.ExecuteSqlRaw(PraxisContext.MapDataIndex);
-                db.Database.ExecuteSqlRaw(PraxisContext.MapDataIndex2);
+                db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataIndex);
                 db.Database.ExecuteSqlRaw(PraxisContext.FindDBMapDataBounds);
                 MapSupport.InsertAreaTypesToDb();
             }

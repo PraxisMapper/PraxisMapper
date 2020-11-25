@@ -92,7 +92,8 @@ namespace CoreComponents
                 var db = new CoreComponents.PraxisContext();
                 places = db.MapData.Where(md => md.place.Intersects(location)).ToList();
                 //TODO: make adding generated areas a toggle? or assume that this call is trivial performance-wise on an empty table
-                places.AddRange(db.GeneratedMapData.Where(md => md.place.Intersects(location)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name }));
+                //A toggle might be good since this also affects maptiles
+                places.AddRange(db.GeneratedMapData.Where(md => md.place.Intersects(location)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
             }
             else
             {
@@ -796,13 +797,14 @@ namespace CoreComponents
             // populate it with some interesting regions for players.
 
             Random r = new Random();
-            CodeArea cell8 = OpenLocationCode.Decode(plusCode); //Reminder: resolution is .0025 on a Cell8
+            CodeArea cell8 = OpenLocationCode.DecodeValid(plusCode); //Reminder: resolution is .0025 on a Cell8
             int shapeCount = 2; //number of shapes to apply to the Cell8
             List<GeneratedMapData> areasToAdd = new List<GeneratedMapData>();
             List<List<Coordinate>> possibleShapes = new List<List<Coordinate>>(); //TOOD: confirm this is the right type.
 
             //Here create the shapes on a 0-1 scale, so that we can scale them to a cell's resolution later separately without having to re-do all these if I change my mind.
-            possibleShapes.Add(new List<Coordinate>() { new Coordinate(0, 0), new Coordinate(0, 1), new Coordinate(1, 1), new Coordinate(1, 0), new Coordinate(0, 0) }); //square.
+            //Leave the last point out, and just add a new copy of the first before making a polygon.
+            possibleShapes.Add(new List<Coordinate>() { new Coordinate(0, 0), new Coordinate(0, 1), new Coordinate(1, 1), new Coordinate(1, 0) }); //square.
             
             for (int i =0; i < shapeCount; i++)
             {
@@ -834,6 +836,7 @@ namespace CoreComponents
                 }
 
                 //ShapeToAdd now has a randomized layout, convert it to a polygon.
+                shapeToAdd.Add(shapeToAdd.First());
                 var polygon = factory.CreatePolygon(shapeToAdd.ToArray());
                 polygon = CCWCheck(polygon);
                 if (polygon != null)
