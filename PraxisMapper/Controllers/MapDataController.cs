@@ -111,9 +111,6 @@ namespace PraxisMapper.Controllers
             if (Configuration.GetValue<bool>("generateAreas") && !places.Any(p => p.AreaTypeId < 13))
             {
                 var newAreas = MapSupport.CreateInterestingAreas(codeString8);
-                var db = new PraxisContext();
-                db.GeneratedMapData.AddRange(newAreas);
-                db.SaveChanges();
                 places = newAreas.Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name }).ToList();
             }
 

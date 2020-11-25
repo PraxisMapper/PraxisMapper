@@ -213,11 +213,24 @@ namespace Larry
                 ExtractAreasFromLargeFile(ParserSettings.PbfFolder + "north-america-latest.osm.pbf");
             }
 
-            if (args.Any(a => a == "-findDullAreas"))
+            if (args.Any(a => a.StartsWith("-populateEmptyArea:")))
             {
+                var db = new PraxisContext();
                 //TODO: finish this function
-                GeoArea scanArea = new GeoArea(1, 1, 2, 2);
-                ScanMapForDullAreas(scanArea);
+                var cell6 = args.Where(a => a.StartsWith("-populateEmptyArea:")).First().Split(":")[1];
+
+                for(int x = 0; x < 20; x++)
+                {
+                    for (int y = 0; y < 20; y++)
+                    {
+                        string cell8 = cell6 + OpenLocationCode.CodeAlphabet[x] + OpenLocationCode.CodeAlphabet[y];
+                        CodeArea box = OpenLocationCode.DecodeValid(cell8);
+                        var coordSeq = GeoAreaToCoordArray(box);
+                        var location = factory.CreatePolygon(coordSeq);
+                        if (!db.MapData.Any(md => md.place.Intersects(location)) && !db.GeneratedMapData.Any(md => md.place.Intersects(location)))
+                            MapSupport.CreateInterestingAreas(cell8);
+                    }
+                }                
             }
             return;
         }
@@ -268,6 +281,8 @@ namespace Larry
             Log.WriteLog("MapTiles cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
             osm.Database.ExecuteSqlRaw("TRUNCATE TABLE PerformanceInfo");
             Log.WriteLog("PerformanceInfo cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
+            osm.Database.ExecuteSqlRaw("TRUNCATE TABLE GeneratedMapData");
+            Log.WriteLog("GeneratedMapData cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
 
             Log.WriteLog("DB cleaned at " + DateTime.Now);
         }
