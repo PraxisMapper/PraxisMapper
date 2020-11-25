@@ -70,6 +70,7 @@ namespace Larry
                 //Not automatic entries executed below:
                 db.Database.ExecuteSqlRaw(PraxisContext.MapDataValidTrigger);
                 db.Database.ExecuteSqlRaw(PraxisContext.MapDataIndex);
+                db.Database.ExecuteSqlRaw(PraxisContext.MapDataIndex2);
                 db.Database.ExecuteSqlRaw(PraxisContext.FindDBMapDataBounds);
                 MapSupport.InsertAreaTypesToDb();
             }
@@ -1378,6 +1379,8 @@ namespace Larry
             //Current plan:
             //If a Cell8 entry contains only uninteresting entries (roads, building, parking lots. Area ID > 12 is the current simple check) 
             //then mark that area as 'dull', and use that list later to create zones
+
+            //NOTE; this is getting moved to on-demand to save time setting up a new DB.
 
             //split area into Cell8 entries
 

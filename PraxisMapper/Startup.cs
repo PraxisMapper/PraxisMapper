@@ -1,17 +1,11 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using CoreComponents;
-using PraxisMapper.Classes;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
+using PraxisMapper.Classes;
+using PraxisMapper.Controllers;
 
 namespace PraxisMapper
 {
@@ -23,6 +17,7 @@ namespace PraxisMapper
             PerformanceTracker.EnableLogging = Configuration.GetValue<bool>("enablePerformanceTracker");
             CoreComponents.Log.WriteToFile = Configuration.GetValue<bool>("enableFileLogging");
             PraxisContext.connectionString = Configuration.GetValue<string>("dbConnectionString");
+            AdminController.adminPwd = Configuration.GetValue<string>("adminPwd");
         }
 
         public IConfiguration Configuration { get; }

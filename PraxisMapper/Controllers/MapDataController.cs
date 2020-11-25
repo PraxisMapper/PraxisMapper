@@ -89,10 +89,13 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
+        [Route("/[controller]/cell8Info/{plusCode8}/{fullCode}")] 
+        [Route("/[controller]/LearnCell8/{plusCode8}/{fullCode}")] //These top 2 dont work for some reason.
         [Route("/[controller]/cell8Info/{plusCode8}")]
         [Route("/[controller]/LearnCell8/{plusCode8}")]
-        public string LearnCell8(string plusCode8) //The current primary function used by the app. Uses the Cell6 area given to it
+        public string LearnCell8(string plusCode8, int fullCode = 0) //The current primary function used by the app. Uses the Cell8 area given to it
         {
+            //fullcode = 1 is probably a little faster on the device, but 0 currently matches the app and im testing on the cloud server, so 0 this stays for now.
             //Send over the plus code to look up.
             PerformanceTracker pt = new PerformanceTracker("LearnCell8");
             var codeString8 = plusCode8;
@@ -105,6 +108,15 @@ namespace PraxisMapper.Controllers
             var box = OpenLocationCode.DecodeValid(codeString8);
 
             var places = MapSupport.GetPlaces(OpenLocationCode.DecodeValid(codeString8));  //All the places in this 8-code
+            if (Configuration.GetValue<bool>("generateAreas") && !places.Any(p => p.AreaTypeId < 13))
+            {
+                var newAreas = MapSupport.CreateInterestingAreas(codeString8);
+                var db = new PraxisContext();
+                db.GeneratedMapData.AddRange(newAreas);
+                db.SaveChanges();
+                places = newAreas.Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name }).ToList();
+            }
+
             StringBuilder sb = new StringBuilder();
             sb.AppendLine(codeString8);
             //pluscode6 //first 6 digits of this pluscode. each line below is the last 4 that have an area type.
@@ -119,7 +131,7 @@ namespace PraxisMapper.Controllers
             MapSupport.SplitArea(box, splitcount, places, out placeArray, out areaArray);
             System.Threading.Tasks.Parallel.For(0, placeArray.Length, (i) =>
             {
-                sbArray[i] = MapSupport.SearchArea(ref areaArray[i], ref placeArray[i]);
+                sbArray[i] = MapSupport.SearchArea(ref areaArray[i], ref placeArray[i], (fullCode == 1));
             });
 
             foreach (StringBuilder sbPartial in sbArray)
@@ -220,7 +232,7 @@ namespace PraxisMapper.Controllers
         {
             var codeRequested = new OpenLocationCode(lat, lon);
             var Cell8 = codeRequested.CodeDigits.Substring(0, 8);
-            return LearnCell8(Cell8);
+            return LearnCell8(Cell8, 1);
         }
 
         [HttpGet]
