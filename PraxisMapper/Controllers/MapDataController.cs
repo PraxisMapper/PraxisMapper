@@ -330,7 +330,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/DrawCell6/{plusCode6}")]
         public FileContentResult DrawCell6(string plusCode6)
         {
-            //a 11-cell PNG of a 6cell is roughly 140KB, and now takes ~20-40 seconds to generate (20x the data processed, in ~10x the time and 7x the space)
+            //a 10-cell PNG of a 6cell is roughly 140KB, and now takes ~20-40 seconds to generate (20x the data processed, in ~10x the time and 7x the space)
             PerformanceTracker pt = new PerformanceTracker("DrawCell6");
             //Load terrain data for an 6cell, turn it into a bitmap
             //Will load these bitmaps on the 6cell grid in the game, so you can see what's around you in a bigger area?
@@ -359,10 +359,10 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/DrawCell6Highres/{plusCode6}")]
         public FileContentResult DrawCell6Highres(string plusCode6)
         {
-            //a PNG of a 6cell this way is roughly KB, and now takes  seconds to generate
+            //a PNG of a 6cell this way is roughly 124KB, and now takes ~400 seconds to generate. The game cannot possibly wait 6+ minutes for one of these to render.
+            //An admin or a tester looking for all this data may find it useful though.
             PerformanceTracker pt = new PerformanceTracker("DrawCell6Highres");
             //Load terrain data for an 6cell, turn it into a bitmap
-            //Will load these bitmaps on the 6cell grid in the game, so you can see what's around you in a bigger area?
             var db = new PraxisContext();
             var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode6 && mt.resolutionScale == 11).FirstOrDefault();
             if (existingResults == null || existingResults.MapTileId == null)

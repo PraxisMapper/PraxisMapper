@@ -91,7 +91,7 @@ namespace CoreComponents
             {
                 var db = new CoreComponents.PraxisContext();
                 places = db.MapData.Where(md => md.place.Intersects(location)).ToList();
-                //TODO: make adding generated areas a toggle? or assume that this call is trivial performance-wise on an empty table
+                //TODO: make including generated areas a toggle? or assume that this call is trivial performance-wise on an empty table
                 //A toggle might be good since this also affects maptiles
                 places.AddRange(db.GeneratedMapData.Where(md => md.place.Intersects(location)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
             }
@@ -804,6 +804,7 @@ namespace CoreComponents
 
             //Here create the shapes on a 0-1 scale, so that we can scale them to a cell's resolution later separately without having to re-do all these if I change my mind.
             //Leave the last point out, and just add a new copy of the first before making a polygon.
+            possibleShapes.Add(new List<Coordinate>() { new Coordinate(0, 0), new Coordinate(.5, 1), new Coordinate(1, 0)}); //triangle.
             possibleShapes.Add(new List<Coordinate>() { new Coordinate(0, 0), new Coordinate(0, 1), new Coordinate(1, 1), new Coordinate(1, 0) }); //square.
             
             for (int i =0; i < shapeCount; i++)
@@ -812,7 +813,7 @@ namespace CoreComponents
                 var masterShape = possibleShapes.OrderBy(s => r.Next()).First();
                 var shapeToAdd = new List<Coordinate>();
                 shapeToAdd.AddRange(masterShape);
-                var scaleFactor = r.NextDouble();
+                var scaleFactor = Math.Clamp(r.NextDouble(), .1, .5); //Ensure that we get a value that isn't terribly useless.
                 var positionFactor = r.NextDouble() * resolutionCell8;
                 foreach (Coordinate c in shapeToAdd)
                 {
@@ -820,21 +821,23 @@ namespace CoreComponents
                     c.X *= resolutionCell8;
                     c.Y *= resolutionCell8;
 
-                    //multiply this by some factor smaller than .5, so it doesn't take up the entire Cell
+                    //multiply this by some factor smaller than 1, so it doesn't take up the entire Cell
                     //If we use NextDouble() here, it scales each coordinate randomly, which would look very unpredictable. Use the results of one call twice to scale proportionally. 
                     //but ponder how good/bad it looks for various shapes if each coordinate is scaled differently.
                     c.X *= scaleFactor;
                     c.Y *= scaleFactor;
 
-                    //Rotate the coordinate set some random number of degrees
+                    //Rotate the coordinate set some random number of degrees?
                     //TODO: how to rotate these?
 
                     //Place the shape somewhere randomly by adding a random value less than the resolution
-                    //NOTE: doing this per vertex makes the shapes very randomly skewed. Would need this to be a static position factor to make evenly patterned shapes.
-                    //I might like the look of randomly skewed shapes, so this might also get a toggle or a config to determine behavior.
                     c.X += positionFactor;
                     c.Y += positionFactor;
-                    
+
+                    //Fuzz each vertex by adding some random distance on each axis less than 10% of the cell's size in either direction.
+                    //The *.1 makes the shapes much more recognizable, but not as interesting. Will continue looking into parameters here to help adjust that.
+                    c.X += (r.NextDouble() * resolutionCell8 * .1) * (r.Next() % 2 == 0 ? 1 : -1);
+                    c.Y += (r.NextDouble() * resolutionCell8 * .1) * (r.Next() % 2 == 0 ? 1 : -1);
 
                     //And now add the minimum values for the given Cell8 to finish up coordinates.
                     c.X += cell8.Min.Longitude;
