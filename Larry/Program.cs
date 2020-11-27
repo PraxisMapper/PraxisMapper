@@ -115,7 +115,6 @@ namespace Larry
                 List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
                 foreach (string filename in filenames)
                     SerializeSeparateFilesFromPBF(filename);
-
             }
 
             if (args.Any(a => a == "-readMapData"))
@@ -216,10 +215,14 @@ namespace Larry
             if (args.Any(a => a.StartsWith("-populateEmptyArea:")))
             {
                 var db = new PraxisContext();
-                //TODO: finish this function
                 var cell6 = args.Where(a => a.StartsWith("-populateEmptyArea:")).First().Split(":")[1];
+                CodeArea box6 = OpenLocationCode.DecodeValid(cell6);
+                var coordSeq6 = GeoAreaToCoordArray(box6);
+                var location6 = factory.CreatePolygon(coordSeq6);
+                var places = db.MapData.Where(md => md.place.Intersects(location6) && md.AreaTypeId < 13).ToList();
+                var fakeplaces = db.GeneratedMapData.Where(md => md.place.Intersects(location6)).ToList();
 
-                for(int x = 0; x < 20; x++)
+                for (int x = 0; x < 20; x++)
                 {
                     for (int y = 0; y < 20; y++)
                     {
@@ -227,7 +230,7 @@ namespace Larry
                         CodeArea box = OpenLocationCode.DecodeValid(cell8);
                         var coordSeq = GeoAreaToCoordArray(box);
                         var location = factory.CreatePolygon(coordSeq);
-                        if (!db.MapData.Any(md => md.place.Intersects(location)) && !db.GeneratedMapData.Any(md => md.place.Intersects(location)))
+                        if (!places.Any(md => md.place.Intersects(location)) && !fakeplaces.Any(md => md.place.Intersects(location)))
                             MapSupport.CreateInterestingAreas(cell8);
                     }
                 }                
