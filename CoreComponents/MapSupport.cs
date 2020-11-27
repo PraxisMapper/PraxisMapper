@@ -80,6 +80,15 @@ namespace CoreComponents
         public static ILookup<int, string> areaIdReference = areaTypes.ToLookup(k => k.AreaTypeId, v => v.AreaName);
         public static ILookup<int, string> areaColorReference = areaTypes.ToLookup(k => k.AreaTypeId, v => v.HtmlColorCode);
 
+        public static List<List<Coordinate>> possibleShapes = new List<List<Coordinate>>() //When generating gameplay areas in empty Cell8s
+        {
+            new List<Coordinate>() { new Coordinate(0, 0), new Coordinate(.5, 1), new Coordinate(1, 0)}, //triangle.
+            new List<Coordinate>() { new Coordinate(0, 0), new Coordinate(0, 1), new Coordinate(1, 1), new Coordinate(1, 0) }, //square.
+            new List<Coordinate>() { new Coordinate(.2, 0), new Coordinate(0, .8), new Coordinate(.5, 1), new Coordinate(1, .8), new Coordinate(.8, 0) }, //roughly a pentagon.
+            new List<Coordinate>() { new Coordinate(.5, 0), new Coordinate(0, .33), new Coordinate(0, .66), new Coordinate(.5, 1), new Coordinate(1, .66), new Coordinate(1, .33) }, //roughly a hexagon.
+            //TODO: more shapes, ideally more interesting than simple polygons? Star? Heart? Arc?
+        };
+
         public static List<MapData> GetPlaces(GeoArea area, List<MapData> source = null)
         {
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
@@ -795,26 +804,21 @@ namespace CoreComponents
         {
             //expected to receive a Cell8
             // populate it with some interesting regions for players.
-
             Random r = new Random();
             CodeArea cell8 = OpenLocationCode.DecodeValid(plusCode); //Reminder: resolution is .0025 on a Cell8
-            int shapeCount = 2; //number of shapes to apply to the Cell8
+            int shapeCount = 1; // 2; //number of shapes to apply to the Cell8
+            double shapeWarp = .3; //percentage a shape is allowed to have its verteces drift by.
             List<GeneratedMapData> areasToAdd = new List<GeneratedMapData>();
-            List<List<Coordinate>> possibleShapes = new List<List<Coordinate>>(); //TOOD: confirm this is the right type.
-
-            //Here create the shapes on a 0-1 scale, so that we can scale them to a cell's resolution later separately without having to re-do all these if I change my mind.
-            //Leave the last point out, and just add a new copy of the first before making a polygon.
-            possibleShapes.Add(new List<Coordinate>() { new Coordinate(0, 0), new Coordinate(.5, 1), new Coordinate(1, 0)}); //triangle.
-            possibleShapes.Add(new List<Coordinate>() { new Coordinate(0, 0), new Coordinate(0, 1), new Coordinate(1, 1), new Coordinate(1, 0) }); //square.
             
-            for (int i =0; i < shapeCount; i++)
+            for (int i = 0; i < shapeCount; i++)
             {
                 //Pick a shape
                 var masterShape = possibleShapes.OrderBy(s => r.Next()).First();
-                var shapeToAdd = new List<Coordinate>();
-                shapeToAdd.AddRange(masterShape);
-                var scaleFactor = Math.Clamp(r.NextDouble(), .1, .5); //Ensure that we get a value that isn't terribly useless.
-                var positionFactor = r.NextDouble() * resolutionCell8;
+                var shapeToAdd = masterShape.Select(s => new Coordinate(s)).ToList();
+                //shapeToAdd.AddRange(masterShape);
+                var scaleFactor = r.Next(10, 36) * .01; //Math.Clamp(r.Next, .1, .35); //Ensure that we get a value that isn't terribly useless. 2 shapes can still cover 70%+ of an empty area this way.
+                var positionFactorX = r.NextDouble() * resolutionCell8;
+                var positionFactorY = r.NextDouble() * resolutionCell8;
                 foreach (Coordinate c in shapeToAdd)
                 {
                     //scale it to our resolution
@@ -830,14 +834,19 @@ namespace CoreComponents
                     //Rotate the coordinate set some random number of degrees?
                     //TODO: how to rotate these?
 
-                    //Place the shape somewhere randomly by adding a random value less than the resolution
-                    c.X += positionFactor;
-                    c.Y += positionFactor;
+                    //Place the shape somewhere randomly by adding the same X/Y value less than the resolution to each point
+                    c.X += positionFactorX;
+                    c.Y += positionFactorY;
 
-                    //Fuzz each vertex by adding some random distance on each axis less than 10% of the cell's size in either direction.
-                    //The *.1 makes the shapes much more recognizable, but not as interesting. Will continue looking into parameters here to help adjust that.
-                    c.X += (r.NextDouble() * resolutionCell8 * .1) * (r.Next() % 2 == 0 ? 1 : -1);
-                    c.Y += (r.NextDouble() * resolutionCell8 * .1) * (r.Next() % 2 == 0 ? 1 : -1);
+                    //Fuzz each vertex by adding some random distance on each axis less than 30% of the cell's size in either direction.
+                    //10% makes the shapes much more recognizable, but not as interesting. Will continue looking into parameters here to help adjust that.
+                    c.X += (r.NextDouble() * resolutionCell8 * shapeWarp) * (r.Next() % 2 == 0 ? 1 : -1);
+                    c.Y += (r.NextDouble() * resolutionCell8 * shapeWarp) * (r.Next() % 2 == 0 ? 1 : -1);
+                    //was .1 on 86GXVD, will be .3 on the next
+
+                    //Let us know if this shape overlaps a neighboring cell. We probably want to make sure we re-draw map tiles if it does.
+                    if (c.X > .0025 || c.Y > .0025)
+                        Log.WriteLog("Coordinate for shape " + i + " in Cell8 " + plusCode + " will be out of bounds: " + c.X + " " + c.Y, Log.VerbosityLevels.High);
 
                     //And now add the minimum values for the given Cell8 to finish up coordinates.
                     c.X += cell8.Min.Longitude;
@@ -845,9 +854,9 @@ namespace CoreComponents
                 }
 
                 //ShapeToAdd now has a randomized layout, convert it to a polygon.
-                shapeToAdd.Add(shapeToAdd.First());
+                shapeToAdd.Add(shapeToAdd.First()); //make it a closed shape
                 var polygon = factory.CreatePolygon(shapeToAdd.ToArray());
-                polygon = CCWCheck(polygon); //Sometimes squares still aren't CCW?
+                polygon = CCWCheck(polygon); //Sometimes squares still aren't CCW? or this gets un-done somewhere later?
                 if (!polygon.IsValid || !polygon.Shell.IsCCW)
                 {
                     Log.WriteLog("Invalid geometry generated, retrying", Log.VerbosityLevels.High);
@@ -855,6 +864,14 @@ namespace CoreComponents
                     continue;
                 }
 
+                if (!polygon.CoveredBy(factory.CreatePolygon(GeoAreaToCoordArray(cell8))))
+                {
+                    //TODO: Erase an existing Cell8/Cell10 map tile and let it get replaced next call.
+                    //This should only ever require checking the map tile north/east of the current one, even though the vertex fuzzing can potentially move things negative slightly.
+                    Log.WriteLog("This polygon is outside of the Cell8 by " + (cell8.Max.Latitude - shapeToAdd.Max(s => s.Y)) + "/" + (cell8.Max.Longitude - shapeToAdd.Max(s => s.X)), Log.VerbosityLevels.High);
+                    
+                    
+                }
                 if (polygon != null)
                 {
                     GeneratedMapData gmd = new GeneratedMapData();
@@ -873,7 +890,7 @@ namespace CoreComponents
                 }
             }
 
-            //Making this function self-contained.
+            //Making this function self-contained
             var db = new PraxisContext();
             foreach (var area in areasToAdd)
             {
@@ -883,6 +900,15 @@ namespace CoreComponents
             db.SaveChanges();
 
             return areasToAdd;
+        }
+
+        public static void ExpireCellData(string plusCode)
+        {
+            //TODO: this function.
+            //Clear out anything generated involving the given area so that it can be regenerated.
+            var db = new PraxisContext();
+            db.MapTiles.RemoveRange(db.MapTiles.Where(m => m.PlusCode == plusCode));
+            db.SaveChanges();
         }
     }
 }

@@ -214,6 +214,7 @@ namespace Larry
 
             if (args.Any(a => a.StartsWith("-populateEmptyArea:")))
             {
+                //NOTE: 86GXVH appears to be entirely empty of interesting features, it's a good spot to start testing if you want to generate lots of areas.
                 var db = new PraxisContext();
                 var cell6 = args.Where(a => a.StartsWith("-populateEmptyArea:")).First().Split(":")[1];
                 CodeArea box6 = OpenLocationCode.DecodeValid(cell6);
