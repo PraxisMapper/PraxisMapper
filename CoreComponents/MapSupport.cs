@@ -262,6 +262,18 @@ namespace CoreComponents
             return area;
         }
 
+        public static int GetFactionFor11Cell(double x, double y, ref List<MapData> places)
+        {
+            var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell11Lat, x + resolutionCell11Lon));
+            var entriesHere = MapSupport.GetPlaces(box, places).Where(p => p.AreaTypeId != 13).ToList(); //Excluding admin boundaries from this list.  
+
+            if (entriesHere.Count() == 0)
+                return 0;
+
+            int area = DetermineAreaFaction(entriesHere);
+            return area;
+        }
+
         //I don't think this is going to be a high-demand function, but I'll include it for performance comparisons.
         public static string FindPlacesIn11Cell(double x, double y, ref List<MapData> places, bool entireCode = false)
         {
@@ -313,6 +325,17 @@ namespace CoreComponents
         {
             var entry = PickSortedEntry(entriesHere);
             return entry.AreaTypeId;
+        }
+
+        public static int DetermineAreaFaction(List<MapData> entriesHere)
+        {
+            var entry = PickSortedEntry(entriesHere);
+            var db = new PraxisContext();
+            var faction = db.AreaControlTeams.Where(a => a.MapDataId == entry.MapDataId).FirstOrDefault();
+            if (faction == null)
+                return 0;
+
+            return faction.FactionId;
         }
 
         public static string LoadDataOnArea(long id)
@@ -742,6 +765,47 @@ namespace CoreComponents
             return ms.ToArray();
         }
 
+        public static byte[] DrawMPControlAreaMapTile11(GeoArea totalArea)
+        {
+            List<MapData> rowPlaces;
+            var db = new PraxisContext();
+            var factionColors = db.Factions.ToLookup(k => k.FactionId, v => v.HtmlColor);
+            var places = GetPlaces(totalArea);
+            var placeList = places.Select(p => p.MapDataId).ToList();
+            var teamClaims = db.AreaControlTeams.Where(a => placeList.Contains(a.MapDataId)).ToDictionary(k => k.MapDataId, v => v.FactionId);
+
+            //create a new bitmap.
+            MemoryStream ms = new MemoryStream();
+            //pixel formats. RBGA32 allows for hex codes. RGB24 doesnt?
+            int imagesizeX = (int)Math.Floor(totalArea.LongitudeWidth / resolutionCell11Lon); //scales to area size
+            int imagesizeY = (int)Math.Floor(totalArea.LatitudeHeight / resolutionCell11Lat); //scales to area size
+            using (var image = new Image<Rgba32>(imagesizeX, imagesizeY)) //each 11 cell in this area is a pixel.
+            {
+                image.Mutate(x => x.Fill(Rgba32.ParseHex("00000000"))); //set all the areas to transparent.
+                for (int y = 0; y < image.Height; y++)
+                {
+                    //Dramatic performance improvement by limiting this to just the row's area.
+                    rowPlaces = MapSupport.GetPlaces(new GeoArea(new GeoPoint(totalArea.Min.Latitude + (MapSupport.resolutionCell11Lat * y), totalArea.Min.Longitude), new GeoPoint(totalArea.Min.Latitude + (MapSupport.resolutionCell11Lat * (y + 1)), totalArea.Max.Longitude)), places);
+
+                    Span<Rgba32> pixelRow = image.GetPixelRowSpan(image.Height - y - 1); //Plus code data is searched south-to-north, image is inverted otherwise.
+                    for (int x = 0; x < image.Width; x++)
+                    {
+                        //Set the pixel's color by its faction owner.
+                        int placeData = MapSupport.GetFactionFor11Cell(totalArea.Min.Longitude + (MapSupport.resolutionCell11Lon * x), totalArea.Min.Latitude + (MapSupport.resolutionCell11Lat * y), ref rowPlaces);
+                        if (placeData != 0)
+                        {
+                            var color = factionColors[placeData].First();
+                            pixelRow[x] = Rgba32.ParseHex(color); //set to appropriate type color
+                        }
+                    }
+                }
+
+                image.SaveAsPng(ms);
+            } //image disposed here.
+
+            return ms.ToArray();
+        }
+
         //This is Points as in scoring, not Points as in coord pair location.
         public static string GetScoresForArea(Polygon areaPoly, List<MapData> places)
         {
@@ -894,10 +958,11 @@ namespace CoreComponents
             return areasToAdd;
         }
 
-        public static void ExpireCellData(string plusCode)
+        public static void ExpireCellData(string? plusCode = "" , int? MapDataId = 0)
         {
             //TODO: this function.
             //Clear out anything generated involving the given area so that it can be regenerated.
+            //should be able to work out both by PlusCode, and by MapDataId (though this second one will be much trickier.)
             var db = new PraxisContext();
             db.MapTiles.RemoveRange(db.MapTiles.Where(m => m.PlusCode == plusCode));
             db.SaveChanges();

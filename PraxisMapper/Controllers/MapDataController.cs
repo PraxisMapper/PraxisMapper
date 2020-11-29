@@ -250,7 +250,7 @@ namespace PraxisMapper.Controllers
             //Will load these bitmaps on the 8cell grid in the game, so you can see what's around you in a bigger area.
 
             var db = new PraxisContext();
-            var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode8 && mt.resolutionScale == 10).FirstOrDefault();
+            var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode8 && mt.resolutionScale == 10 && mt.mode == 1).FirstOrDefault();
             if (existingResults == null || existingResults.MapTileId == null)
             {
                 //Create this entry
@@ -258,7 +258,7 @@ namespace PraxisMapper.Controllers
                 GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
                 var places = MapSupport.GetPlaces(eightCell);
                 var results = MapSupport.DrawAreaMapTile(ref places, eightCell);
-                db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, regenerate = false, resolutionScale = 10, tileData = results });
+                db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, CreatedOn = DateTime.Now, mode =1, resolutionScale = 10, tileData = results });
                 db.SaveChanges();
                 pt.Stop(plusCode8);
                 return File(results, "image/png");
@@ -278,7 +278,7 @@ namespace PraxisMapper.Controllers
             //Will load these bitmaps on the 8cell grid in the game, so you can see what's around you in a bigger area.
 
             var db = new PraxisContext();
-            var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode8 && mt.resolutionScale == 11).FirstOrDefault();
+            var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode8 && mt.resolutionScale == 11 && mt.mode == 1).FirstOrDefault();
             if (existingResults == null || existingResults.MapTileId == null)
             {
                 //Create this entry
@@ -286,7 +286,7 @@ namespace PraxisMapper.Controllers
                 GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
                 var places = MapSupport.GetPlaces(eightCell);
                 var results = MapSupport.DrawAreaMapTile11(ref places, eightCell);
-                db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, regenerate = false, resolutionScale = 11, tileData = results });
+                db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results });
                 db.SaveChanges();
                 pt.Stop(plusCode8);
                 return File(results, "image/png");
@@ -306,7 +306,7 @@ namespace PraxisMapper.Controllers
             //Will load these bitmaps on the 8cell grid in the game, so you can see what's around you in a bigger area.
 
             var db = new PraxisContext();
-            var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode10 && mt.resolutionScale == 11).FirstOrDefault();
+            var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode10 && mt.resolutionScale == 11 && mt.mode == 1).FirstOrDefault();
             if (existingResults == null || existingResults.MapTileId == null)
             {
                 //Create this entry
@@ -315,7 +315,7 @@ namespace PraxisMapper.Controllers
                 GeoArea TenCell = OpenLocationCode.DecodeValid(plusCode10);
                 var places = MapSupport.GetPlaces(TenCell);
                 var results = MapSupport.DrawAreaMapTile11(ref places, TenCell);
-                db.MapTiles.Add(new MapTile() { PlusCode = plusCode10, regenerate = false, resolutionScale = 11, tileData = results });
+                db.MapTiles.Add(new MapTile() { PlusCode = plusCode10, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results });
                 db.SaveChanges();
                 pt.Stop(plusCode10);
                 return File(results, "image/png");
@@ -336,7 +336,7 @@ namespace PraxisMapper.Controllers
             //Will load these bitmaps on the 6cell grid in the game, so you can see what's around you in a bigger area?
 
             var db = new PraxisContext();
-            var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode6 && mt.resolutionScale == 10).FirstOrDefault();
+            var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode6 && mt.resolutionScale == 10 && mt.mode == 1).FirstOrDefault();
             if (existingResults == null || existingResults.MapTileId == null)
             {
                 //Create this entry
@@ -344,7 +344,7 @@ namespace PraxisMapper.Controllers
                 GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
                 var allPlaces = MapSupport.GetPlaces(sixCell);
                 var results = MapSupport.DrawAreaMapTile(ref allPlaces, sixCell);
-                db.MapTiles.Add(new MapTile() { PlusCode = plusCode6, regenerate = false, resolutionScale = 10, tileData = results });
+                db.MapTiles.Add(new MapTile() { PlusCode = plusCode6, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 10, tileData = results });
                 db.SaveChanges();
                 pt.Stop(plusCode6);
                 return File(results, "image/png");
@@ -364,14 +364,14 @@ namespace PraxisMapper.Controllers
             PerformanceTracker pt = new PerformanceTracker("DrawCell6Highres");
             //Load terrain data for an 6cell, turn it into a bitmap
             var db = new PraxisContext();
-            var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode6 && mt.resolutionScale == 11).FirstOrDefault();
+            var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode6 && mt.resolutionScale == 11 && mt.mode == 1).FirstOrDefault();
             if (existingResults == null || existingResults.MapTileId == null)
             {
                 //requires a list of colors to use, which might vary per app. Defined in AreaType
                 GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
                 var allPlaces = MapSupport.GetPlaces(sixCell);
                 var results = MapSupport.DrawAreaMapTile11(ref allPlaces, sixCell);
-                db.MapTiles.Add(new MapTile() { PlusCode = plusCode6, regenerate = false, resolutionScale = 11, tileData = results });
+                db.MapTiles.Add(new MapTile() { PlusCode = plusCode6, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results });
                 db.SaveChanges();
                 pt.Stop(plusCode6);
                 return File(results, "image/png");
