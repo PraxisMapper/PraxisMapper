@@ -745,51 +745,43 @@ namespace CoreComponents
         //This is Points as in scoring, not Points as in coord pair location.
         public static string GetScoresForArea(Polygon areaPoly, List<MapData> places)
         {
-            List<Tuple<string, double, long>> areaSizes = new List<Tuple<string, double, long>>();
+            List<Tuple<string, int, long>> areaSizes = new List<Tuple<string, int, long>>();
             foreach (var place in places)
             {
                 var containedArea = place.place.Intersection(areaPoly);
-                var containedAreaSize = containedArea.Area; //The area, in square degrees
-                if (containedAreaSize == 0)
-                {
-                    //This is a line or a point, it has no area so we need to fix the calculations to match the display grid.
-                    //Points will always be 1.
-                    //Lines will be based on distance.
-                    if (containedArea is NetTopologySuite.Geometries.Point)
-                        containedAreaSize = squareCell10Area;
-                    else if (containedArea is NetTopologySuite.Geometries.LineString)
-                        containedAreaSize = ((LineString)containedArea).Length * MapSupport.resolutionCell10;
-                    //This gives us the length of the line in 10-cell lengths, which may be slightly different from the number of 10cells draws on the map as belonging to this line.
-                }
-                var containedArea10CellCount = Math.Round(containedAreaSize / squareCell10Area);
-                //areaSizes.Add(place.name, containedArea10CellCount);
-                areaSizes.Add(new Tuple<string, double, long>(place.name, containedArea10CellCount, place.MapDataId));
+                var areaCell10Count = GetScoreForSingleArea(containedArea);
+                areaSizes.Add(new Tuple<string, int, long>(place.name, areaCell10Count, place.MapDataId));
             }
-            return string.Join(Environment.NewLine, areaSizes.Select(a => a.Item1 + "|" + a.Item1 + "|" + a.Item3));
+            return string.Join(Environment.NewLine, areaSizes.Select(a => a.Item1 + "|" + a.Item2 + "|" + a.Item3));
         }
 
         public static string GetScoresForFullArea(List<MapData> places)
         {
             //As above, but counts the full area, not the area in the currently visible game area
-            Dictionary<string, double> areaSizes = new Dictionary<string, double>();
+            Dictionary<string, int> areaSizes = new Dictionary<string, int>();
             foreach (var place in places)
             {
-                var containedAreaSize = place.place.Area; //The area, in square degrees
-                if (containedAreaSize == 0)
-                {
-                    //This is a line or a point, it has no area so we need to fix the calculations to match the display grid.
-                    //Points will always be 1.
-                    //Lines will be based on distance.
-                    if (place.place is NetTopologySuite.Geometries.Point)
-                        containedAreaSize = squareCell10Area;
-                    else if (place.place is NetTopologySuite.Geometries.LineString)
-                        containedAreaSize = ((LineString)place.place).Length * MapSupport.resolutionCell10;
-                    //This gives us the length of the line in Cell10 lengths, which may be slightly different from the number of Cell10 draws on the map as belonging to this line.
-                }
-                var containedArea10CellCount = Math.Round(containedAreaSize / squareCell10Area);
-                areaSizes.Add(place.name, containedArea10CellCount);
+                areaSizes.Add(place.name, GetScoreForSingleArea(place.place));
             }
             return string.Join(Environment.NewLine, areaSizes.Select(a => a.Key + "|" + a.Value));
+        }
+
+        public static int GetScoreForSingleArea(Geometry place)
+        {
+            var containedAreaSize = place.Area; //The area, in square degrees
+            if (containedAreaSize == 0)
+            {
+                //This is a line or a point, it has no area so we need to fix the calculations to match the display grid.
+                //Points will always be 1.
+                //Lines will be based on distance.
+                if (place is NetTopologySuite.Geometries.Point)
+                    containedAreaSize = squareCell10Area;
+                else if (place is NetTopologySuite.Geometries.LineString)
+                    containedAreaSize = ((LineString)place).Length * MapSupport.resolutionCell10;
+                //This gives us the length of the line in Cell10 lengths, which may be slightly different from the number of Cell10 draws on the map as belonging to this line.
+            }
+            var containedAreaCell10Count = (int)Math.Round(containedAreaSize / squareCell10Area);
+            return containedAreaCell10Count;
         }
 
         public static Tuple<double, double, double> ShiftPlusCodeToFlexParams(string plusCode)
