@@ -187,7 +187,7 @@ namespace Larry
                             GeoArea tileArea = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + MapSupport.resolutionCell6, x + MapSupport.resolutionCell6));
                             var places = MapSupport.GetPlaces(tileArea);
                             var tileData = MapSupport.DrawAreaMapTile(ref places, tileArea);
-                            db.MapTiles.Add(new MapTile() { tileData = tileData, regenerate = false, resolutionScale = 10, PlusCode = OpenLocationCode.Encode(new GeoPoint(y, x)).Substring(0, 6) });
+                            db.MapTiles.Add(new MapTile() { CreatedOn = DateTime.Now, mode = 1,  tileData = tileData,  resolutionScale = 10, PlusCode = OpenLocationCode.Encode(new GeoPoint(y, x)).Substring(0, 6) });
                             db.SaveChanges();
                         }
                 }
@@ -200,7 +200,7 @@ namespace Larry
                             GeoArea tileArea = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + MapSupport.resolutionCell6, x + MapSupport.resolutionCell6));
                             var places = MapSupport.GetPlaces(tileArea);
                             var tileData = MapSupport.DrawAreaMapTile11(ref places, tileArea);
-                            db.MapTiles.Add(new MapTile() { tileData = tileData, regenerate = false, resolutionScale = 11, PlusCode = OpenLocationCode.Encode(new GeoPoint(y, x)).Substring(0, 6) });
+                            db.MapTiles.Add(new MapTile() { CreatedOn = DateTime.Now, mode = 1, tileData = tileData, resolutionScale = 11, PlusCode = OpenLocationCode.Encode(new GeoPoint(y, x)).Substring(0, 6) });
                             db.SaveChanges();
                         }
                 }

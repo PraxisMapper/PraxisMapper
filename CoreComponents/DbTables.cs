@@ -25,6 +25,7 @@ namespace CoreComponents
             public double totalSpeed { get; set; }
             public int altitudeSpread { get; set; }
             public DateTime lastSyncTime { get; set; }
+            public int FactionID { get; set; }
         }
 
         public class PerformanceInfo
@@ -51,10 +52,9 @@ namespace CoreComponents
             //Temporarily removing these: adding this to the global data set takes an hour and creates a log file the size of the DB.
             //public AreaType AreaType { get; set; }
             public int AreaTypeId { get; set; }
-
         }       
 
-        //Reference table for names of areas we care about storing.
+        //Reference table
         public class AreaType
         {
             public int AreaTypeId { get; set; }
@@ -68,8 +68,11 @@ namespace CoreComponents
             public long MapTileId { get; set; } //int should be OK for a limited range game and/or big tiles. Making this long just to make sure.
             public string PlusCode { get; set; } //MapTiles are drawn for Cell8 or Cell10 areas.
             public byte[] tileData { get; set; } //png binary data.
-            public bool regenerate { get; set; } //TODO: If 1, re-make this tile because MapData for the area has changed
+            //public bool regenerate { get; set; } //TODO: If 1, re-make this tile because MapData for the area has changed. This might be done just by deleting the old map tile.
             public int resolutionScale { get; set; } //10 or 11, depending on the Cell size 1 pixel is. Usually 11
+            public int mode { get; set; } //is this for general use, multiplayer area control. 1 = 'baseline map', 2 = 'Multiplayer Area Control' overlay.
+            public DateTime CreatedOn { get; set; } //Timestamp for when a map tile was generated
+            public DateTime ExpireOn { get; set; } //assume that a tile needs regenerated if passed this timestamp. Possibly cleared out via SQL script.
         }
 
         public class PremadeResults
@@ -84,13 +87,16 @@ namespace CoreComponents
             public long AreaControlTeamId { get; set; }
             public int FactionId { get; set; }
             public long MapDataId { get; set; }
+            public bool IsGeneratedArea { get; set; }
             public long points { get; set; } //a quick reference of how many cells this area takes to own. Saving here to reduce calculations if/when I set up a scoreboard of areas owned.
+            public DateTime claimedAt { get; set; }
         }
 
         public class Faction
         {
             public long FactionId { get; set; }
             public string Name { get; set; }
+            public string HtmlColor { get; set; } //Should be transparent, so this can be overlaid on top of the normal map tile.
         }
 
         public class GeneratedMapData
@@ -103,7 +109,6 @@ namespace CoreComponents
             public string type { get; set; }// not apparently used in this table, but kept for possible compatibility depending on how AreaTypeId ends up being used.
 
             public int AreaTypeId { get; set; } //This will probably be a fixed value.
-
         }
 
     }
