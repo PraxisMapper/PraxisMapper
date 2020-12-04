@@ -41,7 +41,7 @@ namespace CoreComponents
 
         public const double squareCell10Area = resolutionCell10 * resolutionCell10; //for area-control calculations.
 
-        public static List<string> relevantTourismValues = new List<string>() { "artwork", "attraction", "gallery", "museum", "viewpoint", "zoo" }; //The stuff we care about in the tourism category. Zoo and attraction are debatable.
+        public static List<string> relevantTourismValues = new List<string>() { "artwork", "attraction", "gallery", "museum", "viewpoint", "zoo" }; //The stuff we care about in the tourism category. Zoo and attraction are debatable. This doesn't seem to include Disney World.
         public static List<string> relevantTrailValues = new List<string>() { "path", "bridleway", "cycleway", "footway", "living_street" }; //The stuff we care about in the highway category for trails. Living Streets are nonexistant in the US.
         public static List<string> relevantRoadValues = new List<string>() { "motorway", "trunk", "primary", "secondary", "tertiary", "unclassified", "residential", "motorway_link", "trunk_link", "primary_link", "secondary_link", "tertiary_link", "service", "road" }; //The stuff we care about in the highway category for roads. A lot more options for this.
 
@@ -365,6 +365,7 @@ namespace CoreComponents
             //Something with a type and no name was found to be interesting but not named
             //something with a name and no type is probably an excluded entry.
             //I always want a type. Names are optional.
+            Log.WriteLog("Processing Way " + w.id + " to MapData at " + DateTime.Now, Log.VerbosityLevels.High); //TODO: set to high verbosity
             if (w.AreaType == "")
                 return null;
 
@@ -455,7 +456,7 @@ namespace CoreComponents
             if (tagsO.Count() == 0)
                 return ""; //Sanity check
 
-            var tags = tagsO.ToLookup(k => k.Key, v => v.Value);
+            var tags = tagsO.ToLookup(k => k.Key, v => v.Value); //this might not be necessary, tagscollectionbase supports string keys, but its an IEnumerable, which isnt as fast as ILookup used here.
             //Entries are currently sorted by rough frequency of occurrence for gameplay
             //for -processEverything, move road and buildings to the top in that order, move parking after admin.
 
@@ -466,7 +467,7 @@ namespace CoreComponents
 
             //Trail. Will likely show up in varying places for various reasons. Trying to limit this down to hiking trails like in parks and similar.
             //In my local park, i see both path and footway used (Footway is an unpaved trail, Path is a paved one)
-            //highway=track is for tractors and other vehicles.  Don't include. that.
+            //highway=track is for tractors and other vehicles.  Don't include that.
             //highway=path is non-motor vehicle, and otherwise very generic. 5% of all Ways in OSM.
             //highway=footway is pedestrian traffic only, maybe including bikes. Mostly sidewalks, which I dont' want to include.
             //highway=bridleway is horse paths, maybe including pedestrians and bikes

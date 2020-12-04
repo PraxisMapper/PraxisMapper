@@ -63,6 +63,7 @@ namespace PraxisMapper.Controllers
             return results;
         }
 
+        //This code technically works on any Cell size.
         [HttpGet]
         [Route("/[controller]/DrawFactionModeCell10HighRes")]
         public FileContentResult DrawFactionModeCell10HighRes(string Cell10)
