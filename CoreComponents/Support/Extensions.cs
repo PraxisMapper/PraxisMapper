@@ -107,5 +107,15 @@ namespace CoreComponents
         {
             return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(input.ToLower());
         }
+
+        public static byte[] ToByteArrayUnicode(this string s)
+        {
+            return Encoding.Unicode.GetBytes(s);
+        }
+
+        public static byte[] ToByteArrayASCII(this string s)
+        {
+            return Encoding.ASCII.GetBytes(s);
+        }
     }
 }

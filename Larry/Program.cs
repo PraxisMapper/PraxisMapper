@@ -337,7 +337,7 @@ namespace Larry
             fileInRam = null;
 
             var processedEntries = ProcessData(osmNodes, ref osmWays, ref osmRelations, referencedWays);
-            WriteMapDataToFile(ParserSettings.JsonMapDataFolder + destFilename + "-MapData" + (ParserSettings.UseHighAccuracy ? "-highAcc" : "") + ".json", ref processedEntries);
+            WriteMapDataToFile(ParserSettings.JsonMapDataFolder + destFilename + "-MapData" + (ParserSettings.UseHighAccuracy ? "-highAcc" : "-lowAcc") + ".json", ref processedEntries);
             processedEntries = null;
 
             Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
@@ -347,7 +347,7 @@ namespace Larry
         public static void SerializeSeparateFilesFromPBF(string filename)
         {
             //This will read from disk, since we are assuming this file will hit RAM limits if we read it all at once.
-            foreach (var areatype in areaTypes) //each pass takes roughly the same amount of time to read, but uses less ram. 
+            foreach (var areatype in areaTypes.Where(a => a.AreaTypeId < 100)) //each pass takes roughly the same amount of time to read, but uses less ram. 
             {
                 //skip entries if the settings say not to process them. they'll get 0 tagged entries but don't waste time reading the file.
                 //ParserSettings.???
@@ -370,16 +370,17 @@ namespace Larry
                 Log.WriteLog(osmWays.Count() + " ways found", Log.VerbosityLevels.High);
                 Log.WriteLog((osmWays.Count() - referencedWays.Count()) + " standalone ways pulled in.", Log.VerbosityLevels.High);
                 var referencedNodes = osmWays.AsParallel().SelectMany(m => m.Nodes).Distinct().ToLookup(k => k, v => (short)0);
-                var referencedNodes2 = osmWays.AsParallel().SelectMany(m => m.Nodes).Distinct().ToDictionary(k => k, v => (short)0);
-                var referencedNodes3 = osmWays.AsParallel().SelectMany(m => m.Nodes).Distinct().ToHashSet();
+                //var referencedNodes2 = osmWays.AsParallel().SelectMany(m => m.Nodes).Distinct().ToDictionary(k => k, v => (short)0);
+                //var referencedNodes3 = osmWays.AsParallel().SelectMany(m => m.Nodes).Distinct().ToHashSet();
                 Log.WriteLog(referencedNodes.Count() + " nodes used by ways", Log.VerbosityLevels.High);
                 Log.WriteLog("Ways loaded at " + DateTime.Now);
                 var osmNodes = GetNodesFromPbf(filename, areatypename, referencedNodes);
                 referencedNodes = null;
                 Log.WriteLog("Relevant data pulled from file at " + DateTime.Now);
 
-                var processedEntries = ProcessData(osmNodes, ref osmWays, ref osmRelations, referencedWays);
-                WriteMapDataToFile(ParserSettings.JsonMapDataFolder + destFilename + "-MapData-" + areatypename + (ParserSettings.UseHighAccuracy ? "-highAcc" : "") + ".json", ref processedEntries);
+                //Testing having this stream results to a file instead of making a list we write afterwards.
+                var processedEntries = ProcessData(osmNodes, ref osmWays, ref osmRelations, referencedWays, true, ParserSettings.JsonMapDataFolder + destFilename + "-MapData-" + areatypename + (ParserSettings.UseHighAccuracy ? "-highAcc" : "-lowAcc") + ".json");
+                //WriteMapDataToFile(ParserSettings.JsonMapDataFolder + destFilename + "-MapData-" + areatypename + (ParserSettings.UseHighAccuracy ? "-highAcc" : "-lowAcc") + ".json", ref processedEntries);
                 processedEntries = null;
             }
 
@@ -387,20 +388,45 @@ namespace Larry
             File.Move(filename, filename + "Done"); //We made it all the way to the end, this file is done.
         }
 
-        private static List<MapData> ProcessData(ILookup<long, NodeReference> osmNodes, ref List<OsmSharp.Way> osmWays, ref List<OsmSharp.Relation> osmRelations, ILookup<long, short> referencedWays)
+        private static List<MapData> ProcessData(ILookup<long, NodeReference> osmNodes, ref List<OsmSharp.Way> osmWays, ref List<OsmSharp.Relation> osmRelations, ILookup<long, short> referencedWays, bool writeDirectly = false, string directFile = "")
         {
+            //This way really needs an option to write data directly to the output file. I wonder how much time is spent resizing processedEntries.
             List<MapData> processedEntries = new List<MapData>();
             List<NodeData> nodes = new List<NodeData>();
             List<WayData> ways = new List<WayData>();
 
             nodes.Capacity = 100000;
             ways.Capacity = 100000;
-            processedEntries.Capacity = 100000;
+            if (!writeDirectly)
+                processedEntries.Capacity = 1000000; // osmWays.Count() + osmRelations.Count(); //8 million ways might mean this fails on a 32-bit int.
+
+            System.IO.StreamWriter sw = new StreamWriter(directFile);
+            if (writeDirectly)
+            {
+                sw.Write("[" + Environment.NewLine);
+            }
 
             //Write nodes as mapdata if they're tagged separately from other things.
             Log.WriteLog("Finding tagged nodes at " + DateTime.Now);
             var taggedNodes = osmNodes.AsParallel().Where(n => n.First().name != "" && n.First().type != "" && n.First().type != null).ToList();
-            processedEntries.AddRange(taggedNodes.AsParallel().Select(s => MapSupport.ConvertNodeToMapData(s.First())));
+            if (!writeDirectly)
+                processedEntries.AddRange(taggedNodes.AsParallel().Select(s => MapSupport.ConvertNodeToMapData(s.First())));
+            else
+            {
+                foreach (var n in taggedNodes) //this can't be parallel because we need to write to a single file.
+                {
+                    var md = MapSupport.ConvertNodeToMapData(n.First());
+
+                    if (md != null) //null can be returned from the functions that convert OSM entries to MapData
+                    {
+                        var recordVersion = new MapDataForJson(md.name, md.place.AsText(), md.type, md.WayId, md.NodeId, md.RelationId, md.AreaTypeId);
+                        var test = JsonSerializer.Serialize(recordVersion, typeof(MapDataForJson));
+                        sw.Write(test);
+                        sw.Write("," + Environment.NewLine);
+                    }
+                }
+            }
+            Log.WriteLog("Standalone tagged nodes converted to MapData at " + DateTime.Now);
             taggedNodes = null;
 
             Log.WriteLog("Converting " + osmWays.Count() + " OsmWays to my Ways at " + DateTime.Now);
@@ -430,25 +456,93 @@ namespace Larry
             osmNodes = null; //done with these now, can free up RAM again.
 
             //Process all the ways that aren't part of a relation first, then remove them.
-            processedEntries.AddRange(ways.Where(w => referencedWays[w.id].Count() == 0).AsParallel().Select(w => ConvertWayToMapData(ref w)));
-            ways = ways.Where(w => referencedWays[w.id].Count() > 0).ToList();
+            if (!writeDirectly)
+            {
+                processedEntries.AddRange(ways.Where(w => referencedWays[w.id].Count() == 0).AsParallel().Select(w => ConvertWayToMapData(ref w)));  //When we start hitting the swap file, this takes about 3-4 minutes to start a batch of entries on my dev machine.
+                Log.WriteLog("Standalone tagged ways converted to MapData at " + DateTime.Now);
+                ways = ways.Where(w => referencedWays[w.id].Count() > 0).ToList();
+                processedEntries.AddRange(osmRelations.AsParallel().Select(r => ProcessRelation(r, ref ways))); //Approx. twice as fast as ProcessRelations() without parallel.
+                Log.WriteLog("Relations converted to MapData at " + DateTime.Now);
 
-            processedEntries.AddRange(osmRelations.AsParallel().Select(r => ProcessRelation(r, ref ways))); //Approx. twice as fast as ProcessRelations() without parallel.
+                var outerWays = osmRelations.SelectMany(r => r.Members.Where(m => m.Role == "outer" && m.Type == OsmGeoType.Way).Select(m => m.Id)).ToLookup(k => k, v => v);
+                ways = ways.Where(w => outerWays[w.id].Count() == 0).ToList();
+                outerWays = null;
+                osmRelations = null;
 
-            //Removed entries we've already looked at as part of a relation? I suspect this is one of those cases where
-            //either way I do this, something's going to get messed up. Should track what.
-            //Removing ways already in a reference screws up: Oak Grove Cemetery at BGSU
-            //Re-processing ways already in a reference screws up:
-            //ways = ways.Where(w => referencedWays[w.id].Count() == 0).ToList(); 
-            //I might want to only remove outer ways, and let inner ways remain in case they're something else.
-            var outerWays = osmRelations.SelectMany(r => r.Members.Where(m => m.Role == "outer" && m.Type == OsmGeoType.Way).Select(m => m.Id)).ToLookup(k => k, v => v);
-            ways = ways.Where(w => outerWays[w.id].Count() == 0).ToList();
-            outerWays = null;
-            osmRelations = null;
+                processedEntries.AddRange(ways.AsParallel().Select(w => ConvertWayToMapData(ref w)));
+                ways = null;
+                return processedEntries;
+            }
+            else
+            {
+                foreach (var w1 in ways)
+                {
+                    if (referencedWays[w1.id].Count() != 0)
+                            continue; //we're only loading ways that aren't tagged in another relation, so skip ones that are used elsewhere. Check this way to avoid converting ways into another IEnumerable
 
-            processedEntries.AddRange(ways.AsParallel().Select(w => ConvertWayToMapData(ref w)));
-            ways = null;
-            return processedEntries;
+                    var w2 = w1;
+                    var md2 = MapSupport.ConvertWayToMapData(ref w2);
+
+                    if (md2 != null) //null can be returned from the functions that convert OSM entries to MapData
+                    {
+                        var recordVersion = new MapDataForJson(md2.name, md2.place.AsText(), md2.type, md2.WayId, md2.NodeId, md2.RelationId, md2.AreaTypeId);
+                        var test = JsonSerializer.Serialize(recordVersion, typeof(MapDataForJson));
+                        sw.Write(test);
+                        sw.Write("," + Environment.NewLine);
+                    }
+                    md2 = null;
+                    //Attempt to reduce memory usage faster so bigger files get processed faster
+                    w1.nds = null;
+                    w1.name = "";
+                }
+                Log.WriteLog("Standalone tagged ways converted to MapData at " + DateTime.Now);
+                ways = ways.Where(w => referencedWays[w.id].Count() > 0).ToList();
+
+                foreach (var r1 in osmRelations)
+                {
+                    var md3 = ProcessRelation(r1, ref ways);
+
+                    if (md3 != null) //null can be returned from the functions that convert OSM entries to MapData
+                    {
+                        var recordVersion = new MapDataForJson(md3.name, md3.place.AsText(), md3.type, md3.WayId, md3.NodeId, md3.RelationId, md3.AreaTypeId);
+                        var test = JsonSerializer.Serialize(recordVersion, typeof(MapDataForJson));
+                        sw.Write(test);
+                        sw.Write("," + Environment.NewLine);
+                    }
+                }
+                Log.WriteLog("Relations converted to MapData at " + DateTime.Now);
+
+                //this is a final check for entries that are an inner way in a relation that is also its own separate entity. (First pass would not have found it because it's referenced, 2nd pass missed because it's inner)
+                var outerWays = osmRelations.SelectMany(r => r.Members.Where(m => m.Role == "outer" && m.Type == OsmGeoType.Way).Select(m => m.Id)).ToLookup(k => k, v => v);
+                ways = ways.Where(w => outerWays[w.id].Count() == 0).ToList();
+                outerWays = null;
+                osmRelations = null;
+
+                if (!writeDirectly)
+                    processedEntries.AddRange(ways.AsParallel().Select(w => ConvertWayToMapData(ref w)));
+                else
+                {
+                    foreach (var w3 in ways)
+                    {
+                        var w4 = w3;
+                        var md4 = ConvertWayToMapData(ref w4);
+
+                        if (md4 != null) //null can be returned from the functions that convert OSM entries to MapData
+                        {
+                            var recordVersion = new MapDataForJson(md4.name, md4.place.AsText(), md4.type, md4.WayId, md4.NodeId, md4.RelationId, md4.AreaTypeId);
+                            var test = JsonSerializer.Serialize(recordVersion, typeof(MapDataForJson));
+                            sw.Write(test);
+                            sw.Write("," + Environment.NewLine);
+                        }
+                    }
+                }
+                ways = null;
+
+                sw.Write("]");
+                sw.Close();
+                sw.Dispose();
+                return null;
+            }
         }
 
         private static List<MapData> ProcessData(ILookup<long, NodeReference> osmNodes, ref List<OsmSharp.Way> osmWays, ref List<OsmSharp.Relation> osmRelations, HashSet<long> referencedWays)
@@ -572,7 +666,7 @@ namespace Larry
                 else
                 {
                     Log.WriteLog("Relation " + r.Id + " " + relationName + " references way " + m + " not found in the file. Attempting to process without it.", Log.VerbosityLevels.High);
-                    //TODO: add some way of saving this partial data to the DB to be fixed/enhanced later.
+                    //TODO: add some way of saving this partial data to the DB to be fixed/enhanced later?
                     //break;
                 }
             }
@@ -622,10 +716,6 @@ namespace Larry
             List<Polygon> existingPols = new List<Polygon>();
             List<Polygon> innerPols = new List<Polygon>();
 
-            //Somewhat uncommon issue: A relation might create multiple closed polygons from lines.
-            //OR contains both closed polygons and ways that create closed polygons
-            //so lets start looking for those too.
-
             if (shapeList.Count == 0)
             {
                 Log.WriteLog("Relation " + r.Id + " " + GetElementName(r.Tags) + " has 0 ways in shapelist", Log.VerbosityLevels.High);
@@ -661,8 +751,13 @@ namespace Larry
             var closedShapes = shapeList.Where(s => s.nds.First().id == s.nds.Last().id).ToList();
             foreach (var cs in closedShapes)
             {
-                shapeList.Remove(cs);
-                existingPols.Add(factory.CreatePolygon(cs.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray()));
+                if (cs.nds.Count() > 3) //TODO: if SimplifyAreas is true, this might have been a closedShape that became a linestring or point from this.
+                {
+                    shapeList.Remove(cs);
+                    existingPols.Add(factory.CreatePolygon(cs.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray()));
+                }
+                else
+                    Log.WriteLog("Invalid closed shape found: " + cs.id);
             }
 
             while (shapeList.Count() > 0)
@@ -1313,7 +1408,7 @@ namespace Larry
             //Rough math suggests that this will take 103 minutes to skim planet-latest.osm.pbf per pass.
             //Takes ~17 minutes per pass the 'standard' way on north-america-latest.
 
-            string outputFile = ParserSettings.JsonMapDataFolder + "LargeAreas" + (ParserSettings.UseHighAccuracy ? "-highAcc" : "") + ".json";
+            string outputFile = ParserSettings.JsonMapDataFolder + "LargeAreas" + (ParserSettings.UseHighAccuracy ? "-highAcc" : "-lowAcc") + ".json";
 
             var manualRelationId = new List<long>() {
                 //Great Lakes:
@@ -1326,6 +1421,13 @@ namespace Larry
                 148838, //US Admin bounds
                 9331155, //48 Contiguous US states
                 1428125, //Canada
+                //EU?
+                //Which other countries do I have divided down into state/provinces?
+                //UK
+                //Germany
+                //France
+                //Russia
+                //others
                 //TODO: add oceans. these might not actually exist as a single entry in OSM. Will have to check why
                 //TODO: multi-state or multi-nation rivers.
                 2182501, //Ohio River

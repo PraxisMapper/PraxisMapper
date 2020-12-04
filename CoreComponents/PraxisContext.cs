@@ -22,7 +22,7 @@ namespace CoreComponents
 
         //IConfiguration Config;
         public static string connectionString;
-        string serverMode = "SQLServer";
+        public static string serverMode = "SQLServer";
 
         //Test table to see if its practical to save prerendered results. there's 25 million 6codes, so no.
         //public DbSet<PremadeResults> PremadeResults { get; set; }
@@ -49,7 +49,7 @@ namespace CoreComponents
             else if (serverMode == "MariaDB")
             {
                 //Potential MariaDB config, which would be cheaper on AWS
-                //But also doesn't seem to be .NET 5 ready or compatible yet.
+                //Is in alpha for NET 5, so I could start testing this.
                 //optionsBuilder.UseMySql("Server=localhost;Database=praxis;User=root;Password=1234;");
             }
 

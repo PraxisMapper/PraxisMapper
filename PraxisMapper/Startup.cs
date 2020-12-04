@@ -17,6 +17,7 @@ namespace PraxisMapper
             PerformanceTracker.EnableLogging = Configuration.GetValue<bool>("enablePerformanceTracker");
             CoreComponents.Log.WriteToFile = Configuration.GetValue<bool>("enableFileLogging");
             PraxisContext.connectionString = Configuration.GetValue<string>("dbConnectionString");
+            PraxisContext.serverMode = Configuration.GetValue<string>("dbMode");
             AdminController.adminPwd = Configuration.GetValue<string>("adminPwd");
         }
 
