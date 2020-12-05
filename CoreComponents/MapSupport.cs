@@ -89,6 +89,13 @@ namespace CoreComponents
             //TODO: more shapes, ideally more interesting than simple polygons? Star? Heart? Arc?
         };
 
+        public static List<Faction> defaultFaction = new List<Faction>()
+        {
+            new Faction() { HtmlColor = "FF0000", Name = "Red Team" },
+            new Faction() { HtmlColor = "00FF00", Name = "Green Team" },
+            new Faction() { HtmlColor = "87CEEB", Name = "Blue Team" }, //Sky blue, versus deep blue that matches Water elements.
+        };
+
         public static List<MapData> GetPlaces(GeoArea area, List<MapData> source = null)
         {
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
@@ -120,6 +127,11 @@ namespace CoreComponents
             var cordSeq = new Coordinate[5] { cord4, cord3, cord2, cord1, cord4 };
 
             return cordSeq;
+        }
+
+        public static Geometry GeoAreaToPolygon(GeoArea plusCodeArea) //TODO: use this in more places where I have a couple extra lines because of GeoAreaToCoordArray
+        {
+            return factory.CreatePolygon(GeoAreaToCoordArray(plusCodeArea));
         }
 
         public static void SplitArea(GeoArea area, int divideCount, List<MapData> places, out List<MapData>[] placeArray, out GeoArea[] areaArray)
@@ -301,17 +313,17 @@ namespace CoreComponents
             //Current sorting rules:
             //If there's only one place, take it without any additional queries. Otherwise:
             //if there's a Point in the mapdata list, take the first one (No additional sub-sorting applied yet)
-            //else if there's a Line in the mapdata list, take the first one (no additional sub-sorting applied yet)
+            //else if there's a Line in the mapdata list, take the shortest one by length
             //else if there's polygonal areas here, take the smallest one by area 
-            //(In general, the smaller areas should be overlaid on larger areas. This is more accurate than guessing by area types which one should be applied)
+            //(In general, the smaller areas should be overlaid on larger areas.)
             if (entries.Count() == 1)
                 return entries.First();
 
             var place = entries.Where(e => e.place.GeometryType == "Point").FirstOrDefault();
             if (place == null)
-                 place= entries.Where(e => e.place.GeometryType == "LineString" || e.place.GeometryType == "MultiLineString").FirstOrDefault();
+                 place= entries.Where(e => e.place.GeometryType == "LineString" || e.place.GeometryType == "MultiLineString").OrderBy(e => e.place.Length).FirstOrDefault();
             if (place == null)
-                place = entries.Where(e => e.place.GeometryType == "Polygon" || e.place.GeometryType == "MultiPolygon").OrderBy(e => e.place.Area).First();
+                place = entries.Where(e => e.place.GeometryType == "Polygon" || e.place.GeometryType == "MultiPolygon").OrderBy(e => e.place.Area).FirstOrDefault();
             return place;
         }
 
@@ -607,6 +619,13 @@ namespace CoreComponents
             db.Database.CommitTransaction();
         }
 
+        public static void InsertDefaultFactionsToDb()
+        {
+            var db = new PraxisContext();
+            db.Factions.AddRange(defaultFaction);
+            db.SaveChanges();
+        }
+
         public static Geometry SimplifyArea(Geometry place)
         {
             if (!SimplifyAreas)
@@ -733,6 +752,8 @@ namespace CoreComponents
         // as above but each pixel is an 11 cell instead of a 10 cell. more detail but slower.
         public static byte[] DrawAreaMapTile11(ref List<MapData> allPlaces, GeoArea totalArea)
         {
+            //TODO: consider getting a list of X row places, and a list of Y column places, and instead of doing a Geography.Intersects() check, only check areas that are in both?
+            //EX: with 48 entries in rowPlaces, each pixel takes ~100ms to draw apparently (with a Cell6 area). This could be  
             List<MapData> rowPlaces;
             //create a new bitmap.
             MemoryStream ms = new MemoryStream();
@@ -744,9 +765,8 @@ namespace CoreComponents
                 image.Mutate(x => x.Fill(Rgba32.ParseHex(MapSupport.areaColorReference[999].First()))); //set all the areas to the background color
                 for (int y = 0; y < image.Height; y++)
                 {
-                    //Dramatic performance improvement by limiting this to just the row's area.
+                    //Dramatic performance improvement by limiting this to just the row's area. On larger maps, might also improve it more by cutting it down to places that exist on the X axis, but that needs a cached list of 
                     rowPlaces = MapSupport.GetPlaces(new GeoArea(new GeoPoint(totalArea.Min.Latitude + (MapSupport.resolutionCell11Lat * y), totalArea.Min.Longitude), new GeoPoint(totalArea.Min.Latitude + (MapSupport.resolutionCell11Lat * (y + 1)), totalArea.Max.Longitude)), allPlaces);
-
                     Span<Rgba32> pixelRow = image.GetPixelRowSpan(image.Height - y - 1); //Plus code data is searched south-to-north, image is inverted otherwise.
                     for (int x = 0; x < image.Width; x++)
                     {
@@ -807,7 +827,6 @@ namespace CoreComponents
             return ms.ToArray();
         }
 
-        //This is Points as in scoring, not Points as in coord pair location.
         public static string GetScoresForArea(Polygon areaPoly, List<MapData> places)
         {
             List<Tuple<string, int, long>> areaSizes = new List<Tuple<string, int, long>>();
