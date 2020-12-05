@@ -39,7 +39,7 @@ namespace Larry
                 return;
             }
 
-            //Check for logging arguement first before running any commands.
+            //Check for settings flags first before running any commands.
             if (args.Any(a => a == "-v" || a == "-verbose"))
                 Log.Verbosity = Log.VerbosityLevels.High;
 
@@ -73,6 +73,7 @@ namespace Larry
                 db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataIndex);
                 db.Database.ExecuteSqlRaw(PraxisContext.FindDBMapDataBounds);
                 MapSupport.InsertAreaTypesToDb();
+                MapSupport.InsertDefaultFactionsToDb();
             }
 
             if (args.Any(a => a == "-cleanDB"))
@@ -146,6 +147,11 @@ namespace Larry
 
                 int relationId = args.Where(a => a.StartsWith("-createStandalone")).First().Split('|')[1].ToInt();
                 CreateStandaloneDB(relationId, filename);
+
+                //TODO:
+                //Might want to export content to a folder, not just a sqlite db file.
+                //pre-generate map tiles too.
+                //
             }
 
             if (args.Any(a => a.StartsWith("-checkFile:")))
@@ -1284,6 +1290,7 @@ namespace Larry
             //pull in all ways that intersect that 
             //process all of the 10-cells inside that area with their ways (will need more types than the current game has)
             //save this data to an SQLite DB for the app to use.
+            //pre-generate all map tiles and export those to a folder too.
 
             var mainDb = new PraxisContext();
             var sqliteDb = "placeholder";

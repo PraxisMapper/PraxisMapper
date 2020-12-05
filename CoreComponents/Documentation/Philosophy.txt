@@ -35,6 +35,7 @@ The app can generate areas, 1 per Cell8 by default, which can be used for gamepl
 4)The server and app should be efficient. Part of making a game that runs on a global scale is handling the data with the fewest resources possible. 
 Pick fast prerequisites. When the server depends on another piece of software, pick the ones that are known to perform well, particularly at scale. Performance test options if they're equally viable and make the results public.
 Understand the useful scope of things. If a typical phone's GPS is only accurate to ~12 feet, don't make features that require dramatically higher accuracy or resolution.
+Functional requirements beat performance on priority, but do your best to optimize within them.
     
 5)Everyone is always learning. This means that anyone participating in the development of the server or games around it should be able to read and understand the code involved.
 Comment code thoroughly to help new developers understand what it's doing.
