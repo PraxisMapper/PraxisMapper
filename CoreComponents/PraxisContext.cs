@@ -25,7 +25,7 @@ namespace CoreComponents
         public static string serverMode = "SQLServer";
 
         //Test table to see if its practical to save prerendered results. there's 25 million 6codes, so no.
-        //public DbSet<PremadeResults> PremadeResults { get; set; }
+        public DbSet<PremadeResults> PremadeResults { get; set; }
 
         //Test table for loading osm data directly in to the DB with less processing.
         //Takes up a lot more storage space this way, not as useful for app purposes. Removing
@@ -72,7 +72,8 @@ namespace CoreComponents
             //Create indexes here.
             model.Entity<PlayerData>().HasIndex(p => p.deviceID); //for updating data
 
-            model.Entity<MapData>().HasIndex(p => p.WayId); //for checking OSM data and cleaning dupes
+            model.Entity<MapData>().HasIndex(p => p.WayId); //for checking OSM data
+            //generatedMapData only gets searched on its primary key.
 
             //Table for testing if its faster/easier/smaller to just save the results directly to a DB.
             //It is not, at least not at my current scale since this is 25 million 6-cells. Takes ~9 days on a single PC.
@@ -81,6 +82,10 @@ namespace CoreComponents
 
             model.Entity<MapTile>().HasIndex(m => m.PlusCode);
             model.Entity<MapTile>().Property(m => m.PlusCode).HasMaxLength(12);
+
+            model.Entity<AreaControlTeam>().HasIndex(m => m.MapDataId);
+            model.Entity<AreaControlTeam>().HasIndex(m => m.FactionId);
+
         }
 
         //A trigger to ensure all data inserted is valid by SQL Server rules.

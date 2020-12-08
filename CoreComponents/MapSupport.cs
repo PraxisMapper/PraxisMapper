@@ -274,7 +274,7 @@ namespace CoreComponents
             return area;
         }
 
-        public static int GetFactionFor11Cell(double x, double y, ref List<MapData> places)
+        public static int GetFactionFor11Cell(double x, double y, ref List<MapData> places, Tuple<long, int> shortcut = null)
         {
             var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell11Lat, x + resolutionCell11Lon));
             var entriesHere = MapSupport.GetPlaces(box, places).Where(p => p.AreaTypeId != 13).ToList(); //Excluding admin boundaries from this list.  
@@ -282,7 +282,7 @@ namespace CoreComponents
             if (entriesHere.Count() == 0)
                 return 0;
 
-            int area = DetermineAreaFaction(entriesHere);
+            int area = DetermineAreaFaction(entriesHere, shortcut);
             return area;
         }
 
@@ -339,11 +339,14 @@ namespace CoreComponents
             return entry.AreaTypeId;
         }
 
-        public static int DetermineAreaFaction(List<MapData> entriesHere)
+        public static int DetermineAreaFaction(List<MapData> entriesHere, Tuple<long, int> shortcut = null)
         {
-            var entry = PickSortedEntry(entriesHere);
+            var entry = PickSortedEntry(entriesHere).MapDataId;
+            if (shortcut != null && entry == shortcut.Item1) //we are being told the results for a specific MapData entry from higher up in the chain.
+                return shortcut.Item2;
+
             var db = new PraxisContext();
-            var faction = db.AreaControlTeams.Where(a => a.MapDataId == entry.MapDataId).FirstOrDefault();
+            var faction = db.AreaControlTeams.Where(a => a.MapDataId == entry).FirstOrDefault(); //TODO: this one line seems to be eating most of the CPU time here, should see what about this line is so inefficient.
             if (faction == null)
                 return 0;
 
@@ -786,7 +789,7 @@ namespace CoreComponents
             return ms.ToArray();
         }
 
-        public static byte[] DrawMPControlAreaMapTile11(GeoArea totalArea)
+        public static byte[] DrawMPControlAreaMapTile11(GeoArea totalArea, Tuple<long, int> shortcut = null)
         {
             List<MapData> rowPlaces;
             var db = new PraxisContext();
@@ -812,7 +815,7 @@ namespace CoreComponents
                     for (int x = 0; x < image.Width; x++)
                     {
                         //Set the pixel's color by its faction owner.
-                        int placeData = MapSupport.GetFactionFor11Cell(totalArea.Min.Longitude + (MapSupport.resolutionCell11Lon * x), totalArea.Min.Latitude + (MapSupport.resolutionCell11Lat * y), ref rowPlaces);
+                        int placeData = MapSupport.GetFactionFor11Cell(totalArea.Min.Longitude + (MapSupport.resolutionCell11Lon * x), totalArea.Min.Latitude + (MapSupport.resolutionCell11Lat * y), ref rowPlaces, shortcut);
                         if (placeData != 0)
                         {
                             var color = factionColors[placeData].First();

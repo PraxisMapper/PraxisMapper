@@ -67,6 +67,8 @@
     <Compile Include="Migrations\20201125133950_MakeGmdTable.Designer.cs" />
     <Compile Include="Migrations\20201204141407_FactionCode.cs" />
     <Compile Include="Migrations\20201204141407_FactionCode.Designer.cs" />
+    <Compile Include="Migrations\20201206145600_IndexACT.cs" />
+    <Compile Include="Migrations\20201206145600_IndexACT.Designer.cs" />
     <Compile Include="Migrations\GpsExploreContextModelSnapshot.cs" />
   </ItemGroup>
 
