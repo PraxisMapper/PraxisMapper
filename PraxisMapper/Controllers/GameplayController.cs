@@ -13,6 +13,7 @@ using SixLabors.ImageSharp.Processing;
 using System.IO;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
+using NetTopologySuite.Geometries.Prepared;
 
 namespace PraxisMapper.Controllers
 {
@@ -52,7 +53,7 @@ namespace PraxisMapper.Controllers
             return "Gameplay Endpoint up";
         }
 
-            [HttpGet] //TODO this is a POST
+        [HttpGet] //TODO this is a POST
         [Route("/[controller]/claimArea/{MapDataId}/{factionId}")]
         public bool ClaimArea(long MapDataId, int factionId)
         {
@@ -65,7 +66,7 @@ namespace PraxisMapper.Controllers
                 db.AreaControlTeams.Add(teamClaim);
                 if (mapData == null)
                 {
-                    mapData = db.GeneratedMapData.Where(md => md.GeneratedMapDataId == MapDataId).Select(m => new MapData() { MapDataId = m.GeneratedMapDataId, place = m.place }).FirstOrDefault();
+                    mapData = db.GeneratedMapData.Where(md => md.GeneratedMapDataId == MapDataId - 100000000).Select(m => new MapData() { MapDataId = MapDataId, place = m.place }).FirstOrDefault();
                     teamClaim.IsGeneratedArea = true;
                 }
                 teamClaim.MapDataId = MapDataId;
@@ -74,45 +75,104 @@ namespace PraxisMapper.Controllers
             teamClaim.FactionId = factionId;
             teamClaim.claimedAt = DateTime.Now;
             db.SaveChanges();
-            //TODO: async up some new map tiles for areas that contain this?
-            //How to identify all plus codes that contain an area?
-            //should be a new function, but rules probably look like:
-            //get envelope of a geometry item.
-            //check width/height of envelope against resolution values to see how big it is.
-            //(remember, if its less than 1 cell resolution wide, it may still cross 2 of that resolution cell if its by the boundaries.
-            //ask for redraw of all map tiles within those cells, and all sub-cells?
-            Task.Factory.StartNew(() => RedoAreaControlMapTiles(mapData)); //I don't need this to finish to return, should let it run in the background
+            Tuple<long, int> shortcut = new Tuple<long, int>(MapDataId, factionId); //tell the application later not to hit the DB on every tile for this entry.
+            Task.Factory.StartNew(() => RedoAreaControlMapTilesCell8(mapData, shortcut)); //I don't need this to finish to return, let it run in the background //Cell8 is about 100 times faster than cell10 for this.
             return true;
         }
 
-        public static void RedoAreaControlMapTiles(MapData md)
+        public static void RedoAreaControlMapTiles(MapData md, Tuple<long, int> shortcut = null)
         {
+            //This is a background task, but we want it to finish as fast as possible. 
+            PerformanceTracker pt = new PerformanceTracker("RedoAreaControlMapTiles");
             var db = new PraxisContext();
             var space = md.place.Envelope;
             var geoAreaToRefresh = new GeoArea(new GeoPoint(space.Coordinates.Min().Y, space.Coordinates.Min().X), new GeoPoint(space.Coordinates.Max().Y, space.Coordinates.Max().X));
             var Cell10XTiles = geoAreaToRefresh.LongitudeWidth / MapSupport.resolutionCell10;
             var Cell10YTiles = geoAreaToRefresh.LatitudeHeight / MapSupport.resolutionCell10;
-            for (var x = 0; x < Cell10XTiles; x++)
+
+            double minx = geoAreaToRefresh.WestLongitude;
+            double miny = geoAreaToRefresh.SouthLatitude;
+
+            int xTiles = (int)Cell10XTiles + 1;
+            IPreparedGeometry pg = new PreparedGeometryFactory().Create(md.place); //this is supposed to be faster than regular geometry.
+            Parallel.For(0, xTiles, (x) => //We don't usually want parallel actions on a web server, but this is a high priority and this does cut the runtime in about half.
+            //for (var x = 0; x < Cell10XTiles; x++)
             {
-                for (var y = 0; y < Cell10YTiles; y++)
+                
+                int yTiles = (int)(Cell10YTiles + 1);
+                Parallel.For(0, yTiles, (y) => //We don't usually want parallel actions on a web server, but this is a high priority
+                //for (var y = 0; y < Cell10YTiles; y++)
                 {
-                    var olc = new OpenLocationCode(new GeoPoint(geoAreaToRefresh.SouthLatitude + (MapSupport.resolutionCell10 * y), geoAreaToRefresh.WestLongitude + (MapSupport.resolutionCell10 * x)));
+                    var db2 = new PraxisContext();
+                    var olc = new OpenLocationCode(new GeoPoint(miny + (MapSupport.resolutionCell10 * y), minx + (MapSupport.resolutionCell10 * x)));
                     var olcPoly = MapSupport.GeoAreaToPolygon(olc.Decode());
-                    if (md.place.Intersects(olcPoly)) //If this intersects the original way, redraw that tile. Lets us minimize work for oddly-shaped areas.
+                    //if (md.place.Intersects(olcPoly)) //If this intersects the original way, redraw that tile. Lets us minimize work for oddly-shaped areas.
+                    if (pg.Intersects(olcPoly))
                     {
-                        var maptiles10 = db.MapTiles.Where(m => m.PlusCode == olc.CodeDigits && m.resolutionScale == 11 && m.mode == 2).FirstOrDefault();
+                        var maptiles10 = db2.MapTiles.Where(m => m.PlusCode == olc.CodeDigits && m.resolutionScale == 11 && m.mode == 2).FirstOrDefault();
                         if (maptiles10 == null)
                         {
                             maptiles10 = new MapTile() { mode = 2, PlusCode = olc.CodeDigits, resolutionScale = 11 };
-                            db.MapTiles.Add(maptiles10);
+                            db2.MapTiles.Add(maptiles10);
                         }
 
-                        maptiles10.tileData = MapSupport.DrawMPControlAreaMapTile11(olc.Decode());
+                        maptiles10.tileData = MapSupport.DrawMPControlAreaMapTile11(olc.Decode(), shortcut);
                         maptiles10.CreatedOn = DateTime.Now;
+                        db2.SaveChanges();
                     }
-                }
-            }
-            db.SaveChanges();
+                });
+            });
+            
+            //TODO: again for Cell8, once I generate cell8 faction control tiles?
+            pt.Stop(md.MapDataId + "|" + md.name);
+        }
+
+        public static void RedoAreaControlMapTilesCell8(MapData md, Tuple<long, int> shortcut = null)
+        {
+            //This is a background task, but we want it to finish as fast as possible. 
+            PerformanceTracker pt = new PerformanceTracker("RedoAreaControlMapTilesCell8");
+            var db = new PraxisContext();
+            var space = md.place.Envelope;
+            var geoAreaToRefresh = new GeoArea(new GeoPoint(space.Coordinates.Min().Y, space.Coordinates.Min().X), new GeoPoint(space.Coordinates.Max().Y, space.Coordinates.Max().X));
+            var Cell8XTiles = geoAreaToRefresh.LongitudeWidth / MapSupport.resolutionCell8;
+            var Cell8YTiles = geoAreaToRefresh.LatitudeHeight / MapSupport.resolutionCell8;
+
+            double minx = geoAreaToRefresh.WestLongitude;
+            double miny = geoAreaToRefresh.SouthLatitude;
+
+            int xTiles = (int)Cell8XTiles + 1;
+            IPreparedGeometry pg = new PreparedGeometryFactory().Create(md.place); //this is supposed to be faster than regular geometry.
+            Parallel.For(0, xTiles, (x) => //We don't usually want parallel actions on a web server, but this is a high priority and this does cut the runtime in about half.
+            //for (var x = 0; x < Cell10XTiles; x++)
+            {
+
+                int yTiles = (int)(Cell8YTiles + 1);
+                Parallel.For(0, yTiles, (y) => //We don't usually want parallel actions on a web server, but this is a high priority
+                //for (var y = 0; y < Cell10YTiles; y++)
+                {
+                    var db2 = new PraxisContext();
+                    var olc = new OpenLocationCode(new GeoPoint(miny + (MapSupport.resolutionCell8 * y), minx + (MapSupport.resolutionCell8 * x)));
+                    var olc8 = olc.CodeDigits.Substring(0, 8);
+                    var olcPoly = MapSupport.GeoAreaToPolygon(OpenLocationCode.DecodeValid(olc8));
+                    //if (md.place.Intersects(olcPoly)) //If this intersects the original way, redraw that tile. Lets us minimize work for oddly-shaped areas.
+                    if (pg.Intersects(olcPoly))
+                    {
+                        var maptiles10 = db2.MapTiles.Where(m => m.PlusCode == olc8 && m.resolutionScale == 11 && m.mode == 2).FirstOrDefault();
+                        if (maptiles10 == null)
+                        {
+                            maptiles10 = new MapTile() { mode = 2, PlusCode = olc8, resolutionScale = 11 };
+                            db2.MapTiles.Add(maptiles10);
+                        }
+
+                        maptiles10.tileData = MapSupport.DrawMPControlAreaMapTile11(olc.Decode(), shortcut);
+                        maptiles10.CreatedOn = DateTime.Now;
+                        db2.SaveChanges();
+                    }
+                });
+            });
+
+            //TODO: again for Cell8, once I generate cell8 faction control tiles?
+            pt.Stop(md.MapDataId + "|" + md.name);
         }
 
         [HttpGet]
@@ -166,16 +226,78 @@ namespace PraxisMapper.Controllers
             baseImage.Mutate(b => b.DrawImage(controlImage, .6f));
             MemoryStream ms = new MemoryStream();
             baseImage.SaveAsPng(ms);
-            
+
             pt.Stop(Cell10);
             return File(ms.ToArray(), "image/png");
         }
 
-        public static void FindChangedMapTiles(DateTime sinceThisTime, string plusCodeToSearch)
+        [HttpGet]
+        [Route("/[controller]/DrawFactionModeCell8HighRes/{Cell8}")]
+        public FileContentResult DrawFactionModeCell8HighRes(string Cell8)
         {
-            //Ask what tiles I need to refresh, tell the server when the last time I asked was.
-            //Does this include tiles i deleted? I might need to pass in a pluscode to limit the search too.
+            PerformanceTracker pt = new PerformanceTracker("DrawFactionModeCell8HighRes");
+            //We will try to minimize rework done.
+            var db = new PraxisContext();
+            var baseMapTile = db.MapTiles.Where(mt => mt.PlusCode == Cell8 && mt.resolutionScale == 11 && mt.mode == 1).FirstOrDefault();
+            if (baseMapTile == null)
+            {
+                //Create this map tile.
+                GeoArea pluscode = OpenLocationCode.DecodeValid(Cell8);
+                var places = MapSupport.GetPlaces(pluscode);
+                var tile = MapSupport.DrawAreaMapTile11(ref places, pluscode);
+                baseMapTile = new MapTile() { CreatedOn = DateTime.Now, mode = 1, PlusCode = Cell8, resolutionScale = 11, tileData = tile };
+                db.MapTiles.Add(baseMapTile);
+                db.SaveChanges();
+            }
 
+            var factionColorTile = db.MapTiles.Where(mt => mt.PlusCode == Cell8 && mt.resolutionScale == 11 && mt.mode == 2).FirstOrDefault();
+            if (factionColorTile == null || factionColorTile.MapTileId == null)
+            {
+                //Create this entry
+                //requires a list of colors to use, which might vary per app
+                GeoArea CellEightArea = OpenLocationCode.DecodeValid(Cell8);
+                var places = MapSupport.GetPlaces(CellEightArea);
+                var results = MapSupport.DrawMPControlAreaMapTile11(CellEightArea);
+                factionColorTile = new MapTile() { PlusCode = Cell8, CreatedOn = DateTime.Now, mode = 2, resolutionScale = 11, tileData = results };
+                db.MapTiles.Add(factionColorTile);
+                db.SaveChanges();
+            }
+
+            var baseImage = Image.Load(baseMapTile.tileData);
+            var controlImage = Image.Load(factionColorTile.tileData);
+            baseImage.Mutate(b => b.DrawImage(controlImage, .6f));
+            MemoryStream ms = new MemoryStream();
+            baseImage.SaveAsPng(ms);
+
+            pt.Stop(Cell8);
+            return File(ms.ToArray(), "image/png");
+        }
+
+        [HttpGet]
+        [Route("/[controller]/FindChangedMapTiles/{mapDataId}")]
+        public string FindChangedMapTiles(long mapDataId)
+        {
+            string results = "";
+            //return a separated list of maptiles that need updated.
+            var db = new PraxisContext();
+            var md = db.MapData.Where(m => m.MapDataId == mapDataId).FirstOrDefault();
+            var space = md.place.Envelope;
+            var geoAreaToRefresh = new GeoArea(new GeoPoint(space.Coordinates.Min().Y, space.Coordinates.Min().X), new GeoPoint(space.Coordinates.Max().Y, space.Coordinates.Max().X));
+            var Cell10XTiles = geoAreaToRefresh.LongitudeWidth / MapSupport.resolutionCell10;
+            var Cell10YTiles = geoAreaToRefresh.LatitudeHeight / MapSupport.resolutionCell10;
+            for (var x = 0; x < Cell10XTiles; x++)
+            {
+                for (var y = 0; y < Cell10YTiles; y++)
+                {
+                    var olc = new OpenLocationCode(new GeoPoint(geoAreaToRefresh.SouthLatitude + (MapSupport.resolutionCell10 * y), geoAreaToRefresh.WestLongitude + (MapSupport.resolutionCell10 * x)));
+                    var olcPoly = MapSupport.GeoAreaToPolygon(olc.Decode());
+                    if (md.place.Intersects(olcPoly)) //If this intersects the original way, redraw that tile. Lets us minimize work for oddly-shaped areas.
+                    {
+                        results += olc.CodeDigits + "|";
+                    }
+                }
+            }
+            return results;
         }
 
         [HttpGet]
@@ -188,6 +310,8 @@ namespace PraxisMapper.Controllers
             string results = "";
             var owner = db.AreaControlTeams.Where(a => a.MapDataId == mapDataId).FirstOrDefault();
             var mapData = db.MapData.Where(m => m.MapDataId == mapDataId).FirstOrDefault();
+            if (mapData == null && (Configuration.GetValue<bool>("generateAreas") == true))
+                mapData = db.GeneratedMapData.Where(m => m.GeneratedMapDataId == mapDataId - 100000000).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }).FirstOrDefault();
             if (string.IsNullOrWhiteSpace(mapData.name))
                 mapData.name = MapSupport.areaIdReference[mapData.AreaTypeId].FirstOrDefault();
 

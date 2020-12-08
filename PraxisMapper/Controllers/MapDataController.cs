@@ -108,10 +108,10 @@ namespace PraxisMapper.Controllers
             var box = OpenLocationCode.DecodeValid(codeString8);
 
             var places = MapSupport.GetPlaces(OpenLocationCode.DecodeValid(codeString8));  //All the places in this 8-code
-            if (Configuration.GetValue<bool>("generateAreas") && !places.Any(p => p.AreaTypeId < 13))
+            if (Configuration.GetValue<bool>("generateAreas") && !places.Any(p => p.AreaTypeId < 13 || p.AreaTypeId == 100)) //check for 100 to not make new entries in the same spot.
             {
                 var newAreas = MapSupport.CreateInterestingAreas(codeString8);
-                places = newAreas.Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name }).ToList();
+                places = newAreas.Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }).ToList();
             }
 
             StringBuilder sb = new StringBuilder();
