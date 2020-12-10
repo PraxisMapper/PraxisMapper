@@ -312,6 +312,10 @@ namespace PraxisMapper.Controllers
             var mapData = db.MapData.Where(m => m.MapDataId == mapDataId).FirstOrDefault();
             if (mapData == null && (Configuration.GetValue<bool>("generateAreas") == true))
                 mapData = db.GeneratedMapData.Where(m => m.GeneratedMapDataId == mapDataId - 100000000).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }).FirstOrDefault();
+            if (mapData == null)
+                //This is an error, probably from not clearing data between server instances.
+                return "MissingArea|Nobody|0";
+
             if (string.IsNullOrWhiteSpace(mapData.name))
                 mapData.name = MapSupport.areaIdReference[mapData.AreaTypeId].FirstOrDefault();
 
@@ -324,6 +328,20 @@ namespace PraxisMapper.Controllers
             {
                 return mapData.name + "|Nobody|" + MapSupport.GetScoreForSingleArea(mapData.place);
             }
+        }
+
+
+        [HttpGet]
+        [Route("/[controller]/FactionScores")]
+        public JsonResult FactionScores()
+        {
+            var db = new PraxisContext();
+            var teamNames = db.Factions.ToLookup(k => k.FactionId, v => v.Name);
+            var scores = db.AreaControlTeams.GroupBy(a => a.FactionId).Select(a => new { team = a.Key, score = a.Sum(aa => aa.points), teamName = teamNames[a.Key] }).ToList();
+
+            return Json(scores);
+
+
         }
     }
 }
