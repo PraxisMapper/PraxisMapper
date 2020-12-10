@@ -12,6 +12,7 @@ Visual Studio 2019 16.8 Community (or the mac/linux equivalent)
 
 .NET 5.0
 
+SQL Server 2018 or newer
 
 
 
