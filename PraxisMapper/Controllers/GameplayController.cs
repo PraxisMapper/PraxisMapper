@@ -19,7 +19,7 @@ namespace PraxisMapper.Controllers
 {
     [Route("[controller]")]
     [ApiController]
-    public class GameplayController : Controller
+    public class GameplayController : Controller //TODO: rename 'Gameplay' to 'AreaControl'
     {
         private static MemoryCache cache;
         private readonly IConfiguration Configuration;
@@ -333,15 +333,18 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/FactionScores")]
-        public JsonResult FactionScores()
+        public string FactionScores()
         {
             var db = new PraxisContext();
             var teamNames = db.Factions.ToLookup(k => k.FactionId, v => v.Name);
             var scores = db.AreaControlTeams.GroupBy(a => a.FactionId).Select(a => new { team = a.Key, score = a.Sum(aa => aa.points), teamName = teamNames[a.Key] }).ToList();
 
-            return Json(scores);
+            return string.Join(Environment.NewLine, scores.Select(s => s.team + "|" + s.teamName + "|" + s.score));
 
-
+            //return Json(scores);
         }
+
+        //Turf War variants below:
+        //or should these be their own controller?
     }
 }
