@@ -10,6 +10,11 @@ namespace PraxisMapper.Controllers
     [ApiController]
     public class TurfWarController : Controller
     {
+        //TurfWar is a simplified version of AreaControl.
+        //1) It operates on a per-Cell basis instead of a per-MapData entry basis.
+        //2) The 'earn points to spend points' part is removed in favor of auto-claiming areas you walk into. (A lockout timer is applied to stop 2 people from constantly flipping one area ever half-second)
+        //3) No direct interaction with the device is required. 
+        //The leaderboards for TurfWar reset regularly (weekly), and could be set to reset very quickly and restart (3 minutes of gameplay, 1 paused for reset).
         public void LearnCell8TurfWar()
         {
             //Which factions own which Cell10s nearby?

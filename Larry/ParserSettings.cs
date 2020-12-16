@@ -19,6 +19,10 @@
         //TODO: investigate how helpful it is having separate gameplay and maptile server instances with these value set differently
         public static bool UseHighAccuracy = true;
 
-        public static string DbConnectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;";
+        //public static string DbMode = "SQLServer";
+        //public static string DbConnectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;";
+
+        public static string DbMode = "MariaDB";
+        public static string DbConnectionString = "server=localhost;database=praxis;user=root;password=asdf;";
     }
 }

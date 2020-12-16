@@ -15,7 +15,6 @@ using System.Text.Json;
 using static CoreComponents.DbTables;
 using static CoreComponents.MapSupport;
 
-//TODO: since some of these .pbf files become larger as trimmed JSON instead of smaller, maybe I should try a path that writes directly to DB from PBF? might involve 
 //TODO: Add high-verbosity logging messages.
 //TODO: set option flag to enable writing MapData entries to DB or File. Especially since bulk inserts won't fly for MapData from files, apparently.
 //TODO: look into using Span<T> instead of lists? This might be worth looking at performance differences. (and/or Memory<T>, which might be a parent for Spans)
@@ -31,6 +30,7 @@ namespace Larry
         {
             var memMon = new MemoryMonitor();
             PraxisContext.connectionString = ParserSettings.DbConnectionString;
+            PraxisContext.serverMode = ParserSettings.DbMode;
 
             if (args.Count() == 0)
             {
@@ -67,11 +67,21 @@ namespace Larry
                 PraxisContext db = new PraxisContext();
                 db.Database.EnsureCreated(); //all the automatic stuff EF does for us, without migrations.
                 //Not automatic entries executed below:
-                db.Database.ExecuteSqlRaw(PraxisContext.MapDataValidTrigger);
-                db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataValidTrigger);
                 db.Database.ExecuteSqlRaw(PraxisContext.MapDataIndex);
                 db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataIndex);
-                db.Database.ExecuteSqlRaw(PraxisContext.FindDBMapDataBounds);
+                if (ParserSettings.DbMode == "SQLServer")
+                {
+                    db.Database.ExecuteSqlRaw(PraxisContext.MapDataValidTriggerMSSQL);
+                    db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataValidTriggerMSSQL);
+                    db.Database.ExecuteSqlRaw(PraxisContext.FindDBMapDataBoundsMSSQL);
+                }
+                if (ParserSettings.DbMode == "MariaDB")
+                {
+                    db.Database.ExecuteSqlRaw(PraxisContext.MapDataValidTriggerMariaDB);
+                    db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataValidTriggerMariaDB);
+                    db.Database.ExecuteSqlRaw(PraxisContext.FindDBMapDataBoundsMSSQL);
+                }
+
                 MapSupport.InsertAreaTypesToDb();
                 MapSupport.InsertDefaultFactionsToDb();
             }
@@ -1286,11 +1296,13 @@ namespace Larry
         public static void CreateStandaloneDB(long relationID, string parentFile)
         {
             //TODO: this whole feature.
-            //Parameter: RelationID?
+            //Parameter: RelationID? or a bigger area?
             //pull in all ways that intersect that 
             //process all of the 10-cells inside that area with their ways (will need more types than the current game has)
+            //Use Envelope to determine the full area of interaction? or go wider than that?
             //save this data to an SQLite DB for the app to use.
             //pre-generate all map tiles and export those to a folder too.
+            //This is currently assuming that the area you want is processed in the database.
 
             var mainDb = new PraxisContext();
             var sqliteDb = "placeholder";
@@ -1299,15 +1311,22 @@ namespace Larry
 
             //var polygon = factory.CreatePolygon(MapSupport.GeoAreaToCoordArray(box));
 
-            var source = new PBFOsmStreamSource(File.OpenRead(parentFile));
-            //Using different types than my existing functions.
-            //first, pull the relation out of the parent file.
-            var relation = (Relation)source.Where(s => s.Id == relationID && s.Type == OsmGeoType.Relation).FirstOrDefault();
-            if (relation == null)
-                return; //not in the parent file. TODO log.
+            //var source = new PBFOsmStreamSource(File.OpenRead(parentFile));
+            ////Using different types than my existing functions.
+            ////first, pull the relation out of the parent file.
+            //var relation = (Relation)source.Where(s => s.Id == relationID && s.Type == OsmGeoType.Relation).FirstOrDefault();
+            //if (relation == null)
+            //    return; //not in the parent file. TODO log.
 
-            var relationMemberIds = relation.Members.Select(m => m.Id).ToList();
-            //var 
+            //var relationMemberIds = relation.Members.Select(m => m.Id).ToList();
+            
+            var fullArea = mainDb.MapData.Where(m => m.RelationId == relationID).FirstOrDefault();
+            if (fullArea == null)
+                return;
+
+            var allPlaces = mainDb.MapData.Where(md => md.place.Intersects(fullArea.place.Envelope)).ToList();
+
+            
 
             //GeoAPI.Geometries.Coordinate[] coords = new GeoAPI.Geometries.Coordinate[] {
             //    new GeoAPI.Geometries.Coordinate(box.Min.Longitude, box.Min.Latitude),
@@ -1325,8 +1344,6 @@ namespace Larry
             //dataFromParent = null;
 
             //could now sort by tags/types. This version should track more types than the explore game, since this is a more detailed smaller area.
-
-
 
             //var content = mainDb.MapData.Where(md => md.place.Intersects(polygon)).ToList();
             //var spoiConent = mainDb.SinglePointsOfInterests.Where(s => polygon.Intersects(new Point(s.lon, s.lat))).ToList(); //I think this is the right function, but might be Covers?
