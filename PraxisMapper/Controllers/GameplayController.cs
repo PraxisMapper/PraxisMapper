@@ -21,6 +21,10 @@ namespace PraxisMapper.Controllers
     [ApiController]
     public class GameplayController : Controller //TODO: rename 'Gameplay' to 'AreaControl'
     {
+        //AreaControl is meant to be a more typical baseline for a game. You have a core action (walk places to get point), 
+        //which feeds a second action (spend points to claim an area for your team), which feeds a third (have more points than the other team).
+        //It's a very simple framework, but it can be built upon.
+
         private static MemoryCache cache;
         private readonly IConfiguration Configuration;
         public GameplayController(IConfiguration configuration)
