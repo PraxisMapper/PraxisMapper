@@ -705,7 +705,7 @@ namespace CoreComponents
             return null; //not CCW either way? Happen occasionally for some reason, and it will fail to write to the DB. I think its related to lines crossing over each other multiple times.
         }
 
-        public static void DownloadPbfFile(string topLevel, string subLevel1, string subLevel2)
+        public static void DownloadPbfFile(string topLevel, string subLevel1, string subLevel2, string destinationFolder)
         {
             //pull a fresh copy of a file from geofabrik.de (or other mirror potentially)
             //save it to the same folder as configured for pbf files (might be passed in)
@@ -715,7 +715,7 @@ namespace CoreComponents
             //subLevel1 = "us";
             //subLevel2 = "ohio";
             var wc = new WebClient();
-            wc.DownloadFile("http://download.geofabrik.de/" + topLevel + "/" + subLevel1 + "/" + subLevel2 + "-latest.osm.pbf", subLevel2 + "-latest.osm.pbf");
+            wc.DownloadFile("http://download.geofabrik.de/" + topLevel + "/" + subLevel1 + "/" + subLevel2 + "-latest.osm.pbf", destinationFolder +  subLevel2 + "-latest.osm.pbf");
         }
 
         public static byte[] DrawAreaMapTile(ref List<MapData> allPlaces, GeoArea totalArea)
@@ -879,7 +879,7 @@ namespace CoreComponents
             return new Tuple<double, double, double>(box.CenterLatitude, box.CenterLongitude, box.LatitudeHeight); //Plus codes aren't square, so this over-shoots the width.
         }
 
-        public static List<GeneratedMapData> CreateInterestingAreas(string plusCode)
+        public static List<GeneratedMapData> CreateInterestingAreas(string plusCode, bool autoSave = true)
         {
             //expected to receive a Cell8
             // populate it with some interesting regions for players.
@@ -970,13 +970,16 @@ namespace CoreComponents
             }
 
             //Making this function self-contained
-            var db = new PraxisContext();
-            foreach (var area in areasToAdd)
+            if (autoSave)
             {
-                area.place = CCWCheck((Polygon)area.place); //fixes errors that reappeared above
-            }    
-            db.GeneratedMapData.AddRange(areasToAdd);
-            db.SaveChanges();
+                var db = new PraxisContext();
+                foreach (var area in areasToAdd)
+                {
+                    area.place = CCWCheck((Polygon)area.place); //fixes errors that reappeared above
+                }
+                db.GeneratedMapData.AddRange(areasToAdd);
+                db.SaveChanges();
+            }
 
             return areasToAdd;
         }

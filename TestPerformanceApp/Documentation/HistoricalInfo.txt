@@ -125,3 +125,19 @@ Standard list took 374785 ticks (37ms)
 ConcurrentBag took 46264 ticks (4ms)
 However, real-world testing shows ConcurrentBag<T> makes processing Ohio a minute slower, makes RAM contents vary a lot, never fully utilizes the CPU.
 Because these use a ton of RAM, and I'm trying to work out how to limit RAM usage on the most problematic files, this won't be used.
+
+
+Database Performance Results
+Run this in Release mode for accurate numbers!
+Starting SqlServer performance test.
+1000 random reads done in 781ms
+1000 random writes done in 775ms
+Starting MariaDb performance test.
+
+Run this in Release mode for accurate numbers!
+Starting MariaDb performance test.
+1000 random reads done in 1151ms
+1000 random writes done in 1617ms
+Decision: Sql Server will remain the default for testing purposes.
+MariaDB appears to take twice as long on writes to spatial indexes, since this test specifically hit those.
+I am curious about seeing these numbers change as load increases (this is with about 500MB of data)

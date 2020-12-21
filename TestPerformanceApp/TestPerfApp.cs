@@ -50,7 +50,12 @@ namespace PerformanceTestApp
             //TestFlexEndpoint();
             //MicroBenchmark();
             //ConcurrentTest();
-            CalculateScoreTest();
+            //CalculateScoreTest();
+
+            //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
+            //These cannot all be enabled in one run. You must comment/uncomment each one separately.
+            //TestSqlServer(); 
+            TestMariaDb();
 
 
 
@@ -742,7 +747,6 @@ namespace PerformanceTestApp
             StringBuilder sb = new StringBuilder();
             GeoArea area = new GeoArea(1, 2, 3, 4);
 
-
             var xCells = area.LongitudeWidth / resolutionCell10;
             var yCells = area.LatitudeHeight / resolutionCell10;
 
@@ -791,6 +795,75 @@ namespace PerformanceTestApp
             }
             sw.Stop();
             Log.WriteLog("converted record list to string output in " + sw.ElapsedMilliseconds);
+        }
+
+        public static void TestSqlServer()
+        {
+            Log.WriteLog("Starting SqlServer performance test.");
+            PraxisContext.connectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;";
+            PraxisContext.serverMode = "SQLServer";
+
+            PraxisContext dbSqlServer = new PraxisContext();
+
+            int maxRandom = dbSqlServer.MapData.Count();
+            Random r = new Random();
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+            for (var i = 0; i < 1000; i++)
+            {
+                //read 1000 random entries;
+                int entry = r.Next(1, maxRandom);
+                var tempEntry = dbSqlServer.MapData.Where(m => m.MapDataId == entry).FirstOrDefault();
+            }
+            sw.Stop();
+            Log.WriteLog("1000 random reads done in " + sw.ElapsedMilliseconds + "ms");
+
+
+            sw.Restart();
+            for (var i = 0; i < 1000; i++)
+            {
+                //write 1000 random entries;
+                var entry = MapSupport.CreateInterestingAreas("22334455", false);
+                dbSqlServer.GeneratedMapData.AddRange(entry);
+            }
+            dbSqlServer.SaveChanges();
+            sw.Stop();
+            Log.WriteLog("1000 random writes done in " + sw.ElapsedMilliseconds + "ms");
+
+            
+        }
+
+        public static void TestMariaDb()
+        {
+            Log.WriteLog("Starting MariaDb performance test.");
+            PraxisContext.connectionString = "server=localhost;database=praxis;user=root;password=asdf;";
+            PraxisContext.serverMode = "MariaDB";
+            Random r = new Random();
+            Stopwatch sw = new Stopwatch();
+            
+            PraxisContext dbMaria = new PraxisContext();
+            int maxRandom = dbMaria.MapData.Count();
+            sw.Restart();
+            for (var i = 0; i < 1000; i++)
+            {
+                //read 1000 random entries;
+                int entry = r.Next(1, maxRandom);
+                var tempEntry = dbMaria.MapData.Where(m => m.MapDataId == entry).FirstOrDefault();
+            }
+            sw.Stop();
+            Log.WriteLog("1000 random reads done in " + sw.ElapsedMilliseconds + "ms");
+
+
+            sw.Start();
+            for (var i = 0; i < 1000; i++)
+            {
+                //write 1000 random entries;
+                var entry = MapSupport.CreateInterestingAreas("22334455", false);
+                dbMaria.GeneratedMapData.AddRange(entry);
+            }
+            dbMaria.SaveChanges();
+            sw.Stop();
+            Log.WriteLog("1000 random writes done in " + sw.ElapsedMilliseconds + "ms");
         }
     }
 }
