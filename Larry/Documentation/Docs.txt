@@ -5,12 +5,13 @@ The console app thats the start of setting up your location based game server.
 
 Configuration settings:
 
-
 Valid command-line options:
 -verbose or -v  -- display everything via the console/file log. Useful for more detailed troubleshooting.
 -noLogs -- Don't do any logging, just run quietly.
 -processEverything --When running through .osm.pbf files, include roads, buildings, and parking lots.
 -spaceSaver --Reduce accuracy and simplify paths to save storage space. Truncates locations to 7 decimal places, simplifies path to .resolutionCell10 (.000125 degrees). Uses 30-40% less space, accuracy on the Cell10 level is extremely similar. Not recommended for use when drawing map tiles, but is fine for LearnCellX calls.
+-dbMode:<mode> -- Use a specific database connection instead of what's in the config class. Options are SQLServer and MariaDB.
+--dbConString:<connectionString> --Use a specific connection string instead of the compiled config entry. Must be a valid connection string matching the mode supplied.
 
 Valid Commands:
 -createDB --Create the database Larry is configured to connect to.

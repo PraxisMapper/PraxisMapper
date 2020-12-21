@@ -39,6 +39,20 @@ namespace Larry
                 return;
             }
 
+            if (args.Any(a => a.StartsWith("-dbMode:")))
+            {
+                //scan a file for information on what will or won't load.
+                string arg = args.Where(a => a.StartsWith("-dbMode:")).First().Replace("-dbMode:", "");
+                PraxisContext.serverMode = arg;
+            }
+
+            if (args.Any(a => a.StartsWith("-dbConString:")))
+            {
+                //scan a file for information on what will or won't load.
+                string arg = args.Where(a => a.StartsWith("-dbConString:")).First().Replace("-dbConString:", "");
+                PraxisContext.connectionString = arg;
+            }
+
             //Check for settings flags first before running any commands.
             if (args.Any(a => a == "-v" || a == "-verbose"))
                 Log.Verbosity = Log.VerbosityLevels.High;
@@ -77,9 +91,10 @@ namespace Larry
                 }
                 if (ParserSettings.DbMode == "MariaDB")
                 {
-                    db.Database.ExecuteSqlRaw(PraxisContext.MapDataValidTriggerMariaDB);
-                    db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataValidTriggerMariaDB);
-                    db.Database.ExecuteSqlRaw(PraxisContext.FindDBMapDataBoundsMSSQL);
+                    //So far, these haven't been needed in testing. MariaDB doesnt seem to do the separate validation MSSQL does.
+                    //db.Database.ExecuteSqlRaw(PraxisContext.MapDataValidTriggerMariaDB);
+                    //db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataValidTriggerMariaDB);
+                    //db.Database.ExecuteSqlRaw(PraxisContext.FindDBMapDataBoundsMariaDB);
                 }
 
                 MapSupport.InsertAreaTypesToDb();
@@ -96,6 +111,21 @@ namespace Larry
                 //Check on a specific thing. Not an end-user command.
                 //Current task: Identify issue with relation
                 SingleTest();
+            }
+
+            if (args.Any(a => a.StartsWith("-getPbf:")))
+            {
+                //Wants 3 pieces. Drops in placeholders if some are missing. Giving no parameters downloads Ohio.
+                //TODO: confirm this works for places with fewer sub-divisions in the path.
+                string arg = args.Where(a => a.StartsWith("-getPbf:")).First().Replace("-getPbf:", "");
+                var splitData = arg.Split('|'); //remember the first one will be empty.
+                string level1 = splitData.Count() >= 4 ? splitData[3] : "north-america";
+                string level2 = splitData.Count() >= 3 ? splitData[2] : "us";
+                string level3 = splitData.Count() >= 2 ? splitData[1] : "ohio";
+
+                MapSupport.DownloadPbfFile(level1, level2, level3, ParserSettings.PbfFolder);
+
+                
             }
 
             if (args.Any(a => a == "-resetXml" || a == "-resetPbf")) //update both anyways.
@@ -257,9 +287,9 @@ namespace Larry
 
         public static void AddMapDataToDBFromFiles()
         {
-            //This function is pretty slow. I should figure out how to speed it up. Approx. 3,000 ways per second right now.
+            //This function is pretty slow. I should figure out how to speed it up. Approx. 3,000 MapData entries per second right now.
             //Bulk inserts fail on the Geography type, last I had checked.
-            foreach (var file in System.IO.Directory.EnumerateFiles(ParserSettings.JsonMapDataFolder, "*-MapData*.json"))
+            foreach (var file in System.IO.Directory.EnumerateFiles(ParserSettings.JsonMapDataFolder, "*-MapData*.json")) //excludes my LargeAreas.json file by default here.
             {
                 Console.Title = file;
                 Log.WriteLog("Starting MapData read from  " + file + " at " + DateTime.Now);
