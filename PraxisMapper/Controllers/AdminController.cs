@@ -13,8 +13,14 @@ namespace PraxisMapper.Controllers
     [Route("[controller]")]
     [ApiController]
     public class AdminController : Controller
+
     {
-        public static string adminPwd = "placeholder";
+        private readonly IConfiguration Configuration;
+
+        public AdminController(IConfiguration configuration)
+        {
+            Configuration = configuration;
+        }
 
         //For stuff the admin would want to do but not allow anyone else to do.
         //TODO: A password needs to be provided somewhere to run these. 
@@ -22,8 +28,8 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/PerfData/{password}")]
         public string PerfData(string password)
         {
-            //if (password != Microsoft.Extensions.Configuration.GetValue<string>("adminPwd"))
-            //return "";
+            //if (password != Configuration.GetValue<string>("adminPwd"))
+                //return "";
 
             var db = new PraxisContext();
             var groups = db.PerformanceInfo.Where(p => p.calledAt > DateTime.Now.AddDays(-7)).AsEnumerable().GroupBy(g => g.functionName).OrderBy(g => g.Key).ToList();

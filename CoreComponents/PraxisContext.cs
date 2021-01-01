@@ -48,19 +48,13 @@ namespace CoreComponents
                 optionsBuilder.UseSqlServer(connectionString, x => x.UseNetTopologySuite());
             else if (serverMode == "MariaDB")
             {
-                //Potential MariaDB config, which would be cheaper on AWS
-                //Is in alpha for NET 5, so I could start testing this.
                 optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), x => x.UseNetTopologySuite().CharSetBehavior(Pomelo.EntityFrameworkCore.MySql.Infrastructure.CharSetBehavior.NeverAppend)); //, x => x."Server=localhost;Database=praxis;User=root;Password=1234;");
-                
             }
-
 
             //Current server config
             //optionsBuilder.UseSqlServer(@"Data Source=localhost\SQLEXPRESS;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;", x => x.UseNetTopologySuite());
             //Current localhost config.
             //optionsBuilder.UseSqlServer(@"Data Source=localhost\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;", x => x.UseNetTopologySuite()); //Home config, SQL Developer, Free, no limits, cant use in production
-
-
 
             //SQLite config should be used for the case where I make a self-contained app for an area.
             //like for a university or a park or something.           
