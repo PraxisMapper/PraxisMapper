@@ -42,7 +42,6 @@ namespace PraxisMapper.Controllers
         //Ponder allowing mapTiles and mapData to be separate databases, with different connection strings?
 
         [HttpGet]
-        //[Route("/[controller]/cell6Info/{plusCode6}")]
         [Route("/[controller]/LearnCell6/{plusCode6}")]
         public string LearnCell6(string plusCode6) //The current primary function used by the app. Uses the Cell6 area given to it
         {
@@ -89,9 +88,6 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        //[Route("/[controller]/cell8Info/{plusCode8}/{fullCode}")] 
-        //[Route("/[controller]/LearnCell8/{plusCode8}/{fullCode}")] //These top 2 dont work for some reason.
-        //[Route("/[controller]/cell8Info/{plusCode8}")]
         [Route("/[controller]/LearnCell8/{plusCode8}")]
         public string LearnCell8(string plusCode8, int fullCode = 0) //The current primary function used by the app. Uses the Cell8 area given to it
         {
@@ -145,7 +141,6 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        //[Route("/[controller]/surroundingArea/{lat}/{lon}")]
         [Route("/[controller]/LearnSurroundingCell6/{lat}/{lon}")]
         public string LearnSurroundingCell6(double lat, double lon) // pulls in a Cell6 sized area centered on the coords given. Returns full PlusCode name for each Cell10
         {
@@ -194,7 +189,6 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        //[Route("/[controller]/adminBounds/{lat}/{lon}")]
         [Route("/[controller]/LearnAdminBounds/{lat}/{lon}")]
         public string LearnAdminBoundaries(double lat, double lon) //Returns only admin boundaries that contain your current point.
         {
@@ -213,7 +207,6 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        //[Route("/[controller]/cell6Info/{lat}/{lon}")]
         [Route("/[controller]/LearnCell6/{lat}/{lon}")]
         public string LearnCell6(double lat, double lon) //convenience method, makes the server do the plusCode grid encode.
         {
@@ -223,7 +216,6 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        //[Route("/[controller]/cell8Info/{lat}/{lon}")]
         [Route("/[controller]/LearnCell8/{lat}/{lon}")]
         public string LearnCell8(double lat, double lon) //convenience method, makes the server do the plusCode grid encode.
         {
@@ -241,7 +233,6 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        //[Route("/[controller]/8cellBitmap/{plusCode8}")]
         [Route("/[controller]/DrawCell8/{plusCode8}")]
         public FileContentResult DrawCell8(string plusCode8)
         {
@@ -269,7 +260,6 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        //[Route("/[controller]/8cellBitmap11/{plusCode8}")]
         [Route("/[controller]/DrawCell8Highres/{plusCode8}")]
         public FileContentResult DrawCell8Highres(string plusCode8)
         {
@@ -297,7 +287,6 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        //[Route("/[controller]/10cellBitmap11/{plusCode10}")]
         [Route("/[controller]/DrawCell10Highres/{plusCode10}")]
         public FileContentResult DrawCell10Highres(string plusCode10)
         {
@@ -326,7 +315,6 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        //[Route("/[controller]/6cellBitmap/{plusCode6}")]
         [Route("/[controller]/DrawCell6/{plusCode6}")]
         public FileContentResult DrawCell6(string plusCode6)
         {
@@ -355,7 +343,6 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        //[Route("/[controller]/6cellBitmap11/{plusCode6}")]
         [Route("/[controller]/DrawCell6Highres/{plusCode6}")]
         public FileContentResult DrawCell6Highres(string plusCode6)
         {
@@ -381,7 +368,6 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        //[Route("/[controller]/flexBitmap/{lat}/{lon}/{size}/{resolution}")]
         [Route("/[controller]/DrawFlex/{lat}/{lon}/{size}/{resolution}")]
         public FileContentResult DrawFlex(double lat, double lon, double size, int resolution)
         {
@@ -460,7 +446,6 @@ namespace PraxisMapper.Controllers
 
         //this lets the app decide how much it wants to download without the server writing a new function every time.
         [HttpGet]
-        //[Route("/[controller]/flexArea/{lat}/{lon}/{size}")]
         [Route("/[controller]/LearnSurroundingFlex/{lat}/{lon}/{size}")]
         public string LearnSurroundingFlex(double lat, double lon, double size)
         {
@@ -511,7 +496,6 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        //[Route("/[controller]/CalcAreaPoints/{plusCode8}")]
         [Route("/[controller]/CalculateAreaPoints/{plusCode8}")]
         public string CalculateAreaPoints(string plusCode8)
         {
@@ -528,7 +512,6 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        //[Route("/[controller]/CalcFullAreaPoints/{plusCode8}")]
         [Route("/[controller]/CalculateFullAreaPoints/{plusCode8}")]
         public string CalculateFullAreaPoints(string plusCode8)
         {
@@ -542,7 +525,6 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        //[Route("/[controller]/CalcFlexAreaPoints/{lat}/{lon}/{size}")]
         [Route("/[controller]/CalculateFlexAreaPoints/{lat}/{lon}/{size}")]
         public string CalculateFlexAreaPoints(double lat, double lon, double size)
         {
@@ -557,7 +539,6 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        //[Route("/[controller]/CalcFlexFullAreaPoints/{lat}/{lon}/{size}")]
         [Route("/[controller]/CalculateFlexFullAreaPoints/{lat}/{lon}/{size}")]
         public string CalculateFlexFullAreaPoints(double lat, double lon, double size)
         {

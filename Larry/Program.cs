@@ -124,8 +124,6 @@ namespace Larry
                 string level3 = splitData.Count() >= 2 ? splitData[1] : "ohio";
 
                 MapSupport.DownloadPbfFile(level1, level2, level3, ParserSettings.PbfFolder);
-
-                
             }
 
             if (args.Any(a => a == "-resetXml" || a == "-resetPbf")) //update both anyways.
