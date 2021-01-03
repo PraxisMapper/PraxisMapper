@@ -39,21 +39,24 @@ namespace PraxisMapper.Controllers
             return results;
         }
 
-        public void ClaimCell10TurfWar(int instanceId, int factionId, string Cell10)
+        public void ClaimCell10TurfWar(int factionId, string Cell10)
         {
             //Mark this cell10 as belonging to this faction, update the lockout timer.
             var db = new PraxisContext();
-            var config = db.TurfWarConfigs.Where(t => t.TurfWarConfigId == instanceId).FirstOrDefault();
-            var entry = db.TurfWarEntries.Where(t => t.TurfWarConfigId == instanceId && t.FactionId == factionId && t.Cell10 == Cell10).First();
-            if (entry == null)
+            //run all the instances at once.
+            foreach (var config in db.TurfWarConfigs.ToList())
             {
-                entry = new DbTables.TurfWarEntry() { Cell10 = Cell10, TurfWarConfigId = instanceId  };
-                db.TurfWarEntries.Add(entry);
+                var entry = db.TurfWarEntries.Where(t => t.TurfWarConfigId == config.TurfWarConfigId && t.FactionId == factionId && t.Cell10 == Cell10).First();
+                if (entry == null)
+                {
+                    entry = new DbTables.TurfWarEntry() { Cell10 = Cell10, TurfWarConfigId = config.TurfWarConfigId};
+                    db.TurfWarEntries.Add(entry);
+                }
+                entry.FactionId = factionId;
+                entry.CanFlipFactionAt = DateTime.Now.AddSeconds(config.Cell10LockoutTimer);
+                entry.ClaimedAt = DateTime.Now;
+                entry.Cell10 = Cell10;
             }
-            entry.FactionId = factionId;
-            entry.CanFlipFactionAt = DateTime.Now.AddSeconds(config.Cell10LockoutTimer);
-            entry.ClaimedAt = DateTime.Now;
-            entry.Cell10 = Cell10;
             db.SaveChanges();
         }
 
