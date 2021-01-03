@@ -19,9 +19,13 @@ namespace CoreComponents
         public DbSet<Faction> Factions { get; set; }
         public DbSet<AreaControlTeam> AreaControlTeams { get; set; }
         public DbSet<GeneratedMapData> GeneratedMapData { get; set; } 
+        public DbSet<TurfWarConfig> TurfWarConfigs { get; set; }
+        public DbSet<TurfWarEntry> TurfWarEntries { get; set; }
+
+        public DbSet<TurfWarScoreRecord> TurfWarScoreRecords { get; set; }
 
         //IConfiguration Config;
-        public static string connectionString;
+        public static string connectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;"; //Needs a default value.
         public static string serverMode = "SQLServer";
 
         //Test table to see if its practical to save prerendered results. there's 25 million 6codes, so no.

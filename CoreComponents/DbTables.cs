@@ -114,6 +114,33 @@ namespace CoreComponents
             public int AreaTypeId { get; set; } //This will probably be a fixed value.
         }
 
+        public class TurfWarEntry
+        {
+            public long TurfWarEntryId { get; set; }
+            public int TurfWarConfigId { get; set; } //If we're running multiple TurfWar instances at once, this lets us identify which one belongs to which.
+            public string Cell10 { get; set; }
+            public int FactionId { get; set; }
+            public DateTime ClaimedAt { get; set; }
+            public DateTime CanFlipFactionAt { get; set; }
+        }
+
+        public class TurfWarConfig
+        {
+            //A table for one instance entry? Meh, but these need to update and persist between app pool expirations.
+            //Do i want to allow a server to host multiple instance? I might, if someone wanted to have different durations running.
+            public int TurfWarConfigId { get; set; }
+            public int TurfWarDurationHours { get; set; } //how long to let a game run for. Set to -1 to make a permanent turf war mode.
+            public DateTime TurfWarNextReset { get; set; } //add TurfWarDurationHours to this if we're past the expiration time. Subtract to see the last reset date.
+            public int Cell10LockoutTimer { get; set; } //The number of seconds that a Cell10 entry cannot be flipped for when a valid claim happens.
+        }
+
+        public class TurfWarScoreRecord
+        {
+            public long TurfWarScoreRecordId { get; set; }
+            public int TurfWarConfigId { get; set; }
+            public string Results { get; set; } //A concatenated set of results into one column.
+        }
+
     }
 }
 

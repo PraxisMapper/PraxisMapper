@@ -69,6 +69,8 @@
     <Compile Include="Migrations\20201204141407_FactionCode.Designer.cs" />
     <Compile Include="Migrations\20201206145600_IndexACT.cs" />
     <Compile Include="Migrations\20201206145600_IndexACT.Designer.cs" />
+    <Compile Include="Migrations\20210103172441_turfwar1.cs" />
+    <Compile Include="Migrations\20210103172441_turfwar1.Designer.cs" />
     <Compile Include="Migrations\GpsExploreContextModelSnapshot.cs" />
   </ItemGroup>
 

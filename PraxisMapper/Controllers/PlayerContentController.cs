@@ -21,5 +21,8 @@ namespace PraxisMapper.Controllers
         //Will need db tables for this?
         //this probably stores some baseline data, and perhaps an ID for an object for another program to pull from a DB.
         //Yeah, this might be too game-specific to set up as a baseline past that.
+        //Are these separate from the GenereatedMapData entries? I think so.
+
+
     }
 }
