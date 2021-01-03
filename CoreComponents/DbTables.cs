@@ -128,6 +128,7 @@ namespace CoreComponents
         {
             //A table for one instance entry? Meh, but these need to update and persist between app pool expirations.
             //Do i want to allow a server to host multiple instance? I might, if someone wanted to have different durations running.
+            //Do i want an Enabled flag to be checked so a game can be turned on and off without resetting stats?
             public int TurfWarConfigId { get; set; }
             public int TurfWarDurationHours { get; set; } //how long to let a game run for. Set to -1 to make a permanent turf war mode.
             public DateTime TurfWarNextReset { get; set; } //add TurfWarDurationHours to this if we're past the expiration time. Subtract to see the last reset date.
