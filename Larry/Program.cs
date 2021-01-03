@@ -83,6 +83,7 @@ namespace Larry
                 //Not automatic entries executed below:
                 db.Database.ExecuteSqlRaw(PraxisContext.MapDataIndex);
                 db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataIndex);
+
                 if (ParserSettings.DbMode == "SQLServer")
                 {
                     db.Database.ExecuteSqlRaw(PraxisContext.MapDataValidTriggerMSSQL);

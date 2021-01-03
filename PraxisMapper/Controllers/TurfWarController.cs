@@ -15,8 +15,9 @@ namespace PraxisMapper.Controllers
         //1) It operates on a per-Cell basis instead of a per-MapData entry basis.
         //2) The 'earn points to spend points' part is removed in favor of auto-claiming areas you walk into. (A lockout timer is applied to stop 2 people from constantly flipping one area ever half-second)
         //3) No direct interaction with the device is required. 
-        //The leaderboards for TurfWar reset regularly (weekly), and could be set to reset very quickly and restart (3 minutes of gameplay, 1 paused for reset). 
+        //The leaderboards for TurfWar reset regularly (weekly? Hourly? ), and could be set to reset very quickly and restart (3 minutes of gameplay, 1 paused for reset). 
 
+        //TODO create a default TurfWarConfig entry. That's a Larry task.
 
         public TurfWarController()
         {
@@ -25,9 +26,17 @@ namespace PraxisMapper.Controllers
             foreach (var i in instances)
                 CheckForReset(i); //Do this on every call so we don't have to have an external app handle these, and we don't miss one.
         }
-        public void LearnCell8TurfWar()
+        public string LearnCell8TurfWar(int instanceID, string Cell10)
         {
             //Which factions own which Cell10s nearby?
+            var db = new PraxisContext();
+            string Cell8 = Cell10.Substring(0, 8);
+            var cellData = db.TurfWarEntries.Where(t => t.TurfWarConfigId == instanceID && t.Cell10.StartsWith(Cell8)).ToList();
+            string results = Cell8 + "|";
+            foreach (var cell in cellData)
+                results += cell.Cell10 + "=" + cell.FactionId + "|";
+
+            return results;
         }
 
         public void ClaimCell10TurfWar(int instanceId, int factionId, string Cell10)
@@ -51,11 +60,16 @@ namespace PraxisMapper.Controllers
         public string Scoreboard(int instanceID)
         {
             //which faction has the most cell10s?
-            //also, report time 
+            //also, report time, primarily for recordkeeping 
             var db = new PraxisContext();
-            var data = db.TurfWarEntries.Where(t => t.TurfWarConfigId == instanceID).GroupBy(g => g.FactionId).Select(t => new { instanceID = instanceID,  team = t.Key, score = t.Count()}).ToList();
+            var data = db.TurfWarEntries.Where(t => t.TurfWarConfigId == instanceID).GroupBy(g => g.FactionId).Select(t => new { instanceID = instanceID,  team = t.Key, score = t.Count()}).OrderBy(t => t.score).ToList();
             //TODO: data to string of some kind.
-            return "";
+            string results = instanceID.ToString() + "#" + DateTime.Now + "|";
+            foreach (var d in data)
+            {
+                results += d.team + "=" + d.score +"|";
+            }
+            return results;
         }
 
         public TimeSpan ModeTime(int instanceID)
@@ -79,7 +93,7 @@ namespace PraxisMapper.Controllers
 
             db.TurfWarEntries.RemoveRange(db.TurfWarEntries.Where(tw => tw.TurfWarConfigId == instanceID));
 
-            //TODO: record score results.
+            //record score results.
             var score = new DbTables.TurfWarScoreRecord();
             score.Results = Scoreboard(instanceID);
             db.TurfWarScoreRecords.Add(score);
@@ -88,6 +102,7 @@ namespace PraxisMapper.Controllers
 
         public void CheckForReset(int instanceID)
         {
+            //TODO: cache these results into memory so I can skip a DB lookup every single call.
             var db = new PraxisContext();
             var twConfig = db.TurfWarConfigs.Where(t => t.TurfWarConfigId == instanceID).FirstOrDefault();
             if (twConfig.TurfWarDurationHours == -1) //This is a permanent instance.

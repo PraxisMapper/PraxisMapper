@@ -629,6 +629,18 @@ namespace CoreComponents
             db.SaveChanges();
         }
 
+        public static void InsertDefaultTurfWarConfig()
+        {
+            var db = new PraxisContext();
+            //we set the reset time to next Saturday at midnight for a default.
+            var nextSaturday = DateTime.Now.AddDays(6 - (int)DateTime.Now.DayOfWeek);
+            nextSaturday.AddHours(-nextSaturday.Hour);
+            nextSaturday.AddMinutes(-nextSaturday.Minute);
+            nextSaturday.AddSeconds(-nextSaturday.Second);
+            db.TurfWarConfigs.Add(new TurfWarConfig() { Cell10LockoutTimer = 30, TurfWarDurationHours = 168, TurfWarNextReset = nextSaturday });
+            db.SaveChanges();
+        }
+
         public static Geometry SimplifyArea(Geometry place)
         {
             if (!SimplifyAreas)
