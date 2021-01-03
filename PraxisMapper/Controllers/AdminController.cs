@@ -16,6 +16,7 @@ namespace PraxisMapper.Controllers
 
     {
         private readonly IConfiguration Configuration;
+        public static string adminPwd = ""; //will bet set on app start.
 
         public AdminController(IConfiguration configuration)
         {
@@ -57,6 +58,12 @@ namespace PraxisMapper.Controllers
             }
 
             return results;
+        }
+
+        public string GetRunningModes()
+        {
+            //Report to an admin or an app which modes have which instances, and their configuration.
+            return "";
         }
     }
 }

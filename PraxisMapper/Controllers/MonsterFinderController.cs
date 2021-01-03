@@ -15,6 +15,11 @@ namespace PraxisMapper.Controllers
         //Each interactible area will have additional properties that affect the rewards.
         //Will areas have types pre-assigned, or will they be assigned on demand?
         //The game itself needs to do the battle/catch/whatever, this just handles the server side of things.
+
+        //Needs a few tables
+        //one for things to find in gameplay and their baseline definition
+        //a second to define how often those things show up or whatnot.
+        //a third settings table for basic stuff?
         public IActionResult Index()
         {
             return View();

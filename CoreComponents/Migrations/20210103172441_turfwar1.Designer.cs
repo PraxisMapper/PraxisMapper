@@ -4,15 +4,17 @@ using CoreComponents;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 
 namespace CoreComponents.Migrations
 {
     [DbContext(typeof(PraxisContext))]
-    partial class GpsExploreContextModelSnapshot : ModelSnapshot
+    [Migration("20210103172441_turfwar1")]
+    partial class turfwar1
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
