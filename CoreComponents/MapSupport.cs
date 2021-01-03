@@ -629,7 +629,7 @@ namespace CoreComponents
             db.SaveChanges();
         }
 
-        public static void InsertDefaultTurfWarConfig()
+        public static void InsertDefaultTurfWarConfigs()
         {
             var db = new PraxisContext();
             //we set the reset time to next Saturday at midnight for a default.
@@ -637,7 +637,11 @@ namespace CoreComponents
             nextSaturday.AddHours(-nextSaturday.Hour);
             nextSaturday.AddMinutes(-nextSaturday.Minute);
             nextSaturday.AddSeconds(-nextSaturday.Second);
-            db.TurfWarConfigs.Add(new TurfWarConfig() { Cell10LockoutTimer = 30, TurfWarDurationHours = 168, TurfWarNextReset = nextSaturday });
+
+            var tomorrow = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day).AddDays(1);
+            db.TurfWarConfigs.Add(new TurfWarConfig() { Name = "All-Time", Cell10LockoutTimer = 300, TurfWarDurationHours = -1, TurfWarNextReset = nextSaturday }); 
+            db.TurfWarConfigs.Add(new TurfWarConfig() { Name = "Weekly",  Cell10LockoutTimer = 300, TurfWarDurationHours = 168, TurfWarNextReset = nextSaturday }); 
+            db.TurfWarConfigs.Add(new TurfWarConfig() { Name = "Daily", Cell10LockoutTimer = 30, TurfWarDurationHours = 24, TurfWarNextReset = tomorrow });
             db.SaveChanges();
         }
 

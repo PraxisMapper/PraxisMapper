@@ -11,13 +11,13 @@ namespace PraxisMapper.Controllers
     [ApiController]
     public class TurfWarController : Controller
     {
+        public static bool isResetting = false;
         //TurfWar is a simplified version of AreaControl.
         //1) It operates on a per-Cell basis instead of a per-MapData entry basis.
         //2) The 'earn points to spend points' part is removed in favor of auto-claiming areas you walk into. (A lockout timer is applied to stop 2 people from constantly flipping one area ever half-second)
-        //3) No direct interaction with the device is required. 
+        //3) No direct interaction with the device is required. Game needs to be open, thats all.
         //The leaderboards for TurfWar reset regularly (weekly? Hourly? ), and could be set to reset very quickly and restart (3 minutes of gameplay, 1 paused for reset). 
-
-        //TODO create a default TurfWarConfig entry. That's a Larry task.
+        //Default config is a weekly run Sat-Fri, with a 30 second lockout on cells.
 
         public TurfWarController()
         {
@@ -82,6 +82,8 @@ namespace PraxisMapper.Controllers
 
         public void ResetGame(int instanceID, bool manaulReset = false, DateTime? nextEndTime = null)
         {
+            isResetting = true;
+            //TODO: determine if any of these commands needs to be raw SQL for performance reasons.
             //Clear out any stored data and fire the game mode off again.
             //Fire off a reset.
             var db = new PraxisContext();
@@ -90,7 +92,7 @@ namespace PraxisMapper.Controllers
             if (manaulReset && nextEndTime.HasValue)
                 nextTime = nextEndTime.Value;
             twConfig.TurfWarNextReset = nextTime;
-
+            
             db.TurfWarEntries.RemoveRange(db.TurfWarEntries.Where(tw => tw.TurfWarConfigId == instanceID));
 
             //record score results.
@@ -98,6 +100,7 @@ namespace PraxisMapper.Controllers
             score.Results = Scoreboard(instanceID);
             db.TurfWarScoreRecords.Add(score);
             db.SaveChanges();
+            isResetting = false;
         }
 
         public void CheckForReset(int instanceID)
