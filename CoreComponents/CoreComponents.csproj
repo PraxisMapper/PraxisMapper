@@ -71,6 +71,12 @@
     <Compile Include="Migrations\20201206145600_IndexACT.Designer.cs" />
     <Compile Include="Migrations\20210103172441_turfwar1.cs" />
     <Compile Include="Migrations\20210103172441_turfwar1.Designer.cs" />
+    <Compile Include="Migrations\20210104034520_turfwar2.cs" />
+    <Compile Include="Migrations\20210104034520_turfwar2.Designer.cs" />
+    <Compile Include="Migrations\20210104034658_turfwar3.cs" />
+    <Compile Include="Migrations\20210104034658_turfwar3.Designer.cs" />
+    <Compile Include="Migrations\20210104034816_turfwar4.cs" />
+    <Compile Include="Migrations\20210104034816_turfwar4.Designer.cs" />
     <Compile Include="Migrations\GpsExploreContextModelSnapshot.cs" />
   </ItemGroup>
 

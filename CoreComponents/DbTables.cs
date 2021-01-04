@@ -119,6 +119,7 @@ namespace CoreComponents
             public long TurfWarEntryId { get; set; }
             public int TurfWarConfigId { get; set; } //If we're running multiple TurfWar instances at once, this lets us identify which one belongs to which.
             public string Cell10 { get; set; }
+            public string Cell8 { get; set; } //Index this one
             public int FactionId { get; set; }
             public DateTime ClaimedAt { get; set; }
             public DateTime CanFlipFactionAt { get; set; }
@@ -141,6 +142,9 @@ namespace CoreComponents
             public long TurfWarScoreRecordId { get; set; }
             public int TurfWarConfigId { get; set; }
             public string Results { get; set; } //A concatenated set of results into one column.
+            public int WinningFactionID { get; set; }
+            public int WinningScore { get; set; }
+
         }
 
     }

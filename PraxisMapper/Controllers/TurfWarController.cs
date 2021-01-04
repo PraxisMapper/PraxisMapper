@@ -31,7 +31,7 @@ namespace PraxisMapper.Controllers
             //Which factions own which Cell10s nearby?
             var db = new PraxisContext();
             string Cell8 = Cell10.Substring(0, 8);
-            var cellData = db.TurfWarEntries.Where(t => t.TurfWarConfigId == instanceID && t.Cell10.StartsWith(Cell8)).ToList();
+            var cellData = db.TurfWarEntries.Where(t => t.TurfWarConfigId == instanceID && t.Cell8 == Cell8).ToList();
             string results = Cell8 + "|";
             foreach (var cell in cellData)
                 results += cell.Cell10 + "=" + cell.FactionId + "|";
@@ -49,13 +49,15 @@ namespace PraxisMapper.Controllers
                 var entry = db.TurfWarEntries.Where(t => t.TurfWarConfigId == config.TurfWarConfigId && t.FactionId == factionId && t.Cell10 == Cell10).First();
                 if (entry == null)
                 {
-                    entry = new DbTables.TurfWarEntry() { Cell10 = Cell10, TurfWarConfigId = config.TurfWarConfigId};
+                    entry = new DbTables.TurfWarEntry() { Cell10 = Cell10, TurfWarConfigId = config.TurfWarConfigId, Cell8 = Cell10.Substring(0, 8), CanFlipFactionAt = DateTime.Now.AddSeconds(-1) };
                     db.TurfWarEntries.Add(entry);
                 }
-                entry.FactionId = factionId;
-                entry.CanFlipFactionAt = DateTime.Now.AddSeconds(config.Cell10LockoutTimer);
-                entry.ClaimedAt = DateTime.Now;
-                entry.Cell10 = Cell10;
+                if (DateTime.Now > entry.CanFlipFactionAt)
+                {
+                    entry.FactionId = factionId;
+                    entry.CanFlipFactionAt = DateTime.Now.AddSeconds(config.Cell10LockoutTimer);
+                    entry.ClaimedAt = DateTime.Now;
+                }
             }
             db.SaveChanges();
         }
