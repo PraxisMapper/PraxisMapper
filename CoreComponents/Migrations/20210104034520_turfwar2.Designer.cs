@@ -4,15 +4,17 @@ using CoreComponents;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 
 namespace CoreComponents.Migrations
 {
     [DbContext(typeof(PraxisContext))]
-    partial class GpsExploreContextModelSnapshot : ModelSnapshot
+    [Migration("20210104034520_turfwar2")]
+    partial class turfwar2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -357,17 +359,7 @@ namespace CoreComponents.Migrations
                     b.Property<int>("TurfWarConfigId")
                         .HasColumnType("int");
 
-                    b.Property<int>("WinningFactionID")
-                        .HasColumnType("int");
-
-                    b.Property<int>("WinningScore")
-                        .HasColumnType("int");
-
                     b.HasKey("TurfWarScoreRecordId");
-
-                    b.HasIndex("TurfWarConfigId");
-
-                    b.HasIndex("WinningFactionID");
 
                     b.ToTable("TurfWarScoreRecords");
                 });

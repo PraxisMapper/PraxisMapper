@@ -21,7 +21,6 @@ namespace CoreComponents
         public DbSet<GeneratedMapData> GeneratedMapData { get; set; } 
         public DbSet<TurfWarConfig> TurfWarConfigs { get; set; }
         public DbSet<TurfWarEntry> TurfWarEntries { get; set; }
-
         public DbSet<TurfWarScoreRecord> TurfWarScoreRecords { get; set; }
 
         //IConfiguration Config;
@@ -85,6 +84,13 @@ namespace CoreComponents
             model.Entity<AreaControlTeam>().HasIndex(m => m.MapDataId);
             model.Entity<AreaControlTeam>().HasIndex(m => m.FactionId);
 
+            model.Entity<TurfWarEntry>().HasIndex(m => m.FactionId);
+            model.Entity<TurfWarEntry>().HasIndex(m => m.TurfWarConfigId);
+            model.Entity<TurfWarEntry>().HasIndex(m => m.Cell8); //index for looking up current tiles.
+            model.Entity<TurfWarEntry>().HasIndex(m => m.Cell10); //index for claiming
+
+            model.Entity<TurfWarScoreRecord>().HasIndex(m => m.TurfWarConfigId);
+            model.Entity<TurfWarScoreRecord>().HasIndex(m => m.WinningFactionID);
         }
 
         //A trigger to ensure all data inserted is valid by SQL Server rules.
