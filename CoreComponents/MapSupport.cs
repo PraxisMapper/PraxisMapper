@@ -611,14 +611,17 @@ namespace CoreComponents
             return new CoordPair(lat, lon);
         }
 
-        public static void InsertAreaTypesToDb()
+        public static void InsertAreaTypesToDb(string dbType)
         {
             var db = new PraxisContext();
             db.Database.BeginTransaction();
-            db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT AreaTypes ON;");
+             if (dbType == "SQLServer") 
+                    db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT AreaTypes ON;");
             db.AreaTypes.AddRange(areaTypes);
             db.SaveChanges();
-            db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT dbo.AreaTypes OFF;");
+            if (dbType == "SQLServer")
+                db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT dbo.AreaTypes OFF;"); 
+            //TODO: mariadb might need an identity value manually updated when an ID is inserted.
             db.Database.CommitTransaction();
         }
 
@@ -975,6 +978,7 @@ namespace CoreComponents
                     gmd.name = ""; //not using this on this level. 
                     gmd.place = polygon;
                     gmd.type = "generated";
+                    gmd.GeneratedAt = DateTime.Now;
                     areasToAdd.Add(gmd); //this is the line that makes some objects occasionally not be CCW that were CCW before. Maybe its the cast to the generic Geometry item?
                 }
                 else

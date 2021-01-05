@@ -112,6 +112,7 @@ namespace CoreComponents
             public string type { get; set; }// not apparently used in this table, but kept for possible compatibility depending on how AreaTypeId ends up being used.
 
             public int AreaTypeId { get; set; } //This will probably be a fixed value.
+            public DateTime GeneratedAt { get; set; }
         }
 
         public class TurfWarEntry
@@ -144,7 +145,17 @@ namespace CoreComponents
             public string Results { get; set; } //A concatenated set of results into one column.
             public int WinningFactionID { get; set; }
             public int WinningScore { get; set; }
+        }
 
+        //Note: this is the server tracking user devices for Turf War team assignments. This doesn't track any data about the user or their device
+        //that wasn't generated on the server itself. The primary use for this is to ensure we generate balanced teams during a Turf War instance.
+        public class TurfWarTeamAssignment
+        {
+            public long TurfWarTeamAssignmentId { get; set; }
+            public string deviceID { get; set; }
+            public int TurfWarConfigId { get; set; }
+            public int FactionId { get; set; }
+            public DateTime ExpiresAt { get; set; } //Set to the finish time for this TurfWarConfigId
         }
 
     }

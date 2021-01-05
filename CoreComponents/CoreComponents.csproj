@@ -77,6 +77,10 @@
     <Compile Include="Migrations\20210104034658_turfwar3.Designer.cs" />
     <Compile Include="Migrations\20210104034816_turfwar4.cs" />
     <Compile Include="Migrations\20210104034816_turfwar4.Designer.cs" />
+    <Compile Include="Migrations\20210104155045_GMDtimestamp.cs" />
+    <Compile Include="Migrations\20210104155045_GMDtimestamp.Designer.cs" />
+    <Compile Include="Migrations\20210105184046_turfwar5.cs" />
+    <Compile Include="Migrations\20210105184046_turfwar5.Designer.cs" />
     <Compile Include="Migrations\GpsExploreContextModelSnapshot.cs" />
   </ItemGroup>
 

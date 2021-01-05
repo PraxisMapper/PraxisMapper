@@ -4,15 +4,17 @@ using CoreComponents;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 
 namespace CoreComponents.Migrations
 {
     [DbContext(typeof(PraxisContext))]
-    partial class GpsExploreContextModelSnapshot : ModelSnapshot
+    [Migration("20210104155045_GMDtimestamp")]
+    partial class GMDtimestamp
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -373,36 +375,6 @@ namespace CoreComponents.Migrations
                     b.HasIndex("WinningFactionID");
 
                     b.ToTable("TurfWarScoreRecords");
-                });
-
-            modelBuilder.Entity("CoreComponents.DbTables+TurfWarTeamAssignment", b =>
-                {
-                    b.Property<long>("TurfWarTeamAssignmentId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .UseIdentityColumn();
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("FactionId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TurfWarConfigId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("deviceID")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.HasKey("TurfWarTeamAssignmentId");
-
-                    b.HasIndex("FactionId");
-
-                    b.HasIndex("TurfWarConfigId");
-
-                    b.HasIndex("deviceID");
-
-                    b.ToTable("TurfWarTeamAssignments");
                 });
 #pragma warning restore 612, 618
         }

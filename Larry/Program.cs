@@ -98,7 +98,7 @@ namespace Larry
                     //db.Database.ExecuteSqlRaw(PraxisContext.FindDBMapDataBoundsMariaDB);
                 }
 
-                MapSupport.InsertAreaTypesToDb();
+                MapSupport.InsertAreaTypesToDb(ParserSettings.DbMode);
                 MapSupport.InsertDefaultFactionsToDb();
             }
 

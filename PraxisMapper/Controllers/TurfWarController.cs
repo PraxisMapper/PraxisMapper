@@ -26,27 +26,32 @@ namespace PraxisMapper.Controllers
             foreach (var i in instances)
                 CheckForReset(i); //Do this on every call so we don't have to have an external app handle these, and we don't miss one.
         }
-        public string LearnCell8TurfWar(int instanceID, string Cell10)
+
+        [HttpGet]
+        [Route("/[controller]/LearnCell8/{instanceID}/{Cell8}")]
+        public string LearnCell8(int instanceID, string Cell8)
         {
             //Which factions own which Cell10s nearby?
             var db = new PraxisContext();
-            string Cell8 = Cell10.Substring(0, 8);
             var cellData = db.TurfWarEntries.Where(t => t.TurfWarConfigId == instanceID && t.Cell8 == Cell8).ToList();
-            string results = Cell8 + "|";
+            string results = ""; //Cell8 + "|";
             foreach (var cell in cellData)
                 results += cell.Cell10 + "=" + cell.FactionId + "|";
 
             return results;
         }
 
-        public void ClaimCell10TurfWar(int factionId, string Cell10)
+        [HttpGet]
+        [Route("/[controller]/ClaimCell10/{factionId}/{Cell10}")]
+        public void ClaimCell10(int factionId, string Cell10)
         {
+            //TODO: this could take a deviceID and work out which factions per instance, but then we have an entry with a player and a location. we try not to process or store those.
             //Mark this cell10 as belonging to this faction, update the lockout timer.
             var db = new PraxisContext();
             //run all the instances at once.
             foreach (var config in db.TurfWarConfigs.ToList())
             {
-                var entry = db.TurfWarEntries.Where(t => t.TurfWarConfigId == config.TurfWarConfigId && t.FactionId == factionId && t.Cell10 == Cell10).First();
+                var entry = db.TurfWarEntries.Where(t => t.TurfWarConfigId == config.TurfWarConfigId && t.FactionId == factionId && t.Cell10 == Cell10).FirstOrDefault();
                 if (entry == null)
                 {
                     entry = new DbTables.TurfWarEntry() { Cell10 = Cell10, TurfWarConfigId = config.TurfWarConfigId, Cell8 = Cell10.Substring(0, 8), CanFlipFactionAt = DateTime.Now.AddSeconds(-1) };
@@ -62,21 +67,26 @@ namespace PraxisMapper.Controllers
             db.SaveChanges();
         }
 
+        [HttpGet]
+        [Route("/[controller]/Scoreboard/{instanceID}")]
         public string Scoreboard(int instanceID)
         {
             //which faction has the most cell10s?
             //also, report time, primarily for recordkeeping 
             var db = new PraxisContext();
+            var teams = db.Factions.ToLookup(k => k.FactionId, v => v.Name);
             var data = db.TurfWarEntries.Where(t => t.TurfWarConfigId == instanceID).GroupBy(g => g.FactionId).Select(t => new { instanceID = instanceID,  team = t.Key, score = t.Count()}).OrderBy(t => t.score).ToList();
             //TODO: data to string of some kind.
             string results = instanceID.ToString() + "#" + DateTime.Now + "|";
             foreach (var d in data)
             {
-                results += d.team + "=" + d.score +"|";
+                results += teams[d.team].FirstOrDefault() + "=" + d.score +"|";
             }
             return results;
         }
 
+        [HttpGet] //TODO this is a POST
+        [Route("/[controller]/ModeTime/{instanceID}")]
         public TimeSpan ModeTime(int instanceID)
         {
             //how much time remains in the current session. Might be 3 minute rounds, might be week long rounds.
@@ -99,6 +109,8 @@ namespace PraxisMapper.Controllers
             twConfig.TurfWarNextReset = nextTime;
             
             db.TurfWarEntries.RemoveRange(db.TurfWarEntries.Where(tw => tw.TurfWarConfigId == instanceID));
+            //Do these need removed?... Yes. The alternative is indexing ExpiresAt and checking that column on Assignment to only include current rows. This option should be better performing in general.
+            db.TurfWarTeamAssignments.RemoveRange(db.TurfWarTeamAssignments.Where(ta => ta.TurfWarConfigId == instanceID || ta.ExpiresAt < DateTime.Now));
 
             //record score results.
             var score = new DbTables.TurfWarScoreRecord();
@@ -119,5 +131,52 @@ namespace PraxisMapper.Controllers
             if (DateTime.Now < twConfig.TurfWarNextReset)
                 ResetGame(instanceID);
         }
+
+        [HttpGet]
+        [Route("/[controller]/GetInstances/")]
+        public string GetInstances()
+        {
+            var db = new PraxisContext();
+            var instances = db.TurfWarConfigs.ToList();
+            string results = "";
+            foreach (var i in instances)
+            {
+                results += i.TurfWarConfigId + "|" + i.TurfWarNextReset.ToString() + "|" + i.Name + Environment.NewLine;
+            }
+
+            return results;
+        }
+        public int AssignTeam(int instanceID, string deviceID)
+        {
+            //Which team are you on per instance?
+
+            var db = new PraxisContext();
+            var config = db.TurfWarConfigs.Where(c => c.TurfWarConfigId == instanceID).FirstOrDefault();
+            var teamEntry = db.TurfWarTeamAssignments.Where(ta => ta.deviceID == deviceID && ta.TurfWarConfigId == instanceID).FirstOrDefault();
+            if (teamEntry == null)
+            {
+                teamEntry = new DbTables.TurfWarTeamAssignment();
+                teamEntry.deviceID = deviceID;
+                teamEntry.TurfWarConfigId = instanceID;
+                db.TurfWarTeamAssignments.Add(teamEntry);
+            }
+
+            //Sanity check - if we're mid-run and have an assignment, keep it.
+            if (teamEntry.ExpiresAt > DateTime.Now)
+                return teamEntry.FactionId;
+
+            var smallestTeam = db.TurfWarTeamAssignments
+                .Where(ta => ta.TurfWarConfigId == instanceID)
+                .GroupBy(ta => ta.FactionId)
+                .Select(ta => new { team = ta.Key, members = ta.Count() })
+                .OrderBy(ta => ta.members)
+                .First().team;
+
+            teamEntry.FactionId = smallestTeam;
+            teamEntry.ExpiresAt = config.TurfWarNextReset;
+            db.SaveChanges();
+            return teamEntry.FactionId;
+        }
+
     }
 }
