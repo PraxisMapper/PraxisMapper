@@ -175,7 +175,6 @@ namespace PraxisMapper.Controllers
                 });
             });
 
-            //TODO: again for Cell8, once I generate cell8 faction control tiles?
             pt.Stop(md.MapDataId + "|" + md.name);
         }
 
@@ -183,6 +182,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/GetFactions")]
         public string GetFactionInfo()
         {
+            //TODO: move this to a general controller, since factions apply to multiple game modes?
             PraxisContext db = new PraxisContext();
             var factions = db.Factions.ToList();
             string results = "";
