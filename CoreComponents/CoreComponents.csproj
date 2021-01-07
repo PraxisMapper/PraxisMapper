@@ -81,6 +81,8 @@
     <Compile Include="Migrations\20210104155045_GMDtimestamp.Designer.cs" />
     <Compile Include="Migrations\20210105184046_turfwar5.cs" />
     <Compile Include="Migrations\20210105184046_turfwar5.Designer.cs" />
+    <Compile Include="Migrations\20210107175416_TurfWar7.cs" />
+    <Compile Include="Migrations\20210107175416_TurfWar7.Designer.cs" />
     <Compile Include="Migrations\GpsExploreContextModelSnapshot.cs" />
   </ItemGroup>
 

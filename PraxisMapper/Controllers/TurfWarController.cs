@@ -18,13 +18,15 @@ namespace PraxisMapper.Controllers
         //3) No direct interaction with the device is required. Game needs to be open, thats all.
         //The leaderboards for TurfWar reset regularly (weekly? Hourly? ), and could be set to reset very quickly and restart (3 minutes of gameplay, 1 paused for reset). 
         //Default config is a weekly run Sat-Fri, with a 30 second lockout on cells.
+        //TODO: allow pre-configured teams for specific events? this is difficult if I don't want to track users on the server, since this would have to be by deviceID
 
         public TurfWarController()
         {
             var db = new PraxisContext();
-            var instances = db.TurfWarConfigs.Select(t => t.TurfWarConfigId).ToList();
+            var instances = db.TurfWarConfigs.ToList();
             foreach (var i in instances)
-                CheckForReset(i); //Do this on every call so we don't have to have an external app handle these, and we don't miss one.
+                if (i.Repeating) //Don't check this on non-repeating instances.
+                CheckForReset(i.TurfWarConfigId); //Do this on every call so we don't have to have an external app handle these, and we don't miss one.
         }
 
         [HttpGet]
@@ -49,7 +51,7 @@ namespace PraxisMapper.Controllers
             //Mark this cell10 as belonging to this faction, update the lockout timer.
             var db = new PraxisContext();
             //run all the instances at once.
-            foreach (var config in db.TurfWarConfigs.ToList())
+            foreach (var config in db.TurfWarConfigs.Where(t => t.Repeating || (t.StartTime < DateTime.Now && t.TurfWarNextReset > DateTime.Now)).ToList())
             {
                 var entry = db.TurfWarEntries.Where(t => t.TurfWarConfigId == config.TurfWarConfigId && t.FactionId == factionId && t.Cell10 == Cell10).FirstOrDefault();
                 if (entry == null)
@@ -85,6 +87,14 @@ namespace PraxisMapper.Controllers
             return results;
         }
 
+        public static string PastScoreboards()
+        {
+            var db = new PraxisContext();
+            var results = db.TurfWarScoreRecords.OrderByDescending(t => t.RecordedAt).ToList();
+            //Scoreboard already uses # and | as separators, we will use \n now.
+            return String.Join("\n", results);
+        }
+
         [HttpGet] //TODO this is a POST
         [Route("/[controller]/ModeTime/{instanceID}")]
         public TimeSpan ModeTime(int instanceID)
@@ -115,6 +125,7 @@ namespace PraxisMapper.Controllers
             //record score results.
             var score = new DbTables.TurfWarScoreRecord();
             score.Results = Scoreboard(instanceID);
+            score.RecordedAt = DateTime.Now;
             db.TurfWarScoreRecords.Add(score);
             db.SaveChanges();
             isResetting = false;

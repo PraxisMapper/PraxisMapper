@@ -13,6 +13,8 @@ namespace CoreComponents
     {
         public class PlayerData
         {
+            //TODO: clear out the game-mode-specific stuff here from when this was all one mode.
+            //Move that to some single player specific mode, or the device itself.
             public int PlayerDataID { get; set; }
             public string deviceID { get; set; }
             public int t10Cells { get; set; }
@@ -26,7 +28,9 @@ namespace CoreComponents
             public double totalSpeed { get; set; }
             public int altitudeSpread { get; set; }
             public DateTime lastSyncTime { get; set; }
-            public int FactionID { get; set; }
+            public int FactionID { get; set; } //This might be moved to game mode specific stuff, not a single general one.
+
+            public string DisplayName { get; set; }
         }
 
         public class PerformanceInfo
@@ -136,6 +140,8 @@ namespace CoreComponents
             public int TurfWarDurationHours { get; set; } //how long to let a game run for. Set to -1 to make a permanent turf war mode.
             public DateTime TurfWarNextReset { get; set; } //add TurfWarDurationHours to this if we're past the expiration time. Subtract to see the last reset date.
             public int Cell10LockoutTimer { get; set; } //The number of seconds that a Cell10 entry cannot be flipped for when a valid claim happens.
+            public bool Repeating { get; set; } //Does this instance automatically repeat
+            public DateTime StartTime { get; set; } //For non-repeating instances, when to start taking requests.
         }
 
         public class TurfWarScoreRecord
@@ -145,6 +151,7 @@ namespace CoreComponents
             public string Results { get; set; } //A concatenated set of results into one column.
             public int WinningFactionID { get; set; }
             public int WinningScore { get; set; }
+            public DateTime RecordedAt { get; set; }
         }
 
         //Note: this is the server tracking user devices for Turf War team assignments. This doesn't track any data about the user or their device
