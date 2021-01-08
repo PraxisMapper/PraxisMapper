@@ -77,9 +77,10 @@ namespace PraxisMapper.Controllers
             //also, report time, primarily for recordkeeping 
             var db = new PraxisContext();
             var teams = db.Factions.ToLookup(k => k.FactionId, v => v.Name);
-            var data = db.TurfWarEntries.Where(t => t.TurfWarConfigId == instanceID).GroupBy(g => g.FactionId).Select(t => new { instanceID = instanceID,  team = t.Key, score = t.Count()}).OrderBy(t => t.score).ToList();
+            var data = db.TurfWarEntries.Where(t => t.TurfWarConfigId == instanceID).GroupBy(g => g.FactionId).Select(t => new { instanceID = instanceID,  team = t.Key, score = t.Count()}).OrderByDescending(t => t.score).ToList();
+            var modeName = db.TurfWarConfigs.Where(t => t.TurfWarConfigId == instanceID).FirstOrDefault().Name;
             //TODO: data to string of some kind.
-            string results = instanceID.ToString() + "#" + DateTime.Now + "|";
+            string results = modeName + "#" + DateTime.Now + "|";
             foreach (var d in data)
             {
                 results += teams[d.team].FirstOrDefault() + "=" + d.score +"|";
