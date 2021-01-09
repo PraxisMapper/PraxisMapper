@@ -83,6 +83,10 @@
     <Compile Include="Migrations\20210105184046_turfwar5.Designer.cs" />
     <Compile Include="Migrations\20210107175416_TurfWar7.cs" />
     <Compile Include="Migrations\20210107175416_TurfWar7.Designer.cs" />
+    <Compile Include="Migrations\20210109161529_chek.cs" />
+    <Compile Include="Migrations\20210109161529_chek.Designer.cs" />
+    <Compile Include="Migrations\20210109163926_errorlog.cs" />
+    <Compile Include="Migrations\20210109163926_errorlog.Designer.cs" />
     <Compile Include="Migrations\GpsExploreContextModelSnapshot.cs" />
   </ItemGroup>
 

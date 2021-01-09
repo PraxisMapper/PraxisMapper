@@ -22,31 +22,50 @@ namespace PraxisMapper.Controllers
 
         public TurfWarController()
         {
-            var db = new PraxisContext();
-            var instances = db.TurfWarConfigs.ToList();
-            foreach (var i in instances)
-                if (i.Repeating) //Don't check this on non-repeating instances.
-                CheckForReset(i.TurfWarConfigId); //Do this on every call so we don't have to have an external app handle these, and we don't miss one.
+            try
+            {
+                Classes.PerformanceTracker pt = new Classes.PerformanceTracker("TurfWarConstructor");
+                var db = new PraxisContext();
+                var instances = db.TurfWarConfigs.ToList();
+                foreach (var i in instances)
+                    if (i.Repeating) //Don't check this on non-repeating instances.
+                        CheckForReset(i.TurfWarConfigId); //Do this on every call so we don't have to have an external app handle these, and we don't miss one.
+                pt.Stop();
+            }
+            catch(Exception ex)
+            {
+                Classes.ErrorLogger.LogError(ex);
+            }
         }
 
         [HttpGet]
         [Route("/[controller]/LearnCell8/{instanceID}/{Cell8}")]
         public string LearnCell8(int instanceID, string Cell8)
         {
-            //Which factions own which Cell10s nearby?
-            var db = new PraxisContext();
-            var cellData = db.TurfWarEntries.Where(t => t.TurfWarConfigId == instanceID && t.Cell8 == Cell8).ToList();
-            string results = ""; //Cell8 + "|";
-            foreach (var cell in cellData)
-                results += cell.Cell10 + "=" + cell.FactionId + "|";
-
-            return results;
+            try
+            {
+                Classes.PerformanceTracker pt = new Classes.PerformanceTracker("LearnCell8");
+                //Which factions own which Cell10s nearby?
+                var db = new PraxisContext();
+                var cellData = db.TurfWarEntries.Where(t => t.TurfWarConfigId == instanceID && t.Cell8 == Cell8).ToList();
+                string results = ""; //Cell8 + "|";
+                foreach (var cell in cellData)
+                    results += cell.Cell10 + "=" + cell.FactionId + "|";
+                pt.Stop(Cell8);
+                return results;
+            }
+            catch(Exception ex)
+            {
+                Classes.ErrorLogger.LogError(ex);
+                return "";
+            }
         }
 
         [HttpGet]
         [Route("/[controller]/ClaimCell10/{factionId}/{Cell10}")]
         public void ClaimCell10(int factionId, string Cell10)
         {
+            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("ClaimCell10");
             //TODO: this could take a deviceID and work out which factions per instance, but then we have an entry with a player and a location. we try not to process or store those.
             //Mark this cell10 as belonging to this faction, update the lockout timer.
             var db = new PraxisContext();
@@ -67,12 +86,14 @@ namespace PraxisMapper.Controllers
                 }
             }
             db.SaveChanges();
+            pt.Stop(Cell10);
         }
 
         [HttpGet]
         [Route("/[controller]/Scoreboard/{instanceID}")]
         public string Scoreboard(int instanceID)
         {
+            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("Scoreboard");
             //which faction has the most cell10s?
             //also, report time, primarily for recordkeeping 
             var db = new PraxisContext();
@@ -85,29 +106,37 @@ namespace PraxisMapper.Controllers
             {
                 results += teams[d.team].FirstOrDefault() + "=" + d.score +"|";
             }
+            pt.Stop(instanceID.ToString());
             return results;
         }
 
         public static string PastScoreboards()
         {
+            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("PastScoreboards");
             var db = new PraxisContext();
             var results = db.TurfWarScoreRecords.OrderByDescending(t => t.RecordedAt).ToList();
             //Scoreboard already uses # and | as separators, we will use \n now.
-            return String.Join("\n", results);
+            var parsedResults = String.Join("\n", results);
+            pt.Stop();
+            return parsedResults;
         }
 
         [HttpGet] //TODO this is a POST
         [Route("/[controller]/ModeTime/{instanceID}")]
         public TimeSpan ModeTime(int instanceID)
         {
+            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("ModeTime");
             //how much time remains in the current session. Might be 3 minute rounds, might be week long rounds.
             var db = new PraxisContext();
             var time = db.TurfWarConfigs.Where(t => t.TurfWarConfigId == instanceID).Select(t => t.TurfWarNextReset).FirstOrDefault();
+            pt.Stop(instanceID.ToString());
             return DateTime.Now - time;
         }
 
         public void ResetGame(int instanceID, bool manaulReset = false, DateTime? nextEndTime = null)
         {
+            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("ResetGame");
+
             isResetting = true;
             //TODO: determine if any of these commands needs to be raw SQL for performance reasons.
             //Clear out any stored data and fire the game mode off again.
@@ -130,10 +159,13 @@ namespace PraxisMapper.Controllers
             db.TurfWarScoreRecords.Add(score);
             db.SaveChanges();
             isResetting = false;
+            pt.Stop(instanceID.ToString());
         }
 
         public void CheckForReset(int instanceID)
         {
+            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("CheckForReset");
+
             //TODO: cache these results into memory so I can skip a DB lookup every single call.
             var db = new PraxisContext();
             var twConfig = db.TurfWarConfigs.Where(t => t.TurfWarConfigId == instanceID).FirstOrDefault();
@@ -142,12 +174,15 @@ namespace PraxisMapper.Controllers
             
             if (DateTime.Now < twConfig.TurfWarNextReset)
                 ResetGame(instanceID);
+            pt.Stop();
         }
 
         [HttpGet]
         [Route("/[controller]/GetInstances/")]
         public string GetInstances()
         {
+            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("GetInstances");
+
             var db = new PraxisContext();
             var instances = db.TurfWarConfigs.ToList();
             string results = "";
@@ -155,12 +190,13 @@ namespace PraxisMapper.Controllers
             {
                 results += i.TurfWarConfigId + "|" + i.TurfWarNextReset.ToString() + "|" + i.Name + Environment.NewLine;
             }
-
+            pt.Stop();
             return results;
         }
         public int AssignTeam(int instanceID, string deviceID)
         {
             //Which team are you on per instance?
+            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("AssignTeam");
 
             var db = new PraxisContext();
             var config = db.TurfWarConfigs.Where(c => c.TurfWarConfigId == instanceID).FirstOrDefault();
@@ -175,7 +211,10 @@ namespace PraxisMapper.Controllers
 
             //Sanity check - if we're mid-run and have an assignment, keep it.
             if (teamEntry.ExpiresAt > DateTime.Now)
+            {
+                pt.Stop(deviceID + "|" + instanceID.ToString());
                 return teamEntry.FactionId;
+            }
 
             var smallestTeam = db.TurfWarTeamAssignments
                 .Where(ta => ta.TurfWarConfigId == instanceID)
@@ -187,8 +226,8 @@ namespace PraxisMapper.Controllers
             teamEntry.FactionId = smallestTeam;
             teamEntry.ExpiresAt = config.TurfWarNextReset;
             db.SaveChanges();
+            pt.Stop(deviceID + "|" + instanceID.ToString());
             return teamEntry.FactionId;
         }
-
     }
 }
