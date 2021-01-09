@@ -4,15 +4,17 @@ using CoreComponents;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 
 namespace CoreComponents.Migrations
 {
     [DbContext(typeof(PraxisContext))]
-    partial class GpsExploreContextModelSnapshot : ModelSnapshot
+    [Migration("20210109161529_chek")]
+    partial class chek
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -70,27 +72,6 @@ namespace CoreComponents.Migrations
                     b.HasKey("AreaTypeId");
 
                     b.ToTable("AreaTypes");
-                });
-
-            modelBuilder.Entity("CoreComponents.DbTables+ErrorLog", b =>
-                {
-                    b.Property<int>("ErrorLogId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .UseIdentityColumn();
-
-                    b.Property<DateTime>("LoggedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Message")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("StackTrace")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("ErrorLogId");
-
-                    b.ToTable("ErrorLogs");
                 });
 
             modelBuilder.Entity("CoreComponents.DbTables+Faction", b =>

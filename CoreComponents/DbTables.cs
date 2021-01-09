@@ -165,6 +165,16 @@ namespace CoreComponents
             public DateTime ExpiresAt { get; set; } //Set to the finish time for this TurfWarConfigId
         }
 
+        public class ErrorLog
+        {
+            public int ErrorLogId { get; set; }
+            public string Message { get; set; }
+            public string StackTrace { get; set; }
+            public DateTime LoggedAt { get; set; }
+
+        }
+
+
     }
 }
 
