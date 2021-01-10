@@ -44,7 +44,7 @@ namespace PraxisMapper.Controllers
         {
             try
             {
-                Classes.PerformanceTracker pt = new Classes.PerformanceTracker("LearnCell8");
+                Classes.PerformanceTracker pt = new Classes.PerformanceTracker("LearnCell8TurfWar");
                 //Which factions own which Cell10s nearby?
                 var db = new PraxisContext();
                 var cellData = db.TurfWarEntries.Where(t => t.TurfWarConfigId == instanceID && t.Cell8 == Cell8).ToList();
@@ -65,7 +65,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/ClaimCell10/{factionId}/{Cell10}")]
         public void ClaimCell10(int factionId, string Cell10)
         {
-            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("ClaimCell10");
+            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("ClaimCell10TurfWar");
             //TODO: this could take a deviceID and work out which factions per instance, but then we have an entry with a player and a location. we try not to process or store those.
             //Mark this cell10 as belonging to this faction, update the lockout timer.
             var db = new PraxisContext();
@@ -93,7 +93,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Scoreboard/{instanceID}")]
         public string Scoreboard(int instanceID)
         {
-            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("Scoreboard");
+            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("ScoreboardTurfWar");
             //which faction has the most cell10s?
             //also, report time, primarily for recordkeeping 
             var db = new PraxisContext();
