@@ -174,6 +174,20 @@ namespace CoreComponents
 
         }
 
+        public class TagParserEntry
+        {
+            //For users that customize the rules for parsing tags.
+            //Some types may have duplicate entries to handle wider spreads?
+            //Will need to support ||, &&, and ! conditions.
+            //Tag pairs are Key:Value per OSM data.
+            public int id { get; set; }
+            public string name { get; set; }
+            public int typeID { get; set; }
+            public string matchRules { get; set; }
+            public string HtmlColorCode { get; set; }
+            public int Priority { get; set; } //order tags should be matched in. EX: Retail should be matched before Building, since its more specific and useful.
+        }
+
 
     }
 }

@@ -96,6 +96,12 @@ namespace CoreComponents
             new Faction() { HtmlColor = "87CEEB", Name = "Blue Team" }, //Sky blue, versus deep blue that matches Water elements.
         };
 
+        public static List<TagParserEntry> defaultTagParserEntries = new List<TagParserEntry>()
+        { 
+            new TagParserEntry() { name = "wetland", typeID = 2, matchRules =  "natural:wetland" }
+        };
+
+
         public static List<MapData> GetPlaces(GeoArea area, List<MapData> source = null)
         {
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
@@ -380,9 +386,12 @@ namespace CoreComponents
             //Something with a type and no name was found to be interesting but not named
             //something with a name and no type is probably an excluded entry.
             //I always want a type. Names are optional.
-            Log.WriteLog("Processing Way " + w.id + " to MapData at " + DateTime.Now, Log.VerbosityLevels.High); //TODO: set to high verbosity
+            Log.WriteLog("Processing Way " + w.id + " " + w.name + " to MapData at " + DateTime.Now, Log.VerbosityLevels.High);
             if (w.AreaType == "")
+            {
+                w = null;
                 return null;
+            }
 
             //Take a single tagged Way, and make it a usable MapData entry for the app.
             MapData md = new MapData();
@@ -402,6 +411,7 @@ namespace CoreComponents
                 if (w.nds.Count <= 3)
                 {
                     Log.WriteLog("Way " + w.id + " doesn't have enough nodes to parse into a Polygon and first/last points are the same. This entry is an awkward line, not processing.");
+                    w = null;
                     return null;
                 }
 
@@ -410,11 +420,13 @@ namespace CoreComponents
                 if (md.place == null)
                 {
                     Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not counter-clockwise forward or reversed.");
+                    w = null;
                     return null;
                 }
                 if (!md.place.IsValid)
                 {
                     Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not valid according to its own internal check.");
+                    w = null;
                     return null;
                 }
 

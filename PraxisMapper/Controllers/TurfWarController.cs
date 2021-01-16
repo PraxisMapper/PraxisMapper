@@ -24,6 +24,9 @@ namespace PraxisMapper.Controllers
         {
             try
             {
+                if (isResetting)
+                    return;
+
                 Classes.PerformanceTracker pt = new Classes.PerformanceTracker("TurfWarConstructor");
                 var db = new PraxisContext();
                 var instances = db.TurfWarConfigs.ToList();
@@ -135,7 +138,11 @@ namespace PraxisMapper.Controllers
 
         public void ResetGame(int instanceID, bool manaulReset = false, DateTime? nextEndTime = null)
         {
+            //It's possible that this function might be best served being an external console app.
+            //Doing the best I can here to set it up to make that unnecessary, but it may not be enough.
             Classes.PerformanceTracker pt = new Classes.PerformanceTracker("ResetGame");
+            if (isResetting)
+                return;
 
             isResetting = true;
             //TODO: determine if any of these commands needs to be raw SQL for performance reasons.
@@ -156,6 +163,7 @@ namespace PraxisMapper.Controllers
             var score = new DbTables.TurfWarScoreRecord();
             score.Results = Scoreboard(instanceID);
             score.RecordedAt = DateTime.Now;
+            score.TurfWarConfigId = instanceID;
             db.TurfWarScoreRecords.Add(score);
             db.SaveChanges();
             isResetting = false;
@@ -164,6 +172,9 @@ namespace PraxisMapper.Controllers
 
         public void CheckForReset(int instanceID)
         {
+            if (isResetting)
+                return;
+
             Classes.PerformanceTracker pt = new Classes.PerformanceTracker("CheckForReset");
 
             //TODO: cache these results into memory so I can skip a DB lookup every single call.
@@ -172,7 +183,7 @@ namespace PraxisMapper.Controllers
             if (twConfig.TurfWarDurationHours == -1) //This is a permanent instance.
                 return;
             
-            if (DateTime.Now < twConfig.TurfWarNextReset)
+            if (DateTime.Now > twConfig.TurfWarNextReset)
                 ResetGame(instanceID);
             pt.Stop();
         }
@@ -193,6 +204,18 @@ namespace PraxisMapper.Controllers
             pt.Stop();
             return results;
         }
+
+        [HttpGet]
+        [Route("/[controller]/ManualReset/{instanceID}")]
+        public string ManualReset(int instanceID)
+        {
+            //TODO: should be an admin command and require hte password.
+            ResetGame(instanceID, true);
+            return "OK";
+        }
+
+        [HttpGet]
+        [Route("/[controller]/AssignTeam/{instanceID}/deviceID")]
         public int AssignTeam(int instanceID, string deviceID)
         {
             //Which team are you on per instance?
