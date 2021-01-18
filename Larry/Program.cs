@@ -258,6 +258,7 @@ namespace Larry
                 //Tiles should be redrawn when those get made, if they get made.
                 //This should also over-write existing map tiles if present, in case the data's been updated since last run.
                 //TODO: add logic to either overwrite or skip existing tiles.
+                bool skip = true;
 
                 //Search for all areas that needs a map tile created.
                 List<string> Cell2s = new List<string>();
@@ -281,7 +282,7 @@ namespace Larry
                     }
 
                 foreach (var cell2 in Cell2s)
-                    DetectMapTilesRecursive(cell2);
+                    DetectMapTilesRecursive(cell2, skip);
             }
 
             if (args.Any(a => a == "-extractBigAreas"))
@@ -317,10 +318,18 @@ namespace Larry
             return;
         }
 
-        public static void DetectMapTilesRecursive(string parentCell)
+        public static void DetectMapTilesRecursive(string parentCell, bool skipExisting)
         {
             List<string> cellsFound = new List<string>();
             List<MapTile> tilesGenerated = new List<MapTile>(); //Might need to be a ConcurrentBag or something similar?
+            List<string> existingTiles = new List<string>();
+            if (parentCell.Length == 6 && skipExisting)
+            {
+                var db = new PraxisContext();
+                existingTiles = db.MapTiles.Where(m => m.PlusCode.StartsWith(parentCell)).Select(m => m.PlusCode).ToList();
+                db.Dispose();
+                db = null;
+            }
 
             //using 2 parallel loops is faster than 1 or 0.
             System.Threading.Tasks.Parallel.For(0, 20, (pos1) => 
@@ -333,11 +342,19 @@ namespace Larry
                     {
                         if (cellToCheck.Length == 8)
                         {
-                            //Draw this map tile
-                            var places = MapSupport.GetPlaces(area, null, false);
-                            var tileData = MapSupport.DrawAreaMapTile11(ref places, area);
-                            tilesGenerated.Add(new MapTile() { CreatedOn = DateTime.Now, mode = 1, tileData = tileData, resolutionScale = 11, PlusCode = cellToCheck });
-                            Log.WriteLog("Cell " + cellToCheck + " Drawn", Log.VerbosityLevels.High);
+                            if (skipExisting && existingTiles.Contains(cellToCheck))
+                            {
+                                //nothing
+                                Log.WriteLog("Skipping tile draw for " + cellToCheck + ", already exists", Log.VerbosityLevels.High);
+                            }
+                            else
+                            {
+                                //Draw this map tile
+                                var places = MapSupport.GetPlaces(area, null, false);
+                                var tileData = MapSupport.DrawAreaMapTile11(ref places, area);
+                                tilesGenerated.Add(new MapTile() { CreatedOn = DateTime.Now, mode = 1, tileData = tileData, resolutionScale = 11, PlusCode = cellToCheck });
+                                Log.WriteLog("Cell " + cellToCheck + " Drawn", Log.VerbosityLevels.High);
+                            }
                         }
                         else
                         {
@@ -362,7 +379,7 @@ namespace Larry
                 Log.WriteLog("Saved records for Cell " + parentCell);
             }
             foreach (var cellF in cellsFound)
-                DetectMapTilesRecursive(cellF);
+                DetectMapTilesRecursive(cellF, skipExisting);
         }
 
         public static void AddMapDataToDBFromFiles()
