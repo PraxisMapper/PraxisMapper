@@ -26,7 +26,6 @@ namespace PraxisMapper.Controllers
             {
                 if (isResetting)
                     return;
-
                 Classes.PerformanceTracker pt = new Classes.PerformanceTracker("TurfWarConstructor");
                 var db = new PraxisContext();
                 var instances = db.TurfWarConfigs.ToList();

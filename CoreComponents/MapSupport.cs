@@ -29,6 +29,7 @@ namespace CoreComponents
         //use Score for gameplay score, use CoordPair for single GPS location
         //Make all references to plus code area sizes consistent (CellX, with X the number of digits in that code)
         //Break this out into multiple classes? How so?
+        //NOTE: MariaDB's Intersects() support only operates on Minimum Bounding rectangle (Envelope in C#). This probably means I should do a 2nd interects check in C# when using MariaDB.
 
         //the 11th digit uses a 4x5 grid, not a 20x20. They need separate scaling values for X and Y and are rectangular even at the equator.
         public const double resolutionCell11Lat = .000025;
@@ -97,29 +98,53 @@ namespace CoreComponents
         };
 
         public static List<TagParserEntry> defaultTagParserEntries = new List<TagParserEntry>()
-        { 
+        {
             new TagParserEntry() { name = "wetland", typeID = 2, matchRules =  "natural:wetland" }
         };
 
 
-        public static List<MapData> GetPlaces(GeoArea area, List<MapData> source = null)
+        public static List<MapData> GetPlaces(GeoArea area, List<MapData> source = null, bool includeAdmin = true)
         {
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
             //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
-            var coordSeq = GeoAreaToCoordArray(area);
-            var location = factory.CreatePolygon(coordSeq);
+            var location = GeoAreaToPolygon(area); 
             List<MapData> places;
             if (source == null)
             {
                 var db = new CoreComponents.PraxisContext();
-                places = db.MapData.Where(md => md.place.Intersects(location)).ToList();
+                if (includeAdmin)
+                    places = db.MapData.Where(md => md.place.Intersects(location)).ToList();
+                else
+                    places = db.MapData.Where(md => md.AreaTypeId != 13 && md.place.Intersects(location)).ToList();
                 //TODO: make including generated areas a toggle? or assume that this call is trivial performance-wise on an empty table
                 //A toggle might be good since this also affects maptiles
                 places.AddRange(db.GeneratedMapData.Where(md => md.place.Intersects(location)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
             }
             else
             {
-                places = source.Where(md => md.place.Intersects(location)).ToList();
+                if (includeAdmin)
+                    places = source.Where(md => md.place.Intersects(location)).ToList();
+                else
+                    places = source.Where(md => md.AreaTypeId != 13 && md.place.Intersects(location)).ToList();
+            }
+            return places;
+        }
+
+        public static bool DoPlacesExist(GeoArea area, List<MapData> source = null)
+        {
+            //As GetPlaces, but only checks if there are entries. This also currently loads admin boundaries as well for determining if stuff 'exists'.
+            var location = GeoAreaToPolygon(area);
+            bool places;
+            if (source == null)
+            {
+                var db = new PraxisContext();
+                places = db.MapData.Any(md => md.place.Intersects(location) && md.AreaTypeId != 13); //Ignore admin boundaries for this purpose.
+                places = places || db.GeneratedMapData.Any(md => md.place.Intersects(location));
+                return places;
+            }
+            else
+            {
+                places = source.Any(md => md.place.Intersects(location));
             }
             return places;
         }
@@ -222,11 +247,11 @@ namespace CoreComponents
             {
                 string olc;
                 //if (entireCode)
-                    olc = new OpenLocationCode(y, x).CodeDigits;
+                olc = new OpenLocationCode(y, x).CodeDigits;
                 //else
-                    //TODO: decide on passing in a value for the split instead of a bool so this can be reused a little more
-                    //olc = new OpenLocationCode(y, x).CodeDigits.Substring(6, 4); //This takes lat, long, Coordinate takes X, Y. This line is correct.
-                   // olc = new OpenLocationCode(y, x).CodeDigits.Substring(8, 2); //This takes lat, long, Coordinate takes X, Y. This line is correct.
+                //TODO: decide on passing in a value for the split instead of a bool so this can be reused a little more
+                //olc = new OpenLocationCode(y, x).CodeDigits.Substring(6, 4); //This takes lat, long, Coordinate takes X, Y. This line is correct.
+                // olc = new OpenLocationCode(y, x).CodeDigits.Substring(8, 2); //This takes lat, long, Coordinate takes X, Y. This line is correct.
                 return new Cell10Info(area.name, olc, area.AreaTypeId);
             }
             return null;
@@ -270,8 +295,12 @@ namespace CoreComponents
 
         public static int GetAreaTypeFor11Cell(double x, double y, ref List<MapData> places)
         {
+            if (places.Count() == 0) //One shortcut: if we have no places to check, don't bother with the rest of the logic.
+                return 0;
+
+            //We can't shortcut this intersection check past that. This is the spot where we determine what's in this Cell11, and can't assume the list contains an overlapping entry.
             var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell11Lat, x + resolutionCell11Lon));
-            var entriesHere = MapSupport.GetPlaces(box, places).Where(p => p.AreaTypeId != 13).ToList(); //Excluding admin boundaries from this list.  
+            var entriesHere = MapSupport.GetPlaces(box, places, false).ToList(); //Excluding admin boundaries from this list.  
 
             if (entriesHere.Count() == 0)
                 return 0;
@@ -322,12 +351,12 @@ namespace CoreComponents
             //else if there's a Line in the mapdata list, take the shortest one by length
             //else if there's polygonal areas here, take the smallest one by area 
             //(In general, the smaller areas should be overlaid on larger areas.)
-            if (entries.Count() == 1)
+            if (entries.Count() == 1) //simple optimization
                 return entries.First();
 
             var place = entries.Where(e => e.place.GeometryType == "Point").FirstOrDefault();
             if (place == null)
-                 place= entries.Where(e => e.place.GeometryType == "LineString" || e.place.GeometryType == "MultiLineString").OrderBy(e => e.place.Length).FirstOrDefault();
+                place = entries.Where(e => e.place.GeometryType == "LineString" || e.place.GeometryType == "MultiLineString").OrderBy(e => e.place.Length).FirstOrDefault();
             if (place == null)
                 place = entries.Where(e => e.place.GeometryType == "Polygon" || e.place.GeometryType == "MultiPolygon").OrderBy(e => e.place.Area).FirstOrDefault();
             return place;
@@ -627,12 +656,12 @@ namespace CoreComponents
         {
             var db = new PraxisContext();
             db.Database.BeginTransaction();
-             if (dbType == "SQLServer") 
-                    db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT AreaTypes ON;");
+            if (dbType == "SQLServer")
+                db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT AreaTypes ON;");
             db.AreaTypes.AddRange(areaTypes);
             db.SaveChanges();
             if (dbType == "SQLServer")
-                db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT dbo.AreaTypes OFF;"); 
+                db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT dbo.AreaTypes OFF;");
             //TODO: mariadb might need an identity value manually updated when an ID is inserted.
             db.Database.CommitTransaction();
         }
@@ -654,8 +683,8 @@ namespace CoreComponents
             nextSaturday.AddSeconds(-nextSaturday.Second);
 
             var tomorrow = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day).AddDays(1);
-            db.TurfWarConfigs.Add(new TurfWarConfig() { Name = "All-Time", Cell10LockoutTimer = 300, TurfWarDurationHours = -1, TurfWarNextReset = nextSaturday }); 
-            db.TurfWarConfigs.Add(new TurfWarConfig() { Name = "Weekly",  Cell10LockoutTimer = 300, TurfWarDurationHours = 168, TurfWarNextReset = nextSaturday }); 
+            db.TurfWarConfigs.Add(new TurfWarConfig() { Name = "All-Time", Cell10LockoutTimer = 300, TurfWarDurationHours = -1, TurfWarNextReset = nextSaturday });
+            db.TurfWarConfigs.Add(new TurfWarConfig() { Name = "Weekly", Cell10LockoutTimer = 300, TurfWarDurationHours = 168, TurfWarNextReset = nextSaturday });
             db.TurfWarConfigs.Add(new TurfWarConfig() { Name = "Daily", Cell10LockoutTimer = 30, TurfWarDurationHours = 24, TurfWarNextReset = tomorrow });
             db.SaveChanges();
         }
@@ -746,9 +775,10 @@ namespace CoreComponents
             //subLevel1 = "us";
             //subLevel2 = "ohio";
             var wc = new WebClient();
-            wc.DownloadFile("http://download.geofabrik.de/" + topLevel + "/" + subLevel1 + "/" + subLevel2 + "-latest.osm.pbf", destinationFolder +  subLevel2 + "-latest.osm.pbf");
+            wc.DownloadFile("http://download.geofabrik.de/" + topLevel + "/" + subLevel1 + "/" + subLevel2 + "-latest.osm.pbf", destinationFolder + subLevel2 + "-latest.osm.pbf");
         }
 
+        //TODO: drop in optimizations for the Cell11 resolution version into this function. 
         public static byte[] DrawAreaMapTile(ref List<MapData> allPlaces, GeoArea totalArea)
         {
             List<MapData> rowPlaces;
@@ -784,32 +814,59 @@ namespace CoreComponents
         }
 
         // as above but each pixel is an 11 cell instead of a 10 cell. more detail but slower.
+        //NOTE: this function has been better optimized than the above. 
         public static byte[] DrawAreaMapTile11(ref List<MapData> allPlaces, GeoArea totalArea)
         {
-            //TODO: consider getting a list of X row places, and a list of Y column places, and instead of doing a Geography.Intersects() check, only check areas that are in both?
-            //EX: with 48 entries in rowPlaces, each pixel takes ~100ms to draw apparently (with a Cell6 area). This could be  
             List<MapData> rowPlaces;
             //create a new bitmap.
             MemoryStream ms = new MemoryStream();
             //pixel formats. RBGA32 allows for hex codes. RGB24 doesnt?
             int imagesizeX = (int)Math.Floor(totalArea.LongitudeWidth / resolutionCell11Lon); //scales to area size
-            int imagesizeY = (int)Math.Floor(totalArea.LatitudeHeight / resolutionCell11Lat); //scales to area size
+            int imagesizeY = (int)Math.Floor(totalArea.LatitudeHeight / resolutionCell11Lat); //scales to area size          
+
+            double[] xCoords = new double[imagesizeX + 1];
+            double[] yCoords = new double[imagesizeY + 1];
+            List<GeoArea> areas = new List<GeoArea>();
+            for (int i = 0; i <= imagesizeX; i++)
+            {
+                xCoords[i] = totalArea.Min.Longitude + (MapSupport.resolutionCell11Lon * i);
+            }
+            for (int i = 0; i <= imagesizeY; i++)
+            {
+                yCoords[i] = totalArea.Min.Latitude + (MapSupport.resolutionCell11Lat * i);
+            }
+
+            //pre-cache the set of data we need per column. Storing IDs saves us a lot of Intersects checks later.
+            List<long>[] columnPlaces = new List<long>[imagesizeX];
+            for (int i = 0; i < imagesizeX; i++)
+            {
+                columnPlaces[i] = MapSupport.GetPlaces(new GeoArea(new GeoPoint(totalArea.Min.Latitude, xCoords[i]), new GeoPoint(totalArea.Max.Latitude, xCoords[i + 1])), allPlaces, false).Select(m => m.MapDataId).ToList();
+            }
+
             using (var image = new Image<Rgba32>(imagesizeX, imagesizeY)) //each 11 cell in this area is a pixel.
             {
                 image.Mutate(x => x.Fill(Rgba32.ParseHex(MapSupport.areaColorReference[999].First()))); //set all the areas to the background color
                 for (int y = 0; y < image.Height; y++)
                 {
-                    //Dramatic performance improvement by limiting this to just the row's area. On larger maps, might also improve it more by cutting it down to places that exist on the X axis, but that needs a cached list of 
-                    rowPlaces = MapSupport.GetPlaces(new GeoArea(new GeoPoint(totalArea.Min.Latitude + (MapSupport.resolutionCell11Lat * y), totalArea.Min.Longitude), new GeoPoint(totalArea.Min.Latitude + (MapSupport.resolutionCell11Lat * (y + 1)), totalArea.Max.Longitude)), allPlaces);
-                    Span<Rgba32> pixelRow = image.GetPixelRowSpan(image.Height - y - 1); //Plus code data is searched south-to-north, image is inverted otherwise.
-                    for (int x = 0; x < image.Width; x++)
+                    //Dramatic performance improvement by limiting this to just the row's area.
+                    rowPlaces = MapSupport.GetPlaces(new GeoArea(new GeoPoint(yCoords[y], totalArea.Min.Longitude), new GeoPoint(yCoords[y + 1], totalArea.Max.Longitude)), allPlaces, false);
+                    if (rowPlaces.Count() != 0) //don't bother drawing the row if there's nothing in it.
                     {
-                        //Set the pixel's color by its type.
-                        int placeData = MapSupport.GetAreaTypeFor11Cell(totalArea.Min.Longitude + (MapSupport.resolutionCell11Lon * x), totalArea.Min.Latitude + (MapSupport.resolutionCell11Lat * y), ref rowPlaces);
-                        if (placeData != 0)
+                        Span<Rgba32> pixelRow = image.GetPixelRowSpan(image.Height - y - 1); //Plus code data is searched south-to-north, image is inverted otherwise.
+                        for (int x = 0; x < image.Width; x++)
                         {
-                            var color = MapSupport.areaColorReference[placeData].First();
-                            pixelRow[x] = Rgba32.ParseHex(color); //set to appropriate type color
+                            if (columnPlaces[x].Count() != 0) //if this column has no places, don't bother checking either. This is just as fast or faster than saving a list/array of columns to check.
+                            {
+                                //Set the pixel's color by its type.
+                                int placeData = 0;
+                                var tempPlaces = rowPlaces.Where(r => columnPlaces[x].Contains(r.MapDataId)).ToList(); //reduces Intersects() calls done in the next function
+                                placeData = MapSupport.GetAreaTypeFor11Cell(xCoords[x], yCoords[y], ref tempPlaces);
+                                if (placeData != 0)
+                                {
+                                    var color = MapSupport.areaColorReference[placeData].First();
+                                    pixelRow[x] = Rgba32.ParseHex(color); //set to appropriate type color
+                                }
+                            }
                         }
                     }
                 }
@@ -919,7 +976,7 @@ namespace CoreComponents
             int shapeCount = 1; // 2; //number of shapes to apply to the Cell8
             double shapeWarp = .3; //percentage a shape is allowed to have its verteces drift by.
             List<GeneratedMapData> areasToAdd = new List<GeneratedMapData>();
-            
+
             for (int i = 0; i < shapeCount; i++)
             {
                 //Pick a shape
@@ -979,8 +1036,8 @@ namespace CoreComponents
                     //TODO: Erase an existing Cell8/Cell10 map tile and let it get replaced next call.
                     //This should only ever require checking the map tile north/east of the current one, even though the vertex fuzzing can potentially move things negative slightly.
                     Log.WriteLog("This polygon is outside of the Cell8 by " + (cell8.Max.Latitude - shapeToAdd.Max(s => s.Y)) + "/" + (cell8.Max.Longitude - shapeToAdd.Max(s => s.X)), Log.VerbosityLevels.High);
-                    
-                    
+
+
                 }
                 if (polygon != null)
                 {
@@ -1016,7 +1073,7 @@ namespace CoreComponents
             return areasToAdd;
         }
 
-        public static void ExpireCellData(string? plusCode = "" , int? MapDataId = 0)
+        public static void ExpireCellData(string? plusCode = "", int? MapDataId = 0)
         {
             //TODO: this function.
             //Clear out anything generated involving the given area so that it can be regenerated.
