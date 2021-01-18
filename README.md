@@ -12,7 +12,7 @@ Visual Studio 2019 16.8 Community (or the mac/linux equivalent)
 
 .NET 5.0
 
-SQL Server 2018 or newer OR MariaDB 10.5+
+SQL Server 2018 or newer OR MariaDB 10.2+ (Developed with 10.5, but spatial features are present in 10.2 and on)
 
 
 
