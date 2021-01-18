@@ -96,6 +96,7 @@ namespace Larry
                     //db.Database.ExecuteSqlRaw(PraxisContext.MapDataValidTriggerMariaDB);
                     //db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataValidTriggerMariaDB);
                     //db.Database.ExecuteSqlRaw(PraxisContext.FindDBMapDataBoundsMariaDB);
+                    db.Database.ExecuteSqlRaw("SET collation_server = 'utf8mb4_unicode_ci'; SET character_set_server = 'utf8mb4'"); //MariaDB defaults to latin2_swedish, we need Unicode.
                 }
 
                 MapSupport.InsertAreaTypesToDb(ParserSettings.DbMode);
@@ -200,7 +201,7 @@ namespace Larry
                 ValidateFile(arg);
             }
 
-            if (args.Any(a => a.StartsWith("-gen6CellMapTiles:")))
+            if (args.Any(a => a.StartsWith("-gen6CellMapTiles:"))) //This may not be an idea use case. Potentially removing later.
             {
                 //TODO still in process
                 //TODO move to function
@@ -232,7 +233,7 @@ namespace Larry
                             GeoArea tileArea = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + MapSupport.resolutionCell6, x + MapSupport.resolutionCell6));
                             var places = MapSupport.GetPlaces(tileArea);
                             var tileData = MapSupport.DrawAreaMapTile(ref places, tileArea);
-                            db.MapTiles.Add(new MapTile() { CreatedOn = DateTime.Now, mode = 1,  tileData = tileData,  resolutionScale = 10, PlusCode = OpenLocationCode.Encode(new GeoPoint(y, x)).Substring(0, 6) });
+                            db.MapTiles.Add(new MapTile() { CreatedOn = DateTime.Now, mode = 1, tileData = tileData, resolutionScale = 10, PlusCode = OpenLocationCode.Encode(new GeoPoint(y, x)).Substring(0, 6) });
                             db.SaveChanges();
                         }
                 }
@@ -249,6 +250,38 @@ namespace Larry
                             db.SaveChanges();
                         }
                 }
+            }
+
+            if (args.Any(a => a == "-autoCreateMapTiles")) //better for letting the app decide which tiles to create than manually calling out Cell6 names.
+            {
+                //Remember: this shouldn't draw GeneratedMapTile areas, nor should this create them.
+                //Tiles should be redrawn when those get made, if they get made.
+                //This should also over-write existing map tiles if present, in case the data's been updated since last run.
+                //TODO: add logic to either overwrite or skip existing tiles.
+
+                //Search for all areas that needs a map tile created.
+                List<string> Cell2s = new List<string>();
+
+                //Cell2 detection loop: 22-CV. All others are 22-XX.
+                for (var pos1 = 0; pos1 <= OpenLocationCode.CodeAlphabet.IndexOf('C'); pos1++)
+                    for (var pos2 = 0; pos2 <= OpenLocationCode.CodeAlphabet.IndexOf('V'); pos2++)
+                    {
+                        string cellToCheck = OpenLocationCode.CodeAlphabet[pos1].ToString() + OpenLocationCode.CodeAlphabet[pos2].ToString();
+                        var area = new OpenLocationCode(cellToCheck);
+                        var tileNeedsMade = MapSupport.DoPlacesExist(area.Decode());
+                        if (tileNeedsMade)
+                        {
+                            Log.WriteLog("Noting: Cell2 " + cellToCheck + " has areas to draw");
+                            Cell2s.Add(cellToCheck);
+                        }
+                        else
+                        {
+                            Log.WriteLog("Skipping Cell2 " + cellToCheck + " for future mapdrawing checks.");
+                        }
+                    }
+
+                foreach (var cell2 in Cell2s)
+                    DetectMapTilesRecursive(cell2);
             }
 
             if (args.Any(a => a == "-extractBigAreas"))
@@ -279,9 +312,57 @@ namespace Larry
                         if (!places.Any(md => md.place.Intersects(location)) && !fakeplaces.Any(md => md.place.Intersects(location)))
                             MapSupport.CreateInterestingAreas(cell8);
                     }
-                }                
+                }
             }
             return;
+        }
+
+        public static void DetectMapTilesRecursive(string parentCell)
+        {
+            List<string> cellsFound = new List<string>();
+            List<MapTile> tilesGenerated = new List<MapTile>(); //Might need to be a ConcurrentBag or something similar?
+
+            //using 2 parallel loops is faster than 1 or 0.
+            System.Threading.Tasks.Parallel.For(0, 20, (pos1) => 
+                System.Threading.Tasks.Parallel.For(0, 20, (pos2) => 
+                {
+                    string cellToCheck = parentCell + OpenLocationCode.CodeAlphabet[pos1].ToString() + OpenLocationCode.CodeAlphabet[pos2].ToString();
+                    var area = new OpenLocationCode(cellToCheck).Decode();
+                    var tileNeedsMade = MapSupport.DoPlacesExist(area);
+                    if (tileNeedsMade)
+                    {
+                        if (cellToCheck.Length == 8)
+                        {
+                            //Draw this map tile
+                            var places = MapSupport.GetPlaces(area, null, false);
+                            var tileData = MapSupport.DrawAreaMapTile11(ref places, area);
+                            tilesGenerated.Add(new MapTile() { CreatedOn = DateTime.Now, mode = 1, tileData = tileData, resolutionScale = 11, PlusCode = cellToCheck });
+                            Log.WriteLog("Cell " + cellToCheck + " Drawn", Log.VerbosityLevels.High);
+                        }
+                        else
+                        {
+                            Log.WriteLog("Noting: Cell" + cellToCheck.Length + " " + cellToCheck + " has areas to draw");
+                            cellsFound.Add(cellToCheck);
+                        }
+                    }
+                    else
+                    {
+                        Log.WriteLog("Skipping Cell" + cellToCheck.Length + " " + cellToCheck + " for future mapdrawing checks.", Log.VerbosityLevels.High);
+                    }
+                }));
+                
+            //}
+            if (tilesGenerated.Count() > 0)
+            {
+                var db = new PraxisContext();
+                db.MapTiles.AddRange(tilesGenerated);
+                db.SaveChanges(); //This should run for every Cell6, saving up to 400 per batch.
+                db.Dispose(); //connection needs terminated since this is recursive, or we will hit a max connections error eventually.
+                db = null;
+                Log.WriteLog("Saved records for Cell " + parentCell);
+            }
+            foreach (var cellF in cellsFound)
+                DetectMapTilesRecursive(cellF);
         }
 
         public static void AddMapDataToDBFromFiles()
@@ -531,7 +612,7 @@ namespace Larry
                 foreach (var w1 in ways)
                 {
                     if (referencedWays[w1.id].Count() != 0)
-                            continue; //we're only loading ways that aren't tagged in another relation, so skip ones that are used elsewhere. Check this way to avoid converting ways into another IEnumerable
+                        continue; //we're only loading ways that aren't tagged in another relation, so skip ones that are used elsewhere. Check this way to avoid converting ways into another IEnumerable
 
                     var w2 = w1;
                     var md2 = MapSupport.ConvertWayToMapData(ref w2);
@@ -1341,7 +1422,7 @@ namespace Larry
             var mainDb = new PraxisContext();
             var sqliteDb = "placeholder";
             var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values. //share this here, so i compare the actual algorithms instead of this boilerplate, mandatory entry.
-            //var relationToProcess = 
+                                                                                          //var relationToProcess = 
 
             //var polygon = factory.CreatePolygon(MapSupport.GeoAreaToCoordArray(box));
 
@@ -1353,14 +1434,14 @@ namespace Larry
             //    return; //not in the parent file. TODO log.
 
             //var relationMemberIds = relation.Members.Select(m => m.Id).ToList();
-            
+
             var fullArea = mainDb.MapData.Where(m => m.RelationId == relationID).FirstOrDefault();
             if (fullArea == null)
                 return;
 
             var allPlaces = mainDb.MapData.Where(md => md.place.Intersects(fullArea.place.Envelope)).ToList();
 
-            
+
 
             //GeoAPI.Geometries.Coordinate[] coords = new GeoAPI.Geometries.Coordinate[] {
             //    new GeoAPI.Geometries.Coordinate(box.Min.Longitude, box.Min.Latitude),
