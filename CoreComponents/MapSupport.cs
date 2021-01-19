@@ -3,6 +3,7 @@ using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
 using NetTopologySuite;
 using NetTopologySuite.Geometries;
+using NetTopologySuite.Geometries.Prepared;
 using NetTopologySuite.Index.IntervalRTree;
 using NetTopologySuite.Operation.Buffer;
 using Newtonsoft.Json;
@@ -127,6 +128,36 @@ namespace CoreComponents
                 else
                     places = source.Where(md => md.AreaTypeId != 13 && md.place.Intersects(location)).ToList();
             }
+            return places;
+        }
+
+        public static List<PreparedMapData> GetPreparedPlaces(GeoArea area, List<PreparedMapData> source = null, bool includeAdmin = true)
+        {
+            //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
+            //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
+            var location = GeoAreaToPolygon(area);
+            List<PreparedMapData> places;
+            //if (source == null)
+            //{
+            //    var db = new CoreComponents.PraxisContext();
+            //    if (includeAdmin)
+            //        places = db.MapData.Where(md => md.place.Intersects(location)).ToList();
+            //    else
+            //        places = db.MapData.Where(md => md.AreaTypeId != 13 && md.place.Intersects(location)).ToList();
+            //    //TODO: make including generated areas a toggle? or assume that this call is trivial performance-wise on an empty table
+            //    //A toggle might be good since this also affects maptiles
+            //    places.AddRange(db.GeneratedMapData.Where(md => md.place.Intersects(location)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
+
+            //    return places;
+            //}
+            //else
+            //{
+                //Only testing performance on prepared geometry. Come back later if this is necesssary.
+                //if (includeAdmin)
+                    places = source.Where(md => md.place.Intersects(location)).ToList();
+                //else
+                    //places = source.Where(md => md.AreaTypeId != 13 && md.place.Intersects(location)).ToList();
+            //}
             return places;
         }
 
@@ -309,6 +340,22 @@ namespace CoreComponents
             return area;
         }
 
+        public static int GetAreaTypeFor11Cell(double x, double y, ref List<PreparedMapData> places)
+        {
+            if (places.Count() == 0) //One shortcut: if we have no places to check, don't bother with the rest of the logic.
+                return 0;
+
+            //We can't shortcut this intersection check past that. This is the spot where we determine what's in this Cell11, and can't assume the list contains an overlapping entry.
+            var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell11Lat, x + resolutionCell11Lon));
+            var entriesHere = MapSupport.GetPreparedPlaces(box, places, false).ToList(); //Excluding admin boundaries from this list.  
+
+            if (entriesHere.Count() == 0)
+                return 0;
+
+            int area = DetermineAreaType(entriesHere);
+            return area;
+        }
+
         public static int GetFactionFor11Cell(double x, double y, ref List<MapData> places, Tuple<long, int> shortcut = null)
         {
             var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell11Lat, x + resolutionCell11Lon));
@@ -362,6 +409,25 @@ namespace CoreComponents
             return place;
         }
 
+        public static PreparedMapData PickSortedEntry(List<PreparedMapData> entries)
+        {
+            //Current sorting rules:
+            //If there's only one place, take it without any additional queries. Otherwise:
+            //if there's a Point in the mapdata list, take the first one (No additional sub-sorting applied yet)
+            //else if there's a Line in the mapdata list, take the shortest one by length
+            //else if there's polygonal areas here, take the smallest one by area 
+            //(In general, the smaller areas should be overlaid on larger areas.)
+            if (entries.Count() == 1) //simple optimization
+                return entries.First();
+
+            var place = entries.Where(e => e.place.Geometry.GeometryType == "Point").FirstOrDefault();
+            if (place == null)
+                place = entries.Where(e => e.place.Geometry.GeometryType == "LineString" || e.place.Geometry.GeometryType == "MultiLineString").OrderBy(e => e.place.Geometry.Length).FirstOrDefault();
+            if (place == null)
+                place = entries.Where(e => e.place.Geometry.GeometryType == "Polygon" || e.place.Geometry.GeometryType == "MultiPolygon").OrderBy(e => e.place.Geometry.Area).FirstOrDefault();
+            return place;
+        }
+
         public static string DetermineAreaPoint(List<MapData> entriesHere)
         {
             var entry = PickSortedEntry(entriesHere);
@@ -369,6 +435,12 @@ namespace CoreComponents
         }
 
         public static int DetermineAreaType(List<MapData> entriesHere)
+        {
+            var entry = PickSortedEntry(entriesHere);
+            return entry.AreaTypeId;
+        }
+
+        public static int DetermineAreaType(List<PreparedMapData> entriesHere)
         {
             var entry = PickSortedEntry(entriesHere);
             return entry.AreaTypeId;
@@ -817,12 +889,15 @@ namespace CoreComponents
         //NOTE: this function has been better optimized than the above. 
         public static byte[] DrawAreaMapTile11(ref List<MapData> allPlaces, GeoArea totalArea)
         {
+            //took 5.9 million ms to draw Cell6 with CWRU contained, which was slower than the 4.1 million originally recorded. Testing with prepared geometry for a speed boost.
             List<MapData> rowPlaces;
             //create a new bitmap.
             MemoryStream ms = new MemoryStream();
+            PreparedGeometryFactory pgf = new PreparedGeometryFactory(); //this is supposed to be faster than regular geometry.
             //pixel formats. RBGA32 allows for hex codes. RGB24 doesnt?
             int imagesizeX = (int)Math.Floor(totalArea.LongitudeWidth / resolutionCell11Lon); //scales to area size
             int imagesizeY = (int)Math.Floor(totalArea.LatitudeHeight / resolutionCell11Lat); //scales to area size          
+
 
             double[] xCoords = new double[imagesizeX + 1];
             double[] yCoords = new double[imagesizeY + 1];
@@ -850,6 +925,8 @@ namespace CoreComponents
                 {
                     //Dramatic performance improvement by limiting this to just the row's area.
                     rowPlaces = MapSupport.GetPlaces(new GeoArea(new GeoPoint(yCoords[y], totalArea.Min.Longitude), new GeoPoint(yCoords[y + 1], totalArea.Max.Longitude)), allPlaces, false);
+                    var preparedPlaces = rowPlaces.Select(rp => new PreparedMapData(){ PreparedMapDataID = rp.MapDataId, place = pgf.Create(rp.place), AreaTypeId = rp.AreaTypeId }).ToList();
+
                     if (rowPlaces.Count() != 0) //don't bother drawing the row if there's nothing in it.
                     {
                         Span<Rgba32> pixelRow = image.GetPixelRowSpan(image.Height - y - 1); //Plus code data is searched south-to-north, image is inverted otherwise.
@@ -859,7 +936,8 @@ namespace CoreComponents
                             {
                                 //Set the pixel's color by its type.
                                 int placeData = 0;
-                                var tempPlaces = rowPlaces.Where(r => columnPlaces[x].Contains(r.MapDataId)).ToList(); //reduces Intersects() calls done in the next function
+                                //var tempPlaces = rowPlaces.Where(r => columnPlaces[x].Contains(r.MapDataId)).ToList(); //reduces Intersects() calls done in the next function
+                                var tempPlaces = preparedPlaces.Where(r => columnPlaces[x].Contains(r.PreparedMapDataID)).ToList(); //reduces Intersects() calls done in the next function
                                 placeData = MapSupport.GetAreaTypeFor11Cell(xCoords[x], yCoords[y], ref tempPlaces);
                                 if (placeData != 0)
                                 {

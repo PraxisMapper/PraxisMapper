@@ -347,6 +347,7 @@ namespace PraxisMapper.Controllers
         public FileContentResult DrawCell6Highres(string plusCode6)
         {
             //a PNG of a 6cell this way is roughly 124KB, and now takes ~400 seconds to generate. The game cannot possibly wait 6+ minutes for one of these to render.
+            //Note: the optimization to the maptile process should mean this runs in ~100 seconds now. Much better, though still not on-demand feasible for a game.
             //An admin or a tester looking for all this data may find it useful though.
             PerformanceTracker pt = new PerformanceTracker("DrawCell6Highres");
             //Load terrain data for an 6cell, turn it into a bitmap
