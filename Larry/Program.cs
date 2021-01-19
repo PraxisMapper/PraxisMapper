@@ -101,6 +101,7 @@ namespace Larry
 
                 MapSupport.InsertAreaTypesToDb(ParserSettings.DbMode);
                 MapSupport.InsertDefaultFactionsToDb();
+                MapSupport.InsertDefaultTurfWarConfigs();
             }
 
             if (args.Any(a => a == "-cleanDB"))
@@ -254,11 +255,12 @@ namespace Larry
 
             if (args.Any(a => a == "-autoCreateMapTiles")) //better for letting the app decide which tiles to create than manually calling out Cell6 names.
             {
+                //NOTE: this loop ran at 11 maptiles per second on my original attempt. This optimized setup runs at 50-60 maptiles per second.
                 //Remember: this shouldn't draw GeneratedMapTile areas, nor should this create them.
                 //Tiles should be redrawn when those get made, if they get made.
                 //This should also over-write existing map tiles if present, in case the data's been updated since last run.
                 //TODO: add logic to either overwrite or skip existing tiles.
-                bool skip = true;
+                bool skip = true; //This skips over 128,000 tiles in about a minute. Decent.
 
                 //Search for all areas that needs a map tile created.
                 List<string> Cell2s = new List<string>();
@@ -322,18 +324,22 @@ namespace Larry
         {
             List<string> cellsFound = new List<string>();
             List<MapTile> tilesGenerated = new List<MapTile>(); //Might need to be a ConcurrentBag or something similar?
-            List<string> existingTiles = new List<string>();
+            Dictionary<string, string> existingTiles = new Dictionary<string, string>();
             if (parentCell.Length == 6 && skipExisting)
             {
                 var db = new PraxisContext();
-                existingTiles = db.MapTiles.Where(m => m.PlusCode.StartsWith(parentCell)).Select(m => m.PlusCode).ToList();
+                existingTiles = db.MapTiles.Where(m => m.PlusCode.StartsWith(parentCell)).Select(m => m.PlusCode).ToDictionary<string, string>(k => k);
                 db.Dispose();
                 db = null;
             }
 
+            System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+            sw.Start();
+            //This is fairly well optimized, and I suspect there's not much more I can do here to get this to go faster.
+            //50-60 map tiles drawn per seconds if all 400 are in a Cell6. Half that if not, suggests there's some overhead in doing the Decode and DoPlacesExist checks that can't really go away.
             //using 2 parallel loops is faster than 1 or 0.
-            System.Threading.Tasks.Parallel.For(0, 20, (pos1) => 
-                System.Threading.Tasks.Parallel.For(0, 20, (pos2) => 
+            System.Threading.Tasks.Parallel.For(0, 20, (pos1) =>
+                System.Threading.Tasks.Parallel.For(0, 20, (pos2) =>
                 {
                     string cellToCheck = parentCell + OpenLocationCode.CodeAlphabet[pos1].ToString() + OpenLocationCode.CodeAlphabet[pos2].ToString();
                     var area = new OpenLocationCode(cellToCheck).Decode();
@@ -342,7 +348,8 @@ namespace Larry
                     {
                         if (cellToCheck.Length == 8)
                         {
-                            if (skipExisting && existingTiles.Contains(cellToCheck))
+                            string exists = "";
+                            if (skipExisting && existingTiles.TryGetValue(cellToCheck, out exists))
                             {
                                 //nothing
                                 Log.WriteLog("Skipping tile draw for " + cellToCheck + ", already exists", Log.VerbosityLevels.High);
@@ -367,8 +374,8 @@ namespace Larry
                         Log.WriteLog("Skipping Cell" + cellToCheck.Length + " " + cellToCheck + " for future mapdrawing checks.", Log.VerbosityLevels.High);
                     }
                 }));
-                
-            //}
+
+            sw.Stop();
             if (tilesGenerated.Count() > 0)
             {
                 var db = new PraxisContext();
@@ -376,7 +383,7 @@ namespace Larry
                 db.SaveChanges(); //This should run for every Cell6, saving up to 400 per batch.
                 db.Dispose(); //connection needs terminated since this is recursive, or we will hit a max connections error eventually.
                 db = null;
-                Log.WriteLog("Saved records for Cell " + parentCell);
+                Log.WriteLog("Saved records for Cell " + parentCell + " - " + tilesGenerated.Count() + " maptiles drawn in " + sw.Elapsed.ToString());
             }
             foreach (var cellF in cellsFound)
                 DetectMapTilesRecursive(cellF, skipExisting);
@@ -385,7 +392,7 @@ namespace Larry
         public static void AddMapDataToDBFromFiles()
         {
             //This function is pretty slow. I should figure out how to speed it up. Approx. 3,000 MapData entries per second right now.
-            //Bulk inserts fail on the Geography type, last I had checked.
+            //Bulk inserts fail on the Geography type, last I had checked on SQL Server. TODO: test bulkinserts on MariaDB
             foreach (var file in System.IO.Directory.EnumerateFiles(ParserSettings.JsonMapDataFolder, "*-MapData*.json")) //excludes my LargeAreas.json file by default here.
             {
                 Console.Title = file;
@@ -402,10 +409,6 @@ namespace Larry
                     db.SaveChanges();//~3seconds on dev machine per pass at 10k entries at once.
                     Log.WriteLog("Entry pass " + i + " of " + (entries.Count() / 10000) + " completed");
                 }
-
-                //db.MapData.AddRange(entries);
-                //Log.WriteLog("Entries added to entities at " + DateTime.Now, Log.VerbosityLevels.High);
-                //db.SaveChanges();
 
                 Log.WriteLog("Added " + file + " to dB at " + DateTime.Now);
                 File.Move(file, file + "Done");

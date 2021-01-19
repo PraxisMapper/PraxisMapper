@@ -19,8 +19,9 @@ namespace PraxisMapper.Controllers
         //The leaderboards for TurfWar reset regularly (weekly? Hourly? ), and could be set to reset very quickly and restart (3 minutes of gameplay, 1 paused for reset). 
         //Default config is a weekly run Sat-Fri, with a 30 second lockout on cells.
         //TODO: allow pre-configured teams for specific events? this is difficult if I don't want to track users on the server, since this would have to be by deviceID
+        //TODO: allow an option to let you choose to join a team. Yes, i wanted to avoid this. Yes, there's still good cases for it.
 
-        public TurfWarController()
+        public TurfWarController() //TODO: add MemoryCache here to track DateTime for when to reset configs instead of a DB lookup every endpoint call.
         {
             try
             {
@@ -72,6 +73,9 @@ namespace PraxisMapper.Controllers
             //Mark this cell10 as belonging to this faction, update the lockout timer.
             var db = new PraxisContext();
             //run all the instances at once.
+            if (!db.Factions.Any(f => f.FactionId == factionId))
+                return; //We got a claim for an invalid team, don't save anything. TODO: MemoryCache valid teams instead of a DB call each ping.
+
             foreach (var config in db.TurfWarConfigs.Where(t => t.Repeating || (t.StartTime < DateTime.Now && t.TurfWarNextReset > DateTime.Now)).ToList())
             {
                 var entry = db.TurfWarEntries.Where(t => t.TurfWarConfigId == config.TurfWarConfigId && t.FactionId == factionId && t.Cell10 == Cell10).FirstOrDefault();
