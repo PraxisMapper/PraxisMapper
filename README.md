@@ -6,13 +6,10 @@ Powered by OpenStreetMap data files.
 To focus on the player, and to let them play without tracking them.
 
 
-Requirements:
-
-Visual Studio 2019 16.8 Community (or the mac/linux equivalent)
-
-.NET 5.0
-
-SQL Server 2016 or newer OR MariaDB 10.2+ (Required for spatial data types and indexing)
+# Requirements
+* Visual Studio 2019 16.8 Community (or the mac/linux equivalent)
+* .NET 5.0
+* SQL Server 2016 or newer OR MariaDB 10.2+ (Required for spatial data types and indexing)
 
 
 # Features
