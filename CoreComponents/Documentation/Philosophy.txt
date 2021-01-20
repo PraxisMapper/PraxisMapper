@@ -11,7 +11,8 @@ An 11-digit PlusCode has an area of ~3x3.5 meters at the equator and shrinks ver
 A 10-digit PlusCode has an area of ~14x14 meters (same limitations as above). 
 For tracking lots of individual points (EX: pieces in an art gallery), an 11-digit PlusCode would be more useful than 10 but the user's position might drift significantly.
 For tracking areas of interest (EX: are you in a park/cemetery/etc) a 10-digit PlusCode is sufficiently accurate, given the typical acccuracy of a phone's GPS.
-There are a variety of other applications for making maptiles from OSM data. Use one of those to generate graphics, and use this to track interesting things around a player's location.
+PraxisMapper can generate its own maptiles, at 1 Cell11 per pixel. They're not the prettiest map tiles ever, but they represent the area accurately.
+There are a variety of other applications for making maptiles from OSM data. Use one of those to generate prettier graphics if desired, and use this to track interesting things around a player's location.
 
 2) Focus on Interesting areas for the map
 Interesting, for our use here, is an algorithm to dig through tags to find places that a player could want to go to.

@@ -17,6 +17,12 @@ using System.Text;
 using System.Text.Json;
 using static CoreComponents.DbTables;
 using static CoreComponents.MapSupport;
+using static CoreComponents.Singletons;
+using static CoreComponents.ConstantValues;
+using static CoreComponents.Place;
+using static CoreComponents.ScoreData;
+using static CoreComponents.GeometrySupport;
+
 
 namespace PerformanceTestApp
 {
@@ -60,7 +66,32 @@ namespace PerformanceTestApp
 
 
             //TODO: consider pulling 4-cell worth of places into memory, querying against that instead of a DB lookup every time?
+            //tests app performance this way instead of db performance/network latency.
         }
+
+        //ONly used for testing.
+        public static CoordPair GetRandomCoordPair()
+        {
+            //Global scale testing.
+            Random r = new Random();
+            float lat = 90 * (float)r.NextDouble() * (r.Next() % 2 == 0 ? 1 : -1);
+            float lon = 180 * (float)r.NextDouble() * (r.Next() % 2 == 0 ? 1 : -1);
+            return new CoordPair(lat, lon);
+        }
+
+        //Only used for testing.
+        public static CoordPair GetRandomBoundedCoordPair()
+        {
+            //randomize lat and long to roughly somewhere in Ohio. For testing a limited geographic area.
+            //42, -80 NE
+            //38, -84 SW
+            //so 38 + (0-4), -84 = (0-4) coords.
+            Random r = new Random();
+            float lat = 38 + ((float)r.NextDouble() * 4);
+            float lon = -84 + ((float)r.NextDouble() * 4);
+            return new CoordPair(lat, lon);
+        }
+
 
         private static void TestMultiPassVsSinglePass()
         {
@@ -95,7 +126,7 @@ namespace PerformanceTestApp
             results.Capacity = count;
 
             for (int i = 0; i < count; i++)
-                results.Add(MapSupport.GetRandomCoordPair());
+                results.Add(GetRandomCoordPair());
 
             return results;
         }
@@ -187,10 +218,10 @@ namespace PerformanceTestApp
             //Pick a specific area for testing, since we want to compare the math.
             string plusCode6 = cell6;
             var db = new CoreComponents.PraxisContext();
-            var places = MapSupport.GetPlaces(OpenLocationCode.DecodeValid(plusCode6));  //All the places in this 6-code
+            var places = GetPlaces(OpenLocationCode.DecodeValid(plusCode6));  //All the places in this 6-code
             var box = OpenLocationCode.DecodeValid(plusCode6);
             sw.Stop();
-            Log.WriteLog("Pulling " + places.Count + " places in 6-cell took " + sw.ElapsedMilliseconds + "ms");
+            Log.WriteLog("Pulling " + places.Count() + " places in 6-cell took " + sw.ElapsedMilliseconds + "ms");
 
             int[] splitChecks = new int[] { 1, 2, 4, 8, 10, 20, 25, 32, 40, 80, 100 };
             foreach (int splitcount in splitChecks)
@@ -199,10 +230,10 @@ namespace PerformanceTestApp
                 List<MapData>[] placeArray;
                 GeoArea[] areaArray;
                 StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
-                MapSupport.SplitArea(box, splitcount, places, out placeArray, out areaArray);
+                Converters.SplitArea(box, splitcount, places, out placeArray, out areaArray);
                 System.Threading.Tasks.Parallel.For(0, placeArray.Length, (i) =>
                 {
-                    sbArray[i] = MapSupport.SearchArea(ref areaArray[i], ref placeArray[i]);
+                    sbArray[i] = AreaTypeInfo.SearchArea(ref areaArray[i], ref placeArray[i]);
                 });
                 sw.Stop();
                 Log.WriteLog("dividing map by " + splitcount + " took " + sw.ElapsedMilliseconds + " ms");
@@ -232,7 +263,7 @@ namespace PerformanceTestApp
             for (int i = 0; i < 50; i++)
             {
 
-                var point = MapSupport.GetRandomBoundedCoordPair();
+                var point = GetRandomBoundedCoordPair();
                 var olc = OpenLocationCode.Encode(point.lat, point.lon);
                 var codeString = olc.Substring(0, 6);
                 sw.Restart();
@@ -264,7 +295,7 @@ namespace PerformanceTestApp
 
             for (int i = 0; i < 50; i++)
             {
-                var point = MapSupport.GetRandomBoundedCoordPair();
+                var point = GetRandomBoundedCoordPair();
                 var olc = OpenLocationCode.Encode(point.lat, point.lon);
                 var codeString = olc.Substring(0, 6);
                 sw.Restart();
@@ -294,7 +325,7 @@ namespace PerformanceTestApp
 
             for (int i = 0; i < 50; i++)
             {
-                var point = MapSupport.GetRandomBoundedCoordPair();
+                var point = GetRandomBoundedCoordPair();
                 var olc = OpenLocationCode.Encode(point.lat, point.lon);
                 var codeString = olc.Substring(0, 6);
                 sw.Restart();
@@ -361,14 +392,14 @@ namespace PerformanceTestApp
 
                 sw.Restart();
                 GeoArea area6 = OpenLocationCode.DecodeValid(cell6);
-                var sixCodePlaces = MapSupport.GetPlaces(area6);
+                var sixCodePlaces = GetPlaces(area6);
                 sw.Stop();
                 var sixCodeTime = sw.ElapsedMilliseconds;
                 avg6 += sixCodeTime;
 
                 sw.Restart();
                 GeoArea area4 = OpenLocationCode.DecodeValid(cell4);
-                var fourCodePlaces = MapSupport.GetPlaces(area4);
+                var fourCodePlaces = GetPlaces(area4);
                 sw.Stop();
                 var fourCodeTime = sw.ElapsedMilliseconds;
                 avg4 += fourCodeTime;
@@ -438,7 +469,7 @@ namespace PerformanceTestApp
 
         public static List<MapData> GetPlacesBase(GeoArea area, List<MapData> source = null)
         {
-            var coordSeq = GeoAreaToCoordArray(area);
+            var coordSeq = Converters.GeoAreaToCoordArray(area);
             var location = factory.CreatePolygon(coordSeq);
             List<MapData> places;
             if (source == null)
@@ -453,7 +484,7 @@ namespace PerformanceTestApp
 
         public static List<MapData> GetPlacesPrecompiled(GeoArea area, List<MapData> source = null)
         {
-            var coordSeq = GeoAreaToCoordArray(area);
+            var coordSeq = Converters.GeoAreaToCoordArray(area);
             var location = factory.CreatePolygon(coordSeq);
             List<MapData> places;
             if (source == null)
@@ -471,7 +502,7 @@ namespace PerformanceTestApp
             //TODO: this seems to have a lot of warmup time that I would like to get rid of. Would be a huge performance improvement.
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
             //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
-            var coordSeq = GeoAreaToCoordArray(area);
+            var coordSeq = Converters.GeoAreaToCoordArray(area);
             var location = factory.CreatePolygon(coordSeq);
             List<MapData> places;
             if (source == null)
@@ -606,17 +637,17 @@ namespace PerformanceTestApp
             List<OsmSharp.Relation> filteredEntries;
             if (areaType == null)
                 filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
-                    MapSupport.GetElementType(p.Tags) != "")
+                    GetPlaceType(p.Tags) != "")
                 .Select(p => (OsmSharp.Relation)p)
                 .ToList();
             else if (areaType == "admin")
                 filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
-                    MapSupport.GetElementType(p.Tags).StartsWith(areaType))
+                    GetPlaceType(p.Tags).StartsWith(areaType))
                 .Select(p => (OsmSharp.Relation)p)
                 .ToList();
             else
                 filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
-                MapSupport.GetElementType(p.Tags) == areaType
+                GetPlaceType(p.Tags) == areaType
             )
                 .Select(p => (OsmSharp.Relation)p)
                 .ToList();
@@ -667,7 +698,7 @@ namespace PerformanceTestApp
             sw.Stop();
             Log.WriteLog("Converting 1 polygon from Text to Geometry took " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds + "ms)");
             sw.Restart();
-            var result3 = MapSupport.CCWCheck((Polygon)test3);
+            var result3 = CCWCheck((Polygon)test3);
             sw.Stop();
             Log.WriteLog("Single CCWCheck on 5-point polygon took " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds + "ms)");
         }
@@ -759,7 +790,7 @@ namespace PerformanceTestApp
                     double x = area.Min.Longitude + (resolutionCell10 * xx);
                     double y = area.Min.Latitude + (resolutionCell10 * yy);
 
-                    var placesFound = MapSupport.FindPlacesIn10Cell(x, y, ref mapData, true);
+                    var placesFound = AreaTypeInfo.FindPlacesInCell10(x, y, ref mapData, true);
                     if (!string.IsNullOrWhiteSpace(placesFound))
                         sb.AppendLine(placesFound);
                 }
@@ -777,7 +808,7 @@ namespace PerformanceTestApp
                     double x = area.Min.Longitude + (resolutionCell10 * xx);
                     double y = area.Min.Latitude + (resolutionCell10 * yy);
 
-                    var placesFound = MapSupport.CellInfoFindPlacesIn10Cell(x, y, ref mapData);
+                    var placesFound = CellInfoFindPlacesInCell10(x, y, ref mapData);
                     if (placesFound != null)
                         info.Add(placesFound);
                 }
@@ -823,7 +854,7 @@ namespace PerformanceTestApp
             for (var i = 0; i < 1000; i++)
             {
                 //write 1000 random entries;
-                var entry = MapSupport.CreateInterestingAreas("22334455", false);
+                var entry = CreateInterestingPlaces("22334455", false);
                 dbSqlServer.GeneratedMapData.AddRange(entry);
             }
             dbSqlServer.SaveChanges();
@@ -858,12 +889,37 @@ namespace PerformanceTestApp
             for (var i = 0; i < 1000; i++)
             {
                 //write 1000 random entries;
-                var entry = MapSupport.CreateInterestingAreas("22334455", false);
+                var entry = CreateInterestingPlaces("22334455", false);
                 dbMaria.GeneratedMapData.AddRange(entry);
             }
             dbMaria.SaveChanges();
             sw.Stop();
             Log.WriteLog("1000 random writes done in " + sw.ElapsedMilliseconds + "ms");
+        }
+
+        //testing if this is better/more efficient (on the phone side) than passing strings along. Only used in TestPerf.
+        public static Cell10Info CellInfoFindPlacesInCell10(double x, double y, ref List<MapData> places)
+        {
+            var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell10, x + resolutionCell10));
+            var entriesHere = GetPlaces(box, places).Where(p => p.AreaTypeId != 13).ToList(); //Excluding admin boundaries from this list.  
+
+            if (entriesHere.Count() == 0)
+                return null;
+
+            //string area = DetermineAreaPoint(entriesHere);
+            var area = AreaTypeInfo.PickSortedEntry(entriesHere);
+            if (area != null)
+            {
+                string olc;
+                //if (entireCode)
+                olc = new OpenLocationCode(y, x).CodeDigits;
+                //else
+                //TODO: decide on passing in a value for the split instead of a bool so this can be reused a little more
+                //olc = new OpenLocationCode(y, x).CodeDigits.Substring(6, 4); //This takes lat, long, Coordinate takes X, Y. This line is correct.
+                // olc = new OpenLocationCode(y, x).CodeDigits.Substring(8, 2); //This takes lat, long, Coordinate takes X, Y. This line is correct.
+                return new Cell10Info(area.name, olc, area.AreaTypeId);
+            }
+            return null;
         }
     }
 }

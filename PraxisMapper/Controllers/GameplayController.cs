@@ -14,6 +14,11 @@ using System.IO;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using NetTopologySuite.Geometries.Prepared;
+using static CoreComponents.ConstantValues;
+using static CoreComponents.Converters;
+using static CoreComponents.Singletons;
+using static CoreComponents.Place;
+using static CoreComponents.ScoreData;
 
 namespace PraxisMapper.Controllers
 {
@@ -74,7 +79,7 @@ namespace PraxisMapper.Controllers
                     teamClaim.IsGeneratedArea = true;
                 }
                 teamClaim.MapDataId = MapDataId;
-                teamClaim.points = MapSupport.GetScoreForSingleArea(mapData.place);
+                teamClaim.points = GetScoreForSinglePlace(mapData.place);
             }
             teamClaim.FactionId = factionId;
             teamClaim.claimedAt = DateTime.Now;
@@ -91,8 +96,8 @@ namespace PraxisMapper.Controllers
             var db = new PraxisContext();
             var space = md.place.Envelope;
             var geoAreaToRefresh = new GeoArea(new GeoPoint(space.Coordinates.Min().Y, space.Coordinates.Min().X), new GeoPoint(space.Coordinates.Max().Y, space.Coordinates.Max().X));
-            var Cell10XTiles = geoAreaToRefresh.LongitudeWidth / MapSupport.resolutionCell10;
-            var Cell10YTiles = geoAreaToRefresh.LatitudeHeight / MapSupport.resolutionCell10;
+            var Cell10XTiles = geoAreaToRefresh.LongitudeWidth / resolutionCell10;
+            var Cell10YTiles = geoAreaToRefresh.LatitudeHeight / resolutionCell10;
 
             double minx = geoAreaToRefresh.WestLongitude;
             double miny = geoAreaToRefresh.SouthLatitude;
@@ -108,8 +113,8 @@ namespace PraxisMapper.Controllers
                 //for (var y = 0; y < Cell10YTiles; y++)
                 {
                     var db2 = new PraxisContext();
-                    var olc = new OpenLocationCode(new GeoPoint(miny + (MapSupport.resolutionCell10 * y), minx + (MapSupport.resolutionCell10 * x)));
-                    var olcPoly = MapSupport.GeoAreaToPolygon(olc.Decode());
+                    var olc = new OpenLocationCode(new GeoPoint(miny + (resolutionCell10 * y), minx + (resolutionCell10 * x)));
+                    var olcPoly = Converters.GeoAreaToPolygon(olc.Decode());
                     //if (md.place.Intersects(olcPoly)) //If this intersects the original way, redraw that tile. Lets us minimize work for oddly-shaped areas.
                     if (pg.Intersects(olcPoly))
                     {
@@ -120,7 +125,7 @@ namespace PraxisMapper.Controllers
                             db2.MapTiles.Add(maptiles10);
                         }
 
-                        maptiles10.tileData = MapSupport.DrawMPControlAreaMapTile11(olc.Decode(), shortcut);
+                        maptiles10.tileData = MapTiles.DrawMPControlAreaMapTile11(olc.Decode(), shortcut);
                         maptiles10.CreatedOn = DateTime.Now;
                         db2.SaveChanges();
                     }
@@ -138,8 +143,8 @@ namespace PraxisMapper.Controllers
             var db = new PraxisContext();
             var space = md.place.Envelope;
             var geoAreaToRefresh = new GeoArea(new GeoPoint(space.Coordinates.Min().Y, space.Coordinates.Min().X), new GeoPoint(space.Coordinates.Max().Y, space.Coordinates.Max().X));
-            var Cell8XTiles = geoAreaToRefresh.LongitudeWidth / MapSupport.resolutionCell8;
-            var Cell8YTiles = geoAreaToRefresh.LatitudeHeight / MapSupport.resolutionCell8;
+            var Cell8XTiles = geoAreaToRefresh.LongitudeWidth / resolutionCell8;
+            var Cell8YTiles = geoAreaToRefresh.LatitudeHeight / resolutionCell8;
 
             double minx = geoAreaToRefresh.WestLongitude;
             double miny = geoAreaToRefresh.SouthLatitude;
@@ -155,9 +160,9 @@ namespace PraxisMapper.Controllers
                 //for (var y = 0; y < Cell10YTiles; y++)
                 {
                     var db2 = new PraxisContext();
-                    var olc = new OpenLocationCode(new GeoPoint(miny + (MapSupport.resolutionCell8 * y), minx + (MapSupport.resolutionCell8 * x)));
+                    var olc = new OpenLocationCode(new GeoPoint(miny + (resolutionCell8 * y), minx + (resolutionCell8 * x)));
                     var olc8 = olc.CodeDigits.Substring(0, 8);
-                    var olcPoly = MapSupport.GeoAreaToPolygon(OpenLocationCode.DecodeValid(olc8));
+                    var olcPoly = GeoAreaToPolygon(OpenLocationCode.DecodeValid(olc8));
                     //if (md.place.Intersects(olcPoly)) //If this intersects the original way, redraw that tile. Lets us minimize work for oddly-shaped areas.
                     if (pg.Intersects(olcPoly))
                     {
@@ -168,7 +173,7 @@ namespace PraxisMapper.Controllers
                             db2.MapTiles.Add(maptiles10);
                         }
 
-                        maptiles10.tileData = MapSupport.DrawMPControlAreaMapTile11(olc.Decode(), shortcut);
+                        maptiles10.tileData = MapTiles.DrawMPControlAreaMapTile11(olc.Decode(), shortcut);
                         maptiles10.CreatedOn = DateTime.Now;
                         db2.SaveChanges();
                     }
@@ -205,8 +210,8 @@ namespace PraxisMapper.Controllers
             {
                 //Create this map tile.
                 GeoArea pluscode = OpenLocationCode.DecodeValid(Cell10);
-                var places = MapSupport.GetPlaces(pluscode);
-                var tile = MapSupport.DrawAreaMapTile11(ref places, pluscode);
+                var places = GetPlaces(pluscode);
+                var tile = MapTiles.DrawAreaMapTile11(ref places, pluscode);
                 baseMapTile = new MapTile() { CreatedOn = DateTime.Now, mode = 1, PlusCode = Cell10, resolutionScale = 11, tileData = tile };
                 db.MapTiles.Add(baseMapTile);
                 db.SaveChanges();
@@ -218,8 +223,8 @@ namespace PraxisMapper.Controllers
                 //Create this entry
                 //requires a list of colors to use, which might vary per app
                 GeoArea TenCell = OpenLocationCode.DecodeValid(Cell10);
-                var places = MapSupport.GetPlaces(TenCell);
-                var results = MapSupport.DrawMPControlAreaMapTile11(TenCell);
+                var places = GetPlaces(TenCell);
+                var results = MapTiles.DrawMPControlAreaMapTile11(TenCell);
                 factionColorTile = new MapTile() { PlusCode = Cell10, CreatedOn = DateTime.Now, mode = 2, resolutionScale = 11, tileData = results };
                 db.MapTiles.Add(factionColorTile);
                 db.SaveChanges();
@@ -247,8 +252,8 @@ namespace PraxisMapper.Controllers
             {
                 //Create this map tile.
                 GeoArea pluscode = OpenLocationCode.DecodeValid(Cell8);
-                var places = MapSupport.GetPlaces(pluscode);
-                var tile = MapSupport.DrawAreaMapTile11(ref places, pluscode);
+                var places = GetPlaces(pluscode);
+                var tile = MapTiles.DrawAreaMapTile11(ref places, pluscode);
                 baseMapTile = new MapTile() { CreatedOn = DateTime.Now, mode = 1, PlusCode = Cell8, resolutionScale = 11, tileData = tile };
                 db.MapTiles.Add(baseMapTile);
                 db.SaveChanges();
@@ -260,8 +265,8 @@ namespace PraxisMapper.Controllers
                 //Create this entry
                 //requires a list of colors to use, which might vary per app
                 GeoArea CellEightArea = OpenLocationCode.DecodeValid(Cell8);
-                var places = MapSupport.GetPlaces(CellEightArea);
-                var results = MapSupport.DrawMPControlAreaMapTile11(CellEightArea);
+                var places = GetPlaces(CellEightArea);
+                var results = MapTiles.DrawMPControlAreaMapTile11(CellEightArea);
                 factionColorTile = new MapTile() { PlusCode = Cell8, CreatedOn = DateTime.Now, mode = 2, resolutionScale = 11, tileData = results };
                 db.MapTiles.Add(factionColorTile);
                 db.SaveChanges();
@@ -287,14 +292,14 @@ namespace PraxisMapper.Controllers
             var md = db.MapData.Where(m => m.MapDataId == mapDataId).FirstOrDefault();
             var space = md.place.Envelope;
             var geoAreaToRefresh = new GeoArea(new GeoPoint(space.Coordinates.Min().Y, space.Coordinates.Min().X), new GeoPoint(space.Coordinates.Max().Y, space.Coordinates.Max().X));
-            var Cell10XTiles = geoAreaToRefresh.LongitudeWidth / MapSupport.resolutionCell10;
-            var Cell10YTiles = geoAreaToRefresh.LatitudeHeight / MapSupport.resolutionCell10;
+            var Cell10XTiles = geoAreaToRefresh.LongitudeWidth / resolutionCell10;
+            var Cell10YTiles = geoAreaToRefresh.LatitudeHeight / resolutionCell10;
             for (var x = 0; x < Cell10XTiles; x++)
             {
                 for (var y = 0; y < Cell10YTiles; y++)
                 {
-                    var olc = new OpenLocationCode(new GeoPoint(geoAreaToRefresh.SouthLatitude + (MapSupport.resolutionCell10 * y), geoAreaToRefresh.WestLongitude + (MapSupport.resolutionCell10 * x)));
-                    var olcPoly = MapSupport.GeoAreaToPolygon(olc.Decode());
+                    var olc = new OpenLocationCode(new GeoPoint(geoAreaToRefresh.SouthLatitude + (resolutionCell10 * y), geoAreaToRefresh.WestLongitude + (resolutionCell10 * x)));
+                    var olcPoly = Converters.GeoAreaToPolygon(olc.Decode());
                     if (md.place.Intersects(olcPoly)) //If this intersects the original way, redraw that tile. Lets us minimize work for oddly-shaped areas.
                     {
                         results += olc.CodeDigits + "|";
@@ -321,16 +326,16 @@ namespace PraxisMapper.Controllers
                 return "MissingArea|Nobody|0";
 
             if (string.IsNullOrWhiteSpace(mapData.name))
-                mapData.name = MapSupport.areaIdReference[mapData.AreaTypeId].FirstOrDefault();
+                mapData.name = areaIdReference[mapData.AreaTypeId].FirstOrDefault();
 
             if (owner != null)
             {
                 var factionName = db.Factions.Where(f => f.FactionId == owner.FactionId).FirstOrDefault().Name;
-                return mapData.name + "|" + factionName + "|" + MapSupport.GetScoreForSingleArea(mapData.place);
+                return mapData.name + "|" + factionName + "|" + GetScoreForSinglePlace(mapData.place);
             }
             else
             {
-                return mapData.name + "|Nobody|" + MapSupport.GetScoreForSingleArea(mapData.place);
+                return mapData.name + "|Nobody|" + GetScoreForSinglePlace(mapData.place);
             }
         }
 
