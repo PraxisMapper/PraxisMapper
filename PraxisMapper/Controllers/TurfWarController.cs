@@ -159,8 +159,11 @@ namespace PraxisMapper.Controllers
             twConfig.TurfWarNextReset = nextTime;
             
             db.TurfWarEntries.RemoveRange(db.TurfWarEntries.Where(tw => tw.TurfWarConfigId == instanceID));
-            //Do these need removed?... Yes. The alternative is indexing ExpiresAt and checking that column on Assignment to only include current rows. This option should be better performing in general.
-            db.TurfWarTeamAssignments.RemoveRange(db.TurfWarTeamAssignments.Where(ta => ta.TurfWarConfigId == instanceID || ta.ExpiresAt < DateTime.Now));
+            db.TurfWarTeamAssignments.RemoveRange(db.TurfWarTeamAssignments.Where(ta => ta.TurfWarConfigId == instanceID)); //This might be better suited to raw SQL. TODO investigate
+
+            //create dummy entries so team assignments works faster
+            foreach(var faction in db.Factions)
+                db.TurfWarTeamAssignments.Add(new DbTables.TurfWarTeamAssignment() { deviceID = "dummy", FactionId = (int)faction.FactionId, TurfWarConfigId = instanceID, ExpiresAt = nextTime });
 
             //record score results.
             var score = new DbTables.TurfWarScoreRecord();
@@ -218,7 +221,7 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        [Route("/[controller]/AssignTeam/{instanceID}/deviceID")]
+        [Route("/[controller]/AssignTeam/{instanceID}/{deviceID}")]
         public int AssignTeam(int instanceID, string deviceID)
         {
             //Which team are you on per instance?
@@ -241,7 +244,7 @@ namespace PraxisMapper.Controllers
                 pt.Stop(deviceID + "|" + instanceID.ToString());
                 return teamEntry.FactionId;
             }
-
+            
             var smallestTeam = db.TurfWarTeamAssignments
                 .Where(ta => ta.TurfWarConfigId == instanceID)
                 .GroupBy(ta => ta.FactionId)
