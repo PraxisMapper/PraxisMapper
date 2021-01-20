@@ -9,6 +9,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using static CoreComponents.DbTables;
+using static CoreComponents.ConstantValues;
+using static CoreComponents.Singletons;
+using static CoreComponents.Place;
+using static CoreComponents.ScoreData;
+using static CoreComponents.AreaTypeInfo;
 
 namespace PraxisMapper.Controllers
 {
@@ -56,7 +61,7 @@ namespace PraxisMapper.Controllers
             }
             var box = OpenLocationCode.DecodeValid(codeString6);
 
-            var places = MapSupport.GetPlaces(OpenLocationCode.DecodeValid(codeString6));  //All the places in this 6-code
+            var places = GetPlaces(OpenLocationCode.DecodeValid(codeString6));  //All the places in this 6-code
             StringBuilder sb = new StringBuilder();
             sb.AppendLine(codeString6);
             //pluscode6 //first 6 digits of this pluscode. each line below is the last 4 that have an area type.
@@ -68,10 +73,10 @@ namespace PraxisMapper.Controllers
             List<MapData>[] placeArray;
             GeoArea[] areaArray;
             StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
-            MapSupport.SplitArea(box, splitcount, places, out placeArray, out areaArray);
+            Converters.SplitArea(box, splitcount, places, out placeArray, out areaArray);
             System.Threading.Tasks.Parallel.For(0, placeArray.Length, (i) =>
            {
-               sbArray[i] = MapSupport.SearchArea(ref areaArray[i], ref placeArray[i]);
+               sbArray[i] = SearchArea(ref areaArray[i], ref placeArray[i]);
            });
 
             foreach (StringBuilder sbPartial in sbArray)
@@ -103,10 +108,10 @@ namespace PraxisMapper.Controllers
             }
             var box = OpenLocationCode.DecodeValid(codeString8);
 
-            var places = MapSupport.GetPlaces(OpenLocationCode.DecodeValid(codeString8));  //All the places in this 8-code
+            var places = GetPlaces(OpenLocationCode.DecodeValid(codeString8));  //All the places in this 8-code
             if (Configuration.GetValue<bool>("generateAreas") && !places.Any(p => p.AreaTypeId < 13 || p.AreaTypeId == 100)) //check for 100 to not make new entries in the same spot.
             {
-                var newAreas = MapSupport.CreateInterestingAreas(codeString8);
+                var newAreas = CreateInterestingPlaces(codeString8);
                 places = newAreas.Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }).ToList();
             }
 
@@ -121,10 +126,10 @@ namespace PraxisMapper.Controllers
             List<MapData>[] placeArray;
             GeoArea[] areaArray;
             StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
-            MapSupport.SplitArea(box, splitcount, places, out placeArray, out areaArray);
+            Converters.SplitArea(box, splitcount, places, out placeArray, out areaArray);
             System.Threading.Tasks.Parallel.For(0, placeArray.Length, (i) =>
             {
-                sbArray[i] = MapSupport.SearchArea(ref areaArray[i], ref placeArray[i], (fullCode == 1));
+                sbArray[i] = SearchArea(ref areaArray[i], ref placeArray[i], (fullCode == 1));
             });
 
             foreach (StringBuilder sbPartial in sbArray)
@@ -159,7 +164,7 @@ namespace PraxisMapper.Controllers
             //}
             GeoArea box = new GeoArea(new GeoPoint(lat - .025, lon - .025), new GeoPoint(lat + .025, lon + .025));
 
-            var places = MapSupport.GetPlaces(box);  //All the places in this 6-code //NOTE: takes 500ms here, but 6-codes should take ~15ms in perftesting.
+            var places = GetPlaces(box);  //All the places in this 6-code //NOTE: takes 500ms here, but 6-codes should take ~15ms in perftesting.
             StringBuilder sb = new StringBuilder();
             sb.AppendLine(pointDesc);
             //This endpoint puts the whole 10-digit plus code (without the separator) at the start of the line. I can't guarentee that any digits are shared since this isn't a grid-bound endpoint.
@@ -170,10 +175,10 @@ namespace PraxisMapper.Controllers
             List<MapData>[] placeArray;
             GeoArea[] areaArray;
             StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
-            MapSupport.SplitArea(box, splitcount, places, out placeArray, out areaArray);
+            Converters.SplitArea(box, splitcount, places, out placeArray, out areaArray);
             System.Threading.Tasks.Parallel.For(0, placeArray.Length, (i) =>
             {
-                sbArray[i] = MapSupport.SearchArea(ref areaArray[i], ref placeArray[i], true);
+                sbArray[i] = SearchArea(ref areaArray[i], ref placeArray[i], true);
             });
 
             foreach (StringBuilder sbPartial in sbArray)
@@ -195,8 +200,8 @@ namespace PraxisMapper.Controllers
             //THe main endpoint excludes admin boundaries
             //this function exclusively gets them.
             PerformanceTracker pt = new PerformanceTracker("LearnAdminBoundaries");
-            var box = new GeoArea(new GeoPoint(lat, lon), new GeoPoint(lat + MapSupport.resolutionCell10, lon + MapSupport.resolutionCell10));
-            var entriesHere = MapSupport.GetPlaces(box).Where(p => p.type.StartsWith("admin")).OrderBy(p => p.type).ToList();
+            var box = new GeoArea(new GeoPoint(lat, lon), new GeoPoint(lat + resolutionCell10, lon + resolutionCell10));
+            var entriesHere = GetPlaces(box).Where(p => p.type.StartsWith("admin")).OrderBy(p => p.type).ToList();
 
             StringBuilder sb = new StringBuilder();
             foreach (var entry in entriesHere)
@@ -247,8 +252,8 @@ namespace PraxisMapper.Controllers
                 //Create this entry
                 //requires a list of colors to use, which might vary per app
                 GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
-                var places = MapSupport.GetPlaces(eightCell);
-                var results = MapSupport.DrawAreaMapTile(ref places, eightCell);
+                var places = GetPlaces(eightCell);
+                var results = MapTiles.DrawAreaMapTile(ref places, eightCell);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, CreatedOn = DateTime.Now, mode =1, resolutionScale = 10, tileData = results });
                 db.SaveChanges();
                 pt.Stop(plusCode8);
@@ -274,8 +279,8 @@ namespace PraxisMapper.Controllers
                 //Create this entry
                 //requires a list of colors to use, which might vary per app
                 GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
-                var places = MapSupport.GetPlaces(eightCell);
-                var results = MapSupport.DrawAreaMapTile11(ref places, eightCell);
+                var places = GetPlaces(eightCell);
+                var results = MapTiles.DrawAreaMapTile11(ref places, eightCell);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results });
                 db.SaveChanges();
                 pt.Stop(plusCode8);
@@ -302,8 +307,8 @@ namespace PraxisMapper.Controllers
                 //requires a list of colors to use, which might vary per app
                 //GeoArea TenCell = OpenLocationCode.Decode(plusCode10.Substring(0, 8) + "+" +  plusCode10.Substring(9, 2));
                 GeoArea TenCell = OpenLocationCode.DecodeValid(plusCode10);
-                var places = MapSupport.GetPlaces(TenCell);
-                var results = MapSupport.DrawAreaMapTile11(ref places, TenCell);
+                var places = GetPlaces(TenCell);
+                var results = MapTiles.DrawAreaMapTile11(ref places, TenCell);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode10, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results });
                 db.SaveChanges();
                 pt.Stop(plusCode10);
@@ -330,8 +335,8 @@ namespace PraxisMapper.Controllers
                 //Create this entry
                 //requires a list of colors to use, which might vary per app
                 GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
-                var allPlaces = MapSupport.GetPlaces(sixCell);
-                var results = MapSupport.DrawAreaMapTile(ref allPlaces, sixCell);
+                var allPlaces = GetPlaces(sixCell);
+                var results = MapTiles.DrawAreaMapTile(ref allPlaces, sixCell);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode6, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 10, tileData = results });
                 db.SaveChanges();
                 pt.Stop(plusCode6);
@@ -357,8 +362,8 @@ namespace PraxisMapper.Controllers
             {
                 //requires a list of colors to use, which might vary per app. Defined in AreaType
                 GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
-                var allPlaces = MapSupport.GetPlaces(sixCell);
-                var results = MapSupport.DrawAreaMapTile11(ref allPlaces, sixCell);
+                var allPlaces = GetPlaces(sixCell);
+                var results = MapTiles.DrawAreaMapTile11(ref allPlaces, sixCell);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode6, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results });
                 db.SaveChanges();
                 pt.Stop(plusCode6);
@@ -375,12 +380,12 @@ namespace PraxisMapper.Controllers
             //Flex endpoint doesnt save data to DB or cache stuff yet.
             PerformanceTracker pt = new PerformanceTracker("DrawFlex");
             GeoArea box = new GeoArea(new GeoPoint(lat - (size / 2), lon - (size / 2)), new GeoPoint(lat + (size / 2), lon + (size / 2)));
-            var allPlaces = MapSupport.GetPlaces(box);
+            var allPlaces = GetPlaces(box);
             byte[] results;
             if (resolution == 10)
-                results = MapSupport.DrawAreaMapTile(ref allPlaces, box);
+                results = MapTiles.DrawAreaMapTile(ref allPlaces, box);
             else
-                results = MapSupport.DrawAreaMapTile11(ref allPlaces, box);
+                results = MapTiles.DrawAreaMapTile11(ref allPlaces, box);
             pt.Stop(lat + "|" + lon + "|" + size + "|" + resolution);
             return File(results, "image/png");
         }
@@ -431,8 +436,8 @@ namespace PraxisMapper.Controllers
             //attach a debug point here and read the results.
 
             //Exact point for area? or 10cell space to find trails too?
-            var places = MapSupport.GetPlaces(new OpenLocationCode(lat, lon).Decode());
-            var results = MapSupport.FindPlacesIn10Cell(lon, lat, ref places, true);
+            var places = GetPlaces(new OpenLocationCode(lat, lon).Decode());
+            var results = FindPlacesInCell10(lon, lat, ref places, true);
         }
 
         [HttpGet]
@@ -441,7 +446,7 @@ namespace PraxisMapper.Controllers
         public string TestMapDataEntry(long id)
         {
             //Another test method exposed here for me.
-            return MapSupport.LoadDataOnArea(id);
+            return LoadDataOnPlace(id);
         }
 
 
@@ -468,7 +473,7 @@ namespace PraxisMapper.Controllers
             //}
             GeoArea box = new GeoArea(new GeoPoint(lat - (size / 2), lon - (size / 2)), new GeoPoint(lat + (size / 2), lon + (size / 2)));
 
-            var places = MapSupport.GetPlaces(box);  //All the places in this area
+            var places = GetPlaces(box);  //All the places in this area
             StringBuilder sb = new StringBuilder();
             sb.AppendLine(pointDesc);
             //This endpoint puts the whole 10-digit plus code (without the separator) at the start of the line. I can't guarentee that any digits are shared since this isn't a grid-bound endpoint.
@@ -478,14 +483,14 @@ namespace PraxisMapper.Controllers
 
             //This is sort of a magic formula I wandered into.
             // Sqrt(Size / resolution10 ) * 2 is my current logic.
-            int splitcount = (int)Math.Floor(Math.Sqrt(size / MapSupport.resolutionCell10) * 2);
+            int splitcount = (int)Math.Floor(Math.Sqrt(size / resolutionCell10) * 2);
             List<MapData>[] placeArray;
             GeoArea[] areaArray;
             StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
-            MapSupport.SplitArea(box, splitcount, places, out placeArray, out areaArray);
+            Converters.SplitArea(box, splitcount, places, out placeArray, out areaArray);
             System.Threading.Tasks.Parallel.For(0, placeArray.Length, (i) =>
             {
-                sbArray[i] = MapSupport.SearchArea(ref areaArray[i], ref placeArray[i], true);
+                sbArray[i] = SearchArea(ref areaArray[i], ref placeArray[i], true);
             });
 
             foreach (StringBuilder sbPartial in sbArray)
@@ -503,10 +508,10 @@ namespace PraxisMapper.Controllers
             //If you want to own the part of a MapData entry within a cell8, this calculates how many squares it takes up (and therefore how many points it takes to claim it)
             PerformanceTracker pt = new PerformanceTracker("CalculateAreaPoints");
             GeoArea box = OpenLocationCode.DecodeValid(plusCode8);
-            var places = MapSupport.GetPlaces(box);
-            var plusCodeCoords = MapSupport.GeoAreaToCoordArray(box);
-            var plusCodePoly = MapSupport.factory.CreatePolygon(plusCodeCoords);
-            var results = MapSupport.GetScoresForArea(plusCodePoly, places);
+            var places = GetPlaces(box);
+            var plusCodeCoords = Converters.GeoAreaToCoordArray(box);
+            var plusCodePoly = factory.CreatePolygon(plusCodeCoords);
+            var results = GetScoresForArea(plusCodePoly, places);
             pt.Stop();
 
             return results;
@@ -519,8 +524,8 @@ namespace PraxisMapper.Controllers
             //If you want to claim an entire MapData entry, no matter the size, this calculates how many squares it takes up (and therefore how many points it takes to claim it)
             PerformanceTracker pt = new PerformanceTracker("CalculateFullAreaPoints");
             GeoArea box = OpenLocationCode.DecodeValid(plusCode8);
-            var places = MapSupport.GetPlaces(box);
-            var results =  MapSupport.GetScoresForFullArea(places);
+            var places = GetPlaces(box);
+            var results =  GetScoresForFullArea(places);
             pt.Stop();
             return results;
         }
@@ -531,10 +536,10 @@ namespace PraxisMapper.Controllers
         {
             PerformanceTracker pt = new PerformanceTracker("CalculateFlexAreaPoints");
             GeoArea box = new GeoArea(new GeoPoint(lat - (size / 2), lon - (size / 2)), new GeoPoint(lat + (size / 2), lon + (size / 2)));
-            var places = MapSupport.GetPlaces(box);
-            var coords = MapSupport.GeoAreaToCoordArray(box);
-            var poly = MapSupport.factory.CreatePolygon(coords);
-            var results = MapSupport.GetScoresForArea(poly, places);
+            var places = GetPlaces(box);
+            var coords = Converters.GeoAreaToCoordArray(box);
+            var poly = factory.CreatePolygon(coords);
+            var results = GetScoresForArea(poly, places);
             pt.Stop();
             return results;
         }
@@ -545,10 +550,10 @@ namespace PraxisMapper.Controllers
         {
             PerformanceTracker pt = new PerformanceTracker("CalculateFlexFullAreaPoints");
             GeoArea box = new GeoArea(new GeoPoint(lat - (size / 2), lon - (size / 2)), new GeoPoint(lat + (size / 2), lon + (size / 2)));
-            var places = MapSupport.GetPlaces(box);
-            var coords = MapSupport.GeoAreaToCoordArray(box);
-            var poly = MapSupport.factory.CreatePolygon(coords);
-            var results =  MapSupport.GetScoresForArea(poly, places);
+            var places = GetPlaces(box);
+            var coords = Converters.GeoAreaToCoordArray(box);
+            var poly = factory.CreatePolygon(coords);
+            var results =  GetScoresForArea(poly, places);
             pt.Stop();
             return results;
         }
@@ -560,7 +565,7 @@ namespace PraxisMapper.Controllers
             PerformanceTracker pt = new PerformanceTracker("CalculateMapDataScore");
             var db = new PraxisContext();
             var places = db.MapData.Where(m => m.MapDataId == MapDataId).ToList();
-            var results = MapSupport.GetScoresForFullArea(places);
+            var results = GetScoresForFullArea(places);
             pt.Stop(MapDataId.ToString());
             return results;
         }

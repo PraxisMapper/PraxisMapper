@@ -16,7 +16,7 @@ Important Things to Remember:
 
 How to run this:
 
-1) Create and configure SQL Server for this app. Update connection string, create DB by running "Larry -createDB"
+1) Create and configure SQL Server or MariaDB for this app. Update connection string in Larry/ParserSettings.cs, create DB by running "Larry -createDB"
 
 2) Download the latest .osm.pbf files to use from Geofabrik.de (or another OSM mirror) and unzip them to the appropriate folder.
 --Global data takes a long time to process, use the smallest data file/set reasonable for development and testing.
@@ -25,13 +25,13 @@ How to run this:
 3) Assuming this is a first setup, Run Larry with these arguments in order (separately is ideal, but could do all at once with enough RAM):
 -createDB (Creates DB according to the connection string.)
 -trimPbfFiles(reads all .osm.pbf files in a folder, saves as JSON data to another folder. May take several runs to complete depending on RAM and file size being processed. Might get replaced or removed in the future since this no longer creates smaller files.)
+[If your file fails to complete, you may want to try -trimPbfsByType to split each category into its own output file.]
 -readMapData (Reads the JSON files for MapData, saves to DB)
--(optionally, on loading multiple files) removeDupes (Eliminiate duplicate entries. Seems to happen because a Way appears in its entirely across file boundaries (EX: the Great Lakes border the US and Canada, and might be on both files since they are a boundary)
 
 for changes that affect everything (EX: I changed tag types to process, i want new ways/updates from OSM), run Larry with -resetPbf and -resetJson, then follow step 3 again
 For changes that only affect processedWays/SPOIs (EX: testing a better approximation algorithm for ProcessedWays, changing schema on SPOI db table), i can read in existing JSON files instead of OSM PBFs
 
-Server-side:
+Server-side, assuming you want an AWS node running Windows Server.:
 Set AWS Security rules to only allow RDP from a narrow range (single IP if possible, /24 block for ISP if not.)
 deploy API app to its own folder, make sure IIS is pointing at folder with .exe and .dll files. Turn off Managed Code. 
 Upload database file to S3, copy file to server (instructions how TBD)
@@ -41,7 +41,7 @@ test API endpoint. /mapdata/test should return "OK" if IIS is up and running. ac
 Should return something on error so I can figure out why a call doesnt work. I also think I need to upload a new DB to the server
 
 Set these as the arguments for Larry to redo everything at once:
--cleanDB -resetPbf -resetJson -trimPbfFiles -readSPOIs -readRawWays -removeDupes
+-cleanDB -resetPbf -resetJson -trimPbfFiles -readMapData -removeDupes
 
 
 Notes:

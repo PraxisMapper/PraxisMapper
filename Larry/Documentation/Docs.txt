@@ -19,7 +19,8 @@ Valid Commands:
 -resetXml or -resetPbf --renames all the .pbfDone and .xmlDone files in the configured folder to their original extension, if you want to re-process them.
 -resetJson --Renamed the .jsonDone files in the configured output folder to .json so you can reload them into a database.
 -trimPbfFiles --Read through all the .osm.pbf files in the configured directory, and outputs the results as a .json file in the configured output directory.
--trimPbfsByType --Read through all the .osm.pbf files in the configured directory, and outputs the results as a .json file for each AreaType in the configured output directory.
+-trimPbfsByType --Read through all the .osm.pbf files in the configured directory, and outputs the results as a .json file for each AreaType in the configured output directory. Use this if you hit OutOfMemory exceptions trying to parse the file normally.
 -readMapData --Reads the .json files in the configured output directory, and loads them into the database.
 -extractBigAreas --use with a continent extract file or planet.osm.pbf to pull out areas that are larger than a typical country- or state-sized extract file. There's a fixed list in the code of which ones to look for.
 -populateEmptyArea:Cell6 --Scans the area of the given Cell6 for Cell8s with no interesting areas (AreaTypeIDs under 13 are 'interesting'). Creates an area into GeneratedMapData if no existing interesting areas are found for each Cell8. This would be done automatically if PraxisMapper is configured to do so on a LearnCell8 call, but this lets you do that work ahead of time instead if you have a known area you want to fill in.
+-autoCreateMapTiles --Searches the database for areas that need map tiles created, skips empty ones. Useful for pre-caching map tiles over an area, but can take a very long time for a full Cell2 (2 weeks, approximately)

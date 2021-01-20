@@ -7,6 +7,10 @@ using System.Collections.Generic;
 using System.Linq;
 using static CoreComponents.DbTables;
 using static CoreComponents.MapSupport;
+using static CoreComponents.ConstantValues;
+using static CoreComponents.Singletons;
+using static CoreComponents.Place;
+using static CoreComponents.GeometrySupport;
 
 namespace Larry
 {
@@ -19,7 +23,7 @@ namespace Larry
             //This relation should contain all the ways it uses and their nodes, so I shouldn't need all my extra lookup stuff.
             PraxisContext db = new PraxisContext();
 
-            string relationName = MapSupport.GetElementName(r.Tags);
+            string relationName = GetPlaceName(r.Tags);
             //Determine if we need to process this relation.
             //if all ways are closed outer polygons, we can skip this.
             //if all ways are lines that connect, we need to make it a polygon.
@@ -73,11 +77,11 @@ namespace Larry
             }
 
             MapData md = new MapData();
-            md.name = MapSupport.GetElementName(r.Tags);
-            md.type = MapSupport.GetElementType(r.Tags);
-            md.AreaTypeId = MapSupport.areaTypeReference[md.type.StartsWith("admin") ? "admin" : md.type].First();
+            md.name = GetPlaceName(r.Tags);
+            md.type = GetPlaceType(r.Tags);
+            md.AreaTypeId = areaTypeReference[md.type.StartsWith("admin") ? "admin" : md.type].First();
             md.RelationId = r.Id;
-            md.place = MapSupport.SimplifyArea(Tpoly);
+            md.place = SimplifyArea(Tpoly);
             if (md.place == null)
                 return null;
 
@@ -157,7 +161,7 @@ namespace Larry
                     {
                         if (ir.nds.First().id == ir.nds.Last().id)
                         {
-                            var innerP = factory.CreateLineString(WayToCoordArray(ir));
+                            var innerP = factory.CreateLineString(Converters.WayToCoordArray(ir));
                             returnData.InteriorRings.Append(innerP);
                         }
                     }

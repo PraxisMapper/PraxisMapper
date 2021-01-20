@@ -1,4 +1,4 @@
-﻿Keywords:
+﻿Keywords and naming conventions:
 Flex: takes lat, lon, and size parameters. Allows you to work with areas outside of the plus code grid segments.
 Cell#: takes a plus code of the # length. Ignores padding characters. (EX: the OLC spec may say to use 86CFJJ00+00, this app only wants to see 86CFJJ)
 Highres: returns data using Cell11 sizes instead of Cell10. 20x more data returned doing this.
@@ -6,6 +6,10 @@ Learn: pull in interesting areas from the DB for a client app to use.
 Calculate: count the number of Cell10 spaces an area takes up.
 Draw: create a PNG of a given area.
 Test: A debug function for setting up your game. Not something the game should use itself. Shouldn't be enabled in a production setup.
+Place: A location on the map intended to be interactible with for game purposes. May be an OSM point, area, or relation. As of this writing (1/20/21), this is anything processed that isn't an admin boundary.
+Area: A rectangle overlaid on the map, may contain 0 or more whole or partial Places. Usually a OLC Cell of some character length/size, but may be Flex values.
+Score: The numerical values earned and added for factions
+Faction: One of the teams working towards a goal in a gameplay mode.
 
 Controllers:
 
