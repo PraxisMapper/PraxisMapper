@@ -12,7 +12,16 @@ Visual Studio 2019 16.8 Community (or the mac/linux equivalent)
 
 .NET 5.0
 
-SQL Server 2018 or newer OR MariaDB 10.2+ (Developed with 10.5, but spatial features are present in 10.2 and on)
+SQL Server 2016 or newer OR MariaDB 10.2+ (Required for spatial data types and indexing)
+
+
+# Features
+* Load data in from OpenStreetMap exports
+* Create Map Tiles on the fly or ahead of time.
+* Supports any sized area.
+* Allows for grid-based games to quickly get back info on surroundings
+* Server stores as little data as possible about users. 
+* Multiple default game modes.
 
 
 
