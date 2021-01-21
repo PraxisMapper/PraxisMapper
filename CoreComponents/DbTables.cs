@@ -6,9 +6,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CoreComponents
 {
-
-    //TODO possible changes:
-
     public class DbTables
     {
         public class PlayerData
@@ -175,7 +172,7 @@ namespace CoreComponents
 
         public class ServerSetting
         {
-            public int id { get; set; } //just for a primary key
+            public int ServerSettingId { get; set; } //just for a primary key
             public double NorthBound { get; set; }
             public double EastBound { get; set; }
             public double SouthBound { get; set; }

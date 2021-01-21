@@ -49,7 +49,11 @@ namespace PraxisMapper.Controllers
                         if (i.Repeating)
                             resetTimes.Add(i.TurfWarConfigId, i.TurfWarNextReset);
                     }
-                    cache.Set("resetTimes", resetTimes, new MemoryCacheEntryOptions() { Size =1 });
+                    MemoryCacheEntryOptions mco = new MemoryCacheEntryOptions() { Size = 1 };
+                    cache.Set("resetTimes", resetTimes, mco);
+
+                    List<long> teams = db.Factions.Select(f => f.FactionId).ToList();
+                    cache.Set("factions", teams, mco);
                 }
 
                 if (cache != null)
@@ -106,8 +110,17 @@ namespace PraxisMapper.Controllers
             //Mark this cell10 as belonging to this faction, update the lockout timer.
             var db = new PraxisContext();
             //run all the instances at once.
-            if (!db.Factions.Any(f => f.FactionId == factionId))
-                return; //We got a claim for an invalid team, don't save anything. TODO: MemoryCache valid teams instead of a DB call each ping.
+            List<long> factions;
+            if (cache != null)
+                factions = (List<long>)cache.Get("factions");
+            else
+                factions = db.Factions.Select(f => f.FactionId).ToList();
+
+            if (!factions.Any(f => f == factionId))
+                return; //We got a claim for an invalid team, don't save anything.
+
+            if (!Place.IsInBounds(Cell10))
+                return;
 
             foreach (var config in db.TurfWarConfigs.Where(t => t.Repeating || (t.StartTime < DateTime.Now && t.TurfWarNextReset > DateTime.Now)).ToList())
             {
