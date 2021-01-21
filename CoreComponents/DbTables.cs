@@ -13,23 +13,8 @@ namespace CoreComponents
     {
         public class PlayerData
         {
-            //TODO: clear out the game-mode-specific stuff here from when this was all one mode.
-            //Move that to some single player specific mode, or the device itself.
             public int PlayerDataID { get; set; }
-            public string deviceID { get; set; }
-            public int t10Cells { get; set; }
-            public int t8Cells { get; set; }
-            public int cellVisits { get; set; }
-            public double distance { get; set; }
-            public int score { get; set; }
-            public int DateLastTrophyBought { get; set; }
-            public int timePlayed { get; set; }
-            public double maxSpeed { get; set; }
-            public double totalSpeed { get; set; }
-            public int altitudeSpread { get; set; }
-            public DateTime lastSyncTime { get; set; }
-            public int FactionID { get; set; } //This might be moved to game mode specific stuff, not a single general one.
-
+            public string deviceID { get; set; }   
             public string DisplayName { get; set; }
         }
 
@@ -187,6 +172,16 @@ namespace CoreComponents
             public string HtmlColorCode { get; set; }
             public int Priority { get; set; } //order tags should be matched in. EX: Retail should be matched before Building, since its more specific and useful.
         }
+
+        public class ServerSetting
+        {
+            public int id { get; set; } //just for a primary key
+            public double NorthBound { get; set; }
+            public double EastBound { get; set; }
+            public double SouthBound { get; set; }
+            public double WestBound { get; set; }
+        }
+
 
 
     }

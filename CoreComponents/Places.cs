@@ -359,5 +359,52 @@ namespace CoreComponents
 
             return results;
         }
+
+        public static GeoArea GetServerBounds(double resolution)
+        {
+            //Auto-detect what the boundaries are for the database's data set. This might be better off as a Larry command to calculate, and save the results in a DB table.
+            //NOTE: with the Aleutian islands, the USA is considered as wide as the entire map. These sit on both sides of the meridian.
+            //Detect which Cell2s are in play.
+            //List<OpenLocationCode> placesToScan = new List<OpenLocationCode>();
+            //These 2 start in the opposite corners, to make sure the replacements are correctly detected.
+            double SouthLimit = 360; 
+            double NorthLimit = -360;
+            double WestLimit = 360;
+            double EastLimit = -360;
+
+            //OK, a better idea might be just to scan the world map with a Cell8-sized box that reaches the whole way across, and stop when you hit HasPlaces.
+            //This could be optimized by scanning bigger plus codes down to smaller ones, but this gets u
+            var northscanner = new GeoArea(new GeoPoint(90 - resolution, -180), new GeoPoint(90, 180));
+            while(!DoPlacesExist(northscanner))
+            {
+                northscanner = new GeoArea(new GeoPoint(northscanner.SouthLatitude - resolution, -180), new GeoPoint(northscanner.NorthLatitude - resolution, 180));
+            }
+            NorthLimit = northscanner.NorthLatitude;
+
+            var southscanner = new GeoArea(new GeoPoint(-90, -180), new GeoPoint(-90 + resolution, 180));
+            while (!DoPlacesExist(southscanner))
+            {
+                southscanner = new GeoArea(new GeoPoint(southscanner.SouthLatitude + resolution, -180), new GeoPoint(southscanner.NorthLatitude + resolution, 180));
+            }
+            SouthLimit = southscanner.SouthLatitude;
+
+            var westScanner = new GeoArea(new GeoPoint(-90, -180), new GeoPoint(90, -180 + resolution));
+            while (!DoPlacesExist(westScanner))
+            {
+                westScanner = new GeoArea(new GeoPoint(-90, westScanner.WestLongitude + resolution), new GeoPoint(90, westScanner.EastLongitude + resolution));
+            }
+            WestLimit = westScanner.WestLongitude;
+
+            var eastscanner = new GeoArea(new GeoPoint(-90, 180 - resolutionCell8), new GeoPoint(90, 180));
+            while (!DoPlacesExist(eastscanner))
+            {
+                eastscanner = new GeoArea(new GeoPoint(-90, eastscanner.WestLongitude - resolution), new GeoPoint(90, eastscanner.EastLongitude - resolution));
+            }
+            EastLimit = eastscanner.EastLongitude;
+
+            return new GeoArea(new GeoPoint(SouthLimit, WestLimit), new GeoPoint(NorthLimit, EastLimit));
+
+        }
+        
     }
 }
