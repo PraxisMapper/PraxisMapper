@@ -87,6 +87,8 @@
     <Compile Include="Migrations\20210109161529_chek.Designer.cs" />
     <Compile Include="Migrations\20210109163926_errorlog.cs" />
     <Compile Include="Migrations\20210109163926_errorlog.Designer.cs" />
+    <Compile Include="Migrations\20210121181128_serverbounds.cs" />
+    <Compile Include="Migrations\20210121181128_serverbounds.Designer.cs" />
     <Compile Include="Migrations\GpsExploreContextModelSnapshot.cs" />
   </ItemGroup>
 

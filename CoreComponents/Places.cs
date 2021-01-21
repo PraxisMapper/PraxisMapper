@@ -403,8 +403,24 @@ namespace CoreComponents
             EastLimit = eastscanner.EastLongitude;
 
             return new GeoArea(new GeoPoint(SouthLimit, WestLimit), new GeoPoint(NorthLimit, EastLimit));
-
         }
-        
+
+        public static bool IsInBounds(OpenLocationCode code)
+        {
+            //TODO: ponder how to handle this without a DB call each time. This should probably be cached by the app
+            var db = new PraxisContext();
+            var bounds = db.ServerSettings.FirstOrDefault();
+            var area = code.Decode();
+
+            return (bounds.NorthBound >= area.NorthLatitude && bounds.SouthBound <= area.SouthLatitude
+                && bounds.EastBound >= area.EastLongitude && bounds.WestBound <= area.WestLongitude);
+        }
+
+        public static bool IsInBounds(string code)
+        {
+            var area = new OpenLocationCode(code); //Might need to re-add the + if its not present?
+            return IsInBounds(area);
+        }
+
     }
 }

@@ -19,6 +19,7 @@ namespace PraxisMapper
             PraxisContext.connectionString = Configuration.GetValue<string>("dbConnectionString");
             PraxisContext.serverMode = Configuration.GetValue<string>("dbMode");
             AdminController.adminPwd = Configuration.GetValue<string>("adminPwd");
+
         }
 
         public IConfiguration Configuration { get; }
