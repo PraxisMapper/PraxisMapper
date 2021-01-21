@@ -4,13 +4,18 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using CoreComponents;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
+using static CoreComponents.DbTables;
 
 namespace PraxisMapper.Controllers
-{ 
+{
     [Route("[controller]")]
     [ApiController]
     public class TurfWarController : Controller
     {
+        private readonly IConfiguration Configuration;
+        private static MemoryCache cache; //TurfWar is meant to be a rapidly-changing game mode, so it won't cache a lot of data in RAM.
         public static bool isResetting = false;
         //TurfWar is a simplified version of AreaControl.
         //1) It operates on a per-Cell basis instead of a per-MapData entry basis.
@@ -21,21 +26,49 @@ namespace PraxisMapper.Controllers
         //TODO: allow pre-configured teams for specific events? this is difficult if I don't want to track users on the server, since this would have to be by deviceID
         //TODO: allow an option to let you choose to join a team. Yes, i wanted to avoid this. Yes, there's still good cases for it.
 
-        public TurfWarController() //TODO: add MemoryCache here to track DateTime for when to reset configs instead of a DB lookup every endpoint call.
+        public TurfWarController(IConfiguration configuration)
         {
             try
             {
                 if (isResetting)
                     return;
+
                 Classes.PerformanceTracker pt = new Classes.PerformanceTracker("TurfWarConstructor");
                 var db = new PraxisContext();
-                var instances = db.TurfWarConfigs.ToList();
-                foreach (var i in instances)
-                    if (i.Repeating) //Don't check this on non-repeating instances.
-                        CheckForReset(i.TurfWarConfigId); //Do this on every call so we don't have to have an external app handle these, and we don't miss one.
+                Configuration = configuration;
+                if (cache == null && Configuration.GetValue<bool>("enableCaching") == true)
+                {
+                    var options = new MemoryCacheOptions();
+                    options.SizeLimit = 1024;
+                    cache = new MemoryCache(options);
+
+                    //fill the cache with some early useful data
+                    Dictionary<int, DateTime> resetTimes = new Dictionary<int, DateTime>();
+                    foreach (var i in db.TurfWarConfigs)
+                    {
+                        if (i.Repeating)
+                            resetTimes.Add(i.TurfWarConfigId, i.TurfWarNextReset);
+                    }
+                    cache.Set("resetTimes", resetTimes, new MemoryCacheEntryOptions() { Size =1 });
+                }
+
+                if (cache != null)
+                {
+                    Dictionary<int, DateTime> cachedTimes = (Dictionary<int, DateTime>)cache.Get("resetTimes");
+                    foreach (var t in cachedTimes)
+                        if (t.Value < DateTime.Now)
+                            CheckForReset(t.Key);
+                }
+                else
+                {
+                    var instances = db.TurfWarConfigs.ToList();
+                    foreach (var i in instances)
+                        if (i.Repeating) //Don't check this on non-repeating instances.
+                            CheckForReset(i.TurfWarConfigId); //Do this on every call so we don't have to have an external app handle these, and we don't miss one.
+                }
                 pt.Stop();
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 Classes.ErrorLogger.LogError(ex);
             }
@@ -57,7 +90,7 @@ namespace PraxisMapper.Controllers
                 pt.Stop(Cell8);
                 return results;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 Classes.ErrorLogger.LogError(ex);
                 return "";
@@ -104,18 +137,20 @@ namespace PraxisMapper.Controllers
             //also, report time, primarily for recordkeeping 
             var db = new PraxisContext();
             var teams = db.Factions.ToLookup(k => k.FactionId, v => v.Name);
-            var data = db.TurfWarEntries.Where(t => t.TurfWarConfigId == instanceID).GroupBy(g => g.FactionId).Select(t => new { instanceID = instanceID,  team = t.Key, score = t.Count()}).OrderByDescending(t => t.score).ToList();
+            var data = db.TurfWarEntries.Where(t => t.TurfWarConfigId == instanceID).GroupBy(g => g.FactionId).Select(t => new { instanceID = instanceID, team = t.Key, score = t.Count() }).OrderByDescending(t => t.score).ToList();
             var modeName = db.TurfWarConfigs.Where(t => t.TurfWarConfigId == instanceID).FirstOrDefault().Name;
             //TODO: data to string of some kind.
             string results = modeName + "#" + DateTime.Now + "|";
             foreach (var d in data)
             {
-                results += teams[d.team].FirstOrDefault() + "=" + d.score +"|";
+                results += teams[d.team].FirstOrDefault() + "=" + d.score + "|";
             }
             pt.Stop(instanceID.ToString());
             return results;
         }
 
+        [HttpGet] //TODO this is a POST? TODO take in an instanceID?
+        [Route("/[controller]/PastScoreboards")]
         public static string PastScoreboards()
         {
             Classes.PerformanceTracker pt = new Classes.PerformanceTracker("PastScoreboards");
@@ -127,7 +162,7 @@ namespace PraxisMapper.Controllers
             return parsedResults;
         }
 
-        [HttpGet] //TODO this is a POST
+        [HttpGet] //TODO this is a POST?
         [Route("/[controller]/ModeTime/{instanceID}")]
         public TimeSpan ModeTime(int instanceID)
         {
@@ -157,12 +192,12 @@ namespace PraxisMapper.Controllers
             if (manaulReset && nextEndTime.HasValue)
                 nextTime = nextEndTime.Value;
             twConfig.TurfWarNextReset = nextTime;
-            
+
             db.TurfWarEntries.RemoveRange(db.TurfWarEntries.Where(tw => tw.TurfWarConfigId == instanceID));
             db.TurfWarTeamAssignments.RemoveRange(db.TurfWarTeamAssignments.Where(ta => ta.TurfWarConfigId == instanceID)); //This might be better suited to raw SQL. TODO investigate
 
             //create dummy entries so team assignments works faster
-            foreach(var faction in db.Factions)
+            foreach (var faction in db.Factions)
                 db.TurfWarTeamAssignments.Add(new DbTables.TurfWarTeamAssignment() { deviceID = "dummy", FactionId = (int)faction.FactionId, TurfWarConfigId = instanceID, ExpiresAt = nextTime });
 
             //record score results.
@@ -188,7 +223,7 @@ namespace PraxisMapper.Controllers
             var twConfig = db.TurfWarConfigs.Where(t => t.TurfWarConfigId == instanceID).FirstOrDefault();
             if (twConfig.TurfWarDurationHours == -1) //This is a permanent instance.
                 return;
-            
+
             if (DateTime.Now > twConfig.TurfWarNextReset)
                 ResetGame(instanceID);
             pt.Stop();
@@ -224,27 +259,20 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/AssignTeam/{instanceID}/{deviceID}")]
         public int AssignTeam(int instanceID, string deviceID)
         {
-            //Which team are you on per instance?
+            //Which team are you on per instance? Assigns new players to the team with the smallest membership at the time.
             Classes.PerformanceTracker pt = new Classes.PerformanceTracker("AssignTeam");
 
             var db = new PraxisContext();
             var config = db.TurfWarConfigs.Where(c => c.TurfWarConfigId == instanceID).FirstOrDefault();
-            var teamEntry = db.TurfWarTeamAssignments.Where(ta => ta.deviceID == deviceID && ta.TurfWarConfigId == instanceID).FirstOrDefault();
-            if (teamEntry == null)
-            {
-                teamEntry = new DbTables.TurfWarTeamAssignment();
-                teamEntry.deviceID = deviceID;
-                teamEntry.TurfWarConfigId = instanceID;
-                db.TurfWarTeamAssignments.Add(teamEntry);
-            }
-
-            //Sanity check - if we're mid-run and have an assignment, keep it.
+            var teamEntry = GetTeamAssignment(deviceID, instanceID);
+            db.Attach(teamEntry);
+            //Sanity check - if we're mid-instance and have an assignment, keep it.
             if (teamEntry.ExpiresAt > DateTime.Now)
             {
                 pt.Stop(deviceID + "|" + instanceID.ToString());
                 return teamEntry.FactionId;
             }
-            
+
             var smallestTeam = db.TurfWarTeamAssignments
                 .Where(ta => ta.TurfWarConfigId == instanceID)
                 .GroupBy(ta => ta.FactionId)
@@ -257,6 +285,41 @@ namespace PraxisMapper.Controllers
             db.SaveChanges();
             pt.Stop(deviceID + "|" + instanceID.ToString());
             return teamEntry.FactionId;
+        }
+
+        [HttpGet]
+        [Route("/[controller]/SetTeam/{instanceID}/{deviceID}/{factionID}")]
+        public int SetTeam(int instanceID, string deviceID, int factionID)
+        {
+            //An alternative config option, to let players pick teams and have it stored on the server. Provided for testing and alternative play models.
+            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("AssignTeam");
+            var db = new PraxisContext();
+            var teamEntry = GetTeamAssignment(deviceID, instanceID);
+            db.Attach(teamEntry);
+            teamEntry.FactionId = factionID;
+            db.SaveChanges();
+
+            pt.Stop(deviceID + "|" + instanceID.ToString() + "|" + factionID);
+            return factionID;
+        }
+
+        public TurfWarTeamAssignment GetTeamAssignment(string deviceID, int instanceID)
+        {
+            var db = new PraxisContext();
+            var r = new Random();
+            var teamEntry = db.TurfWarTeamAssignments.Where(ta => ta.deviceID == deviceID && ta.TurfWarConfigId == instanceID).FirstOrDefault();
+            if (teamEntry == null)
+            {
+                var config = db.TurfWarConfigs.Where(c => c.TurfWarConfigId == instanceID).FirstOrDefault();
+                teamEntry = new DbTables.TurfWarTeamAssignment();
+                teamEntry.deviceID = deviceID;
+                teamEntry.TurfWarConfigId = instanceID;
+                teamEntry.ExpiresAt = DateTime.Now.AddDays(-1); //entry exists, immediately is expired. This is used to identify a newly created entry.
+                teamEntry.FactionId = r.Next(0, db.Factions.Count()) + 1; //purely randomly assigned.
+                db.TurfWarTeamAssignments.Add(teamEntry);
+                db.SaveChanges();
+            }
+            return teamEntry;
         }
     }
 }

@@ -65,5 +65,15 @@ namespace PraxisMapper.Controllers
             //Report to an admin or an app which modes have which instances, and their configuration.
             return "";
         }
+
+        [HttpGet]
+        [Route("/[controller]/GetServerBounds/{password}")]
+        public string GetServerBounds(string password)
+        {
+            //var results = 
+            var db = new PraxisContext();
+            var results = db.ServerSettings.FirstOrDefault();
+            return results.SouthBound + "," + results.WestBound + "|" + results.NorthBound + "," + results.EastBound;
+        }
     }
 }

@@ -30,11 +30,7 @@ namespace CoreComponents
     public static class MapSupport
     {
         //TODO:
-        //continue renmaing and reorganizing things.
-        //figure out a better, consistent way to differentiate Points(locations) from Points(gameplay score counter)
-        //use Score for gameplay score, use CoordPair for single GPS location
-        //Make all references to plus code area sizes consistent (CellX, with X the number of digits in that code)
-        //Break this out into multiple classes? How so?
+        //remove this file after confirming i dont need these last 2 commented out blocks.
         
 
         

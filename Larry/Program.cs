@@ -105,6 +105,7 @@ namespace Larry
                 }
 
                 InsertAreaTypesToDb(ParserSettings.DbMode);
+                InsertDefaultServerConfig();
                 InsertDefaultFactionsToDb();
                 InsertDefaultTurfWarConfigs();
             }
@@ -112,6 +113,22 @@ namespace Larry
             if (args.Any(a => a == "-cleanDB"))
             {
                 CleanDb();
+            }
+
+            if (args.Any(a => a == "-findServerBounds"))
+            {
+                //This is an important command if you don't want to track data outside of your initial area.
+                Log.WriteLog("Detecting server map boundaries from data at " + DateTime.Now);
+                var results = Place.GetServerBounds(resolutionCell8); //Using 8 for now.
+
+                var db = new PraxisContext();
+                var settings = db.ServerSettings.FirstOrDefault();
+                settings.NorthBound = results.NorthLatitude;
+                settings.SouthBound = results.SouthLatitude;
+                settings.EastBound = results.EastLongitude;
+                settings.WestBound = results.WestLongitude;
+                db.SaveChanges();
+                Log.WriteLog("Server map boundaries found and saved at " + DateTime.Now);
             }
 
             if (args.Any(a => a == "-singleTest"))
@@ -1766,6 +1783,13 @@ namespace Larry
         {
             var db = new PraxisContext();
             db.Factions.AddRange(defaultFaction);
+            db.SaveChanges();
+        }
+
+        public static void InsertDefaultServerConfig()
+        {
+            var db = new PraxisContext();
+            db.ServerSettings.Add(new ServerSetting() { NorthBound = 90, SouthBound = -90, EastBound = 180, WestBound = -180 });
             db.SaveChanges();
         }
 

@@ -24,6 +24,7 @@ namespace CoreComponents
         public DbSet<TurfWarScoreRecord> TurfWarScoreRecords { get; set; }
         public DbSet<TurfWarTeamAssignment> TurfWarTeamAssignments { get; set; }
         public DbSet<ErrorLog> ErrorLogs { get; set; }
+        public DbSet<ServerSetting>  ServerSettings { get; set; }
 
 
         //IConfiguration Config;
