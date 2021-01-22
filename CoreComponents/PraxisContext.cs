@@ -74,7 +74,10 @@ namespace CoreComponents
             //Create indexes here.
             model.Entity<PlayerData>().HasIndex(p => p.deviceID); //for updating data
 
-            model.Entity<MapData>().HasIndex(p => p.WayId); //for checking OSM data
+            //for checking OSM data, and allowing items to be updated instead of simply replaced in the future.
+            model.Entity<MapData>().HasIndex(p => p.WayId); 
+            model.Entity<MapData>().HasIndex(p => p.RelationId); 
+            model.Entity<MapData>().HasIndex(p => p.NodeId); 
             model.Entity<MapData>().HasIndex(p => p.AreaTypeId); //At the least, helpful for sorting out admin entries from others.
             //generatedMapData only gets searched on its primary key.
 

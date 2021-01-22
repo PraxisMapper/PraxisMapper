@@ -22,7 +22,7 @@ using static CoreComponents.ConstantValues;
 using static CoreComponents.Place;
 using static CoreComponents.ScoreData;
 using static CoreComponents.GeometrySupport;
-
+using NetTopologySuite.Geometries.Prepared;
 
 namespace PerformanceTestApp
 {
@@ -57,11 +57,12 @@ namespace PerformanceTestApp
             //MicroBenchmark();
             //ConcurrentTest();
             //CalculateScoreTest();
+            TestIntersectsPreparedVsNot();
 
             //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
             //These cannot all be enabled in one run. You must comment/uncomment each one separately.
             //TestSqlServer(); 
-            TestMariaDb();
+            //TestMariaDb();
 
 
 
@@ -101,7 +102,7 @@ namespace PerformanceTestApp
             byte[] fileInRam = new byte[fs2.Length];
             fs2.Read(fileInRam, 0, (int)fs2.Length);
             MemoryStream ms = new MemoryStream(fileInRam);
-            
+
             sw.Start();
             GetRelationsFromStream(ms, null);
             sw.Stop();
@@ -164,7 +165,7 @@ namespace PerformanceTestApp
             }
             sw.Stop();
             long NoCTInsertTime = sw.ElapsedMilliseconds;
-            
+
             sw.Restart();
             for (int i = 0; i < count; i++)
             {
@@ -175,7 +176,7 @@ namespace PerformanceTestApp
             long SprocInsertTime = sw.ElapsedMilliseconds;
 
             Log.WriteLog("PerformanceTracker EntityFrameworkCore total  /average speed: " + EfCoreInsertTime + " / " + (EfCoreInsertTime / count) + "ms.");
-            Log.WriteLog("PerformanceTracker EntityFrameworkCore NoChangeTracking total /average speed: " + NoCTInsertTime + " / "  + (NoCTInsertTime / count) + "ms.");
+            Log.WriteLog("PerformanceTracker EntityFrameworkCore NoChangeTracking total /average speed: " + NoCTInsertTime + " / " + (NoCTInsertTime / count) + "ms.");
             Log.WriteLog("PerformanceTracker Sproc total / average speed: " + SprocInsertTime + " / " + (SprocInsertTime / count) + "ms.");
         }
 
@@ -187,14 +188,14 @@ namespace PerformanceTestApp
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
 
             sw.Start();
-            foreach(var coords in testPointList)
+            foreach (var coords in testPointList)
             {
                 OpenLocationCode olc = new OpenLocationCode(coords.lat, coords.lon); //creates data from coords
                 var area = olc.Decode(); //an area i can use for intersects() calls in the DB
             }
             sw.Stop();
             var PlusCodeConversion = sw.ElapsedMilliseconds;
-            
+
             sw.Restart();
             foreach (var coords in testPointList)
             {
@@ -204,7 +205,7 @@ namespace PerformanceTestApp
             sw.Stop();
             var S2Conversion = sw.ElapsedMilliseconds;
 
-            Log.WriteLog("PlusCode conversion total / average time: " + PlusCodeConversion +  " / " + (PlusCodeConversion / count) + " ms");
+            Log.WriteLog("PlusCode conversion total / average time: " + PlusCodeConversion + " / " + (PlusCodeConversion / count) + " ms");
             Log.WriteLog("S2 conversion total / average time: " + S2Conversion + " / " + (S2Conversion / count) + " ms");
 
         }
@@ -360,7 +361,7 @@ namespace PerformanceTestApp
             //these commented numbers are out of date.
             //var a = AlgorithmRuntimes.Average();
             var b = intersectsPolygonRuntimes.Average();
-            var c = containsPointRuntimes.Average(); 
+            var c = containsPointRuntimes.Average();
             var d = precachedAlgorithmRuntimes.Average();
 
             Log.WriteLog("Intersect test average result is " + b + "ms");
@@ -419,7 +420,7 @@ namespace PerformanceTestApp
             }
             //If this was linear, each one should take 400x as long as the previous one. (20x20 grid = 400 calls to the smaller level)
             Log.WriteLog("Average 8-code search time is " + (avg8 / loopCount) + "ms");
-            Log.WriteLog("6-code search time would be " +   (avg8 * 400 / loopCount) + " linearly, is actually " + avg6 + " (" + ((avg8 * 400 / loopCount) / avg6) + "x faster)");
+            Log.WriteLog("6-code search time would be " + (avg8 * 400 / loopCount) + " linearly, is actually " + avg6 + " (" + ((avg8 * 400 / loopCount) / avg6) + "x faster)");
             Log.WriteLog("Average 6-code search time is " + (avg6 / loopCount) + "ms");
             Log.WriteLog("4-code search time would be " + (avg6 * 400 / loopCount) + " linearly, is actually " + avg4 + " (" + ((avg6 * 400 / loopCount) / avg4) + "x faster)");
             Log.WriteLog("Average 4-code search time is " + (avg4 / loopCount) + "ms");
@@ -541,7 +542,7 @@ namespace PerformanceTestApp
         {
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
             var db = new CoreComponents.PraxisContext();
-            
+
 
             for (int i = 0; i < 5; i++)
             {
@@ -587,7 +588,7 @@ namespace PerformanceTestApp
             //}
             sw.Stop();
             Log.WriteLog("Reading from file took " + sw.ElapsedMilliseconds + "ms");
-            
+
             sw.Restart();
             FileStream fs2 = new FileStream(filename, FileMode.Open);
             byte[] fileInRam = new byte[fs2.Length];
@@ -658,7 +659,7 @@ namespace PerformanceTestApp
         private static void MemoryTest()
         {
             //floats and doubles don't seem to make an actual difference in my app's memory usage unless it's huge, like Norway. Weird. Check that out here.
-            
+
         }
 
         private static void TestFlexEndpoint()
@@ -765,7 +766,7 @@ namespace PerformanceTestApp
             var randomCap = db.MapData.Count();
             Random r = new Random();
             string website = "http://localhost/GPSExploreServerAPI/MapData/CalculateMapDataScore/";
-            for (int i = 0; i <100; i++)
+            for (int i = 0; i < 100; i++)
             {
                 WebClient wc = new WebClient();
                 wc.DownloadString(website + r.Next(1, randomCap));
@@ -861,7 +862,7 @@ namespace PerformanceTestApp
             sw.Stop();
             Log.WriteLog("1000 random writes done in " + sw.ElapsedMilliseconds + "ms");
 
-            
+
         }
 
         public static void TestMariaDb()
@@ -871,7 +872,7 @@ namespace PerformanceTestApp
             PraxisContext.serverMode = "MariaDB";
             Random r = new Random();
             Stopwatch sw = new Stopwatch();
-            
+
             PraxisContext dbMaria = new PraxisContext();
             int maxRandom = dbMaria.MapData.Count();
             sw.Restart();
@@ -921,5 +922,47 @@ namespace PerformanceTestApp
             }
             return null;
         }
+
+        public static void TestIntersectsPreparedVsNot()
+        {
+            Log.WriteLog("Loading data for Intersect performance test.");
+            var pgf = new PreparedGeometryFactory();
+            //TODO: pick a cell or cells. 86HWG855 has 41 items. Could do a Cell6 for bigger testing?
+            //Compare intersects speed (as the app will do them): one Area from a Cell8 against a list of MapData places. 
+            //Switch up which ones are prepared, which ones aren't and test with none prepared.
+            GeoArea Cell6 = OpenLocationCode.DecodeValid("86HW");
+            var places = GetPlaces(Cell6);
+
+            Log.WriteLog("Cell6 Data loaded.");
+            GeoArea Cell8 = OpenLocationCode.DecodeValid("86HWG855");
+
+
+            System.Diagnostics.Stopwatch sw = new Stopwatch();
+            sw.Start();
+            var placesNormal = Place.GetPlaces(Cell8, places);
+            sw.Stop();
+            Log.WriteLog("Normal geometries search took " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds + "ms)");
+            sw.Restart();
+
+            var preppedPlace = pgf.Create(Converters.GeoAreaToPolygon(Cell8));
+            var placesPreppedCell = places.Where(md => preppedPlace.Intersects(md.place)).ToList();
+            sw.Stop();
+            Log.WriteLog("Prepped Cell8 & Normal geometries search took " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds + "ms)");
+            sw.Restart();
+
+            var preppedPlaces = places.Select(p => pgf.Create(p.place)).ToList();
+            var prepTime = sw.ElapsedTicks;
+            var locationNormal = Converters.GeoAreaToPolygon(Cell8);
+            var placesPreppedList = preppedPlaces.Where(p => p.Intersects(locationNormal)).ToList();
+            sw.Stop();
+
+            Log.WriteLog("Prepped List & Normal Cell8 search took " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds + "ms), " + prepTime + " ticks were prepping list");
+
+        }
+
+
+
+
+
     }
 }

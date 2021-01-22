@@ -141,3 +141,11 @@ Starting MariaDb performance test.
 Decision: Sql Server will remain the default for testing purposes.
 MariaDB appears to take twice as long on writes to spatial indexes, since this test specifically hit those.
 I am curious about seeing these numbers change as load increases (this is with about 500MB of data)
+
+TestIntersectsPreparedVsNot 1/21/21
+Loading data for Intersect performance test.
+Cell6 Data loaded.
+Normal geometries search took 5957012 ticks (595ms)
+Prepped Cell8 & Normal geometries search took 1780437 ticks (178ms)
+Prepped List & Normal Cell8 search took 4779015 ticks (477ms), 1903363 ticks were prepping list
+Decision: The correct option is to have 1 PreparedGeometry instance (the PlusCode cell we're looking at) do an Intersects() check on a list of places.
