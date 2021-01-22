@@ -65,7 +65,7 @@ namespace CoreComponents
             List<MapData> rowPlaces;
             //create a new bitmap.
             MemoryStream ms = new MemoryStream();
-            PreparedGeometryFactory pgf = new PreparedGeometryFactory(); //this is supposed to be faster than regular geometry.
+            //PreparedGeometryFactory pgf = new PreparedGeometryFactory(); //this is supposed to be faster than regular geometry.
             //pixel formats. RBGA32 allows for hex codes. RGB24 doesnt?
             int imagesizeX = (int)Math.Floor(totalArea.LongitudeWidth / resolutionCell11Lon); //scales to area size
             int imagesizeY = (int)Math.Floor(totalArea.LatitudeHeight / resolutionCell11Lat); //scales to area size          
@@ -83,12 +83,17 @@ namespace CoreComponents
                 yCoords[i] = totalArea.Min.Latitude + (resolutionCell11Lat * i);
             }
 
-            //pre-cache the set of data we need per column. Storing IDs saves us a lot of Intersects checks later.
+            //pre-cache the set of data we need per column. Storing IDs saves us a lot of Intersects checks later. Approx. 1 second of 5 seconds of drawing time on a busy Cell8 (41 Places)
             List<long>[] columnPlaces = new List<long>[imagesizeX];
             for (int i = 0; i < imagesizeX; i++)
             {
-                columnPlaces[i] = GetPlaces(new GeoArea(new GeoPoint(totalArea.Min.Latitude, xCoords[i]), new GeoPoint(totalArea.Max.Latitude, xCoords[i + 1])), allPlaces, false).Select(m => m.MapDataId).ToList();
+                columnPlaces[i] = GetPlaceIDs(new GeoArea(new GeoPoint(totalArea.Min.Latitude, xCoords[i]), new GeoPoint(totalArea.Max.Latitude, xCoords[i + 1])), ref allPlaces, false).ToList();
             }
+
+            //crop all places to the current area. This removes a ton of work from the process by simplifying geometry to only what's relevant, instead of drawing all of a great lake or state-wide park.
+            var cropArea = Converters.GeoAreaToPolygon(totalArea);
+            foreach (var ap in allPlaces)
+                ap.place = ap.place.Intersection(cropArea);
 
             using (var image = new Image<Rgba32>(imagesizeX, imagesizeY)) //each 11 cell in this area is a pixel.
             {
@@ -97,7 +102,7 @@ namespace CoreComponents
                 {
                     //Dramatic performance improvement by limiting this to just the row's area.
                     rowPlaces = GetPlaces(new GeoArea(new GeoPoint(yCoords[y], totalArea.Min.Longitude), new GeoPoint(yCoords[y + 1], totalArea.Max.Longitude)), allPlaces, false);
-                    var preparedPlaces = rowPlaces.Select(rp => new PreparedMapData() { PreparedMapDataID = rp.MapDataId, place = pgf.Create(rp.place), AreaTypeId = rp.AreaTypeId }).ToList();
+                    var preparedPlaces = rowPlaces.Select(rp => new PreparedMapData() { PreparedMapDataID = rp.MapDataId, place = pgf.Create(rp.place), AreaTypeId = rp.AreaTypeId }).ToList(); //This make the loop dramatically faster and I cannot identify why.
 
                     if (rowPlaces.Count() != 0) //don't bother drawing the row if there's nothing in it.
                     {
@@ -113,8 +118,7 @@ namespace CoreComponents
                                 placeData = GetAreaTypeForCell11(xCoords[x], yCoords[y], ref tempPlaces);
                                 if (placeData != 0)
                                 {
-                                    var color = areaColorReference[placeData].First();
-                                    pixelRow[x] = Rgba32.ParseHex(color); //set to appropriate type color
+                                    pixelRow[x] = areaColorReferenceRgba32[placeData].First(); //set to appropriate type color
                                 }
                             }
                         }

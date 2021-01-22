@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using static CoreComponents.DbTables;
 using static CoreComponents.Singletons;
 using static CoreComponents.GeometrySupport;
+using NetTopologySuite.Geometries.Prepared;
 
 namespace CoreComponents
 {
@@ -36,6 +37,11 @@ namespace CoreComponents
         public static Geometry GeoAreaToPolygon(GeoArea plusCodeArea) //TODO: use this in more places where I have a couple extra lines because of GeoAreaToCoordArray
         {
             return factory.CreatePolygon(GeoAreaToCoordArray(plusCodeArea));
+        }
+
+        public static IPreparedGeometry GeoAreaToPreparedPolygon(GeoArea plusCodeArea)
+        {
+            return pgf.Create(GeoAreaToPolygon(plusCodeArea));
         }
 
         public static MapData ConvertNodeToMapData(NodeReference n)

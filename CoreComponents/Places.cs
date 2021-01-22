@@ -10,6 +10,7 @@ using OsmSharp.Tags;
 using NetTopologySuite.Geometries;
 using static CoreComponents.Singletons;
 using static CoreComponents.GeometrySupport;
+using NetTopologySuite.Geometries.Prepared;
 
 namespace CoreComponents
 {
@@ -21,29 +22,31 @@ namespace CoreComponents
         {
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
             //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
-            var location = Converters.GeoAreaToPolygon(area);
             List<MapData> places;
             if (source == null)
             {
+                var location = Converters.GeoAreaToPolygon(area); //Prepared items don't work on a DB lookup.
                 var db = new CoreComponents.PraxisContext();
                 if (includeAdmin)
-                    places = db.MapData.Where(md => md.place.Intersects(location)).ToList();
+                    places = db.MapData.Where(md => location.Intersects(md.place)).ToList();
                 else
-                    places = db.MapData.Where(md => md.AreaTypeId != 13 && md.place.Intersects(location)).ToList();
+                    places = db.MapData.Where(md => md.AreaTypeId != 13 && location.Intersects(md.place)).ToList();
                 //TODO: make including generated areas a toggle? or assume that this call is trivial performance-wise on an empty table
                 //A toggle might be good since this also affects maptiles
-                places.AddRange(db.GeneratedMapData.Where(md => md.place.Intersects(location)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
+                places.AddRange(db.GeneratedMapData.Where(md => location.Intersects(md.place)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
             }
             else
             {
+                var location = Converters.GeoAreaToPreparedPolygon(area);
                 if (includeAdmin)
-                    places = source.Where(md => md.place.Intersects(location)).ToList();
+                    places = source.Where(md => location.Intersects(md.place)).ToList();
                 else
-                    places = source.Where(md => md.AreaTypeId != 13 && md.place.Intersects(location)).ToList();
+                    places = source.Where(md => md.AreaTypeId != 13 && location.Intersects(md.place)).ToList();
             }
             return places;
         }
 
+        //TODO: remove this function, I've confirmed it's faster the way I optimized GetPlaces() instead. Unless this is the secret sauce making maptiles go faster doing the AreaTypecheck
         public static List<PreparedMapData> GetPreparedPlaces(GeoArea area, List<PreparedMapData> source = null, bool includeAdmin = true) //Mostly for drawing big maptiles.
         {
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
@@ -420,6 +423,34 @@ namespace CoreComponents
         {
             var area = new OpenLocationCode(code); //Might need to re-add the + if its not present?
             return IsInBounds(area);
+        }
+
+        public static List<long> GetPlaceIDs(GeoArea area, ref List<MapData> source, bool includeAdmin = true)
+        {
+            //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
+            //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
+            List<long> places;
+            if (source == null)
+            {
+                var location = Converters.GeoAreaToPolygon(area); //Prepared items don't work on a DB lookup.
+                var db = new CoreComponents.PraxisContext();
+                if (includeAdmin)
+                    places = db.MapData.Where(md => location.Intersects(md.place)).Select(md => md.MapDataId).ToList();
+                else
+                    places = db.MapData.Where(md => md.AreaTypeId != 13 && location.Intersects(md.place)).Select(md => md.MapDataId).ToList();
+                //TODO: make including generated areas a toggle? or assume that this call is trivial performance-wise on an empty table
+                //A toggle might be good since this also affects maptiles
+                places.AddRange(db.GeneratedMapData.Where(md => location.Intersects(md.place)).Select(g => g.GeneratedMapDataId + 100000000));
+            }
+            else
+            {
+                var location = Converters.GeoAreaToPreparedPolygon(area);
+                if (includeAdmin)
+                    places = source.Where(md => location.Intersects(md.place)).Select(md => md.MapDataId).ToList();
+                else
+                    places = source.Where(md => md.AreaTypeId != 13 && location.Intersects(md.place)).Select(md => md.MapDataId).ToList();
+            }
+            return places;
         }
 
     }

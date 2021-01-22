@@ -1,5 +1,7 @@
 ﻿using NetTopologySuite;
 using NetTopologySuite.Geometries;
+using NetTopologySuite.Geometries.Prepared;
+using SixLabors.ImageSharp.PixelFormats;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,6 +18,7 @@ namespace CoreComponents
         public static List<string> relevantRoadValues = new List<string>() { "motorway", "trunk", "primary", "secondary", "tertiary", "unclassified", "residential", "motorway_link", "trunk_link", "primary_link", "secondary_link", "tertiary_link", "service", "road" }; //The stuff we care about in the highway category for roads. A lot more options for this.
 
         public static GeometryFactory factory = NtsGeometryServices.Instance.CreateGeometryFactory(4326);
+        public static PreparedGeometryFactory pgf = new PreparedGeometryFactory();
         public static bool SimplifyAreas = false;
 
         //TOD: make this the default list, then load the list from the DB? Works for PraxisMapper, but not Larry without some rules to parse tags.
@@ -49,6 +52,7 @@ namespace CoreComponents
         public static ILookup<string, int> areaTypeReference = areaTypes.ToLookup(k => k.AreaName, v => v.AreaTypeId);
         public static ILookup<int, string> areaIdReference = areaTypes.ToLookup(k => k.AreaTypeId, v => v.AreaName);
         public static ILookup<int, string> areaColorReference = areaTypes.ToLookup(k => k.AreaTypeId, v => v.HtmlColorCode);
+        public static ILookup<int, Rgba32> areaColorReferenceRgba32 = areaTypes.ToLookup(k => k.AreaTypeId, v => Rgba32.ParseHex(v.HtmlColorCode));
 
         public static List<List<Coordinate>> possibleShapes = new List<List<Coordinate>>() //When generating gameplay areas in empty Cell8s
         {

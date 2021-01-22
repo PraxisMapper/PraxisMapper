@@ -345,7 +345,7 @@ namespace Larry
         public static void DetectMapTilesRecursive(string parentCell, bool skipExisting)
         {
             List<string> cellsFound = new List<string>();
-            List<MapTile> tilesGenerated = new List<MapTile>(); //Might need to be a ConcurrentBag or something similar?
+            List<MapTile> tilesGenerated = new List<MapTile>(400); //Might need to be a ConcurrentBag or something similar?
             Dictionary<string, string> existingTiles = new Dictionary<string, string>();
             if (parentCell.Length == 6 && skipExisting)
             {
@@ -356,6 +356,10 @@ namespace Larry
             }
 
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+            List<MapData> cell6Data = new List<MapData>();
+            if (parentCell.Length == 6)
+                cell6Data = GetPlaces(OpenLocationCode.DecodeValid(parentCell));
+
             sw.Start();
             //This is fairly well optimized, and I suspect there's not much more I can do here to get this to go faster.
             //50-60 map tiles drawn per seconds if all 400 are in a Cell6. Half that if not, suggests there's some overhead in doing the Decode and DoPlacesExist checks that can't really go away.
@@ -379,7 +383,8 @@ namespace Larry
                             else
                             {
                                 //Draw this map tile
-                                var places = GetPlaces(area, null, false);
+                                //var places = GetPlaces(area, null, false);
+                                var places = GetPlaces(area, cell6Data, false);
                                 var tileData = MapTiles.DrawAreaMapTile11(ref places, area);
                                 tilesGenerated.Add(new MapTile() { CreatedOn = DateTime.Now, mode = 1, tileData = tileData, resolutionScale = 11, PlusCode = cellToCheck });
                                 Log.WriteLog("Cell " + cellToCheck + " Drawn", Log.VerbosityLevels.High);
@@ -396,7 +401,6 @@ namespace Larry
                         Log.WriteLog("Skipping Cell" + cellToCheck.Length + " " + cellToCheck + " for future mapdrawing checks.", Log.VerbosityLevels.High);
                     }
                 }));
-
             sw.Stop();
             if (tilesGenerated.Count() > 0)
             {
@@ -1438,16 +1442,31 @@ namespace Larry
                 .Select(m => new { m.Key, Count = m.Count() })
                 .ToDictionary(d => d.Key, v => v.Count)
                 .Where(md => md.Value > 1);
-            Log.WriteLog("Duped MapData loaded at " + DateTime.Now);
+            Log.WriteLog("Duped Ways loaded at " + DateTime.Now);
 
             foreach (var dupe in dupedMapDatas)
             {
-                var entriesToDelete = db.MapData.Where(md => md.WayId == dupe.Key).ToList();
+                var entriesToDelete = db.MapData.Where(md => md.WayId == dupe.Key); //.ToList();
                 db.MapData.RemoveRange(entriesToDelete.Skip(1));
                 db.SaveChanges(); //so the app can make partial progress if it needs to restart
             }
-            db.SaveChanges();
-            Log.WriteLog("Duped MapData entries deleted at " + DateTime.Now);
+            //db.SaveChanges();
+            Log.WriteLog("Duped Way entries deleted at " + DateTime.Now);
+
+            dupedMapDatas = db.MapData.Where(md => md.RelationId != null).GroupBy(md => md.RelationId)
+                .Select(m => new { m.Key, Count = m.Count() })
+                .ToDictionary(d => d.Key, v => v.Count)
+                .Where(md => md.Value > 1);
+            Log.WriteLog("Duped Relations loaded at " + DateTime.Now);
+
+            foreach (var dupe in dupedMapDatas)
+            {
+                var entriesToDelete = db.MapData.Where(md => md.RelationId == dupe.Key); //.ToList();
+                db.MapData.RemoveRange(entriesToDelete.Skip(1));
+                db.SaveChanges(); //so the app can make partial progress if it needs to restart
+            }
+            //db.SaveChanges();
+            Log.WriteLog("Duped Relation entries deleted at " + DateTime.Now);
         }
 
         public static void CreateStandaloneDB(long relationID, string parentFile)
