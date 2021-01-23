@@ -94,8 +94,9 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/LearnCell8/{plusCode8}")]
-        public string LearnCell8(string plusCode8, int fullCode = 0) //The current primary function used by the app. Uses the Cell8 area given to it
+        public string LearnCell8(string plusCode8, int fullCode = 0) //The primary function used by the original intended game mode.
         {
+            //This is a web request, so we should remove parallel calls.
             //fullcode = 1 is probably a little faster on the device, but 0 currently matches the app and im testing on the cloud server, so 0 this stays for now.
             //Send over the plus code to look up.
             PerformanceTracker pt = new PerformanceTracker("LearnCell8");
@@ -127,10 +128,11 @@ namespace PraxisMapper.Controllers
             GeoArea[] areaArray;
             StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
             Converters.SplitArea(box, splitcount, places, out placeArray, out areaArray);
-            System.Threading.Tasks.Parallel.For(0, placeArray.Length, (i) =>
+            //System.Threading.Tasks.Parallel.For(0, placeArray.Length, (i) => //avoid parallel calls on web code. 
+            for(int i = 0; i < placeArray.Length; i++)
             {
                 sbArray[i] = SearchArea(ref areaArray[i], ref placeArray[i], (fullCode == 1));
-            });
+            }
 
             foreach (StringBuilder sbPartial in sbArray)
                 sb.Append(sbPartial.ToString());

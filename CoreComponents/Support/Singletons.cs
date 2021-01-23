@@ -52,7 +52,9 @@ namespace CoreComponents
         public static ILookup<string, int> areaTypeReference = areaTypes.ToLookup(k => k.AreaName, v => v.AreaTypeId);
         public static ILookup<int, string> areaIdReference = areaTypes.ToLookup(k => k.AreaTypeId, v => v.AreaName);
         public static ILookup<int, string> areaColorReference = areaTypes.ToLookup(k => k.AreaTypeId, v => v.HtmlColorCode);
-        public static ILookup<int, Rgba32> areaColorReferenceRgba32 = areaTypes.ToLookup(k => k.AreaTypeId, v => Rgba32.ParseHex(v.HtmlColorCode));
+        public static ILookup<int, Rgba32> areaColorReferenceRgba32Lookup = areaTypes.ToLookup(k => k.AreaTypeId, v => Rgba32.ParseHex(v.HtmlColorCode)); //needed to make the Dictionary<> correctly.
+        public static Dictionary<int, Rgba32> areaColorReferenceRgba32 = areaColorReferenceRgba32Lookup.ToDictionary(k => k.Key, v => v.First());  //Don't have to call First() each time on this unlike the lookup
+
 
         public static List<List<Coordinate>> possibleShapes = new List<List<Coordinate>>() //When generating gameplay areas in empty Cell8s
         {
@@ -70,6 +72,7 @@ namespace CoreComponents
             new Faction() { HtmlColor = "87CEEB", Name = "Blue Team" }, //Sky blue, versus deep blue that matches Water elements.
         };
 
+        //Unfinished, for future plans to have tags be defined by database entries instead of a single code block
         public static List<TagParserEntry> defaultTagParserEntries = new List<TagParserEntry>()
         {
             new TagParserEntry() { name = "wetland", typeID = 2, matchRules =  "natural:wetland" }

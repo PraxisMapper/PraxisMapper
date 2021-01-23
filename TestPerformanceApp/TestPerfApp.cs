@@ -908,7 +908,7 @@ namespace PerformanceTestApp
                 return null;
 
             //string area = DetermineAreaPoint(entriesHere);
-            var area = AreaTypeInfo.PickSortedEntry(entriesHere);
+            var area = AreaTypeInfo.PickSmallestEntry(entriesHere);
             if (area != null)
             {
                 string olc;
