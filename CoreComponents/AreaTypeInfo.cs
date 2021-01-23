@@ -10,74 +10,92 @@ using static CoreComponents.Place;
 
 namespace CoreComponents
 {
-    //Per name conventions, this is possibly supposed to be named PlaceTypeInfo? Area again, is sort of overloaded.
+    //this is data on an Area (PlusCode cell), so AreaTypeInfo is the correct name. Places are MapData entries.
     public static class AreaTypeInfo
     {
-        public static int GetAreaTypeForCell10(double x, double y, ref List<MapData> places)
+        //TODO: replace Cell10/Cell11 functions with the generic GetAreaType call directly.
+        public static int GetAreaType(GeoArea cell, ref List<MapData> places, bool includePoints = true, double filterSize = 0)
         {
-            var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell10, x + resolutionCell10));
-            var entriesHere = GetPlaces(box, places).Where(p => p.AreaTypeId != 13).ToList(); //Excluding admin boundaries from this list.  
+            if (places.Count() == 0) //One shortcut: if we have no places to check, don't bother with the rest of the logic.
+                return 0;
+
+            //We can't shortcut this intersection check past that. This is the spot where we determine what's in this Cell11, and can't assume the list contains an overlapping entry.
+            var entriesHere = GetPlaces(cell, places, false).ToList(); //Excluding admin boundaries from this list.  
 
             if (entriesHere.Count() == 0)
                 return 0;
 
-            int area = DetermineAreaType(entriesHere);
+            int area = DetermineAreaType(entriesHere, includePoints, filterSize);
             return area;
+        }
+
+        public static int GetAreaType(GeoArea cell, ref List<PreparedMapData> places, bool includePoints = true)
+        {
+            if (places.Count() == 0) //One shortcut: if we have no places to check, don't bother with the rest of the logic.
+                return 0;
+
+            //We can't shortcut this intersection check past that. This is the spot where we determine what's in this Cell11, and can't assume the list contains an overlapping entry.
+            var entriesHere = GetPreparedPlaces(cell, places, false).ToList(); //Excluding admin boundaries from this list.  
+
+            if (entriesHere.Count() == 0)
+                return 0;
+
+            int area = DetermineAreaType(entriesHere, includePoints);
+            return area;
+        }
+
+        public static int GetAreaTypeForCell10(double x, double y, ref List<MapData> places)
+        {
+            var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell10, x + resolutionCell10));
+            return GetAreaType(box, ref places, true);
         }
 
         public static int GetAreaTypeForCell11(double x, double y, ref List<MapData> places)
         {
-            if (places.Count() == 0) //One shortcut: if we have no places to check, don't bother with the rest of the logic.
-                return 0;
-
+            
             //We can't shortcut this intersection check past that. This is the spot where we determine what's in this Cell11, and can't assume the list contains an overlapping entry.
             var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell11Lat, x + resolutionCell11Lon));
-            var entriesHere = GetPlaces(box, places, false).ToList(); //Excluding admin boundaries from this list.  
-
-            if (entriesHere.Count() == 0)
-                return 0;
-
-            int area = DetermineAreaType(entriesHere);
-            return area;
+            return GetAreaType(box, ref places, true);
         }
 
         public static int GetAreaTypeForCell11(double x, double y, ref List<PreparedMapData> places)
         {
-            if (places.Count() == 0) //One shortcut: if we have no places to check, don't bother with the rest of the logic.
-                return 0;
-
-            //We can't shortcut this intersection check past that. This is the spot where we determine what's in this Cell11, and can't assume the list contains an overlapping entry.
             var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell11Lat, x + resolutionCell11Lon));
-            var entriesHere = GetPreparedPlaces(box, places, false).ToList(); //Excluding admin boundaries from this list.  
-
-            if (entriesHere.Count() == 0)
-                return 0;
-
-            int area = DetermineAreaType(entriesHere);
-            return area;
+            return GetAreaType(box, ref places, true);
         }
 
-        public static int DetermineAreaType(List<MapData> entriesHere)
+        public static int DetermineAreaType(List<MapData> entriesHere, bool allowPoints, double filterSize = 0)
         {
-            var entry = PickSortedEntry(entriesHere);
+            var entry = PickSmallestEntry(entriesHere, allowPoints, filterSize);
             return entry.AreaTypeId;
         }
 
-        public static int DetermineAreaType(List<PreparedMapData> entriesHere)
+        public static int DetermineAreaType(List<PreparedMapData> entriesHere, bool allowPoints, double filterSize = 0)
         {
-            var entry = PickSortedEntry(entriesHere);
+            var entry = PickSmallestEntry(entriesHere, allowPoints, filterSize);
             return entry.AreaTypeId;
         }
 
-        public static MapData PickSortedEntry(List<MapData> entries)
+        public static MapData PickSmallestEntry(List<MapData> entries, bool allowPoints = true, double filterSize = 0)
         {
             //Current sorting rules:
+            //If points are not allowed, remove them from the list
+            //if filtersize is not 0, remove all lines and areas with an area below filtersize. Overrides allowPoints, always acts as allowPoints = false
             //If there's only one place, take it without any additional queries. Otherwise:
             //if there's a Point in the mapdata list, take the first one (No additional sub-sorting applied yet)
             //else if there's a Line in the mapdata list, take the shortest one by length
             //else if there's polygonal areas here, take the smallest one by area 
             //(In general, the smaller areas should be overlaid on larger areas.)
-            if (entries.Count() == 1) //simple optimization
+
+            if (!allowPoints)
+                entries = entries.Where(e => e.place.GeometryType != "Point").ToList();
+
+            if (filterSize != 0)
+                entries = entries.Where(e => e.place.GeometryType == "Polygon" || e.place.GeometryType == "MultiPolygon")
+                    .Where(e => e.place.Area >= filterSize)
+                    .ToList();
+
+            if (entries.Count() == 1) //simple optimization, but must be applied after parameter rules are applied.
                 return entries.First();
 
             var place = entries.Where(e => e.place.GeometryType == "Point").FirstOrDefault();
@@ -88,14 +106,23 @@ namespace CoreComponents
             return place;
         }
 
-        public static PreparedMapData PickSortedEntry(List<PreparedMapData> entries)
+        public static PreparedMapData PickSmallestEntry(List<PreparedMapData> entries, bool allowPoints = true, double filterSize = 0)
         {
             //Current sorting rules:
+            //If points are not allowed, remove them from the list
             //If there's only one place, take it without any additional queries. Otherwise:
             //if there's a Point in the mapdata list, take the first one (No additional sub-sorting applied yet)
             //else if there's a Line in the mapdata list, take the shortest one by length
             //else if there's polygonal areas here, take the smallest one by area 
             //(In general, the smaller areas should be overlaid on larger areas.)
+            if (!allowPoints)
+                entries = entries.Where(e => e.place.Geometry.GeometryType != "Point").ToList();
+
+            if (filterSize != 0)
+                entries = entries.Where(e => e.place.Geometry.GeometryType == "Polygon" || e.place.Geometry.GeometryType == "MultiPolygon")
+                    .Where(e => e.place.Geometry.Area >= filterSize)
+                    .ToList();
+
             if (entries.Count() == 1) //simple optimization
                 return entries.First();
 
@@ -107,17 +134,19 @@ namespace CoreComponents
             return place;
         }
 
+
+
         public static string DetermineAreaPlace(List<MapData> entriesHere)
         {
             //Which Place in this given Area is the one that should be displayed on the game/map as the name? picks the smallest one.
-            var entry = PickSortedEntry(entriesHere);
+            var entry = PickSmallestEntry(entriesHere);
             return entry.name + "|" + entry.AreaTypeId + "|" + entry.MapDataId;
         }
 
         //ONly directly used in this class, above.
         public static int DetermineAreaFaction(List<MapData> entriesHere, Tuple<long, int> shortcut = null)
         {
-            var entry = PickSortedEntry(entriesHere).MapDataId;
+            var entry = PickSmallestEntry(entriesHere).MapDataId;
             if (shortcut != null && entry == shortcut.Item1) //we are being told the results for a specific MapData entry from higher up in the chain.
                 return shortcut.Item2;
 
