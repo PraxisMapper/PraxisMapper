@@ -149,3 +149,14 @@ Normal geometries search took 5957012 ticks (595ms)
 Prepped Cell8 & Normal geometries search took 1780437 ticks (178ms)
 Prepped List & Normal Cell8 search took 4779015 ticks (477ms), 1903363 ticks were prepping list
 Decision: The correct option is to have 1 PreparedGeometry instance (the PlusCode cell we're looking at) do an Intersects() check on a list of places.
+
+TestRasterVsVector 1/24/21:
+Loading data for Raster Vs Vector performance test. 400 cell8 test.
+Raster performance:5537ms
+Vector performance:622ms
+Loading data for Raster Vs Vector performance test. 400 cell10 test.
+Raster performance:47ms
+Vector performance:26ms
+Decision: The new vector logic draws prettier tiles faster at essentially every scale. Twice as fast on small tiles, and quickly pulls ahead on larger ones.
+I'll switch over to it. I may want to figure out some styling rules that can be defined in code (probably on AreaType class) that will let my maps become more flexible.
+And I wouldn't have to be limited to drawing to a PlusCode size for pixels.

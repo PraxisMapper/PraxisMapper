@@ -168,5 +168,24 @@ namespace CoreComponents
 
             return;
         }
+
+        //Might need 2-5 of these helper functions, depending.
+        public static SixLabors.ImageSharp.Drawing.Polygon PolygonToDrawingPolygon(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
+        {
+            //Remember that plus codes start at the southwest corner, so y coordinates need inverted. Or flip the image when done.
+            var originalPoints = place.Coordinates;
+            var typeConvertedPoints = originalPoints.Select(o => new SixLabors.ImageSharp.PointF((float)((o.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / resolutionY))));
+            SixLabors.ImageSharp.Drawing.LinearLineSegment part = new SixLabors.ImageSharp.Drawing.LinearLineSegment(typeConvertedPoints.ToArray());
+            var output = new SixLabors.ImageSharp.Drawing.Polygon(part);
+            return output;
+        }
+
+        public static List<SixLabors.ImageSharp.PointF> LineToDrawingLine(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
+        {
+            var originalPoints = place.Coordinates;
+            var typeConvertedPoints = originalPoints.Select(o => new SixLabors.ImageSharp.PointF((float)((o.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / resolutionY)))).ToList();
+            //SixLabors.ImageSharp.Drawing.LinearLineSegment part = new SixLabors.ImageSharp.Drawing.LinearLineSegment(typeConvertedPoints.ToArray());
+            return typeConvertedPoints;
+        }
     }
 }

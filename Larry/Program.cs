@@ -20,7 +20,6 @@ using static CoreComponents.Place;
 using static CoreComponents.GeometrySupport;
 using System.Net;
 
-//TODO: Add high-verbosity logging messages.
 //TODO: set option flag to enable writing MapData entries to DB or File. Especially since bulk inserts won't fly for MapData from files, apparently.
 //TODO: look into using Span<T> instead of lists? This might be worth looking at performance differences. (and/or Memory<T>, which might be a parent for Spans)
 //TODO: Ponder using https://download.bbbike.org/osm/ as a data source to get a custom extract of an area (for when users want a local-focused app, probably via a wizard GUI)
@@ -29,8 +28,6 @@ namespace Larry
 {
     class Program
     {
-        //NOTE: OSM data license allows me to use the data but requires acknowleging OSM as the data source
-
         static void Main(string[] args)
         {
             var memMon = new MemoryMonitor();
@@ -38,6 +35,7 @@ namespace Larry
             PraxisContext.serverMode = ParserSettings.DbMode;
 
 
+            TestNewDrawing();
             //DrawMultipleLevelsOfMaptile(); //test function, remove this when done testing.
 
             if (args.Count() == 0)
@@ -227,57 +225,6 @@ namespace Larry
                 ValidateFile(arg);
             }
 
-            if (args.Any(a => a.StartsWith("-gen6CellMapTiles:"))) //This may not be an idea use case. Potentially removing later.
-            {
-                //TODO still in process
-                //TODO move to function
-                //make tiles with pixels equal to the selected plus code resolution.
-                string resolution = args.Where(a => a.StartsWith("-gen6CellMapTiles:")).First().Replace("-gen6CellMapTiles:", "");
-                //I have to figure out how to find the min/max area covered by the server.
-                var db = new PraxisContext();
-
-                //still have to code this logic in somehow.
-                //Log.WriteLog("Finding minimum point from DB");
-                //var minPoint = db.MapData.Min(md => md.place.Boundary.Coordinates.Min());
-                //Log.WriteLog("Finding maximum point from DB");
-                //var maxPoint = db.MapData.Max(md => md.place.Boundary.Coordinates.Max());
-
-                //hardcoding values for now.
-                //minimumPointLon	minimumPointLat	maximumPointLon	maximumPointLat
-                //-85.111908	38.1447449	-80.3286743    42.070076
-                var minPlusCode = new OpenLocationCode(new GeoPoint(38.1447449, -85.111908));
-                var maxPlusCode = new OpenLocationCode(new GeoPoint(42.070076, -80.3286743));
-                //shift these to 8s or 6s to get a list we could enumerate over?
-
-                var minPlusCodePoint = OpenLocationCode.DecodeValid(minPlusCode.CodeDigits.Substring(0, 6));
-                var maxPlusCodePoint = OpenLocationCode.DecodeValid(maxPlusCode.CodeDigits.Substring(0, 6));
-                if (resolution == "10")
-                {
-                    for (double x = minPlusCodePoint.Min.Longitude; x <= maxPlusCodePoint.Max.Longitude; x += resolutionCell6)
-                        for (double y = minPlusCodePoint.Min.Latitude; y <= maxPlusCodePoint.Max.Latitude; y += resolutionCell6)
-                        {
-                            GeoArea tileArea = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell6, x + resolutionCell6));
-                            var places = GetPlaces(tileArea);
-                            var tileData = MapTiles.DrawAreaMapTile(ref places, tileArea);
-                            db.MapTiles.Add(new MapTile() { CreatedOn = DateTime.Now, mode = 1, tileData = tileData, resolutionScale = 10, PlusCode = OpenLocationCode.Encode(new GeoPoint(y, x)).Substring(0, 6) });
-                            db.SaveChanges();
-                        }
-                }
-
-                if (resolution == "11")
-                {
-                    for (double x = minPlusCodePoint.Min.Longitude; x <= maxPlusCodePoint.Max.Longitude; x += resolutionCell6)
-                        for (double y = minPlusCodePoint.Min.Latitude; y <= maxPlusCodePoint.Max.Latitude; y += resolutionCell6)
-                        {
-                            GeoArea tileArea = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell6, x + resolutionCell6));
-                            var places = GetPlaces(tileArea);
-                            var tileData = MapTiles.DrawAreaMapTile11(ref places, tileArea);
-                            db.MapTiles.Add(new MapTile() { CreatedOn = DateTime.Now, mode = 1, tileData = tileData, resolutionScale = 11, PlusCode = OpenLocationCode.Encode(new GeoPoint(y, x)).Substring(0, 6) });
-                            db.SaveChanges();
-                        }
-                }
-            }
-
             if (args.Any(a => a == "-autoCreateMapTiles")) //better for letting the app decide which tiles to create than manually calling out Cell6 names.
             {
                 //NOTE: this loop ran at 11 maptiles per second on my original attempt. This optimized setup runs at up to 1300 maptiles per second. I haven't yet tracked down some of the variability and stability issues.
@@ -423,7 +370,7 @@ namespace Larry
                                 //Draw this map tile
                                 //var places = GetPlaces(area, null, false);
                                 var places = GetPlaces(area, cell6Data, false);
-                                var tileData = MapTiles.DrawAreaMapTile11(ref places, area);
+                                var tileData = MapTiles.DrawAreaMapTile(ref places, area, 11);
                                 tilesGenerated.Add(new MapTile() { CreatedOn = DateTime.Now, mode = 1, tileData = tileData, resolutionScale = 11, PlusCode = cellToCheck });
                                 Log.WriteLog("Cell " + cellToCheck + " Drawn", Log.VerbosityLevels.High);
                             }
@@ -452,6 +399,15 @@ namespace Larry
             foreach (var cellF in cellsFound)
                 DetectMapTilesRecursive(cellF, skipExisting);
         }
+
+        public static void TestNewDrawing()
+        {
+            var area = OpenLocationCode.DecodeValid("86HW");
+            var places = GetPlaces(area, null, false, false);
+            var results = MapTiles.DrawAreaMapTile(ref places, area, 11);
+            System.IO.File.WriteAllBytes("86HW-testVector.png", results);
+        }
+
 
         public static void DrawMultipleLevelsOfMaptile()
         {

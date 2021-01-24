@@ -57,7 +57,9 @@ namespace PerformanceTestApp
             //MicroBenchmark();
             //ConcurrentTest();
             //CalculateScoreTest();
-            TestIntersectsPreparedVsNot();
+            //TestIntersectsPreparedVsNot();
+            TestRasterVsVectorCell8();
+            TestRasterVsVectorCell10();
 
             //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
             //These cannot all be enabled in one run. You must comment/uncomment each one separately.
@@ -961,8 +963,58 @@ namespace PerformanceTestApp
         }
 
 
+        public static void TestRasterVsVectorCell8()
+        {
+            Log.WriteLog("Loading data for Raster Vs Vector performance test. 400 cell8 test.");
+            string testCell = "86HWHH";
+            Stopwatch raster = new Stopwatch();
+            Stopwatch vector = new Stopwatch();
+            for (int pos1 = 0; pos1 < 20; pos1++)
+                //System.Threading.Tasks.Parallel.For(0, 20, (pos2) =>
+                for (int pos2 = 0; pos2 < 20; pos2++)
+                {
+                    string cellToCheck = testCell + OpenLocationCode.CodeAlphabet[pos1].ToString() + OpenLocationCode.CodeAlphabet[pos2].ToString();
+                    var area = new OpenLocationCode(cellToCheck).Decode();
+                    var places = GetPlaces(area, null, false, false);
 
+                    raster.Start();
+                    MapTiles.DrawAreaMapTileRaster(ref places, area, 11);
+                    raster.Stop();
 
+                    vector.Start();
+                    MapTiles.DrawAreaMapTile(ref places, area, 11);
+                    vector.Stop();
+                }
 
+            Log.WriteLog("Raster performance:" + raster.ElapsedMilliseconds + "ms");
+            Log.WriteLog("Vector performance:" + vector.ElapsedMilliseconds + "ms");
+        }
+
+        public static void TestRasterVsVectorCell10()
+        {
+            Log.WriteLog("Loading data for Raster Vs Vector performance test. 400 cell10 test.");
+            string testCell = "86HWHHQ6";
+            Stopwatch raster = new Stopwatch();
+            Stopwatch vector = new Stopwatch();
+            for (int pos1 = 0; pos1 < 20; pos1++)
+                //System.Threading.Tasks.Parallel.For(0, 20, (pos2) =>
+                for (int pos2 = 0; pos2 < 20; pos2++)
+                {
+                    string cellToCheck = testCell + OpenLocationCode.CodeAlphabet[pos1].ToString() + OpenLocationCode.CodeAlphabet[pos2].ToString();
+                    var area = new OpenLocationCode(cellToCheck).Decode();
+                    var places = GetPlaces(area, null, false, false);
+
+                    raster.Start();
+                    MapTiles.DrawAreaMapTileRaster(ref places, area, 11);
+                    raster.Stop();
+
+                    vector.Start();
+                    MapTiles.DrawAreaMapTile(ref places, area, 11);
+                    vector.Stop();
+                }
+
+            Log.WriteLog("Raster performance:" + raster.ElapsedMilliseconds + "ms");
+            Log.WriteLog("Vector performance:" + vector.ElapsedMilliseconds + "ms");
+        }
     }
 }

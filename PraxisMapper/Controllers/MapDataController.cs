@@ -282,7 +282,7 @@ namespace PraxisMapper.Controllers
                 //requires a list of colors to use, which might vary per app
                 GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
                 var places = GetPlaces(eightCell);
-                var results = MapTiles.DrawAreaMapTile11(ref places, eightCell);
+                var results = MapTiles.DrawAreaMapTile(ref places, eightCell, 11);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results });
                 db.SaveChanges();
                 pt.Stop(plusCode8);
@@ -310,7 +310,7 @@ namespace PraxisMapper.Controllers
                 //GeoArea TenCell = OpenLocationCode.Decode(plusCode10.Substring(0, 8) + "+" +  plusCode10.Substring(9, 2));
                 GeoArea TenCell = OpenLocationCode.DecodeValid(plusCode10);
                 var places = GetPlaces(TenCell);
-                var results = MapTiles.DrawAreaMapTile11(ref places, TenCell);
+                var results = MapTiles.DrawAreaMapTile(ref places, TenCell, 11);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode10, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results });
                 db.SaveChanges();
                 pt.Stop(plusCode10);
@@ -365,7 +365,7 @@ namespace PraxisMapper.Controllers
                 //requires a list of colors to use, which might vary per app. Defined in AreaType
                 GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
                 var allPlaces = GetPlaces(sixCell);
-                var results = MapTiles.DrawAreaMapTile11(ref allPlaces, sixCell);
+                var results = MapTiles.DrawAreaMapTile(ref allPlaces, sixCell, 11);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode6, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results });
                 db.SaveChanges();
                 pt.Stop(plusCode6);
@@ -387,7 +387,7 @@ namespace PraxisMapper.Controllers
             if (resolution == 10)
                 results = MapTiles.DrawAreaMapTile(ref allPlaces, box);
             else
-                results = MapTiles.DrawAreaMapTile11(ref allPlaces, box);
+                results = MapTiles.DrawAreaMapTile(ref allPlaces, box, 11);
             pt.Stop(lat + "|" + lon + "|" + size + "|" + resolution);
             return File(results, "image/png");
         }
