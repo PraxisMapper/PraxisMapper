@@ -18,7 +18,7 @@ namespace CoreComponents
     {
         //for now, anything that does a query on MapData or a list of MapData entries
         //Places will be the name for interactible or important areas on the map. Was not previously a fixed name for that.
-        public static List<MapData> GetPlaces(GeoArea area, List<MapData> source = null, bool includeAdmin = true)
+        public static List<MapData> GetPlaces(GeoArea area, List<MapData> source = null, bool includeAdmin = true, bool includeGenerated= true)
         {
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
             //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
@@ -33,7 +33,8 @@ namespace CoreComponents
                     places = db.MapData.Where(md => md.AreaTypeId != 13 && location.Intersects(md.place)).ToList();
                 //TODO: make including generated areas a toggle? or assume that this call is trivial performance-wise on an empty table
                 //A toggle might be good since this also affects maptiles
-                places.AddRange(db.GeneratedMapData.Where(md => location.Intersects(md.place)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
+                if (includeGenerated) 
+                    places.AddRange(db.GeneratedMapData.Where(md => location.Intersects(md.place)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
             }
             else
             {
@@ -77,7 +78,8 @@ namespace CoreComponents
             return places;
         }
 
-        public static bool DoPlacesExist(GeoArea area, List<MapData> source = null)
+        //TODO Can also apply the area-crop and prepared geometry optimizations to this function
+        public static bool DoPlacesExist(GeoArea area, List<MapData> source = null, bool includeGenerated = true)
         {
             //As GetPlaces, but only checks if there are entries. This also currently skipss admin boundaries as well for determining if stuff 'exists', since those aren't drawn.
             var location = Converters.GeoAreaToPolygon(area);
@@ -86,7 +88,8 @@ namespace CoreComponents
             {
                 var db = new PraxisContext();
                 places = db.MapData.Any(md => md.place.Intersects(location) && md.AreaTypeId != 13); //Ignore admin boundaries for this purpose.
-                places = places || db.GeneratedMapData.Any(md => md.place.Intersects(location));
+                if (includeGenerated)
+                    places = places || db.GeneratedMapData.Any(md => md.place.Intersects(location));
                 return places;
             }
             else
