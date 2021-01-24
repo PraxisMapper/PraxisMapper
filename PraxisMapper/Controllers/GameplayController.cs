@@ -211,7 +211,7 @@ namespace PraxisMapper.Controllers
                 //Create this map tile.
                 GeoArea pluscode = OpenLocationCode.DecodeValid(Cell10);
                 var places = GetPlaces(pluscode);
-                var tile = MapTiles.DrawAreaMapTile11(ref places, pluscode);
+                var tile = MapTiles.DrawAreaMapTile(ref places, pluscode, 11);
                 baseMapTile = new MapTile() { CreatedOn = DateTime.Now, mode = 1, PlusCode = Cell10, resolutionScale = 11, tileData = tile };
                 db.MapTiles.Add(baseMapTile);
                 db.SaveChanges();
@@ -253,7 +253,7 @@ namespace PraxisMapper.Controllers
                 //Create this map tile.
                 GeoArea pluscode = OpenLocationCode.DecodeValid(Cell8);
                 var places = GetPlaces(pluscode);
-                var tile = MapTiles.DrawAreaMapTile11(ref places, pluscode);
+                var tile = MapTiles.DrawAreaMapTile(ref places, pluscode, 11);
                 baseMapTile = new MapTile() { CreatedOn = DateTime.Now, mode = 1, PlusCode = Cell8, resolutionScale = 11, tileData = tile };
                 db.MapTiles.Add(baseMapTile);
                 db.SaveChanges();
