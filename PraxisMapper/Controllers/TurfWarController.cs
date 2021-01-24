@@ -103,42 +103,59 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/ClaimCell10/{factionId}/{Cell10}")]
-        public void ClaimCell10(int factionId, string Cell10)
+        public void ClaimCell10(int factionId, string Cell10) //TODO: this assumed the player is in the same faction for all instances on a server. That may not be true. Might want to add that parameter back in.
         {
-            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("ClaimCell10TurfWar");
-            //TODO: this could take a deviceID and work out which factions per instance, but then we have an entry with a player and a location. we try not to process or store those.
-            //Mark this cell10 as belonging to this faction, update the lockout timer.
-            var db = new PraxisContext();
-            //run all the instances at once.
-            List<long> factions;
-            if (cache != null)
-                factions = (List<long>)cache.Get("factions");
-            else
-                factions = db.Factions.Select(f => f.FactionId).ToList();
-
-            if (!factions.Any(f => f == factionId))
-                return; //We got a claim for an invalid team, don't save anything.
-
-            if (!Place.IsInBounds(Cell10))
-                return;
-
-            foreach (var config in db.TurfWarConfigs.Where(t => t.Repeating || (t.StartTime < DateTime.Now && t.TurfWarNextReset > DateTime.Now)).ToList())
+            try
             {
-                var entry = db.TurfWarEntries.Where(t => t.TurfWarConfigId == config.TurfWarConfigId && t.FactionId == factionId && t.Cell10 == Cell10).FirstOrDefault();
-                if (entry == null)
+                Classes.PerformanceTracker pt = new Classes.PerformanceTracker("ClaimCell10TurfWar");
+                //TODO: this could take a deviceID and work out which factions per instance, but then we have an entry with a player and a location. we try not to process or store those.
+                //Mark this cell10 as belonging to this faction, update the lockout timer.
+                var db = new PraxisContext();
+                //run all the instances at once.
+                List<long> factions;
+                if (cache != null)
+                    factions = (List<long>)cache.Get("factions");
+                else
+                    factions = db.Factions.Select(f => f.FactionId).ToList();
+
+                if (!factions.Any(f => f == factionId))
                 {
-                    entry = new DbTables.TurfWarEntry() { Cell10 = Cell10, TurfWarConfigId = config.TurfWarConfigId, Cell8 = Cell10.Substring(0, 8), CanFlipFactionAt = DateTime.Now.AddSeconds(-1) };
-                    db.TurfWarEntries.Add(entry);
+                    pt.Stop("NoFaction:" + factionId);
+                    return; //We got a claim for an invalid team, don't save anything.
                 }
-                if (DateTime.Now > entry.CanFlipFactionAt)
+
+
+                if (!Place.IsInBounds(Cell10))
                 {
-                    entry.FactionId = factionId;
-                    entry.CanFlipFactionAt = DateTime.Now.AddSeconds(config.Cell10LockoutTimer);
-                    entry.ClaimedAt = DateTime.Now;
+                    pt.Stop("OOB:" + Cell10);
+                    return;
                 }
+
+                foreach (var config in db.TurfWarConfigs.Where(t => t.Repeating || (t.StartTime < DateTime.Now && t.TurfWarNextReset > DateTime.Now)).ToList())
+                {
+                    var entry = db.TurfWarEntries.Where(t => t.TurfWarConfigId == config.TurfWarConfigId && t.FactionId == factionId && t.Cell10 == Cell10).FirstOrDefault();
+                    if (entry == null)
+                    {
+                        entry = new DbTables.TurfWarEntry() { Cell10 = Cell10, TurfWarConfigId = config.TurfWarConfigId, Cell8 = Cell10.Substring(0, 8), CanFlipFactionAt = DateTime.Now.AddSeconds(-1) };
+                        db.TurfWarEntries.Add(entry);
+                    }
+                    if (DateTime.Now > entry.CanFlipFactionAt)
+                    {
+                        entry.FactionId = factionId;
+                        entry.CanFlipFactionAt = DateTime.Now.AddSeconds(config.Cell10LockoutTimer);
+                        entry.ClaimedAt = DateTime.Now;
+                        Cell10 += ":1";
+                    }
+                    else
+                        Cell10 += ":0";
+                }
+                db.SaveChanges();
+                pt.Stop(Cell10);
             }
-            db.SaveChanges();
-            pt.Stop(Cell10);
+            catch(Exception ex)
+            {
+                Classes.ErrorLogger.LogError(ex);
+            }
         }
 
         [HttpGet]

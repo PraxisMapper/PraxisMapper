@@ -62,9 +62,13 @@ namespace CoreComponents
             //EX: for Cell8 tiles, use 11 for the pixel cell size (this is the default I use, smallest location in a pixel sets the color)
             //or for Cell4 tiles, use Cell8 pixel size. (alternative sort for pixel color: largest area? Exclude points?)
             double resolutionX, resolutionY;
+            double filterSize = 0;
             GetResolutionValues(pixelSizeCells, out resolutionX, out resolutionY);
-            
-            List<MapData> rowPlaces;
+            if (pixelSizeCells < 10) // Roads and buildings are good at Cell10+. Not helpful at Cell8-;
+                filterSize = resolutionX / 2; //things smaller than half a pixel will not be considered for the map tile. Might just want to toggle the alternate sort rules for pixels (most area, not smallest item)
+            //Or should this filter to 'smallest area over filter size'?
+
+            List <MapData> rowPlaces;
             //create a new bitmap.
             MemoryStream ms = new MemoryStream();
             //pixel formats. RBGA32 allows for hex codes. RGB24 doesnt?
@@ -73,7 +77,6 @@ namespace CoreComponents
 
             double[] xCoords = new double[imagesizeX + 1];
             double[] yCoords = new double[imagesizeY + 1];
-            List<GeoArea> areas = new List<GeoArea>();
             for (int i = 0; i <= imagesizeX; i++)
             {
                 xCoords[i] = totalArea.Min.Longitude + (resolutionX * i);
@@ -83,25 +86,25 @@ namespace CoreComponents
                 yCoords[i] = totalArea.Min.Latitude + (resolutionY * i);
             }
 
-            //pre-cache the set of data we need per column. Storing IDs saves us a lot of Intersects checks later. Approx. 1 second of 5 seconds of drawing time on a busy Cell8 (41 Places)
-            List<long>[] columnPlaces = new List<long>[imagesizeX];
-            for (int i = 0; i < imagesizeX; i++)
-            {
-                columnPlaces[i] = GetPlaceIDs(new GeoArea(new GeoPoint(totalArea.Min.Latitude, xCoords[i]), new GeoPoint(totalArea.Max.Latitude, xCoords[i + 1])), ref allPlaces, false).ToList();
-            }
-
             //crop all places to the current area. This removes a ton of work from the process by simplifying geometry to only what's relevant, instead of drawing all of a great lake or state-wide park.
             var cropArea = Converters.GeoAreaToPolygon(totalArea);
             foreach (var ap in allPlaces)
                 ap.place = ap.place.Intersection(cropArea);
 
-            using (var image = new Image<Rgba32>(imagesizeX, imagesizeY)) //each 11 cell in this area is a pixel.
+            //pre-cache the set of data we need per column. Storing IDs saves us a lot of Intersects checks later. Approx. 1 second of 5 seconds of drawing time on a busy Cell8 (41 Places)
+            List<long>[] columnPlaces = new List<long>[imagesizeX];
+            for (int i = 0; i < imagesizeX; i++)
+            {
+                columnPlaces[i] = GetPlaceIDs(new GeoArea(new GeoPoint(totalArea.Min.Latitude, xCoords[i]), new GeoPoint(totalArea.Max.Latitude, xCoords[i + 1])), ref allPlaces).ToList();
+            }
+
+            using (var image = new Image<Rgba32>(imagesizeX, imagesizeY))
             {
                 image.Mutate(x => x.Fill(Rgba32.ParseHex(areaColorReference[999].First()))); //set all the areas to the background color
                 for (int y = 0; y < image.Height; y++)
                 {
                     //Dramatic performance improvement by limiting this to just the row's area.
-                    rowPlaces = GetPlaces(new GeoArea(new GeoPoint(yCoords[y], totalArea.Min.Longitude), new GeoPoint(yCoords[y + 1], totalArea.Max.Longitude)), allPlaces, false);
+                    rowPlaces = GetPlaces(new GeoArea(new GeoPoint(yCoords[y], totalArea.Min.Longitude), new GeoPoint(yCoords[y + 1], totalArea.Max.Longitude)), allPlaces);
                     var preparedPlaces = rowPlaces.Select(rp => new PreparedMapData() { PreparedMapDataID = rp.MapDataId, place = pgf.Create(rp.place), AreaTypeId = rp.AreaTypeId }).ToList(); //This make the loop dramatically faster and I cannot identify why.
 
                     if (rowPlaces.Count() != 0) //don't bother drawing the row if there's nothing in it.
@@ -114,8 +117,9 @@ namespace CoreComponents
                                 //Set the pixel's color by its type.
                                 int placeData = 0;
                                 //var tempPlaces = rowPlaces.Where(r => columnPlaces[x].Contains(r.MapDataId)).ToList(); //reduces Intersects() calls done in the next function
-                                var tempPlaces = preparedPlaces.Where(r => columnPlaces[x].Contains(r.PreparedMapDataID)).ToList(); //reduces Intersects() calls done in the next function
-                                placeData = GetAreaTypeForCell11(xCoords[x], yCoords[y], ref tempPlaces);
+                                var tempPlaces = preparedPlaces.Where(r => columnPlaces[x].Contains(r.PreparedMapDataID)).ToList(); //reduces Intersects() calls done in GetAreaType
+                                var pixelArea = new GeoArea(new GeoPoint(yCoords[y], xCoords[x]), new GeoPoint(yCoords[y+1], xCoords[x+1]));
+                                placeData = GetAreaType(pixelArea, ref tempPlaces, true, filterSize);
                                 if (placeData != 0)
                                 {
                                     pixelRow[x] = areaColorReferenceRgba32[placeData]; //set to appropriate type color

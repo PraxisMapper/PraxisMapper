@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 using static CoreComponents.DbTables;
@@ -29,7 +30,7 @@ namespace CoreComponents
             return area;
         }
 
-        public static int GetAreaType(GeoArea cell, ref List<PreparedMapData> places, bool includePoints = true)
+        public static int GetAreaType(GeoArea cell, ref List<PreparedMapData> places, bool includePoints = true, double filterSize = 0)
         {
             if (places.Count() == 0) //One shortcut: if we have no places to check, don't bother with the rest of the logic.
                 return 0;
@@ -40,7 +41,7 @@ namespace CoreComponents
             if (entriesHere.Count() == 0)
                 return 0;
 
-            int area = DetermineAreaType(entriesHere, includePoints);
+            int area = DetermineAreaType(entriesHere, includePoints, filterSize);
             return area;
         }
 
@@ -73,7 +74,26 @@ namespace CoreComponents
         public static int DetermineAreaType(List<PreparedMapData> entriesHere, bool allowPoints, double filterSize = 0)
         {
             var entry = PickSmallestEntry(entriesHere, allowPoints, filterSize);
-            return entry.AreaTypeId;
+            if (entry != null)
+                return entry.AreaTypeId;
+
+            return 0;
+        }
+
+        public static int DetermineBiggestAreaType(List<MapData> entries)
+        {
+            //This is an alternate sorting rule for maptiles with pixels bigger than a Cell10 in area.
+            //TODO: finish this, implement it correctly in appropriate spots.
+            //TODO: may need more complex rules on roads/buildings so that they can occasionally show up without dominating the map.
+            Dictionary<int, double> results = new Dictionary<int, double>();
+
+            foreach (var areatype in entries.Select(e => e.AreaTypeId).Distinct())
+                results.Add(areatype, 0);
+
+            foreach (var entry in entries)
+                results[entry.AreaTypeId] += entry.place.Area;
+
+            return results.OrderByDescending(r => r.Value).First().Key;
         }
 
         public static MapData PickSmallestEntry(List<MapData> entries, bool allowPoints = true, double filterSize = 0)
@@ -90,7 +110,7 @@ namespace CoreComponents
             if (!allowPoints)
                 entries = entries.Where(e => e.place.GeometryType != "Point").ToList();
 
-            if (filterSize != 0)
+            if (filterSize != 0) // remove areatypes where the total area is below this.
                 entries = entries.Where(e => e.place.GeometryType == "Polygon" || e.place.GeometryType == "MultiPolygon")
                     .Where(e => e.place.Area >= filterSize)
                     .ToList();
@@ -105,6 +125,7 @@ namespace CoreComponents
                 place = entries.Where(e => e.place.GeometryType == "Polygon" || e.place.GeometryType == "MultiPolygon").OrderBy(e => e.place.Area).FirstOrDefault();
             return place;
         }
+
 
         public static PreparedMapData PickSmallestEntry(List<PreparedMapData> entries, bool allowPoints = true, double filterSize = 0)
         {
