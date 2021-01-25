@@ -20,7 +20,6 @@ using static CoreComponents.Place;
 using static CoreComponents.GeometrySupport;
 using System.Net;
 
-//TODO: set option flag to enable writing MapData entries to DB or File. Especially since bulk inserts won't fly for MapData from files, apparently.
 //TODO: look into using Span<T> instead of lists? This might be worth looking at performance differences. (and/or Memory<T>, which might be a parent for Spans)
 //TODO: Ponder using https://download.bbbike.org/osm/ as a data source to get a custom extract of an area (for when users want a local-focused app, probably via a wizard GUI)
 
@@ -33,10 +32,6 @@ namespace Larry
             var memMon = new MemoryMonitor();
             PraxisContext.connectionString = ParserSettings.DbConnectionString;
             PraxisContext.serverMode = ParserSettings.DbMode;
-
-
-            TestNewDrawing();
-            //DrawMultipleLevelsOfMaptile(); //test function, remove this when done testing.
 
             if (args.Count() == 0)
             {
@@ -298,30 +293,6 @@ namespace Larry
             return;
         }
 
-        public static void DetectMapTilesToDraw()
-        {
-            for (var pos1 = 0; pos1 <= OpenLocationCode.CodeAlphabet.IndexOf('C'); pos1++)
-                for (var pos2 = 0; pos2 <= OpenLocationCode.CodeAlphabet.IndexOf('V'); pos2++)
-                {
-
-                }    
-
-        }
-
-        public static void IdentifyMapTilesRecursive(string parentCell)
-        {
-            List<string> neededTiles = new List<string>();
-            for (int pos1 = 0; pos1 < 20; pos1++)
-                for (int pos2 = 0; pos2 < 20; pos2++)
-                {
-                    string cellToCheck = parentCell + OpenLocationCode.CodeAlphabet[pos1].ToString() + OpenLocationCode.CodeAlphabet[pos2].ToString();
-                    if (DoPlacesExist(OpenLocationCode.DecodeValid(cellToCheck)))
-                        neededTiles.Add(cellToCheck);
-                }
-
-            //
-        }
-
         public static void DetectMapTilesRecursive(string parentCell, bool skipExisting)
         {
             List<string> cellsFound = new List<string>();
@@ -347,10 +318,10 @@ namespace Larry
             //However, I have gotten a memory corruption error in this with 2 parallel loops. I would prefer to avoid those, so this is pared back to 1 for now.
             //This is also far, far too slow as-is for single-threading ahead of time.
             //Note: still getting the same memory corruption error running long enough with 1 parallel loop. Cutting back to non-parallel only for now to see if that boosts stability.
-            //System.Threading.Tasks.Parallel.For(0, 20, (pos1) =>
-            for(int pos1 = 0; pos1 < 20; pos1++)
-                //System.Threading.Tasks.Parallel.For(0, 20, (pos2) =>
-                for (int pos2 = 0; pos2 < 20; pos2++)
+            System.Threading.Tasks.Parallel.For(0, 20, (pos1) =>
+            //for(int pos1 = 0; pos1 < 20; pos1++)
+                System.Threading.Tasks.Parallel.For(0, 20, (pos2) =>
+                //for (int pos2 = 0; pos2 < 20; pos2++)
                 {
                     string cellToCheck = parentCell + OpenLocationCode.CodeAlphabet[pos1].ToString() + OpenLocationCode.CodeAlphabet[pos2].ToString();
                     var area = new OpenLocationCode(cellToCheck).Decode();
@@ -385,7 +356,7 @@ namespace Larry
                     {
                         Log.WriteLog("Skipping Cell" + cellToCheck.Length + " " + cellToCheck + " for future mapdrawing checks.", Log.VerbosityLevels.High);
                     }
-                } //); //add ) here if i do want 2 parallel loops. I might be losing some overhead to managing 400 threads.
+                } )); //add ) here if i do want 2 parallel loops. I might be losing some overhead to managing 400 threads.
             sw.Stop();
             if (tilesGenerated.Count() > 0)
             {
@@ -398,46 +369,6 @@ namespace Larry
             }
             foreach (var cellF in cellsFound)
                 DetectMapTilesRecursive(cellF, skipExisting);
-        }
-
-        public static void TestNewDrawing()
-        {
-            var area = OpenLocationCode.DecodeValid("86HW");
-            var places = GetPlaces(area, null, false, false);
-            var results = MapTiles.DrawAreaMapTile(ref places, area, 11);
-            System.IO.File.WriteAllBytes("86HW-testVector.png", results);
-        }
-
-
-        public static void DrawMultipleLevelsOfMaptile()
-        {
-            string testLocation = "86HW"; //Cleveland!
-            GeoArea currentCell = OpenLocationCode.DecodeValid(testLocation.Substring(0, 4));
-            List<MapData> places;
-            places = GetPlaces(currentCell, null, false, false);
-            var bigTile = MapTiles.DrawAreaMapTile(ref places, currentCell, 11); //11 took half an hour to get to 3% of the image drawn.
-            System.IO.File.WriteAllBytes("86HW-11.png", bigTile);
-
-            ////Test function, don't use this for real stuff yet.
-            //string testLocation = "86FRXX5XG8"; //roughly the center of Columbus OH.
-            //GeoArea currentCell = OpenLocationCode.DecodeValid(testLocation.Substring(0, 4));
-            //List<MapData> places;
-            //Dictionary<string, byte[]> mapTiles = new Dictionary<string, byte[]>();
-
-            //places = GetPlaces(currentCell, null, false, false);
-            ////mapTiles.Add(testLocation.Substring(0, 2), MapTiles.DrawAreaMapTile(ref places, currentCell, 6));
-            //mapTiles.Add(testLocation.Substring(0, 4), MapTiles.DrawAreaMapTile(ref places, currentCell, 8));
-            //currentCell = OpenLocationCode.DecodeValid(testLocation.Substring(0, 6));
-            //mapTiles.Add(testLocation.Substring(0, 6), MapTiles.DrawAreaMapTile(ref places, currentCell, 10));
-            //currentCell = OpenLocationCode.DecodeValid(testLocation.Substring(0, 8));
-            //mapTiles.Add(testLocation.Substring(0, 8), MapTiles.DrawAreaMapTile(ref places, currentCell, 11));
-
-            //foreach(var entry in mapTiles)
-            //    System.IO.File.WriteAllBytes(entry.Key + ".png", entry.Value);
-
-            return;
-
-
         }
 
         public static void AddMapDataToDBFromFiles()
