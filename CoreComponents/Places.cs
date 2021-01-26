@@ -11,6 +11,7 @@ using NetTopologySuite.Geometries;
 using static CoreComponents.Singletons;
 using static CoreComponents.GeometrySupport;
 using NetTopologySuite.Geometries.Prepared;
+using System.Collections.Concurrent;
 
 namespace CoreComponents
 {
@@ -18,7 +19,7 @@ namespace CoreComponents
     {
         //for now, anything that does a query on MapData or a list of MapData entries
         //Places will be the name for interactible or important areas on the map. Was not previously a fixed name for that.
-        public static List<MapData> GetPlaces(GeoArea area, List<MapData> source = null, bool includeAdmin = true, bool includeGenerated= true)
+        public static List<MapData> GetPlaces(GeoArea area, List<MapData> source = null, bool includeAdmin = false, bool includeGenerated= true)
         {
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
             //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
@@ -40,9 +41,38 @@ namespace CoreComponents
             {
                 var location = Converters.GeoAreaToPreparedPolygon(area);
                 if (includeAdmin)
-                    places = source.Where(md => location.Intersects(md.place)).ToList();
+                    places = source.Where(md => location.Intersects(md.place)).Select(md => md.Clone()).ToList();
                 else
-                    places = source.Where(md => md.AreaTypeId != 13 && location.Intersects(md.place)).ToList();
+                    places = source.Where(md => md.AreaTypeId != 13 && location.Intersects(md.place)).Select(md => md.Clone()).ToList();
+            }
+            return places;
+        }
+
+        public static List<MapData> GetPlacesCB(GeoArea area, ConcurrentBag<MapData> source, bool includeAdmin = false, bool includeGenerated = true)
+        {
+            //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
+            //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
+            List<MapData> places;
+            if (source == null)
+            {
+                var location = Converters.GeoAreaToPolygon(area); //Prepared items don't work on a DB lookup.
+                var db = new CoreComponents.PraxisContext();
+                if (includeAdmin)
+                    places = db.MapData.Where(md => location.Intersects(md.place)).ToList();
+                else
+                    places = db.MapData.Where(md => md.AreaTypeId != 13 && location.Intersects(md.place)).ToList();
+                //TODO: make including generated areas a toggle? or assume that this call is trivial performance-wise on an empty table
+                //A toggle might be good since this also affects maptiles
+                if (includeGenerated)
+                    places.AddRange(db.GeneratedMapData.Where(md => location.Intersects(md.place)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
+            }
+            else
+            {
+                var location = Converters.GeoAreaToPreparedPolygon(area);
+                if (includeAdmin)
+                    places = source.Where(md => location.Intersects(md.place)).Select(md => md.Clone()).ToList();
+                else
+                    places = source.Where(md => md.AreaTypeId != 13 && location.Intersects(md.place)).Select(md => md.Clone()).ToList();
             }
             return places;
         }

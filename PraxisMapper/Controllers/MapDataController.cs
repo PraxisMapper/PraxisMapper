@@ -364,7 +364,7 @@ namespace PraxisMapper.Controllers
             {
                 //requires a list of colors to use, which might vary per app. Defined in AreaType
                 GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
-                var allPlaces = GetPlaces(sixCell);
+                var allPlaces = GetPlaces(sixCell, null, false, false);
                 var results = MapTiles.DrawAreaMapTile(ref allPlaces, sixCell, 11);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode6, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results });
                 db.SaveChanges();
