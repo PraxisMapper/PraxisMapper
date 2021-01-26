@@ -19,6 +19,7 @@ using static CoreComponents.Singletons;
 using static CoreComponents.Place;
 using static CoreComponents.GeometrySupport;
 using System.Net;
+using System.Collections.Concurrent;
 
 //TODO: look into using Span<T> instead of lists? This might be worth looking at performance differences. (and/or Memory<T>, which might be a parent for Spans)
 //TODO: Ponder using https://download.bbbike.org/osm/ as a data source to get a custom extract of an area (for when users want a local-focused app, probably via a wizard GUI)
@@ -293,71 +294,92 @@ namespace Larry
             return;
         }
 
+        //TODO: this has an ordering error. The tile code draws them correctly, but they aren't getting put in the right location for some reason.
         public static void DetectMapTilesRecursive(string parentCell, bool skipExisting)
         {
             List<string> cellsFound = new List<string>();
             List<MapTile> tilesGenerated = new List<MapTile>(400); //Might need to be a ConcurrentBag or something similar?
-            Dictionary<string, string> existingTiles = new Dictionary<string, string>();
-            if (parentCell.Length == 6 && skipExisting)
+                                                                   //Dictionary<string, string> existingTiles = new Dictionary<string, string>();
+                                                                   //if (parentCell.Length == 6 && skipExisting)
+                                                                   //{
+                                                                   //var db = new PraxisContext();
+                                                                   //existingTiles = db.MapTiles.Where(m => m.PlusCode.StartsWith(parentCell)).Select(m => m.PlusCode).ToDictionary<string, string>(k => k);
+                                                                   //db.Dispose();
+                                                                   //db = null;
+                                                                   //}
+
+            if (parentCell.Length == 4)
             {
-                var db = new PraxisContext();
-                existingTiles = db.MapTiles.Where(m => m.PlusCode.StartsWith(parentCell)).Select(m => m.PlusCode).ToDictionary<string, string>(k => k);
-                db.Dispose();
-                db = null;
+                var checkProgress = new PraxisContext();
+                bool skip = checkProgress.TileTrackings.Any(tt => tt.PlusCodeCompleted == parentCell);
+                checkProgress.Dispose();
+                checkProgress = null;
+                if (skip)
+                    return;
             }
 
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+            sw.Start();
+
+            //ConcurrentBag<MapData>cell6Data = new ConcurrentBag<MapData>();
             List<MapData> cell6Data = new List<MapData>();
             if (parentCell.Length == 6)
-                cell6Data = GetPlaces(OpenLocationCode.DecodeValid(parentCell), null, false, false);
+            {
+                var area = OpenLocationCode.DecodeValid(parentCell);
+                var areaPoly = Converters.GeoAreaToPolygon(area);
+                var tempPlaces = GetPlaces(area, null, false, false);
+                foreach (var t in tempPlaces)
+                {
+                    t.place = t.place.Intersection(areaPoly);
+                    cell6Data.Add(t);
+                }
 
-            sw.Start();
+            }
+
             //This is fairly well optimized, and I suspect there's not much more I can do here to get this to go faster.
             //Between 100 and 1300 map tiles drawn per seconds if all 400 are in a Cell6. Half that if not, suggests there's some overhead in doing the Decode and DoPlacesExist checks that can't really go away.
             //using 2 parallel loops is faster than 1 or 0. Having MariaDB on the same box is what pegs the CPU, not this double-parallel loop.
-            //However, I have gotten a memory corruption error in this with 2 parallel loops. I would prefer to avoid those, so this is pared back to 1 for now.
             //This is also far, far too slow as-is for single-threading ahead of time.
-            //Note: still getting the same memory corruption error running long enough with 1 parallel loop. Cutting back to non-parallel only for now to see if that boosts stability.
             System.Threading.Tasks.Parallel.For(0, 20, (pos1) =>
-            //for(int pos1 = 0; pos1 < 20; pos1++)
+            //for (int pos1 = 0; pos1 < 20; pos1++)
                 System.Threading.Tasks.Parallel.For(0, 20, (pos2) =>
                 //for (int pos2 = 0; pos2 < 20; pos2++)
                 {
                     string cellToCheck = parentCell + OpenLocationCode.CodeAlphabet[pos1].ToString() + OpenLocationCode.CodeAlphabet[pos2].ToString();
                     var area = new OpenLocationCode(cellToCheck).Decode();
-                    var tileNeedsMade = DoPlacesExist(area);
-                    if (tileNeedsMade)
+                    if (cellToCheck.Length == 8) //We don't want to do the DoPlacesExist check here, since we'll want empty tiles for empty areas at this l
                     {
-                        if (cellToCheck.Length == 8)
-                        {
-                            string exists = "";
-                            if (skipExisting && existingTiles.TryGetValue(cellToCheck, out exists))
-                            {
-                                //nothing
-                                Log.WriteLog("Skipping tile draw for " + cellToCheck + ", already exists", Log.VerbosityLevels.High);
-                            }
-                            else
-                            {
-                                //Draw this map tile
-                                //var places = GetPlaces(area, null, false);
-                                var places = GetPlaces(area, cell6Data, false);
-                                var tileData = MapTiles.DrawAreaMapTile(ref places, area, 11);
-                                tilesGenerated.Add(new MapTile() { CreatedOn = DateTime.Now, mode = 1, tileData = tileData, resolutionScale = 11, PlusCode = cellToCheck });
-                                Log.WriteLog("Cell " + cellToCheck + " Drawn", Log.VerbosityLevels.High);
-                            }
-                        }
-                        else
+                        //string exists = "";
+                        //if (skipExisting && existingTiles.TryGetValue(cellToCheck, out exists))
+                        //{
+                        //nothing
+                        //Log.WriteLog("Skipping tile draw for " + cellToCheck + ", already exists", Log.VerbosityLevels.High);
+                        //}
+                        //else
+                        //{
+                        //Draw this map tile
+                        //var places = GetPlaces(area);
+                        //var places = GetPlacesCB(area, cell6Data, false);
+                        var places = GetPlaces(area, cell6Data, false);
+                        var tileData = MapTiles.DrawAreaMapTile(ref places, area, 11);
+                        tilesGenerated.Add(new MapTile() { CreatedOn = DateTime.Now, mode = 1, tileData = tileData, resolutionScale = 11, PlusCode = cellToCheck });
+                        Log.WriteLog("Cell " + cellToCheck + " Drawn", Log.VerbosityLevels.High);
+                        //}
+                    }
+                    else
+                    {
+                        var tileNeedsMade = DoPlacesExist(area);
+                        if (tileNeedsMade)
                         {
                             Log.WriteLog("Noting: Cell" + cellToCheck.Length + " " + cellToCheck + " has areas to draw");
                             cellsFound.Add(cellToCheck);
                         }
-                    }
-                    else
-                    {
-                        Log.WriteLog("Skipping Cell" + cellToCheck.Length + " " + cellToCheck + " for future mapdrawing checks.", Log.VerbosityLevels.High);
-                    }
-                } )); //add ) here if i do want 2 parallel loops. I might be losing some overhead to managing 400 threads.
-            sw.Stop();
+                        else
+                        {
+                            Log.WriteLog("Skipping Cell" + cellToCheck.Length + " " + cellToCheck + " for future mapdrawing checks.", Log.VerbosityLevels.High);
+                        }
+                    }                    
+                })); //add ) here if i do want 2 parallel loops. I might be losing some overhead to managing 400 threads.
             if (tilesGenerated.Count() > 0)
             {
                 var db = new PraxisContext();
@@ -365,10 +387,20 @@ namespace Larry
                 db.SaveChanges(); //This should run for every Cell6, saving up to 400 per batch.
                 db.Dispose(); //connection needs terminated since this is recursive, or we will hit a max connections error eventually.
                 db = null;
-                Log.WriteLog("Saved records for Cell " + parentCell + " - " + tilesGenerated.Count() + " maptiles drawn in " + sw.Elapsed.ToString());
+                Log.WriteLog("Saved records for Cell " + parentCell + " - " + tilesGenerated.Count() + " maptiles drawn and saved in " + sw.Elapsed.ToString());
             }
             foreach (var cellF in cellsFound)
                 DetectMapTilesRecursive(cellF, skipExisting);
+
+            if (parentCell.Length == 4)
+            {
+                var saveProgress = new PraxisContext();
+                saveProgress.TileTrackings.Add(new TileTracking() { PlusCodeCompleted = parentCell });
+                saveProgress.SaveChanges();
+                saveProgress.Dispose();
+                saveProgress = null;
+                Log.WriteLog("Saved records for Cell4 " + parentCell + " in " + sw.Elapsed.ToString());
+            }
         }
 
         public static void AddMapDataToDBFromFiles()

@@ -11,7 +11,7 @@ An 11-digit PlusCode has an area of ~3x3.5 meters at the equator and shrinks ver
 A 10-digit PlusCode has an area of ~14x14 meters (same limitations as above). 
 For tracking lots of individual points (EX: pieces in an art gallery), an 11-digit PlusCode would be more useful than 10 but the user's position might drift significantly.
 For tracking areas of interest (EX: are you in a park/cemetery/etc) a 10-digit PlusCode is sufficiently accurate, given the typical acccuracy of a phone's GPS.
-PraxisMapper can generate its own maptiles, at 1 Cell11 per pixel. They're not the prettiest map tiles ever, but they represent the area accurately.
+PraxisMapper can generate its own maptiles. The flexibility availble for drawing them will increase over time.
 There are a variety of other applications for making maptiles from OSM data. Use one of those to generate prettier graphics if desired, and use this to track interesting things around a player's location.
 
 2) Focus on Interesting areas for the map
@@ -42,8 +42,23 @@ Functional requirements beat performance on priority, but do your best to optimi
 Comment code thoroughly to help new developers understand what it's doing.
 Keep code open and well organized.
 
+Security:
+The security model for PraxisMapper is extremely simple: don't save data worth stealing.
+There should be nothing saved in the database, and nothing sent or received by the webserver, that would compromise that user that isn't already available.
+Essentially: the database should only store individual data that the server itself generated (Teams, unique IDs, non-location gameplay elements and statistics). 
+Location data shouldn't be stored, and aggregating a player's behavior is questionable on how invasive it is (EX: if a user spends 80% of their time in park areas, and is a member of Team X, is that sufficient to reveal an identity?)
+The server doesn't track user locations over time (though, a mode intended to be hosted personally could in the future), and doesn't track changes to game-state by individuals.
+Connections should use SSL to conceal locations passed as API parameters. 
+Identification of an individual user requires additional, external data and not be manageable solely with PraxisMapper.
+Tracking activity by team, assuming population of teams is sufficiently large, should obfuscate individual behaior. 
+The single most damaging option for security is enabling PerformanceTracker, which could provide a more thorough view of server activity if the server and/or database are compromised 
+(at which point, an attacker would insert their own malicious code anyways)
+The short rule is: a request cannot include both a location and a unique deviceID. Only one or the other.
+
 
 Server Terms:
 Plus Code areas will be called Cell#, with # the number of digits in the plus code, throughout the code.
+Places are entries in the MapData or GeneratedMapData tables.
+Areas are Plus Code cells used to find Places or map tiles.
 -Avoids variables starting with a number, indicates what level of detail a function is expecting to act at when a specific one is needed.
 

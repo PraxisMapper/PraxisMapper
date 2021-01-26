@@ -275,14 +275,13 @@ namespace CoreComponents
             List<MapData> rowPlaces;
             //create a new bitmap.
             MemoryStream ms = new MemoryStream();
-            //pixel formats. RBGA32 allows for hex codes. RGB24 doesnt?
             int imagesizeX = (int)Math.Floor(totalArea.LongitudeWidth / resolutionX);
             int imagesizeY = (int)Math.Floor(totalArea.LatitudeHeight / resolutionY);
 
             //crop all places to the current area. This removes a ton of work from the process by simplifying geometry to only what's relevant, instead of drawing all of a great lake or state-wide park.
             var cropArea = Converters.GeoAreaToPolygon(totalArea);
             foreach (var ap in allPlaces)
-                ap.place = ap.place.Intersection(cropArea);
+                ap.place = ap.place.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
 
             using (var image = new Image<Rgba32>(imagesizeX, imagesizeY))
             {
@@ -319,7 +318,7 @@ namespace CoreComponents
                             break;
                     }
                 }
-                image.Mutate(x => x.Flip(FlipMode.Vertical));
+                image.Mutate(x => x.Flip(FlipMode.Vertical)); //Plus codes are south-to-north, so invert the image to make it correct.
                 image.SaveAsPng(ms);
             } //image disposed here.
 

@@ -169,7 +169,6 @@ namespace CoreComponents
             return;
         }
 
-        //Might need 2-5 of these helper functions, depending.
         public static SixLabors.ImageSharp.Drawing.Polygon PolygonToDrawingPolygon(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
         {
             //Remember that plus codes start at the southwest corner, so y coordinates need inverted. Or flip the image when done.

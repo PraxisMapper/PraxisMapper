@@ -21,7 +21,7 @@ namespace CoreComponents
                 return 0;
 
             //We can't shortcut this intersection check past that. This is the spot where we determine what's in this Cell11, and can't assume the list contains an overlapping entry.
-            var entriesHere = GetPlaces(cell, places, false).ToList(); //Excluding admin boundaries from this list.  
+            var entriesHere = GetPlaces(cell, places).ToList(); //Excluding admin boundaries from this list.  
 
             if (entriesHere.Count() == 0)
                 return 0;
@@ -208,7 +208,7 @@ namespace CoreComponents
         public static string FindPlacesInCell10(double x, double y, ref List<MapData> places, bool entireCode = false)
         {
             var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell10, x + resolutionCell10));
-            var entriesHere = GetPlaces(box, places, false).ToList(); //Excluding admin boundaries from this list.  
+            var entriesHere = GetPlaces(box, places).ToList(); //Excluding admin boundaries from this list.  
 
             if (entriesHere.Count() == 0)
                 return "";

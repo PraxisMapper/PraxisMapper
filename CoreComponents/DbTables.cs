@@ -40,6 +40,11 @@ namespace CoreComponents
             //Temporarily removing these: adding this to the global data set takes an hour and creates a log file the size of the DB.
             //public AreaType AreaType { get; set; }
             public int AreaTypeId { get; set; }
+
+            public MapData Clone()
+            {
+                return (MapData)this.MemberwiseClone();
+            }
         }       
 
         //Reference table
@@ -50,6 +55,13 @@ namespace CoreComponents
             public string OsmTags { get; set; } //These are not 1:1, so this column may not be useful after all.
             public string HtmlColorCode { get; set; } //for tile-drawing operations, possibly in-app stuff too.
         }
+
+        public class TileTracking
+        {
+            public long TileTrackingId { get; set; }
+            public string PlusCodeCompleted { get; set; }
+        }
+        
 
         public class MapTile
         { 
