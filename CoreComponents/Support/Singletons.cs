@@ -67,10 +67,13 @@ namespace CoreComponents
 
         public static List<Faction> defaultFaction = new List<Faction>()
         {
-            new Faction() { HtmlColor = "FF0000", Name = "Red Team" },
-            new Faction() { HtmlColor = "00FF00", Name = "Green Team" },
-            new Faction() { HtmlColor = "87CEEB", Name = "Blue Team" }, //Sky blue, versus deep blue that matches Water elements.
+            new Faction() { FactionId = 1,  HtmlColor = "FF0000", Name = "Red Team" },
+            new Faction() { FactionId = 2, HtmlColor = "00FF00", Name = "Green Team" },
+            new Faction() { FactionId = 3, HtmlColor = "87CEEB", Name = "Blue Team" }, //Sky blue, versus deep blue that matches Water elements.
         };
+
+        public static ILookup<long, Rgba32> teamColorReferenceRgba32Lookup = defaultFaction.ToLookup(k => k.FactionId, v => Rgba32.ParseHex(v.HtmlColor)); //needed to make the Dictionary<> correctly.
+        public static Dictionary<long, Rgba32> teamColorReferenceRgba32 = teamColorReferenceRgba32Lookup.ToDictionary(k => k.Key, v => v.First());  //Don't have to call First() each time on this unlike the lookup
 
         //Unfinished, for future plans to have tags be defined by database entries instead of a single code block
         public static List<TagParserEntry> defaultTagParserEntries = new List<TagParserEntry>()

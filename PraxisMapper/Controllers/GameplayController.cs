@@ -125,7 +125,7 @@ namespace PraxisMapper.Controllers
                             db2.MapTiles.Add(maptiles10);
                         }
 
-                        maptiles10.tileData = MapTiles.DrawMPControlAreaMapTile11(olc.Decode(), shortcut);
+                        maptiles10.tileData = MapTiles.DrawMPControlAreaMapTile(olc.Decode(), 11, shortcut);
                         maptiles10.CreatedOn = DateTime.Now;
                         db2.SaveChanges();
                     }
@@ -173,7 +173,7 @@ namespace PraxisMapper.Controllers
                             db2.MapTiles.Add(maptiles10);
                         }
 
-                        maptiles10.tileData = MapTiles.DrawMPControlAreaMapTile11(olc.Decode(), shortcut);
+                        maptiles10.tileData = MapTiles.DrawMPControlAreaMapTile(olc.Decode(), 11, shortcut);
                         maptiles10.CreatedOn = DateTime.Now;
                         db2.SaveChanges();
                     }
@@ -224,7 +224,7 @@ namespace PraxisMapper.Controllers
                 //requires a list of colors to use, which might vary per app
                 GeoArea TenCell = OpenLocationCode.DecodeValid(Cell10);
                 var places = GetPlaces(TenCell);
-                var results = MapTiles.DrawMPControlAreaMapTile11(TenCell);
+                var results = MapTiles.DrawMPControlAreaMapTile(TenCell, 11);
                 factionColorTile = new MapTile() { PlusCode = Cell10, CreatedOn = DateTime.Now, mode = 2, resolutionScale = 11, tileData = results };
                 db.MapTiles.Add(factionColorTile);
                 db.SaveChanges();
@@ -266,7 +266,7 @@ namespace PraxisMapper.Controllers
                 //requires a list of colors to use, which might vary per app
                 GeoArea CellEightArea = OpenLocationCode.DecodeValid(Cell8);
                 var places = GetPlaces(CellEightArea);
-                var results = MapTiles.DrawMPControlAreaMapTile11(CellEightArea);
+                var results = MapTiles.DrawMPControlAreaMapTile(CellEightArea, 11);
                 factionColorTile = new MapTile() { PlusCode = Cell8, CreatedOn = DateTime.Now, mode = 2, resolutionScale = 11, tileData = results };
                 db.MapTiles.Add(factionColorTile);
                 db.SaveChanges();

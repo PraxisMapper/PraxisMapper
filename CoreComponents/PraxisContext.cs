@@ -17,7 +17,7 @@ namespace CoreComponents
         public DbSet<MapData> MapData { get; set; }
         public DbSet<MapTile> MapTiles { get; set; }
         public DbSet<Faction> Factions { get; set; }
-        public DbSet<AreaControlTeam> AreaControlTeams { get; set; }
+        public DbSet<AreaControlTeam> AreaControlTeams { get; set; } //This is TeamClaims, rename this.
         public DbSet<GeneratedMapData> GeneratedMapData { get; set; } 
         public DbSet<TurfWarConfig> TurfWarConfigs { get; set; }
         public DbSet<TurfWarEntry> TurfWarEntries { get; set; }
@@ -129,6 +129,7 @@ namespace CoreComponents
         public static Func<PraxisContext, Geometry, IEnumerable<MapData>> compiledIntersectQuery = 
             EF.CompileQuery((PraxisContext context, Geometry place) =>  context.MapData.Where(md => md.place.Intersects(place)));
 
+        //TODO: This isn't used, remove it.
         public IEnumerable<MapData> getPlaces(Geometry place)
         {
             return compiledIntersectQuery(this, place);
