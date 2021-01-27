@@ -67,9 +67,9 @@ namespace CoreComponents
 
         public static List<Faction> defaultFaction = new List<Faction>()
         {
-            new Faction() { FactionId = 1,  HtmlColor = "FF0000", Name = "Red Team" },
-            new Faction() { FactionId = 2, HtmlColor = "00FF00", Name = "Green Team" },
-            new Faction() { FactionId = 3, HtmlColor = "87CEEB", Name = "Blue Team" }, //Sky blue, versus deep blue that matches Water elements.
+            new Faction() { FactionId = 1,  HtmlColor = "FF000088", Name = "Red Team" },
+            new Faction() { FactionId = 2, HtmlColor = "00FF0088", Name = "Green Team" },
+            new Faction() { FactionId = 3, HtmlColor = "87CEEB88", Name = "Blue Team" }, //Sky blue, versus deep blue that matches Water elements.
         };
 
         public static ILookup<long, Rgba32> teamColorReferenceRgba32Lookup = defaultFaction.ToLookup(k => k.FactionId, v => Rgba32.ParseHex(v.HtmlColor)); //needed to make the Dictionary<> correctly.
