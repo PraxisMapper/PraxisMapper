@@ -260,12 +260,10 @@ namespace CoreComponents
 
         public static byte[] DrawAreaMapTile(ref List<MapData> allPlaces, GeoArea totalArea, int pixelSizeCells)
         {
-            //Idea here was to convert shapes into some kind of coordinate that ImageSharp can use.
-            //Requires ImageSharp to use polygon and line options for drawing.
-            //Isnt finished. TODO find this out.
             //Initial suggestion for these is to use a pixelSizeCell value 2 steps down from the areas size
             //EX: for Cell8 tiles, use 11 for the pixel cell size (this is the default I use, smallest location in a pixel sets the color)
             //or for Cell4 tiles, use Cell8 pixel size. (alternative sort for pixel color: largest area? Exclude points?)
+            //But this is gaining flexibilty, and adjusting pixelSizeCells to a double to be degreesPerPixel allows for more freedom.
             double resolutionX, resolutionY;
             double filterSize = 0;
             GetResolutionValues(pixelSizeCells, out resolutionX, out resolutionY);
@@ -281,9 +279,11 @@ namespace CoreComponents
 
             //crop all places to the current area. This removes a ton of work from the process by simplifying geometry to only what's relevant, instead of drawing all of a great lake or state-wide park.
             var cropArea = Converters.GeoAreaToPolygon(totalArea);
+            //A quick fix to drawing order when multiple areas take up the entire cell: sort before the crop (otherwise, the areas are drawn in a random order, which makes some disappear)
+            //Affects small map tiles more often than larger ones, but it can affect both.
+            allPlaces = allPlaces.OrderByDescending(a => a.place.Area).ThenByDescending(a => a.place.Length).ToList();
             foreach (var ap in allPlaces)
                 ap.place = ap.place.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
-
 
             var options = new ShapeGraphicsOptions(); //currently using defaults.
             using (var image = new Image<Rgba32>(imagesizeX, imagesizeY))
@@ -291,7 +291,7 @@ namespace CoreComponents
                 image.Mutate(x => x.Fill(Rgba32.ParseHex(areaColorReference[999].First()))); //set all the areas to the background color
 
                 //Now, instead of going per pixel, go per area, sorted by area descending.
-                foreach (var place in allPlaces.OrderByDescending(a => a.place.Area).ThenByDescending(a => a.place.Length))
+                foreach (var place in allPlaces) //.OrderByDescending(a => a.place.Area).ThenByDescending(a => a.place.Length))
                 {
                     var color = areaColorReferenceRgba32[place.AreaTypeId];
                     switch(place.place.GeometryType)
