@@ -255,7 +255,7 @@ namespace PraxisMapper.Controllers
                 //requires a list of colors to use, which might vary per app
                 GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
                 var places = GetPlaces(eightCell);
-                var results = MapTiles.DrawAreaMapTile(ref places, eightCell);
+                var results = MapTiles.DrawAreaMapTile(ref places, eightCell, 10);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, CreatedOn = DateTime.Now, mode =1, resolutionScale = 10, tileData = results });
                 db.SaveChanges();
                 pt.Stop(plusCode8);
@@ -338,7 +338,7 @@ namespace PraxisMapper.Controllers
                 //requires a list of colors to use, which might vary per app
                 GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
                 var allPlaces = GetPlaces(sixCell);
-                var results = MapTiles.DrawAreaMapTile(ref allPlaces, sixCell);
+                var results = MapTiles.DrawAreaMapTile(ref allPlaces, sixCell, 10);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode6, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 10, tileData = results });
                 db.SaveChanges();
                 pt.Stop(plusCode6);
@@ -385,7 +385,7 @@ namespace PraxisMapper.Controllers
             var allPlaces = GetPlaces(box);
             byte[] results;
             if (resolution == 10)
-                results = MapTiles.DrawAreaMapTile(ref allPlaces, box);
+                results = MapTiles.DrawAreaMapTile(ref allPlaces, box, 10);
             else
                 results = MapTiles.DrawAreaMapTile(ref allPlaces, box, 11);
             pt.Stop(lat + "|" + lon + "|" + size + "|" + resolution);
