@@ -339,7 +339,6 @@ namespace Larry
             //This is fairly well optimized, and I suspect there's not much more I can do here to get this to go faster.
             //Between 100 and 1300 map tiles drawn per seconds if all 400 are in a Cell6. Half that if not, suggests there's some overhead in doing the Decode and DoPlacesExist checks that can't really go away.
             //using 2 parallel loops is faster than 1 or 0. Having MariaDB on the same box is what pegs the CPU, not this double-parallel loop.
-            //This is also far, far too slow as-is for single-threading ahead of time.
             System.Threading.Tasks.Parallel.For(0, 20, (pos1) =>
             //for (int pos1 = 0; pos1 < 20; pos1++)
                 System.Threading.Tasks.Parallel.For(0, 20, (pos2) =>

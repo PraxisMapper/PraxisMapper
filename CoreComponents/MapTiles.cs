@@ -16,6 +16,7 @@ using NetTopologySuite.Geometries.Prepared;
 using static CoreComponents.Place;
 using static CoreComponents.AreaTypeInfo;
 using NetTopologySuite.Geometries;
+using SixLabors.ImageSharp.Drawing;
 
 namespace CoreComponents
 {
@@ -283,6 +284,8 @@ namespace CoreComponents
             foreach (var ap in allPlaces)
                 ap.place = ap.place.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
 
+
+            var options = new ShapeGraphicsOptions(); //currently using defaults.
             using (var image = new Image<Rgba32>(imagesizeX, imagesizeY))
             {
                 image.Mutate(x => x.Fill(Rgba32.ParseHex(areaColorReference[999].First()))); //set all the areas to the background color
@@ -315,6 +318,13 @@ namespace CoreComponents
                                 var drawThis4 = Converters.LineToDrawingLine(p, totalArea, resolutionX, resolutionY);
                                 image.Mutate(x => x.DrawLines(color, 1, drawThis4.ToArray()));
                             }
+                            break;
+                        case "Point":
+                            var point = Converters.PointToPointF(place.place, totalArea, resolutionX, resolutionY);
+                            //image.Mutate(x => x.DrawLines(color, 3, new PointF[] {point, point }));
+
+                            var shape = new SixLabors.ImageSharp.Drawing.EllipsePolygon(Converters.PointToPointF(place.place, totalArea, resolutionX, resolutionY), 1.5f);
+                            image.Mutate(x => x.Fill(color, shape));
                             break;
                     }
                 }
