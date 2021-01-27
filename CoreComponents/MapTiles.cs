@@ -221,32 +221,39 @@ namespace CoreComponents
                 foreach (var place in allPlaces) //.OrderByDescending(a => a.place.Area).ThenByDescending(a => a.place.Length))
                 {
                     var color = areaColorReferenceRgba32[place.AreaTypeId];
-                    if (teamClaims.ContainsKey(place.MapDataId))
-                        color = teamColorReferenceRgba32[teamClaims[place.MapDataId]];
 
                     switch (place.place.GeometryType)
                     {
                         case "Polygon":
                             var drawThis = Converters.PolygonToDrawingPolygon(place.place, totalArea, resolutionX, resolutionY);
-                            image.Mutate(x => x.Fill(color, drawThis));
+                            if (teamClaims.ContainsKey(place.MapDataId))
+                                image.Mutate(x => x.Fill(teamColorReferenceRgba32[teamClaims[place.MapDataId]], drawThis));
                             break;
                         case "MultiPolygon":
                             foreach (var p in ((MultiPolygon)place.place).Geometries)
                             {
                                 var drawThis2 = Converters.PolygonToDrawingPolygon(p, totalArea, resolutionX, resolutionY);
                                 image.Mutate(x => x.Fill(color, drawThis2));
+                                if (teamClaims.ContainsKey(place.MapDataId))
+                                    image.Mutate(x => x.Fill(teamColorReferenceRgba32[teamClaims[place.MapDataId]], drawThis2));
                             }
                             break;
                         case "LineString":
                             var drawThis3 = Converters.LineToDrawingLine(place.place, totalArea, resolutionX, resolutionY);
                             if (drawThis3.Count() > 1)
+                            {
                                 image.Mutate(x => x.DrawLines(color, 1, drawThis3.ToArray()));
+                                if (teamClaims.ContainsKey(place.MapDataId))
+                                    image.Mutate(x => x.DrawLines(teamColorReferenceRgba32[teamClaims[place.MapDataId]], 1, drawThis3.ToArray()));
+                            }
                             break;
                         case "MultiLineString":
                             foreach (var p in ((MultiLineString)place.place).Geometries)
                             {
                                 var drawThis4 = Converters.LineToDrawingLine(p, totalArea, resolutionX, resolutionY);
                                 image.Mutate(x => x.DrawLines(color, 1, drawThis4.ToArray()));
+                                if (teamClaims.ContainsKey(place.MapDataId))
+                                    image.Mutate(x => x.DrawLines(teamColorReferenceRgba32[teamClaims[place.MapDataId]], 1, drawThis4.ToArray()));
                             }
                             break;
                         case "Point":
