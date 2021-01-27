@@ -10,10 +10,9 @@ namespace CoreComponents
     public static class Log
     {
         //TODO: make this a service? Replace with default logging class?
-        static string filename = "Larry-" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".txt";
+        static string filename = "PraxisCore-" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".txt";
         public static VerbosityLevels Verbosity = VerbosityLevels.Normal;
         public static bool WriteToFile = false;
-
 
         public enum VerbosityLevels
         {
