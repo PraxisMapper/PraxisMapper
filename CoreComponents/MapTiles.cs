@@ -139,44 +139,6 @@ namespace CoreComponents
         }
 
 
-        //TODO: drop in optimizations for the Cell11 resolution version into this function below
-        //OR, better, replace the 3 references to it with calls to the new version.
-        //public static byte[] DrawAreaMapTile(ref List<MapData> allPlaces, GeoArea totalArea)
-        //{
-        //    List<MapData> rowPlaces;
-        //    //create a new bitmap.
-        //    MemoryStream ms = new MemoryStream();
-        //    //pixel formats. RBGA32 allows for hex codes. RGB24 doesnt?
-        //    int imagesize = (int)Math.Floor(totalArea.LatitudeHeight / resolutionCell10); //scales to area size
-        //    using (var image = new Image<Rgba32>(imagesize, imagesize)) //each 10 cell in this area is a pixel.
-        //    {
-        //        image.Mutate(x => x.Fill(Rgba32.ParseHex(areaColorReference[999].First()))); //set all the areas to the background color
-        //        for (int y = 0; y < image.Height; y++)
-        //        {
-        //            //Dramatic performance improvement by limiting this to just the row's area.
-        //            rowPlaces = GetPlaces(new GeoArea(new GeoPoint(totalArea.Min.Latitude + (resolutionCell10 * y), totalArea.Min.Longitude), new GeoPoint(totalArea.Min.Latitude + (resolutionCell10 * (y + 1)), totalArea.Max.Longitude)), allPlaces);
-
-        //            Span<Rgba32> pixelRow = image.GetPixelRowSpan(image.Height - y - 1); //Plus code data is searched south-to-north, image is inverted otherwise.
-        //            for (int x = 0; x < image.Width; x++)
-        //            {
-        //                //Set the pixel's color by its type.
-        //                int placeData = GetAreaTypeForCell11(totalArea.Min.Longitude + (resolutionCell10 * x), totalArea.Min.Latitude + (resolutionCell10 * y), ref rowPlaces);
-        //                if (placeData != 0)
-        //                {
-        //                    var color = areaColorReference[placeData].First();
-        //                    pixelRow[x] = Rgba32.ParseHex(color); //set to appropriate type color
-        //                }
-        //            }
-        //        }
-
-        //        image.SaveAsPng(ms);
-        //    } //image disposed here.
-
-        //    return ms.ToArray();
-        //}
-
-        
-
         //TODO: make this use vector rules too.
         //Unlike the basic function, this one does its own DB lookups for places.
         public static byte[] DrawMPControlAreaMapTile(GeoArea totalArea, int pixelSizeCells, Tuple<long, int> shortcut = null)
@@ -258,10 +220,10 @@ namespace CoreComponents
                             break;
                         case "Point":
                             var point = Converters.PointToPointF(place.place, totalArea, resolutionX, resolutionY);
-                            //image.Mutate(x => x.DrawLines(color, 3, new PointF[] {point, point }));
-
                             var shape = new SixLabors.ImageSharp.Drawing.EllipsePolygon(Converters.PointToPointF(place.place, totalArea, resolutionX, resolutionY), 1.5f);
                             image.Mutate(x => x.Fill(color, shape));
+                            if (teamClaims.ContainsKey(place.MapDataId))
+                                image.Mutate(x => x.Fill(teamColorReferenceRgba32[teamClaims[place.MapDataId]], shape));
                             break;
                     }
                 }
@@ -271,7 +233,6 @@ namespace CoreComponents
 
             return ms.ToArray();
         }
-    
 
         public static byte[] DrawAreaMapTile(ref List<MapData> allPlaces, GeoArea totalArea, int pixelSizeCells)
         {
@@ -286,11 +247,14 @@ namespace CoreComponents
                 filterSize = resolutionX / 2; //things smaller than half a pixel will not be considered for the map tile. Might just want to toggle the alternate sort rules for pixels (most area, not smallest item)
             //Or should this filter to 'smallest area over filter size'?
 
+            //To make sure we don't get any seams on our maptiles (or points that don't show a full circle, we add a little extra area to the image before drawing, then crop it out at the end.
+            totalArea = new GeoArea(new GeoPoint(totalArea.Min.Latitude - resolutionCell10, totalArea.Min.Longitude - resolutionCell10), new GeoPoint(totalArea.Max.Latitude + resolutionCell10, totalArea.Max.Longitude + resolutionCell10));
+
             List<MapData> rowPlaces;
             //create a new bitmap.
             MemoryStream ms = new MemoryStream();
-            int imagesizeX = (int)Math.Floor(totalArea.LongitudeWidth / resolutionX);
-            int imagesizeY = (int)Math.Floor(totalArea.LatitudeHeight / resolutionY);
+            int imagesizeX = (int)Math.Ceiling(totalArea.LongitudeWidth / resolutionX);
+            int imagesizeY = (int)Math.Ceiling(totalArea.LatitudeHeight / resolutionY);
 
             //crop all places to the current area. This removes a ton of work from the process by simplifying geometry to only what's relevant, instead of drawing all of a great lake or state-wide park.
             var cropArea = Converters.GeoAreaToPolygon(totalArea);
@@ -309,13 +273,13 @@ namespace CoreComponents
                 foreach (var place in allPlaces) //.OrderByDescending(a => a.place.Area).ThenByDescending(a => a.place.Length))
                 {
                     var color = areaColorReferenceRgba32[place.AreaTypeId];
-                    switch(place.place.GeometryType)
+                    switch (place.place.GeometryType)
                     {
                         case "Polygon":
                             var drawThis = Converters.PolygonToDrawingPolygon(place.place, totalArea, resolutionX, resolutionY);
                             image.Mutate(x => x.Fill(color, drawThis));
                             break;
-                        case "MultiPolygon": 
+                        case "MultiPolygon":
                             foreach (var p in ((MultiPolygon)place.place).Geometries)
                             {
                                 var drawThis2 = Converters.PolygonToDrawingPolygon(p, totalArea, resolutionX, resolutionY);
@@ -325,7 +289,7 @@ namespace CoreComponents
                         case "LineString":
                             var drawThis3 = Converters.LineToDrawingLine(place.place, totalArea, resolutionX, resolutionY);
                             if (drawThis3.Count() > 1)
-                            image.Mutate(x => x.DrawLines(color, 1, drawThis3.ToArray()));
+                                image.Mutate(x => x.DrawLines(color, 1, drawThis3.ToArray()));
                             break;
                         case "MultiLineString":
                             foreach (var p in ((MultiLineString)place.place).Geometries)
@@ -344,6 +308,9 @@ namespace CoreComponents
                     }
                 }
                 image.Mutate(x => x.Flip(FlipMode.Vertical)); //Plus codes are south-to-north, so invert the image to make it correct.
+                int removeX = (int)Math.Ceiling(resolutionCell10 / resolutionX);
+                int removeY = (int)Math.Ceiling(resolutionCell10 / resolutionY);
+                image.Mutate(x => x.Crop(new Rectangle(removeX, removeY, imagesizeX - (removeX * 2), imagesizeY - (removeY * 2)))); //remove a Cell10's data from the edges.
                 image.SaveAsPng(ms);
             } //image disposed here.
 
