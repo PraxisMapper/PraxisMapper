@@ -183,6 +183,11 @@ namespace Larry
                 AddMapDataToDBFromFiles();
             }
 
+            if (args.Any(a => a == "-updateDatabase"))
+            {
+                UpdateExistingEntries();
+            }
+
             if (args.Any(a => a == "-removeDupes"))
             {
                 RemoveDuplicates();
@@ -1784,6 +1789,61 @@ namespace Larry
             WriteMapDataToFile(ParserSettings.JsonMapDataFolder + destFileName + "-MapData-Test.json", ref processedEntries);
             AddMapDataToDBFromFiles();
 
+        }
+
+        public static void UpdateExistingEntries()
+        {
+            List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.JsonMapDataFolder, "*.json").ToList();
+            var db = new PraxisContext();
+            foreach (string filename in filenames)
+            {
+                //Similar to the load process, but replaces existing entries instead of only inserting.
+                var entries = ReadMapDataToMemory(filename);
+                Log.WriteLog(entries.Count() + " entries to update in database for " + filename);
+
+                int updateCounter = 0;
+                int updateTotal = 0;
+                foreach (var entry in entries)
+                {
+                    updateCounter++;
+                    updateTotal++;
+                    var query = db.MapData.AsQueryable();
+                    if (entry.NodeId != null)
+                        query = query.Where(md => md.NodeId == entry.NodeId);
+                    if (entry.WayId != null)
+                        query = query.Where(md => md.WayId == entry.WayId);
+                    if (entry.RelationId != null)
+                        query = query.Where(md => md.RelationId == entry.RelationId);
+
+                    var existingData = query.ToList();
+                    if (existingData.Count() > 0)
+                    {
+                        foreach (var item in existingData)
+                        {
+                            item.NodeId = entry.NodeId;
+                            item.WayId = entry.WayId;
+                            item.RelationId = entry.RelationId;
+                            item.place = entry.place;
+                            item.name = entry.name;
+                            item.AreaTypeId = entry.AreaTypeId;
+                        }
+                    }
+                    else
+                    {
+                        db.MapData.Add(entry);
+                    }
+
+                    if (updateCounter > 1000)
+                    {
+                        db.SaveChanges();
+                        updateCounter = 0;
+                        Log.WriteLog(updateTotal + " entries updated to DB");
+                    }
+                }
+                db.SaveChanges();
+                System.IO.File.Move(filename, filename + "Done");
+                Log.WriteLog(filename + " completed at " + DateTime.Now);
+            }
         }
 
         public static void InsertAreaTypesToDb(string dbType)

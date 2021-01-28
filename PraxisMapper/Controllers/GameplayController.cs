@@ -85,56 +85,56 @@ namespace PraxisMapper.Controllers
             teamClaim.claimedAt = DateTime.Now;
             db.SaveChanges();
             Tuple<long, int> shortcut = new Tuple<long, int>(MapDataId, factionId); //tell the application later not to hit the DB on every tile for this entry.
-            Task.Factory.StartNew(() => RedoAreaControlMapTilesCell8(mapData, shortcut)); //I don't need this to finish to return, let it run in the background //Cell8 is about 100 times faster than cell10 for this.
+            Task.Factory.StartNew(() => RedoAreaControlMapTilesCell8(mapData, shortcut)); //I don't need this to finish to return, let it run in the background
             return true;
         }
 
-        public static void RedoAreaControlMapTiles(MapData md, Tuple<long, int> shortcut = null)
-        {
-            //This is a background task, but we want it to finish as fast as possible. 
-            PerformanceTracker pt = new PerformanceTracker("RedoAreaControlMapTiles");
-            var db = new PraxisContext();
-            var space = md.place.Envelope;
-            var geoAreaToRefresh = new GeoArea(new GeoPoint(space.Coordinates.Min().Y, space.Coordinates.Min().X), new GeoPoint(space.Coordinates.Max().Y, space.Coordinates.Max().X));
-            var Cell10XTiles = geoAreaToRefresh.LongitudeWidth / resolutionCell10;
-            var Cell10YTiles = geoAreaToRefresh.LatitudeHeight / resolutionCell10;
+        //public static void RedoAreaControlMapTiles(MapData md, Tuple<long, int> shortcut = null)
+        //{
+        //    //This is a background task, but we want it to finish as fast as possible. 
+        //    PerformanceTracker pt = new PerformanceTracker("RedoAreaControlMapTiles");
+        //    var db = new PraxisContext();
+        //    var space = md.place.Envelope;
+        //    var geoAreaToRefresh = new GeoArea(new GeoPoint(space.Coordinates.Min().Y, space.Coordinates.Min().X), new GeoPoint(space.Coordinates.Max().Y, space.Coordinates.Max().X));
+        //    var Cell10XTiles = geoAreaToRefresh.LongitudeWidth / resolutionCell10;
+        //    var Cell10YTiles = geoAreaToRefresh.LatitudeHeight / resolutionCell10;
 
-            double minx = geoAreaToRefresh.WestLongitude;
-            double miny = geoAreaToRefresh.SouthLatitude;
+        //    double minx = geoAreaToRefresh.WestLongitude;
+        //    double miny = geoAreaToRefresh.SouthLatitude;
 
-            int xTiles = (int)Cell10XTiles + 1;
-            IPreparedGeometry pg = new PreparedGeometryFactory().Create(md.place); //this is supposed to be faster than regular geometry.
-            Parallel.For(0, xTiles, (x) => //We don't usually want parallel actions on a web server, but this is a high priority and this does cut the runtime in about half.
-            //for (var x = 0; x < Cell10XTiles; x++)
-            {
+        //    int xTiles = (int)Cell10XTiles + 1;
+        //    IPreparedGeometry pg = new PreparedGeometryFactory().Create(md.place); //this is supposed to be faster than regular geometry.
+        //    Parallel.For(0, xTiles, (x) => //We don't usually want parallel actions on a web server, but this is a high priority and this does cut the runtime in about half.
+        //    //for (var x = 0; x < Cell10XTiles; x++)
+        //    {
                 
-                int yTiles = (int)(Cell10YTiles + 1);
-                Parallel.For(0, yTiles, (y) => //We don't usually want parallel actions on a web server, but this is a high priority
-                //for (var y = 0; y < Cell10YTiles; y++)
-                {
-                    var db2 = new PraxisContext();
-                    var olc = new OpenLocationCode(new GeoPoint(miny + (resolutionCell10 * y), minx + (resolutionCell10 * x)));
-                    var olcPoly = Converters.GeoAreaToPolygon(olc.Decode());
-                    //if (md.place.Intersects(olcPoly)) //If this intersects the original way, redraw that tile. Lets us minimize work for oddly-shaped areas.
-                    if (pg.Intersects(olcPoly))
-                    {
-                        var maptiles10 = db2.MapTiles.Where(m => m.PlusCode == olc.CodeDigits && m.resolutionScale == 11 && m.mode == 2).FirstOrDefault();
-                        if (maptiles10 == null)
-                        {
-                            maptiles10 = new MapTile() { mode = 2, PlusCode = olc.CodeDigits, resolutionScale = 11 };
-                            db2.MapTiles.Add(maptiles10);
-                        }
+        //        int yTiles = (int)(Cell10YTiles + 1);
+        //        Parallel.For(0, yTiles, (y) => //We don't usually want parallel actions on a web server, but this is a high priority
+        //        //for (var y = 0; y < Cell10YTiles; y++)
+        //        {
+        //            var db2 = new PraxisContext();
+        //            var olc = new OpenLocationCode(new GeoPoint(miny + (resolutionCell10 * y), minx + (resolutionCell10 * x)));
+        //            var olcPoly = Converters.GeoAreaToPolygon(olc.Decode());
+        //            //if (md.place.Intersects(olcPoly)) //If this intersects the original way, redraw that tile. Lets us minimize work for oddly-shaped areas.
+        //            if (pg.Intersects(olcPoly))
+        //            {
+        //                var maptiles10 = db2.MapTiles.Where(m => m.PlusCode == olc.CodeDigits && m.resolutionScale == 11 && m.mode == 2).FirstOrDefault();
+        //                if (maptiles10 == null)
+        //                {
+        //                    maptiles10 = new MapTile() { mode = 2, PlusCode = olc.CodeDigits, resolutionScale = 11 };
+        //                    db2.MapTiles.Add(maptiles10);
+        //                }
 
-                        maptiles10.tileData = MapTiles.DrawMPControlAreaMapTile(olc.Decode(), 11, shortcut);
-                        maptiles10.CreatedOn = DateTime.Now;
-                        db2.SaveChanges();
-                    }
-                });
-            });
+        //                maptiles10.tileData = MapTiles.DrawMPControlAreaMapTile(olc.Decode(), 11, shortcut);
+        //                maptiles10.CreatedOn = DateTime.Now;
+        //                db2.SaveChanges();
+        //            }
+        //        });
+        //    });
             
-            //TODO: again for Cell8, once I generate cell8 faction control tiles?
-            pt.Stop(md.MapDataId + "|" + md.name);
-        }
+        //    //TODO: again for Cell8, once I generate cell8 faction control tiles?
+        //    pt.Stop(md.MapDataId + "|" + md.name);
+        //}
 
         public static void RedoAreaControlMapTilesCell8(MapData md, Tuple<long, int> shortcut = null)
         {
@@ -150,7 +150,7 @@ namespace PraxisMapper.Controllers
             double miny = geoAreaToRefresh.SouthLatitude;
 
             int xTiles = (int)Cell8XTiles + 1;
-            IPreparedGeometry pg = new PreparedGeometryFactory().Create(md.place); //this is supposed to be faster than regular geometry.
+            IPreparedGeometry pg = pgf.Create(md.place); //this is supposed to be faster than regular geometry.
             Parallel.For(0, xTiles, (x) => //We don't usually want parallel actions on a web server, but this is a high priority and this does cut the runtime in about half.
             //for (var x = 0; x < Cell10XTiles; x++)
             {
@@ -166,15 +166,15 @@ namespace PraxisMapper.Controllers
                     //if (md.place.Intersects(olcPoly)) //If this intersects the original way, redraw that tile. Lets us minimize work for oddly-shaped areas.
                     if (pg.Intersects(olcPoly))
                     {
-                        var maptiles10 = db2.MapTiles.Where(m => m.PlusCode == olc8 && m.resolutionScale == 11 && m.mode == 2).FirstOrDefault();
-                        if (maptiles10 == null)
+                        var maptiles8 = db2.MapTiles.Where(m => m.PlusCode == olc8 && m.resolutionScale == 11 && m.mode == 2).FirstOrDefault();
+                        if (maptiles8 == null)
                         {
-                            maptiles10 = new MapTile() { mode = 2, PlusCode = olc8, resolutionScale = 11 };
-                            db2.MapTiles.Add(maptiles10);
+                            maptiles8 = new MapTile() { mode = 2, PlusCode = olc8, resolutionScale = 11 };
+                            db2.MapTiles.Add(maptiles8);
                         }
 
-                        maptiles10.tileData = MapTiles.DrawMPControlAreaMapTile(olc.Decode(), 11, shortcut);
-                        maptiles10.CreatedOn = DateTime.Now;
+                        maptiles8.tileData = MapTiles.DrawMPControlAreaMapTile(olc.Decode(), 11, shortcut);
+                        maptiles8.CreatedOn = DateTime.Now;
                         db2.SaveChanges();
                     }
                 });
