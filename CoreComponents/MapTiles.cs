@@ -154,6 +154,9 @@ namespace CoreComponents
                 filterSize = resolutionX / 2; //things smaller than half a pixel will not be considered for the map tile. Might just want to toggle the alternate sort rules for pixels (most area, not smallest item)
             //Or should this filter to 'smallest area over filter size'?
 
+            //To make sure we don't get any seams on our maptiles (or points that don't show a full circle, we add a little extra area to the image before drawing, then crop it out at the end.
+            totalArea = new GeoArea(new GeoPoint(totalArea.Min.Latitude - resolutionCell10, totalArea.Min.Longitude - resolutionCell10), new GeoPoint(totalArea.Max.Latitude + resolutionCell10, totalArea.Max.Longitude + resolutionCell10));
+
             List<MapData> rowPlaces;
             //create a new bitmap.
             MemoryStream ms = new MemoryStream();
@@ -228,6 +231,9 @@ namespace CoreComponents
                     }
                 }
                 image.Mutate(x => x.Flip(FlipMode.Vertical)); //Plus codes are south-to-north, so invert the image to make it correct.
+                int removeX = (int)Math.Ceiling(resolutionCell10 / resolutionX);
+                int removeY = (int)Math.Ceiling(resolutionCell10 / resolutionY);
+                image.Mutate(x => x.Crop(new Rectangle(removeX, removeY, imagesizeX - (removeX * 2), imagesizeY - (removeY * 2)))); //remove a Cell10's data from the edges.
                 image.SaveAsPng(ms);
             } //image disposed here.
 
@@ -270,7 +276,7 @@ namespace CoreComponents
                 image.Mutate(x => x.Fill(Rgba32.ParseHex(areaColorReference[999].First()))); //set all the areas to the background color
 
                 //Now, instead of going per pixel, go per area, sorted by area descending.
-                foreach (var place in allPlaces) //.OrderByDescending(a => a.place.Area).ThenByDescending(a => a.place.Length))
+                foreach (var place in allPlaces)
                 {
                     var color = areaColorReferenceRgba32[place.AreaTypeId];
                     switch (place.place.GeometryType)

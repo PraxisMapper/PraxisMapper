@@ -2,7 +2,7 @@
   "profiles": {
     "Larry": {
       "commandName": "Project",
-      "commandLineArgs": "-Zverbose  -ZspaceSaver -processEverything -ZcreateDB  -ZcleanDB -ZresetPbf -ZresetJson -ZtrimPbfFiles   -ZtrimPbfsByType -ZreadMapData -ZremoveDupes -ZsingleTest -ZcreateStandalone  -ZextractBigAreas -ZpopulateEmptyArea: -autoCreateMapTiles -ZfindServerBounds"
+      "commandLineArgs": "-Zverbose  -ZspaceSaver -processEverything -ZcreateDB  -ZcleanDB -ZresetPbf -ZresetJson -ZtrimPbfFiles   -trimPbfsByType -ZreadMapData  -ZupdateDatabase -ZremoveDupes -ZsingleTest -ZcreateStandalone  -ZextractBigAreas -ZpopulateEmptyArea: -ZautoCreateMapTiles -ZfindServerBounds -"
     }
   }
 }
