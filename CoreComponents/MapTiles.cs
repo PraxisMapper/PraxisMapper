@@ -139,10 +139,10 @@ namespace CoreComponents
         }
 
 
-        //TODO: make this use vector rules too.
-        //Unlike the basic function, this one does its own DB lookups for places.
+        //Unlike the basic function, this one does its own DB lookup, and it's an overlay for the existing map tile, not a full redraw.
         public static byte[] DrawMPControlAreaMapTile(GeoArea totalArea, int pixelSizeCells, Tuple<long, int> shortcut = null)
         {
+            //These are Mode=2 tiles in the database, used as an overlay that's merged into the baseline map tile. Should be faster than re-drawing a full tile.
             //Initial suggestion for these is to use a pixelSizeCell value 2 steps down from the areas size
             //EX: for Cell8 tiles, use 11 for the pixel cell size (this is the default I use, smallest location in a pixel sets the color)
             //or for Cell4 tiles, use Cell8 pixel size. (alternative sort for pixel color: largest area? Exclude points?)
@@ -160,8 +160,8 @@ namespace CoreComponents
             List<MapData> rowPlaces;
             //create a new bitmap.
             MemoryStream ms = new MemoryStream();
-            int imagesizeX = (int)Math.Floor(totalArea.LongitudeWidth / resolutionX);
-            int imagesizeY = (int)Math.Floor(totalArea.LatitudeHeight / resolutionY);
+            int imagesizeX = (int)Math.Ceiling(totalArea.LongitudeWidth / resolutionX);
+            int imagesizeY = (int)Math.Ceiling(totalArea.LatitudeHeight / resolutionY);
 
             var db = new PraxisContext();
             List<MapData> allPlaces = GetPlaces(totalArea, null, false, true); //Includes generated here with the final True parameter.
@@ -173,60 +173,46 @@ namespace CoreComponents
             var cropArea = Converters.GeoAreaToPolygon(totalArea);
             //A quick fix to drawing order when multiple areas take up the entire cell: sort before the crop (otherwise, the areas are drawn in a random order, which makes some disappear)
             //Affects small map tiles more often than larger ones, but it can affect both.
-            allPlaces = allPlaces.OrderByDescending(a => a.place.Area).ThenByDescending(a => a.place.Length).ToList();
+            allPlaces = allPlaces.Where(ap => teamClaims.ContainsKey(ap.MapDataId)).OrderByDescending(a => a.place.Area).ThenByDescending(a => a.place.Length).ToList();
             foreach (var ap in allPlaces)
                 ap.place = ap.place.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
 
             var options = new ShapeGraphicsOptions(); //currently using defaults.
             using (var image = new Image<Rgba32>(imagesizeX, imagesizeY))
             {
-                image.Mutate(x => x.Fill(Rgba32.ParseHex(areaColorReference[999].First()))); //set all the areas to the background color
+                image.Mutate(x => x.Fill(Rgba32.ParseHex("00000000"))); //image starts transparent.
 
-                //Now, instead of going per pixel, go per area, sorted by area descending.
-                foreach (var place in allPlaces) //.OrderByDescending(a => a.place.Area).ThenByDescending(a => a.place.Length))
+                foreach (var place in allPlaces)
                 {
-                    var color = areaColorReferenceRgba32[place.AreaTypeId];
-
                     switch (place.place.GeometryType)
                     {
                         case "Polygon":
                             var drawThis = Converters.PolygonToDrawingPolygon(place.place, totalArea, resolutionX, resolutionY);
-                            if (teamClaims.ContainsKey(place.MapDataId))
                                 image.Mutate(x => x.Fill(teamColorReferenceRgba32[teamClaims[place.MapDataId]], drawThis));
                             break;
                         case "MultiPolygon":
                             foreach (var p in ((MultiPolygon)place.place).Geometries)
                             {
                                 var drawThis2 = Converters.PolygonToDrawingPolygon(p, totalArea, resolutionX, resolutionY);
-                                image.Mutate(x => x.Fill(color, drawThis2));
-                                if (teamClaims.ContainsKey(place.MapDataId))
-                                    image.Mutate(x => x.Fill(teamColorReferenceRgba32[teamClaims[place.MapDataId]], drawThis2));
+                                image.Mutate(x => x.Fill(teamColorReferenceRgba32[teamClaims[place.MapDataId]], drawThis2));
                             }
                             break;
                         case "LineString":
                             var drawThis3 = Converters.LineToDrawingLine(place.place, totalArea, resolutionX, resolutionY);
                             if (drawThis3.Count() > 1)
-                            {
-                                image.Mutate(x => x.DrawLines(color, 1, drawThis3.ToArray()));
-                                if (teamClaims.ContainsKey(place.MapDataId))
                                     image.Mutate(x => x.DrawLines(teamColorReferenceRgba32[teamClaims[place.MapDataId]], 1, drawThis3.ToArray()));
-                            }
                             break;
                         case "MultiLineString":
                             foreach (var p in ((MultiLineString)place.place).Geometries)
                             {
                                 var drawThis4 = Converters.LineToDrawingLine(p, totalArea, resolutionX, resolutionY);
-                                image.Mutate(x => x.DrawLines(color, 1, drawThis4.ToArray()));
-                                if (teamClaims.ContainsKey(place.MapDataId))
-                                    image.Mutate(x => x.DrawLines(teamColorReferenceRgba32[teamClaims[place.MapDataId]], 1, drawThis4.ToArray()));
+                                image.Mutate(x => x.DrawLines(teamColorReferenceRgba32[teamClaims[place.MapDataId]], 1, drawThis4.ToArray()));
                             }
                             break;
                         case "Point":
                             var point = Converters.PointToPointF(place.place, totalArea, resolutionX, resolutionY);
                             var shape = new SixLabors.ImageSharp.Drawing.EllipsePolygon(Converters.PointToPointF(place.place, totalArea, resolutionX, resolutionY), 1.5f);
-                            image.Mutate(x => x.Fill(color, shape));
-                            if (teamClaims.ContainsKey(place.MapDataId))
-                                image.Mutate(x => x.Fill(teamColorReferenceRgba32[teamClaims[place.MapDataId]], shape));
+                            image.Mutate(x => x.Fill(teamColorReferenceRgba32[teamClaims[place.MapDataId]], shape));
                             break;
                     }
                 }
