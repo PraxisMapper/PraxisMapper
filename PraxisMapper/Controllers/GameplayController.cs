@@ -352,8 +352,5 @@ namespace PraxisMapper.Controllers
 
             //return Json(scores);
         }
-
-        //Turf War variants below:
-        //or should these be their own controller?
     }
 }

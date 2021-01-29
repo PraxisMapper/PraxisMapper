@@ -113,10 +113,10 @@ namespace CoreComponents
             public DateTime GeneratedAt { get; set; }
         }
 
-        public class TurfWarEntry
+        public class PaintTownEntry
         {
-            public long TurfWarEntryId { get; set; }
-            public int TurfWarConfigId { get; set; } //If we're running multiple TurfWar instances at once, this lets us identify which one belongs to which.
+            public long PaintTownEntryId { get; set; }
+            public int PaintTownConfigId { get; set; } //If we're running multiple PaintTown instances at once, this lets us identify which one belongs to which.
             public string Cell10 { get; set; }
             public string Cell8 { get; set; } //Index this one
             public int FactionId { get; set; }
@@ -124,39 +124,39 @@ namespace CoreComponents
             public DateTime CanFlipFactionAt { get; set; }
         }
 
-        public class TurfWarConfig
+        public class PaintTownConfig
         {
             //A table for one instance entry? Meh, but these need to update and persist between app pool expirations.
             //Do i want to allow a server to host multiple instance? I might, if someone wanted to have different durations running.
             //Do i want an Enabled flag to be checked so a game can be turned on and off without resetting stats?
-            public int TurfWarConfigId { get; set; }
+            public int PaintTownConfigId { get; set; }
             public string Name { get; set; } //help identify which game/scoreboard we're looking at.
-            public int TurfWarDurationHours { get; set; } //how long to let a game run for. Set to -1 to make a permanent turf war mode.
-            public DateTime TurfWarNextReset { get; set; } //add TurfWarDurationHours to this if we're past the expiration time. Subtract to see the last reset date.
+            public int DurationHours { get; set; } //how long to let a game run for. Set to -1 to make a permanent instance.
+            public DateTime NextReset { get; set; } //add DurationHours to this if we're past the expiration time. Subtract to see the last reset date.
             public int Cell10LockoutTimer { get; set; } //The number of seconds that a Cell10 entry cannot be flipped for when a valid claim happens.
             public bool Repeating { get; set; } //Does this instance automatically repeat
             public DateTime StartTime { get; set; } //For non-repeating instances, when to start taking requests.
         }
 
-        public class TurfWarScoreRecord
+        public class PaintTownScoreRecord
         {
-            public long TurfWarScoreRecordId { get; set; }
-            public int TurfWarConfigId { get; set; }
+            public long PaintTownScoreRecordId { get; set; }
+            public int PaintTownConfigId { get; set; }
             public string Results { get; set; } //A concatenated set of results into one column.
             public int WinningFactionID { get; set; }
             public int WinningScore { get; set; }
             public DateTime RecordedAt { get; set; }
         }
 
-        //Note: this is the server tracking user devices for Turf War team assignments. This doesn't track any data about the user or their device
-        //that wasn't generated on the server itself. The primary use for this is to ensure we generate balanced teams during a Turf War instance.
-        public class TurfWarTeamAssignment
+        //Note: this is the server tracking user devices for Paint The Town team assignments. This doesn't track any data about the user or their device
+        //that wasn't generated on the server itself. The primary use for this is to ensure we generate balanced teams during a Paint The Town instance.
+        public class PaintTownTeamAssignment
         {
-            public long TurfWarTeamAssignmentId { get; set; }
+            public long PaintTownTeamAssignmentId { get; set; }
             public string deviceID { get; set; }
-            public int TurfWarConfigId { get; set; }
+            public int PaintTownConfigId { get; set; }
             public int FactionId { get; set; }
-            public DateTime ExpiresAt { get; set; } //Set to the finish time for this TurfWarConfigId
+            public DateTime ExpiresAt { get; set; } //Set to the finish time for this PaintTownConfigId
         }
 
         public class ErrorLog
