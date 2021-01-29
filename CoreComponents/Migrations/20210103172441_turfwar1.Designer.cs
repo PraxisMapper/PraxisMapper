@@ -302,7 +302,7 @@ namespace CoreComponents.Migrations
                     b.ToTable("TurfWarConfigs");
                 });
 
-            modelBuilder.Entity("CoreComponents.DbTables+TurfWarEntry", b =>
+            modelBuilder.Entity("CoreComponents.DbTables+PaintTownEntry", b =>
                 {
                     b.Property<long>("TurfWarEntryId")
                         .ValueGeneratedOnAdd()

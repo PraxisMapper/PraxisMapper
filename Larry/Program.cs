@@ -104,7 +104,7 @@ namespace Larry
                 InsertAreaTypesToDb(ParserSettings.DbMode);
                 InsertDefaultServerConfig();
                 InsertDefaultFactionsToDb();
-                InsertDefaultTurfWarConfigs();
+                InsertDefaultPaintTownConfigs();
             }
 
             if (args.Any(a => a == "-cleanDB"))
@@ -1874,7 +1874,7 @@ namespace Larry
             db.SaveChanges();
         }
 
-        public static void InsertDefaultTurfWarConfigs()
+        public static void InsertDefaultPaintTownConfigs()
         {
             var db = new PraxisContext();
             //we set the reset time to next Saturday at midnight for a default.
@@ -1884,9 +1884,9 @@ namespace Larry
             nextSaturday.AddSeconds(-nextSaturday.Second);
 
             var tomorrow = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day).AddDays(1);
-            db.TurfWarConfigs.Add(new TurfWarConfig() { Name = "All-Time", Cell10LockoutTimer = 300, TurfWarDurationHours = -1, TurfWarNextReset = nextSaturday });
-            db.TurfWarConfigs.Add(new TurfWarConfig() { Name = "Weekly", Cell10LockoutTimer = 300, TurfWarDurationHours = 168, TurfWarNextReset = nextSaturday });
-            db.TurfWarConfigs.Add(new TurfWarConfig() { Name = "Daily", Cell10LockoutTimer = 30, TurfWarDurationHours = 24, TurfWarNextReset = tomorrow });
+            db.PaintTownConfigs.Add(new PaintTownConfig() { Name = "All-Time", Cell10LockoutTimer = 300, DurationHours = -1, NextReset = nextSaturday });
+            db.PaintTownConfigs.Add(new PaintTownConfig() { Name = "Weekly", Cell10LockoutTimer = 300, DurationHours = 168, NextReset = nextSaturday });
+            db.PaintTownConfigs.Add(new PaintTownConfig() { Name = "Daily", Cell10LockoutTimer = 30, DurationHours = 24, NextReset = tomorrow });
             db.SaveChanges();
         }
 

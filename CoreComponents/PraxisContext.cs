@@ -19,10 +19,10 @@ namespace CoreComponents
         public DbSet<Faction> Factions { get; set; }
         public DbSet<AreaControlTeam> AreaControlTeams { get; set; } //This is TeamClaims, rename this.
         public DbSet<GeneratedMapData> GeneratedMapData { get; set; } 
-        public DbSet<TurfWarConfig> TurfWarConfigs { get; set; }
-        public DbSet<TurfWarEntry> TurfWarEntries { get; set; }
-        public DbSet<TurfWarScoreRecord> TurfWarScoreRecords { get; set; }
-        public DbSet<TurfWarTeamAssignment> TurfWarTeamAssignments { get; set; }
+        public DbSet<PaintTownConfig> PaintTownConfigs { get; set; }
+        public DbSet<PaintTownEntry> PaintTownEntries { get; set; }
+        public DbSet<PaintTownScoreRecord> PaintTownScoreRecords { get; set; }
+        public DbSet<PaintTownTeamAssignment> PaintTownTeamAssignments { get; set; }
         public DbSet<ErrorLog> ErrorLogs { get; set; }
         public DbSet<ServerSetting>  ServerSettings { get; set; }
         public DbSet<TileTracking> TileTrackings { get; set; }
@@ -93,17 +93,17 @@ namespace CoreComponents
             model.Entity<AreaControlTeam>().HasIndex(m => m.MapDataId);
             model.Entity<AreaControlTeam>().HasIndex(m => m.FactionId);
 
-            model.Entity<TurfWarEntry>().HasIndex(m => m.FactionId);
-            model.Entity<TurfWarEntry>().HasIndex(m => m.TurfWarConfigId);
-            model.Entity<TurfWarEntry>().HasIndex(m => m.Cell8); //index for looking up current tiles.
-            model.Entity<TurfWarEntry>().HasIndex(m => m.Cell10); //index for claiming
+            model.Entity<PaintTownEntry>().HasIndex(m => m.FactionId);
+            model.Entity<PaintTownEntry>().HasIndex(m => m.PaintTownConfigId);
+            model.Entity<PaintTownEntry>().HasIndex(m => m.Cell8); //index for looking up current tiles.
+            model.Entity<PaintTownEntry>().HasIndex(m => m.Cell10); //index for claiming
 
-            model.Entity<TurfWarScoreRecord>().HasIndex(m => m.TurfWarConfigId);
-            model.Entity<TurfWarScoreRecord>().HasIndex(m => m.WinningFactionID);
+            model.Entity<PaintTownScoreRecord>().HasIndex(m => m.PaintTownConfigId);
+            model.Entity<PaintTownScoreRecord>().HasIndex(m => m.WinningFactionID);
 
-            model.Entity<TurfWarTeamAssignment>().HasIndex(m => m.FactionId);
-            model.Entity<TurfWarTeamAssignment>().HasIndex(m => m.TurfWarConfigId);
-            model.Entity<TurfWarTeamAssignment>().HasIndex(m => m.deviceID);
+            model.Entity<PaintTownTeamAssignment>().HasIndex(m => m.FactionId);
+            model.Entity<PaintTownTeamAssignment>().HasIndex(m => m.PaintTownConfigId);
+            model.Entity<PaintTownTeamAssignment>().HasIndex(m => m.deviceID);
         }
 
         //A trigger to ensure all data inserted is valid by SQL Server rules.
