@@ -126,6 +126,8 @@ namespace CoreComponents
             return results.ToArray();
         }
 
+        //NOTE: this was a good performance boost before I did my crop-to-area logic. this might not be a performance boost with that in place.
+        //TODO find places that call this, and check performance before and after using crop-to-area logic instead.
         public static void SplitArea(GeoArea area, int divideCount, List<MapData> places, out List<MapData>[] placeArray, out GeoArea[] areaArray)
         {
             //Take area, divide it into a divideCount * divideCount grid of area. Return matching arrays of MapData and GeoArea, with indexes that correspond 1:1
