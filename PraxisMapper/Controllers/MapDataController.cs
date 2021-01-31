@@ -116,6 +116,11 @@ namespace PraxisMapper.Controllers
                 places = newAreas.Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }).ToList();
             }
 
+            //TODO: test this logic for performance without the splitArea code now that I crop all the elements down to just the requested area.
+            var cropArea = Converters.GeoAreaToPolygon(box);
+            foreach (var p in places)
+                p.place = p.place.Intersection(cropArea);
+
             StringBuilder sb = new StringBuilder();
             sb.AppendLine(codeString8);
             //pluscode6 //first 6 digits of this pluscode. each line below is the last 4 that have an area type.
@@ -123,19 +128,25 @@ namespace PraxisMapper.Controllers
 
             //Notes: 
             //StringBuilder isn't thread-safe, so each thread needs its own, and their results combined later.
-            int splitcount = 40; //creates 1600 entries(40x40)
-            List<MapData>[] placeArray;
-            GeoArea[] areaArray;
-            StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
-            Converters.SplitArea(box, splitcount, places, out placeArray, out areaArray);
+            //int splitcount = 40; //creates 1600 entries(40x40)
+            //List<MapData>[] placeArray;
+            //GeoArea[] areaArray;
+            //StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
+            //Converters.SplitArea(box, splitcount, places, out placeArray, out areaArray); //This can take a few seconds on some areas. Why? Extremely dense?
+            //Converters.SplitArea(box, 1, places, out placeArray, out areaArray); //This can take a few seconds on some areas. Why? Extremely dense?
             //System.Threading.Tasks.Parallel.For(0, placeArray.Length, (i) => //avoid parallel calls on web code. 
-            for(int i = 0; i < placeArray.Length; i++)
-            {
-                sbArray[i] = SearchArea(ref areaArray[i], ref placeArray[i], (fullCode == 1));
-            }
+            //for (int i = 0; i < placeArray.Length; i++)
+            //{
+            //sbArray[i] = SearchArea(ref areaArray[i], ref placeArray[i], (fullCode == 1));
+            //}
 
-            foreach (StringBuilder sbPartial in sbArray)
-                sb.Append(sbPartial.ToString());
+            //foreach (StringBuilder sbPartial in sbArray)
+            //sb.Append(sbPartial.ToString());
+
+            GeoArea search = new GeoArea(box);
+
+            //New block to test perf, now that i crop areas correctly.
+            sb.Append(SearchArea(ref search, ref places, (fullCode == 1)));
 
             string results = sb.ToString();
             var options = new MemoryCacheEntryOptions();
