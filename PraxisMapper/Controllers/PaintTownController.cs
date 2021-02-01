@@ -103,12 +103,11 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/ClaimCell10/{factionId}/{Cell10}")]
-        public void ClaimCell10(int factionId, string Cell10) //TODO: this assumed the player is in the same faction for all instances on a server. That may not be true. Might want to add that parameter back in.
+        public void ClaimCell10(int factionId, string Cell10)
         {
             try
             {
                 Classes.PerformanceTracker pt = new Classes.PerformanceTracker("ClaimCell10PaintTown");
-                //TODO: this could take a deviceID and work out which factions per instance, but then we have an entry with a player and a location. we try not to process or store those.
                 //Mark this cell10 as belonging to this faction, update the lockout timer.
                 var db = new PraxisContext();
                 //run all the instances at once.
@@ -124,16 +123,16 @@ namespace PraxisMapper.Controllers
                     return; //We got a claim for an invalid team, don't save anything.
                 }
 
-
                 if (!Place.IsInBounds(Cell10))
                 {
                     pt.Stop("OOB:" + Cell10);
                     return;
                 }
+                int claimed = 0;
 
                 foreach (var config in db.PaintTownConfigs.Where(t => t.Repeating || (t.StartTime < DateTime.Now && t.NextReset > DateTime.Now)).ToList())
                 {
-                    var entry = db.PaintTownEntries.Where(t => t.PaintTownConfigId == config.PaintTownConfigId && t.FactionId == factionId && t.Cell10 == Cell10).FirstOrDefault();
+                    var entry = db.PaintTownEntries.Where(t => t.PaintTownConfigId == config.PaintTownConfigId && t.Cell10 == Cell10).FirstOrDefault();
                     if (entry == null)
                     {
                         entry = new DbTables.PaintTownEntry() { Cell10 = Cell10, PaintTownConfigId = config.PaintTownConfigId, Cell8 = Cell10.Substring(0, 8), CanFlipFactionAt = DateTime.Now.AddSeconds(-1) };
@@ -144,13 +143,11 @@ namespace PraxisMapper.Controllers
                         entry.FactionId = factionId;
                         entry.CanFlipFactionAt = DateTime.Now.AddSeconds(config.Cell10LockoutTimer);
                         entry.ClaimedAt = DateTime.Now;
-                        Cell10 += ":1";
+                        claimed = 1;
                     }
-                    else
-                        Cell10 += ":0";
                 }
                 db.SaveChanges();
-                pt.Stop(Cell10);
+                pt.Stop(Cell10 + claimed);
             }
             catch(Exception ex)
             {
@@ -224,11 +221,11 @@ namespace PraxisMapper.Controllers
             twConfig.NextReset = nextTime;
 
             db.PaintTownEntries.RemoveRange(db.PaintTownEntries.Where(tw => tw.PaintTownConfigId == instanceID));
-            db.PaintTownTeamAssignments.RemoveRange(db.PaintTownTeamAssignments.Where(ta => ta.PaintTownConfigId == instanceID)); //This might be better suited to raw SQL. TODO investigate
+            //db.PaintTownTeamAssignments.RemoveRange(db.PaintTownTeamAssignments.Where(ta => ta.PaintTownConfigId == instanceID)); //This might be better suited to raw SQL. TODO investigate
 
             //create dummy entries so team assignments works faster
-            foreach (var faction in db.Factions)
-                db.PaintTownTeamAssignments.Add(new DbTables.PaintTownTeamAssignment() { deviceID = "dummy", FactionId = (int)faction.FactionId, PaintTownConfigId = instanceID, ExpiresAt = nextTime });
+            //foreach (var faction in db.Factions)
+                //db.PaintTownTeamAssignments.Add(new DbTables.PaintTownTeamAssignment() { deviceID = "dummy", FactionId = (int)faction.FactionId, PaintTownConfigId = instanceID, ExpiresAt = nextTime });
 
             //record score results.
             var score = new DbTables.PaintTownScoreRecord();
@@ -285,71 +282,25 @@ namespace PraxisMapper.Controllers
             return "OK";
         }
 
-        [HttpGet]
-        [Route("/[controller]/AssignTeam/{instanceID}/{deviceID}")]
-        public int AssignTeam(int instanceID, string deviceID)
-        {
-            //Which team are you on per instance? Assigns new players to the team with the smallest membership at the time.
-            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("AssignTeam");
+        
 
-            var db = new PraxisContext();
-            var config = db.PaintTownConfigs.Where(c => c.PaintTownConfigId == instanceID).FirstOrDefault();
-            var teamEntry = GetTeamAssignment(deviceID, instanceID);
-            db.Attach(teamEntry);
-            //Sanity check - if we're mid-instance and have an assignment, keep it.
-            if (teamEntry.ExpiresAt > DateTime.Now)
-            {
-                pt.Stop(deviceID + "|" + instanceID.ToString());
-                return teamEntry.FactionId;
-            }
-
-            var smallestTeam = db.PaintTownTeamAssignments
-                .Where(ta => ta.PaintTownConfigId == instanceID)
-                .GroupBy(ta => ta.FactionId)
-                .Select(ta => new { team = ta.Key, members = ta.Count() })
-                .OrderBy(ta => ta.members)
-                .First().team;
-
-            teamEntry.FactionId = smallestTeam;
-            teamEntry.ExpiresAt = config.NextReset;
-            db.SaveChanges();
-            pt.Stop(deviceID + "|" + instanceID.ToString());
-            return teamEntry.FactionId;
-        }
-
-        [HttpGet]
-        [Route("/[controller]/SetTeam/{instanceID}/{deviceID}/{factionID}")]
-        public int SetTeam(int instanceID, string deviceID, int factionID)
-        {
-            //An alternative config option, to let players pick teams and have it stored on the server. Provided for testing and alternative play models.
-            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("AssignTeam");
-            var db = new PraxisContext();
-            var teamEntry = GetTeamAssignment(deviceID, instanceID);
-            db.Attach(teamEntry);
-            teamEntry.FactionId = factionID;
-            db.SaveChanges();
-
-            pt.Stop(deviceID + "|" + instanceID.ToString() + "|" + factionID);
-            return factionID;
-        }
-
-        public PaintTownTeamAssignment GetTeamAssignment(string deviceID, int instanceID)
-        {
-            var db = new PraxisContext();
-            var r = new Random();
-            var teamEntry = db.PaintTownTeamAssignments.Where(ta => ta.deviceID == deviceID && ta.PaintTownConfigId == instanceID).FirstOrDefault();
-            if (teamEntry == null)
-            {
-                var config = db.PaintTownConfigs.Where(c => c.PaintTownConfigId == instanceID).FirstOrDefault();
-                teamEntry = new DbTables.PaintTownTeamAssignment();
-                teamEntry.deviceID = deviceID;
-                teamEntry.PaintTownConfigId = instanceID;
-                teamEntry.ExpiresAt = DateTime.Now.AddDays(-1); //entry exists, immediately is expired. This is used to identify a newly created entry.
-                teamEntry.FactionId = r.Next(0, db.Factions.Count()) + 1; //purely randomly assigned.
-                db.PaintTownTeamAssignments.Add(teamEntry);
-                db.SaveChanges();
-            }
-            return teamEntry;
-        }
+        //public PaintTownTeamAssignment GetTeamAssignment(string deviceID, int instanceID)
+        //{
+        //    var db = new PraxisContext();
+        //    var r = new Random();
+        //    var teamEntry = db.PaintTownTeamAssignments.Where(ta => ta.deviceID == deviceID && ta.PaintTownConfigId == instanceID).FirstOrDefault();
+        //    if (teamEntry == null)
+        //    {
+        //        var config = db.PaintTownConfigs.Where(c => c.PaintTownConfigId == instanceID).FirstOrDefault();
+        //        teamEntry = new DbTables.PaintTownTeamAssignment();
+        //        teamEntry.deviceID = deviceID;
+        //        teamEntry.PaintTownConfigId = instanceID;
+        //        teamEntry.ExpiresAt = DateTime.Now.AddDays(-1); //entry exists, immediately is expired. This is used to identify a newly created entry.
+        //        teamEntry.FactionId = r.Next(0, db.Factions.Count()) + 1; //purely randomly assigned.
+        //        db.PaintTownTeamAssignments.Add(teamEntry);
+        //        db.SaveChanges();
+        //    }
+        //    return teamEntry;
+        //}
     }
 }

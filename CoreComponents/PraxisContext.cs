@@ -22,7 +22,7 @@ namespace CoreComponents
         public DbSet<PaintTownConfig> PaintTownConfigs { get; set; }
         public DbSet<PaintTownEntry> PaintTownEntries { get; set; }
         public DbSet<PaintTownScoreRecord> PaintTownScoreRecords { get; set; }
-        public DbSet<PaintTownTeamAssignment> PaintTownTeamAssignments { get; set; }
+        //public DbSet<PaintTownTeamAssignment> PaintTownTeamAssignments { get; set; }
         public DbSet<ErrorLog> ErrorLogs { get; set; }
         public DbSet<ServerSetting>  ServerSettings { get; set; }
         public DbSet<TileTracking> TileTrackings { get; set; }
@@ -101,9 +101,9 @@ namespace CoreComponents
             model.Entity<PaintTownScoreRecord>().HasIndex(m => m.PaintTownConfigId);
             model.Entity<PaintTownScoreRecord>().HasIndex(m => m.WinningFactionID);
 
-            model.Entity<PaintTownTeamAssignment>().HasIndex(m => m.FactionId);
-            model.Entity<PaintTownTeamAssignment>().HasIndex(m => m.PaintTownConfigId);
-            model.Entity<PaintTownTeamAssignment>().HasIndex(m => m.deviceID);
+            //model.Entity<PaintTownTeamAssignment>().HasIndex(m => m.FactionId);
+            //model.Entity<PaintTownTeamAssignment>().HasIndex(m => m.PaintTownConfigId);
+            //model.Entity<PaintTownTeamAssignment>().HasIndex(m => m.deviceID);
         }
 
         //A trigger to ensure all data inserted is valid by SQL Server rules.
