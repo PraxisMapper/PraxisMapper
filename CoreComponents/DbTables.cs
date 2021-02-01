@@ -13,6 +13,7 @@ namespace CoreComponents
             public int PlayerDataID { get; set; }
             public string deviceID { get; set; }   
             public string DisplayName { get; set; }
+            public long FactionId { get; set; }
         }
 
         public class PerformanceInfo
@@ -36,9 +37,6 @@ namespace CoreComponents
             public long? WayId { get; set; }
             public long? NodeId { get; set; }
             public long? RelationId { get; set; }
-
-            //Temporarily removing these: adding this to the global data set takes an hour and creates a log file the size of the DB.
-            //public AreaType AreaType { get; set; }
             public int AreaTypeId { get; set; }
 
             public MapData Clone()
@@ -150,14 +148,14 @@ namespace CoreComponents
 
         //Note: this is the server tracking user devices for Paint The Town team assignments. This doesn't track any data about the user or their device
         //that wasn't generated on the server itself. The primary use for this is to ensure we generate balanced teams during a Paint The Town instance.
-        public class PaintTownTeamAssignment
-        {
-            public long PaintTownTeamAssignmentId { get; set; }
-            public string deviceID { get; set; }
-            public int PaintTownConfigId { get; set; }
-            public int FactionId { get; set; }
-            public DateTime ExpiresAt { get; set; } //Set to the finish time for this PaintTownConfigId
-        }
+        //public class PaintTownTeamAssignment
+        //{
+        //    public long PaintTownTeamAssignmentId { get; set; }
+        //    public string deviceID { get; set; }
+        //    public int PaintTownConfigId { get; set; }
+        //    public int FactionId { get; set; }
+        //    public DateTime ExpiresAt { get; set; } //Set to the finish time for this PaintTownConfigId
+        //}
 
         public class ErrorLog
         {

@@ -76,8 +76,8 @@ namespace CoreComponents
             md.type = w.AreaType;
             md.AreaTypeId = areaTypeReference[w.AreaType.StartsWith("admin") ? "admin" : w.AreaType].First();
 
-            //Adding support for LineStrings. A lot of rivers/streams/footpaths are treated this way. Trails MUST be done this way or looping trails become filled shapes.
-            if (w.nds.First().id != w.nds.Last().id  || w.AreaType == "trail")
+            //Adding support for LineStrings. A lot of rivers/streams/footpaths are treated this way. Trails MUST be done this way or looping trails become filled shapes. Roads are also forced to linestrings, to avoid confusing them with parking lots when they make a circle.
+            if (w.nds.First().id != w.nds.Last().id  || w.AreaType == "trail" || w.AreaType == "road") 
             {
                 LineString temp2 = factory.CreateLineString(w.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray());
                 md.place = SimplifyArea(temp2); //Linestrings should get the same rounding effect as polygons, with the same maptile quality consequences.

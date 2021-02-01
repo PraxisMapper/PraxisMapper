@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using CoreComponents;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
@@ -23,6 +24,61 @@ namespace PraxisMapper.Controllers
         //Yeah, this might be too game-specific to set up as a baseline past that.
         //Are these separate from the GenereatedMapData entries? I think so.
 
+        [HttpGet]
+        [Route("/[controller]/AssignTeam/{deviceID}")]
+        public long AssignTeam(string deviceID)
+        {
+            //Which team are you on per instance? Assigns new players to the team with the smallest membership at the time.
+            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("AssignTeam");
+
+            var db = new PraxisContext();
+            var player = db.PlayerData.Where(p => p.deviceID == deviceID).FirstOrDefault();
+            if (player == null)
+            {
+                player = new DbTables.PlayerData();
+                player.deviceID = deviceID;
+                player.DisplayName = "";
+                player.FactionId = 0;
+                db.PlayerData.Add(player);
+            }
+            var factions = db.Factions.ToList();
+            if (factions.Any(f => f.FactionId == player.FactionId))
+            {
+                pt.Stop();
+                return player.FactionId;
+            }
+
+            var smallestTeam = db.PlayerData
+                .GroupBy(ta => ta.FactionId)
+                .Select(ta => new { team = ta.Key, members = ta.Count() })
+                .OrderBy(ta => ta.members)
+                .First().team;
+
+            if (smallestTeam == null || smallestTeam == 0)
+                smallestTeam = factions.First().FactionId;
+
+            player.FactionId = smallestTeam;
+            db.SaveChanges();
+            pt.Stop(deviceID + "|" + smallestTeam);
+            return smallestTeam;
+        }
+
+        [HttpGet]
+        [Route("/[controller]/SetTeam/{deviceID}/{factionID}")]
+        public int SetTeam(string deviceID, int factionID)
+        {
+            //An alternative config option, to let players pick teams and have it stored on the server. Provided for testing and alternative play models.
+            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("AssignTeam");
+            var db = new PraxisContext();
+            var player = db.PlayerData.Where(p => p.deviceID == deviceID).FirstOrDefault();
+            //var teamEntry = GetTeamAssignment(deviceID, instanceID);
+            //db.Attach(teamEntry);
+            player.FactionId = factionID;
+            db.SaveChanges();
+
+            pt.Stop(deviceID + "|" + "|" + factionID);
+            return factionID;
+        }
 
     }
 }
