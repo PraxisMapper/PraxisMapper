@@ -5,6 +5,8 @@ Powered by OpenStreetMap data files.
 
 To focus on the player, and to let them play without tracking them.
 
+Source code for a test application, Hypothesis, is available at https://github.com/drakewill-CRL/Hypothesis
+
 
 # Requirements
 * Visual Studio 2019 16.8 Community (or the mac/linux equivalent)
