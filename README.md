@@ -20,5 +20,12 @@ To focus on the player, and to let them play without tracking them.
 * Server stores as little data as possible about users. 
 * Multiple default game modes.
 
-
+# Compilation
+A pre-built apk for Hypothesis should be available in the Google Play Store for approx. $3.
+If you want to build your own copy, or use the app as a baseline:
+* Install Solar2D (https://solar2d.com/)
+* Check out or download the code from this repo
+* Open Corona Simulator in Solar2D, open the folder with the code you downloaded
+* Click File/Build/Android (or iOS)
+* Apply the settings and certificates as necessary for your build target.
 
