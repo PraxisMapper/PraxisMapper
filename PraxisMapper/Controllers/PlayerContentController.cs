@@ -76,7 +76,7 @@ namespace PraxisMapper.Controllers
             player.FactionId = factionID;
             db.SaveChanges();
 
-            pt.Stop(deviceID + "|" + "|" + factionID);
+            pt.Stop(deviceID + "|" + factionID);
             return factionID;
         }
 
