@@ -59,6 +59,9 @@ namespace CoreComponents
                 //This gives us the length of the line in Cell10 lengths, which may be slightly different from the number of Cell10 draws on the map as belonging to this line.
             }
             var containedAreaCell10Count = (int)Math.Round(containedAreaSize / squareCell10Area);
+            if (containedAreaCell10Count == 0)
+                containedAreaCell10Count = 1;
+
             return containedAreaCell10Count;
         }
 

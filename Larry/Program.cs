@@ -1481,57 +1481,83 @@ namespace Larry
             //TODO: this whole feature.
             //Parameter: RelationID? or a bigger area?
             //pull in all ways that intersect that 
-            //process all of the 10-cells inside that area with their ways (will need more types than the current game has)
-            //Use Envelope to determine the full area of interaction? or go wider than that?
+            //process all of the Cell10s inside that area with their ways (will need more types than the current game has? Can't do that if i'm pulling from the main processed DB)
+            //Use Envelope to determine the full area of interaction? or go wider than that? A Cell8 wider for buffer.
             //save this data to an SQLite DB for the app to use.
             //pre-generate all map tiles and export those to a folder too.
-            //This is currently assuming that the area you want is processed in the database.
+            //This is currently assuming that the area you want is processed in the database, not pulled from a PBF file.
+
+            //TODO in practice:
+            //Set up area name to be area type  if name is blank.
+            //
 
             var mainDb = new PraxisContext();
-            var sqliteDb = "placeholder";
-            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values. //share this here, so i compare the actual algorithms instead of this boilerplate, mandatory entry.
-                                                                                          //var relationToProcess = 
-
-            //var polygon = factory.CreatePolygon(MapSupport.GeoAreaToCoordArray(box));
-
-            //var source = new PBFOsmStreamSource(File.OpenRead(parentFile));
-            ////Using different types than my existing functions.
-            ////first, pull the relation out of the parent file.
-            //var relation = (Relation)source.Where(s => s.Id == relationID && s.Type == OsmGeoType.Relation).FirstOrDefault();
-            //if (relation == null)
-            //    return; //not in the parent file. TODO log.
-
-            //var relationMemberIds = relation.Members.Select(m => m.Id).ToList();
+            var sqliteDb = new StandaloneContext(relationID.ToString());// "placeholder";
+            sqliteDb.Database.EnsureCreated();            
 
             var fullArea = mainDb.MapData.Where(m => m.RelationId == relationID).FirstOrDefault();
             if (fullArea == null)
                 return;
 
-            var allPlaces = mainDb.MapData.Where(md => md.place.Intersects(fullArea.place.Envelope)).ToList();
+            //Add a Cell8's worth of space to the edges of the area.
+            GeoArea buffered = new GeoArea(fullArea.place.EnvelopeInternal.MinY, fullArea.place.EnvelopeInternal.MinX, fullArea.place.EnvelopeInternal.MaxY, fullArea.place.EnvelopeInternal.MaxX);
+            //var intersectCheck = Converters.GeoAreaToPreparedPolygon(buffered);
+            var intersectCheck = Converters.GeoAreaToPolygon(buffered); //Cant use prepared geometry against the db directly
+
+            var allPlaces = mainDb.MapData.Where(md => intersectCheck.Intersects(md.place)).ToList();
 
 
+            //now we have the list of places we need to be concerned with. 
+            //start drawing maptiles and sorting out data.
+            var swCorner = new OpenLocationCode(intersectCheck.EnvelopeInternal.MinY, intersectCheck.EnvelopeInternal.MinX);
+            var neCorner = new OpenLocationCode(intersectCheck.EnvelopeInternal.MaxY, intersectCheck.EnvelopeInternal.MaxX);
+            
+            //now, for every Cell8 involved, draw and name it.
+            for (var y = swCorner.Decode().SouthLatitude; y <= neCorner.Decode().NorthLatitude; y += resolutionCell8)
+            {
+                for (var x = swCorner.Decode().WestLongitude; x <= neCorner.Decode().EastLongitude; x += resolutionCell8)
+                {
+                    //make map tile.
+                    var plusCode = new OpenLocationCode(y, x, 10);
+                    var areaForTile = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell8, x + resolutionCell8));
+                    var acheck2 = Converters.GeoAreaToPolygon(areaForTile);
+                    var areaList = allPlaces.Where(a => a.place.Intersects(acheck2)).Select(a => a.Clone()).ToList();
 
-            //GeoAPI.Geometries.Coordinate[] coords = new GeoAPI.Geometries.Coordinate[] {
-            //    new GeoAPI.Geometries.Coordinate(box.Min.Longitude, box.Min.Latitude),
-            //    new GeoAPI.Geometries.Coordinate(box.Min.Longitude, box.Max.Latitude),
-            //    new GeoAPI.Geometries.Coordinate(box.Max.Longitude, box.Max.Latitude),
-            //    new GeoAPI.Geometries.Coordinate(box.Max.Longitude, box.Min.Latitude),
-            //    new GeoAPI.Geometries.Coordinate(box.Min.Longitude, box.Min.Latitude),
-            //};
+                    System.Text.StringBuilder terrainInfo = AreaTypeInfo.SearchArea(ref areaForTile, ref areaList, true);
+                    var splitData = terrainInfo.ToString().Split(Environment.NewLine);
+                    foreach (var sd in splitData)
+                    {
+                        if (sd == "") //last result is always a blank line
+                            continue;
 
-            //var dataFromParent = source.FilterBox((float)box.Min.Longitude, (float)box.Max.Latitude, (float)box.Max.Longitude, (float)box.Min.Longitude).ToList();
+                        var subParts = sd.Split('|'); //PlusCode|Name|AreaTypeID|MapDataID
+                        if (subParts[1] == "")
+                            subParts[1] = areaIdReference[subParts[2].ToInt()].FirstOrDefault();
+                        sqliteDb.TerrainInfo.Add(new TerrainInfo() { Name = subParts[1], areaType = subParts[2].ToInt(), PlusCode = subParts[0], MapDataID= subParts[3].ToInt() });
+                    }
 
-            //var nodes = dataFromParent.Where(d => d.Type == OsmGeoType.Node).ToList();
-            //var ways = dataFromParent.Where(d => d.Type == OsmGeoType.Way).ToList();
-            //var relations = dataFromParent.Where(d => d.Type == OsmGeoType.Relation).ToList();
-            //dataFromParent = null;
+                    var tile = MapTiles.DrawAreaMapTile(ref areaList, areaForTile, 11);
+                    sqliteDb.MapTiles.Add(new MapTileDB() { image = tile, layer = 1, PlusCode = plusCode.CodeDigits.Substring(0,8) });
+                }
+            }
+            sqliteDb.SaveChanges();
 
-            //could now sort by tags/types. This version should track more types than the explore game, since this is a more detailed smaller area.
+            //Run the LearnCell10 process for the entire area, save that as well.
+            //var fullGeoArea = new GeoArea(new GeoPoint(swCorner.Decode().SouthLatitude, swCorner.Decode().WestLongitude), new GeoPoint(neCorner.Decode().NorthLatitude, neCorner.Decode().EastLongitude));
+            //var placesCopy = allPlaces.Select(a => a.Clone()).ToList();
+            //System.Text.StringBuilder terrainInfo = AreaTypeInfo.SearchArea(ref fullGeoArea, ref allPlaces, true);
+            //var splitData = terrainInfo.ToString().Split(Environment.NewLine);
+            //foreach(var sd in splitData)
+            //{
+            //    var subParts = sd.Split('|'); //PlusCode|Name|AreaTypeID|MapDataID
+            //    sqliteDb.TerrainInfo.Add(new TerrainInfo() { Name= subParts[1], areaType = subParts[2].ToInt(), PlusCode= subParts[0]});
+            //}
+            //sqliteDb.SaveChanges();
 
-            //var content = mainDb.MapData.Where(md => md.place.Intersects(polygon)).ToList();
-            //var spoiConent = mainDb.SinglePointsOfInterests.Where(s => polygon.Intersects(new Point(s.lon, s.lat))).ToList(); //I think this is the right function, but might be Covers?
-
-            //now, convert everything in content to 10-char plus code data.
+            //insert default entries.
+            sqliteDb.PlayerStats.Add(new PlayerStats() { timePlayed = 0, distanceWalked = 0 });
+            sqliteDb.Bounds.Add(new Bounds() { EastBound = neCorner.Decode().EastLongitude, NorthBound = neCorner.Decode().NorthLatitude, SouthBound = swCorner.Decode().SouthLatitude, WestBound = swCorner.Decode().WestLongitude });
+            sqliteDb.SaveChanges();
         }
 
         public static void ValidateFile(string filename)
