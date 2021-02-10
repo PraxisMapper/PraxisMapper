@@ -62,54 +62,68 @@ namespace CoreComponents
             //Something with a type and no name was found to be interesting but not named
             //something with a name and no type is probably an excluded entry.
             //I always want a type. Names are optional.
-            Log.WriteLog("Processing Way " + w.id + " " + w.name + " to MapData at " + DateTime.Now, Log.VerbosityLevels.High);
-            if (w.AreaType == "")
+            try
             {
+                Log.WriteLog("Processing Way " + w.id + " " + w.name + " to MapData at " + DateTime.Now, Log.VerbosityLevels.High);
+                if (w.AreaType == "")
+                {
+                    w = null;
+                    return null;
+                }
+
+                //Take a single tagged Way, and make it a usable MapData entry for the app.
+                MapData md = new MapData();
+                md.name = w.name;
+                md.WayId = w.id;
+                md.type = w.AreaType;
+                md.AreaTypeId = areaTypeReference[w.AreaType.StartsWith("admin") ? "admin" : w.AreaType].First();
+
+                //Adding support for LineStrings. A lot of rivers/streams/footpaths are treated this way. Trails MUST be done this way or looping trails become filled shapes. Roads are also forced to linestrings, to avoid confusing them with parking lots when they make a circle.
+                if (w.nds.First().id != w.nds.Last().id || w.AreaType == "trail" || w.AreaType == "road")
+                {
+                    if (w.nds.Count() < 2)
+                    {
+                        Log.WriteLog("Way " + w.id + " has 1 or 0 nodes to parse into a line. This is a point, not processing.");
+                        w = null;
+                        return null;
+                    }
+                    LineString temp2 = factory.CreateLineString(w.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray());
+                    md.place = SimplifyArea(temp2); //Linestrings should get the same rounding effect as polygons, with the same maptile quality consequences.
+                }
+                else
+                {
+                    if (w.nds.Count <= 3)
+                    {
+                        Log.WriteLog("Way " + w.id + " doesn't have enough nodes to parse into a Polygon and first/last points are the same. This entry is an awkward line, not processing.");
+                        w = null;
+                        return null;
+                    }
+
+                    Polygon temp = factory.CreatePolygon(WayToCoordArray(w));
+                    md.place = SimplifyArea(temp);
+                    if (md.place == null)
+                    {
+                        Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not counter-clockwise forward or reversed.");
+                        w = null;
+                        return null;
+                    }
+                    if (!md.place.IsValid)
+                    {
+                        Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not valid according to its own internal check.");
+                        w = null;
+                        return null;
+                    }
+
+                    md.WayId = w.id;
+                }
                 w = null;
+                return md;
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog("Exception converting Way to MapData:" + ex.Message + ex.StackTrace);
                 return null;
             }
-
-            //Take a single tagged Way, and make it a usable MapData entry for the app.
-            MapData md = new MapData();
-            md.name = w.name;
-            md.WayId = w.id;
-            md.type = w.AreaType;
-            md.AreaTypeId = areaTypeReference[w.AreaType.StartsWith("admin") ? "admin" : w.AreaType].First();
-
-            //Adding support for LineStrings. A lot of rivers/streams/footpaths are treated this way. Trails MUST be done this way or looping trails become filled shapes. Roads are also forced to linestrings, to avoid confusing them with parking lots when they make a circle.
-            if (w.nds.First().id != w.nds.Last().id  || w.AreaType == "trail" || w.AreaType == "road") 
-            {
-                LineString temp2 = factory.CreateLineString(w.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray());
-                md.place = SimplifyArea(temp2); //Linestrings should get the same rounding effect as polygons, with the same maptile quality consequences.
-            }
-            else
-            {
-                if (w.nds.Count <= 3)
-                {
-                    Log.WriteLog("Way " + w.id + " doesn't have enough nodes to parse into a Polygon and first/last points are the same. This entry is an awkward line, not processing.");
-                    w = null;
-                    return null;
-                }
-
-                Polygon temp = factory.CreatePolygon(WayToCoordArray(w));
-                md.place = SimplifyArea(temp);
-                if (md.place == null)
-                {
-                    Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not counter-clockwise forward or reversed.");
-                    w = null;
-                    return null;
-                }
-                if (!md.place.IsValid)
-                {
-                    Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not valid according to its own internal check.");
-                    w = null;
-                    return null;
-                }
-
-                md.WayId = w.id;
-            }
-            w = null;
-            return md;
         }
 
         public static Coordinate[] WayToCoordArray(Support.WayData w)

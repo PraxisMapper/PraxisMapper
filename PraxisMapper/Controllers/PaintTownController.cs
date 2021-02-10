@@ -58,7 +58,8 @@ namespace PraxisMapper.Controllers
 
                 if (cache != null)
                 {
-                    Dictionary<int, DateTime> cachedTimes = (Dictionary<int, DateTime>)cache.Get("resetTimes");
+                    Dictionary<int, DateTime> cachedTimes = null;
+                    if (cache.TryGetValue("resetTimes", out cachedTimes))
                     foreach (var t in cachedTimes)
                         if (t.Value < DateTime.Now)
                             CheckForReset(t.Key);
