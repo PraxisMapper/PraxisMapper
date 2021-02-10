@@ -50,9 +50,6 @@ namespace PraxisMapper.Controllers
         //(individual area control gameplay can store that info on the device)
 
         //TODO: 
-        //function to get list of areas and their current owner
-        //function to get current owner of single area
-        //function to get total scores for each team.
         //Make sure that I don't delete map tiles, but force-update them. if i delete them, apps will have a much harder time knowing when to update their cached copies.
 
         [HttpGet] //TODO this is a POST
@@ -88,53 +85,6 @@ namespace PraxisMapper.Controllers
             Task.Factory.StartNew(() => RedoAreaControlMapTilesCell8(mapData, shortcut)); //I don't need this to finish to return, let it run in the background
             return true;
         }
-
-        //public static void RedoAreaControlMapTiles(MapData md, Tuple<long, int> shortcut = null)
-        //{
-        //    //This is a background task, but we want it to finish as fast as possible. 
-        //    PerformanceTracker pt = new PerformanceTracker("RedoAreaControlMapTiles");
-        //    var db = new PraxisContext();
-        //    var space = md.place.Envelope;
-        //    var geoAreaToRefresh = new GeoArea(new GeoPoint(space.Coordinates.Min().Y, space.Coordinates.Min().X), new GeoPoint(space.Coordinates.Max().Y, space.Coordinates.Max().X));
-        //    var Cell10XTiles = geoAreaToRefresh.LongitudeWidth / resolutionCell10;
-        //    var Cell10YTiles = geoAreaToRefresh.LatitudeHeight / resolutionCell10;
-
-        //    double minx = geoAreaToRefresh.WestLongitude;
-        //    double miny = geoAreaToRefresh.SouthLatitude;
-
-        //    int xTiles = (int)Cell10XTiles + 1;
-        //    IPreparedGeometry pg = new PreparedGeometryFactory().Create(md.place); //this is supposed to be faster than regular geometry.
-        //    Parallel.For(0, xTiles, (x) => //We don't usually want parallel actions on a web server, but this is a high priority and this does cut the runtime in about half.
-        //    //for (var x = 0; x < Cell10XTiles; x++)
-        //    {
-                
-        //        int yTiles = (int)(Cell10YTiles + 1);
-        //        Parallel.For(0, yTiles, (y) => //We don't usually want parallel actions on a web server, but this is a high priority
-        //        //for (var y = 0; y < Cell10YTiles; y++)
-        //        {
-        //            var db2 = new PraxisContext();
-        //            var olc = new OpenLocationCode(new GeoPoint(miny + (resolutionCell10 * y), minx + (resolutionCell10 * x)));
-        //            var olcPoly = Converters.GeoAreaToPolygon(olc.Decode());
-        //            //if (md.place.Intersects(olcPoly)) //If this intersects the original way, redraw that tile. Lets us minimize work for oddly-shaped areas.
-        //            if (pg.Intersects(olcPoly))
-        //            {
-        //                var maptiles10 = db2.MapTiles.Where(m => m.PlusCode == olc.CodeDigits && m.resolutionScale == 11 && m.mode == 2).FirstOrDefault();
-        //                if (maptiles10 == null)
-        //                {
-        //                    maptiles10 = new MapTile() { mode = 2, PlusCode = olc.CodeDigits, resolutionScale = 11 };
-        //                    db2.MapTiles.Add(maptiles10);
-        //                }
-
-        //                maptiles10.tileData = MapTiles.DrawMPControlAreaMapTile(olc.Decode(), 11, shortcut);
-        //                maptiles10.CreatedOn = DateTime.Now;
-        //                db2.SaveChanges();
-        //            }
-        //        });
-        //    });
-            
-        //    //TODO: again for Cell8, once I generate cell8 faction control tiles?
-        //    pt.Stop(md.MapDataId + "|" + md.name);
-        //}
 
         public static void RedoAreaControlMapTilesCell8(MapData md, Tuple<long, int> shortcut = null)
         {
@@ -197,49 +147,49 @@ namespace PraxisMapper.Controllers
             return results;
         }
 
-        //This code technically works on any Cell size.
-        [HttpGet]
-        [Route("/[controller]/DrawFactionModeCell10HighRes/{Cell10}")]
-        public FileContentResult DrawFactionModeCell10HighRes(string Cell10)
-        {
-            PerformanceTracker pt = new PerformanceTracker("DrawFactionModeCell10HighRes");
-            //We will try to minimize rework done.
-            var db = new PraxisContext();
-            var baseMapTile = db.MapTiles.Where(mt => mt.PlusCode == Cell10 && mt.resolutionScale == 11 && mt.mode == 1).FirstOrDefault();
-            if (baseMapTile == null)
-            {
-                //Create this map tile.
-                GeoArea pluscode = OpenLocationCode.DecodeValid(Cell10);
-                var places = GetPlaces(pluscode, null);
-                var tile = MapTiles.DrawAreaMapTile(ref places, pluscode, 11);
-                baseMapTile = new MapTile() { CreatedOn = DateTime.Now, mode = 1, PlusCode = Cell10, resolutionScale = 11, tileData = tile };
-                db.MapTiles.Add(baseMapTile);
-                db.SaveChanges();
-            }
+        //[HttpGet]
+        //[Route("/[controller]/DrawFactionModeCell10HighRes/{Cell10}")]
+        //public FileContentResult DrawFactionModeCell10HighRes(string Cell10)
+        //{
+        //    PerformanceTracker pt = new PerformanceTracker("DrawFactionModeCell10HighRes");
+        //    //We will try to minimize rework done.
+        //    var db = new PraxisContext();
+        //    var baseMapTile = db.MapTiles.Where(mt => mt.PlusCode == Cell10 && mt.resolutionScale == 11 && mt.mode == 1).FirstOrDefault();
+        //    if (baseMapTile == null)
+        //    {
+        //        //Create this map tile.
+        //        GeoArea pluscode = OpenLocationCode.DecodeValid(Cell10);
+        //        var places = GetPlaces(pluscode, null);
+        //        var tile = MapTiles.DrawAreaMapTile(ref places, pluscode, 11);
+        //        baseMapTile = new MapTile() { CreatedOn = DateTime.Now, mode = 1, PlusCode = Cell10, resolutionScale = 11, tileData = tile };
+        //        db.MapTiles.Add(baseMapTile);
+        //        db.SaveChanges();
+        //    }
 
-            var factionColorTile = db.MapTiles.Where(mt => mt.PlusCode == Cell10 && mt.resolutionScale == 11 && mt.mode == 2).FirstOrDefault();
-            if (factionColorTile == null || factionColorTile.MapTileId == null)
-            {
-                //Create this entry
-                //requires a list of colors to use, which might vary per app
-                GeoArea TenCell = OpenLocationCode.DecodeValid(Cell10);
-                var places = GetPlaces(TenCell);
-                var results = MapTiles.DrawMPControlAreaMapTile(TenCell, 11);
-                factionColorTile = new MapTile() { PlusCode = Cell10, CreatedOn = DateTime.Now, mode = 2, resolutionScale = 11, tileData = results };
-                db.MapTiles.Add(factionColorTile);
-                db.SaveChanges();
-            }
+        //    var factionColorTile = db.MapTiles.Where(mt => mt.PlusCode == Cell10 && mt.resolutionScale == 11 && mt.mode == 2).FirstOrDefault();
+        //    if (factionColorTile == null || factionColorTile.MapTileId == null)
+        //    {
+        //        //Create this entry
+        //        //requires a list of colors to use, which might vary per app
+        //        GeoArea TenCell = OpenLocationCode.DecodeValid(Cell10);
+        //        var places = GetPlaces(TenCell);
+        //        var results = MapTiles.DrawMPControlAreaMapTile(TenCell, 11);
+        //        factionColorTile = new MapTile() { PlusCode = Cell10, CreatedOn = DateTime.Now, mode = 2, resolutionScale = 11, tileData = results };
+        //        db.MapTiles.Add(factionColorTile);
+        //        db.SaveChanges();
+        //    }
 
-            var baseImage = Image.Load(baseMapTile.tileData);
-            var controlImage = Image.Load(factionColorTile.tileData);
-            baseImage.Mutate(b => b.DrawImage(controlImage, .6f));
-            MemoryStream ms = new MemoryStream();
-            baseImage.SaveAsPng(ms);
+        //    var baseImage = Image.Load(baseMapTile.tileData);
+        //    var controlImage = Image.Load(factionColorTile.tileData);
+        //    baseImage.Mutate(b => b.DrawImage(controlImage, .6f));
+        //    MemoryStream ms = new MemoryStream();
+        //    baseImage.SaveAsPng(ms);
 
-            pt.Stop(Cell10);
-            return File(ms.ToArray(), "image/png");
-        }
+        //    pt.Stop(Cell10);
+        //    return File(ms.ToArray(), "image/png");
+        //}
 
+        //This code technically works on any Cell size, I haven't yet functionalized it corre.
         [HttpGet]
         [Route("/[controller]/DrawFactionModeCell8HighRes/{Cell8}")]
         public FileContentResult DrawFactionModeCell8HighRes(string Cell8)
@@ -286,19 +236,20 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/FindChangedMapTiles/{mapDataId}")]
         public string FindChangedMapTiles(long mapDataId)
         {
+            PerformanceTracker pt = new PerformanceTracker("FindChangedMapTiles");
             string results = "";
             //return a separated list of maptiles that need updated.
             var db = new PraxisContext();
             var md = db.MapData.Where(m => m.MapDataId == mapDataId).FirstOrDefault();
             var space = md.place.Envelope;
             var geoAreaToRefresh = new GeoArea(new GeoPoint(space.Coordinates.Min().Y, space.Coordinates.Min().X), new GeoPoint(space.Coordinates.Max().Y, space.Coordinates.Max().X));
-            var Cell10XTiles = geoAreaToRefresh.LongitudeWidth / resolutionCell10;
-            var Cell10YTiles = geoAreaToRefresh.LatitudeHeight / resolutionCell10;
-            for (var x = 0; x < Cell10XTiles; x++)
+            var Cell8XTiles = geoAreaToRefresh.LongitudeWidth / resolutionCell8;
+            var Cell8YTiles = geoAreaToRefresh.LatitudeHeight / resolutionCell8;
+            for (var x = 0; x < Cell8XTiles; x++)
             {
-                for (var y = 0; y < Cell10YTiles; y++)
+                for (var y = 0; y < Cell8YTiles; y++)
                 {
-                    var olc = new OpenLocationCode(new GeoPoint(geoAreaToRefresh.SouthLatitude + (resolutionCell10 * y), geoAreaToRefresh.WestLongitude + (resolutionCell10 * x)));
+                    var olc = new OpenLocationCode(new GeoPoint(geoAreaToRefresh.SouthLatitude + (resolutionCell8 * y), geoAreaToRefresh.WestLongitude + (resolutionCell8 * x)));
                     var olcPoly = Converters.GeoAreaToPolygon(olc.Decode());
                     if (md.place.Intersects(olcPoly)) //If this intersects the original way, redraw that tile. Lets us minimize work for oddly-shaped areas.
                     {
@@ -306,6 +257,7 @@ namespace PraxisMapper.Controllers
                     }
                 }
             }
+            pt.Stop();
             return results;
         }
 
@@ -315,6 +267,7 @@ namespace PraxisMapper.Controllers
         {
             //App asks to see which team owns this areas.
             //Return the area name (or type if unnamed), the team that owns it, and its point cost (pipe-separated)
+            PerformanceTracker pt = new PerformanceTracker("AreaOwners");
             var db = new PraxisContext();
             string results = "";
             var owner = db.AreaControlTeams.Where(a => a.MapDataId == mapDataId).FirstOrDefault();
@@ -331,26 +284,28 @@ namespace PraxisMapper.Controllers
             if (owner != null)
             {
                 var factionName = db.Factions.Where(f => f.FactionId == owner.FactionId).FirstOrDefault().Name;
+                pt.Stop();
                 return mapData.name + "|" + factionName + "|" + GetScoreForSinglePlace(mapData.place);
             }
             else
             {
+                pt.Stop();
                 return mapData.name + "|Nobody|" + GetScoreForSinglePlace(mapData.place);
             }
         }
-
 
         [HttpGet]
         [Route("/[controller]/FactionScores")]
         public string FactionScores()
         {
+            PerformanceTracker pt = new PerformanceTracker("FactionScores");
             var db = new PraxisContext();
             var teamNames = db.Factions.ToLookup(k => k.FactionId, v => v.Name);
             var scores = db.AreaControlTeams.GroupBy(a => a.FactionId).Select(a => new { team = a.Key, score = a.Sum(aa => aa.points), teamName = teamNames[a.Key] }).ToList();
 
-            return string.Join(Environment.NewLine, scores.Select(s => s.team + "|" + s.teamName + "|" + s.score));
-
-            //return Json(scores);
+            var results = string.Join(Environment.NewLine, scores.Select(s => s.team + "|" + s.teamName + "|" + s.score));
+            pt.Stop();
+            return results;
         }
     }
 }

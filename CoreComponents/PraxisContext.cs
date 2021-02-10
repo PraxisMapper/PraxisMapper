@@ -56,7 +56,7 @@ namespace CoreComponents
                 optionsBuilder.UseSqlServer(connectionString, x => x.UseNetTopologySuite());
             else if (serverMode == "MariaDB")
             {
-                optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), x => x.UseNetTopologySuite().CharSetBehavior(Pomelo.EntityFrameworkCore.MySql.Infrastructure.CharSetBehavior.NeverAppend)); //, x => x."Server=localhost;Database=praxis;User=root;Password=1234;");
+                optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), x => x.UseNetTopologySuite().CharSetBehavior(Pomelo.EntityFrameworkCore.MySql.Infrastructure.CharSetBehavior.NeverAppend).EnableRetryOnFailure()); //, x => x."Server=localhost;Database=praxis;User=root;Password=1234;");
             }
 
             //Current server config

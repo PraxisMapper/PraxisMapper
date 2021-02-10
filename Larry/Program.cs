@@ -1794,56 +1794,67 @@ namespace Larry
         public static void UpdateExistingEntries()
         {
             List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.JsonMapDataFolder, "*.json").ToList();
-            var db = new PraxisContext();
-            foreach (string filename in filenames)
+            //foreach (string filename in filenames)
+            System.Threading.Tasks.ParallelOptions po = new System.Threading.Tasks.ParallelOptions();
+            po.MaxDegreeOfParallelism = 8; //Limit how many running loops at once we have.
+            System.Threading.Tasks.Parallel.ForEach(filenames, po, (filename) =>
             {
-                //Similar to the load process, but replaces existing entries instead of only inserting.
-                var entries = ReadMapDataToMemory(filename);
-                Log.WriteLog(entries.Count() + " entries to update in database for " + filename);
-
-                int updateCounter = 0;
-                int updateTotal = 0;
-                foreach (var entry in entries)
+                try
                 {
-                    updateCounter++;
-                    updateTotal++;
-                    var query = db.MapData.AsQueryable();
-                    if (entry.NodeId != null)
-                        query = query.Where(md => md.NodeId == entry.NodeId);
-                    if (entry.WayId != null)
-                        query = query.Where(md => md.WayId == entry.WayId);
-                    if (entry.RelationId != null)
-                        query = query.Where(md => md.RelationId == entry.RelationId);
+                    //Similar to the load process, but replaces existing entries instead of only inserting.
+                    var db = new PraxisContext();
+                    Log.WriteLog("Loading " + filename);
+                    var entries = ReadMapDataToMemory(filename);
+                    Log.WriteLog(entries.Count() + " entries to update in database for " + filename);
 
-                    var existingData = query.ToList();
-                    if (existingData.Count() > 0)
+                    int updateCounter = 0;
+                    int updateTotal = 0;
+                    foreach (var entry in entries)
                     {
-                        foreach (var item in existingData)
+                        updateCounter++;
+                        updateTotal++;
+                        var query = db.MapData.AsQueryable();
+                        if (entry.NodeId != null)
+                            query = query.Where(md => md.NodeId == entry.NodeId);
+                        if (entry.WayId != null)
+                            query = query.Where(md => md.WayId == entry.WayId);
+                        if (entry.RelationId != null)
+                            query = query.Where(md => md.RelationId == entry.RelationId);
+
+                        var existingData = query.ToList();
+                        if (existingData.Count() > 0)
                         {
-                            item.NodeId = entry.NodeId;
-                            item.WayId = entry.WayId;
-                            item.RelationId = entry.RelationId;
-                            item.place = entry.place;
-                            item.name = entry.name;
-                            item.AreaTypeId = entry.AreaTypeId;
+                            foreach (var item in existingData)
+                            {
+                                item.NodeId = entry.NodeId;
+                                item.WayId = entry.WayId;
+                                item.RelationId = entry.RelationId;
+                                item.place = entry.place;
+                                item.name = entry.name;
+                                item.AreaTypeId = entry.AreaTypeId;
+                            }
+                        }
+                        else
+                        {
+                            db.MapData.Add(entry);
+                        }
+
+                        if (updateCounter > 1000)
+                        {
+                            db.SaveChanges();
+                            updateCounter = 0;
+                            Log.WriteLog(updateTotal + " entries updated to DB");
                         }
                     }
-                    else
-                    {
-                        db.MapData.Add(entry);
-                    }
-
-                    if (updateCounter > 1000)
-                    {
-                        db.SaveChanges();
-                        updateCounter = 0;
-                        Log.WriteLog(updateTotal + " entries updated to DB");
-                    }
+                    db.SaveChanges();
+                    System.IO.File.Move(filename, filename + "Done");
+                    Log.WriteLog(filename + " completed at " + DateTime.Now);
                 }
-                db.SaveChanges();
-                System.IO.File.Move(filename, filename + "Done");
-                Log.WriteLog(filename + " completed at " + DateTime.Now);
-            }
+                catch(Exception ex)
+                {
+                    Log.WriteLog("Error multithreading: " + ex.Message + ex.StackTrace);
+                }
+            });
         }
 
         public static void InsertAreaTypesToDb(string dbType)
