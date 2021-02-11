@@ -1511,7 +1511,9 @@ namespace Larry
             //start drawing maptiles and sorting out data.
             var swCorner = new OpenLocationCode(intersectCheck.EnvelopeInternal.MinY, intersectCheck.EnvelopeInternal.MinX);
             var neCorner = new OpenLocationCode(intersectCheck.EnvelopeInternal.MaxY, intersectCheck.EnvelopeInternal.MaxX);
-            
+
+
+            System.IO.Directory.CreateDirectory(relationID + "Tiles");
             //now, for every Cell8 involved, draw and name it.
             for (var y = swCorner.Decode().SouthLatitude; y <= neCorner.Decode().NorthLatitude; y += resolutionCell8)
             {
@@ -1530,14 +1532,20 @@ namespace Larry
                         if (sd == "") //last result is always a blank line
                             continue;
 
+                        
                         var subParts = sd.Split('|'); //PlusCode|Name|AreaTypeID|MapDataID
-                        if (subParts[1] == "")
-                            subParts[1] = areaIdReference[subParts[2].ToInt()].FirstOrDefault();
+                        //TODO: testing this part, this might be unnecessary if the app handles it
+                        //if (subParts[1] == "")
+                            //subParts[1] = areaIdReference[subParts[2].ToInt()].FirstOrDefault();
+
                         sqliteDb.TerrainInfo.Add(new TerrainInfo() { Name = subParts[1], areaType = subParts[2].ToInt(), PlusCode = subParts[0], MapDataID= subParts[3].ToInt() });
                     }
 
                     var tile = MapTiles.DrawAreaMapTile(ref areaList, areaForTile, 11);
-                    sqliteDb.MapTiles.Add(new MapTileDB() { image = tile, layer = 1, PlusCode = plusCode.CodeDigits.Substring(0,8) });
+                    //Solar2D doesn't allow for assigning byte[] data directly as a fill, only a filepath.
+                    //so we will just save these to a folder
+                    //sqliteDb.MapTiles.Add(new MapTileDB() { image = tile, layer = 1, PlusCode = plusCode.CodeDigits.Substring(0,8) });
+                    System.IO.File.WriteAllBytes(relationID + "Tiles\\" + plusCode.CodeDigits.Substring(0, 8) + ".pngTile", tile); //Solar2d also can't load pngs directly from an apk file in android, but the rule is extension based.
                 }
             }
             sqliteDb.SaveChanges();
