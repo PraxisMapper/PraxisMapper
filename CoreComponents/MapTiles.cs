@@ -262,7 +262,7 @@ namespace CoreComponents
                 image.Mutate(x => x.Fill(Rgba32.ParseHex(areaColorReference[999].First()))); //set all the areas to the background color
 
                 //Now, instead of going per pixel, go per area, sorted by area descending.
-                foreach (var place in allPlaces)
+                foreach (var place in allPlaces.Where(ap => ap.AreaTypeId !=13)) //Exclude admin areas if they got passed in.
                 {
                     var color = areaColorReferenceRgba32[place.AreaTypeId];
                     switch (place.place.GeometryType)
