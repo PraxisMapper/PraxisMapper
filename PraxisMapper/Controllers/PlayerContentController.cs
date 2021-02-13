@@ -28,39 +28,47 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/AssignTeam/{deviceID}")]
         public long AssignTeam(string deviceID)
         {
-            //Which team are you on per instance? Assigns new players to the team with the smallest membership at the time.
-            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("AssignTeam");
-
-            var db = new PraxisContext();
-            var player = db.PlayerData.Where(p => p.deviceID == deviceID).FirstOrDefault();
-            if (player == null)
+            try
             {
-                player = new DbTables.PlayerData();
-                player.deviceID = deviceID;
-                player.DisplayName = "";
-                player.FactionId = 0;
-                db.PlayerData.Add(player);
+                //Which team are you on per instance? Assigns new players to the team with the smallest membership at the time.
+                Classes.PerformanceTracker pt = new Classes.PerformanceTracker("AssignTeam");
+
+                var db = new PraxisContext();
+                var player = db.PlayerData.Where(p => p.deviceID == deviceID).FirstOrDefault();
+                if (player == null)
+                {
+                    player = new DbTables.PlayerData();
+                    player.deviceID = deviceID;
+                    player.DisplayName = "";
+                    player.FactionId = 0;
+                    db.PlayerData.Add(player);
+                }
+                var factions = db.Factions.ToList();
+                if (factions.Any(f => f.FactionId == player.FactionId))
+                {
+                    pt.Stop();
+                    return player.FactionId;
+                }
+
+                var smallestTeam = db.PlayerData
+                    .GroupBy(ta => ta.FactionId)
+                    .Select(ta => new { team = ta.Key, members = ta.Count() })
+                    .OrderBy(ta => ta.members)
+                    .First().team;
+
+                if (smallestTeam == null || smallestTeam == 0)
+                    smallestTeam = factions.First().FactionId;
+
+                player.FactionId = smallestTeam;
+                db.SaveChanges();
+                pt.Stop(deviceID + "|" + smallestTeam);
+                return smallestTeam;
             }
-            var factions = db.Factions.ToList();
-            if (factions.Any(f => f.FactionId == player.FactionId))
+            catch(Exception ex)
             {
-                pt.Stop();
-                return player.FactionId;
+                Classes.ErrorLogger.LogError(ex);
+                return 0;
             }
-
-            var smallestTeam = db.PlayerData
-                .GroupBy(ta => ta.FactionId)
-                .Select(ta => new { team = ta.Key, members = ta.Count() })
-                .OrderBy(ta => ta.members)
-                .First().team;
-
-            if (smallestTeam == null || smallestTeam == 0)
-                smallestTeam = factions.First().FactionId;
-
-            player.FactionId = smallestTeam;
-            db.SaveChanges();
-            pt.Stop(deviceID + "|" + smallestTeam);
-            return smallestTeam;
         }
 
         [HttpGet]

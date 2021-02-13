@@ -104,7 +104,7 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/ClaimCell10/{factionId}/{Cell10}")]
-        public void ClaimCell10(int factionId, string Cell10)
+        public int ClaimCell10(int factionId, string Cell10)
         {
             try
             {
@@ -112,22 +112,23 @@ namespace PraxisMapper.Controllers
                 //Mark this cell10 as belonging to this faction, update the lockout timer.
                 var db = new PraxisContext();
                 //run all the instances at once.
-                List<long> factions;
+                List<long> factions = null;
                 if (cache != null)
                     factions = (List<long>)cache.Get("factions");
-                else
+                
+                if (factions == null)
                     factions = db.Factions.Select(f => f.FactionId).ToList();
 
                 if (!factions.Any(f => f == factionId))
                 {
                     pt.Stop("NoFaction:" + factionId);
-                    return; //We got a claim for an invalid team, don't save anything.
+                    return 0; //We got a claim for an invalid team, don't save anything.
                 }
 
                 if (!Place.IsInBounds(Cell10))
                 {
                     pt.Stop("OOB:" + Cell10);
-                    return;
+                    return 0;
                 }
                 int claimed = 0;
 
@@ -149,10 +150,12 @@ namespace PraxisMapper.Controllers
                 }
                 db.SaveChanges();
                 pt.Stop(Cell10 + claimed);
+                return claimed;
             }
             catch(Exception ex)
             {
                 Classes.ErrorLogger.LogError(ex);
+                return 0;
             }
         }
 
