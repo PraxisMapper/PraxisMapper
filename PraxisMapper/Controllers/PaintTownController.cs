@@ -242,6 +242,16 @@ namespace PraxisMapper.Controllers
             pt.Stop(instanceID.ToString());
         }
 
+        public long GetCurrentScoreboardRun(int instanceID)
+        {
+            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("GetCurrentScoreBoardRun");
+            var db = new PraxisContext();
+            var twConfig = db.PaintTownConfigs.Where(t => t.PaintTownConfigId == instanceID).FirstOrDefault();
+            var nextNumber = db.PaintTownScoreRecords.Where(r => r.PaintTownConfigId == twConfig.PaintTownConfigId).Max(r => r.PaintTownScoreRecordId) + 1;
+            pt.Stop();
+            return nextNumber;
+        }
+
         public void CheckForReset(int instanceID)
         {
             if (isResetting)
@@ -285,8 +295,6 @@ namespace PraxisMapper.Controllers
             ResetGame(instanceID, true);
             return "OK";
         }
-
-        
 
         //public PaintTownTeamAssignment GetTeamAssignment(string deviceID, int instanceID)
         //{

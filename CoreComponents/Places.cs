@@ -443,7 +443,7 @@ namespace CoreComponents
 
         public static bool IsInBounds(OpenLocationCode code)
         {
-            //TODO: ponder how to handle this without a DB call each time. This should probably be cached by the app
+            //TODO: ponder how to handle this without a DB call each time. This should probably be cached by the app, so i need to cache ServerSettings
             var db = new PraxisContext();
             var bounds = db.ServerSettings.FirstOrDefault();
             var area = code.Decode();
