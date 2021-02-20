@@ -9,6 +9,8 @@ namespace CoreComponents
     public static class ConstantValues
     {
         //the 11th digit uses a 4x5 grid, not a 20x20. They need separate scaling values for X and Y and are rectangular even at the equator.
+        public const double resolutionCell12Lat = .000025 / 5;
+        public const double resolutionCell12Lon = .00003125 / 4; //12-digit plus codes are... pretty small.
         public const double resolutionCell11Lat = .000025;
         public const double resolutionCell11Lon = .00003125; //11-digit plus codes are approx. 3.5m ^2
         public const double resolutionCell10 = .000125; //the size of a 10-digit PlusCode, in degrees. Approx. 14 meters^2

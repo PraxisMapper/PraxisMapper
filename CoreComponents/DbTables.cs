@@ -189,6 +189,17 @@ namespace CoreComponents
             public double WestBound { get; set; }
         }
 
+        public class SlippyMapTile
+        {
+            public long SlippyMapTileId { get; set; } //int should be OK for a limited range game and/or big tiles. Making this long just to make sure.
+            public string Values { get; set; } //x|y|zoom
+            public byte[] tileData { get; set; } //png binary data.
+            //public bool regenerate { get; set; } //TODO: If 1, re-make this tile because MapData for the area has changed. This might be done just by deleting the old map tile.
+            public int mode { get; set; } //is this for general use, multiplayer area control. 1 = 'baseline map', 2 = 'Multiplayer Area Control' overlay.
+            public DateTime CreatedOn { get; set; } //Timestamp for when a map tile was generated
+            public DateTime ExpireOn { get; set; } //assume that a tile needs regenerated if passed this timestamp. Possibly cleared out via SQL script.
+        }
+
 
 
     }
