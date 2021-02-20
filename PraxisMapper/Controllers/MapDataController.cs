@@ -283,8 +283,6 @@ namespace PraxisMapper.Controllers
         {
             PerformanceTracker pt = new PerformanceTracker("DrawCell8Highres");
             //Load terrain data for an 8cell, turn it into a bitmap
-            //Takes ~5 seconds to draw a busy Cell8, ~5ms to load an existing one.
-
             var db = new PraxisContext();
             var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode8 && mt.resolutionScale == 11 && mt.mode == 1).FirstOrDefault();
             if (existingResults == null || existingResults.MapTileId == null)

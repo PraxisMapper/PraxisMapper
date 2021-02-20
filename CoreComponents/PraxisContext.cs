@@ -16,6 +16,7 @@ namespace CoreComponents
         public DbSet<AreaType> AreaTypes { get; set; }
         public DbSet<MapData> MapData { get; set; }
         public DbSet<MapTile> MapTiles { get; set; }
+        public DbSet<SlippyMapTile> SlippyMapTiles { get; set; }
         public DbSet<Faction> Factions { get; set; }
         public DbSet<AreaControlTeam> AreaControlTeams { get; set; } //This is TeamClaims, rename this.
         public DbSet<GeneratedMapData> GeneratedMapData { get; set; } 
@@ -89,6 +90,10 @@ namespace CoreComponents
 
             model.Entity<MapTile>().HasIndex(m => m.PlusCode);
             model.Entity<MapTile>().Property(m => m.PlusCode).HasMaxLength(12);
+            model.Entity<MapTile>().HasIndex(m => m.mode);
+
+            model.Entity<SlippyMapTile>().HasIndex(m => m.Values);
+            model.Entity<SlippyMapTile>().HasIndex(m => m.mode);
 
             model.Entity<AreaControlTeam>().HasIndex(m => m.MapDataId);
             model.Entity<AreaControlTeam>().HasIndex(m => m.FactionId);
