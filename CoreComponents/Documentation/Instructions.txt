@@ -40,6 +40,9 @@ Attach database to Sql Server (with or without SSMS installed? how TBD)
 test API endpoint. /mapdata/test should return "OK" if IIS is up and running. actual data endpoint should return stuff with valid inputs if DB is running and connected correctly.
 Should return something on error so I can figure out why a call doesnt work. I also think I need to upload a new DB to the server
 
+Slippy map tiles are in!
+Go to /Slippy to view a nice, web style map viewer powered by PraxisMapper!
+
 Set these as the arguments for Larry to redo everything at once:
 -cleanDB -resetPbf -resetJson -trimPbfFiles -readMapData -removeDupes
 
