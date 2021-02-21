@@ -317,6 +317,8 @@ namespace CoreComponents
             double filterSize = 0;
             resolutionX = areaWidth / 512;
             resolutionY = areaHeight / 512;
+            bool drawEverything = false; //for debugging/testing
+            var smallestFeature = (drawEverything ? 0 : resolutionX < resolutionY ? resolutionX : resolutionY);
             //GetResolutionValues(pixelSizeCells, out resolutionX, out resolutionY);
             //if (pixelSizeCells < 10) // Roads and buildings are good at Cell10+. Not helpful at Cell8-;
             //filterSize = resolutionX / 2; //things smaller than half a pixel will not be considered for the map tile. Might just want to toggle the alternate sort rules for pixels (most area, not smallest item)
@@ -326,7 +328,7 @@ namespace CoreComponents
             //totalArea = new GeoArea(new GeoPoint(totalArea.Min.Latitude - resolutionCell10, totalArea.Min.Longitude - resolutionCell10), new GeoPoint(totalArea.Max.Latitude + resolutionCell10, totalArea.Max.Longitude + resolutionCell10));
 
             List<MapData> rowPlaces;
-            //create a new bitmap.
+            //create a new bitmap. Add 10 pixels of padding to each side
             MemoryStream ms = new MemoryStream();
             int imagesizeX = 512; //(int)Math.Ceiling(totalArea.LongitudeWidth / resolutionX);
             int imagesizeY = 512; //(int)Math.Ceiling(totalArea.LatitudeHeight / resolutionY);
@@ -335,7 +337,8 @@ namespace CoreComponents
             var cropArea = Converters.GeoAreaToPolygon(totalArea);
             //A quick fix to drawing order when multiple areas take up the entire cell: sort before the crop (otherwise, the areas are drawn in a random order, which makes some disappear)
             //Affects small map tiles more often than larger ones, but it can affect both.
-            allPlaces = allPlaces.OrderByDescending(a => a.place.Area).ThenByDescending(a => a.place.Length).ToList();
+            //This where clause means things smaller than 1 pixel won't get drawn. It's a C# filter here, but it would be faster to do DB-side on a SizeColumn on Mapdata to save more time, in the function above this one.
+            allPlaces = allPlaces.Where(a => a.place.Area > smallestFeature || a.place.Length > smallestFeature || a.place.GeometryType == "Point").OrderByDescending(a => a.place.Area).ThenByDescending(a => a.place.Length).ToList();
             foreach (var ap in allPlaces)
                 ap.place = ap.place.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
 
@@ -352,24 +355,30 @@ namespace CoreComponents
                     {
                         case "Polygon":
                             var drawThis = Converters.PolygonToDrawingPolygon(place.place, totalArea, resolutionX, resolutionY);
+                            //drawThis = drawThis.Translate(10, 10)
                             image.Mutate(x => x.Fill(color, drawThis));
                             break;
                         case "MultiPolygon":
                             foreach (var p in ((MultiPolygon)place.place).Geometries)
                             {
                                 var drawThis2 = Converters.PolygonToDrawingPolygon(p, totalArea, resolutionX, resolutionY);
+                                //drawThis2 = drawThis2.Translate(10, 10);
                                 image.Mutate(x => x.Fill(color, drawThis2));
                             }
                             break;
                         case "LineString":
                             var drawThis3 = Converters.LineToDrawingLine(place.place, totalArea, resolutionX, resolutionY);
                             if (drawThis3.Count() > 1)
+                            {
+                                //drawThis3.ForEach(a => { a.X += 10; a.Y += 10; }); 
                                 image.Mutate(x => x.DrawLines(color, 1, drawThis3.ToArray()));
+                            }
                             break;
                         case "MultiLineString":
                             foreach (var p in ((MultiLineString)place.place).Geometries)
                             {
                                 var drawThis4 = Converters.LineToDrawingLine(p, totalArea, resolutionX, resolutionY);
+                                //drawThis4.ForEach(a => { a.X += 10; a.Y += 10; });
                                 image.Mutate(x => x.DrawLines(color, 1, drawThis4.ToArray()));
                             }
                             break;
@@ -377,15 +386,13 @@ namespace CoreComponents
                             var point = Converters.PointToPointF(place.place, totalArea, resolutionX, resolutionY);
                             //image.Mutate(x => x.DrawLines(color, 3, new PointF[] {point, point }));
 
-                            var shape = new SixLabors.ImageSharp.Drawing.EllipsePolygon(Converters.PointToPointF(place.place, totalArea, resolutionX, resolutionY), 1.5f);
+                            var shape = new SixLabors.ImageSharp.Drawing.EllipsePolygon(Converters.PointToPointF(place.place, totalArea, resolutionX, resolutionY), new SizeF((float)(2 * resolutionCell11Lon / resolutionX), (float)(2 * resolutionCell11Lat / resolutionY))); //was 1.5f, decided this should draw points as being 1 Cell11 big instead to scale.
                             image.Mutate(x => x.Fill(color, shape));
                             break;
                     }
                 }
                 image.Mutate(x => x.Flip(FlipMode.Vertical)); //Plus codes are south-to-north, so invert the image to make it correct.
-                int removeX = (int)Math.Ceiling(resolutionCell10 / resolutionX);
-                int removeY = (int)Math.Ceiling(resolutionCell10 / resolutionY);
-                //image.Mutate(x => x.Crop(new Rectangle(removeX, removeY, imagesizeX - (removeX * 2), imagesizeY - (removeY * 2)))); //remove a Cell10's data from the edges.
+                //image.Mutate(x => x.Crop(new Rectangle(10, 10, 512, 512))); //remove 10 pixels from each edge.
                 image.SaveAsPng(ms);
             } //image disposed here.
 

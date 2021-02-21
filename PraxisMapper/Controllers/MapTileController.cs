@@ -34,10 +34,9 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/DrawSlippyTile/{x}/{y}/{zoom}/{layer}")]
-        public FileContentResult DrawCellByCoords(int x, int y, int zoom, int layer) //assuming layer 1 for this right now.
+        public FileContentResult DrawSlippyTile(int x, int y, int zoom, int layer) //assuming layer 1 for this right now.
         {
-            //lat and lon are geo coords (or, were expecting them to be.) THey're actually X and Y slippy map coords.
-            //BUT slippymaps don't use coords. They use a grid from -180W to 180E, 85.0511N to -85.0511S (they might also use radians, not degrees, for an additional conversion step)
+            //slippymaps don't use coords. They use a grid from -180W to 180E, 85.0511N to -85.0511S (they might also use radians, not degrees, for an additional conversion step)
             //with 2^zoom level tiles in place. so, i need to do some math to get a coordinate
             //X: -180 + ((360 / 2^zoom) * X)
             //Y: 8
@@ -45,6 +44,7 @@ namespace PraxisMapper.Controllers
             //BUT Also, PlusCodes have 20^(zoom/2) tiles, and Slippy maps have 2^zoom tiles, this doesn't even line up nicely.
             //Slippy Map tiles might just have to be their own thing.
             //I will also say these are 512x512 images.
+            //TODO: add padding for image cropping. Maybe 10 pixels on each edge?
 
             try
             {
