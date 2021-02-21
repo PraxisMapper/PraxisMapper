@@ -28,6 +28,7 @@ namespace PraxisMapper
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllers();
+            services.AddMvc();
             services.AddCoreComponentServiceCollection(); //injects the DbContext and other services into this collection. (Eventually, still working on that)
         }
 
@@ -40,7 +41,7 @@ namespace PraxisMapper
             }
 
             //app.UseHttpsRedirection(); //Testing using only http on app instead of https to allow me to use a personal PC while getting a server functional
-
+            //app.UseStaticFiles(); //Was to let Leaflet load, but I haven't yet gotten that lined up for some reason. Might need more settings or a specific path?
             app.UseRouting();
 
             //app.UseAuthorization(); //I dont really use this on this API

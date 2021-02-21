@@ -1,0 +1,35 @@
+﻿<html>
+<head>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+              integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+              crossorigin="" />
+        <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+                integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
+                crossorigin=""></script>
+
+    @* Local resource links, but I have yet to correctly get these to load and run.
+        <link rel="stylesheet" href="~/Content/leaflet.css" />
+        <script src="~/Scripts/leaflet.js"></script> *@
+</head>
+<body>
+    <div id="mapid" style="height:100%">
+
+    </div>
+    <script type="text/javascript">
+//PraxisMapper needs to have an endpoint for this setup.
+//I will need to define in some properties correctly for the appropriate pairing
+//Zoom levels should be 2-10, in even increments matching PlusCode pairs.
+    var mymap = L.map('mapid').setView([41.503425, -81.698995], 13);
+    L.tileLayer('MapTile/DrawSlippyTile/{x}/{y}/{z}/1', {
+    attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 18,
+    minZoom: 8,
+    zoom: 12,
+    id: 'none',
+    tileSize: 512, //L.Point(width, height) for rectangular tiles
+    zoomOffset: -1,
+    accessToken: 'none'
+}).addTo(mymap);
+    </script>
+</body>
+</html>
