@@ -311,7 +311,7 @@ namespace CoreComponents
 
         public static byte[] DrawAreaMapTileSlippy(ref List<MapData> allPlaces, GeoArea totalArea, double areaHeight, double areaWidth)
         {
-            //Resolution here is flexible, since we're always drawing a 512x512 tile.
+            //Resolution scaling here is flexible, since we're always drawing a 512x512 tile.
             //This has the crop-logic removed temporarily while I figure out how to fix that for a variable-resolution image.
             double resolutionX, resolutionY;
             double filterSize = 0;
