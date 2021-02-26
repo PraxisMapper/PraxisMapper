@@ -178,6 +178,15 @@ namespace Larry
                     SerializeSeparateFilesFromPBF(filename);
             }
 
+            if (args.Any(a => a.StartsWith("-lastChance")))
+            {
+                //split this arg
+                var areaType = args.Where(a => a.StartsWith("-lastChance")).First().Split(":")[1];
+                List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
+                foreach (string filename in filenames)
+                    LastChanceSerializer(filename, areaType);
+            }
+
             if (args.Any(a => a == "-readMapData"))
             {
                 AddMapDataToDBFromFiles();
@@ -382,7 +391,7 @@ namespace Larry
                         {
                             Log.WriteLog("Skipping Cell" + cellToCheck.Length + " " + cellToCheck + " for future mapdrawing checks.", Log.VerbosityLevels.High);
                         }
-                    }                    
+                    }
                 })); //add ) here if i do want 2 parallel loops. I might be losing some overhead to managing 400 threads.
             if (tilesGenerated.Count() > 0)
             {
@@ -529,7 +538,7 @@ namespace Larry
                     var osmRelations = GetRelationsFromPbf(filename, areatypename);
                     Log.WriteLog(osmRelations.Count() + " relations found", Log.VerbosityLevels.High);
                     var referencedWays = osmRelations.AsParallel().SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToLookup(k => k, v => (short)0);
-                    var refWays2 = osmRelations.AsParallel().SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToDictionary(k => k, v => (short)0);
+                    //var refWays2 = osmRelations.AsParallel().SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToDictionary(k => k, v => (short)0);
                     Log.WriteLog(referencedWays.Count() + " ways used within relations", Log.VerbosityLevels.High);
                     Log.WriteLog("Relations loaded at " + DateTime.Now);
                     var osmWays = GetWaysFromPbf(filename, areatypename, referencedWays);
@@ -552,7 +561,8 @@ namespace Larry
                 catch (Exception ex)
                 {
                     //do nothing, just recover and move on.
-                    Log.WriteLog("Exception occurred: " + ex.Message + " at " + DateTime.Now + ", moving on");
+                    Log.WriteLog("Attempting last chance processing");
+                    LastChanceSerializer(filename, areatype.AreaName);
                 }
             }
 
@@ -560,6 +570,107 @@ namespace Larry
             File.Move(filename, filename + "Done"); //We made it all the way to the end, this file is done.
         }
 
+        public static void LastChanceSerializer(string filename, string areaType)
+        {
+            //This will read from disk, since we are assuming this file will hit RAM limits if we read it all at once.
+            //foreach (var areatype in areaTypes.Where(a => a.AreaTypeId < 100)) //each pass takes roughly the same amount of time to read, but uses less ram. 
+            Log.WriteLog("Last Chance Mode!");
+            try
+            {
+
+                int loopCount = 0;
+                int loadCount = 100000; //This seems to give a peak RAM value of 6GB, which I'm going to declare a max for a LastChance run, since some modern machines still have 4.
+
+                string areatypename = areaType;
+                Log.WriteLog("Checking for " + areatypename + " members in  " + filename + " at " + DateTime.Now);
+                string destFilename = System.IO.Path.GetFileName(filename).Replace(".osm.pbf", "");
+                Log.WriteLog("Starting " + filename + " " + areatypename + " data read at " + DateTime.Now);
+
+                ILookup<long, int> usedWays = null;
+
+                //Since this is the last chance entry, we need to be real careful about RAM use.
+                //So we'll loop over the file for every 100 relations and standalone ways.
+                bool loadRelations = true;
+                while (loadRelations)
+                {
+                    var osmRelations = GetRelationsFromPbf(filename, areatypename, loadCount, loopCount * loadCount);
+
+                    if (osmRelations.Count() < loadCount)
+                        loadRelations = false;
+
+                    usedWays = osmRelations.SelectMany(r => r.Members.Select(m => m.Id)).ToLookup(k => k, v => 0);
+
+                    Log.WriteLog(osmRelations.Count() + " relations found", Log.VerbosityLevels.High);
+                    var referencedWays = osmRelations.AsParallel().SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToLookup(k => k, v => (short)0);
+                    //var refWays2 = osmRelations.AsParallel().SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToDictionary(k => k, v => (short)0);
+                    Log.WriteLog(referencedWays.Count() + " ways used within relations", Log.VerbosityLevels.High);
+                    Log.WriteLog("Relations loaded at " + DateTime.Now);
+                    var osmWays = GetWaysFromPbf(filename, areatypename, referencedWays, true);
+                    Log.WriteLog(osmWays.Count() + " ways found", Log.VerbosityLevels.High);
+                    ////Log.WriteLog((osmWays.Count() - referencedWays.Count()) + " standalone ways pulled in.", Log.VerbosityLevels.High);
+                    var referencedNodes = osmWays.AsParallel().SelectMany(m => m.Nodes).Distinct().ToLookup(k => k, v => (short)0);
+                    Log.WriteLog(referencedNodes.Count() + " nodes used by ways", Log.VerbosityLevels.High);
+                    Log.WriteLog("Ways loaded at " + DateTime.Now);
+                    var osmNodes2 = GetNodesFromPbf(filename, areatypename, referencedNodes, true); //making this by-ref able would probably be the best memory optimization i could still do.
+                    referencedNodes = null;
+                    Log.WriteLog("Relevant data pulled from file at " + DateTime.Now);
+
+                    //Testing having this stream results to a file instead of making a list we write afterwards.
+                    var processedEntries = ProcessData(osmNodes2, ref osmWays, ref osmRelations, referencedWays, true, ParserSettings.JsonMapDataFolder + destFilename + "-MapData-" + areatypename + (ParserSettings.UseHighAccuracy ? "-highAcc" : "-lowAcc") + loopCount.ToString() + ".json");
+                    processedEntries = null;
+                    loopCount++;
+                }
+                //loopCount++;
+                Log.WriteLog("Relations processed, moving on to standalone ways");
+
+                int wayLoopCount = 0;
+                bool loadWays = true;
+                while (loadWays)
+                {
+                    var osmRelations2 = new List<Relation>();
+                    ILookup<long, short> referencedWays = new List<long>().ToLookup(k => k, v => (short)0);
+                    var osmWays2 = GetWaysFromPbf(filename, areatypename, referencedWays, false, wayLoopCount * loadCount, loadCount);
+                    if (osmWays2.Count() < loadCount)
+                        loadWays = false;
+
+                    osmWays2 = osmWays2.Where(w => !usedWays.Contains(w.Id.Value)).ToList();
+
+                    Log.WriteLog(osmWays2.Count() + " ways found", Log.VerbosityLevels.High);
+                    var referencedNodes = osmWays2.AsParallel().SelectMany(m => m.Nodes).Distinct().ToLookup(k => k, v => (short)0);
+                    Log.WriteLog(referencedNodes.Count() + " nodes used by ways", Log.VerbosityLevels.High);
+                    Log.WriteLog("Ways loaded at " + DateTime.Now);
+                    var osmNodes3 = GetNodesFromPbf(filename, areatypename, referencedNodes, true); //making this by-ref able would probably be the best memory optimization i could still do.
+                    referencedNodes = null;
+                    Log.WriteLog("Relevant data pulled from file at " + DateTime.Now);
+
+                    //Testing having this stream results to a file instead of making a list we write afterwards.
+                    var processedEntries2 = ProcessData(osmNodes3, ref osmWays2, ref osmRelations2, referencedWays, true, ParserSettings.JsonMapDataFolder + destFilename + "-MapData-" + areatypename + (ParserSettings.UseHighAccuracy ? "-highAcc" : "-lowAcc") + loopCount.ToString() + ".json");
+                    processedEntries2 = null;
+                    wayLoopCount++;
+                    loopCount++;
+                }
+                //loopCount++;
+                Log.WriteLog("Ways processed, moving on to standalone nodes");
+
+                ILookup<long, short> referencedNodes2 = new List<long>().ToLookup(k => k, v => (short)0);
+                ILookup<long, short> referencedWays2 = new List<long>().ToLookup(k => k, v => (short)0);
+                var osmNodes4 = GetNodesFromPbf(filename, areatypename, referencedNodes2, true);
+                var osmWays3 = new List<Way>();
+                var osmRelations3 = new List<Relation>();
+                var processedEntries3 = ProcessData(osmNodes4, ref osmWays3, ref osmRelations3, referencedWays2, true, ParserSettings.JsonMapDataFolder + destFilename + "-MapData-" + areatypename + (ParserSettings.UseHighAccuracy ? "-highAcc" : "-lowAcc") + loopCount.ToString() + ".json");
+            }
+            catch (Exception ex)
+            {
+                //do nothing, just recover and move on.
+                Log.WriteLog("Exception occurred: " + ex.Message + " at " + DateTime.Now + ", moving on");
+            }
+            //}
+
+            Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
+            File.Move(filename, filename + "Done"); //We made it all the way to the end, this file is done.
+        }
+
+        //TODO: clean up this huge mess of a function.
         private static List<MapData> ProcessData(ILookup<long, NodeReference> osmNodes, ref List<OsmSharp.Way> osmWays, ref List<OsmSharp.Relation> osmRelations, ILookup<long, short> referencedWays, bool writeDirectly = false, string directFile = "")
         {
             //This way really needs an option to write data directly to the output file. I wonder how much time is spent resizing processedEntries.
@@ -1115,13 +1226,13 @@ namespace Larry
             results = mds;
         }
 
-        private static List<OsmSharp.Relation> GetRelationsFromPbf(string filename, string areaType)
+        private static List<OsmSharp.Relation> GetRelationsFromPbf(string filename, string areaType, int limit = 0, int skip = 0)
         {
             //Read through a file for stuff that matches our parameters.
             List<OsmSharp.Relation> filteredRelations = new List<OsmSharp.Relation>();
             using (var fs = File.OpenRead(filename))
             {
-                filteredRelations = InnerGetRelations(fs, areaType);
+                filteredRelations = InnerGetRelations(fs, areaType, limit, skip);
             }
             return filteredRelations;
         }
@@ -1134,39 +1245,41 @@ namespace Larry
             return InnerGetRelations(file, areaType);
         }
 
-        private static List<OsmSharp.Relation> InnerGetRelations(Stream stream, string areaType)
+        private static List<OsmSharp.Relation> InnerGetRelations(Stream stream, string areaType, int limit = 4000000, int skip = 0)
         {
             var source = new PBFOsmStreamSource(stream);
             var progress = source; //.ShowProgress();
 
             List<OsmSharp.Relation> filteredEntries;
+            ParallelQuery<Relation> filtering;
             if (areaType == null)
                 filteredEntries = progress.AsParallel().Where(p => p.Type == OsmGeoType.Relation &&
                     GetPlaceType(p.Tags) != "")
                 .Select(p => (OsmSharp.Relation)p)
-                .ToList();
+            .ToList();
             else if (areaType == "admin")
                 filteredEntries = progress.AsParallel().Where(p => p.Type == OsmGeoType.Relation &&
-                    GetPlaceType(p.Tags).StartsWith(areaType))
-                .Select(p => (OsmSharp.Relation)p)
-                .ToList();
+                        GetPlaceType(p.Tags).StartsWith(areaType))
+                    .Select(p => (OsmSharp.Relation)p)
+                    .ToList();
             else
-                filteredEntries = progress.AsParallel().Where(p => p.Type == OsmGeoType.Relation &&
-                GetPlaceType(p.Tags) == areaType
-            )
+                filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation && //Might need to remove the AsParallel part here to get Skip and Take to work as intented.
+                GetPlaceType(p.Tags) == areaType)
+                //.Skip(skip)
+                //.TakeWhile(t => limit-- > 0)
                 .Select(p => (OsmSharp.Relation)p)
-                .ToList();
+            .ToList();
 
             return filteredEntries;
         }
 
-        private static List<OsmSharp.Way> GetWaysFromPbf(string filename, string areaType, ILookup<long, short> referencedWays)
+        private static List<OsmSharp.Way> GetWaysFromPbf(string filename, string areaType, ILookup<long, short> referencedWays, bool onlyReferenced = false, int skip = 0, int take = 4000000)
         {
             //Read through a file for stuff that matches our parameters.
             List<OsmSharp.Way> filteredWays = new List<OsmSharp.Way>();
             using (var fs = File.OpenRead(filename))
             {
-                filteredWays = InnerGetWays(fs, areaType, referencedWays);
+                filteredWays = InnerGetWays(fs, areaType, referencedWays, onlyReferenced, skip, take);
             }
             return filteredWays;
         }
@@ -1185,7 +1298,7 @@ namespace Larry
             return InnerGetWays(file, areaType, referencedWays);
         }
 
-        private static List<OsmSharp.Way> InnerGetWays(Stream file, string areaType, ILookup<long, short> referencedWays)
+        private static List<OsmSharp.Way> InnerGetWays(Stream file, string areaType, ILookup<long, short> referencedWays, bool onlyReferenced = false, int skip = 0, int limit = 4000000)
         {
             List<OsmSharp.Way> filteredWays = new List<OsmSharp.Way>();
             var source = new PBFOsmStreamSource(file);
@@ -1203,7 +1316,7 @@ namespace Larry
             else if (areaType == "admin")
             {
                 filteredWays = progress.AsParallel().Where(p => p.Type == OsmGeoType.Way &&
-                    (GetPlaceType(p.Tags).StartsWith(areaType)
+                    (GetPlaceType(p.Tags).StartsWith(areaType) 
                     || referencedWays[p.Id.Value].Count() > 0)
                 )
                     .Select(p => (OsmSharp.Way)p)
@@ -1212,10 +1325,12 @@ namespace Larry
             else
             {
                 filteredWays = progress.AsParallel().Where(p => p.Type == OsmGeoType.Way &&
-                    (GetPlaceType(p.Tags) == areaType
+                    ((GetPlaceType(p.Tags).StartsWith(areaType) && !onlyReferenced)
                     || referencedWays[p.Id.Value].Count() > 0)
                 )
                     .Select(p => (OsmSharp.Way)p)
+                    .Skip(skip)
+                    .TakeWhile(t => limit-- > 0)
                     .ToList();
             }
 
@@ -1259,12 +1374,12 @@ namespace Larry
             return filteredWays;
         }
 
-        private static ILookup<long, NodeReference> GetNodesFromPbf(string filename, string areaType, ILookup<long, short> nodes)
+        private static ILookup<long, NodeReference> GetNodesFromPbf(string filename, string areaType, ILookup<long, short> nodes, bool onlyReferenced = false)
         {
             ILookup<long, NodeReference> filteredEntries;
             using (var fs = File.OpenRead(filename))
             {
-                filteredEntries = InnerGetNodes(fs, areaType, nodes);
+                filteredEntries = InnerGetNodes(fs, areaType, nodes, onlyReferenced);
             }
             return filteredEntries;
         }
@@ -1281,7 +1396,7 @@ namespace Larry
             return InnerGetNodes(file, areaType, nodes);
         }
 
-        public static ILookup<long, NodeReference> InnerGetNodes(Stream file, string areaType, ILookup<long, short> nodes)
+        public static ILookup<long, NodeReference> InnerGetNodes(Stream file, string areaType, ILookup<long, short> nodes, bool onlyReferenced = false)
         {
             var source = new PBFOsmStreamSource(file);
             var progress = source; //.ShowProgress();
@@ -1306,7 +1421,7 @@ namespace Larry
             else
             {
                 filteredEntries = progress.AsParallel().Where(p => p.Type == OsmGeoType.Node &&
-                   (GetPlaceType(p.Tags) == areaType || nodes.Contains(p.Id.Value)) //might use less CPU than [].count() TODO test/determine if true.
+                   ((GetPlaceType(p.Tags) == areaType && !onlyReferenced) || nodes.Contains(p.Id.Value)) //might use less CPU than [].count() TODO test/determine if true.
                )
                    .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetPlaceName(n.Tags), areaType))
                    .ToLookup(k => k.Id, v => v);
@@ -1493,7 +1608,7 @@ namespace Larry
 
             var mainDb = new PraxisContext();
             var sqliteDb = new StandaloneContext(relationID.ToString());// "placeholder";
-            sqliteDb.Database.EnsureCreated();            
+            sqliteDb.Database.EnsureCreated();
 
             var fullArea = mainDb.MapData.Where(m => m.RelationId == relationID).FirstOrDefault();
             if (fullArea == null)
@@ -1532,13 +1647,13 @@ namespace Larry
                         if (sd == "") //last result is always a blank line
                             continue;
 
-                        
-                        var subParts = sd.Split('|'); //PlusCode|Name|AreaTypeID|MapDataID
-                        //TODO: testing this part, this might be unnecessary if the app handles it
-                        //if (subParts[1] == "")
-                            //subParts[1] = areaIdReference[subParts[2].ToInt()].FirstOrDefault();
 
-                        sqliteDb.TerrainInfo.Add(new TerrainInfo() { Name = subParts[1], areaType = subParts[2].ToInt(), PlusCode = subParts[0], MapDataID= subParts[3].ToInt() });
+                        var subParts = sd.Split('|'); //PlusCode|Name|AreaTypeID|MapDataID
+                                                      //TODO: testing this part, this might be unnecessary if the app handles it
+                                                      //if (subParts[1] == "")
+                                                      //subParts[1] = areaIdReference[subParts[2].ToInt()].FirstOrDefault();
+
+                        sqliteDb.TerrainInfo.Add(new TerrainInfo() { Name = subParts[1], areaType = subParts[2].ToInt(), PlusCode = subParts[0], MapDataID = subParts[3].ToInt() });
                     }
 
                     var tile = MapTiles.DrawAreaMapTile(ref areaList, areaForTile, 11);
@@ -1884,7 +1999,7 @@ namespace Larry
                     System.IO.File.Move(filename, filename + "Done");
                     Log.WriteLog(filename + " completed at " + DateTime.Now);
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     Log.WriteLog("Error multithreading: " + ex.Message + ex.StackTrace);
                 }
@@ -1934,7 +2049,7 @@ namespace Larry
             //db.PaintTownConfigs.Add(new PaintTownConfig() { Name = "Daily", Cell10LockoutTimer = 30, DurationHours = 24, NextReset = tomorrow });
 
             //PaintTheTown requires dummy entries in the playerData table, or it doesn't know which factions exist. It's faster to do this once here than to check on every call to playerData
-            foreach(var faction in Singletons.defaultFaction)
+            foreach (var faction in Singletons.defaultFaction)
                 db.PlayerData.Add(new PlayerData() { deviceID = "dummy" + faction.FactionId, FactionId = faction.FactionId });
             db.SaveChanges();
         }
