@@ -132,6 +132,7 @@ namespace PraxisMapper.Controllers
                 }
                 int claimed = 0;
 
+                //User will get a point if any of the configs get flipped from this claim.
                 foreach (var config in db.PaintTownConfigs.Where(t => t.Repeating || (t.StartTime < DateTime.Now && t.NextReset > DateTime.Now)).ToList())
                 {
                     var entry = db.PaintTownEntries.Where(t => t.PaintTownConfigId == config.PaintTownConfigId && t.Cell10 == Cell10).FirstOrDefault();
@@ -142,10 +143,13 @@ namespace PraxisMapper.Controllers
                     }
                     if (DateTime.Now > entry.CanFlipFactionAt)
                     {
-                        entry.FactionId = factionId;
+                        if (entry.FactionId != factionId)
+                        {
+                            claimed = 1;
+                            entry.FactionId = factionId;
+                            entry.ClaimedAt = DateTime.Now;
+                        }
                         entry.CanFlipFactionAt = DateTime.Now.AddSeconds(config.Cell10LockoutTimer);
-                        entry.ClaimedAt = DateTime.Now;
-                        claimed = 1;
                     }
                 }
                 db.SaveChanges();

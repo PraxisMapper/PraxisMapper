@@ -579,7 +579,7 @@ namespace Larry
             {
 
                 int loopCount = 0;
-                int loadCount = 100000; //This seems to give a peak RAM value of 6GB, which I'm going to declare a max for a LastChance run, since some modern machines still have 4.
+                int loadCount = 100000; //This seems to give a peak RAM value of 8GB, which is the absolute highest I would want LastChance to go. 4GB would be better.
 
                 string areatypename = areaType;
                 Log.WriteLog("Checking for " + areatypename + " members in  " + filename + " at " + DateTime.Now);
