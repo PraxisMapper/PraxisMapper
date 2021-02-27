@@ -40,6 +40,7 @@ namespace PraxisMapper.Classes
             db.ChangeTracker.AutoDetectChangesEnabled = false; //Diabling this saves ~17ms per call, which can be important on the webserver. Sproc is trivially faster than that.
             db.PerformanceInfo.Add(pi);
             db.SaveChanges();
+            //db.Dispose(); //ensure this connection closes immediately
             return;
         }
     }
