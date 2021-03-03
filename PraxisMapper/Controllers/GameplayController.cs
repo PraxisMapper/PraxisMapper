@@ -82,11 +82,13 @@ namespace PraxisMapper.Controllers
             teamClaim.claimedAt = DateTime.Now;
             db.SaveChanges();
             Tuple<long, int> shortcut = new Tuple<long, int>(MapDataId, factionId); //tell the application later not to hit the DB on every tile for this entry.
-            Task.Factory.StartNew(() => RedoAreaControlMapTilesCell8(mapData, shortcut)); //I don't need this to finish to return, let it run in the background
+            //Task.Factory.StartNew(() => RedoAreaControlMapTilesCell8(mapData, shortcut)); //I don't need this to finish to return, let it run in the background
+            ExpireAreaControlMapTilesCell8(mapData, shortcut);
+            
             return true;
         }
 
-        public static void RedoAreaControlMapTilesCell8(MapData md, Tuple<long, int> shortcut = null)
+        public static void ExpireAreaControlMapTilesCell8(MapData md, Tuple<long, int> shortcut = null)
         {
             //This is a background task, but we want it to finish as fast as possible. 
             PerformanceTracker pt = new PerformanceTracker("RedoAreaControlMapTilesCell8");
@@ -117,16 +119,24 @@ namespace PraxisMapper.Controllers
                     if (pg.Intersects(olcPoly))
                     {
                         var maptiles8 = db2.MapTiles.Where(m => m.PlusCode == olc8 && m.resolutionScale == 11 && m.mode == 2).FirstOrDefault();
-                        if (maptiles8 == null)
-                        {
-                            maptiles8 = new MapTile() { mode = 2, PlusCode = olc8, resolutionScale = 11 };
-                            db2.MapTiles.Add(maptiles8);
-                        }
+                    //old, redraw logic
+                    //if (maptiles8 == null)
+                    //{
+                    //    maptiles8 = new MapTile() { mode = 2, PlusCode = olc8, resolutionScale = 11 };
+                    //    db2.MapTiles.Add(maptiles8);
+                    //}
 
-                        maptiles8.tileData = MapTiles.DrawMPControlAreaMapTile(olc.Decode(), 11, shortcut);
-                        maptiles8.CreatedOn = DateTime.Now;
-                        db2.SaveChanges();
+                    //maptiles8.tileData = MapTiles.DrawMPControlAreaMapTile(olc.Decode(), 11, shortcut);
+                    //maptiles8.CreatedOn = DateTime.Now;
+                    //db2.SaveChanges();
+
+                    //new, expire to redraw later logic
+                        if (maptiles8 != null)
+                        {
+                            maptiles8.ExpireOn = DateTime.Now.AddDays(-1);
+                        }    
                     }
+                    db2.SaveChanges();
                 });
             });
 
