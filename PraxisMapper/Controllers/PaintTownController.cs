@@ -240,14 +240,16 @@ namespace PraxisMapper.Controllers
             pt.Stop(instanceID.ToString());
         }
 
-        public long GetCurrentScoreboardRun(int instanceID)
+        [HttpGet] //TODO this is a POST? TODO take in an instanceID?
+        [Route("/[controller]/GetEndDate/{instanceID}")]
+        public string GetEndDate(int instanceID)
         {
-            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("GetCurrentScoreBoardRun");
+            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("GetEndDate");
             var db = new PraxisContext();
             var twConfig = db.PaintTownConfigs.Where(t => t.PaintTownConfigId == instanceID).FirstOrDefault();
-            var nextNumber = db.PaintTownScoreRecords.Where(r => r.PaintTownConfigId == twConfig.PaintTownConfigId).Max(r => r.PaintTownScoreRecordId) + 1;
+            var results = twConfig.NextReset.ToString();
             pt.Stop();
-            return nextNumber;
+            return results;
         }
 
         public void CheckForReset(int instanceID)
