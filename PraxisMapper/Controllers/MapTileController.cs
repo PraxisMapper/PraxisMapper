@@ -51,8 +51,8 @@ namespace PraxisMapper.Controllers
                 PerformanceTracker pt = new PerformanceTracker("DrawSlippyTile");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var db = new PraxisContext();
-                var existingResults = db.SlippyMapTiles.Where(mt => mt.Values == tileKey && mt.mode == layer).FirstOrDefault();
-                if (existingResults == null || existingResults.SlippyMapTileId == null)
+                var existingResults = db.SlippyMapTiles.Where(mt => mt.Values == tileKey && mt.mode == layer).FirstOrDefault(); //NOTE: PTT and AC shouldn't be cached for real long. Maybe a minute if at all.
+                if (existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
                 {
                     //Create this entry
                     //requires a list of colors to use, which might vary per app
@@ -68,13 +68,15 @@ namespace PraxisMapper.Controllers
                     var relevantArea = new GeoArea(lat_degree_s, lon_degree_w, lat_degree_n, lon_degree_e);
                     var areaHeightDegrees = lat_degree_n - lat_degree_s;
                     var areaWidthDegrees = 360 / n;
-                    
+
+                    DateTime expires = DateTime.Now;
                     byte[] results = null;
                     switch (layer)
                     {
                         case 1: //Base map tile
                             var places = GetPlaces(relevantArea, includeGenerated: false);
                             results = MapTiles.DrawAreaMapTileSlippy(ref places, relevantArea, areaHeightDegrees, areaWidthDegrees);
+                            expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                             break;
                         case 2: //PaintTheTown overlay. Not yet done.
                             //I have to convert the area into PlusCode coordinates, then translate the found claims into rectangles to cover the right area.
@@ -82,19 +84,29 @@ namespace PraxisMapper.Controllers
                             //Might need to limit this down to a certain zoom level?
                             //This will need multiple entries, one per instance running. I will use the All-Time entries for now.
                             results = MapTiles.DrawPaintTownSlippyTile(relevantArea, 2); //TODO: finish this function
+                            expires = DateTime.Now.AddMinutes(1); //We want this to be live-ish, but not overwhelming, so we cache this for 60 seconds.
                             break;
                         case 3: //MultiplayerAreaControl overlay. Ready to test as an overlay.
                             results = MapTiles.DrawMPAreaMapTileSlippy(relevantArea, areaHeightDegrees, areaWidthDegrees);
+                            expires = DateTime.Now.AddMinutes(1); //We want this to be live-ish, but not overwhelming, so we cache this for 60 seconds.
                             break;
                         case 4: //GeneratedMapData areas. Should be ready to test as an overlay.
                             var places2 = GetGeneratedPlaces(relevantArea);
                             results = MapTiles.DrawAreaMapTileSlippy(ref places2, relevantArea, areaHeightDegrees, areaWidthDegrees, true);
+                            expires = DateTime.Now.AddYears(10); //again, assuming these don't change unless you manually updated entries.
                             break;
                         case 5: //Custom objects (scavenger hunt). Should be points loaded up, not an overlay?
                             //this isnt supported yet as a game mode.
                             break;
                     }
-                    db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, CreatedOn = DateTime.Now, mode = layer, tileData = results });
+                    if (existingResults == null)
+                        db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, CreatedOn = DateTime.Now, mode = layer, tileData = results, ExpireOn = expires });
+                    else
+                    {
+                        existingResults.CreatedOn = DateTime.Now;
+                        existingResults.ExpireOn = expires;
+                        existingResults.tileData = results;
+                    }
                     db.SaveChanges();
                     pt.Stop(tileKey);
                     return File(results, "image/png");

@@ -198,7 +198,7 @@ namespace PraxisMapper.Controllers
             //We will try to minimize rework done.
             var db = new PraxisContext();
             var baseMapTile = db.MapTiles.Where(mt => mt.PlusCode == Cell8 && mt.resolutionScale == 11 && mt.mode == 1).FirstOrDefault();
-            if (baseMapTile == null)
+            if (baseMapTile == null) //These don't expire, they should be cleared out on data change.
             {
                 //Create this map tile.
                 GeoArea pluscode = OpenLocationCode.DecodeValid(Cell8);
@@ -210,15 +210,24 @@ namespace PraxisMapper.Controllers
             }
 
             var factionColorTile = db.MapTiles.Where(mt => mt.PlusCode == Cell8 && mt.resolutionScale == 11 && mt.mode == 2).FirstOrDefault();
-            if (factionColorTile == null || factionColorTile.MapTileId == null)
+            if (factionColorTile == null || factionColorTile.MapTileId == null || factionColorTile.ExpireOn < DateTime.Now)
             {
-                //Create this entry
+                //Draw this entry
                 //requires a list of colors to use, which might vary per app
                 GeoArea CellEightArea = OpenLocationCode.DecodeValid(Cell8);
                 var places = GetPlaces(CellEightArea);
                 var results = MapTiles.DrawMPControlAreaMapTile(CellEightArea, 11);
-                factionColorTile = new MapTile() { PlusCode = Cell8, CreatedOn = DateTime.Now, mode = 2, resolutionScale = 11, tileData = results };
-                db.MapTiles.Add(factionColorTile);
+                if (factionColorTile == null)
+                {
+                    factionColorTile = new MapTile() { PlusCode = Cell8, CreatedOn = DateTime.Now, mode = 2, resolutionScale = 11, tileData = results };
+                    db.MapTiles.Add(factionColorTile);
+                }
+                else
+                {
+                    factionColorTile.tileData = results;
+                    factionColorTile.ExpireOn = DateTime.Now.AddMinutes(1);
+                    factionColorTile.CreatedOn = DateTime.Now;
+                }
                 db.SaveChanges();
             }
 
