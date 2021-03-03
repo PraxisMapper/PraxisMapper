@@ -48,6 +48,20 @@ namespace CoreComponents
             return places;
         }
 
+        public static List<MapData> GetGeneratedPlaces(GeoArea area, List<MapData> source = null)
+        {
+            //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
+            //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
+            List<MapData> places = new List<MapData>();
+            if (source == null)
+            {
+                var db = new CoreComponents.PraxisContext();
+                var location = Converters.GeoAreaToPolygon(area); //Prepared items don't work on a DB lookup.
+                places.AddRange(db.GeneratedMapData.Where(md => location.Intersects(md.place)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
+            }
+            return places;
+        }
+
         public static List<MapData> GetPlacesCB(GeoArea area, ConcurrentBag<MapData> source, bool includeAdmin = false, bool includeGenerated = true)
         {
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.

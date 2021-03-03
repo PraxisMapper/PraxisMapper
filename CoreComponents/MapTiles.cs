@@ -180,7 +180,7 @@ namespace CoreComponents
             var options = new ShapeGraphicsOptions(); //currently using defaults.
             using (var image = new Image<Rgba32>(imagesizeX, imagesizeY))
             {
-                image.Mutate(x => x.Fill(Rgba32.ParseHex("00000000"))); //image starts transparent.
+                image.Mutate(x => x.Fill(Rgba32.ParseHex("00000000"))); //image starts transparent. This gets merged onto the base tile
 
                 foreach (var place in allPlaces)
                 {
@@ -309,7 +309,7 @@ namespace CoreComponents
             return ms.ToArray();
         }
 
-        public static byte[] DrawAreaMapTileSlippy(ref List<MapData> allPlaces, GeoArea totalArea, double areaHeight, double areaWidth)
+        public static byte[] DrawAreaMapTileSlippy(ref List<MapData> allPlaces, GeoArea totalArea, double areaHeight, double areaWidth, bool transparent = false)
         {
             //Resolution scaling here is flexible, since we're always drawing a 512x512 tile.
             //This has the crop-logic removed temporarily while I figure out how to fix that for a variable-resolution image.
@@ -345,7 +345,10 @@ namespace CoreComponents
             var options = new ShapeGraphicsOptions(); //currently using defaults.
             using (var image = new Image<Rgba32>(imagesizeX, imagesizeY))
             {
-                image.Mutate(x => x.Fill(Rgba32.ParseHex(areaColorReference[999].First()))); //set all the areas to the background color
+                if (!transparent)
+                    image.Mutate(x => x.Fill(Rgba32.ParseHex(areaColorReference[999].First()))); //set whole image to background color
+                else
+                    image.Mutate(x => x.Fill(Rgba32.ParseHex("00000000"))); //sets whole image to transparent
 
                 //Now, instead of going per pixel, go per area, sorted by area descending.
                 foreach (var place in allPlaces.Where(ap => ap.AreaTypeId != 13)) //Exclude admin areas if they got passed in.
@@ -396,6 +399,161 @@ namespace CoreComponents
                 image.SaveAsPng(ms);
             } //image disposed here.
 
+            return ms.ToArray();
+        }
+
+        public static byte[] DrawMPAreaMapTileSlippy(GeoArea totalArea, double areaHeight, double areaWidth)
+        {
+            //Resolution scaling here is flexible, since we're always drawing a 512x512 tile.
+            //This has the crop-logic removed temporarily while I figure out how to fix that for a variable-resolution image.
+            double resolutionX, resolutionY;
+            double filterSize = 0;
+            resolutionX = areaWidth / 512;
+            resolutionY = areaHeight / 512;
+            bool drawEverything = false; //for debugging/testing
+            var smallestFeature = (drawEverything ? 0 : resolutionX < resolutionY ? resolutionX : resolutionY);
+            //GetResolutionValues(pixelSizeCells, out resolutionX, out resolutionY);
+            //if (pixelSizeCells < 10) // Roads and buildings are good at Cell10+. Not helpful at Cell8-;
+            //filterSize = resolutionX / 2; //things smaller than half a pixel will not be considered for the map tile. Might just want to toggle the alternate sort rules for pixels (most area, not smallest item)
+            //Or should this filter to 'smallest area over filter size'?
+
+            //To make sure we don't get any seams on our maptiles (or points that don't show a full circle, we add a little extra area to the image before drawing, then crop it out at the end.
+            //totalArea = new GeoArea(new GeoPoint(totalArea.Min.Latitude - resolutionCell10, totalArea.Min.Longitude - resolutionCell10), new GeoPoint(totalArea.Max.Latitude + resolutionCell10, totalArea.Max.Longitude + resolutionCell10));
+
+            List<MapData> rowPlaces;
+            //create a new bitmap. Add 10 pixels of padding to each side
+            MemoryStream ms = new MemoryStream();
+            int imagesizeX = 512; //(int)Math.Ceiling(totalArea.LongitudeWidth / resolutionX);
+            int imagesizeY = 512; //(int)Math.Ceiling(totalArea.LatitudeHeight / resolutionY);
+
+            var db = new PraxisContext();
+            List<MapData> allPlaces = GetPlaces(totalArea, null, false, true); //Includes generated here with the final True parameter.
+            List<long> placeIDs = allPlaces.Select(a => a.MapDataId).ToList();
+            Dictionary<long, int> teamClaims = db.AreaControlTeams.Where(act => placeIDs.Contains(act.MapDataId)).ToDictionary(k => k.MapDataId, v => v.FactionId);
+            allPlaces = allPlaces.Where(a => teamClaims.ContainsKey(a.MapDataId)).ToList();
+
+            //crop all places to the current area. This removes a ton of work from the process by simplifying geometry to only what's relevant, instead of drawing all of a great lake or state-wide park.
+            var cropArea = Converters.GeoAreaToPolygon(totalArea);
+            //A quick fix to drawing order when multiple areas take up the entire cell: sort before the crop (otherwise, the areas are drawn in a random order, which makes some disappear)
+            //Affects small map tiles more often than larger ones, but it can affect both.
+            //This where clause means things smaller than 1 pixel won't get drawn. It's a C# filter here, but it would be faster to do DB-side on a SizeColumn on Mapdata to save more time, in the function above this one.
+            allPlaces = allPlaces.Where(a => a.place.Area > smallestFeature || a.place.Length > smallestFeature || a.place.GeometryType == "Point").OrderByDescending(a => a.place.Area).ThenByDescending(a => a.place.Length).ToList();
+            foreach (var ap in allPlaces)
+                ap.place = ap.place.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
+
+            var options = new ShapeGraphicsOptions(); //currently using defaults.
+            using (var image = new Image<Rgba32>(imagesizeX, imagesizeY))
+            {
+                image.Mutate(x => x.Fill(Rgba32.ParseHex("00000000"))); //set all the areas to the background color
+
+                //Now, instead of going per pixel, go per area, sorted by area descending.
+                foreach (var place in allPlaces.Where(ap => ap.AreaTypeId != 13)) //Exclude admin areas if they got passed in.
+                {
+                    var color = areaColorReferenceRgba32[place.AreaTypeId];
+                    switch (place.place.GeometryType)
+                    {
+                        case "Polygon":
+                            var drawThis = Converters.PolygonToDrawingPolygon(place.place, totalArea, resolutionX, resolutionY);
+                            //drawThis = drawThis.Translate(10, 10)
+                            image.Mutate(x => x.Fill(teamColorReferenceRgba32[teamClaims[place.MapDataId]], drawThis));
+                            break;
+                        case "MultiPolygon":
+                            foreach (var p in ((MultiPolygon)place.place).Geometries)
+                            {
+                                var drawThis2 = Converters.PolygonToDrawingPolygon(p, totalArea, resolutionX, resolutionY);
+                                //drawThis2 = drawThis2.Translate(10, 10);
+                                image.Mutate(x => x.Fill(teamColorReferenceRgba32[teamClaims[place.MapDataId]], drawThis2));
+                            }
+                            break;
+                        case "LineString":
+                            var drawThis3 = Converters.LineToDrawingLine(place.place, totalArea, resolutionX, resolutionY);
+                            if (drawThis3.Count() > 1)
+                            {
+                                //drawThis3.ForEach(a => { a.X += 10; a.Y += 10; }); 
+                                image.Mutate(x => x.DrawLines(teamColorReferenceRgba32[teamClaims[place.MapDataId]], 1, drawThis3.ToArray()));
+                            }
+                            break;
+                        case "MultiLineString":
+                            foreach (var p in ((MultiLineString)place.place).Geometries)
+                            {
+                                var drawThis4 = Converters.LineToDrawingLine(p, totalArea, resolutionX, resolutionY);
+                                //drawThis4.ForEach(a => { a.X += 10; a.Y += 10; });
+                                image.Mutate(x => x.DrawLines(teamColorReferenceRgba32[teamClaims[place.MapDataId]], 1, drawThis4.ToArray()));
+                            }
+                            break;
+                        case "Point":
+                            var point = Converters.PointToPointF(place.place, totalArea, resolutionX, resolutionY);
+                            //image.Mutate(x => x.DrawLines(color, 3, new PointF[] {point, point }));
+
+                            var shape = new SixLabors.ImageSharp.Drawing.EllipsePolygon(Converters.PointToPointF(place.place, totalArea, resolutionX, resolutionY), new SizeF((float)(2 * resolutionCell11Lon / resolutionX), (float)(2 * resolutionCell11Lat / resolutionY))); //was 1.5f, decided this should draw points as being 1 Cell11 big instead to scale.
+                            image.Mutate(x => x.Fill(teamColorReferenceRgba32[teamClaims[place.MapDataId]], shape));
+                            break;
+                    }
+                }
+                image.Mutate(x => x.Flip(FlipMode.Vertical)); //Plus codes are south-to-north, so invert the image to make it correct.
+                //image.Mutate(x => x.Crop(new Rectangle(10, 10, 512, 512))); //remove 10 pixels from each edge.
+                image.SaveAsPng(ms);
+            } //image disposed here.
+
+            return ms.ToArray();
+        }
+
+        public static byte[] DrawPaintTownSlippyTile(GeoArea relevantArea, int instanceID)
+        {
+            //TODO: figure out which zoom level makes attempting to draw this pointless, and return an empty transparent image instead.
+            //It might be fun on rare occasion to try and draw this all at once, but zoomed out too far and we won't see anything and will be very slow.
+            //Find all Cell8s in the relevant area.
+            MemoryStream ms = new MemoryStream();
+            var imagesizeX = 512;
+            var imagesizeY = 512;
+            var Cell8Wide = relevantArea.LongitudeWidth / resolutionCell8;
+            var Cell8High = relevantArea.LatitudeHeight / resolutionCell8;
+            var Cell10PixelSize = resolutionCell10 / relevantArea.LongitudeWidth; //Making this square for now.
+            var resolutionX = relevantArea.LongitudeWidth / imagesizeX;
+            var resolutionY = relevantArea.LatitudeHeight / imagesizeY;
+
+            //These may or may not be the same, even if the map tile is smaller than 1 Cell8.
+            var firstCell8 = new OpenLocationCode(relevantArea.SouthLatitude, relevantArea.WestLongitude).CodeDigits.Substring(0,8);
+            var lastCell8 = new OpenLocationCode(relevantArea.NorthLatitude, relevantArea.EastLongitude).CodeDigits.Substring(0, 8);
+            if (firstCell8 != lastCell8)
+            {
+                //quick hack to make sure we process enough data.
+                Cell8High++;
+                Cell8Wide++;
+            }
+
+            List<string> allData = new List<string>();
+            for(var x = 0; x < Cell8Wide; x++)
+                for(var y = 0; y < Cell8High; y++)
+                {
+                    var thisCell = new OpenLocationCode(relevantArea.SouthLatitude + (resolutionCell8 * x), relevantArea.WestLongitude + (resolutionCell8 * y)).CodeDigits.Substring(0, 8);
+                    var thisData = PaintTown.LearnCell8(instanceID, thisCell);
+                    allData.AddRange(thisData.Split('|'));
+                }
+
+            var options = new ShapeGraphicsOptions(); //currently using defaults.
+            using (var image = new Image<Rgba32>(imagesizeX, imagesizeY))
+            {
+                image.Mutate(x => x.Fill(Rgba32.ParseHex("00000000"))); //transparent.
+
+                foreach (var line in allData)
+                {
+                    if (line == "")
+                        continue;
+
+                    string[] components = line.Split('=');
+                    var location = OpenLocationCode.DecodeValid(components[0]);
+
+                    var placeAsPoly = Converters.GeoAreaToPolygon(location);
+                    var drawingSquare = Converters.PolygonToDrawingPolygon(placeAsPoly, relevantArea, resolutionX, resolutionY);
+                    image.Mutate(x => x.Fill(teamColorReferenceRgba32[components[1].ToLong()], drawingSquare));
+                }
+
+                image.Mutate(x => x.Flip(FlipMode.Vertical)); //Plus codes are south-to-north, so invert the image to make it correct.
+                //image.Mutate(x => x.Crop(new Rectangle(10, 10, 512, 512))); //remove 10 pixels from each edge.
+                image.SaveAsPng(ms);
+            }
+            
             return ms.ToArray();
         }
     }

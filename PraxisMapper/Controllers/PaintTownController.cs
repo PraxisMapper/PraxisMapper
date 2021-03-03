@@ -86,13 +86,7 @@ namespace PraxisMapper.Controllers
             try
             {
                 Classes.PerformanceTracker pt = new Classes.PerformanceTracker("LearnCell8PaintTown");
-                //Which factions own which Cell10s nearby?
-                var db = new PraxisContext();
-                var cellData = db.PaintTownEntries.Where(t => t.PaintTownConfigId == instanceID && t.Cell8 == Cell8).ToList();
-                string results = ""; //Cell8 + "|";
-                foreach (var cell in cellData)
-                    results += cell.Cell10 + "=" + cell.FactionId + "|";
-                pt.Stop(Cell8);
+                var results = PaintTown.LearnCell8(instanceID, Cell8);
                 return results;
             }
             catch (Exception ex)
