@@ -200,6 +200,21 @@ namespace CoreComponents
             public DateTime ExpireOn { get; set; } //assume that a tile needs regenerated if passed this timestamp. Possibly cleared out via SQL script.
         }
 
+        //In Process. To use to allow some customization of map tiles by setting colors for area types.
+        public class DrawingRule //this needs properties to pass into ImageSharp.Drawing calls, mostly brush stuff.
+        {
+            public int id { get; set; }
+            public int AreaTypeID { get; set;}
+            public int BrushType { get; set; } //Solid, Pattern, Image, Recolor, Gradients (Linear, Radial, Path, Elliptic) = 8 total types
+            public int BrushColor { get; set; }
+            public int BrushPattern { get; set; }
+            public int BrushSize { get; set; }
+            //Gradients will need a list of colors and possibly other parameters.
+            //Recolor needs a target and destination color
+            //Image needs an image file to use.
+            //Pattern needs a pattern type
+        }
+
 
 
     }
