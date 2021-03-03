@@ -45,6 +45,8 @@ namespace PraxisMapper.Controllers
             //Slippy Map tiles might just have to be their own thing.
             //I will also say these are 512x512 images.
             //TODO: add padding for image cropping. Maybe 10 pixels on each edge?
+            //TODO: should I set a longer timeout for these webtiles, and expire them when something in them gets updated?
+            //This is much harder to detect for slippy maps, since I have to re-caculate the X and Y on a bunch of zoom levels for it.
 
             try
             {
