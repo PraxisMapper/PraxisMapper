@@ -34,7 +34,7 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/DrawSlippyTile/{x}/{y}/{zoom}/{layer}")]
-        public FileContentResult DrawSlippyTile(int x, int y, int zoom, int layer) //assuming layer 1 for this right now.
+        public FileContentResult DrawSlippyTile(int x, int y, int zoom, int layer)
         {
             //slippymaps don't use coords. They use a grid from -180W to 180E, 85.0511N to -85.0511S (they might also use radians, not degrees, for an additional conversion step)
             //with 2^zoom level tiles in place. so, i need to do some math to get a coordinate
@@ -57,27 +57,50 @@ namespace PraxisMapper.Controllers
                     //Create this entry
                     //requires a list of colors to use, which might vary per app
                     var n = Math.Pow(2, zoom);
-                    
-                    var lon_degree_w = x / n * 360 - 180; 
-                    var lon_degree_e = (x+1) / n * 360 - 180; 
+
+                    var lon_degree_w = x / n * 360 - 180;
+                    var lon_degree_e = (x + 1) / n * 360 - 180;
                     var lat_rads_n = Math.Atan(Math.Sinh(Math.PI * (1 - 2 * y / n)));
                     var lat_degree_n = lat_rads_n * 180 / Math.PI;
-                    var lat_rads_s = Math.Atan(Math.Sinh(Math.PI * (1 - 2 * (y+1) / n)));
+                    var lat_rads_s = Math.Atan(Math.Sinh(Math.PI * (1 - 2 * (y + 1) / n)));
                     var lat_degree_s = lat_rads_s * 180 / Math.PI;
 
                     var relevantArea = new GeoArea(lat_degree_s, lon_degree_w, lat_degree_n, lon_degree_e);
                     var areaHeightDegrees = lat_degree_n - lat_degree_s;
                     var areaWidthDegrees = 360 / n;
-
-                    var places = GetPlaces(relevantArea, includeGenerated: false);
-                    var results = MapTiles.DrawAreaMapTileSlippy(ref places, relevantArea, areaHeightDegrees, areaWidthDegrees);
+                    
+                    byte[] results = null;
+                    switch (layer)
+                    {
+                        case 1: //Base map tile
+                            var places = GetPlaces(relevantArea, includeGenerated: false);
+                            results = MapTiles.DrawAreaMapTileSlippy(ref places, relevantArea, areaHeightDegrees, areaWidthDegrees);
+                            break;
+                        case 2: //PaintTheTown overlay. Not yet done.
+                            //I have to convert the area into PlusCode coordinates, then translate the found claims into rectangles to cover the right area.
+                            //check what Cell8s are covered in the requested tile. Call LearnCell8 for all of those to find rectangles to draw.
+                            //Might need to limit this down to a certain zoom level?
+                            //This will need multiple entries, one per instance running. I will use the All-Time entries for now.
+                            results = MapTiles.DrawPaintTownSlippyTile(relevantArea, 2); //TODO: finish this function
+                            break;
+                        case 3: //MultiplayerAreaControl overlay. Ready to test as an overlay.
+                            results = MapTiles.DrawMPAreaMapTileSlippy(relevantArea, areaHeightDegrees, areaWidthDegrees);
+                            break;
+                        case 4: //GeneratedMapData areas. Should be ready to test as an overlay.
+                            var places2 = GetGeneratedPlaces(relevantArea);
+                            results = MapTiles.DrawAreaMapTileSlippy(ref places2, relevantArea, areaHeightDegrees, areaWidthDegrees, true);
+                            break;
+                        case 5: //Custom objects (scavenger hunt). Should be points loaded up, not an overlay?
+                            //this isnt supported yet as a game mode.
+                            break;
+                    }
                     db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, CreatedOn = DateTime.Now, mode = layer, tileData = results });
                     db.SaveChanges();
                     pt.Stop(tileKey);
                     return File(results, "image/png");
                 }
 
-                pt.Stop(tileKey);
+                pt.Stop(tileKey + "|" + layer);
                 return File(existingResults.tileData, "image/png");
             }
             catch(Exception ex)
@@ -89,6 +112,7 @@ namespace PraxisMapper.Controllers
 
         
         //ignore this one for a minute, Slippy Maps need their own tiles.
+        //Might be ready to remove this one.
 
         [HttpGet]
         [Route("/[controller]/DrawCell/{lat}/{lon}/{cellSizeForPixel}/{cellTileSize}/{layer}")]
