@@ -342,6 +342,7 @@ namespace CoreComponents
             foreach (var ap in allPlaces)
                 ap.place = ap.place.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
 
+            //This loop still occasionally throws an 'index was outside the bounds of the array issue. Not sure what the deal is. It's a dependency issue, but I might need to work around it.
             var options = new ShapeGraphicsOptions(); //currently using defaults.
             using (var image = new Image<Rgba32>(imagesizeX, imagesizeY))
             {
@@ -543,10 +544,19 @@ namespace CoreComponents
 
                     string[] components = line.Split('=');
                     var location = OpenLocationCode.DecodeValid(components[0]);
-
-                    var placeAsPoly = Converters.GeoAreaToPolygon(location);
-                    var drawingSquare = Converters.PolygonToDrawingPolygon(placeAsPoly, relevantArea, resolutionX, resolutionY);
-                    image.Mutate(x => x.Fill(teamColorReferenceRgba32[components[1].ToLong()], drawingSquare));
+                    //This is a workaround for an issue with the SixLabors.Drawing library. I think this dramatically slows down drawing tiles, but it means that all the tiles get drawn.
+                    try
+                    {
+                        var placeAsPoly = Converters.GeoAreaToPolygon(location);
+                        var drawingSquare = Converters.PolygonToDrawingPolygon(placeAsPoly, relevantArea, resolutionX, resolutionY);
+                        image.Mutate(x => x.Fill(teamColorReferenceRgba32[components[1].ToLong()], drawingSquare));
+                    }
+                    catch(Exception ex)
+                    {
+                        //we won't draw this one entry.
+                        //var a = 1;
+                        //give up
+                    }
                 }
 
                 image.Mutate(x => x.Flip(FlipMode.Vertical)); //Plus codes are south-to-north, so invert the image to make it correct.

@@ -20,7 +20,7 @@
 //I will need to define in some properties correctly for the appropriate pairing
 //Zoom levels should be 2-10, in even increments matching PlusCode pairs.
         var url = 'MapTile/DrawSlippyTile/{x}/{y}/{z}/{id}'
-        var attrib = 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        var attrib = 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Imagery via <a href= "https://github.com/drakewill-crl/PraxisMapper">PraxisMapper</a>'
         var baseData = L.tileLayer(url, {id: 1, tileSize:512, attribution: attrib, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
         var ptt = L.tileLayer(url, { id: 2, tileSize: 512, attribution: attrib, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
         var ac = L.tileLayer(url, { id: 3, tileSize: 512, attribution: attrib, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
@@ -37,7 +37,6 @@
 
     var mymap = L.map('mapid').setView([41.503425, -81.698995], 13);
     L.tileLayer('MapTile/DrawSlippyTile/{x}/{y}/{z}/1', {
-    attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Imagery via <a href= "https://github.com/drakewill-crl/PraxisMapper">PraxisMapper</a>',
     maxZoom: 20,
     minZoom: 9,
     zoom: 12,
