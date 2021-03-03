@@ -86,7 +86,10 @@ namespace PraxisMapper.Controllers
             try
             {
                 Classes.PerformanceTracker pt = new Classes.PerformanceTracker("LearnCell8PaintTown");
-                var results = PaintTown.LearnCell8(instanceID, Cell8);
+                var cellData = PaintTown.LearnCell8(instanceID, Cell8);
+                string results = "";
+                foreach (var cell in cellData)
+                    results += cell.Cell10 + "=" + cell.FactionId + "|";
                 return results;
             }
             catch (Exception ex)

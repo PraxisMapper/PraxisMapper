@@ -523,13 +523,13 @@ namespace CoreComponents
                 Cell8Wide++;
             }
 
-            List<string> allData = new List<string>();
+            List<PaintTownEntry> allData = new List<PaintTownEntry>();
             for(var x = 0; x < Cell8Wide; x++)
                 for(var y = 0; y < Cell8High; y++)
                 {
                     var thisCell = new OpenLocationCode(relevantArea.SouthLatitude + (resolutionCell8 * x), relevantArea.WestLongitude + (resolutionCell8 * y)).CodeDigits.Substring(0, 8);
                     var thisData = PaintTown.LearnCell8(instanceID, thisCell);
-                    allData.AddRange(thisData.Split('|'));
+                    allData.AddRange(thisData);
                 }
 
             var options = new ShapeGraphicsOptions(); //currently using defaults.
@@ -539,17 +539,17 @@ namespace CoreComponents
 
                 foreach (var line in allData)
                 {
-                    if (line == "")
-                        continue;
+                    //if (line == "")
+                        //continue;
 
-                    string[] components = line.Split('=');
-                    var location = OpenLocationCode.DecodeValid(components[0]);
+                    //string[] components = line.Split('=');
+                    var location = OpenLocationCode.DecodeValid(line.Cell10);
                     //This is a workaround for an issue with the SixLabors.Drawing library. I think this dramatically slows down drawing tiles, but it means that all the tiles get drawn.
                     try
                     {
                         var placeAsPoly = Converters.GeoAreaToPolygon(location);
                         var drawingSquare = Converters.PolygonToDrawingPolygon(placeAsPoly, relevantArea, resolutionX, resolutionY);
-                        image.Mutate(x => x.Fill(teamColorReferenceRgba32[components[1].ToLong()], drawingSquare));
+                        image.Mutate(x => x.Fill(teamColorReferenceRgba32[line.FactionId], drawingSquare));
                     }
                     catch(Exception ex)
                     {
