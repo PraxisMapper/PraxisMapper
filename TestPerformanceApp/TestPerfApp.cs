@@ -1028,6 +1028,11 @@ namespace PerformanceTestApp
             var zoom = 15;
             var layer = 1;
 
+            //var x = 1119;
+            //var y = 1527;
+            //var zoom = 12;
+            //var layer = 1;
+
             var n = Math.Pow(2, zoom);
 
             var lon_degree_w = x / n * 360 - 180;

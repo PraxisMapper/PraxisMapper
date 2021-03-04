@@ -16,15 +16,11 @@
 
     </div>
     <script type="text/javascript">
-//PraxisMapper needs to have an endpoint for this setup.
-//I will need to define in some properties correctly for the appropriate pairing
-//Zoom levels should be 2-10, in even increments matching PlusCode pairs.
         var url = 'MapTile/DrawSlippyTile/{x}/{y}/{z}/{id}'
-        var attrib = 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Imagery via <a href= "https://github.com/drakewill-crl/PraxisMapper">PraxisMapper</a>'
-        var baseData = L.tileLayer(url, {id: 1, tileSize:512, attribution: attrib, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
-        var ptt = L.tileLayer(url, { id: 2, tileSize: 512, attribution: attrib, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
-        var ac = L.tileLayer(url, { id: 3, tileSize: 512, attribution: attrib, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
-        var generated = L.tileLayer(url, { id: 4, tileSize: 512, attribution: attrib, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
+        var baseData = L.tileLayer(url, {id: 1, tileSize:512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
+        var ptt = L.tileLayer(url, { id: 2, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
+        var ac = L.tileLayer(url, { id: 3, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
+        var generated = L.tileLayer(url, { id: 4, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
 
         var baseLayers = {
             "Base Data": baseData,
@@ -41,8 +37,9 @@
     minZoom: 9,
     zoom: 12,
     id: 'none',
-    tileSize: 512, //L.Point(width, height) for rectangular tiles
+    tileSize: 512,
     zoomOffset: -1,
+    attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Imagery via <a href= "https://github.com/drakewill-crl/PraxisMapper">PraxisMapper</a>',
     accessToken: 'none'
     }).addTo(mymap);
 

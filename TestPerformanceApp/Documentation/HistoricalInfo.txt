@@ -160,3 +160,14 @@ Vector performance:26ms
 Decision: The new vector logic draws prettier tiles faster at essentially every scale. Twice as fast on small tiles, and quickly pulls ahead on larger ones.
 I'll switch over to it. I may want to figure out some styling rules that can be defined in code (probably on AreaType class) that will let my maps become more flexible.
 And I wouldn't have to be limited to drawing to a PlusCode size for pixels.
+
+ImageSharpVsSkiaShapr 3/4/21:
+(zoom 12)
+Loading data for ImageSharp vs SkiaSharp performance test
+ImageSharp performance:1262ms
+SkiaSharp performance:518ms
+(zoom 15)
+Loading data for ImageSharp vs SkiaSharp performance test
+ImageSharp performance:452ms
+SkiaSharp performance:103ms
+Decision: SkiaSharp wins. 2-4x faster. Looks identical. Simpler customization options.
