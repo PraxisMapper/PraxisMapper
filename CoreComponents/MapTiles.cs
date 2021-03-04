@@ -634,7 +634,7 @@ namespace CoreComponents
             foreach (var ap in allPlaces)
                 ap.place = ap.place.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
 
-            return InnerDrawSkia(ref allPlaces, totalArea, degreesPerPixelX, degreesPerPixelY, imagesizeX, imagesizeY, true);
+            return InnerDrawSkia(ref allPlaces, totalArea, degreesPerPixelX, degreesPerPixelY, imagesizeX, imagesizeY);
         }
 
         public static byte[] DrawPaintTownSlippyTileSkia(GeoArea relevantArea, int instanceID)
@@ -739,7 +739,7 @@ namespace CoreComponents
             SkiaSharp.SKPaint paint = new SkiaSharp.SKPaint();
             SkiaSharp.SKColor color = new SkiaSharp.SKColor();
             paint.IsAntialias = true;
-            foreach (var place in allPlaces.Where(ap => ap.AreaTypeId != 13)) //Exclude admin areas if they got passed in.
+            foreach (var place in allPlaces) //If i get unexpected black background, an admin area probably got passed in with AllPlaces. Filter those out at the level above this function.
             {
                 //var hexcolor = areaColorReferenceRgba32[place.AreaTypeId];
                 var hexcolor = areaColorReference[place.AreaTypeId].FirstOrDefault();
@@ -806,8 +806,10 @@ namespace CoreComponents
 
                         //var shape = new SixLabors.ImageSharp.Drawing.EllipsePolygon(Converters.PointToPointF(place.place, totalArea, resolutionX, resolutionY), new SizeF((float)(2 * resolutionCell11Lon / resolutionX), (float)(2 * resolutionCell11Lat / resolutionY))); //was 1.5f, decided this should draw points as being 1 Cell11 big instead to scale.
                         //image.Mutate(x => x.Fill(color, shape));
-                        paint.Style = SkiaSharp.SKPaintStyle.Stroke;
-                        canvas.DrawPoints(SkiaSharp.SKPointMode.Points, new SkiaSharp.SKPoint[] { new SkiaSharp.SKPoint((float)place.place.Coordinates[0].X, (float)place.place.Coordinates[0].Y) }, paint);
+                        paint.Style = SkiaSharp.SKPaintStyle.Fill;
+                        var circleRadius = (float)(resolutionCell10 / degreesPerPixelX); //I want points to be drawn as 1 Cell10 in radius.
+                        var convertedPoint = Converters.PolygonToSKPoints(place.place, totalArea, degreesPerPixelX, degreesPerPixelY);
+                        canvas.DrawCircle(convertedPoint[0], circleRadius, paint);
                         break;
                 }
 
