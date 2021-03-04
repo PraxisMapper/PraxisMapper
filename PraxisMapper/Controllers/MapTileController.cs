@@ -96,7 +96,7 @@ namespace PraxisMapper.Controllers
                             break;
                         case 4: //GeneratedMapData areas. Should be ready to test as an overlay.
                             var places2 = GetGeneratedPlaces(relevantArea);
-                            results = MapTiles.DrawAreaMapTileSlippy(ref places2, relevantArea, areaHeightDegrees, areaWidthDegrees, true);
+                            results = MapTiles.DrawAreaMapTileSlippySkia(ref places2, relevantArea, areaHeightDegrees, areaWidthDegrees, true);
                             expires = DateTime.Now.AddYears(10); //again, assuming these don't change unless you manually updated entries.
                             break;
                         case 5: //Custom objects (scavenger hunt). Should be points loaded up, not an overlay?
@@ -162,7 +162,7 @@ namespace PraxisMapper.Controllers
                 //GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
                 var relevantArea = OpenLocationCode.DecodeValid(relevantPlusCode);
                 var places = GetPlaces(relevantArea);
-                var results = MapTiles.DrawAreaMapTile(ref places, relevantArea, cellSizeForPixel);
+                var results = MapTiles.DrawAreaMapTileSkia(ref places, relevantArea, cellSizeForPixel);
                 db.MapTiles.Add(new MapTile() { PlusCode = relevantPlusCode, CreatedOn = DateTime.Now, mode = layer, resolutionScale = cellSizeForPixel, tileData = results });
                 db.SaveChanges();
                 pt.Stop(relevantPlusCode);

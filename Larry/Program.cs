@@ -1656,7 +1656,7 @@ namespace Larry
                         sqliteDb.TerrainInfo.Add(new TerrainInfo() { Name = subParts[1], areaType = subParts[2].ToInt(), PlusCode = subParts[0], MapDataID = subParts[3].ToInt() });
                     }
 
-                    var tile = MapTiles.DrawAreaMapTile(ref areaList, areaForTile, 11);
+                    var tile = MapTiles.DrawAreaMapTileSkia(ref areaList, areaForTile, 11);
                     //Solar2D doesn't allow for assigning byte[] data directly as a fill, only a filepath.
                     //so we will just save these to a folder
                     //sqliteDb.MapTiles.Add(new MapTileDB() { image = tile, layer = 1, PlusCode = plusCode.CodeDigits.Substring(0,8) });
