@@ -77,7 +77,8 @@ namespace PraxisMapper.Controllers
                     {
                         case 1: //Base map tile
                             var places = GetPlaces(relevantArea, includeGenerated: false);
-                            results = MapTiles.DrawAreaMapTileSlippy(ref places, relevantArea, areaHeightDegrees, areaWidthDegrees);
+                            //results = MapTiles.DrawAreaMapTileSlippy(ref places, relevantArea, areaHeightDegrees, areaWidthDegrees);
+                            results = MapTiles.DrawAreaMapTileSlippySkia(ref places, relevantArea, areaHeightDegrees, areaWidthDegrees);
                             expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                             break;
                         case 2: //PaintTheTown overlay. Not yet done.
@@ -85,7 +86,8 @@ namespace PraxisMapper.Controllers
                             //check what Cell8s are covered in the requested tile. Call LearnCell8 for all of those to find rectangles to draw.
                             //Might need to limit this down to a certain zoom level?
                             //This will need multiple entries, one per instance running. I will use the All-Time entries for now.
-                            results = MapTiles.DrawPaintTownSlippyTile(relevantArea, 2); //TODO: finish this function
+                            //results = MapTiles.DrawPaintTownSlippyTile(relevantArea, 2);
+                            results = MapTiles.DrawPaintTownSlippyTileSkia(relevantArea, 2);
                             expires = DateTime.Now.AddMinutes(1); //We want this to be live-ish, but not overwhelming, so we cache this for 60 seconds.
                             break;
                         case 3: //MultiplayerAreaControl overlay. Ready to test as an overlay.

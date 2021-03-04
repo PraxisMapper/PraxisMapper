@@ -567,7 +567,6 @@ namespace CoreComponents
             return ms.ToArray();
         }
 
-        //testing performance with skia vs imagesharp
         public static byte[] DrawAreaMapTileSlippySkia(ref List<MapData> allPlaces, GeoArea totalArea, double areaHeight, double areaWidth, bool transparent = false)
         {
             //Resolution scaling here is flexible, since we're always drawing a 512x512 tile.
@@ -602,6 +601,91 @@ namespace CoreComponents
                 ap.place = ap.place.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
 
             return InnerDrawSkia(ref allPlaces, totalArea, resolutionX, resolutionY);
+        }
+
+        public static byte[] DrawPaintTownSlippyTileSkia(GeoArea relevantArea, int instanceID)
+        {
+            //It might be fun on rare occasion to try and draw this all at once, but zoomed out too far and we won't see anything and will be very slow.
+            //Find all Cell8s in the relevant area.
+            MemoryStream ms = new MemoryStream();
+            var imagesizeX = 512;
+            var imagesizeY = 512;
+            var Cell8Wide = relevantArea.LongitudeWidth / resolutionCell8;
+            var Cell8High = relevantArea.LatitudeHeight / resolutionCell8;
+            var Cell10PixelSize = resolutionCell10 / relevantArea.LongitudeWidth; //Making this square for now.
+            var resolutionX = relevantArea.LongitudeWidth / imagesizeX;
+            var resolutionY = relevantArea.LatitudeHeight / imagesizeY;
+
+            //These may or may not be the same, even if the map tile is smaller than 1 Cell8.
+            var firstCell8 = new OpenLocationCode(relevantArea.SouthLatitude, relevantArea.WestLongitude).CodeDigits.Substring(0, 8);
+            var lastCell8 = new OpenLocationCode(relevantArea.NorthLatitude, relevantArea.EastLongitude).CodeDigits.Substring(0, 8);
+            if (firstCell8 != lastCell8)
+            {
+                //quick hack to make sure we process enough data.
+                Cell8High++;
+                Cell8Wide++;
+            }
+
+            List<PaintTownEntry> allData = new List<PaintTownEntry>();
+            for (var x = 0; x < Cell8Wide; x++)
+                for (var y = 0; y < Cell8High; y++)
+                {
+                    var thisCell = new OpenLocationCode(relevantArea.SouthLatitude + (resolutionCell8 * x), relevantArea.WestLongitude + (resolutionCell8 * y)).CodeDigits.Substring(0, 8);
+                    var thisData = PaintTown.LearnCell8(instanceID, thisCell);
+                    allData.AddRange(thisData);
+                }
+
+            //Some image items setup.
+            //SkiaSharp.SKImageInfo info = new SkiaSharp.SKImageInfo(512, 512, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul);
+            SkiaSharp.SKBitmap bitmap = new SkiaSharp.SKBitmap(512, 512, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul);
+            //SkiaSharp.SKSurface surface = SkiaSharp.SKSurface.Create(bitmap);
+            SkiaSharp.SKCanvas canvas = new SkiaSharp.SKCanvas(bitmap);
+            var bgColor = new SkiaSharp.SKColor();
+            SkiaSharp.SKColor.TryParse("00000000", out bgColor); //this one wants a transparent background.
+            canvas.Clear(bgColor);
+            canvas.Scale(1, -1, 256, 256);
+            SkiaSharp.SKPaint paint = new SkiaSharp.SKPaint();
+            SkiaSharp.SKColor color = new SkiaSharp.SKColor();
+            paint.IsAntialias = true;
+            foreach (var line in allData)
+            {
+
+
+                //if (line == "")
+                //continue;
+
+                //string[] components = line.Split('=');
+                var location = OpenLocationCode.DecodeValid(line.Cell10);
+                //This is a workaround for an issue with the SixLabors.Drawing library. I think this dramatically slows down drawing tiles, but it means that all the tiles get drawn.
+                try
+                {
+                    var placeAsPoly = Converters.GeoAreaToPolygon(location);
+                    //var drawingSquare = Converters.PolygonToDrawingPolygon(placeAsPoly, relevantArea, resolutionX, resolutionY);
+                    //var drawingSquare = Converters.PolygonToSKPoints(placeAsPoly, relevantArea, resolutionX, resolutionY);
+                    //image.Mutate(x => x.Fill(teamColorReferenceRgba32[line.FactionId], drawingSquare));
+                    var path = new SkiaSharp.SKPath();
+                    path.AddPoly(Converters.PolygonToSKPoints(placeAsPoly, relevantArea, resolutionX, resolutionY));
+                    paint.Style = SkiaSharp.SKPaintStyle.Fill;
+                    SkiaSharp.SKColor.TryParse(teamColorReferenceLookupSkia[line.FactionId].FirstOrDefault(), out color);
+                    paint.Color = color;
+                    //canvas.DrawPoints(SkiaSharp.SKPointMode.Polygon, Converters.PolygonToSKPoints(place.place, totalArea, resolutionX, resolutionY), paint);
+                    canvas.DrawPath(path, paint);
+                }
+                catch (Exception ex)
+                {
+                    //we won't draw this one entry.
+                    //var a = 1;
+                    //give up
+                }
+            }
+
+            //var ms = new MemoryStream();
+            var skms = new SkiaSharp.SKManagedWStream(ms);
+            bitmap.Encode(skms, SkiaSharp.SKEncodedImageFormat.Png, 100);
+            var results = ms.ToArray();
+            skms.Dispose(); ms.Close(); ms.Dispose();
+            return results;
+
         }
 
         public static byte[] InnerDrawSkia(ref List<MapData> allPlaces, GeoArea totalArea, double resolutionX, double resolutionY)
