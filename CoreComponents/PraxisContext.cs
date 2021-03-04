@@ -51,24 +51,14 @@ namespace CoreComponents
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            //TODO: figure out this connection string for local testing, and for AWS use.
-            //This is the next top priority.
             if (serverMode == "SQLServer")
                 optionsBuilder.UseSqlServer(connectionString, x => x.UseNetTopologySuite());
             else if (serverMode == "MariaDB")
             {
-                optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), x => x.UseNetTopologySuite().CharSetBehavior(Pomelo.EntityFrameworkCore.MySql.Infrastructure.CharSetBehavior.NeverAppend).EnableRetryOnFailure()); //, x => x."Server=localhost;Database=praxis;User=root;Password=1234;");
+                optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), x => x.UseNetTopologySuite().CharSetBehavior(Pomelo.EntityFrameworkCore.MySql.Infrastructure.CharSetBehavior.NeverAppend).EnableRetryOnFailure());
             }
 
-            //Current server config
-            //optionsBuilder.UseSqlServer(@"Data Source=localhost\SQLEXPRESS;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;", x => x.UseNetTopologySuite());
-            //Current localhost config.
-            //optionsBuilder.UseSqlServer(@"Data Source=localhost\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;", x => x.UseNetTopologySuite()); //Home config, SQL Developer, Free, no limits, cant use in production
-
-            //SQLite config should be used for the case where I make a self-contained app for an area.
-            //like for a university or a park or something.           
-
-            optionsBuilder.UseMemoryCache(mc);//I think this improves performance at the cost of RAM usage. Needs additional testing.
+            //optionsBuilder.UseMemoryCache(mc);//I think this improves performance at the cost of RAM usage. Needs additional testing.
         }
 
         protected override void OnModelCreating(ModelBuilder model)

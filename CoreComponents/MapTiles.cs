@@ -309,6 +309,40 @@ namespace CoreComponents
             return ms.ToArray();
         }
 
+        public static byte[] DrawAreaMapTileSkia(ref List<MapData> allPlaces, GeoArea totalArea, int pixelSizeCells)
+        {
+            //Initial suggestion for these is to use a pixelSizeCell value 2 steps down from the areas size
+            //EX: for Cell8 tiles, use 11 for the pixel cell size (this is the default I use, smallest location in a pixel sets the color)
+            //or for Cell4 tiles, use Cell8 pixel size. (alternative sort for pixel color: largest area? Exclude points?)
+            //But this is gaining flexibilty, and adjusting pixelSizeCells to a double to be degreesPerPixel allows for more freedom.
+            double degreesPerPixelX, degreesPerPixelY;
+            double filterSize = 0;
+            GetResolutionValues(pixelSizeCells, out degreesPerPixelX, out degreesPerPixelY);
+            if (pixelSizeCells < 10) // Roads and buildings are good at Cell10+. Not helpful at Cell8-;
+                filterSize = degreesPerPixelX / 2; //things smaller than half a pixel will not be considered for the map tile. Might just want to toggle the alternate sort rules for pixels (most area, not smallest item)
+            //Or should this filter to 'smallest area over filter size'?
+
+            //To make sure we don't get any seams on our maptiles (or points that don't show a full circle, we add a little extra area to the image before drawing, then crop it out at the end.
+            totalArea = new GeoArea(new GeoPoint(totalArea.Min.Latitude - resolutionCell10, totalArea.Min.Longitude - resolutionCell10), new GeoPoint(totalArea.Max.Latitude + resolutionCell10, totalArea.Max.Longitude + resolutionCell10));
+
+            List<MapData> rowPlaces;
+            //create a new bitmap.
+            MemoryStream ms = new MemoryStream();
+            int imagesizeX = (int)Math.Ceiling(totalArea.LongitudeWidth / degreesPerPixelX);
+            int imagesizeY = (int)Math.Ceiling(totalArea.LatitudeHeight / degreesPerPixelY);
+
+            //crop all places to the current area. This removes a ton of work from the process by simplifying geometry to only what's relevant, instead of drawing all of a great lake or state-wide park.
+            var cropArea = Converters.GeoAreaToPolygon(totalArea);
+            //A quick fix to drawing order when multiple areas take up the entire cell: sort before the crop (otherwise, the areas are drawn in a random order, which makes some disappear)
+            //Affects small map tiles more often than larger ones, but it can affect both.
+            allPlaces = allPlaces.OrderByDescending(a => a.place.Area).ThenByDescending(a => a.place.Length).ToList();
+            foreach (var ap in allPlaces)
+                ap.place = ap.place.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
+
+
+            return InnerDrawSkia(ref allPlaces, totalArea, degreesPerPixelX, degreesPerPixelY, imagesizeX, imagesizeY);
+        }
+
         public static byte[] DrawAreaMapTileSlippy(ref List<MapData> allPlaces, GeoArea totalArea, double areaHeight, double areaWidth, bool transparent = false)
         {
             //Resolution scaling here is flexible, since we're always drawing a 512x512 tile.
@@ -571,12 +605,12 @@ namespace CoreComponents
         {
             //Resolution scaling here is flexible, since we're always drawing a 512x512 tile.
             //This has the crop-logic removed temporarily while I figure out how to fix that for a variable-resolution image.
-            double resolutionX, resolutionY;
+            double degreesPerPixelX, degreesPerPixelY;
             double filterSize = 0;
-            resolutionX = areaWidth / 512;
-            resolutionY = areaHeight / 512;
+            degreesPerPixelX = areaWidth / 512;
+            degreesPerPixelY = areaHeight / 512;
             bool drawEverything = false; //for debugging/testing
-            var smallestFeature = (drawEverything ? 0 : resolutionX < resolutionY ? resolutionX : resolutionY);
+            var smallestFeature = (drawEverything ? 0 : degreesPerPixelX < degreesPerPixelY ? degreesPerPixelX : degreesPerPixelY);
             //GetResolutionValues(pixelSizeCells, out resolutionX, out resolutionY);
             //if (pixelSizeCells < 10) // Roads and buildings are good at Cell10+. Not helpful at Cell8-;
             //filterSize = resolutionX / 2; //things smaller than half a pixel will not be considered for the map tile. Might just want to toggle the alternate sort rules for pixels (most area, not smallest item)
@@ -600,7 +634,7 @@ namespace CoreComponents
             foreach (var ap in allPlaces)
                 ap.place = ap.place.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
 
-            return InnerDrawSkia(ref allPlaces, totalArea, resolutionX, resolutionY);
+            return InnerDrawSkia(ref allPlaces, totalArea, degreesPerPixelX, degreesPerPixelY, imagesizeX, imagesizeY);
         }
 
         public static byte[] DrawPaintTownSlippyTileSkia(GeoArea relevantArea, int instanceID)
@@ -688,17 +722,17 @@ namespace CoreComponents
 
         }
 
-        public static byte[] InnerDrawSkia(ref List<MapData> allPlaces, GeoArea totalArea, double resolutionX, double resolutionY)
+        public static byte[] InnerDrawSkia(ref List<MapData> allPlaces, GeoArea totalArea, double degreesPerPixelX, double degreesPerPixelY, int imageSizeX, int imageSizeY)
         {
             //Some image items setup.
             //SkiaSharp.SKImageInfo info = new SkiaSharp.SKImageInfo(512, 512, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul);
-            SkiaSharp.SKBitmap bitmap = new SkiaSharp.SKBitmap(512, 512, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul);
+            SkiaSharp.SKBitmap bitmap = new SkiaSharp.SKBitmap(imageSizeX, imageSizeY, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul);
             //SkiaSharp.SKSurface surface = SkiaSharp.SKSurface.Create(bitmap);
             SkiaSharp.SKCanvas canvas = new SkiaSharp.SKCanvas(bitmap);
             var bgColor = new SkiaSharp.SKColor();
             SkiaSharp.SKColor.TryParse(areaColorReference[999].FirstOrDefault(), out bgColor);
             canvas.Clear(bgColor);
-            canvas.Scale(1, -1, 256, 256);
+            canvas.Scale(1, -1, imageSizeX / 2, imageSizeY / 2);
             SkiaSharp.SKPaint paint = new SkiaSharp.SKPaint();
             SkiaSharp.SKColor color = new SkiaSharp.SKColor();
             paint.IsAntialias = true;
@@ -717,7 +751,7 @@ namespace CoreComponents
                         //drawThis = drawThis.Translate(10, 10)
                         //image.Mutate(x => x.Fill(color, drawThis));
                         var path = new SkiaSharp.SKPath();
-                        path.AddPoly(Converters.PolygonToSKPoints(place.place, totalArea, resolutionX, resolutionY));
+                        path.AddPoly(Converters.PolygonToSKPoints(place.place, totalArea, degreesPerPixelX, degreesPerPixelY));
                         paint.Style = SkiaSharp.SKPaintStyle.Fill;
                         //canvas.DrawPoints(SkiaSharp.SKPointMode.Polygon, Converters.PolygonToSKPoints(place.place, totalArea, resolutionX, resolutionY), paint);
                         canvas.DrawPath(path, paint);
@@ -726,7 +760,7 @@ namespace CoreComponents
                         foreach (var p in ((MultiPolygon)place.place).Geometries)
                         {
                             var path2 = new SkiaSharp.SKPath();
-                            path2.AddPoly(Converters.PolygonToSKPoints(place.place, totalArea, resolutionX, resolutionY));
+                            path2.AddPoly(Converters.PolygonToSKPoints(p, totalArea, degreesPerPixelX, degreesPerPixelY));
                             paint.Style = SkiaSharp.SKPaintStyle.Fill;
                             //canvas.DrawPoints(SkiaSharp.SKPointMode.Polygon, Converters.PolygonToSKPoints(place.place, totalArea, resolutionX, resolutionY), paint);
                             canvas.DrawPath(path2, paint);
@@ -745,7 +779,7 @@ namespace CoreComponents
                         //image.Mutate(x => x.DrawLines(color, 1, drawThis3.ToArray()));
                         //}
                         paint.Style = SkiaSharp.SKPaintStyle.Stroke;
-                        var points = Converters.PolygonToSKPoints(place.place, totalArea, resolutionX, resolutionY);
+                        var points = Converters.PolygonToSKPoints(place.place, totalArea, degreesPerPixelX, degreesPerPixelY);
                         for (var line = 0; line < points.Length - 1; line++)
                             canvas.DrawLine(points[line], points[line + 1], paint);
                         //canvas.DrawPoints(SkiaSharp.SKPointMode.Lines, Converters.PolygonToSKPoints(place.place, totalArea, resolutionX, resolutionY), paint);
@@ -757,7 +791,7 @@ namespace CoreComponents
                             //drawThis4.ForEach(a => { a.X += 10; a.Y += 10; });
                             //image.Mutate(x => x.DrawLines(color, 1, drawThis4.ToArray()));
                             paint.Style = SkiaSharp.SKPaintStyle.Stroke;
-                            var points2 = Converters.PolygonToSKPoints(place.place, totalArea, resolutionX, resolutionY);
+                            var points2 = Converters.PolygonToSKPoints(p, totalArea, degreesPerPixelX, degreesPerPixelY);
                             for (var line = 0; line < points2.Length - 1; line++)
                                 canvas.DrawLine(points2[line], points2[line + 1], paint);
                             //canvas.DrawPoints(SkiaSharp.SKPointMode.Lines, Converters.PolygonToSKPoints(p, totalArea, resolutionX, resolutionY), paint);

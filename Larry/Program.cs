@@ -373,8 +373,8 @@ namespace Larry
                         //Draw this map tile
                         //var places = GetPlaces(area);
                         //var places = GetPlacesCB(area, cell6Data, false);
-                        var places = GetPlaces(area, cell6Data, false);
-                        var tileData = MapTiles.DrawAreaMapTile(ref places, area, 11);
+                        var places = GetPlaces(area, cell6Data, false); //These are cloned in GetPlaces, so we aren't intersecting areas twice and breaking drawing.
+                        var tileData = MapTiles.DrawAreaMapTileSkia(ref places, area, 11); //now Skia drawing, should be faster. Averaging 1.2s for 400 Cell8 tiles.
                         tilesGenerated.Add(new MapTile() { CreatedOn = DateTime.Now, mode = 1, tileData = tileData, resolutionScale = 11, PlusCode = cellToCheck });
                         Log.WriteLog("Cell " + cellToCheck + " Drawn", Log.VerbosityLevels.High);
                         //}
