@@ -58,8 +58,9 @@ namespace PerformanceTestApp
             //ConcurrentTest();
             //CalculateScoreTest();
             //TestIntersectsPreparedVsNot();
-            TestRasterVsVectorCell8();
-            TestRasterVsVectorCell10();
+            //TestRasterVsVectorCell8();
+            //TestRasterVsVectorCell10();
+            TestImageSharpVsSkiaSharp();
 
             //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
             //These cannot all be enabled in one run. You must comment/uncomment each one separately.
@@ -1015,6 +1016,49 @@ namespace PerformanceTestApp
 
             Log.WriteLog("Raster performance:" + raster.ElapsedMilliseconds + "ms");
             Log.WriteLog("Vector performance:" + vector.ElapsedMilliseconds + "ms");
+        }
+
+        public static void TestImageSharpVsSkiaSharp()
+        {
+            //params : 1119/1527/12/1
+            //params: 8957 / 12224 / 15 / 1
+            Log.WriteLog("Loading data for ImageSharp vs SkiaSharp performance test");
+            var x = 8957;
+            var y = 12224;
+            var zoom = 15;
+            var layer = 1;
+
+            var n = Math.Pow(2, zoom);
+
+            var lon_degree_w = x / n * 360 - 180;
+            var lon_degree_e = (x + 1) / n * 360 - 180;
+            var lat_rads_n = Math.Atan(Math.Sinh(Math.PI * (1 - 2 * y / n)));
+            var lat_degree_n = lat_rads_n * 180 / Math.PI;
+            var lat_rads_s = Math.Atan(Math.Sinh(Math.PI * (1 - 2 * (y + 1) / n)));
+            var lat_degree_s = lat_rads_s * 180 / Math.PI;
+
+            var relevantArea = new GeoArea(lat_degree_s, lon_degree_w, lat_degree_n, lon_degree_e);
+            var areaHeightDegrees = lat_degree_n - lat_degree_s;
+            var areaWidthDegrees = 360 / n;
+
+            
+            var places = GetPlaces(relevantArea, includeGenerated: false);
+            var places2 = places.Select(p => p.Clone()).ToList(); //Trimming occurs in the draw functions, so we need a copy to make the test fair.
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+            var results1 = MapTiles.DrawAreaMapTileSlippy(ref places, relevantArea, areaHeightDegrees, areaWidthDegrees);
+            sw.Stop();
+            System.IO.File.WriteAllBytes("ImageSharp-" + x + "_" + y + "_" + "_" + zoom + ".png", results1);
+            Log.WriteLog("ImageSharp performance:" + sw.ElapsedMilliseconds + "ms");
+            sw.Restart();
+            var results2 = MapTiles.DrawAreaMapTileSlippySkia(ref places2, relevantArea, areaHeightDegrees, areaWidthDegrees);
+            sw.Stop();
+            System.IO.File.WriteAllBytes("SkiaSharp-" + x + "_" + y + "_" + "_" + zoom + ".png", results2);
+            Log.WriteLog("SkiaSharp performance:" + sw.ElapsedMilliseconds + "ms"); //This is 3x as fast at zoom 12 and zoom 15.
+
+
+            //Log.WriteLog("Raster performance:" + raster.ElapsedMilliseconds + "ms");
+            //Log.WriteLog("Vector performance:" + vector.ElapsedMilliseconds + "ms");
         }
     }
 }
