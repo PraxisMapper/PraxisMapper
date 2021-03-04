@@ -24,6 +24,5 @@
 
         public static string DbMode = "MariaDB";
         public static string DbConnectionString = "server=localhost;database=praxis;user=root;password=asdf;";
-        //public static string DbConnectionString = "server=praxis.cbuyugkje7ok.us-east-2.rds.amazonaws.com;database=praxis;user=admin;password=8AsciiChars!;";
     }
 }
