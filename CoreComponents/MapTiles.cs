@@ -634,7 +634,7 @@ namespace CoreComponents
             foreach (var ap in allPlaces)
                 ap.place = ap.place.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
 
-            return InnerDrawSkia(ref allPlaces, totalArea, degreesPerPixelX, degreesPerPixelY, imagesizeX, imagesizeY);
+            return InnerDrawSkia(ref allPlaces, totalArea, degreesPerPixelX, degreesPerPixelY, imagesizeX, imagesizeY, true);
         }
 
         public static byte[] DrawPaintTownSlippyTileSkia(GeoArea relevantArea, int instanceID)
@@ -722,7 +722,7 @@ namespace CoreComponents
 
         }
 
-        public static byte[] InnerDrawSkia(ref List<MapData> allPlaces, GeoArea totalArea, double degreesPerPixelX, double degreesPerPixelY, int imageSizeX, int imageSizeY)
+        public static byte[] InnerDrawSkia(ref List<MapData> allPlaces, GeoArea totalArea, double degreesPerPixelX, double degreesPerPixelY, int imageSizeX, int imageSizeY, bool transparent = false)
         {
             //Some image items setup.
             //SkiaSharp.SKImageInfo info = new SkiaSharp.SKImageInfo(512, 512, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul);
@@ -730,7 +730,10 @@ namespace CoreComponents
             //SkiaSharp.SKSurface surface = SkiaSharp.SKSurface.Create(bitmap);
             SkiaSharp.SKCanvas canvas = new SkiaSharp.SKCanvas(bitmap);
             var bgColor = new SkiaSharp.SKColor();
-            SkiaSharp.SKColor.TryParse(areaColorReference[999].FirstOrDefault(), out bgColor);
+            if (transparent)
+                SkiaSharp.SKColor.TryParse("00000000", out bgColor);
+            else
+                SkiaSharp.SKColor.TryParse(areaColorReference[999].FirstOrDefault(), out bgColor);
             canvas.Clear(bgColor);
             canvas.Scale(1, -1, imageSizeX / 2, imageSizeY / 2);
             SkiaSharp.SKPaint paint = new SkiaSharp.SKPaint();
