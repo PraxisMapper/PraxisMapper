@@ -173,5 +173,17 @@ namespace PraxisMapper.Controllers
             pt.Stop(relevantPlusCode);
             return File(existingResults.tileData, "image/png");
         }
+
+        [HttpGet]
+        [Route("/[controller]/CheckTileExpiration/{PlusCode}/{mode}")]
+        public string CheckTileExpiration(string PlusCode, int mode) //For simplicity, maptiles expire after the Date part of a DateTime. Intended for base tiles.
+        {
+            //I pondered making this a boolean, but the client needs the expiration date to know if it's newer or older than it's version. Not if the server needs to redraw the tile. That happens on load.
+            PerformanceTracker pt = new PerformanceTracker("CheckTileExpiration");
+            var db = new PraxisContext();
+            var mapTileExp = db.MapTiles.Where(m => m.PlusCode == PlusCode && m.mode == mode).Select(m => m.ExpireOn).FirstOrDefault();
+            pt.Stop();
+            return mapTileExp.ToShortDateString();
+        }
     }
 }
