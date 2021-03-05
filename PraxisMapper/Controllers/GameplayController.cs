@@ -83,7 +83,7 @@ namespace PraxisMapper.Controllers
             db.SaveChanges();
             Tuple<long, int> shortcut = new Tuple<long, int>(MapDataId, factionId); //tell the application later not to hit the DB on every tile for this entry.
             //Task.Factory.StartNew(() => RedoAreaControlMapTilesCell8(mapData, shortcut)); //I don't need this to finish to return, let it run in the background
-            ExpireAreaControlMapTilesCell8(mapData, shortcut);
+            ExpireAreaControlMapTilesCell8(mapData, shortcut); //If this works correctly, i can set a much longer default expiration value on AreaControl tiles than 1 minute I currently use.
             
             return true;
         }
@@ -91,7 +91,7 @@ namespace PraxisMapper.Controllers
         public static void ExpireAreaControlMapTilesCell8(MapData md, Tuple<long, int> shortcut = null)
         {
             //This is a background task, but we want it to finish as fast as possible. 
-            PerformanceTracker pt = new PerformanceTracker("RedoAreaControlMapTilesCell8");
+            PerformanceTracker pt = new PerformanceTracker("ExpireAreaControlMapTilesCell8");
             var db = new PraxisContext();
             var space = md.place.Envelope;
             var geoAreaToRefresh = new GeoArea(new GeoPoint(space.Coordinates.Min().Y, space.Coordinates.Min().X), new GeoPoint(space.Coordinates.Max().Y, space.Coordinates.Max().X));
@@ -226,13 +226,13 @@ namespace PraxisMapper.Controllers
                 //requires a list of colors to use, which might vary per app
                 GeoArea CellEightArea = OpenLocationCode.DecodeValid(Cell8);
                 var places = GetPlaces(CellEightArea);
-                var results = MapTiles.DrawMPControlAreaMapTile(CellEightArea, 11);
-                if (factionColorTile == null)
+                var results = MapTiles.DrawMPControlAreaMapTileSkia(CellEightArea, 11);
+                if (factionColorTile == null) //create a new entry
                 {
                     factionColorTile = new MapTile() { PlusCode = Cell8, CreatedOn = DateTime.Now, mode = 2, resolutionScale = 11, tileData = results };
                     db.MapTiles.Add(factionColorTile);
                 }
-                else
+                else //update the existing entry.
                 {
                     factionColorTile.tileData = results;
                     factionColorTile.ExpireOn = DateTime.Now.AddMinutes(1);
@@ -241,14 +241,38 @@ namespace PraxisMapper.Controllers
                 db.SaveChanges();
             }
 
-            var baseImage = Image.Load(baseMapTile.tileData);
-            var controlImage = Image.Load(factionColorTile.tileData);
-            baseImage.Mutate(b => b.DrawImage(controlImage, .6f));
-            MemoryStream ms = new MemoryStream();
-            baseImage.SaveAsPng(ms);
+            //TODO: switch this out for SkiaSharp, should be faster.
+            //var baseImage = Image.Load(baseMapTile.tileData);
+            //var controlImage = Image.Load(factionColorTile.tileData);
+            //baseImage.Mutate(b => b.DrawImage(controlImage, .6f));
+            //MemoryStream ms = new MemoryStream();
+            //baseImage.SaveAsPng(ms);
+
+            //create a new image. TODO: test and confirm this functions as expected.
+            //Some image items setup.
+            //hard-coded, the size of a Cell8 with res11 is 80x100
+            SkiaSharp.SKBitmap bitmap = new SkiaSharp.SKBitmap(80, 100, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul);
+            //SkiaSharp.SKSurface surface = SkiaSharp.SKSurface.Create(bitmap);
+            SkiaSharp.SKCanvas canvas = new SkiaSharp.SKCanvas(bitmap);
+            //var bgColor = new SkiaSharp.SKColor();
+            //canvas.Clear();
+            //canvas.Scale(1, -1, imageSizeX / 2, imageSizeY / 2);
+            SkiaSharp.SKPaint paint = new SkiaSharp.SKPaint();
+            SkiaSharp.SKColor color = new SkiaSharp.SKColor();
+            paint.IsAntialias = true;
+
+            var baseBmp = SkiaSharp.SKBitmap.Decode(baseMapTile.tileData);
+            var areaControlOverlay = SkiaSharp.SKBitmap.Decode(factionColorTile.tileData);
+            canvas.DrawBitmap(baseBmp, 0, 0);
+            canvas.DrawBitmap(areaControlOverlay, 0, 0);
+            var ms = new MemoryStream();
+            var skms = new SkiaSharp.SKManagedWStream(ms);
+            bitmap.Encode(skms, SkiaSharp.SKEncodedImageFormat.Png, 100);
+            var output = ms.ToArray();
+            skms.Dispose(); ms.Close(); ms.Dispose();
 
             pt.Stop(Cell8);
-            return File(ms.ToArray(), "image/png");
+            return File(output, "image/png");
         }
 
         [HttpGet]

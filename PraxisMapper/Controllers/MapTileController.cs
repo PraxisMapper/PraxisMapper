@@ -20,6 +20,8 @@ namespace PraxisMapper.Controllers
         private readonly IConfiguration Configuration;
         private static MemoryCache cache;
 
+        //TODO: consider playing with the SKSVGCanvas to see if SVG maptiles are faster/smaller/better in any ways
+
         public MapTileController(IConfiguration configuration)
         {
             Configuration = configuration;
