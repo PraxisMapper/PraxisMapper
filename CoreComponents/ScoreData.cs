@@ -2,10 +2,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static CoreComponents.DbTables;
 using static CoreComponents.ConstantValues;
+using static CoreComponents.DbTables;
 
 namespace CoreComponents
 {
@@ -14,7 +12,7 @@ namespace CoreComponents
         //Default Scoring rules:
         //Each Cell10 of surface area is 1 Score (would be Points in any other game, but Points is already an overloaded term in this system).
         //OSM Areas are measured in square area, divided by Cell10 area squared. (An area that covers 25 square Cell10s is 25 Score)
-        //Lines are measured in their length.  (A trail that's 25 Cell10s long is 25 Score)
+        //Lines are measured in their length.  (A trail that's 25 * resolutionCell10 long is 25 Score)
         //OSM points are assigned a Score of 1 as the minimum interactable size object. 
 
         public static string GetScoresForArea(Polygon areaPoly, List<MapData> places)

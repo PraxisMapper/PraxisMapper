@@ -3,7 +3,7 @@
 Open Location Code library files (PlusCode folder) use the Apache 2.0 license, C# port copyright JonMcPherson, slightly modified in this project by Drake Williams
 S2 library files (S2 folder) use the Apache 2.0 license, C# port copyright Oren Novotny, slightly modified in this project by Drake Williams
 Leaflet.js has its own license, see leaflet.txt
-
+SkiaSharp library binary is MIT licensed.
 
 OpenStreetMap data is covered by the Open Data Commons Open Database License (https://www.openstreetmap.org/copyright)
 and © OpenStreetMap contributors 

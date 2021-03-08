@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace CoreComponents.Support
+﻿namespace CoreComponents.Support
 {
     //records are new C# 9.0 shorthand for an immutable class (only edited on creation).
     public record NodeData(long id, float lat, float lon); //Stores in a Way to hold lat/long for each point in it.

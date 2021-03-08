@@ -51,14 +51,15 @@ The server doesn't track user locations over time (though, a mode intended to be
 Connections should use SSL to conceal locations passed as API parameters. 
 Identification of an individual user requires additional, external data and not be manageable solely with PraxisMapper.
 Tracking activity by team, assuming population of teams is sufficiently large, should obfuscate individual behaior. 
-The single most damaging option for security is enabling PerformanceTracker, which could provide a more thorough view of server activity if the server and/or database are compromised 
+The single most damaging option for security is enabling PerformanceTracker, which could provide a more thorough view of server activity if the server and/or database are compromised, primarily based on timestamps
 (at which point, an attacker would insert their own malicious code anyways)
 The short rule is: a request cannot include both a location and a unique deviceID. Only one or the other.
 
 
-Server Terms:
-Plus Code areas will be called Cell#, with # the number of digits in the plus code, throughout the code.
-Places are entries in the MapData or GeneratedMapData tables.
-Areas are Plus Code cells used to find Places or map tiles.
--Avoids variables starting with a number, indicates what level of detail a function is expecting to act at when a specific one is needed.
+Server/Code Terms:
+Plus Code areas will be called Cell#, with # the number of digits in the plus code, throughout the code. Use Cell8, not 8Cell.
+Places are entries in the MapData or GeneratedMapData tables. A singular thing you would want to visit or interact with.
+Areas are Plus Code cells used to find Places or map tiles. A space of predefined size. 
+Points are singular coordinate pairs that may be a reference to a Place or an Area, depending on context. A dot on a map.
+Score is a player's total credits on something. The counter in a video game that goes up when the player does things.
 

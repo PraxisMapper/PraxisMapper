@@ -1,6 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Configuration;
 using NetTopologySuite.Geometries;
 using System;
 using System.Collections.Generic;
@@ -23,7 +22,6 @@ namespace CoreComponents
         public DbSet<PaintTownConfig> PaintTownConfigs { get; set; }
         public DbSet<PaintTownEntry> PaintTownEntries { get; set; }
         public DbSet<PaintTownScoreRecord> PaintTownScoreRecords { get; set; }
-        //public DbSet<PaintTownTeamAssignment> PaintTownTeamAssignments { get; set; }
         public DbSet<ErrorLog> ErrorLogs { get; set; }
         public DbSet<ServerSetting>  ServerSettings { get; set; }
         public DbSet<TileTracking> TileTrackings { get; set; }
@@ -34,20 +32,15 @@ namespace CoreComponents
         public static string serverMode = "SQLServer";
 
         //Test table to see if its practical to save prerendered results. there's 25 million 6codes, so no.
-        public DbSet<PremadeResults> PremadeResults { get; set; }
+        //public DbSet<PremadeResults> PremadeResults { get; set; }
 
         //Test table for loading osm data directly in to the DB with less processing.
         //Takes up a lot more storage space this way, not as useful for app purposes. Removing
         //public DbSet<MinimumNode> MinimumNodes { get; set; }
         //public DbSet<MinimumWay> MinimumWays { get; set; }
         //public DbSet<MinimumRelation> minimumRelations { get; set; }
-
-        //public PraxisContext(string conString)
-        //{
-            //connectionString = conString;
-        //}
-
-        public static MemoryCache mc = new MemoryCache(new MemoryCacheOptions()); 
+        
+        //public static MemoryCache mc = new MemoryCache(new MemoryCacheOptions()); //Docs on this are poor, and don't explain what EFCore will actually cache. I think it's queries, not results.
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -95,10 +88,6 @@ namespace CoreComponents
 
             model.Entity<PaintTownScoreRecord>().HasIndex(m => m.PaintTownConfigId);
             model.Entity<PaintTownScoreRecord>().HasIndex(m => m.WinningFactionID);
-
-            //model.Entity<PaintTownTeamAssignment>().HasIndex(m => m.FactionId);
-            //model.Entity<PaintTownTeamAssignment>().HasIndex(m => m.PaintTownConfigId);
-            //model.Entity<PaintTownTeamAssignment>().HasIndex(m => m.deviceID);
         }
 
         //A trigger to ensure all data inserted is valid by SQL Server rules.
@@ -123,12 +112,6 @@ namespace CoreComponents
         //This doesn't appear to be any faster. The query isn't the slow part. Keeping this code as a reference for how to precompile queries.
         public static Func<PraxisContext, Geometry, IEnumerable<MapData>> compiledIntersectQuery = 
             EF.CompileQuery((PraxisContext context, Geometry place) =>  context.MapData.Where(md => md.place.Intersects(place)));
-
-        //TODO: This isn't used, remove it.
-        public IEnumerable<MapData> getPlaces(Geometry place)
-        {
-            return compiledIntersectQuery(this, place);
-        }
     }
 }
 

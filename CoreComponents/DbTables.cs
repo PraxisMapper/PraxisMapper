@@ -1,6 +1,5 @@
 ﻿using NetTopologySuite.Geometries;
 using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -60,7 +59,6 @@ namespace CoreComponents
             public string PlusCodeCompleted { get; set; }
         }
         
-
         public class MapTile
         { 
             public long MapTileId { get; set; } //int should be OK for a limited range game and/or big tiles. Making this long just to make sure.
@@ -116,7 +114,7 @@ namespace CoreComponents
             public long PaintTownEntryId { get; set; }
             public int PaintTownConfigId { get; set; } //If we're running multiple PaintTown instances at once, this lets us identify which one belongs to which.
             public string Cell10 { get; set; }
-            public string Cell8 { get; set; } //Index this one
+            public string Cell8 { get; set; }
             public int FactionId { get; set; }
             public DateTime ClaimedAt { get; set; }
             public DateTime CanFlipFactionAt { get; set; }
@@ -124,13 +122,10 @@ namespace CoreComponents
 
         public class PaintTownConfig
         {
-            //A table for one instance entry? Meh, but these need to update and persist between app pool expirations.
-            //Do i want to allow a server to host multiple instance? I might, if someone wanted to have different durations running.
-            //Do i want an Enabled flag to be checked so a game can be turned on and off without resetting stats?
             public int PaintTownConfigId { get; set; }
             public string Name { get; set; } //help identify which game/scoreboard we're looking at.
             public int DurationHours { get; set; } //how long to let a game run for. Set to -1 to make a permanent instance.
-            public DateTime NextReset { get; set; } //add DurationHours to this if we're past the expiration time. Subtract to see the last reset date.
+            public DateTime NextReset { get; set; } //add DurationHours to this if we're past the expiration time. Subtract to see the last reset date. Set to far in the future on permanent instances.
             public int Cell10LockoutTimer { get; set; } //The number of seconds that a Cell10 entry cannot be flipped for when a valid claim happens.
             public bool Repeating { get; set; } //Does this instance automatically repeat
             public DateTime StartTime { get; set; } //For non-repeating instances, when to start taking requests.
@@ -146,17 +141,6 @@ namespace CoreComponents
             public DateTime RecordedAt { get; set; }
         }
 
-        //Note: this is the server tracking user devices for Paint The Town team assignments. This doesn't track any data about the user or their device
-        //that wasn't generated on the server itself. The primary use for this is to ensure we generate balanced teams during a Paint The Town instance.
-        //public class PaintTownTeamAssignment
-        //{
-        //    public long PaintTownTeamAssignmentId { get; set; }
-        //    public string deviceID { get; set; }
-        //    public int PaintTownConfigId { get; set; }
-        //    public int FactionId { get; set; }
-        //    public DateTime ExpiresAt { get; set; } //Set to the finish time for this PaintTownConfigId
-        //}
-
         public class ErrorLog
         {
             public int ErrorLogId { get; set; }
@@ -166,19 +150,20 @@ namespace CoreComponents
 
         }
 
-        public class TagParserEntry
-        {
-            //For users that customize the rules for parsing tags.
-            //Some types may have duplicate entries to handle wider spreads?
-            //Will need to support ||, &&, and ! conditions.
-            //Tag pairs are Key:Value per OSM data.
-            public int id { get; set; }
-            public string name { get; set; }
-            public int typeID { get; set; }
-            public string matchRules { get; set; }
-            public string HtmlColorCode { get; set; }
-            public int Priority { get; set; } //order tags should be matched in. EX: Retail should be matched before Building, since its more specific and useful.
-        }
+        //Incomplete idea.
+        //public class TagParserEntry
+        //{
+        //    //For users that customize the rules for parsing tags.
+        //    //Some types may have duplicate entries to handle wider spreads?
+        //    //Will need to support ||, &&, and ! conditions.
+        //    //Tag pairs are Key:Value per OSM data.
+        //    public int id { get; set; }
+        //    public string name { get; set; }
+        //    public int typeID { get; set; }
+        //    public string matchRules { get; set; }
+        //    public string HtmlColorCode { get; set; }
+        //    public int Priority { get; set; } //order tags should be matched in. EX: Retail should be matched before Building, since its more specific and useful.
+        //}
 
         public class ServerSetting
         {
@@ -194,26 +179,25 @@ namespace CoreComponents
             public long SlippyMapTileId { get; set; } //int should be OK for a limited range game and/or big tiles. Making this long just to make sure.
             public string Values { get; set; } //x|y|zoom
             public byte[] tileData { get; set; } //png binary data.
-            //public bool regenerate { get; set; } //TODO: If 1, re-make this tile because MapData for the area has changed. This might be done just by deleting the old map tile.
-            public int mode { get; set; } //is this for general use, multiplayer area control. 1 = 'baseline map', 2 = 'Multiplayer Area Control' overlay.
+            public int mode { get; set; } //is this for general use, multiplayer area control. 1 = 'baseline map', 2 = 'Multiplayer Area Control' overlay, etc.
             public DateTime CreatedOn { get; set; } //Timestamp for when a map tile was generated
             public DateTime ExpireOn { get; set; } //assume that a tile needs regenerated if passed this timestamp. Possibly cleared out via SQL script.
         }
 
-        //In Process. To use to allow some customization of map tiles by setting colors for area types.
-        public class DrawingRule //this needs properties to pass into ImageSharp.Drawing calls, mostly brush stuff.
-        {
-            public int id { get; set; }
-            public int AreaTypeID { get; set;}
-            public int BrushType { get; set; } //Solid, Pattern, Image, Recolor, Gradients (Linear, Radial, Path, Elliptic) = 8 total types
-            public int BrushColor { get; set; }
-            public int BrushPattern { get; set; }
-            public int BrushSize { get; set; }
-            //Gradients will need a list of colors and possibly other parameters.
-            //Recolor needs a target and destination color
-            //Image needs an image file to use.
-            //Pattern needs a pattern type
-        }
+        //In Process. To use to allow some customization of map tiles by setting colors for area types. Was for ImageSharp, needs redone for SkiaSharp
+        //public class DrawingRule //this needs properties to pass into ImageSharp.Drawing calls, mostly brush stuff.
+        //{
+        //    public int id { get; set; }
+        //    public int AreaTypeID { get; set;}
+        //    public int BrushType { get; set; } //Solid, Pattern, Image, Recolor, Gradients (Linear, Radial, Path, Elliptic) = 8 total types
+        //    public int BrushColor { get; set; }
+        //    public int BrushPattern { get; set; }
+        //    public int BrushSize { get; set; }
+        //    //Gradients will need a list of colors and possibly other parameters.
+        //    //Recolor needs a target and destination color
+        //    //Image needs an image file to use.
+        //    //Pattern needs a pattern type
+        //}
 
 
 

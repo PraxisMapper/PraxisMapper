@@ -1,15 +1,13 @@
 ﻿using CoreComponents.Support;
 using Google.OpenLocationCode;
 using NetTopologySuite.Geometries;
+using NetTopologySuite.Geometries.Prepared;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using static CoreComponents.DbTables;
-using static CoreComponents.Singletons;
 using static CoreComponents.GeometrySupport;
-using NetTopologySuite.Geometries.Prepared;
+using static CoreComponents.Singletons;
 
 namespace CoreComponents
 {

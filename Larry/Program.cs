@@ -13,7 +13,6 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using static CoreComponents.DbTables;
-using static CoreComponents.MapSupport;
 using static CoreComponents.ConstantValues;
 using static CoreComponents.Singletons;
 using static CoreComponents.Place;

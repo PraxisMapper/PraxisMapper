@@ -51,5 +51,19 @@ namespace CoreComponents
         {
             //For loading in your own fixed-place files outside of OSM. Probably most useful for dedicated area games like above.
         }
+
+        //Unused so far. Keeping as a potential future feature.
+        //public static GeoPoint ProxyLocation(double lat, double lon, GeoArea bounds)
+        //{
+        //    //Treat the user like they're in the real-world location
+        //    //Mod their location by the box size, then add that to the minimum to get their new location
+        //    var shiftX = lon % bounds.LongitudeWidth;
+        //    var shiftY = lat % bounds.LatitudeHeight;
+
+        //    double newLat = bounds.SouthLatitude + shiftY;
+        //    double newLon = bounds.WestLongitude + shiftX;
+
+        //    return new GeoPoint(newLat, newLon);
+        //}
     }
 }

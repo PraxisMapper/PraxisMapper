@@ -4,6 +4,7 @@ using Google.Common.Geometry;
 using Google.OpenLocationCode;
 using NetTopologySuite;
 using NetTopologySuite.Geometries;
+using NetTopologySuite.Geometries.Prepared;
 using OsmSharp;
 using OsmSharp.Streams;
 using System;
@@ -15,14 +16,11 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using static CoreComponents.DbTables;
-using static CoreComponents.MapSupport;
-using static CoreComponents.Singletons;
 using static CoreComponents.ConstantValues;
-using static CoreComponents.Place;
-using static CoreComponents.ScoreData;
+using static CoreComponents.DbTables;
 using static CoreComponents.GeometrySupport;
-using NetTopologySuite.Geometries.Prepared;
+using static CoreComponents.Place;
+using static CoreComponents.Singletons;
 
 namespace PerformanceTestApp
 {
@@ -389,10 +387,10 @@ namespace PerformanceTestApp
 
                 sw.Restart();
                 GeoArea area8 = OpenLocationCode.DecodeValid(cell8);
-                var eightCodePlaces = GetPlacesNoTrack(area8);
+                //var eightCodePlaces = GetPlacesNoTrack(area8);
                 sw.Stop();
                 var eightCodeTime = sw.ElapsedMilliseconds;
-                avg8 += eightCodeTime;
+                //avg8 += eightCodeTime;
 
                 sw.Restart();
                 GeoArea area6 = OpenLocationCode.DecodeValid(cell6);
@@ -444,14 +442,14 @@ namespace PerformanceTestApp
                 sw.Stop();
                 var sixCodeTime = sw.ElapsedMilliseconds;
                 sw.Restart();
-                var sixCodePlacesNT = GetPlacesNoTrack(area6);
+                //var sixCodePlacesNT = GetPlacesNoTrack(area6);
                 sw.Stop();
-                var sixCodeNTTime = sw.ElapsedMilliseconds;
+                //var sixCodeNTTime = sw.ElapsedMilliseconds;
                 sw.Restart();
-                var sixCodePlacesPrecomp = GetPlacesPrecompiled(area6);
+                //var sixCodePlacesPrecomp = GetPlacesPrecompiled(area6);
                 sw.Stop();
                 var sixCodePrecompTime = sw.ElapsedMilliseconds;
-                Log.WriteLog("6code- Tracking: " + sixCodeTime + "ms VS NoTracking: " + sixCodeNTTime + "ms VS Precompiled: " + sixCodePrecompTime + "ms");
+                //Log.WriteLog("6code- Tracking: " + sixCodeTime + "ms VS NoTracking: " + sixCodeNTTime + "ms VS Precompiled: " + sixCodePrecompTime + "ms");
 
 
                 sw.Restart();
@@ -460,11 +458,11 @@ namespace PerformanceTestApp
                 sw.Stop();
                 var fourCodeTime = sw.ElapsedMilliseconds;
                 sw.Restart();
-                var fourCodePlacesNT = GetPlacesNoTrack(area4);
+                //var fourCodePlacesNT = GetPlacesNoTrack(area4);
                 sw.Stop();
                 var fourCodeNTTime = sw.ElapsedMilliseconds;
                 sw.Restart();
-                var fourCodePlacesPrecomp = GetPlacesPrecompiled(area4);
+                //var fourCodePlacesPrecomp = GetPlacesPrecompiled(area4);
                 sw.Stop();
                 var fourCodePrecompTime = sw.ElapsedMilliseconds;
                 Log.WriteLog("4code- Tracking: " + fourCodeTime + "ms VS NoTracking: " + fourCodeNTTime + "ms VS Precompiled: " + fourCodePrecompTime + "ms");
@@ -486,39 +484,41 @@ namespace PerformanceTestApp
             return places;
         }
 
-        public static List<MapData> GetPlacesPrecompiled(GeoArea area, List<MapData> source = null)
-        {
-            var coordSeq = Converters.GeoAreaToCoordArray(area);
-            var location = factory.CreatePolygon(coordSeq);
-            List<MapData> places;
-            if (source == null)
-            {
-                var db = new CoreComponents.PraxisContext();
-                places = db.getPlaces((location)).ToList();
-            }
-            else
-                places = source.Where(md => md.place.Intersects(location)).ToList();
-            return places;
-        }
+        //This was only used in TestPerf, and isn't good enough to use.
+        //public static List<MapData> GetPlacesPrecompiled(GeoArea area, List<MapData> source = null)
+        //{
+        //    var coordSeq = Converters.GeoAreaToCoordArray(area);
+        //    var location = factory.CreatePolygon(coordSeq);
+        //    List<MapData> places;
+        //    if (source == null)
+        //    {
+        //        var db = new CoreComponents.PraxisContext();
+        //        places = db.getPlaces((location)).ToList();
+        //    }
+        //    else
+        //        places = source.Where(md => md.place.Intersects(location)).ToList();
+        //    return places;
+        //}
 
-        public static List<MapData> GetPlacesNoTrack(GeoArea area, List<MapData> source = null)
-        {
-            //TODO: this seems to have a lot of warmup time that I would like to get rid of. Would be a huge performance improvement.
-            //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
-            //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
-            var coordSeq = Converters.GeoAreaToCoordArray(area);
-            var location = factory.CreatePolygon(coordSeq);
-            List<MapData> places;
-            if (source == null)
-            {
-                var db = new CoreComponents.PraxisContext();
-                db.ChangeTracker.AutoDetectChangesEnabled = false;
-                places = db.MapData.Where(md => md.place.Intersects(location)).ToList();
-            }
-            else
-                places = source.Where(md => md.place.Intersects(location)).ToList();
-            return places;
-        }
+        //Another TestPerf only functoin.
+        //public static List<MapData> GetPlacesNoTrack(GeoArea area, List<MapData> source = null)
+        //{
+        //    //TODO: this seems to have a lot of warmup time that I would like to get rid of. Would be a huge performance improvement.
+        //    //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
+        //    //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
+        //    var coordSeq = Converters.GeoAreaToCoordArray(area);
+        //    var location = factory.CreatePolygon(coordSeq);
+        //    List<MapData> places;
+        //    if (source == null)
+        //    {
+        //        var db = new CoreComponents.PraxisContext();
+        //        db.ChangeTracker.AutoDetectChangesEnabled = false;
+        //        places = db.MapData.Where(md => md.place.Intersects(location)).ToList();
+        //    }
+        //    else
+        //        places = source.Where(md => md.place.Intersects(location)).ToList();
+        //    return places;
+        //}
 
         public static void TestMapDataAbbrev()
         {
@@ -554,7 +554,7 @@ namespace PerformanceTestApp
                 sw.Stop();
                 var placesTime = sw.ElapsedMilliseconds;
                 sw.Restart();
-                var places2 = GetPlacesPrecompiled(OpenLocationCode.DecodeValid(cell6));
+                //var places2 = GetPlacesPrecompiled(OpenLocationCode.DecodeValid(cell6));
                 sw.Stop();
                 var abbrevTime = sw.ElapsedMilliseconds;
 
@@ -979,7 +979,7 @@ namespace PerformanceTestApp
                     var places = GetPlaces(area, null, false, false);
 
                     raster.Start();
-                    MapTiles.DrawAreaMapTileRaster(ref places, area, 11);
+                    //MapTiles.DrawAreaMapTileRaster(ref places, area, 11); 
                     raster.Stop();
 
                     vector.Start();
@@ -1006,7 +1006,7 @@ namespace PerformanceTestApp
                     var places = GetPlaces(area, null, false, false);
 
                     raster.Start();
-                    MapTiles.DrawAreaMapTileRaster(ref places, area, 11);
+                    //MapTiles.DrawAreaMapTileRaster(ref places, area, 11);
                     raster.Stop();
 
                     vector.Start();
