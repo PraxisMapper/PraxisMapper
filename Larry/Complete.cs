@@ -6,7 +6,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using static CoreComponents.DbTables;
-using static CoreComponents.MapSupport;
 using static CoreComponents.ConstantValues;
 using static CoreComponents.Singletons;
 using static CoreComponents.Place;

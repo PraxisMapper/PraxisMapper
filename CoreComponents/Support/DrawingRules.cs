@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using SixLabors.ImageSharp.Drawing;
-
-namespace CoreComponents.Support
+﻿namespace CoreComponents.Support
 {
     class DrawingRules
     {
@@ -14,10 +7,11 @@ namespace CoreComponents.Support
         //Name
         //list<Brush> for each area type to draw it as.
         //maybe a rules processor that loads them from a database instead of being fixed in code?
+        //TODO: this would be for SkiaSharp now, so I have to re-evaluate how this would work.
         public void stuff()
         {
             string name;
-            var a = new SixLabors.ImageSharp.Drawing.Processing.SolidBrush(new SixLabors.ImageSharp.Color(new SixLabors.ImageSharp.PixelFormats.Rgba32(255, 255, 255)));
+            //var a = new SixLabors.ImageSharp.Drawing.Processing.SolidBrush(new SixLabors.ImageSharp.Color(new SixLabors.ImageSharp.PixelFormats.Rgba32(255, 255, 255)));
             
         }
         

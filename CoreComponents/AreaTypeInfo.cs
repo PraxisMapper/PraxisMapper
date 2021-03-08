@@ -1,12 +1,9 @@
 ﻿using Google.OpenLocationCode;
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Text;
-using System.Threading.Tasks;
-using static CoreComponents.DbTables;
 using static CoreComponents.ConstantValues;
+using static CoreComponents.DbTables;
 using static CoreComponents.Place;
 
 namespace CoreComponents
@@ -14,7 +11,6 @@ namespace CoreComponents
     //this is data on an Area (PlusCode cell), so AreaTypeInfo is the correct name. Places are MapData entries.
     public static class AreaTypeInfo
     {
-        //TODO: replace Cell10/Cell11 functions with the generic GetAreaType call directly.
         public static int GetAreaType(GeoArea cell, ref List<MapData> places, bool includePoints = true, double filterSize = 0)
         {
             if (places.Count() == 0) //One shortcut: if we have no places to check, don't bother with the rest of the logic.
@@ -45,26 +41,6 @@ namespace CoreComponents
             return area;
         }
 
-        public static int GetAreaTypeForCell10(double x, double y, ref List<MapData> places)
-        {
-            var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell10, x + resolutionCell10));
-            return GetAreaType(box, ref places, true);
-        }
-
-        public static int GetAreaTypeForCell11(double x, double y, ref List<MapData> places)
-        {
-            
-            //We can't shortcut this intersection check past that. This is the spot where we determine what's in this Cell11, and can't assume the list contains an overlapping entry.
-            var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell11Lat, x + resolutionCell11Lon));
-            return GetAreaType(box, ref places, true);
-        }
-
-        public static int GetAreaTypeForCell11(double x, double y, ref List<PreparedMapData> places)
-        {
-            var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell11Lat, x + resolutionCell11Lon));
-            return GetAreaType(box, ref places, true);
-        }
-
         public static int DetermineAreaType(List<MapData> entriesHere, bool allowPoints, double filterSize = 0)
         {
             var entry = PickSmallestEntry(entriesHere, allowPoints, filterSize);
@@ -78,22 +54,6 @@ namespace CoreComponents
                 return entry.AreaTypeId;
 
             return 0;
-        }
-
-        public static int DetermineBiggestAreaType(List<MapData> entries)
-        {
-            //This is an alternate sorting rule for maptiles with pixels bigger than a Cell10 in area.
-            //TODO: finish this, implement it correctly in appropriate spots.
-            //TODO: may need more complex rules on roads/buildings so that they can occasionally show up without dominating the map.
-            Dictionary<int, double> results = new Dictionary<int, double>();
-
-            foreach (var areatype in entries.Select(e => e.AreaTypeId).Distinct())
-                results.Add(areatype, 0);
-
-            foreach (var entry in entries)
-                results[entry.AreaTypeId] += entry.place.Area;
-
-            return results.OrderByDescending(r => r.Value).First().Key;
         }
 
         public static MapData PickSmallestEntry(List<MapData> entries, bool allowPoints = true, double filterSize = 0)
@@ -126,7 +86,6 @@ namespace CoreComponents
             return place;
         }
 
-
         public static PreparedMapData PickSmallestEntry(List<PreparedMapData> entries, bool allowPoints = true, double filterSize = 0)
         {
             //Current sorting rules:
@@ -155,28 +114,11 @@ namespace CoreComponents
             return place;
         }
 
-
-
         public static string DetermineAreaPlace(List<MapData> entriesHere)
         {
             //Which Place in this given Area is the one that should be displayed on the game/map as the name? picks the smallest one.
             var entry = PickSmallestEntry(entriesHere);
             return entry.name + "|" + entry.AreaTypeId + "|" + entry.MapDataId;
-        }
-
-        //ONly directly used in this class, above.
-        public static int DetermineAreaFaction(List<MapData> entriesHere, Tuple<long, int> shortcut = null)
-        {
-            var entry = PickSmallestEntry(entriesHere).MapDataId;
-            if (shortcut != null && entry == shortcut.Item1) //we are being told the results for a specific MapData entry from higher up in the chain.
-                return shortcut.Item2;
-
-            var db = new PraxisContext();
-            var faction = db.AreaControlTeams.Where(a => a.MapDataId == entry).FirstOrDefault();
-            if (faction == null)
-                return 0;
-
-            return faction.FactionId;
         }
 
         public static StringBuilder SearchArea(ref GeoArea area, ref List<MapData> mapData, bool entireCode = false)
@@ -226,19 +168,6 @@ namespace CoreComponents
                 return olc + "|" + area;
             }
             return "";
-        }
-
-        //Used when drawing MP AreaControl map tiles.
-        public static int GetFactionForCell11(double x, double y, ref List<MapData> places, Tuple<long, int> shortcut = null)
-        {
-            var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell11Lat, x + resolutionCell11Lon));
-            var entriesHere = GetPlaces(box, places).Where(p => p.AreaTypeId != 13).ToList(); //Excluding admin boundaries from this list.  
-
-            if (entriesHere.Count() == 0)
-                return 0;
-
-            int factionID = DetermineAreaFaction(entriesHere, shortcut);
-            return factionID;
-        }
+        }        
     }
 }

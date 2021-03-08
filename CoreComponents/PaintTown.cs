@@ -1,13 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using static CoreComponents.DbTables;
 
 namespace CoreComponents
 {
-    public static class PaintTown
+    public static class PaintTown //Core logic for Paint The Town moved here, to assist in decoupling it from the MVC controller if someone wants to re-implement a frontend.
     {
         public static List<PaintTownEntry> LearnCell8(int instanceID, string Cell8)
         {

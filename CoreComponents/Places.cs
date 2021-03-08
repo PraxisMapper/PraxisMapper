@@ -1,17 +1,14 @@
 ﻿using Google.OpenLocationCode;
+using NetTopologySuite.Geometries;
+using OsmSharp.Tags;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static CoreComponents.DbTables;
 using static CoreComponents.ConstantValues;
-using OsmSharp.Tags;
-using NetTopologySuite.Geometries;
-using static CoreComponents.Singletons;
+using static CoreComponents.DbTables;
 using static CoreComponents.GeometrySupport;
-using NetTopologySuite.Geometries.Prepared;
-using System.Collections.Concurrent;
+using static CoreComponents.Singletons;
 
 namespace CoreComponents
 {
@@ -62,36 +59,7 @@ namespace CoreComponents
             return places;
         }
 
-        public static List<MapData> GetPlacesCB(GeoArea area, ConcurrentBag<MapData> source, bool includeAdmin = false, bool includeGenerated = true)
-        {
-            //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
-            //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
-            List<MapData> places;
-            if (source == null)
-            {
-                var location = Converters.GeoAreaToPolygon(area); //Prepared items don't work on a DB lookup.
-                var db = new CoreComponents.PraxisContext();
-                if (includeAdmin)
-                    places = db.MapData.Where(md => location.Intersects(md.place)).ToList();
-                else
-                    places = db.MapData.Where(md => md.AreaTypeId != 13 && location.Intersects(md.place)).ToList();
-                //TODO: make including generated areas a toggle? or assume that this call is trivial performance-wise on an empty table
-                //A toggle might be good since this also affects maptiles
-                if (includeGenerated)
-                    places.AddRange(db.GeneratedMapData.Where(md => location.Intersects(md.place)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
-            }
-            else
-            {
-                var location = Converters.GeoAreaToPreparedPolygon(area);
-                if (includeAdmin)
-                    places = source.Where(md => location.Intersects(md.place)).Select(md => md.Clone()).ToList();
-                else
-                    places = source.Where(md => md.AreaTypeId != 13 && location.Intersects(md.place)).Select(md => md.Clone()).ToList();
-            }
-            return places;
-        }
-
-        //TODO: remove this function, I've confirmed it's faster the way I optimized GetPlaces() instead. Unless this is the secret sauce making maptiles go faster doing the AreaTypecheck
+        //TODO: remove this function, I've confirmed it's not faster than the way I optimized GetPlaces() instead. Unless this is the secret sauce making maptiles go faster doing the AreaTypecheck
         public static List<PreparedMapData> GetPreparedPlaces(GeoArea area, List<PreparedMapData> source = null, bool includeAdmin = true) //Mostly for drawing big maptiles.
         {
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
@@ -122,7 +90,7 @@ namespace CoreComponents
             return places;
         }
 
-        //TODO Can also apply the area-crop and prepared geometry optimizations to this function
+        //TODO Can also apply the area-crop and prepared geometry optimizations to this function? OR are those before this is called and redundant?
         public static bool DoPlacesExist(GeoArea area, List<MapData> source = null, bool includeGenerated = true)
         {
             //As GetPlaces, but only checks if there are entries. This also currently skipss admin boundaries as well for determining if stuff 'exists', since those aren't drawn.
@@ -265,16 +233,6 @@ namespace CoreComponents
             return name;
         }
 
-        public static int GetTypeId(TagsCollectionBase tags)
-        {
-            //gets the ID associated with a type.
-            string results = GetPlaceType(tags);
-            if (results.StartsWith("admin")) //all admin levels are treated as the same type
-                return areaTypeReference["admin"].First();
-
-            return areaTypeReference[results].First();
-        }
-
         public static string GetPlaceType(TagsCollectionBase tagsO)
         {
             //This is how we will figure out which area a cell counts as now.
@@ -299,7 +257,7 @@ namespace CoreComponents
             //highway=path is non-motor vehicle, and otherwise very generic. 5% of all Ways in OSM.
             //highway=footway is pedestrian traffic only, maybe including bikes. Mostly sidewalks, which I dont' want to include.
             //highway=bridleway is horse paths, maybe including pedestrians and bikes
-            //highway=cycleway is for bikes, maybe including pedesterians.
+            //highway=cycleway is for bikes, maybe including pedestrians.
             if (DbSettings.processTrail && tags["highway"].Any(v => relevantTrailValues.Contains(v)
                 && !tags["footway"].Any(v => v == "sidewalk" || v == "crossing")))
                 return "trail";
@@ -471,34 +429,5 @@ namespace CoreComponents
             var area = new OpenLocationCode(code); //Might need to re-add the + if its not present?
             return IsInBounds(area);
         }
-
-        public static List<long> GetPlaceIDs(GeoArea area, ref List<MapData> source, bool includeAdmin = true)
-        {
-            //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
-            //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
-            List<long> places;
-            if (source == null)
-            {
-                var location = Converters.GeoAreaToPolygon(area); //Prepared items don't work on a DB lookup.
-                var db = new CoreComponents.PraxisContext();
-                if (includeAdmin)
-                    places = db.MapData.Where(md => location.Intersects(md.place)).Select(md => md.MapDataId).ToList();
-                else
-                    places = db.MapData.Where(md => md.AreaTypeId != 13 && location.Intersects(md.place)).Select(md => md.MapDataId).ToList();
-                //TODO: make including generated areas a toggle? or assume that this call is trivial performance-wise on an empty table
-                //A toggle might be good since this also affects maptiles
-                places.AddRange(db.GeneratedMapData.Where(md => location.Intersects(md.place)).Select(g => g.GeneratedMapDataId + 100000000));
-            }
-            else
-            {
-                var location = Converters.GeoAreaToPreparedPolygon(area);
-                if (includeAdmin)
-                    places = source.Where(md => location.Intersects(md.place)).Select(md => md.MapDataId).ToList();
-                else
-                    places = source.Where(md => md.AreaTypeId != 13 && location.Intersects(md.place)).Select(md => md.MapDataId).ToList();
-            }
-            return places;
-        }
-
     }
 }
