@@ -1,24 +1,20 @@
 ﻿using CoreComponents;
 using Google.OpenLocationCode;
 using Microsoft.AspNetCore.Mvc;
-using PraxisMapper.Classes;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using static CoreComponents.DbTables;
-using SixLabors.ImageSharp.Processing;
-using System.IO;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using NetTopologySuite.Geometries.Prepared;
+using PraxisMapper.Classes;
+using System;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using static CoreComponents.ConstantValues;
 using static CoreComponents.Converters;
-using static CoreComponents.Singletons;
+using static CoreComponents.DbTables;
 using static CoreComponents.Place;
 using static CoreComponents.ScoreData;
+using static CoreComponents.Singletons;
 
 namespace PraxisMapper.Controllers
 {
