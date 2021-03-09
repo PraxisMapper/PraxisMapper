@@ -41,56 +41,51 @@ namespace PraxisMapper.Controllers
         }
         //Manual map edits:
         //none currently
-        //TODO:
-        //Call Flex* logic inside of Cell# functions so i have one function doing identical work in all areas (also might mean flex areas need to identify when everything is inside one cell? possibly by size == resolution10/8/6?)
-        //Evaluate threading performance with nultiple requests coming in. Many functions seem to have massive performance gains with a single request with parallel loops, not sure if thats true under load.
-        //Ponder allowing mapTiles and mapData to be separate databases, with different connection strings?
+        //[HttpGet]
+        //[Route("/[controller]/LearnCell6/{plusCode6}")]
+        //public string LearnCell6(string plusCode6) //The current primary function used by the app. Uses the Cell6 area given to it
+        //{
+        //    //Send over the plus code to look up.
+        //    PerformanceTracker pt = new PerformanceTracker("LearnCell6");
+        //    var codeString6 = plusCode6;
+        //    string cachedResults = "";
+        //    if (Configuration.GetValue<bool>("enableCaching") && cache.TryGetValue(codeString6, out cachedResults))
+        //    {
+        //        pt.Stop(codeString6);
+        //        return cachedResults;
+        //    }
+        //    var box = OpenLocationCode.DecodeValid(codeString6);
 
-        [HttpGet]
-        [Route("/[controller]/LearnCell6/{plusCode6}")]
-        public string LearnCell6(string plusCode6) //The current primary function used by the app. Uses the Cell6 area given to it
-        {
-            //Send over the plus code to look up.
-            PerformanceTracker pt = new PerformanceTracker("LearnCell6");
-            var codeString6 = plusCode6;
-            string cachedResults = "";
-            if (Configuration.GetValue<bool>("enableCaching") && cache.TryGetValue(codeString6, out cachedResults))
-            {
-                pt.Stop(codeString6);
-                return cachedResults;
-            }
-            var box = OpenLocationCode.DecodeValid(codeString6);
+        //    var places = GetPlaces(OpenLocationCode.DecodeValid(codeString6));  //All the places in this 6-code
+        //    StringBuilder sb = new StringBuilder();
+        //    sb.AppendLine(codeString6);
+        //    //pluscode6 //first 6 digits of this pluscode. each line below is the last 4 that have an area type.
+        //    //pluscode4|name|type|MapDataID  //less data transmitted, an extra string concat per entry phone-side.
 
-            var places = GetPlaces(OpenLocationCode.DecodeValid(codeString6));  //All the places in this 6-code
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine(codeString6);
-            //pluscode6 //first 6 digits of this pluscode. each line below is the last 4 that have an area type.
-            //pluscode4|name|type|MapDataID  //less data transmitted, an extra string concat per entry phone-side.
+        //    //Notes: 
+        //    //StringBuilder isn't thread-safe, so each thread needs its own, and their results combined later.
+        //    int splitcount = 40; //creates 1600 entries(40x40)
+        //    List<MapData>[] placeArray;
+        //    GeoArea[] areaArray;
+        //    StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
+        //    Converters.SplitArea(box, splitcount, places, out placeArray, out areaArray);
+        //    System.Threading.Tasks.Parallel.For(0, placeArray.Length, (i) =>
+        //   {
+        //       sbArray[i] = SearchArea(ref areaArray[i], ref placeArray[i]);
+        //   });
 
-            //Notes: 
-            //StringBuilder isn't thread-safe, so each thread needs its own, and their results combined later.
-            int splitcount = 40; //creates 1600 entries(40x40)
-            List<MapData>[] placeArray;
-            GeoArea[] areaArray;
-            StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
-            Converters.SplitArea(box, splitcount, places, out placeArray, out areaArray);
-            System.Threading.Tasks.Parallel.For(0, placeArray.Length, (i) =>
-           {
-               sbArray[i] = SearchArea(ref areaArray[i], ref placeArray[i]);
-           });
+        //    foreach (StringBuilder sbPartial in sbArray)
+        //        sb.Append(sbPartial.ToString());
 
-            foreach (StringBuilder sbPartial in sbArray)
-                sb.Append(sbPartial.ToString());
+        //    string results = sb.ToString();
+        //    var options = new MemoryCacheEntryOptions();
+        //    options.SetSize(1);
+        //    if (Configuration.GetValue<bool>("enableCaching"))
+        //        cache.Set(codeString6, results, options);
 
-            string results = sb.ToString();
-            var options = new MemoryCacheEntryOptions();
-            options.SetSize(1);
-            if (Configuration.GetValue<bool>("enableCaching"))
-                cache.Set(codeString6, results, options);
-
-            pt.Stop(codeString6);
-            return results;
-        }
+        //    pt.Stop(codeString6);
+        //    return results;
+        //}
 
         [HttpGet]
         [Route("/[controller]/LearnCell8/{plusCode8}")]
@@ -158,53 +153,53 @@ namespace PraxisMapper.Controllers
             return results;
         }
 
-        [HttpGet]
-        [Route("/[controller]/LearnSurroundingCell6/{lat}/{lon}")]
-        public string LearnSurroundingCell6(double lat, double lon) // pulls in a Cell6 sized area centered on the coords given. Returns full PlusCode name for each Cell10
-        {
-            //Take in GPS coords
-            //Create area the size of a 6-cell plus code centered on that point
-            //return the list of 10-cells in that area.
-            //Note: caching is disabled on this request. we can't key on lat/lon and expect the cache results to get used. Need to save these results in something more useful.
+        //[HttpGet]
+        //[Route("/[controller]/LearnSurroundingCell6/{lat}/{lon}")]
+        //public string LearnSurroundingCell6(double lat, double lon) // pulls in a Cell6 sized area centered on the coords given. Returns full PlusCode name for each Cell10
+        //{
+        //    //Take in GPS coords
+        //    //Create area the size of a 6-cell plus code centered on that point
+        //    //return the list of 10-cells in that area.
+        //    //Note: caching is disabled on this request. we can't key on lat/lon and expect the cache results to get used. Need to save these results in something more useful.
 
-            PerformanceTracker pt = new PerformanceTracker("LearnSurroundingCell6");
-            string pointDesc = lat.ToString() + "|" + lon.ToString();
-            //string cachedResults = "";
-            //if (cache.TryGetValue(pointDesc, out cachedResults))
-            //{
-            //    pt.Stop(pointDesc);
-            //    return cachedResults;
-            //}
-            GeoArea box = new GeoArea(new GeoPoint(lat - .025, lon - .025), new GeoPoint(lat + .025, lon + .025));
+        //    PerformanceTracker pt = new PerformanceTracker("LearnSurroundingCell6");
+        //    string pointDesc = lat.ToString() + "|" + lon.ToString();
+        //    //string cachedResults = "";
+        //    //if (cache.TryGetValue(pointDesc, out cachedResults))
+        //    //{
+        //    //    pt.Stop(pointDesc);
+        //    //    return cachedResults;
+        //    //}
+        //    GeoArea box = new GeoArea(new GeoPoint(lat - .025, lon - .025), new GeoPoint(lat + .025, lon + .025));
 
-            var places = GetPlaces(box);  //All the places in this 6-code //NOTE: takes 500ms here, but 6-codes should take ~15ms in perftesting.
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine(pointDesc);
-            //This endpoint puts the whole 10-digit plus code (without the separator) at the start of the line. I can't guarentee that any digits are shared since this isn't a grid-bound endpoint.
+        //    var places = GetPlaces(box);  //All the places in this 6-code //NOTE: takes 500ms here, but 6-codes should take ~15ms in perftesting.
+        //    StringBuilder sb = new StringBuilder();
+        //    sb.AppendLine(pointDesc);
+        //    //This endpoint puts the whole 10-digit plus code (without the separator) at the start of the line. I can't guarentee that any digits are shared since this isn't a grid-bound endpoint.
 
-            //Notes: 
-            //StringBuilder isn't thread-safe, so each thread needs its own, and their results combined later.
-            int splitcount = 40; //creates 1600 entries(40x40)
-            List<MapData>[] placeArray;
-            GeoArea[] areaArray;
-            StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
-            Converters.SplitArea(box, splitcount, places, out placeArray, out areaArray);
-            System.Threading.Tasks.Parallel.For(0, placeArray.Length, (i) =>
-            {
-                sbArray[i] = SearchArea(ref areaArray[i], ref placeArray[i], true);
-            });
+        //    //Notes: 
+        //    //StringBuilder isn't thread-safe, so each thread needs its own, and their results combined later.
+        //    int splitcount = 40; //creates 1600 entries(40x40)
+        //    List<MapData>[] placeArray;
+        //    GeoArea[] areaArray;
+        //    StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
+        //    Converters.SplitArea(box, splitcount, places, out placeArray, out areaArray);
+        //    System.Threading.Tasks.Parallel.For(0, placeArray.Length, (i) =>
+        //    {
+        //        sbArray[i] = SearchArea(ref areaArray[i], ref placeArray[i], true);
+        //    });
 
-            foreach (StringBuilder sbPartial in sbArray)
-                sb.Append(sbPartial.ToString());
+        //    foreach (StringBuilder sbPartial in sbArray)
+        //        sb.Append(sbPartial.ToString());
 
-            string results = sb.ToString();
-            //var options = new MemoryCacheEntryOptions();
-            //options.SetSize(1);
-            //cache.Set(pointDesc, results, options);
+        //    string results = sb.ToString();
+        //    //var options = new MemoryCacheEntryOptions();
+        //    //options.SetSize(1);
+        //    //cache.Set(pointDesc, results, options);
 
-            pt.Stop(pointDesc);
-            return results;
-        }
+        //    pt.Stop(pointDesc);
+        //    return results;
+        //}
 
         [HttpGet]
         [Route("/[controller]/LearnAdminBounds/{lat}/{lon}")]
@@ -224,14 +219,14 @@ namespace PraxisMapper.Controllers
             return sb.ToString();
         }
 
-        [HttpGet]
-        [Route("/[controller]/LearnCell6/{lat}/{lon}")]
-        public string LearnCell6(double lat, double lon) //convenience method, makes the server do the plusCode grid encode.
-        {
-            var codeRequested = new OpenLocationCode(lat, lon);
-            var sixCell = codeRequested.CodeDigits.Substring(0, 6);
-            return LearnCell6(sixCell);
-        }
+        //[HttpGet]
+        //[Route("/[controller]/LearnCell6/{lat}/{lon}")]
+        //public string LearnCell6(double lat, double lon) //convenience method, makes the server do the plusCode grid encode.
+        //{
+        //    var codeRequested = new OpenLocationCode(lat, lon);
+        //    var sixCell = codeRequested.CodeDigits.Substring(0, 6);
+        //    return LearnCell6(sixCell);
+        //}
 
         [HttpGet]
         [Route("/[controller]/LearnCell8/{lat}/{lon}")]
@@ -489,23 +484,22 @@ namespace PraxisMapper.Controllers
             sb.AppendLine(pointDesc);
             //This endpoint puts the whole 10-digit plus code (without the separator) at the start of the line. I can't guarentee that any digits are shared since this isn't a grid-bound endpoint.
 
+            //TODO in-process: remove multithreading from web code, its poor form to let 1 request eat multiple CPUs that would otherwise serve other user requests.
             //Notes: 
             //StringBuilders isn't thread-safe, so each thread needs its own, and their results combined later.
-
+            
             //This is sort of a magic formula I wandered into.
             // Sqrt(Size / resolution10 ) * 2 is my current logic.
-            int splitcount = (int)Math.Floor(Math.Sqrt(size / resolutionCell10) * 2);
-            List<MapData>[] placeArray;
-            GeoArea[] areaArray;
-            StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
-            Converters.SplitArea(box, splitcount, places, out placeArray, out areaArray);
-            System.Threading.Tasks.Parallel.For(0, placeArray.Length, (i) =>
-            {
-                sbArray[i] = SearchArea(ref areaArray[i], ref placeArray[i], true);
-            });
+            
+            StringBuilder sbArray = new StringBuilder();
+            //Converters.SplitArea(box, splitcount, places, out placeArray, out areaArray);
+            //System.Threading.Tasks.Parallel.For(0, placeArray.Length, (i) =>
+            //{
+                sbArray = SearchArea(ref box, ref places, true);
+            //});
 
-            foreach (StringBuilder sbPartial in sbArray)
-                sb.Append(sbPartial.ToString());
+            //foreach (StringBuilder sbPartial in sbArray)
+                sb.Append(sbArray.ToString());
 
             string results = sb.ToString();
             pt.Stop(pointDesc + "|" + size);
@@ -520,8 +514,8 @@ namespace PraxisMapper.Controllers
             PerformanceTracker pt = new PerformanceTracker("CalculateAreaPoints");
             GeoArea box = OpenLocationCode.DecodeValid(plusCode8);
             var places = GetPlaces(box);
-            var plusCodeCoords = Converters.GeoAreaToCoordArray(box);
-            var plusCodePoly = factory.CreatePolygon(plusCodeCoords);
+            //var plusCodeCoords = Converters.GeoAreaToCoordArray(box);
+            var plusCodePoly = Converters.GeoAreaToPolygon(box);
             var results = GetScoresForArea(plusCodePoly, places);
             pt.Stop();
 
@@ -548,8 +542,7 @@ namespace PraxisMapper.Controllers
             PerformanceTracker pt = new PerformanceTracker("CalculateFlexAreaPoints");
             GeoArea box = new GeoArea(new GeoPoint(lat - (size / 2), lon - (size / 2)), new GeoPoint(lat + (size / 2), lon + (size / 2)));
             var places = GetPlaces(box);
-            var coords = Converters.GeoAreaToCoordArray(box);
-            var poly = factory.CreatePolygon(coords);
+            var poly = Converters.GeoAreaToPolygon(box);
             var results = GetScoresForArea(poly, places);
             pt.Stop();
             return results;
@@ -562,8 +555,7 @@ namespace PraxisMapper.Controllers
             PerformanceTracker pt = new PerformanceTracker("CalculateFlexFullAreaPoints");
             GeoArea box = new GeoArea(new GeoPoint(lat - (size / 2), lon - (size / 2)), new GeoPoint(lat + (size / 2), lon + (size / 2)));
             var places = GetPlaces(box);
-            var coords = Converters.GeoAreaToCoordArray(box);
-            var poly = factory.CreatePolygon(coords);
+            var poly = Converters.GeoAreaToPolygon(box);
             var results =  GetScoresForArea(poly, places);
             pt.Stop();
             return results;

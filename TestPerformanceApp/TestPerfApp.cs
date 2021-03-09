@@ -232,11 +232,11 @@ namespace PerformanceTestApp
                 List<MapData>[] placeArray;
                 GeoArea[] areaArray;
                 StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
-                Converters.SplitArea(box, splitcount, places, out placeArray, out areaArray);
-                System.Threading.Tasks.Parallel.For(0, placeArray.Length, (i) =>
-                {
-                    sbArray[i] = AreaTypeInfo.SearchArea(ref areaArray[i], ref placeArray[i]);
-                });
+                //Converters.SplitArea(box, splitcount, places, out placeArray, out areaArray);
+                //System.Threading.Tasks.Parallel.For(0, placeArray.Length, (i) =>
+                //{
+                //    sbArray[i] = AreaTypeInfo.SearchArea(ref areaArray[i], ref placeArray[i]);
+                //});
                 sw.Stop();
                 Log.WriteLog("dividing map by " + splitcount + " took " + sw.ElapsedMilliseconds + " ms");
             }
@@ -471,8 +471,7 @@ namespace PerformanceTestApp
 
         public static List<MapData> GetPlacesBase(GeoArea area, List<MapData> source = null)
         {
-            var coordSeq = Converters.GeoAreaToCoordArray(area);
-            var location = factory.CreatePolygon(coordSeq);
+            var location = Converters.GeoAreaToPolygon(area);
             List<MapData> places;
             if (source == null)
             {
@@ -983,7 +982,7 @@ namespace PerformanceTestApp
                     raster.Stop();
 
                     vector.Start();
-                    MapTiles.DrawAreaMapTile(ref places, area, 11);
+                    //MapTiles.DrawAreaMapTile(ref places, area, 11);
                     vector.Stop();
                 }
 
@@ -1010,7 +1009,7 @@ namespace PerformanceTestApp
                     raster.Stop();
 
                     vector.Start();
-                    MapTiles.DrawAreaMapTile(ref places, area, 11);
+                    //MapTiles.DrawAreaMapTile(ref places, area, 11);
                     vector.Stop();
                 }
 
@@ -1051,9 +1050,9 @@ namespace PerformanceTestApp
             var places2 = places.Select(p => p.Clone()).ToList(); //Trimming occurs in the draw functions, so we need a copy to make the test fair.
             Stopwatch sw = new Stopwatch();
             sw.Start();
-            var results1 = MapTiles.DrawAreaMapTileSlippy(ref places, relevantArea, areaHeightDegrees, areaWidthDegrees);
+            //var results1 = MapTiles.DrawAreaMapTileSlippy(ref places, relevantArea, areaHeightDegrees, areaWidthDegrees);
             sw.Stop();
-            System.IO.File.WriteAllBytes("ImageSharp-" + x + "_" + y + "_" + "_" + zoom + ".png", results1);
+            //System.IO.File.WriteAllBytes("ImageSharp-" + x + "_" + y + "_" + "_" + zoom + ".png", results1);
             Log.WriteLog("ImageSharp performance:" + sw.ElapsedMilliseconds + "ms");
             sw.Restart();
             var results2 = MapTiles.DrawAreaMapTileSlippySkia(ref places2, relevantArea, areaHeightDegrees, areaWidthDegrees);

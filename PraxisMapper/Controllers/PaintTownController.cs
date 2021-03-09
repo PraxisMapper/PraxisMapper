@@ -54,6 +54,9 @@ namespace PraxisMapper.Controllers
 
                     List<long> teams = db.Factions.Select(f => f.FactionId).ToList();
                     cache.Set("factions", teams, mco);
+
+                    var settings = db.ServerSettings.FirstOrDefault();
+                    cache.Set("settings", settings, mco);
                 }
 
                 if (cache != null)
@@ -110,8 +113,12 @@ namespace PraxisMapper.Controllers
                 var db = new PraxisContext();
                 //run all the instances at once.
                 List<long> factions = null;
+                ServerSetting settings = null;
                 if (cache != null)
+                {
                     factions = (List<long>)cache.Get("factions");
+                    settings = (ServerSetting)cache.Get("settings");
+                }
                 
                 if (factions == null)
                     factions = db.Factions.Select(f => f.FactionId).ToList();
@@ -122,7 +129,11 @@ namespace PraxisMapper.Controllers
                     return 0; //We got a claim for an invalid team, don't save anything.
                 }
 
-                if (!Place.IsInBounds(Cell10))
+                //check boundaries
+                if (settings == null)
+                    settings = db.ServerSettings.FirstOrDefault();
+
+                if (!Place.IsInBounds(Cell10, settings))
                 {
                     pt.Stop("OOB:" + Cell10);
                     return 0;

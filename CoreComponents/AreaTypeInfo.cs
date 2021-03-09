@@ -11,51 +11,6 @@ namespace CoreComponents
     //this is data on an Area (PlusCode cell), so AreaTypeInfo is the correct name. Places are MapData entries.
     public static class AreaTypeInfo
     {
-        public static int GetAreaType(GeoArea cell, ref List<MapData> places, bool includePoints = true, double filterSize = 0)
-        {
-            if (places.Count() == 0) //One shortcut: if we have no places to check, don't bother with the rest of the logic.
-                return 0;
-
-            //We can't shortcut this intersection check past that. This is the spot where we determine what's in this Cell11, and can't assume the list contains an overlapping entry.
-            var entriesHere = GetPlaces(cell, places).ToList(); //Excluding admin boundaries from this list.  
-
-            if (entriesHere.Count() == 0)
-                return 0;
-
-            int area = DetermineAreaType(entriesHere, includePoints, filterSize);
-            return area;
-        }
-
-        public static int GetAreaType(GeoArea cell, ref List<PreparedMapData> places, bool includePoints = true, double filterSize = 0)
-        {
-            if (places.Count() == 0) //One shortcut: if we have no places to check, don't bother with the rest of the logic.
-                return 0;
-
-            //We can't shortcut this intersection check past that. This is the spot where we determine what's in this Cell11, and can't assume the list contains an overlapping entry.
-            var entriesHere = GetPreparedPlaces(cell, places, false).ToList(); //Excluding admin boundaries from this list.  
-
-            if (entriesHere.Count() == 0)
-                return 0;
-
-            int area = DetermineAreaType(entriesHere, includePoints, filterSize);
-            return area;
-        }
-
-        public static int DetermineAreaType(List<MapData> entriesHere, bool allowPoints, double filterSize = 0)
-        {
-            var entry = PickSmallestEntry(entriesHere, allowPoints, filterSize);
-            return entry.AreaTypeId;
-        }
-
-        public static int DetermineAreaType(List<PreparedMapData> entriesHere, bool allowPoints, double filterSize = 0)
-        {
-            var entry = PickSmallestEntry(entriesHere, allowPoints, filterSize);
-            if (entry != null)
-                return entry.AreaTypeId;
-
-            return 0;
-        }
-
         public static MapData PickSmallestEntry(List<MapData> entries, bool allowPoints = true, double filterSize = 0)
         {
             //Current sorting rules:

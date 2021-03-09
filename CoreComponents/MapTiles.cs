@@ -1,14 +1,9 @@
 ﻿using Google.OpenLocationCode;
 using NetTopologySuite.Geometries;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Drawing.Processing;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using static CoreComponents.AreaTypeInfo;
 using static CoreComponents.ConstantValues;
 using static CoreComponents.DbTables;
 using static CoreComponents.Place;
@@ -18,6 +13,8 @@ namespace CoreComponents
 {
     public static class MapTiles
     {
+        const int MapTileSizeSquare = 512;
+
         public static void GetResolutionValues(int CellSize, out double resX, out double resY)
         {
             switch (CellSize)
@@ -68,7 +65,7 @@ namespace CoreComponents
             //Or should this filter to 'smallest area over filter size'?
 
             //To make sure we don't get any seams on our maptiles (or points that don't show a full circle, we add a little extra area to the image before drawing (Skia just doesn't draw things outside the canvas)
-            totalArea = new GeoArea(new GeoPoint(totalArea.Min.Latitude - resolutionCell10, totalArea.Min.Longitude - resolutionCell10), new GeoPoint(totalArea.Max.Latitude + resolutionCell10, totalArea.Max.Longitude + resolutionCell10));
+            var dataLoadArea = new GeoArea(new GeoPoint(totalArea.Min.Latitude - resolutionCell10, totalArea.Min.Longitude - resolutionCell10), new GeoPoint(totalArea.Max.Latitude + resolutionCell10, totalArea.Max.Longitude + resolutionCell10));
 
             List<MapData> rowPlaces;
             //create a new bitmap.
@@ -77,103 +74,19 @@ namespace CoreComponents
             int imagesizeY = (int)Math.Ceiling(totalArea.LatitudeHeight / degreesPerPixelY);
 
             var db = new PraxisContext();
-            List<MapData> allPlaces = GetPlaces(totalArea, null, false, true); //Includes generated here with the final True parameter.
+            List<MapData> allPlaces = GetPlaces(dataLoadArea, null, false, true); //Includes generated here with the final True parameter.
             List<long> placeIDs = allPlaces.Select(a => a.MapDataId).ToList();
             Dictionary<long, int> teamClaims = db.AreaControlTeams.Where(act => placeIDs.Contains(act.MapDataId)).ToDictionary(k => k.MapDataId, v => v.FactionId);
 
-
             //crop all places to the current area. This removes a ton of work from the process by simplifying geometry to only what's relevant, instead of drawing all of a great lake or state-wide park.
-            var cropArea = Converters.GeoAreaToPolygon(totalArea);
+            var cropArea = Converters.GeoAreaToPolygon(dataLoadArea);
             //A quick fix to drawing order when multiple areas take up the entire cell: sort before the crop (otherwise, the areas are drawn in a random order, which makes some disappear)
             //Affects small map tiles more often than larger ones, but it can affect both.
             allPlaces = allPlaces.Where(ap => teamClaims.ContainsKey(ap.MapDataId)).OrderByDescending(a => a.place.Area).ThenByDescending(a => a.place.Length).ToList();
             foreach (var ap in allPlaces)
                 ap.place = ap.place.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
 
-            var image = InnerDrawSkia(ref allPlaces, totalArea, degreesPerPixelX, degreesPerPixelY, imagesizeX, imagesizeY, transparent: true); 
-
-            return ms.ToArray();
-        }
-
-        public static byte[] DrawAreaMapTile(ref List<MapData> allPlaces, GeoArea totalArea, int pixelSizeCells)
-        {
-            //Initial suggestion for these is to use a pixelSizeCell value 2 steps down from the areas size
-            //EX: for Cell8 tiles, use 11 for the pixel cell size (this is the default I use, smallest location in a pixel sets the color)
-            //or for Cell4 tiles, use Cell8 pixel size. (alternative sort for pixel color: largest area? Exclude points?)
-            //But this is gaining flexibilty, and adjusting pixelSizeCells to a double to be degreesPerPixel allows for more freedom.
-            double resolutionX, resolutionY;
-            double filterSize = 0;
-            GetResolutionValues(pixelSizeCells, out resolutionX, out resolutionY);
-            if (pixelSizeCells < 10) // Roads and buildings are good at Cell10+. Not helpful at Cell8-;
-                filterSize = resolutionX / 2; //things smaller than half a pixel will not be considered for the map tile. Might just want to toggle the alternate sort rules for pixels (most area, not smallest item)
-            //Or should this filter to 'smallest area over filter size'?
-
-            //To make sure we don't get any seams on our maptiles (or points that don't show a full circle, we add a little extra area to the image before drawing, then crop it out at the end.
-            totalArea = new GeoArea(new GeoPoint(totalArea.Min.Latitude - resolutionCell10, totalArea.Min.Longitude - resolutionCell10), new GeoPoint(totalArea.Max.Latitude + resolutionCell10, totalArea.Max.Longitude + resolutionCell10));
-
-            List<MapData> rowPlaces;
-            //create a new bitmap.
-            MemoryStream ms = new MemoryStream();
-            int imagesizeX = (int)Math.Ceiling(totalArea.LongitudeWidth / resolutionX);
-            int imagesizeY = (int)Math.Ceiling(totalArea.LatitudeHeight / resolutionY);
-
-            //crop all places to the current area. This removes a ton of work from the process by simplifying geometry to only what's relevant, instead of drawing all of a great lake or state-wide park.
-            var cropArea = Converters.GeoAreaToPolygon(totalArea);
-            //A quick fix to drawing order when multiple areas take up the entire cell: sort before the crop (otherwise, the areas are drawn in a random order, which makes some disappear)
-            //Affects small map tiles more often than larger ones, but it can affect both.
-            allPlaces = allPlaces.OrderByDescending(a => a.place.Area).ThenByDescending(a => a.place.Length).ToList();
-            foreach (var ap in allPlaces)
-                ap.place = ap.place.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
-
-            var options = new ShapeGraphicsOptions(); //currently using defaults.
-            using (var image = new Image<Rgba32>(imagesizeX, imagesizeY))
-            {
-                image.Mutate(x => x.Fill(Rgba32.ParseHex(areaColorReference[999].First()))); //set all the areas to the background color
-
-                //Now, instead of going per pixel, go per area, sorted by area descending.
-                foreach (var place in allPlaces.Where(ap => ap.AreaTypeId != 13)) //Exclude admin areas if they got passed in.
-                {
-                    var color = areaColorReferenceRgba32[place.AreaTypeId];
-                    switch (place.place.GeometryType)
-                    {
-                        case "Polygon":
-                            var drawThis = Converters.PolygonToDrawingPolygon(place.place, totalArea, resolutionX, resolutionY);
-                            image.Mutate(x => x.Fill(color, drawThis));
-                            break;
-                        case "MultiPolygon":
-                            foreach (var p in ((MultiPolygon)place.place).Geometries)
-                            {
-                                var drawThis2 = Converters.PolygonToDrawingPolygon(p, totalArea, resolutionX, resolutionY);
-                                image.Mutate(x => x.Fill(color, drawThis2));
-                            }
-                            break;
-                        case "LineString":
-                            var drawThis3 = Converters.LineToDrawingLine(place.place, totalArea, resolutionX, resolutionY);
-                            if (drawThis3.Count() > 1)
-                                image.Mutate(x => x.DrawLines(color, 1, drawThis3.ToArray()));
-                            break;
-                        case "MultiLineString":
-                            foreach (var p in ((MultiLineString)place.place).Geometries)
-                            {
-                                var drawThis4 = Converters.LineToDrawingLine(p, totalArea, resolutionX, resolutionY);
-                                image.Mutate(x => x.DrawLines(color, 1, drawThis4.ToArray()));
-                            }
-                            break;
-                        case "Point":
-                            var point = Converters.PointToPointF(place.place, totalArea, resolutionX, resolutionY);
-                            //image.Mutate(x => x.DrawLines(color, 3, new PointF[] {point, point }));
-
-                            var shape = new SixLabors.ImageSharp.Drawing.EllipsePolygon(Converters.PointToPointF(place.place, totalArea, resolutionX, resolutionY), 1.5f);
-                            image.Mutate(x => x.Fill(color, shape));
-                            break;
-                    }
-                }
-                image.Mutate(x => x.Flip(FlipMode.Vertical)); //Plus codes are south-to-north, so invert the image to make it correct.
-                int removeX = (int)Math.Ceiling(resolutionCell10 / resolutionX);
-                int removeY = (int)Math.Ceiling(resolutionCell10 / resolutionY);
-                image.Mutate(x => x.Crop(new Rectangle(removeX, removeY, imagesizeX - (removeX * 2), imagesizeY - (removeY * 2)))); //remove a Cell10's data from the edges.
-                image.SaveAsPng(ms);
-            } //image disposed here.
+            var image = InnerDrawSkia(ref allPlaces, totalArea, degreesPerPixelX, degreesPerPixelY, imagesizeX, imagesizeY, transparent: true);
 
             return ms.ToArray();
         }
@@ -189,156 +102,54 @@ namespace CoreComponents
             GetResolutionValues(pixelSizeCells, out degreesPerPixelX, out degreesPerPixelY);
             if (pixelSizeCells < 10) // Roads and buildings are good at Cell10+. Not helpful at Cell8-;
                 filterSize = degreesPerPixelX / 2; //things smaller than half a pixel will not be considered for the map tile. Might just want to toggle the alternate sort rules for pixels (most area, not smallest item)
-            //Or should this filter to 'smallest area over filter size'?
 
             List<MapData> rowPlaces;
-            //create a new bitmap.
             MemoryStream ms = new MemoryStream();
             int imagesizeX = (int)Math.Ceiling(totalArea.LongitudeWidth / degreesPerPixelX);
             int imagesizeY = (int)Math.Ceiling(totalArea.LatitudeHeight / degreesPerPixelY);
 
             //To make sure we don't get any seams on our maptiles (or points that don't show a full circle, we add a little extra area to the image before drawing, then crop it out at the end.
             //Do this after determining image size, since Skia will ignore parts off-canvas.
-            totalArea = new GeoArea(new GeoPoint(totalArea.Min.Latitude - resolutionCell10, totalArea.Min.Longitude - resolutionCell10), new GeoPoint(totalArea.Max.Latitude + resolutionCell10, totalArea.Max.Longitude + resolutionCell10));
+            var dataLoadArea = new GeoArea(new GeoPoint(totalArea.Min.Latitude - resolutionCell10, totalArea.Min.Longitude - resolutionCell10), new GeoPoint(totalArea.Max.Latitude + resolutionCell10, totalArea.Max.Longitude + resolutionCell10));
 
             //crop all places to the current area. This removes a ton of work from the process by simplifying geometry to only what's relevant, instead of drawing all of a great lake or state-wide park.
-            var cropArea = Converters.GeoAreaToPolygon(totalArea);
+            var cropArea = Converters.GeoAreaToPolygon(dataLoadArea);
             //A quick fix to drawing order when multiple areas take up the entire cell: sort before the crop (otherwise, the areas are drawn in a random order, which makes some disappear)
             //Affects small map tiles more often than larger ones, but it can affect both.
             allPlaces = allPlaces.OrderByDescending(a => a.place.Area).ThenByDescending(a => a.place.Length).ToList();
             foreach (var ap in allPlaces)
                 ap.place = ap.place.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
 
-
             return InnerDrawSkia(ref allPlaces, totalArea, degreesPerPixelX, degreesPerPixelY, imagesizeX, imagesizeY);
         }
 
-        public static byte[] DrawAreaMapTileSlippy(ref List<MapData> allPlaces, GeoArea totalArea, double areaHeight, double areaWidth, bool transparent = false)
+        public static byte[] DrawMPAreaMapTileSlippySkia(GeoArea totalArea, double areaHeight, double areaWidth)
         {
             //Resolution scaling here is flexible, since we're always drawing a 512x512 tile.
-            //This has the crop-logic removed temporarily while I figure out how to fix that for a variable-resolution image.
-            double resolutionX, resolutionY;
-            double filterSize = 0;
-            resolutionX = areaWidth / 512;
-            resolutionY = areaHeight / 512;
+            double degreesPerPixelX, degreesPerPixelY;
+            degreesPerPixelX = areaWidth / MapTileSizeSquare;
+            degreesPerPixelY = areaHeight / MapTileSizeSquare;
             bool drawEverything = false; //for debugging/testing
-            var smallestFeature = (drawEverything ? 0 : resolutionX < resolutionY ? resolutionX : resolutionY);
-            //GetResolutionValues(pixelSizeCells, out resolutionX, out resolutionY);
-            //if (pixelSizeCells < 10) // Roads and buildings are good at Cell10+. Not helpful at Cell8-;
-            //filterSize = resolutionX / 2; //things smaller than half a pixel will not be considered for the map tile. Might just want to toggle the alternate sort rules for pixels (most area, not smallest item)
-            //Or should this filter to 'smallest area over filter size'?
-
-            //To make sure we don't get any seams on our maptiles (or points that don't show a full circle, we add a little extra area to the image before drawing, then crop it out at the end.
-            //totalArea = new GeoArea(new GeoPoint(totalArea.Min.Latitude - resolutionCell10, totalArea.Min.Longitude - resolutionCell10), new GeoPoint(totalArea.Max.Latitude + resolutionCell10, totalArea.Max.Longitude + resolutionCell10));
+            var smallestFeature = (drawEverything ? 0 : degreesPerPixelX < degreesPerPixelY ? degreesPerPixelX : degreesPerPixelY);
 
             List<MapData> rowPlaces;
-            //create a new bitmap. Add 10 pixels of padding to each side
             MemoryStream ms = new MemoryStream();
-            int imagesizeX = 512; //(int)Math.Ceiling(totalArea.LongitudeWidth / resolutionX);
-            int imagesizeY = 512; //(int)Math.Ceiling(totalArea.LatitudeHeight / resolutionY);
-
-            //crop all places to the current area. This removes a ton of work from the process by simplifying geometry to only what's relevant, instead of drawing all of a great lake or state-wide park.
-            var cropArea = Converters.GeoAreaToPolygon(totalArea);
-            //A quick fix to drawing order when multiple areas take up the entire cell: sort before the crop (otherwise, the areas are drawn in a random order, which makes some disappear)
-            //Affects small map tiles more often than larger ones, but it can affect both.
-            //This where clause means things smaller than 1 pixel won't get drawn. It's a C# filter here, but it would be faster to do DB-side on a SizeColumn on Mapdata to save more time, in the function above this one.
-            allPlaces = allPlaces.Where(a => a.place.Area > smallestFeature || a.place.Length > smallestFeature || a.place.GeometryType == "Point").OrderByDescending(a => a.place.Area).ThenByDescending(a => a.place.Length).ToList();
-            foreach (var ap in allPlaces)
-                ap.place = ap.place.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
-
-            //This loop still occasionally throws an 'index was outside the bounds of the array issue. Not sure what the deal is. It's a dependency issue, but I might need to work around it.
-            var options = new ShapeGraphicsOptions(); //currently using defaults.
-            using (var image = new Image<Rgba32>(imagesizeX, imagesizeY))
-            {
-                if (!transparent)
-                    image.Mutate(x => x.Fill(Rgba32.ParseHex(areaColorReference[999].First()))); //set whole image to background color
-                else
-                    image.Mutate(x => x.Fill(Rgba32.ParseHex("00000000"))); //sets whole image to transparent
-
-                //Now, instead of going per pixel, go per area, sorted by area descending.
-                foreach (var place in allPlaces.Where(ap => ap.AreaTypeId != 13)) //Exclude admin areas if they got passed in.
-                {
-                    var color = areaColorReferenceRgba32[place.AreaTypeId];
-                    switch (place.place.GeometryType)
-                    {
-                        case "Polygon":
-                            var drawThis = Converters.PolygonToDrawingPolygon(place.place, totalArea, resolutionX, resolutionY);
-                            //drawThis = drawThis.Translate(10, 10)
-                            image.Mutate(x => x.Fill(color, drawThis));
-                            break;
-                        case "MultiPolygon":
-                            foreach (var p in ((MultiPolygon)place.place).Geometries)
-                            {
-                                var drawThis2 = Converters.PolygonToDrawingPolygon(p, totalArea, resolutionX, resolutionY);
-                                //drawThis2 = drawThis2.Translate(10, 10);
-                                image.Mutate(x => x.Fill(color, drawThis2));
-                            }
-                            break;
-                        case "LineString":
-                            var drawThis3 = Converters.LineToDrawingLine(place.place, totalArea, resolutionX, resolutionY);
-                            if (drawThis3.Count() > 1)
-                            {
-                                //drawThis3.ForEach(a => { a.X += 10; a.Y += 10; }); 
-                                image.Mutate(x => x.DrawLines(color, 1, drawThis3.ToArray()));
-                            }
-                            break;
-                        case "MultiLineString":
-                            foreach (var p in ((MultiLineString)place.place).Geometries)
-                            {
-                                var drawThis4 = Converters.LineToDrawingLine(p, totalArea, resolutionX, resolutionY);
-                                //drawThis4.ForEach(a => { a.X += 10; a.Y += 10; });
-                                image.Mutate(x => x.DrawLines(color, 1, drawThis4.ToArray()));
-                            }
-                            break;
-                        case "Point":
-                            var point = Converters.PointToPointF(place.place, totalArea, resolutionX, resolutionY);
-                            //image.Mutate(x => x.DrawLines(color, 3, new PointF[] {point, point }));
-
-                            var shape = new SixLabors.ImageSharp.Drawing.EllipsePolygon(Converters.PointToPointF(place.place, totalArea, resolutionX, resolutionY), new SizeF((float)(2 * resolutionCell11Lon / resolutionX), (float)(2 * resolutionCell11Lat / resolutionY))); //was 1.5f, decided this should draw points as being 1 Cell11 big instead to scale.
-                            image.Mutate(x => x.Fill(color, shape));
-                            break;
-                    }
-                }
-                image.Mutate(x => x.Flip(FlipMode.Vertical)); //Plus codes are south-to-north, so invert the image to make it correct.
-                //image.Mutate(x => x.Crop(new Rectangle(10, 10, 512, 512))); //remove 10 pixels from each edge.
-                image.SaveAsPng(ms);
-            } //image disposed here.
-
-            return ms.ToArray();
-        }
-
-        public static byte[] DrawMPAreaMapTileSlippy(GeoArea totalArea, double areaHeight, double areaWidth)
-        {
-            //Resolution scaling here is flexible, since we're always drawing a 512x512 tile.
-            //This has the crop-logic removed temporarily while I figure out how to fix that for a variable-resolution image.
-            double resolutionX, resolutionY;
-            double filterSize = 0;
-            resolutionX = areaWidth / 512;
-            resolutionY = areaHeight / 512;
-            bool drawEverything = false; //for debugging/testing
-            var smallestFeature = (drawEverything ? 0 : resolutionX < resolutionY ? resolutionX : resolutionY);
-            //GetResolutionValues(pixelSizeCells, out resolutionX, out resolutionY);
-            //if (pixelSizeCells < 10) // Roads and buildings are good at Cell10+. Not helpful at Cell8-;
-            //filterSize = resolutionX / 2; //things smaller than half a pixel will not be considered for the map tile. Might just want to toggle the alternate sort rules for pixels (most area, not smallest item)
-            //Or should this filter to 'smallest area over filter size'?
+            int imagesizeX = MapTileSizeSquare;
+            int imagesizeY = MapTileSizeSquare;
 
             //To make sure we don't get any seams on our maptiles (or points that don't show a full circle, we add a little extra area to the image before drawing, then crop it out at the end.
-            //totalArea = new GeoArea(new GeoPoint(totalArea.Min.Latitude - resolutionCell10, totalArea.Min.Longitude - resolutionCell10), new GeoPoint(totalArea.Max.Latitude + resolutionCell10, totalArea.Max.Longitude + resolutionCell10));
-
-            List<MapData> rowPlaces;
-            //create a new bitmap. Add 10 pixels of padding to each side
-            MemoryStream ms = new MemoryStream();
-            int imagesizeX = 512; //(int)Math.Ceiling(totalArea.LongitudeWidth / resolutionX);
-            int imagesizeY = 512; //(int)Math.Ceiling(totalArea.LatitudeHeight / resolutionY);
+            //Do this after determining image size, since Skia will ignore parts off-canvas.
+            var loadDataArea = new GeoArea(new GeoPoint(totalArea.Min.Latitude - resolutionCell10, totalArea.Min.Longitude - resolutionCell10), new GeoPoint(totalArea.Max.Latitude + resolutionCell10, totalArea.Max.Longitude + resolutionCell10));
 
             var db = new PraxisContext();
-            List<MapData> allPlaces = GetPlaces(totalArea, null, false, true); //Includes generated here with the final True parameter.
+            List<MapData> allPlaces = GetPlaces(loadDataArea, null, false, true); //Includes generated here with the final True parameter.
             List<long> placeIDs = allPlaces.Select(a => a.MapDataId).ToList();
             Dictionary<long, int> teamClaims = db.AreaControlTeams.Where(act => placeIDs.Contains(act.MapDataId)).ToDictionary(k => k.MapDataId, v => v.FactionId);
-            allPlaces = allPlaces.Where(a => teamClaims.ContainsKey(a.MapDataId)).ToList();
+            allPlaces = allPlaces.Where(a => teamClaims.ContainsKey(a.MapDataId)).ToList();            
 
             //crop all places to the current area. This removes a ton of work from the process by simplifying geometry to only what's relevant, instead of drawing all of a great lake or state-wide park.
-            var cropArea = Converters.GeoAreaToPolygon(totalArea);
+            var cropArea = Converters.GeoAreaToPolygon(loadDataArea);
+
             //A quick fix to drawing order when multiple areas take up the entire cell: sort before the crop (otherwise, the areas are drawn in a random order, which makes some disappear)
             //Affects small map tiles more often than larger ones, but it can affect both.
             //This where clause means things smaller than 1 pixel won't get drawn. It's a C# filter here, but it would be faster to do DB-side on a SizeColumn on Mapdata to save more time, in the function above this one.
@@ -346,89 +157,28 @@ namespace CoreComponents
             foreach (var ap in allPlaces)
                 ap.place = ap.place.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
 
-            var options = new ShapeGraphicsOptions(); //currently using defaults.
-            using (var image = new Image<Rgba32>(imagesizeX, imagesizeY))
-            {
-                image.Mutate(x => x.Fill(Rgba32.ParseHex("00000000"))); //set all the areas to the background color
-
-                //Now, instead of going per pixel, go per area, sorted by area descending.
-                foreach (var place in allPlaces.Where(ap => ap.AreaTypeId != 13)) //Exclude admin areas if they got passed in.
-                {
-                    var color = areaColorReferenceRgba32[place.AreaTypeId];
-                    switch (place.place.GeometryType)
-                    {
-                        case "Polygon":
-                            var drawThis = Converters.PolygonToDrawingPolygon(place.place, totalArea, resolutionX, resolutionY);
-                            //drawThis = drawThis.Translate(10, 10)
-                            image.Mutate(x => x.Fill(teamColorReferenceRgba32[teamClaims[place.MapDataId]], drawThis));
-                            break;
-                        case "MultiPolygon":
-                            foreach (var p in ((MultiPolygon)place.place).Geometries)
-                            {
-                                var drawThis2 = Converters.PolygonToDrawingPolygon(p, totalArea, resolutionX, resolutionY);
-                                //drawThis2 = drawThis2.Translate(10, 10);
-                                image.Mutate(x => x.Fill(teamColorReferenceRgba32[teamClaims[place.MapDataId]], drawThis2));
-                            }
-                            break;
-                        case "LineString":
-                            var drawThis3 = Converters.LineToDrawingLine(place.place, totalArea, resolutionX, resolutionY);
-                            if (drawThis3.Count() > 1)
-                            {
-                                //drawThis3.ForEach(a => { a.X += 10; a.Y += 10; }); 
-                                image.Mutate(x => x.DrawLines(teamColorReferenceRgba32[teamClaims[place.MapDataId]], 1, drawThis3.ToArray()));
-                            }
-                            break;
-                        case "MultiLineString":
-                            foreach (var p in ((MultiLineString)place.place).Geometries)
-                            {
-                                var drawThis4 = Converters.LineToDrawingLine(p, totalArea, resolutionX, resolutionY);
-                                //drawThis4.ForEach(a => { a.X += 10; a.Y += 10; });
-                                image.Mutate(x => x.DrawLines(teamColorReferenceRgba32[teamClaims[place.MapDataId]], 1, drawThis4.ToArray()));
-                            }
-                            break;
-                        case "Point":
-                            var point = Converters.PointToPointF(place.place, totalArea, resolutionX, resolutionY);
-                            //image.Mutate(x => x.DrawLines(color, 3, new PointF[] {point, point }));
-
-                            var shape = new SixLabors.ImageSharp.Drawing.EllipsePolygon(Converters.PointToPointF(place.place, totalArea, resolutionX, resolutionY), new SizeF((float)(2 * resolutionCell11Lon / resolutionX), (float)(2 * resolutionCell11Lat / resolutionY))); //was 1.5f, decided this should draw points as being 1 Cell11 big instead to scale.
-                            image.Mutate(x => x.Fill(teamColorReferenceRgba32[teamClaims[place.MapDataId]], shape));
-                            break;
-                    }
-                }
-                image.Mutate(x => x.Flip(FlipMode.Vertical)); //Plus codes are south-to-north, so invert the image to make it correct.
-                //image.Mutate(x => x.Crop(new Rectangle(10, 10, 512, 512))); //remove 10 pixels from each edge.
-                image.SaveAsPng(ms);
-            } //image disposed here.
-
-            return ms.ToArray();
+            return InnerDrawSkia(ref allPlaces, totalArea, degreesPerPixelX, degreesPerPixelY, imagesizeX, imagesizeY, true);
         }
 
         public static byte[] DrawAreaMapTileSlippySkia(ref List<MapData> allPlaces, GeoArea totalArea, double areaHeight, double areaWidth, bool transparent = false)
         {
             //Resolution scaling here is flexible, since we're always drawing a 512x512 tile.
-            //This has the crop-logic removed temporarily while I figure out how to fix that for a variable-resolution image.
             double degreesPerPixelX, degreesPerPixelY;
-            double filterSize = 0;
-            degreesPerPixelX = areaWidth / 512;
-            degreesPerPixelY = areaHeight / 512;
+            degreesPerPixelX = areaWidth / MapTileSizeSquare;
+            degreesPerPixelY = areaHeight / MapTileSizeSquare;
             bool drawEverything = false; //for debugging/testing
             var smallestFeature = (drawEverything ? 0 : degreesPerPixelX < degreesPerPixelY ? degreesPerPixelX : degreesPerPixelY);
-            //GetResolutionValues(pixelSizeCells, out resolutionX, out resolutionY);
-            //if (pixelSizeCells < 10) // Roads and buildings are good at Cell10+. Not helpful at Cell8-;
-            //filterSize = resolutionX / 2; //things smaller than half a pixel will not be considered for the map tile. Might just want to toggle the alternate sort rules for pixels (most area, not smallest item)
-            //Or should this filter to 'smallest area over filter size'?
-
-            //To make sure we don't get any seams on our maptiles (or points that don't show a full circle, we add a little extra area to the image before drawing, then crop it out at the end.
-            //totalArea = new GeoArea(new GeoPoint(totalArea.Min.Latitude - resolutionCell10, totalArea.Min.Longitude - resolutionCell10), new GeoPoint(totalArea.Max.Latitude + resolutionCell10, totalArea.Max.Longitude + resolutionCell10));
 
             List<MapData> rowPlaces;
-            //create a new bitmap. Add 10 pixels of padding to each side
             MemoryStream ms = new MemoryStream();
-            int imagesizeX = 512; //(int)Math.Ceiling(totalArea.LongitudeWidth / resolutionX);
-            int imagesizeY = 512; //(int)Math.Ceiling(totalArea.LatitudeHeight / resolutionY);
+            int imagesizeX = MapTileSizeSquare; 
+            int imagesizeY = MapTileSizeSquare;
+
+            //To make sure we don't get any seams on our maptiles (or points that don't show a full circle, we add a little extra area to the image before drawing (Skia just doesn't draw things outside the canvas)
+            var loadDataArea = new GeoArea(new GeoPoint(totalArea.Min.Latitude - resolutionCell10, totalArea.Min.Longitude - resolutionCell10), new GeoPoint(totalArea.Max.Latitude + resolutionCell10, totalArea.Max.Longitude + resolutionCell10));
 
             //crop all places to the current area. This removes a ton of work from the process by simplifying geometry to only what's relevant, instead of drawing all of a great lake or state-wide park.
-            var cropArea = Converters.GeoAreaToPolygon(totalArea);
+            var cropArea = Converters.GeoAreaToPolygon(loadDataArea);
             //A quick fix to drawing order when multiple areas take up the entire cell: sort before the crop (otherwise, the areas are drawn in a random order, which makes some disappear)
             //Affects small map tiles more often than larger ones, but it can affect both.
             //This where clause means things smaller than 1 pixel won't get drawn. It's a C# filter here, but it would be faster to do DB-side on a SizeColumn on Mapdata to save more time, in the function above this one.
@@ -444,8 +194,8 @@ namespace CoreComponents
             //It might be fun on rare occasion to try and draw this all at once, but zoomed out too far and we won't see anything and will be very slow.
             //Find all Cell8s in the relevant area.
             MemoryStream ms = new MemoryStream();
-            var imagesizeX = 512;
-            var imagesizeY = 512;
+            var imagesizeX = MapTileSizeSquare;
+            var imagesizeY = MapTileSizeSquare;
             var Cell8Wide = relevantArea.LongitudeWidth / resolutionCell8;
             var Cell8High = relevantArea.LatitudeHeight / resolutionCell8;
             var Cell10PixelSize = resolutionCell10 / relevantArea.LongitudeWidth; //Making this square for now.
@@ -472,64 +222,38 @@ namespace CoreComponents
                 }
 
             //Some image items setup.
-            //SkiaSharp.SKImageInfo info = new SkiaSharp.SKImageInfo(512, 512, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul);
-            SkiaSharp.SKBitmap bitmap = new SkiaSharp.SKBitmap(512, 512, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul);
-            //SkiaSharp.SKSurface surface = SkiaSharp.SKSurface.Create(bitmap);
+            SkiaSharp.SKBitmap bitmap = new SkiaSharp.SKBitmap(MapTileSizeSquare, MapTileSizeSquare, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul);
             SkiaSharp.SKCanvas canvas = new SkiaSharp.SKCanvas(bitmap);
             var bgColor = new SkiaSharp.SKColor();
             SkiaSharp.SKColor.TryParse("00000000", out bgColor); //this one wants a transparent background.
             canvas.Clear(bgColor);
-            canvas.Scale(1, -1, 256, 256);
+            canvas.Scale(1, -1, MapTileSizeSquare / 2, MapTileSizeSquare / 2);
             SkiaSharp.SKPaint paint = new SkiaSharp.SKPaint();
             SkiaSharp.SKColor color = new SkiaSharp.SKColor();
             paint.IsAntialias = true;
             foreach (var line in allData)
             {
-
-
-                //if (line == "")
-                //continue;
-
-                //string[] components = line.Split('=');
                 var location = OpenLocationCode.DecodeValid(line.Cell10);
-                //This is a workaround for an issue with the SixLabors.Drawing library. I think this dramatically slows down drawing tiles, but it means that all the tiles get drawn.
-                try
-                {
-                    var placeAsPoly = Converters.GeoAreaToPolygon(location);
-                    //var drawingSquare = Converters.PolygonToDrawingPolygon(placeAsPoly, relevantArea, resolutionX, resolutionY);
-                    //var drawingSquare = Converters.PolygonToSKPoints(placeAsPoly, relevantArea, resolutionX, resolutionY);
-                    //image.Mutate(x => x.Fill(teamColorReferenceRgba32[line.FactionId], drawingSquare));
-                    var path = new SkiaSharp.SKPath();
-                    path.AddPoly(Converters.PolygonToSKPoints(placeAsPoly, relevantArea, resolutionX, resolutionY));
-                    paint.Style = SkiaSharp.SKPaintStyle.Fill;
-                    SkiaSharp.SKColor.TryParse(teamColorReferenceLookupSkia[line.FactionId].FirstOrDefault(), out color);
-                    paint.Color = color;
-                    //canvas.DrawPoints(SkiaSharp.SKPointMode.Polygon, Converters.PolygonToSKPoints(place.place, totalArea, resolutionX, resolutionY), paint);
-                    canvas.DrawPath(path, paint);
-                }
-                catch (Exception ex)
-                {
-                    //we won't draw this one entry.
-                    //var a = 1;
-                    //give up
-                }
+                var placeAsPoly = Converters.GeoAreaToPolygon(location);
+                var path = new SkiaSharp.SKPath();
+                path.AddPoly(Converters.PolygonToSKPoints(placeAsPoly, relevantArea, resolutionX, resolutionY));
+                paint.Style = SkiaSharp.SKPaintStyle.Fill;
+                SkiaSharp.SKColor.TryParse(teamColorReferenceLookupSkia[line.FactionId].FirstOrDefault(), out color);
+                paint.Color = color;
+                canvas.DrawPath(path, paint);
             }
 
-            //var ms = new MemoryStream();
             var skms = new SkiaSharp.SKManagedWStream(ms);
             bitmap.Encode(skms, SkiaSharp.SKEncodedImageFormat.Png, 100);
             var results = ms.ToArray();
             skms.Dispose(); ms.Close(); ms.Dispose();
             return results;
-
         }
 
         public static byte[] InnerDrawSkia(ref List<MapData> allPlaces, GeoArea totalArea, double degreesPerPixelX, double degreesPerPixelY, int imageSizeX, int imageSizeY, bool transparent = false)
         {
             //Some image items setup.
-            //SkiaSharp.SKImageInfo info = new SkiaSharp.SKImageInfo(512, 512, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul);
             SkiaSharp.SKBitmap bitmap = new SkiaSharp.SKBitmap(imageSizeX, imageSizeY, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul);
-            //SkiaSharp.SKSurface surface = SkiaSharp.SKSurface.Create(bitmap);
             SkiaSharp.SKCanvas canvas = new SkiaSharp.SKCanvas(bitmap);
             var bgColor = new SkiaSharp.SKColor();
             if (transparent)
@@ -543,7 +267,6 @@ namespace CoreComponents
             paint.IsAntialias = true;
             foreach (var place in allPlaces) //If i get unexpected black background, an admin area probably got passed in with AllPlaces. Filter those out at the level above this function.
             {
-                //var hexcolor = areaColorReferenceRgba32[place.AreaTypeId];
                 var hexcolor = areaColorReference[place.AreaTypeId].FirstOrDefault();
 
                 SkiaSharp.SKColor.TryParse(hexcolor, out color); //NOTE: this is AARRGGBB, so when I do transparency I need to add that to the front, not the back.
@@ -552,13 +275,9 @@ namespace CoreComponents
                 switch (place.place.GeometryType)
                 {
                     case "Polygon":
-                        //var drawThis = Converters.PolygonToDrawingPolygon(place.place, totalArea, resolutionX, resolutionY);
-                        //drawThis = drawThis.Translate(10, 10)
-                        //image.Mutate(x => x.Fill(color, drawThis));
                         var path = new SkiaSharp.SKPath();
                         path.AddPoly(Converters.PolygonToSKPoints(place.place, totalArea, degreesPerPixelX, degreesPerPixelY));
                         paint.Style = SkiaSharp.SKPaintStyle.Fill;
-                        //canvas.DrawPoints(SkiaSharp.SKPointMode.Polygon, Converters.PolygonToSKPoints(place.place, totalArea, resolutionX, resolutionY), paint);
                         canvas.DrawPath(path, paint);
                         break;
                     case "MultiPolygon":
@@ -567,54 +286,31 @@ namespace CoreComponents
                             var path2 = new SkiaSharp.SKPath();
                             path2.AddPoly(Converters.PolygonToSKPoints(p, totalArea, degreesPerPixelX, degreesPerPixelY));
                             paint.Style = SkiaSharp.SKPaintStyle.Fill;
-                            //canvas.DrawPoints(SkiaSharp.SKPointMode.Polygon, Converters.PolygonToSKPoints(place.place, totalArea, resolutionX, resolutionY), paint);
                             canvas.DrawPath(path2, paint);
-                            //paint.Style = SkiaSharp.SKPaintStyle.Fill;
-                            //canvas.DrawPoints(SkiaSharp.SKPointMode.Polygon, Converters.PolygonToSKPoints(p, totalArea, resolutionX, resolutionY), paint);
-                            //var drawThis2 = Converters.PolygonToDrawingPolygon(p, totalArea, resolutionX, resolutionY);
-                            //drawThis2 = drawThis2.Translate(10, 10);
-                            //image.Mutate(x => x.Fill(color, drawThis2));
                         }
                         break;
                     case "LineString":
-                        //var drawThis3 = Converters.LineToDrawingLine(place.place, totalArea, resolutionX, resolutionY);
-                        //if (drawThis3.Count() > 1)
-                        //{
-                        //drawThis3.ForEach(a => { a.X += 10; a.Y += 10; }); 
-                        //image.Mutate(x => x.DrawLines(color, 1, drawThis3.ToArray()));
-                        //}
                         paint.Style = SkiaSharp.SKPaintStyle.Stroke;
                         var points = Converters.PolygonToSKPoints(place.place, totalArea, degreesPerPixelX, degreesPerPixelY);
                         for (var line = 0; line < points.Length - 1; line++)
                             canvas.DrawLine(points[line], points[line + 1], paint);
-                        //canvas.DrawPoints(SkiaSharp.SKPointMode.Lines, Converters.PolygonToSKPoints(place.place, totalArea, resolutionX, resolutionY), paint);
                         break;
                     case "MultiLineString":
                         foreach (var p in ((MultiLineString)place.place).Geometries)
                         {
-                            //var drawThis4 = Converters.LineToDrawingLine(p, totalArea, resolutionX, resolutionY);
-                            //drawThis4.ForEach(a => { a.X += 10; a.Y += 10; });
-                            //image.Mutate(x => x.DrawLines(color, 1, drawThis4.ToArray()));
                             paint.Style = SkiaSharp.SKPaintStyle.Stroke;
                             var points2 = Converters.PolygonToSKPoints(p, totalArea, degreesPerPixelX, degreesPerPixelY);
                             for (var line = 0; line < points2.Length - 1; line++)
                                 canvas.DrawLine(points2[line], points2[line + 1], paint);
-                            //canvas.DrawPoints(SkiaSharp.SKPointMode.Lines, Converters.PolygonToSKPoints(p, totalArea, resolutionX, resolutionY), paint);
                         }
                         break;
                     case "Point":
-                        //var point = Converters.PointToPointF(place.place, totalArea, resolutionX, resolutionY);
-                        //image.Mutate(x => x.DrawLines(color, 3, new PointF[] {point, point }));
-
-                        //var shape = new SixLabors.ImageSharp.Drawing.EllipsePolygon(Converters.PointToPointF(place.place, totalArea, resolutionX, resolutionY), new SizeF((float)(2 * resolutionCell11Lon / resolutionX), (float)(2 * resolutionCell11Lat / resolutionY))); //was 1.5f, decided this should draw points as being 1 Cell11 big instead to scale.
-                        //image.Mutate(x => x.Fill(color, shape));
                         paint.Style = SkiaSharp.SKPaintStyle.Fill;
                         var circleRadius = (float)(resolutionCell10 / degreesPerPixelX); //I want points to be drawn as 1 Cell10 in radius.
                         var convertedPoint = Converters.PolygonToSKPoints(place.place, totalArea, degreesPerPixelX, degreesPerPixelY);
                         canvas.DrawCircle(convertedPoint[0], circleRadius, paint);
                         break;
                 }
-
             }
 
             var ms = new MemoryStream();

@@ -49,11 +49,6 @@ namespace CoreComponents
         public static ILookup<string, int> areaTypeReference = areaTypes.ToLookup(k => k.AreaName, v => v.AreaTypeId);
         public static ILookup<int, string> areaIdReference = areaTypes.ToLookup(k => k.AreaTypeId, v => v.AreaName);
         public static ILookup<int, string> areaColorReference = areaTypes.ToLookup(k => k.AreaTypeId, v => v.HtmlColorCode);
-        //TODO: These 3 were for ImageSharp, remove them.
-        public static ILookup<int, Rgba32> areaColorReferenceRgba32Lookup = areaTypes.ToLookup(k => k.AreaTypeId, v => Rgba32.ParseHex(v.HtmlColorCode)); //needed to make the Dictionary<> correctly.
-        public static Dictionary<int, Rgba32> areaColorReferenceRgba32 = areaColorReferenceRgba32Lookup.ToDictionary(k => k.Key, v => v.First());  //Don't have to call First() each time on this unlike the lookup
-        public static ILookup<long, Rgba32> teamColorReferenceRgba32Lookup = defaultFaction.ToLookup(k => k.FactionId, v => Rgba32.ParseHex(v.HtmlColor)); //needed to make the Dictionary<> correctly.
-
 
         public static List<List<Coordinate>> possibleShapes = new List<List<Coordinate>>() //When generating gameplay areas in empty Cell8s
         {
@@ -72,7 +67,6 @@ namespace CoreComponents
         };
 
         public static ILookup<long, string> teamColorReferenceLookupSkia = defaultFaction.ToLookup(k => k.FactionId, v => v.HtmlColor.Substring(6,2) + v.HtmlColor.Substring(0, 6)); //needed to make the Dictionary<> correctly.
-        public static Dictionary<long, Rgba32> teamColorReferenceRgba32 = teamColorReferenceRgba32Lookup.ToDictionary(k => k.Key, v => v.First());  //Don't have to call First() each time on this unlike the lookup
 
         //Unfinished, for future plans to have tags be defined by database entries instead of a single code block
         //public static List<TagParserEntry> defaultTagParserEntries = new List<TagParserEntry>()

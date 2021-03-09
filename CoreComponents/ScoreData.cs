@@ -15,7 +15,7 @@ namespace CoreComponents
         //Lines are measured in their length.  (A trail that's 25 * resolutionCell10 long is 25 Score)
         //OSM points are assigned a Score of 1 as the minimum interactable size object. 
 
-        public static string GetScoresForArea(Polygon areaPoly, List<MapData> places)
+        public static string GetScoresForArea(Geometry areaPoly, List<MapData> places)
         {
             //Determines the Scores for the Places, limited to the intersection of the current Area. 1 Cell10 = 1 Score.
             //EX: if a park overlaps 800 Cell10s, but the current area overlaps 250 of them, this returns 250 for that park.

@@ -79,8 +79,8 @@ namespace PraxisMapper.Controllers
                     {
                         case 1: //Base map tile
                             //add some padding so we don't clip off points at the edge of a tile
-                            relevantArea = new GeoArea(relevantArea.SouthLatitude - ConstantValues.resolutionCell10, relevantArea.WestLongitude - ConstantValues.resolutionCell10, relevantArea.NorthLatitude + ConstantValues.resolutionCell10, relevantArea.EastLongitude + ConstantValues.resolutionCell10);
-                            var places = GetPlaces(relevantArea, includeGenerated: false);
+                            var dataLoadArea = new GeoArea(relevantArea.SouthLatitude - ConstantValues.resolutionCell10, relevantArea.WestLongitude - ConstantValues.resolutionCell10, relevantArea.NorthLatitude + ConstantValues.resolutionCell10, relevantArea.EastLongitude + ConstantValues.resolutionCell10);
+                            var places = GetPlaces(dataLoadArea, includeGenerated: false);
                             results = MapTiles.DrawAreaMapTileSlippySkia(ref places, relevantArea, areaHeightDegrees, areaWidthDegrees);
                             expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                             break;
@@ -94,11 +94,12 @@ namespace PraxisMapper.Controllers
                             expires = DateTime.Now.AddMinutes(1); //We want this to be live-ish, but not overwhelming, so we cache this for 60 seconds.
                             break;
                         case 3: //MultiplayerAreaControl overlay. Ready to test as an overlay.
-                            results = MapTiles.DrawMPAreaMapTileSlippy(relevantArea, areaHeightDegrees, areaWidthDegrees);
+                            results = MapTiles.DrawMPAreaMapTileSlippySkia(relevantArea, areaHeightDegrees, areaWidthDegrees);
                             expires = DateTime.Now.AddMinutes(1); //We want this to be live-ish, but not overwhelming, so we cache this for 60 seconds.
                             break;
                         case 4: //GeneratedMapData areas. Should be ready to test as an overlay.
-                            var places2 = GetGeneratedPlaces(relevantArea);
+                            var dataLoadArea2 = new GeoArea(relevantArea.SouthLatitude - ConstantValues.resolutionCell10, relevantArea.WestLongitude - ConstantValues.resolutionCell10, relevantArea.NorthLatitude + ConstantValues.resolutionCell10, relevantArea.EastLongitude + ConstantValues.resolutionCell10);
+                            var places2 = GetGeneratedPlaces(dataLoadArea2);
                             results = MapTiles.DrawAreaMapTileSlippySkia(ref places2, relevantArea, areaHeightDegrees, areaWidthDegrees, true);
                             expires = DateTime.Now.AddYears(10); //again, assuming these don't change unless you manually updated entries.
                             break;
