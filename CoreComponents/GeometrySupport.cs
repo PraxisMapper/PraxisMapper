@@ -50,7 +50,7 @@ namespace CoreComponents
             }
 
             //Note: SimplifyArea CAN reverse a polygon's orientation, especially in a multi-polygon, so don't do CheckCCW until after
-            var simplerPlace = NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(place, resolutionCell10); //This cuts storage space for files by 30-50%  (40MB Ohio-water vs 26MB simplified)
+            var simplerPlace = NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(place, resolutionCell10); //This cuts storage space for files by 30-50%
             if (simplerPlace is Polygon)
             {
                 simplerPlace = CCWCheck((Polygon)simplerPlace);
@@ -69,7 +69,5 @@ namespace CoreComponents
             }
             return simplerPlace;
         }
-
-
     }
 }

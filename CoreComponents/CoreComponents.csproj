@@ -5,95 +5,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Migrations\**" />
-    <EmbeddedResource Remove="Migrations\**" />
-    <None Remove="Migrations\**" />
+    <Compile Remove="CustomDependencies\**" />
+    <EmbeddedResource Remove="CustomDependencies\**" />
+    <None Remove="CustomDependencies\**" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="Migrations\20200822201730_InitialDLLSchema.cs" />
-    <Compile Include="Migrations\20200822201730_InitialDLLSchema.Designer.cs" />
-    <Compile Include="Migrations\20200822205210_GeometryTest1.cs" />
-    <Compile Include="Migrations\20200822205210_GeometryTest1.Designer.cs" />
-    <Compile Include="Migrations\20200822210743_SPOIs.cs" />
-    <Compile Include="Migrations\20200822210743_SPOIs.Designer.cs" />
-    <Compile Include="Migrations\20200822211747_TypeOnMapDAta.cs" />
-    <Compile Include="Migrations\20200822211747_TypeOnMapDAta.Designer.cs" />
-    <Compile Include="Migrations\20200823142350_fixPlayerDataTypes.cs" />
-    <Compile Include="Migrations\20200823142350_fixPlayerDataTypes.Designer.cs" />
-    <Compile Include="Migrations\20200823152304_fixPlayerDataTypes2.cs" />
-    <Compile Include="Migrations\20200823152304_fixPlayerDataTypes2.Designer.cs" />
-    <Compile Include="Migrations\20200823201940_altitudeSpread.cs" />
-    <Compile Include="Migrations\20200823201940_altitudeSpread.Designer.cs" />
-    <Compile Include="Migrations\20200826153916_CreateGeoSearchSproc.cs" />
-    <Compile Include="Migrations\20200826153916_CreateGeoSearchSproc.Designer.cs" />
-    <Compile Include="Migrations\20200828014545_SpoiPlusCode.cs" />
-    <Compile Include="Migrations\20200828014545_SpoiPlusCode.Designer.cs" />
-    <Compile Include="Migrations\20200831132331_8ColToSPOI.cs" />
-    <Compile Include="Migrations\20200831132331_8ColToSPOI.Designer.cs" />
-    <Compile Include="Migrations\20200901120243_RemoveEmptyTable1.cs" />
-    <Compile Include="Migrations\20200901120243_RemoveEmptyTable1.Designer.cs" />
-    <Compile Include="Migrations\20200901120503_RemoveEmptyTable2.cs" />
-    <Compile Include="Migrations\20200901120503_RemoveEmptyTable2.Designer.cs" />
-    <Compile Include="Migrations\20200902194243_PTNotes.cs" />
-    <Compile Include="Migrations\20200902194243_PTNotes.Designer.cs" />
-    <Compile Include="Migrations\20200903125501_WayIDIndex.cs" />
-    <Compile Include="Migrations\20200903125501_WayIDIndex.Designer.cs" />
-    <Compile Include="Migrations\20200911141710_6Index.cs" />
-    <Compile Include="Migrations\20200911141710_6Index.Designer.cs" />
-    <Compile Include="Migrations\20200911173907_NodeIDIndex.cs" />
-    <Compile Include="Migrations\20200911173907_NodeIDIndex.Designer.cs" />
-    <Compile Include="Migrations\20200924135204_TestPremade.cs" />
-    <Compile Include="Migrations\20200924135204_TestPremade.Designer.cs" />
-    <Compile Include="Migrations\20200926220856_omsdata1.cs" />
-    <Compile Include="Migrations\20200926220856_omsdata1.Designer.cs" />
-    <Compile Include="Migrations\20200926221427_omsdata2.cs" />
-    <Compile Include="Migrations\20200926221427_omsdata2.Designer.cs" />
-    <Compile Include="Migrations\20200926222833_omsdata3.cs" />
-    <Compile Include="Migrations\20200926222833_omsdata3.Designer.cs" />
-    <Compile Include="Migrations\20200928172249_MapDataUpdate.cs" />
-    <Compile Include="Migrations\20200928172249_MapDataUpdate.Designer.cs" />
-    <Compile Include="Migrations\20201008130023_dropMinTables.cs" />
-    <Compile Include="Migrations\20201008130023_dropMinTables.Designer.cs" />
-    <Compile Include="Migrations\20201008151516_addAreaId.cs" />
-    <Compile Include="Migrations\20201008151516_addAreaId.Designer.cs" />
-    <Compile Include="Migrations\20201025133650_maptileTable.cs" />
-    <Compile Include="Migrations\20201025133650_maptileTable.Designer.cs" />
-    <Compile Include="Migrations\20201025163737_maptileTableindex.cs" />
-    <Compile Include="Migrations\20201025163737_maptileTableindex.Designer.cs" />
-    <Compile Include="Migrations\20201109135146_factions.cs" />
-    <Compile Include="Migrations\20201109135146_factions.Designer.cs" />
-    <Compile Include="Migrations\20201125133950_MakeGmdTable.cs" />
-    <Compile Include="Migrations\20201125133950_MakeGmdTable.Designer.cs" />
-    <Compile Include="Migrations\20201204141407_FactionCode.cs" />
-    <Compile Include="Migrations\20201204141407_FactionCode.Designer.cs" />
-    <Compile Include="Migrations\20201206145600_IndexACT.cs" />
-    <Compile Include="Migrations\20201206145600_IndexACT.Designer.cs" />
-    <Compile Include="Migrations\20210103172441_turfwar1.cs" />
-    <Compile Include="Migrations\20210103172441_turfwar1.Designer.cs" />
-    <Compile Include="Migrations\20210104034520_turfwar2.cs" />
-    <Compile Include="Migrations\20210104034520_turfwar2.Designer.cs" />
-    <Compile Include="Migrations\20210104034658_turfwar3.cs" />
-    <Compile Include="Migrations\20210104034658_turfwar3.Designer.cs" />
-    <Compile Include="Migrations\20210104034816_turfwar4.cs" />
-    <Compile Include="Migrations\20210104034816_turfwar4.Designer.cs" />
-    <Compile Include="Migrations\20210104155045_GMDtimestamp.cs" />
-    <Compile Include="Migrations\20210104155045_GMDtimestamp.Designer.cs" />
-    <Compile Include="Migrations\20210105184046_turfwar5.cs" />
-    <Compile Include="Migrations\20210105184046_turfwar5.Designer.cs" />
-    <Compile Include="Migrations\20210107175416_TurfWar7.cs" />
-    <Compile Include="Migrations\20210107175416_TurfWar7.Designer.cs" />
-    <Compile Include="Migrations\20210109161529_chek.cs" />
-    <Compile Include="Migrations\20210109161529_chek.Designer.cs" />
-    <Compile Include="Migrations\20210109163926_errorlog.cs" />
-    <Compile Include="Migrations\20210109163926_errorlog.Designer.cs" />
-    <Compile Include="Migrations\20210121181128_serverbounds.cs" />
-    <Compile Include="Migrations\20210121181128_serverbounds.Designer.cs" />
-    <Compile Include="Migrations\GpsExploreContextModelSnapshot.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="EFCore.BulkExtensions" Version="3.3.1" />
+    <PackageReference Include="EFCore.BulkExtensions" Version="3.3.4" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="5.0.3" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="5.0.3">
       <PrivateAssets>all</PrivateAssets>
@@ -114,12 +32,6 @@
     <PackageReference Include="SixLabors.ImageSharp" Version="1.0.3" />
     <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="1.0.0-beta11" />
     <PackageReference Include="SkiaSharp" Version="2.80.2" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="CustomDependencies\EFCore.BulkExtensions.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
 
   <ItemGroup>

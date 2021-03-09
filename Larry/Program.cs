@@ -89,7 +89,7 @@ namespace Larry
                 {
                     db.Database.ExecuteSqlRaw(PraxisContext.MapDataValidTriggerMSSQL);
                     db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataValidTriggerMSSQL);
-                    db.Database.ExecuteSqlRaw(PraxisContext.FindDBMapDataBoundsMSSQL);
+                    //db.Database.ExecuteSqlRaw(PraxisContext.FindDBMapDataBoundsMSSQL);
                 }
                 if (ParserSettings.DbMode == "MariaDB")
                 {
@@ -286,8 +286,7 @@ namespace Larry
                 var db = new PraxisContext();
                 var cell6 = args.Where(a => a.StartsWith("-populateEmptyArea:")).First().Split(":")[1];
                 CodeArea box6 = OpenLocationCode.DecodeValid(cell6);
-                var coordSeq6 = Converters.GeoAreaToCoordArray(box6);
-                var location6 = factory.CreatePolygon(coordSeq6);
+                var location6 = Converters.GeoAreaToPolygon(box6);
                 var places = db.MapData.Where(md => md.place.Intersects(location6) && md.AreaTypeId < 13).ToList();
                 var fakeplaces = db.GeneratedMapData.Where(md => md.place.Intersects(location6)).ToList();
 
@@ -297,8 +296,7 @@ namespace Larry
                     {
                         string cell8 = cell6 + OpenLocationCode.CodeAlphabet[x] + OpenLocationCode.CodeAlphabet[y];
                         CodeArea box = OpenLocationCode.DecodeValid(cell8);
-                        var coordSeq = Converters.GeoAreaToCoordArray(box);
-                        var location = factory.CreatePolygon(coordSeq);
+                        var location = Converters.GeoAreaToPolygon(box);
                         if (!places.Any(md => md.place.Intersects(location)) && !fakeplaces.Any(md => md.place.Intersects(location)))
                             CreateInterestingPlaces(cell8);
                     }

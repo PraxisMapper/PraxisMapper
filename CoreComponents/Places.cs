@@ -2,7 +2,6 @@
 using NetTopologySuite.Geometries;
 using OsmSharp.Tags;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using static CoreComponents.ConstantValues;
@@ -57,40 +56,9 @@ namespace CoreComponents
                 places.AddRange(db.GeneratedMapData.Where(md => location.Intersects(md.place)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
             }
             return places;
-        }
+        }        
 
-        //TODO: remove this function, I've confirmed it's not faster than the way I optimized GetPlaces() instead. Unless this is the secret sauce making maptiles go faster doing the AreaTypecheck
-        public static List<PreparedMapData> GetPreparedPlaces(GeoArea area, List<PreparedMapData> source = null, bool includeAdmin = true) //Mostly for drawing big maptiles.
-        {
-            //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
-            //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
-            var location = Converters.GeoAreaToPolygon(area);
-            List<PreparedMapData> places;
-            //if (source == null)
-            //{
-            //    var db = new CoreComponents.PraxisContext();
-            //    if (includeAdmin)
-            //        places = db.MapData.Where(md => md.place.Intersects(location)).ToList();
-            //    else
-            //        places = db.MapData.Where(md => md.AreaTypeId != 13 && md.place.Intersects(location)).ToList();
-            //    //TODO: make including generated areas a toggle? or assume that this call is trivial performance-wise on an empty table
-            //    //A toggle might be good since this also affects maptiles
-            //    places.AddRange(db.GeneratedMapData.Where(md => md.place.Intersects(location)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
-
-            //    return places;
-            //}
-            //else
-            //{
-            //Only testing performance on prepared geometry. Come back later if this is necesssary.
-            //if (includeAdmin)
-            places = source.Where(md => md.place.Intersects(location)).ToList();
-            //else
-            //places = source.Where(md => md.AreaTypeId != 13 && md.place.Intersects(location)).ToList();
-            //}
-            return places;
-        }
-
-        //TODO Can also apply the area-crop and prepared geometry optimizations to this function? OR are those before this is called and redundant?
+        //Note: This should have the padding added to area before this is called, if checking for tiles that need regenerated.
         public static bool DoPlacesExist(GeoArea area, List<MapData> source = null, bool includeGenerated = true)
         {
             //As GetPlaces, but only checks if there are entries. This also currently skipss admin boundaries as well for determining if stuff 'exists', since those aren't drawn.
@@ -118,7 +86,7 @@ namespace CoreComponents
             Random r = new Random();
             CodeArea cell8 = OpenLocationCode.DecodeValid(plusCode); //Reminder: resolution is .0025 on a Cell8
             int shapeCount = 1; // 2; //number of shapes to apply to the Cell8
-            double shapeWarp = .3; //percentage a shape is allowed to have its verteces drift by.
+            double shapeWarp = .3; //percentage a shape is allowed to have each vertexs drift by.
             List<GeneratedMapData> areasToAdd = new List<GeneratedMapData>();
 
             for (int i = 0; i < shapeCount; i++)
@@ -126,7 +94,6 @@ namespace CoreComponents
                 //Pick a shape
                 var masterShape = possibleShapes.OrderBy(s => r.Next()).First();
                 var shapeToAdd = masterShape.Select(s => new Coordinate(s)).ToList();
-                //shapeToAdd.AddRange(masterShape);
                 var scaleFactor = r.Next(10, 36) * .01; //Math.Clamp(r.Next, .1, .35); //Ensure that we get a value that isn't terribly useless. 2 shapes can still cover 70%+ of an empty area this way.
                 var positionFactorX = r.NextDouble() * resolutionCell8;
                 var positionFactorY = r.NextDouble() * resolutionCell8;
@@ -153,7 +120,6 @@ namespace CoreComponents
                     //10% makes the shapes much more recognizable, but not as interesting. Will continue looking into parameters here to help adjust that.
                     c.X += (r.NextDouble() * resolutionCell8 * shapeWarp) * (r.Next() % 2 == 0 ? 1 : -1);
                     c.Y += (r.NextDouble() * resolutionCell8 * shapeWarp) * (r.Next() % 2 == 0 ? 1 : -1);
-                    //was .1 on 86GXVD, will be .3 on the next
 
                     //Let us know if this shape overlaps a neighboring cell. We probably want to make sure we re-draw map tiles if it does.
                     if (c.X > .0025 || c.Y > .0025)
@@ -175,13 +141,11 @@ namespace CoreComponents
                     continue;
                 }
 
-                if (!polygon.CoveredBy(factory.CreatePolygon(Converters.GeoAreaToCoordArray(cell8))))
+                if (!polygon.CoveredBy(Converters.GeoAreaToPolygon(cell8)))
                 {
                     //TODO: Erase an existing Cell8/Cell10 map tile and let it get replaced next call.
                     //This should only ever require checking the map tile north/east of the current one, even though the vertex fuzzing can potentially move things negative slightly.
                     Log.WriteLog("This polygon is outside of the Cell8 by " + (cell8.Max.Latitude - shapeToAdd.Max(s => s.Y)) + "/" + (cell8.Max.Longitude - shapeToAdd.Max(s => s.X)), Log.VerbosityLevels.High);
-
-
                 }
                 if (polygon != null)
                 {
@@ -243,11 +207,13 @@ namespace CoreComponents
                 return ""; //Sanity check
 
             var tags = tagsO.ToLookup(k => k.Key, v => v.Value); //this might not be necessary, tagscollectionbase supports string keys, but its an IEnumerable, which isnt as fast as ILookup used here.
-            //Entries are currently sorted by rough frequency of occurrence for gameplay
-            //for -processEverything, move road and buildings to the top in that order, move parking after admin.
+            //Entries are currently sorted by order of importance (EX: an area that would qualify as multiple gets the first one on the list)
+
+            //Wetlands are granted priority over water, since they're likely to be tagged as both and wetland is more interesting.
+            if (DbSettings.processWetland && tags["natural"].Any(v => v == "wetland"))
+                return "wetland";
 
             //Water spaces should be displayed. Not sure if I want players to be in them for resources.
-            //Water should probably override other values as a safety concern?
             if (DbSettings.processWater && tags["natural"].Any(v => v == "water") || tags["waterway"].Count() > 0)
                 return "water";
 
@@ -262,7 +228,7 @@ namespace CoreComponents
                 && !tags["footway"].Any(v => v == "sidewalk" || v == "crossing")))
                 return "trail";
 
-            //Parks are good. Possibly core to this game.
+            //Parks are good.
             if (DbSettings.processPark && tags["leisure"].Any(v => v == "park"))
                 return "park";
 
@@ -282,22 +248,10 @@ namespace CoreComponents
                 || tags["amenity"].Any(v => v == "grave_yard")))
                 return "cemetery";
 
-            //Generic shopping area is ok. I don't want to advertise businesses, but this is a common area type.
-            //Landuse=retail has 200k entries. building=retail has 500k entries.
-            //shop=* has about 5 million entries, mostly nodes.
-            if (DbSettings.processRetail && (tags["landuse"].Any(v => v == "retail")
-                || tags["building"].Any(v => v == "retail")
-                || tags["shop"].Count() > 0)) // mall is a value of shop, so those are included here now.
-                return "retail";
-
-            //I have historical as a tag to save, but not necessarily sub-sets yet of whats interesting there.
+            //I have historical as a tag to save, but not necessarily sub-sets yet of whats interesting there. Take everything for now.
             //NOTE: the OSM tag (historic) doesn't match my name (historical)
             if (DbSettings.processHistorical && tags["historic"].Count() > 0)
                 return "historical";
-
-            //Wetlands should also be high priority.
-            if (DbSettings.processWetland && tags["natural"].Any(v => v == "wetland"))
-                return "wetland";
 
             //Nature Reserve. Should be included
             if (DbSettings.processNatureReserve && tags["leisure"].Any(v => v == "nature_reserve"))
@@ -316,10 +270,15 @@ namespace CoreComponents
             || (tags["leisure"].Any(v => v == "beach_resort")))
                 return "beach";
 
-            //These additional types below this are intended for making map tiles more readable.
-            //They can be used for gameplay purposes, though they shouldn't be a primary focus.
+            //Generic shopping area is ok. I don't want to advertise businesses, but this is a common area type. Would prefer other tags apply if possible.
+            //Landuse=retail has 200k entries. building=retail has 500k entries.
+            //shop=* has about 5 million entries, mostly nodes.
+            if (DbSettings.processRetail && (tags["landuse"].Any(v => v == "retail")
+                || tags["building"].Any(v => v == "retail")
+                || tags["shop"].Count() > 0)) // mall is a value of shop, so those are included here now.
+                return "retail";
 
-            //Roads will matter
+            //Roads will be present most of the time since -processEverything is the default. But are checked next to last in case a road is, say, historic
             if (DbSettings.processRoads && tags["highway"].Any(v => relevantRoadValues.Contains(v))
             && !tags["footway"].Any(v => v == "sidewalk" || v == "crossing"))
                 return "road";
@@ -328,10 +287,11 @@ namespace CoreComponents
             //There are lots of amenities, though, and i need to figure out the list that applies here 
             //without interfering with other types of areas. 
 
-            //buildings will matter
+            //buildings will matter, since -processEverything defaults on. Done last, again, in case it's a Historic building or something.
             //Mark abandoned/unused buildings?
             if (DbSettings.processBuildings && tags.Contains("building"))
                 return "building";
+
 
             //Parking lots should get drawn too. Same color as roads ideally.
             if (DbSettings.processParking && tags["amenity"].Any(v => v == "parking"))
@@ -340,7 +300,7 @@ namespace CoreComponents
             //Possibly of interest:
             //landuse:forest / landuse:orchard  / natural:wood
             //natural:sand may be of interest for desert area?
-            //natural:spring / natural:hot_spring
+            //natural:spring / natural:hot_spring? might be pretty rare.
             //amenity:theatre for plays/music/etc (amenity:cinema is a movie theater)
             //Anything else seems un-interesting or irrelevant.
 
@@ -413,21 +373,24 @@ namespace CoreComponents
             return new GeoArea(new GeoPoint(SouthLimit, WestLimit), new GeoPoint(NorthLimit, EastLimit));
         }
 
-        public static bool IsInBounds(OpenLocationCode code)
+        public static bool IsInBounds(OpenLocationCode code, ServerSetting bounds)
         {
-            //TODO: ponder how to handle this without a DB call each time. This should probably be cached by the app, so i need to cache ServerSettings
+            //TODO: ponder how to handle this without a DB call each time. This should probably be cached by the app, so i need to cache ServerSettings and pass it in from the parent app.
             var db = new PraxisContext();
-            var bounds = db.ServerSettings.FirstOrDefault();
+            //var bounds = db.ServerSettings.FirstOrDefault();
             var area = code.Decode();
 
             return (bounds.NorthBound >= area.NorthLatitude && bounds.SouthBound <= area.SouthLatitude
                 && bounds.EastBound >= area.EastLongitude && bounds.WestBound <= area.WestLongitude);
         }
 
-        public static bool IsInBounds(string code)
+        public static bool IsInBounds(string code, ServerSetting bounds)
         {
+            if (bounds == null) //shouldn't happen, sanity check.
+                return true; 
+
             var area = new OpenLocationCode(code); //Might need to re-add the + if its not present?
-            return IsInBounds(area);
+            return IsInBounds(area, bounds);
         }
     }
 }
