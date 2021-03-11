@@ -1,59 +1,16 @@
 ﻿using CoreComponents;
 using CoreComponents.Support;
 using NetTopologySuite.Geometries;
-using OsmSharp.Complete;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using static CoreComponents.DbTables;
-using static CoreComponents.GeometrySupport;
-using static CoreComponents.Place;
 using static CoreComponents.Singletons;
 
 namespace Larry
 {
-    public static class Complete
+    public static class GeometryHelper
     {
-        //This is for functions that operate on a CompleteGeo element, rather than one with references.
-
-        public static MapData ProcessCompleteRelation(CompleteRelation r)
-        {
-            //This relation should contain all the ways it uses and their nodes, so I shouldn't need all my extra lookup stuff.
-            PraxisContext db = new PraxisContext();
-
-            string relationName = GetPlaceName(r.Tags);
-            //Determine if we need to process this relation.
-            //if all ways are closed outer polygons, we can skip this.
-            //if all ways are lines that connect, we need to make it a polygon.
-            //We can't always rely on tags being correct.
-
-            Geometry Tpoly = GetGeometryFromMembers(r.Members);
-            if (Tpoly == null)
-            {
-                //error converting it
-                Log.WriteLog("Relation " + r.Id + " " + relationName + " failed to get a polygon from ways. Error.");
-                return null;
-            }
-
-            if (!Tpoly.IsValid)
-            {
-                Log.WriteLog("Relation " + r.Id + " " + relationName + " Is not valid geometry. Error.");
-                return null;
-            }
-
-            MapData md = new MapData();
-            md.name = GetPlaceName(r.Tags);
-            md.type = GetPlaceType(r.Tags);
-            md.AreaTypeId = areaTypeReference[md.type.StartsWith("admin") ? "admin" : md.type].First();
-            md.RelationId = r.Id;
-            md.place = SimplifyArea(Tpoly);
-            if (md.place == null)
-                return null;
-
-            return md;
-        }
-
-        private static Geometry GetGeometryFromMembers(CompleteRelationMember[] members)
+        public static Geometry GetGeometryFromWays(List<WayData> shapeList, OsmSharp.Relation r)
         {
             //A common-ish case looks like the outer entries are lines that join togetehr, and inner entries are polygons.
             //Let's see if we can build a polygon (or more, possibly)
@@ -64,27 +21,58 @@ namespace Larry
             List<Polygon> existingPols = new List<Polygon>();
             List<Polygon> innerPols = new List<Polygon>();
 
-            //Separate sets
-            var innerEntries = members.Where(m => m.Role == "inner").Select(m => (CompleteWay)m.Member).ToList(); //these are almost always closed polygons.
-            var outerEntries = members.Where(m => m.Role == "outer").Select(m => (CompleteWay)m.Member).ToList();
-            var innerPolys = new List<WayData>();
-
-            //Remove any closed shapes first from the outer entries.
-            var closedShapes = outerEntries.Where(s => s.Nodes.First().Id == s.Nodes.Last().Id).ToList();
-            foreach (var cs in closedShapes)
+            if (shapeList.Count == 0)
             {
-                outerEntries.Remove(cs);
-                existingPols.Add(factory.CreatePolygon(cs.Nodes.Select(n => new Coordinate(n.Longitude.Value, n.Latitude.Value)).ToArray()));
+                Log.WriteLog("Relation " + r.Id + " " + Place.GetPlaceName(r.Tags) + " has 0 ways in shapelist", Log.VerbosityLevels.High);
+                return null;
             }
 
-            while (outerEntries.Count() > 0)
-                existingPols.Add(GetShapeFromCompleteWay(ref outerEntries)); //only outers here.
+            //Separate sets
+            var innerEntries = r.Members.Where(m => m.Role == "inner").Select(m => m.Id).ToList(); //these are almost always closed polygons.
+            var outerEntries = r.Members.Where(m => m.Role == "outer").Select(m => m.Id).ToList();
+            var innerPolys = new List<WayData>();
+
+            if (innerEntries.Count() + outerEntries.Count() > shapeList.Count)
+            {
+                Log.WriteLog("Relation " + r.Id + " " + Place.GetPlaceName(r.Tags) + " is missing Ways, odds of success are low.", Log.VerbosityLevels.High);
+            }
+
+            //Not all ways are tagged for this, so we can't always rely on this.
+            if (outerEntries.Count > 0)
+                shapeList = shapeList.Where(s => outerEntries.Contains(s.id)).ToList();
+
+            if (innerEntries.Count > 0)
+            {
+                innerPolys = shapeList.Where(s => innerEntries.Contains(s.id)).ToList();
+                //foreach (var ie in innerPolys)
+                //{
+                while (innerPolys.Count() > 0)
+                    //TODO: confirm all of these are closed shapes.
+                    innerPols.Add(GetShapeFromLines(ref innerPolys));
+                //}
+            }
+
+            //Remove any closed shapes first from the outer entries.
+            var closedShapes = shapeList.Where(s => s.nds.First().id == s.nds.Last().id).ToList();
+            foreach (var cs in closedShapes)
+            {
+                if (cs.nds.Count() > 3) //TODO: if SimplifyAreas is true, this might have been a closedShape that became a linestring or point from this.
+                {
+                    shapeList.Remove(cs);
+                    existingPols.Add(factory.CreatePolygon(cs.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray()));
+                }
+                else
+                    Log.WriteLog("Invalid closed shape found: " + cs.id);
+            }
+
+            while (shapeList.Count() > 0)
+                existingPols.Add(GetShapeFromLines(ref shapeList)); //only outers here.
 
             existingPols = existingPols.Where(e => e != null).ToList();
 
             if (existingPols.Count() == 0)
             {
-                Log.WriteLog("This relation has no polygons and no lines that make polygons. Is this relation supposed to be an open line?", Log.VerbosityLevels.High);
+                Log.WriteLog("Relation " + r.Id + " " + Place.GetPlaceName(r.Tags) + " has no polygons and no lines that make polygons. Is this relation supposed to be an open line?", Log.VerbosityLevels.High);
                 return null;
             }
 
@@ -115,17 +103,16 @@ namespace Larry
                 }
                 catch (Exception ex)
                 {
-                    Log.WriteLog("Error trying to pull difference from inner and outer polygons:" + ex.Message);
+                    Log.WriteLog("Relation " + r.Id + " Error trying to pull difference from inner and outer polygons:" + ex.Message);
                 }
             }
             return multiPol;
-
         }
-
-        private static Polygon GetShapeFromCompleteWay(ref List<CompleteWay> shapeList)
+        public static Polygon GetShapeFromLines(ref List<WayData> shapeList)
         {
             //takes shapelist as ref, returns a polygon, leaves any other entries in shapelist to be called again.
             //NOTE/TODO: if this is a relation of lines that aren't a polygon (EX: a very long hiking trail), this should probably return the combined linestring?
+            //TODO: if the lines are too small, should I return a Point instead?
 
             List<Coordinate> possiblePolygon = new List<Coordinate>();
             var firstShape = shapeList.FirstOrDefault();
@@ -135,27 +122,27 @@ namespace Larry
                 return null;
             }
             shapeList.Remove(firstShape);
-            var nextStartnode = firstShape.Nodes.Last();
+            var nextStartnode = firstShape.nds.Last();
             var closedShape = false;
             var isError = false;
-            possiblePolygon.AddRange(firstShape.Nodes.Where(n => n.Id != nextStartnode.Id).Select(n => new Coordinate(n.Longitude.Value, n.Latitude.Value)).ToList());
+            possiblePolygon.AddRange(firstShape.nds.Where(n => n.id != nextStartnode.id).Select(n => new Coordinate(n.lon, n.lat)).ToList());
             while (closedShape == false)
             {
-                var allPossibleLines = shapeList.Where(s => s.Nodes.First().Id == nextStartnode.Id).ToList();
-                if (allPossibleLines.Count() > 1)
+                var allPossibleLines = shapeList.Where(s => s.nds.First().id == nextStartnode.id).ToList();
+                if (allPossibleLines.Count > 1)
                 {
                     Log.WriteLog("Shape has multiple possible lines to follow, might not process correctly.", Log.VerbosityLevels.High);
                 }
-                var lineToAdd = shapeList.Where(s => s.Nodes.First().Id == nextStartnode.Id && s.Nodes.First().Id != s.Nodes.Last().Id).FirstOrDefault();
+                var lineToAdd = shapeList.Where(s => s.nds.First().id == nextStartnode.id && s.nds.First().id != s.nds.Last().id).FirstOrDefault();
                 if (lineToAdd == null)
                 {
                     //check other direction
-                    var allPossibleLinesReverse = shapeList.Where(s => s.Nodes.Last().Id == nextStartnode.Id).ToList();
-                    if (allPossibleLinesReverse.Count() > 1)
+                    var allPossibleLinesReverse = shapeList.Where(s => s.nds.Last().id == nextStartnode.id).ToList();
+                    if (allPossibleLinesReverse.Count > 1)
                     {
                         Log.WriteLog("Way has multiple possible lines to follow, might not process correctly (Reversed Order).");
                     }
-                    lineToAdd = shapeList.Where(s => s.Nodes.Last().Id == nextStartnode.Id && s.Nodes.First().Id != s.Nodes.Last().Id).FirstOrDefault();
+                    lineToAdd = shapeList.Where(s => s.nds.Last().id == nextStartnode.id && s.nds.First().id != s.nds.Last().id).FirstOrDefault();
                     if (lineToAdd == null)
                     {
                         //If all lines are joined and none remain, this might just be a relation of lines. Return a combined element
@@ -164,12 +151,12 @@ namespace Larry
                         isError = true; //rename this to something like IsPolygon
                     }
                     else
-                        lineToAdd.Nodes = lineToAdd.Nodes.Reverse().ToArray();
+                        lineToAdd.nds.Reverse();
                 }
                 if (!isError)
                 {
-                    possiblePolygon.AddRange(lineToAdd.Nodes.Where(n => n.Id != nextStartnode.Id).Select(n => new Coordinate(n.Longitude.Value, n.Latitude.Value)).ToList());
-                    nextStartnode = lineToAdd.Nodes.Last();
+                    possiblePolygon.AddRange(lineToAdd.nds.Where(n => n.id != nextStartnode.id).Select(n => new Coordinate(n.lon, n.lat)).ToList());
+                    nextStartnode = lineToAdd.nds.Last();
                     shapeList.Remove(lineToAdd);
 
                     if (possiblePolygon.First().Equals(possiblePolygon.Last()))
@@ -186,7 +173,7 @@ namespace Larry
             }
 
             var poly = factory.CreatePolygon(possiblePolygon.ToArray());
-            poly = CCWCheck(poly);
+            poly = GeometrySupport.CCWCheck(poly);
             if (poly == null)
             {
                 Log.WriteLog("Found a shape that isn't CCW either way. Error.", Log.VerbosityLevels.High);
