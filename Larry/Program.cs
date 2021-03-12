@@ -110,12 +110,12 @@ namespace Larry
 
             if (args.Any(a => a == "-resetXml" || a == "-resetPbf")) //update both anyways.
             {
-                FileCommands.ResetPbfFiles();
+                FileCommands.ResetFiles(ParserSettings.PbfFolder);
             }
 
             if (args.Any(a => a == "-resetJson"))
             {
-                FileCommands.ResetJsonFiles();
+                FileCommands.ResetFiles(ParserSettings.JsonMapDataFolder);
             }
 
             if (args.Any(a => a == "-trimPbfFiles"))
