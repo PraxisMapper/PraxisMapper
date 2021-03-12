@@ -499,74 +499,74 @@ namespace Larry
             File.AppendAllLines(outputFile, new List<String>() { "]" });
         }
 
-        private static void GetAllEntriesFromPbf(Stream dataStream, string areaType, out List<OsmSharp.Relation> relList, out List<OsmSharp.Way> wayList, out Dictionary<long, NodeReference> nodes, out List<MapData> results)
-        {
-            //Try and pull everything out of the file at once, instead of doing 3 passes on it.
-            //This does assume, however, that everything is in order (All relations appear before a way they reference, and all ways appear before the nodes they reference.
-            //This assumption may not be true, which would justify the 3-pass effort. This could cut it down to 2 passes (one for tagged stuff, one for referenced-and-not-tagged stuff)
-            //Might also do processing here as a way to keep ram low-but-growing over time?
-            //BAH THEYRE SORTED BACKWARDS.
-            //Files have nodes first, then ways, then relations.
-            //BUT
-            //.ToComplete() gives me entries with all the members filled in, instead of doing the passes myself.
-            List<OsmSharp.Relation> rs = new List<Relation>();
-            List<OsmSharp.Way> ws = new List<Way>();
-            Dictionary<long, NodeReference> ns = new Dictionary<long, NodeReference>();
+        //private static void GetAllEntriesFromPbf(Stream dataStream, string areaType, out List<OsmSharp.Relation> relList, out List<OsmSharp.Way> wayList, out Dictionary<long, NodeReference> nodes, out List<MapData> results)
+        //{
+        //    //Try and pull everything out of the file at once, instead of doing 3 passes on it.
+        //    //This does assume, however, that everything is in order (All relations appear before a way they reference, and all ways appear before the nodes they reference.
+        //    //This assumption may not be true, which would justify the 3-pass effort. This could cut it down to 2 passes (one for tagged stuff, one for referenced-and-not-tagged stuff)
+        //    //Might also do processing here as a way to keep ram low-but-growing over time?
+        //    //BAH THEYRE SORTED BACKWARDS.
+        //    //Files have nodes first, then ways, then relations.
+        //    //BUT
+        //    //.ToComplete() gives me entries with all the members filled in, instead of doing the passes myself.
+        //    List<OsmSharp.Relation> rs = new List<Relation>();
+        //    List<OsmSharp.Way> ws = new List<Way>();
+        //    Dictionary<long, NodeReference> ns = new Dictionary<long, NodeReference>();
 
-            List<MapData> mds = new List<MapData>();
+        //    List<MapData> mds = new List<MapData>();
 
-            //use these to track referenced entries internally, instead of externally. Can then also remove items from these.
-            //THIS might be where I want to use a ConcurrentX collection instead of a baseline one, if i make this foreach parallel.
-            HashSet<long> rels = new HashSet<long>();
-            HashSet<long> ways = new HashSet<long>();
-            HashSet<long> nods = new HashSet<long>();
+        //    //use these to track referenced entries internally, instead of externally. Can then also remove items from these.
+        //    //THIS might be where I want to use a ConcurrentX collection instead of a baseline one, if i make this foreach parallel.
+        //    HashSet<long> rels = new HashSet<long>();
+        //    HashSet<long> ways = new HashSet<long>();
+        //    HashSet<long> nods = new HashSet<long>();
 
-            rs.Capacity = 100000;
-            ws.Capacity = 100000;
+        //    rs.Capacity = 100000;
+        //    ws.Capacity = 100000;
 
-            var source = new PBFOsmStreamSource(dataStream);
-            var source2 = source.Where(s => Place.GetPlaceType(s.Tags) != "" && s.Type == OsmGeoType.Relation).ToComplete();
+        //    var source = new PBFOsmStreamSource(dataStream);
+        //    var source2 = source.Where(s => Place.GetPlaceType(s.Tags) != "" && s.Type == OsmGeoType.Relation).ToComplete();
 
 
-            foreach (var entry in source2)
-            {
-                //switch(entry.Type)
-                //{
-                //    case OsmGeoType.Relation:
-                //        if (MapSupport.GetElementType(entry.Tags) != "")
-                //        {
-                CompleteRelation temp = (CompleteRelation)entry;
-                var t = Complete.ProcessCompleteRelation(temp);
-                //I should make a function that processes this.
+        //    foreach (var entry in source2)
+        //    {
+        //        //switch(entry.Type)
+        //        //{
+        //        //    case OsmGeoType.Relation:
+        //        //        if (MapSupport.GetElementType(entry.Tags) != "")
+        //        //        {
+        //        CompleteRelation temp = (CompleteRelation)entry;
+        //        var t = Complete.ProcessCompleteRelation(temp);
+        //        //I should make a function that processes this.
 
-                //            foreach (var m in temp.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id))
-                //                ways.Add(m);
-                //        }
-                //        break;
-                //    case OsmGeoType.Way:
-                //        if (MapSupport.GetElementType(entry.Tags) != "" || ways.Contains(entry.Id))
-                //        {
-                //            Way temp = (Way)entry;
-                //            ws.Add(temp);
-                //            foreach (var m in temp.Nodes)
-                //                nods.Add(m);
-                //        }
-                //        break;
-                //    case OsmGeoType.Node:
-                //        if (MapSupport.GetElementType(entry.Tags) != "" || nods.Contains(entry.Id))
-                //        {
-                //            var n = (OsmSharp.Node)entry;
-                //            ns.Add(n.Id.Value, new NodeReference(n.Id.Value, (float)n.Latitude, (float)n.Longitude, GetElementName(n.Tags), MapSupport.GetElementType(n.Tags)));
-                //        }
-                //        break;
-                //}
-            }
+        //        //            foreach (var m in temp.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id))
+        //        //                ways.Add(m);
+        //        //        }
+        //        //        break;
+        //        //    case OsmGeoType.Way:
+        //        //        if (MapSupport.GetElementType(entry.Tags) != "" || ways.Contains(entry.Id))
+        //        //        {
+        //        //            Way temp = (Way)entry;
+        //        //            ws.Add(temp);
+        //        //            foreach (var m in temp.Nodes)
+        //        //                nods.Add(m);
+        //        //        }
+        //        //        break;
+        //        //    case OsmGeoType.Node:
+        //        //        if (MapSupport.GetElementType(entry.Tags) != "" || nods.Contains(entry.Id))
+        //        //        {
+        //        //            var n = (OsmSharp.Node)entry;
+        //        //            ns.Add(n.Id.Value, new NodeReference(n.Id.Value, (float)n.Latitude, (float)n.Longitude, GetElementName(n.Tags), MapSupport.GetElementType(n.Tags)));
+        //        //        }
+        //        //        break;
+        //        //}
+        //    }
 
-            relList = rs;
-            wayList = ws;
-            nodes = ns;
-            results = mds;
-        }
+        //    relList = rs;
+        //    wayList = ws;
+        //    nodes = ns;
+        //    results = mds;
+        //}
 
         public static List<OsmSharp.Relation> GetRelationsFromPbf(string filename, string areaType, int limit = 0, int skip = 0)
         {
@@ -626,12 +626,12 @@ namespace Larry
             return filteredWays;
         }
 
-        public static List<OsmSharp.Way> GetWaysFromStream(Stream file, string areaType, ILookup<long, short> referencedWays)
-        {
-            //Read through a memorystream for stuff that matches our parameters.   
-            file.Position = 0;
-            return InnerGetWays(file, areaType, referencedWays);
-        }
+        //public static List<OsmSharp.Way> GetWaysFromStream(Stream file, string areaType, ILookup<long, short> referencedWays)
+        //{
+        //    //Read through a memorystream for stuff that matches our parameters.   
+        //    file.Position = 0;
+        //    return InnerGetWays(file, areaType, referencedWays);
+        //}
 
         public static List<OsmSharp.Way> GetWaysFromStream(Stream file, string areaType, HashSet<long> referencedWays)
         {
@@ -726,11 +726,11 @@ namespace Larry
             return filteredEntries;
         }
 
-        public static ILookup<long, NodeReference> GetNodesFromStream(Stream file, string areaType, ILookup<long, short> nodes)
-        {
-            file.Position = 0;
-            return InnerGetNodes(file, areaType, nodes);
-        }
+        //public static ILookup<long, NodeReference> GetNodesFromStream(Stream file, string areaType, ILookup<long, short> nodes)
+        //{
+        //    file.Position = 0;
+        //    return InnerGetNodes(file, areaType, nodes);
+        //}
 
         public static ILookup<long, NodeReference> GetNodesFromStream(Stream file, string areaType, HashSet<long> nodes)
         {

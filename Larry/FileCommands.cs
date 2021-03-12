@@ -16,18 +16,9 @@ namespace Larry
     //FileCommands is intended for functions that do some work on various file types. Processing map data from PBFs belongs to PbfOperations.
     public static class FileCommands
     {
-        public static void ResetPbfFiles()
+        public static void ResetFiles(string folder)
         {
-            List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.*Done").ToList();
-            foreach (var file in filenames)
-            {
-                File.Move(file, file.Substring(0, file.Length - 4));
-            }
-        }
-
-        public static void ResetJsonFiles()
-        {
-            List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.JsonMapDataFolder, "*.jsonDone").ToList();
+            List<string> filenames = System.IO.Directory.EnumerateFiles(folder, "*.*Done").ToList();
             foreach (var file in filenames)
             {
                 File.Move(file, file.Substring(0, file.Length - 4));
