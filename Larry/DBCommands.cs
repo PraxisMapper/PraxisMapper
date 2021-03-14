@@ -17,7 +17,7 @@ namespace Larry
         {
             PraxisContext db = new PraxisContext();
             db.Database.EnsureCreated(); //all the automatic stuff EF does for us, without migrations.
-                                         //Not automatic entries executed below:
+            //Not automatic entries executed below:
             db.Database.ExecuteSqlRaw(PraxisContext.MapDataIndex);
             db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataIndex);
 
@@ -51,7 +51,6 @@ namespace Larry
             db.SaveChanges();
             if (dbType == "SQLServer")
                 db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT dbo.AreaTypes OFF;");
-            //TODO: mariadb might need an identity value manually updated when an ID is inserted.
             db.Database.CommitTransaction();
         }
 
@@ -95,10 +94,6 @@ namespace Larry
             PraxisContext osm = new PraxisContext();
             osm.Database.SetCommandTimeout(900);
 
-            //Dont remove these automatically, these only get filled on DB creation
-            //osm.Database.ExecuteSqlRaw("TRUNCATE TABLE AreaTypes");
-            //Log.WriteLog("AreaTypes cleaned at " + DateTime.Now);
-
             osm.Database.ExecuteSqlRaw("TRUNCATE TABLE MapData");
             Log.WriteLog("MapData cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
             osm.Database.ExecuteSqlRaw("TRUNCATE TABLE MapTiles");
@@ -107,6 +102,8 @@ namespace Larry
             Log.WriteLog("PerformanceInfo cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
             osm.Database.ExecuteSqlRaw("TRUNCATE TABLE GeneratedMapData");
             Log.WriteLog("GeneratedMapData cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
+            osm.Database.ExecuteSqlRaw("TRUNCATE TABLE SlippyMapTiles");
+            Log.WriteLog("SlippyMapTiles cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
 
             Log.WriteLog("DB cleaned at " + DateTime.Now);
         }
@@ -146,7 +143,6 @@ namespace Larry
                 db.MapData.RemoveRange(entriesToDelete.Skip(1));
                 db.SaveChanges(); //so the app can make partial progress if it needs to restart
             }
-            //db.SaveChanges();
             Log.WriteLog("Duped Way entries deleted at " + DateTime.Now);
 
             dupedMapDatas = db.MapData.Where(md => md.RelationId != null).GroupBy(md => md.RelationId) //This might require a different approach, or possibly different server settings?
@@ -161,29 +157,12 @@ namespace Larry
                 db.MapData.RemoveRange(entriesToDelete.Skip(1));
                 db.SaveChanges(); //so the app can make partial progress if it needs to restart
             }
-            //db.SaveChanges();
-
-            //Approach 2 to automatically removing duplicate relations. I get the same error as the first approach.
-            //var dupedRelationList = db.MapData.Where(md => md.RelationId != null)
-            //    .Select(m => new { m.MapDataId, m.RelationId })
-            //    .ToList();
-
-            //var dupedKeys = dupedRelationList.GroupBy(d => d.RelationId).Select(d => new { d.Key, count = d.Count() }).Where(d => d.count > 1).ToList();
-
-            //foreach(var entry in dupedKeys)
-            //{
-            //    var entriesToDelete = db.MapData.Where(md => md.RelationId == entry.Key).Skip(1);
-            //    db.MapData.RemoveRange(entriesToDelete);
-            //    db.SaveChanges();   
-            //}
-
             Log.WriteLog("Duped Relation entries deleted at " + DateTime.Now);
         }
 
         public static void UpdateExistingEntries()
         {
             List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.JsonMapDataFolder, "*.json").ToList();
-            //foreach (string filename in filenames)
             System.Threading.Tasks.ParallelOptions po = new System.Threading.Tasks.ParallelOptions();
             po.MaxDegreeOfParallelism = 8; //Limit how many running loops at once we have.
             System.Threading.Tasks.Parallel.ForEach(filenames, po, (filename) =>
@@ -249,7 +228,7 @@ namespace Larry
         public static void AddMapDataToDBFromFiles()
         {
             //This function is pretty slow. I should figure out how to speed it up. Approx. 3,000 MapData entries per second right now.
-            //Bulk inserts fail on the Geography type, last I had checked on SQL Server. TODO: test bulkinserts on MariaDB
+            //Bulk inserts don't work on the geography columns.
             foreach (var file in System.IO.Directory.EnumerateFiles(ParserSettings.JsonMapDataFolder, "*-MapData*.json")) //excludes my LargeAreas.json file by default here.
             {
                 Console.Title = file;
@@ -258,7 +237,7 @@ namespace Larry
                 db.ChangeTracker.AutoDetectChangesEnabled = false; //Allows single inserts to operate at a reasonable speed (~6000 per second). Nothing else edits this table.
                 List<MapData> entries = FileCommands.ReadMapDataToMemory(file);
                 Log.WriteLog("Processing " + entries.Count() + " ways from " + file, Log.VerbosityLevels.High);
-                //Trying to make this a little bit faster by working around internal EF graph stuff.
+                //Trying to make this a little bit faster by using blocks of data to avoid hitting performance issues with EF internal graph stuff
                 for (int i = 0; i <= entries.Count() / 10000; i++)
                 {
                     var subList = entries.Skip(i * 10000).Take(10000).ToList();
