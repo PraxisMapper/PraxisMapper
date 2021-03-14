@@ -12,7 +12,7 @@ namespace Larry
     {
         public static Geometry GetGeometryFromWays(List<WayData> shapeList, OsmSharp.Relation r)
         {
-            //A common-ish case looks like the outer entries are lines that join togetehr, and inner entries are polygons.
+            //A common-ish case looks like the outer entries are lines that join together, and inner entries are polygons.
             //Let's see if we can build a polygon (or more, possibly)
             List<Coordinate> possiblePolygon = new List<Coordinate>();
             //from the first line, find the line that starts with the same endpoint (or ends with the startpoint, but reverse that path).
@@ -44,12 +44,8 @@ namespace Larry
             if (innerEntries.Count > 0)
             {
                 innerPolys = shapeList.Where(s => innerEntries.Contains(s.id)).ToList();
-                //foreach (var ie in innerPolys)
-                //{
                 while (innerPolys.Count() > 0)
-                    //TODO: confirm all of these are closed shapes.
                     innerPols.Add(GetShapeFromLines(ref innerPolys));
-                //}
             }
 
             //Remove any closed shapes first from the outer entries.
@@ -93,7 +89,6 @@ namespace Larry
 
             //return a multipolygon instead.
             Geometry multiPol = factory.CreateMultiPolygon(existingPols.Distinct().ToArray());
-            //A new attempt at removing inner entries from outer ones via multipolygon.
             if (innerPols.Count() > 0)
             {
                 var innerMultiPol = factory.CreateMultiPolygon(innerPols.Where(ip => ip != null).Distinct().ToArray());
@@ -112,7 +107,6 @@ namespace Larry
         {
             //takes shapelist as ref, returns a polygon, leaves any other entries in shapelist to be called again.
             //NOTE/TODO: if this is a relation of lines that aren't a polygon (EX: a very long hiking trail), this should probably return the combined linestring?
-            //TODO: if the lines are too small, should I return a Point instead?
 
             List<Coordinate> possiblePolygon = new List<Coordinate>();
             var firstShape = shapeList.FirstOrDefault();
@@ -123,10 +117,10 @@ namespace Larry
             }
             shapeList.Remove(firstShape);
             var nextStartnode = firstShape.nds.Last();
-            var closedShape = false;
+            var processShape = false;
             var isError = false;
             possiblePolygon.AddRange(firstShape.nds.Where(n => n.id != nextStartnode.id).Select(n => new Coordinate(n.lon, n.lat)).ToList());
-            while (closedShape == false)
+            while (processShape == false)
             {
                 var allPossibleLines = shapeList.Where(s => s.nds.First().id == nextStartnode.id).ToList();
                 if (allPossibleLines.Count > 1)
@@ -147,8 +141,8 @@ namespace Larry
                     {
                         //If all lines are joined and none remain, this might just be a relation of lines. Return a combined element
                         Log.WriteLog("shape doesn't seem to have properly connecting lines, can't process as polygon.", Log.VerbosityLevels.High);
-                        closedShape = true; //rename this to something better for breaking the loop
-                        isError = true; //rename this to something like IsPolygon
+                        processShape = true;
+                        isError = true;
                     }
                     else
                         lineToAdd.nds.Reverse();
@@ -160,7 +154,7 @@ namespace Larry
                     shapeList.Remove(lineToAdd);
 
                     if (possiblePolygon.First().Equals(possiblePolygon.Last()))
-                        closedShape = true;
+                        processShape = true;
                 }
             }
             if (isError)

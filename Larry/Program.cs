@@ -127,7 +127,7 @@ namespace Larry
             {
                 List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
                 foreach (string filename in filenames)
-                    FileCommands.SerializeSeparateFilesFromPBF(filename);
+                    PbfOperations.SerializeSeparateFilesFromPBF(filename);
             }
 
             if (args.Any(a => a.StartsWith("-lastChance")))
@@ -136,7 +136,7 @@ namespace Larry
                 var areaType = args.Where(a => a.StartsWith("-lastChance")).First().Split(":")[1];
                 List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
                 foreach (string filename in filenames)
-                    FileCommands.LastChanceSerializer(filename, areaType);
+                    PbfOperations.LastChanceSerializer(filename, areaType);
             }
 
             if (args.Any(a => a == "-readMapData"))
@@ -505,7 +505,6 @@ namespace Larry
             string destFileName = System.IO.Path.GetFileNameWithoutExtension(filename);
             FileCommands.WriteMapDataToFile(ParserSettings.JsonMapDataFolder + destFileName + "-MapData-Test.json", ref processedEntries);
             DBCommands.AddMapDataToDBFromFiles();
-
         }
 
         public static void DownloadPbfFile(string topLevel, string subLevel1, string subLevel2, string destinationFolder)
