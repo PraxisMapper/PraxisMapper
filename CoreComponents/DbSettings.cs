@@ -16,9 +16,9 @@
         public static bool processWetland { get; set; } = true;
 
         //These ones are for a more thorough area-specific settting.
-        public static bool processRoads { get; set; } = false;
-        public static bool processBuildings { get; set; } = false;
-        public static bool processParking{ get; set; } = false;
+        public static bool processRoads { get; set; } = true;
+        public static bool processBuildings { get; set; } = true;
+        public static bool processParking{ get; set; } = true;
     }
 }
 
