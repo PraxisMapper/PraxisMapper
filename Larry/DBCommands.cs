@@ -16,7 +16,8 @@ namespace Larry
         public static void MakePraxisDB()
         {
             PraxisContext db = new PraxisContext();
-            db.Database.EnsureCreated(); //all the automatic stuff EF does for us, without migrations.
+            db.Database.EnsureCreated(); //all the automatic stuff EF does for us
+
             //Not automatic entries executed below:
             db.Database.ExecuteSqlRaw(PraxisContext.MapDataIndex);
             db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataIndex);
@@ -28,10 +29,6 @@ namespace Larry
             }
             if (ParserSettings.DbMode == "MariaDB")
             {
-                //So far, these haven't been needed in testing. MariaDB doesnt seem to do the separate validation MSSQL does.
-                //db.Database.ExecuteSqlRaw(PraxisContext.MapDataValidTriggerMariaDB);
-                //db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataValidTriggerMariaDB);
-                //db.Database.ExecuteSqlRaw(PraxisContext.FindDBMapDataBoundsMariaDB);
                 db.Database.ExecuteSqlRaw("SET collation_server = 'utf8mb4_unicode_ci'; SET character_set_server = 'utf8mb4'"); //MariaDB defaults to latin2_swedish, we need Unicode.
             }
 

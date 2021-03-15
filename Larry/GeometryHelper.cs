@@ -52,7 +52,7 @@ namespace Larry
             var closedShapes = shapeList.Where(s => s.nds.First().id == s.nds.Last().id).ToList();
             foreach (var cs in closedShapes)
             {
-                if (cs.nds.Count() > 3) //TODO: if SimplifyAreas is true, this might have been a closedShape that became a linestring or point from this.
+                if (cs.nds.Count() > 3) // if SimplifyAreas is true, this might have been a closedShape that became a linestring or point from this.
                 {
                     shapeList.Remove(cs);
                     existingPols.Add(factory.CreatePolygon(cs.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray()));
@@ -106,7 +106,7 @@ namespace Larry
         public static Polygon GetShapeFromLines(ref List<WayData> shapeList)
         {
             //takes shapelist as ref, returns a polygon, leaves any other entries in shapelist to be called again.
-            //NOTE/TODO: if this is a relation of lines that aren't a polygon (EX: a very long hiking trail), this should probably return the combined linestring?
+            //NOTE: if this is a relation of lines that aren't a polygon (EX: a very long hiking trail), this should probably return the combined linestring? That's a different function
 
             List<Coordinate> possiblePolygon = new List<Coordinate>();
             var firstShape = shapeList.FirstOrDefault();

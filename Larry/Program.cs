@@ -56,19 +56,18 @@ namespace Larry
             if (args.Any(a => a == "-noLogs"))
                 Log.Verbosity = Log.VerbosityLevels.Off;
 
-            //TODO: this should probably be the default.
-            if (args.Any(a => a == "-processEverything"))
+            if (args.Any(a => a == "-skipRoadsAndBuildings"))
             {
-                DbSettings.processRoads = true;
-                DbSettings.processBuildings = true;
-                DbSettings.processParking = true;
+                DbSettings.processRoads = false;
+                DbSettings.processBuildings = false;
+                DbSettings.processParking = false;
             }
 
             if (args.Any(a => a == "-spaceSaver"))
             {
                 ParserSettings.UseHighAccuracy = false;
                 factory = NtsGeometryServices.Instance.CreateGeometryFactory(new PrecisionModel(1000000), 4326); //SRID matches Plus code values.  Precision model means round all points to 7 decimal places to not exceed float's useful range.
-                SimplifyAreas = true;
+                SimplifyAreas = true; //rounds off points that are within a Cell10's distance of each other. Makes fancy architecture and highly detailed paths less pretty on map tiles, but works for gameplay data.
             }
 
             //If multiple args are supplied, run them in the order that make sense, not the order the args are supplied.
@@ -98,7 +97,6 @@ namespace Larry
             if (args.Any(a => a.StartsWith("-getPbf:")))
             {
                 //Wants 3 pieces. Drops in placeholders if some are missing. Giving no parameters downloads Ohio.
-                //TODO: confirm this works for places with fewer sub-divisions in the path.
                 string arg = args.Where(a => a.StartsWith("-getPbf:")).First().Replace("-getPbf:", "");
                 var splitData = arg.Split('|'); //remember the first one will be empty.
                 string level1 = splitData.Count() >= 4 ? splitData[3] : "north-america";
@@ -156,24 +154,11 @@ namespace Larry
 
             if (args.Any(a => a.StartsWith("-createStandalone")))
             {
-                //TODO: finish this to take in a parameter thats a relationID (i think, possibly a geo area)
-                //Near-future plan: make an app that covers an area and pulls in all data for it.
-                //like a university or a park. Draws ALL objects there to an SQLite DB used directly by an app, no data connection.
-                //Second arg: area covered somehow (way or relation ID of thing to use? big plus code?)
-                //Get a min and a max point, make a box, load all the elements in that from the parent file.
-
-                //TODO: switch this to make a detailed entry for a relation.
-                //So i need a second parameter for relationID, then use that to pull the envelope for its bound
-                //and output a file with all that data.
-
-                //Test sample covers OSU. OSU is .0307 x .0154 degrees.
-                GeoPoint min = new GeoPoint(39.9901, -83.0496);
-                GeoPoint max = new GeoPoint(40.0208, -83.0035);
-                GeoArea box = new GeoArea(min, max);
-                string filename = ParserSettings.PbfFolder + "ohio-latest.osm.pbf";
+                //This makes a standalone DB for a specific relation passed in as a paramter. Originally used a geoArea, now calculates that from a Relation.
+                //If you think you want an area, it's probably better to pick an admin boundary as a relation that covers the area.
 
                 int relationId = args.Where(a => a.StartsWith("-createStandalone")).First().Split('|')[1].ToInt();
-                CreateStandaloneDB(relationId, filename); //Also generates map tiles here, but doesn't include them in the database directly due to my app. 
+                CreateStandaloneDB(relationId, false, true); //How map tiles are handled is determined by the optional parameters
             }
 
             if (args.Any(a => a.StartsWith("-checkFile:")))
@@ -185,8 +170,7 @@ namespace Larry
 
             if (args.Any(a => a == "-autoCreateMapTiles")) //better for letting the app decide which tiles to create than manually calling out Cell6 names.
             {
-                //NOTE: this loop ran at 11 maptiles per second on my original attempt. This optimized setup runs at up to 1300 maptiles per second. I haven't yet tracked down some of the variability and stability issues.
-                //They may related to running the DB and this process on the same physical PC.
+                //NOTE: this loop ran at 11 maptiles per second on my original attempt. This optimized setup runs at up to 2600 maptiles per second.
                 //Remember: this shouldn't draw GeneratedMapTile areas, nor should this create them.
                 //Tiles should be redrawn when those get made, if they get made.
                 //This should also over-write existing map tiles if present, in case the data's been updated since last run.
@@ -196,7 +180,6 @@ namespace Larry
                 //Potential alternative idea:
                 //One loops detects which map tiles need drawn, using the algorithm, and saves that list to a new DB table
                 //A second process digs through that list and draws the map tiles, then marks them  as drawn (or deletes them from the list?)
-
 
                 //Search for all areas that needs a map tile created.
                 List<string> Cell2s = new List<string>();
@@ -231,7 +214,6 @@ namespace Larry
 
             if (args.Any(a => a.StartsWith("-populateEmptyArea:")))
             {
-                //NOTE: 86GXVH appears to be entirely empty of interesting features, it's a good spot to start testing if you want to generate lots of areas.
                 var db = new PraxisContext();
                 var cell6 = args.Where(a => a.StartsWith("-populateEmptyArea:")).First().Split(":")[1];
                 CodeArea box6 = OpenLocationCode.DecodeValid(cell6);
@@ -254,8 +236,7 @@ namespace Larry
             return;
         }
 
-        //TODO: this has an ordering error. The tile code draws them correctly, but they aren't getting put in the right location for some reason. Is this still true?
-        public static void DetectMapTilesRecursive(string parentCell, bool skipExisting)
+        public static void DetectMapTilesRecursive(string parentCell, bool skipExisting) //This was off slightly at one point, but I didn't document how much or why. Should be correct now.
         {
             List<string> cellsFound = new List<string>();
             List<MapTile> tilesGenerated = new List<MapTile>(400); //Might need to be a ConcurrentBag or something similar?
@@ -297,7 +278,6 @@ namespace Larry
             }
 
             //This is fairly well optimized, and I suspect there's not much more I can do here to get this to go faster.
-            //Between 100 and 1300 map tiles drawn per seconds if all 400 are in a Cell6. Half that if not, suggests there's some overhead in doing the Decode and DoPlacesExist checks that can't really go away.
             //using 2 parallel loops is faster than 1 or 0. Having MariaDB on the same box is what pegs the CPU, not this double-parallel loop.
             System.Threading.Tasks.Parallel.For(0, 20, (pos1) =>
             //for (int pos1 = 0; pos1 < 20; pos1++)
@@ -308,22 +288,10 @@ namespace Larry
                     var area = new OpenLocationCode(cellToCheck).Decode();
                     if (cellToCheck.Length == 8) //We don't want to do the DoPlacesExist check here, since we'll want empty tiles for empty areas at this l
                     {
-                        //string exists = "";
-                        //if (skipExisting && existingTiles.TryGetValue(cellToCheck, out exists))
-                        //{
-                        //nothing
-                        //Log.WriteLog("Skipping tile draw for " + cellToCheck + ", already exists", Log.VerbosityLevels.High);
-                        //}
-                        //else
-                        //{
-                        //Draw this map tile
-                        //var places = GetPlaces(area);
-                        //var places = GetPlacesCB(area, cell6Data, false);
                         var places = GetPlaces(area, cell6Data, false); //These are cloned in GetPlaces, so we aren't intersecting areas twice and breaking drawing.
                         var tileData = MapTiles.DrawAreaMapTileSkia(ref places, area, 11); //now Skia drawing, should be faster. Peaks around 2600/s. ImageSharp peaked at 1600/s.
                         tilesGenerated.Add(new MapTile() { CreatedOn = DateTime.Now, mode = 1, tileData = tileData, resolutionScale = 11, PlusCode = cellToCheck });
                         Log.WriteLog("Cell " + cellToCheck + " Drawn", Log.VerbosityLevels.High);
-                        //}
                     }
                     else
                     {
@@ -338,7 +306,7 @@ namespace Larry
                             Log.WriteLog("Skipping Cell" + cellToCheck.Length + " " + cellToCheck + " for future mapdrawing checks.", Log.VerbosityLevels.High);
                         }
                     }
-                })); //add ) here if i do want 2 parallel loops. I might be losing some overhead to managing 400 threads.
+                }));
             if (tilesGenerated.Count() > 0)
             {
                 var db = new PraxisContext();
@@ -363,7 +331,7 @@ namespace Larry
         }      
 
         //mostly-complete function for making files for a standalone app.
-        public static void CreateStandaloneDB(long relationID, string parentFile, bool saveToDB = false, bool saveToFolder = true)
+        public static void CreateStandaloneDB(long relationID, bool saveToDB = false, bool saveToFolder = true)
         {
             //TODO: add a parmeter to determine if maptiles are saved in the DB or separately in a folder.            
             //TODO in practice:
@@ -409,21 +377,16 @@ namespace Larry
                         if (sd == "") //last result is always a blank line
                             continue;
 
-
                         var subParts = sd.Split('|'); //PlusCode|Name|AreaTypeID|MapDataID
-                                                      //TODO: testing this part, this might be unnecessary if the app handles it
-                                                      //if (subParts[1] == "")
-                                                      //subParts[1] = areaIdReference[subParts[2].ToInt()].FirstOrDefault();
-
                         sqliteDb.TerrainInfo.Add(new TerrainInfo() { Name = subParts[1], areaType = subParts[2].ToInt(), PlusCode = subParts[0], MapDataID = subParts[3].ToInt() });
                     }
 
                     var tile = MapTiles.DrawAreaMapTileSkia(ref areaList, areaForTile, 11);
 
-                    if (saveToDB) //Some apps will prefer a single self-contained file
+                    if (saveToDB) //Some apps will prefer a single self-contained database file
                         sqliteDb.MapTiles.Add(new MapTileDB() { image = tile, layer = 1, PlusCode = plusCode.CodeDigits.Substring(0,8) });
 
-                    if (saveToFolder) //some apps, like my Solar2D apps, can't use the byte[] and need files.
+                    if (saveToFolder) //some apps, like my Solar2D apps, can't use the byte[] in a DB row and need files.
                         System.IO.File.WriteAllBytes(relationID + "Tiles\\" + plusCode.CodeDigits.Substring(0, 8) + ".pngTile", tile); //Solar2d also can't load pngs directly from an apk file in android, but the rule is extension based.
                 }
             }
@@ -513,9 +476,7 @@ namespace Larry
             //save it to the same folder as configured for pbf files (might be passed in)
             //web paths http://download.geofabrik.de/north-america/us/ohio-latest.osm.pbf
             //root, then each parent division. Starting with USA isn't too hard.
-            //topLevel = "north-america";
-            //subLevel1 = "us";
-            //subLevel2 = "ohio";
+            //TODO: set this up to get files with different sub-level counts.
             var wc = new WebClient();
             wc.DownloadFile("http://download.geofabrik.de/" + topLevel + "/" + subLevel1 + "/" + subLevel2 + "-latest.osm.pbf", destinationFolder + subLevel2 + "-latest.osm.pbf");
         }

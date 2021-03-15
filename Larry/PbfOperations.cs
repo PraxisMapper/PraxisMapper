@@ -147,9 +147,11 @@ namespace Larry
             foreach (long nr in w.nodRefs)
             {
                 var osmNode = osmNodes[nr].FirstOrDefault();
-                //TODO: is osmNode is null, or its properties depending on OrDefault, make w null and return. check later to only process not-null ways. And log it. here too.
-                var myNode = new NodeData(osmNode.Id, osmNode.lat, osmNode.lon);
-                w.nds.Add(myNode);
+                if (osmNode != null)
+                {
+                    var myNode = new NodeData(osmNode.Id, osmNode.lat, osmNode.lon);
+                    w.nds.Add(myNode);
+                }
             }
             w.nodRefs = null; //free up a little memory we won't use again
         }
@@ -326,7 +328,7 @@ namespace Larry
                 //France
                 //Russia
                 //others
-                //TODO: add oceans. these might not actually exist as a single entry in OSM. Will have to check why
+                //Oceans don't exist in OSM because their specific boundaries are poorly defined.
                 //TODO: multi-state or multi-nation rivers.
                 2182501, //Ohio River
                 1756854, //Mississippi river --failed to get a polygon?
@@ -335,7 +337,6 @@ namespace Larry
                 //grand canyon?
             };
 
-            //Might want to pass an option for MemoryStream on this, since I can store the 7GB continent file in RAM but not the 54GB Planet file.
             var stream = new FileStream(filename, FileMode.Open);
             var source = new PBFOsmStreamSource(stream);
             File.Delete(outputFile); //Clear out any existing entries.
@@ -616,20 +617,9 @@ namespace Larry
                 return;
             }
 
-            //parse this file all at once instead.
-            FileStream fs = new FileStream(filename, FileMode.Open);
-            byte[] fileInRam = new byte[fs.Length];
-            fs.Read(fileInRam, 0, (int)fs.Length);
-            MemoryStream ms = new MemoryStream(fileInRam);
-            fs.Close(); fs.Dispose();
-
             Log.WriteLog("Checking for members in  " + filename + " at " + DateTime.Now);
             string destFilename = System.IO.Path.GetFileName(filename).Replace(".osm.pbf", "");
-
-            Log.WriteLog("Starting " + filename + " " + " data read at " + DateTime.Now);
-            var osmRelations = GetRelationsFromStream(ms, null);
-            Log.WriteLog(osmRelations.Count() + " relations found", Log.VerbosityLevels.High);
-            ProcessRelationData(osmRelations, null, filename, ParserSettings.JsonMapDataFolder + destFilename + "-MapData" + (ParserSettings.UseHighAccuracy ? "-highAcc" : "-lowAcc") + ".json");
+            ProcessRelationData(null, filename, ParserSettings.JsonMapDataFolder + destFilename + "-MapData" + (ParserSettings.UseHighAccuracy ? "-highAcc" : "-lowAcc") + ".json");
 
             Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
             File.Move(filename, filename + "Done");
@@ -646,10 +636,7 @@ namespace Larry
                     Log.WriteLog("Checking for " + areatypename + " members in  " + filename + " at " + DateTime.Now);
                     string destFilename = System.IO.Path.GetFileName(filename).Replace(".osm.pbf", "");
 
-                    Log.WriteLog("Starting " + filename + " " + areatypename + " data read at " + DateTime.Now);
-                    var osmRelations = GetRelationsFromPbf(filename, areatypename);
-                    Log.WriteLog(osmRelations.Count() + " relations found", Log.VerbosityLevels.High);
-                    ProcessRelationData(osmRelations, areatypename, filename, ParserSettings.JsonMapDataFolder + destFilename + "-MapData-" + areatypename + (ParserSettings.UseHighAccuracy ? "-highAcc" : "-lowAcc") + ".json");                    
+                    ProcessRelationData(areatypename, filename, ParserSettings.JsonMapDataFolder + destFilename + "-MapData-" + areatypename + (ParserSettings.UseHighAccuracy ? "-highAcc" : "-lowAcc") + ".json");                    
                 }
                 catch (Exception ex)
                 {
@@ -682,6 +669,7 @@ namespace Larry
 
                 ILookup<long, int> usedWays = null;
 
+                //TODO: this loop is a duplicate of ProcessRelationData with the limits in place. Consider moving parameters into that to remove duplication.
                 bool loadRelations = true;
                 while (loadRelations)
                 {
@@ -753,10 +741,12 @@ namespace Larry
             File.Move(filename, filename + "Done");
         }
 
-        //TODO: add relations to this, make it the core of most of the files.
         //This will mean there's nothing that tries to keep files in memory manually (turns out, windows already does that automatically)
-        public static void ProcessRelationData(List<Relation> osmRelations, string areatypename, string pbfFilename, string destFilename)
+        public static void ProcessRelationData(string areatypename, string pbfFilename, string destFilename)
         {
+            Log.WriteLog("Starting " + pbfFilename + " " + areatypename + " data read at " + DateTime.Now);
+            List<Relation> osmRelations = GetRelationsFromPbf(pbfFilename, areatypename);
+            Log.WriteLog(osmRelations.Count() + " relations found", Log.VerbosityLevels.High);
             var referencedWays = osmRelations.AsParallel().SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToLookup(k => k, v => (short)0);
             Log.WriteLog(referencedWays.Count() + " ways used within relations", Log.VerbosityLevels.High);
             Log.WriteLog("Relations loaded at " + DateTime.Now);
