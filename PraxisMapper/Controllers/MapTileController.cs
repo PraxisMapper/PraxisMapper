@@ -5,9 +5,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using PraxisMapper.Classes;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using static CoreComponents.DbTables;
 using static CoreComponents.Place;
 
@@ -29,7 +27,7 @@ namespace PraxisMapper.Controllers
             if (cache == null && Configuration.GetValue<bool>("enableCaching") == true)
             {
                 var options = new MemoryCacheOptions();
-                options.SizeLimit = 1024; //1k entries. that's 2.5 4-digit plus code blocks without roads/buildings. If an entry is 300kb on average, this is 300MB of RAM for caching. T3.small has 2GB total, t3.medium has 4GB.
+                options.SizeLimit = 1024;
                 cache = new MemoryCache(options);
             }
         }
@@ -128,53 +126,6 @@ namespace PraxisMapper.Controllers
                 var a = ex;
                 return null;
             }
-        }
-
-        
-        //ignore this one for a minute, Slippy Maps need their own tiles.
-        //Might be ready to remove this one.
-
-        [HttpGet]
-        [Route("/[controller]/DrawCell/{lat}/{lon}/{cellSizeForPixel}/{cellTileSize}/{layer}")]
-        public FileContentResult DrawCellByCoords(float lat, float lon, int cellSizeForPixel, int cellTileSize, int layer)
-        {
-            //lat and lon are geo coords (or, were expecting them to be.) THey're actually X and Y slippy map coords.
-            //BUT slippymaps don't use coords. They use a grid from -180W to 180E, 85.0511N to -85.0511S (they might also use radians, not degrees, for an additional conversion step)
-            //with 2^zoom level tiles in place. so, i need to do some math to get a coordinate
-            //X: -180 + ((360 / 2^zoom) * X)
-            //Y: 8
-            //Remember to invert Y to match PlusCodes going south to north.
-            //BUT Also, PlusCodes have 20^(zoom/2) tiles, and Slippy maps have 2^zoom tiles, this doesn't even line up nicely.
-            //Slippy Map tiles might just have to be their own thing.
-
-            //cellsizeForPixel is how big 1 pixel is (EX: 11 means it's a Cell11 per pixel and a rectangular image). Might support 12 now.
-            //cellTileSize is how big of an area the resulting tile covers. (EX: 8 is Cell8, with 20 Cell10s and 400 Cell11s contained) Can't go below 11.
-            //Default PraxisMApper tiles are 11 and 8.
-            //layer is which set of content are we drawing?
-            //map data, generated map data, multiplayer area-claim data, others? merging?
-            PerformanceTracker pt = new PerformanceTracker("DrawCellByCoords");
-
-            var minPlusCode = new OpenLocationCode(lat, lon, 11);
-            var relevantPlusCode = minPlusCode.CodeDigits.Substring(0, cellTileSize);
-
-            var db = new PraxisContext();
-            var existingResults = db.MapTiles.Where(mt => mt.PlusCode == relevantPlusCode && mt.resolutionScale == cellTileSize && mt.mode == layer).FirstOrDefault();
-            if (existingResults == null || existingResults.MapTileId == null)
-            {
-                //Create this entry
-                //requires a list of colors to use, which might vary per app
-                //GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
-                var relevantArea = OpenLocationCode.DecodeValid(relevantPlusCode);
-                var places = GetPlaces(relevantArea);
-                var results = MapTiles.DrawAreaMapTileSkia(ref places, relevantArea, cellSizeForPixel);
-                db.MapTiles.Add(new MapTile() { PlusCode = relevantPlusCode, CreatedOn = DateTime.Now, mode = layer, resolutionScale = cellSizeForPixel, tileData = results });
-                db.SaveChanges();
-                pt.Stop(relevantPlusCode);
-                return File(results, "image/png");
-            }
-
-            pt.Stop(relevantPlusCode);
-            return File(existingResults.tileData, "image/png");
         }
 
         [HttpGet]

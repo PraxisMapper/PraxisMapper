@@ -1,11 +1,8 @@
 ﻿using CoreComponents;
-using Microsoft.AspNetCore.Authorization.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
+using System;
+using System.Linq;
 
 namespace PraxisMapper.Controllers
 {
@@ -13,24 +10,22 @@ namespace PraxisMapper.Controllers
     [Route("[controller]")]
     [ApiController]
     public class AdminController : Controller
-
     {
+        //For stuff the admin would want to do but not allow anyone else to do.
         private readonly IConfiguration Configuration;
-        public static string adminPwd = ""; //will bet set on app start.
 
         public AdminController(IConfiguration configuration)
         {
             Configuration = configuration;
         }
 
-        //For stuff the admin would want to do but not allow anyone else to do.
-        //TODO: A password needs to be provided somewhere to run these. 
+        
         [HttpGet]
         [Route("/[controller]/PerfData/{password}")]
         public string PerfData(string password)
         {
-            //if (password != Configuration.GetValue<string>("adminPwd"))
-                //return "";
+            if (password != Configuration.GetValue<string>("adminPwd"))
+                return "";
 
             var db = new PraxisContext();
             var groups = db.PerformanceInfo.Where(p => p.calledAt > DateTime.Now.AddDays(-7)).AsEnumerable().GroupBy(g => g.functionName).OrderBy(g => g.Key).ToList();
@@ -70,10 +65,32 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/GetServerBounds/{password}")]
         public string GetServerBounds(string password)
         {
-            //var results = 
+            if (password != Configuration.GetValue<string>("adminPwd"))
+                return "";
+
             var db = new PraxisContext();
             var results = db.ServerSettings.FirstOrDefault();
             return results.SouthBound + "," + results.WestBound + "|" + results.NorthBound + "," + results.EastBound;
+        }
+
+        [HttpGet]
+        [Route("/[controller]/test")]
+        public string TestDummyEndpoint()
+        {
+            //For debug purposes to confirm the server is running and reachable.
+            string results = "Function OK";
+            try
+            {
+                var DB = new PraxisContext();
+                var check = DB.PlayerData.FirstOrDefault();
+                results += "|Database OK";
+            }
+            catch (Exception ex)
+            {
+                results += "|" + ex.Message + "|" + ex.StackTrace;
+            }
+
+            return results;
         }
     }
 }

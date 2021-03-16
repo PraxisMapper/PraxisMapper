@@ -1,11 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using CoreComponents;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
-using CoreComponents;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Configuration;
 using static CoreComponents.DbTables;
 
 namespace PraxisMapper.Controllers
@@ -192,7 +191,7 @@ namespace PraxisMapper.Controllers
             return results;
         }
 
-        [HttpGet] //TODO this is a POST? TODO take in an instanceID?
+        [HttpGet]
         [Route("/[controller]/PastScoreboards")]
         public static string PastScoreboards()
         {
@@ -205,7 +204,7 @@ namespace PraxisMapper.Controllers
             return parsedResults;
         }
 
-        [HttpGet] //TODO this is a POST?
+        [HttpGet] 
         [Route("/[controller]/ModeTime/{instanceID}")]
         public TimeSpan ModeTime(int instanceID)
         {
@@ -226,7 +225,6 @@ namespace PraxisMapper.Controllers
                 return;
 
             isResetting = true;
-            //TODO: determine if any of these commands needs to be raw SQL for performance reasons.
             //Clear out any stored data and fire the game mode off again.
             //Fire off a reset.
             var db = new PraxisContext();
@@ -237,11 +235,6 @@ namespace PraxisMapper.Controllers
             twConfig.NextReset = nextTime;
 
             db.PaintTownEntries.RemoveRange(db.PaintTownEntries.Where(tw => tw.PaintTownConfigId == instanceID));
-            //db.PaintTownTeamAssignments.RemoveRange(db.PaintTownTeamAssignments.Where(ta => ta.PaintTownConfigId == instanceID)); //This might be better suited to raw SQL. TODO investigate
-
-            //create dummy entries so team assignments works faster
-            //foreach (var faction in db.Factions)
-                //db.PaintTownTeamAssignments.Add(new DbTables.PaintTownTeamAssignment() { deviceID = "dummy", FactionId = (int)faction.FactionId, PaintTownConfigId = instanceID, ExpiresAt = nextTime });
 
             //record score results.
             var score = new DbTables.PaintTownScoreRecord();
@@ -254,7 +247,7 @@ namespace PraxisMapper.Controllers
             pt.Stop(instanceID.ToString());
         }
 
-        [HttpGet] //TODO this is a POST? TODO take in an instanceID?
+        [HttpGet]
         [Route("/[controller]/GetEndDate/{instanceID}")]
         public string GetEndDate(int instanceID)
         {
@@ -273,7 +266,7 @@ namespace PraxisMapper.Controllers
 
             Classes.PerformanceTracker pt = new Classes.PerformanceTracker("CheckForReset");
 
-            //TODO: cache these results into memory so I can skip a DB lookup every single call.
+            //TODO: cache these results into memory so I can skip a DB lookup every single call. Should probably be done on startup.
             var db = new PraxisContext();
             var twConfig = db.PaintTownConfigs.Where(t => t.PaintTownConfigId == instanceID).FirstOrDefault();
             if (twConfig.DurationHours == -1) //This is a permanent instance.
@@ -309,24 +302,5 @@ namespace PraxisMapper.Controllers
             ResetGame(instanceID, true);
             return "OK";
         }
-
-        //public PaintTownTeamAssignment GetTeamAssignment(string deviceID, int instanceID)
-        //{
-        //    var db = new PraxisContext();
-        //    var r = new Random();
-        //    var teamEntry = db.PaintTownTeamAssignments.Where(ta => ta.deviceID == deviceID && ta.PaintTownConfigId == instanceID).FirstOrDefault();
-        //    if (teamEntry == null)
-        //    {
-        //        var config = db.PaintTownConfigs.Where(c => c.PaintTownConfigId == instanceID).FirstOrDefault();
-        //        teamEntry = new DbTables.PaintTownTeamAssignment();
-        //        teamEntry.deviceID = deviceID;
-        //        teamEntry.PaintTownConfigId = instanceID;
-        //        teamEntry.ExpiresAt = DateTime.Now.AddDays(-1); //entry exists, immediately is expired. This is used to identify a newly created entry.
-        //        teamEntry.FactionId = r.Next(0, db.Factions.Count()) + 1; //purely randomly assigned.
-        //        db.PaintTownTeamAssignments.Add(teamEntry);
-        //        db.SaveChanges();
-        //    }
-        //    return teamEntry;
-        //}
     }
 }

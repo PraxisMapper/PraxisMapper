@@ -1,11 +1,9 @@
 ﻿using CoreComponents;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace PraxisMapper.Classes
 {
+    //Saves exceptions caught to the database for later reference.
     public static class ErrorLogger
     {
         public static void LogError(Exception ex)
