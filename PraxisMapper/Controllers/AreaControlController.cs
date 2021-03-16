@@ -8,7 +8,6 @@ using PraxisMapper.Classes;
 using System;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
 using static CoreComponents.ConstantValues;
 using static CoreComponents.Converters;
 using static CoreComponents.DbTables;
@@ -19,8 +18,9 @@ using static CoreComponents.Singletons;
 namespace PraxisMapper.Controllers
 {
     [Route("[controller]")]
+    [Route("Gameplay")] //backward compatibility with deployed version of apps.
     [ApiController]
-    public class GameplayController : Controller //TODO: rename 'Gameplay' to 'AreaControl'
+    public class AreaControlController : Controller
     {
         //AreaControl is meant to be a more typical baseline for a game. You have a core action (walk places to get point), 
         //which feeds a second action (spend points to claim an area for your team), which feeds a third (have more points than the other team).
@@ -28,7 +28,7 @@ namespace PraxisMapper.Controllers
 
         private static MemoryCache cache;
         private readonly IConfiguration Configuration;
-        public GameplayController(IConfiguration configuration)
+        public AreaControlController(IConfiguration configuration)
         {
             Configuration = configuration;
 
@@ -40,23 +40,22 @@ namespace PraxisMapper.Controllers
             }
         }
 
-        //GameplayController handles the basic gameplay interactions included with the server
+        //AreaControlController handles the basic gameplay interactions included with the server
         //this is AreaControl commands for players to take an area, get resources through an action, etc.
         //Note: to stick to our policy of not storing player data on the server side, Area-Control records stored here must be by faction, not individual.
         //(individual area control gameplay can store that info on the device)
 
-        //TODO: 
-        //Make sure that I don't delete map tiles, but force-update them. if i delete them, apps will have a much harder time knowing when to update their cached copies.
-
-        [HttpGet] //TODO this is a POST
+        [HttpGet]
         [Route("/[controller]/test")]
+        [Route("/Gameplay/test")]
         public string controllerterst()
         {
             return "Gameplay Endpoint up";
         }
 
-        [HttpGet] //TODO this is a POST
+        [HttpGet] //TODO technically this is a post.
         [Route("/[controller]/claimArea/{MapDataId}/{factionId}")]
+        [Route("/Gameplay/claimArea/{MapDataId}/{factionId}")]
         public bool ClaimArea(long MapDataId, int factionId)
         {
             PraxisContext db = new PraxisContext();
@@ -78,7 +77,6 @@ namespace PraxisMapper.Controllers
             teamClaim.claimedAt = DateTime.Now;
             db.SaveChanges();
             Tuple<long, int> shortcut = new Tuple<long, int>(MapDataId, factionId); //tell the application later not to hit the DB on every tile for this entry.
-            //Task.Factory.StartNew(() => RedoAreaControlMapTilesCell8(mapData, shortcut)); //I don't need this to finish to return, let it run in the background
             ExpireAreaControlMapTilesCell8(mapData, shortcut); //If this works correctly, i can set a much longer default expiration value on AreaControl tiles than 1 minute I currently use.
             
             return true;
@@ -86,7 +84,6 @@ namespace PraxisMapper.Controllers
 
         public static void ExpireAreaControlMapTilesCell8(MapData md, Tuple<long, int> shortcut = null)
         {
-            //This is a background task, but we want it to finish as fast as possible. 
             PerformanceTracker pt = new PerformanceTracker("ExpireAreaControlMapTilesCell8");
             var db = new PraxisContext();
             var space = md.place.Envelope;
@@ -99,48 +96,33 @@ namespace PraxisMapper.Controllers
 
             int xTiles = (int)Cell8XTiles + 1;
             IPreparedGeometry pg = pgf.Create(md.place); //this is supposed to be faster than regular geometry.
-            Parallel.For(0, xTiles, (x) => //We don't usually want parallel actions on a web server, but this is a high priority and this does cut the runtime in about half.
-            //for (var x = 0; x < Cell10XTiles; x++)
+            for (var x = 0; x < xTiles; x++)
             {
 
                 int yTiles = (int)(Cell8YTiles + 1);
-                Parallel.For(0, yTiles, (y) => //We don't usually want parallel actions on a web server, but this is a high priority
-                //for (var y = 0; y < Cell10YTiles; y++)
+                for (var y = 0; y < Cell8YTiles; y++)
                 {
                     var db2 = new PraxisContext();
                     var olc = new OpenLocationCode(new GeoPoint(miny + (resolutionCell8 * y), minx + (resolutionCell8 * x)));
                     var olc8 = olc.CodeDigits.Substring(0, 8);
                     var olcPoly = GeoAreaToPolygon(OpenLocationCode.DecodeValid(olc8));
-                    //if (md.place.Intersects(olcPoly)) //If this intersects the original way, redraw that tile. Lets us minimize work for oddly-shaped areas.
                     if (pg.Intersects(olcPoly))
                     {
                         var maptiles8 = db2.MapTiles.Where(m => m.PlusCode == olc8 && m.resolutionScale == 11 && m.mode == 2).FirstOrDefault();
-                    //old, redraw logic
-                    //if (maptiles8 == null)
-                    //{
-                    //    maptiles8 = new MapTile() { mode = 2, PlusCode = olc8, resolutionScale = 11 };
-                    //    db2.MapTiles.Add(maptiles8);
-                    //}
-
-                    //maptiles8.tileData = MapTiles.DrawMPControlAreaMapTile(olc.Decode(), 11, shortcut);
-                    //maptiles8.CreatedOn = DateTime.Now;
-                    //db2.SaveChanges();
-
-                    //new, expire to redraw later logic
                         if (maptiles8 != null)
                         {
                             maptiles8.ExpireOn = DateTime.Now.AddDays(-1);
                         }    
                     }
                     db2.SaveChanges();
-                });
-            });
-
+                }
+            }
             pt.Stop(md.MapDataId + "|" + md.name);
         }
 
         [HttpGet]
         [Route("/[controller]/GetFactions")]
+        [Route("/Gameplay/GetFactions")]
         public string GetFactionInfo()
         {
             //TODO: move this to a general controller, since factions apply to multiple game modes?
@@ -153,58 +135,17 @@ namespace PraxisMapper.Controllers
             return results;
         }
 
-        //[HttpGet]
-        //[Route("/[controller]/DrawFactionModeCell10HighRes/{Cell10}")]
-        //public FileContentResult DrawFactionModeCell10HighRes(string Cell10)
-        //{
-        //    PerformanceTracker pt = new PerformanceTracker("DrawFactionModeCell10HighRes");
-        //    //We will try to minimize rework done.
-        //    var db = new PraxisContext();
-        //    var baseMapTile = db.MapTiles.Where(mt => mt.PlusCode == Cell10 && mt.resolutionScale == 11 && mt.mode == 1).FirstOrDefault();
-        //    if (baseMapTile == null)
-        //    {
-        //        //Create this map tile.
-        //        GeoArea pluscode = OpenLocationCode.DecodeValid(Cell10);
-        //        var places = GetPlaces(pluscode, null);
-        //        var tile = MapTiles.DrawAreaMapTile(ref places, pluscode, 11);
-        //        baseMapTile = new MapTile() { CreatedOn = DateTime.Now, mode = 1, PlusCode = Cell10, resolutionScale = 11, tileData = tile };
-        //        db.MapTiles.Add(baseMapTile);
-        //        db.SaveChanges();
-        //    }
-
-        //    var factionColorTile = db.MapTiles.Where(mt => mt.PlusCode == Cell10 && mt.resolutionScale == 11 && mt.mode == 2).FirstOrDefault();
-        //    if (factionColorTile == null || factionColorTile.MapTileId == null)
-        //    {
-        //        //Create this entry
-        //        //requires a list of colors to use, which might vary per app
-        //        GeoArea TenCell = OpenLocationCode.DecodeValid(Cell10);
-        //        var places = GetPlaces(TenCell);
-        //        var results = MapTiles.DrawMPControlAreaMapTile(TenCell, 11);
-        //        factionColorTile = new MapTile() { PlusCode = Cell10, CreatedOn = DateTime.Now, mode = 2, resolutionScale = 11, tileData = results };
-        //        db.MapTiles.Add(factionColorTile);
-        //        db.SaveChanges();
-        //    }
-
-        //    var baseImage = Image.Load(baseMapTile.tileData);
-        //    var controlImage = Image.Load(factionColorTile.tileData);
-        //    baseImage.Mutate(b => b.DrawImage(controlImage, .6f));
-        //    MemoryStream ms = new MemoryStream();
-        //    baseImage.SaveAsPng(ms);
-
-        //    pt.Stop(Cell10);
-        //    return File(ms.ToArray(), "image/png");
-        //}
-
-        //This code technically works on any Cell size, I haven't yet functionalized it corre.
+        //This code technically works on any Cell size, I haven't yet functionalized it correctly yet.
         [HttpGet]
         [Route("/[controller]/DrawFactionModeCell8HighRes/{Cell8}")]
+        [Route("/Gameplay/DrawFactionModeCell8HighRes/{Cell8}")]
         public FileContentResult DrawFactionModeCell8HighRes(string Cell8)
         {
             PerformanceTracker pt = new PerformanceTracker("DrawFactionModeCell8HighRes");
             //We will try to minimize rework done.
             var db = new PraxisContext();
             var baseMapTile = db.MapTiles.Where(mt => mt.PlusCode == Cell8 && mt.resolutionScale == 11 && mt.mode == 1).FirstOrDefault();
-            if (baseMapTile == null) //These don't expire, they should be cleared out on data change.
+            if (baseMapTile == null) //These don't expire, they should be cleared out on data change, or should I check expiration anyways?
             {
                 //Create this map tile.
                 GeoArea pluscode = OpenLocationCode.DecodeValid(Cell8);
@@ -237,24 +178,11 @@ namespace PraxisMapper.Controllers
                 db.SaveChanges();
             }
 
-            //TODO: switch this out for SkiaSharp, should be faster.
-            //var baseImage = Image.Load(baseMapTile.tileData);
-            //var controlImage = Image.Load(factionColorTile.tileData);
-            //baseImage.Mutate(b => b.DrawImage(controlImage, .6f));
-            //MemoryStream ms = new MemoryStream();
-            //baseImage.SaveAsPng(ms);
-
-            //create a new image. TODO: test and confirm this functions as expected.
             //Some image items setup.
             //hard-coded, the size of a Cell8 with res11 is 80x100
             SkiaSharp.SKBitmap bitmap = new SkiaSharp.SKBitmap(80, 100, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul);
-            //SkiaSharp.SKSurface surface = SkiaSharp.SKSurface.Create(bitmap);
             SkiaSharp.SKCanvas canvas = new SkiaSharp.SKCanvas(bitmap);
-            //var bgColor = new SkiaSharp.SKColor();
-            //canvas.Clear();
-            //canvas.Scale(1, -1, imageSizeX / 2, imageSizeY / 2);
             SkiaSharp.SKPaint paint = new SkiaSharp.SKPaint();
-            SkiaSharp.SKColor color = new SkiaSharp.SKColor();
             paint.IsAntialias = true;
 
             var baseBmp = SkiaSharp.SKBitmap.Decode(baseMapTile.tileData);
@@ -273,6 +201,7 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/FindChangedMapTiles/{mapDataId}")]
+        [Route("/Gameplay/FindChangedMapTiles/{mapDataId}")]
         public string FindChangedMapTiles(long mapDataId)
         {
             PerformanceTracker pt = new PerformanceTracker("FindChangedMapTiles");
@@ -302,13 +231,13 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/AreaOwners/{mapDataId}")]
+        [Route("/Gameplay/AreaOwners/{mapDataId}")]
         public string AreaOwners(long mapDataId)
         {
             //App asks to see which team owns this areas.
             //Return the area name (or type if unnamed), the team that owns it, and its point cost (pipe-separated)
             PerformanceTracker pt = new PerformanceTracker("AreaOwners");
             var db = new PraxisContext();
-            string results = "";
             var owner = db.AreaControlTeams.Where(a => a.MapDataId == mapDataId).FirstOrDefault();
             var mapData = db.MapData.Where(m => m.MapDataId == mapDataId).FirstOrDefault();
             if (mapData == null && (Configuration.GetValue<bool>("generateAreas") == true))
@@ -335,6 +264,7 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/FactionScores")]
+        [Route("/Gameplay/FactionScores")]
         public string FactionScores()
         {
             PerformanceTracker pt = new PerformanceTracker("FactionScores");
