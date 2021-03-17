@@ -15,7 +15,7 @@ namespace CoreComponents
     {
         const int MapTileSizeSquare = 512;
 
-        public static void GetResolutionValues(int CellSize, out double resX, out double resY)
+        public static void GetResolutionValues(int CellSize, out double resX, out double resY) //This is degrees per pixel in a maptile.
         {
             switch (CellSize)
             {
@@ -48,6 +48,30 @@ namespace CoreComponents
                     resY = 0;
                     break;
             }
+        }
+
+        public static void GetSlippyResolutions(int xTile, int yTile, int zoomLevel, out double resX, out double resY) //This is degrees per pixel in a maptile.
+        {
+            //NOTE: currently, this calculation is done in 2 steps, with the last one to get resX and resY at the end done in an inner function and earlier code using a GeoArea based on the coordinates.
+            //I would have to redo the code to pull that all out at once, or just have this return areawidth/height without dividing them(which is just degrees, not degrees per pixel).
+            //These are harder to cache, because they change based on latitude. X tiles are always the same, Y tiles scale with latitude.
+            //TODO: could probably slightly optimize the math down a little bit to reduce repeated operations.
+            var n = Math.Pow(2, zoomLevel);
+
+            var lon_degree_w = xTile / n * 360 - 180;
+            var lon_degree_e = (xTile + 1) / n * 360 - 180;
+
+            var lat_rads_n = Math.Atan(Math.Sinh(Math.PI * (1 - 2 * yTile / n)));
+            var lat_degree_n = lat_rads_n * 180 / Math.PI;
+
+            var lat_rads_s = Math.Atan(Math.Sinh(Math.PI * (1 - 2 * (yTile + 1) / n)));
+            var lat_degree_s = lat_rads_s * 180 / Math.PI;
+
+            var areaHeightDegrees = lat_degree_n - lat_degree_s;
+            var areaWidthDegrees = 360 / n;
+
+            resX = areaWidthDegrees / MapTileSizeSquare;
+            resY = areaHeightDegrees / MapTileSizeSquare;
         }
 
         public static byte[] DrawMPControlAreaMapTileSkia(GeoArea totalArea, int pixelSizeCells, Tuple<long, int> shortcut = null)

@@ -5,7 +5,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using PraxisMapper.Classes;
-using PraxisMapper.Controllers;
 
 namespace PraxisMapper
 {
@@ -18,7 +17,7 @@ namespace PraxisMapper
             CoreComponents.Log.WriteToFile = Configuration.GetValue<bool>("enableFileLogging");
             PraxisContext.connectionString = Configuration.GetValue<string>("dbConnectionString");
             PraxisContext.serverMode = Configuration.GetValue<string>("dbMode");
-            AdminController.adminPwd = Configuration.GetValue<string>("adminPwd");
+            //AdminController.adminPwd = Configuration.GetValue<string>("adminPwd"); This pulls it directly from the configuration object in AdminController.
         }
 
         public IConfiguration Configuration { get; }
