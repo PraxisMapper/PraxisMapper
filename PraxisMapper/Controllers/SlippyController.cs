@@ -1,9 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Web;
 
 namespace PraxisMapper.Controllers
 {
@@ -20,6 +16,21 @@ namespace PraxisMapper.Controllers
                 return View("Index");
             }
             catch(Exception ex)
+            {
+                var a = ex;
+                return null;
+            }
+        }
+
+        [HttpGet]
+        [Route("/[controller]/ZZT")]
+        public IActionResult ZZT()
+        {
+            try
+            {
+                return View("ZZT");
+            }
+            catch (Exception ex)
             {
                 var a = ex;
                 return null;

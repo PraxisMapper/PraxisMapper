@@ -58,6 +58,8 @@ namespace PraxisMapper.Controllers
                 {
                     //Create this entry
                     //requires a list of colors to use, which might vary per app
+
+                    //MapTiles.GetSlippyResolutions(x, y, zoom, ou)
                     var n = Math.Pow(2, zoom);
 
                     var lon_degree_w = x / n * 360 - 180;
