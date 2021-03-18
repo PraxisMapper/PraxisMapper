@@ -10,8 +10,20 @@
     @* Local resource links, but I have yet to correctly get these to load and run.
         <link rel="stylesheet" href="~/Content/leaflet.css" />
         <script src="~/Scripts/leaflet.js"></script> *@
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 </head>
 <body>
+    <script type="text/javascript">
+        //Put in core code bits of the live game here for now, split out to separate files when needed.
+
+        function getPlusCode(lat, lon) {
+            //TODO: port to JS.
+        }
+
+        function 
+
+    </script>
+
     <div id="mapid" style="height:100%">
 
     </div>
@@ -44,6 +56,19 @@
     }).addTo(mymap);
 
         L.control.layers(baseLayers, overlays).addTo(mymap);
+
+        //use popups to display stuff on a map
+        //L.popup().setLatLng([1, 2]).setContent("Basic Popup data.").openOn(mymap);
+
+        //polygons are easy to add. getting this list means i need a button to listen to taps to set places.
+        //var polygon = L.polygon([1,2], [2, 3], [3, 4], [1, 2]).addTo(mymap);
+
+        //using mobile gps, centers on user.
+        mymap.locate({setView: true, maxZoom: 12});
+
+        function onMapClick(e) {
+            //TODO: add logic
+        }
     </script>
 </body>
 </html>

@@ -44,7 +44,6 @@ namespace PraxisMapper.Controllers
             //BUT Also, PlusCodes have 20^(zoom/2) tiles, and Slippy maps have 2^zoom tiles, this doesn't even line up nicely.
             //Slippy Map tiles might just have to be their own thing.
             //I will also say these are 512x512 images.
-            //TODO: add padding for image cropping. Maybe 10 pixels on each edge?
             //TODO: should I set a longer timeout for these webtiles, and expire them when something in them gets updated?
             //This is much harder to detect for slippy maps, since I have to re-caculate the X and Y on a bunch of zoom levels for it.
 
@@ -73,6 +72,8 @@ namespace PraxisMapper.Controllers
                     var areaHeightDegrees = lat_degree_n - lat_degree_s;
                     var areaWidthDegrees = 360 / n;
 
+                    var filterSize = areaHeightDegrees / 512; //Height is always <= width, so use that divided by vertical resolution to get 1 pixel's size in degrees. Don't load stuff smaller than that.
+
                     DateTime expires = DateTime.Now;
                     byte[] results = null;
                     switch (layer)
@@ -80,7 +81,7 @@ namespace PraxisMapper.Controllers
                         case 1: //Base map tile
                             //add some padding so we don't clip off points at the edge of a tile
                             var dataLoadArea = new GeoArea(relevantArea.SouthLatitude - ConstantValues.resolutionCell10, relevantArea.WestLongitude - ConstantValues.resolutionCell10, relevantArea.NorthLatitude + ConstantValues.resolutionCell10, relevantArea.EastLongitude + ConstantValues.resolutionCell10);
-                            var places = GetPlaces(dataLoadArea, includeGenerated: false);
+                            var places = GetPlaces(dataLoadArea, includeGenerated: false, filterSize: filterSize);
                             results = MapTiles.DrawAreaMapTileSlippySkia(ref places, relevantArea, areaHeightDegrees, areaWidthDegrees);
                             expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                             break;

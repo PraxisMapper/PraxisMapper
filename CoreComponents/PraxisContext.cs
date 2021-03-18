@@ -64,6 +64,7 @@ namespace CoreComponents
             model.Entity<MapData>().HasIndex(p => p.RelationId); 
             model.Entity<MapData>().HasIndex(p => p.NodeId); 
             model.Entity<MapData>().HasIndex(p => p.AreaTypeId); //At the least, helpful for sorting out admin entries from others.
+            model.Entity<MapData>().HasIndex(p => p.AreaSize); //Used as a filter when drawing larger area maptiles. Tell the DB not to load points smaller than 1 pixel. This is in degrees for lines, degrees squared for areas and points.
             //generatedMapData only gets searched on its primary key and place (which has an index defined elsewhere at creation)
 
             model.Entity<MapTile>().HasIndex(m => m.PlusCode);

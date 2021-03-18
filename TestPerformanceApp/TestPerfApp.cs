@@ -684,7 +684,7 @@ namespace PerformanceTestApp
             string testPlaceWKT = "POLYGON ((-83.737174987792969 40.103412628173828, -83.734664916992188 40.101036071777344, -83.732452392578125 40.100399017333984, -83.7278823852539 40.100162506103516, -83.7275390625 40.102806091308594, -83.737174987792969 40.103412628173828))";
             //check on performance for reading and writing a MapData entry to Json file.
             //Fixed MapData Entry
-            MapDataForJson test1 = new MapDataForJson("TestPlace", testPlaceWKT, "Way", 12345, null, null, 1);
+            MapDataForJson test1 = new MapDataForJson("TestPlace", testPlaceWKT, "Way", 12345, null, null, 1, 1);
             string tempFile = System.IO.Path.GetTempFileName();
             sw.Start();
             //WriteMapDataToFile(tempFile, ref l);

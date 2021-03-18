@@ -50,7 +50,8 @@ namespace CoreComponents
                 type = n.type,
                 place = factory.CreatePoint(new Coordinate(n.lon, n.lat)),
                 NodeId = n.Id,
-                AreaTypeId = areaTypeReference[n.type.StartsWith("admin") ? "admin" : n.type].First()
+                AreaTypeId = areaTypeReference[n.type.StartsWith("admin") ? "admin" : n.type].First(),
+                AreaSize = .000125 //We treat points as being 1 cell10 in size for filtering purposes. don't draw them if you can't see them.
             };
         }
 
@@ -87,6 +88,7 @@ namespace CoreComponents
                     }
                     LineString temp2 = factory.CreateLineString(w.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray());
                     md.place = SimplifyArea(temp2); //Linestrings should get the same rounding effect as polygons, with the same maptile quality consequences.
+                    md.AreaSize = md.place.Length;
                 }
                 else
                 {
@@ -99,6 +101,7 @@ namespace CoreComponents
 
                     Polygon temp = factory.CreatePolygon(WayToCoordArray(w));
                     md.place = SimplifyArea(temp);
+                    md.AreaSize = md.place.Area;
                     if (md.place == null)
                     {
                         Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not counter-clockwise forward or reversed.");
