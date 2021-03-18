@@ -39,7 +39,7 @@ namespace Larry
 
                 if (md != null) //null can be returned from the functions that convert OSM entries to MapData
                 {
-                    var recordVersion = new MapDataForJson(md.name, md.place.AsText(), md.type, md.WayId, md.NodeId, md.RelationId, md.AreaTypeId);
+                    var recordVersion = new MapDataForJson(md.name, md.place.AsText(), md.type, md.WayId, md.NodeId, md.RelationId, md.AreaTypeId, md.AreaSize);
                     var test = JsonSerializer.Serialize(recordVersion, typeof(MapDataForJson));
                     sw.Write(test);
                     sw.Write("," + Environment.NewLine);
@@ -86,7 +86,7 @@ namespace Larry
 
                 if (md2 != null) //null can be returned from the functions that convert OSM entries to MapData
                 {
-                    var recordVersion = new MapDataForJson(md2.name, md2.place.AsText(), md2.type, md2.WayId, md2.NodeId, md2.RelationId, md2.AreaTypeId);
+                    var recordVersion = new MapDataForJson(md2.name, md2.place.AsText(), md2.type, md2.WayId, md2.NodeId, md2.RelationId, md2.AreaTypeId, md2.AreaSize);
                     var test = JsonSerializer.Serialize(recordVersion, typeof(MapDataForJson));
                     sw.Write(test);
                     sw.Write("," + Environment.NewLine);
@@ -105,7 +105,7 @@ namespace Larry
 
                 if (md3 != null) //null can be returned from the functions that convert OSM entries to MapData
                 {
-                    var recordVersion = new MapDataForJson(md3.name, md3.place.AsText(), md3.type, md3.WayId, md3.NodeId, md3.RelationId, md3.AreaTypeId);
+                    var recordVersion = new MapDataForJson(md3.name, md3.place.AsText(), md3.type, md3.WayId, md3.NodeId, md3.RelationId, md3.AreaTypeId, md3.AreaSize);
                     var test = JsonSerializer.Serialize(recordVersion, typeof(MapDataForJson));
                     sw.Write(test);
                     sw.Write("," + Environment.NewLine);
@@ -127,7 +127,7 @@ namespace Larry
 
                 if (md4 != null) //null can be returned from the functions that convert OSM entries to MapData
                 {
-                    var recordVersion = new MapDataForJson(md4.name, md4.place.AsText(), md4.type, md4.WayId, md4.NodeId, md4.RelationId, md4.AreaTypeId);
+                    var recordVersion = new MapDataForJson(md4.name, md4.place.AsText(), md4.type, md4.WayId, md4.NodeId, md4.RelationId, md4.AreaTypeId, md4.AreaSize);
                     var test = JsonSerializer.Serialize(recordVersion, typeof(MapDataForJson));
                     sw.Write(test);
                     sw.Write("," + Environment.NewLine);
@@ -385,7 +385,7 @@ namespace Larry
             {
                 if (mapDataEntry != null)
                 {
-                    MapDataForJson output = new MapDataForJson(mapDataEntry.name, mapDataEntry.place.AsText(), mapDataEntry.type, mapDataEntry.WayId, mapDataEntry.NodeId, mapDataEntry.RelationId, mapDataEntry.AreaTypeId);
+                    MapDataForJson output = new MapDataForJson(mapDataEntry.name, mapDataEntry.place.AsText(), mapDataEntry.type, mapDataEntry.WayId, mapDataEntry.NodeId, mapDataEntry.RelationId, mapDataEntry.AreaTypeId, mapDataEntry.AreaSize);
                     File.AppendAllLines(outputFile, new List<String>() { JsonSerializer.Serialize(output, typeof(MapDataForJson)) + "," });
                 }
             }

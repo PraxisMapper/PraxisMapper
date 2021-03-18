@@ -15,7 +15,7 @@ namespace CoreComponents
     {
         //for now, anything that does a query on MapData or a list of MapData entries
         //Places will be the name for interactible or important areas on the map. Was not previously a fixed name for that.
-        public static List<MapData> GetPlaces(GeoArea area, List<MapData> source = null, bool includeAdmin = false, bool includeGenerated= true)
+        public static List<MapData> GetPlaces(GeoArea area, List<MapData> source = null, bool includeAdmin = false, bool includeGenerated= true, double filterSize = 0)
         {
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
             //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
@@ -25,9 +25,9 @@ namespace CoreComponents
                 var location = Converters.GeoAreaToPolygon(area); //Prepared items don't work on a DB lookup.
                 var db = new CoreComponents.PraxisContext();
                 if (includeAdmin)
-                    places = db.MapData.Where(md => location.Intersects(md.place)).ToList();
+                    places = db.MapData.Where(md => location.Intersects(md.place) && md.AreaSize > filterSize).ToList();
                 else
-                    places = db.MapData.Where(md => md.AreaTypeId != 13 && location.Intersects(md.place)).ToList();
+                    places = db.MapData.Where(md => md.AreaTypeId != 13 && location.Intersects(md.place) && md.AreaSize > filterSize).ToList();
                 //TODO: make including generated areas a toggle? or assume that this call is trivial performance-wise on an empty table
                 //A toggle might be good since this also affects maptiles
                 if (includeGenerated) 
@@ -37,9 +37,9 @@ namespace CoreComponents
             {
                 var location = Converters.GeoAreaToPreparedPolygon(area);
                 if (includeAdmin)
-                    places = source.Where(md => location.Intersects(md.place)).Select(md => md.Clone()).ToList();
+                    places = source.Where(md => location.Intersects(md.place) && md.AreaSize > filterSize).Select(md => md.Clone()).ToList();
                 else
-                    places = source.Where(md => md.AreaTypeId != 13 && location.Intersects(md.place)).Select(md => md.Clone()).ToList();
+                    places = source.Where(md => md.AreaTypeId != 13 && location.Intersects(md.place) && md.AreaSize > filterSize).Select(md => md.Clone()).ToList();
             }
             return places;
         }

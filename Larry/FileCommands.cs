@@ -42,7 +42,7 @@ namespace Larry
             {
                 if (md != null) //null can be returned from the functions that convert OSM entries to MapData
                 {
-                    var recordVersion = new MapDataForJson(md.name, md.place.AsText(), md.type, md.WayId, md.NodeId, md.RelationId, md.AreaTypeId);
+                    var recordVersion = new MapDataForJson(md.name, md.place.AsText(), md.type, md.WayId, md.NodeId, md.RelationId, md.AreaTypeId, md.AreaSize);
                     var test = JsonSerializer.Serialize(recordVersion, typeof(MapDataForJson));
                     sw.Write(test);
                     sw.Write("," + Environment.NewLine);
@@ -79,7 +79,7 @@ namespace Larry
                 else //The standard line
                 {
                     MapDataForJson j = (MapDataForJson)JsonSerializer.Deserialize(line.Substring(0, line.Count() - 1), typeof(MapDataForJson), jso);
-                    var temp = new MapData() { name = j.name, NodeId = j.NodeId, place = reader.Read(j.place), RelationId = j.RelationId, type = j.type, WayId = j.WayId, AreaTypeId = j.AreaTypeId }; //first entry on a file before I forced the brackets onto newlines. Comma at end causes errors, is also trimmed.
+                    var temp = new MapData() { name = j.name, NodeId = j.NodeId, place = reader.Read(j.place), RelationId = j.RelationId, type = j.type, WayId = j.WayId, AreaTypeId = j.AreaTypeId, AreaSize = j.AreaSize }; //first entry on a file before I forced the brackets onto newlines. Comma at end causes errors, is also trimmed.
                     if (temp.place is Polygon)
                     {
                         temp.place = GeometrySupport.CCWCheck((Polygon)temp.place);

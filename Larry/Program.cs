@@ -288,7 +288,7 @@ namespace Larry
                     var area = new OpenLocationCode(cellToCheck).Decode();
                     if (cellToCheck.Length == 8) //We don't want to do the DoPlacesExist check here, since we'll want empty tiles for empty areas at this l
                     {
-                        var places = GetPlaces(area, cell6Data, false); //These are cloned in GetPlaces, so we aren't intersecting areas twice and breaking drawing.
+                        var places = GetPlaces(area, cell6Data, false, false, 0); //These are cloned in GetPlaces, so we aren't intersecting areas twice and breaking drawing.
                         var tileData = MapTiles.DrawAreaMapTileSkia(ref places, area, 11); //now Skia drawing, should be faster. Peaks around 2600/s. ImageSharp peaked at 1600/s.
                         tilesGenerated.Add(new MapTile() { CreatedOn = DateTime.Now, mode = 1, tileData = tileData, resolutionScale = 11, PlusCode = cellToCheck });
                         Log.WriteLog("Cell " + cellToCheck + " Drawn", Log.VerbosityLevels.High);

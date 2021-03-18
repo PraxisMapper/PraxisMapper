@@ -27,7 +27,8 @@ namespace CoreComponents
 
             if (filterSize != 0) // remove areatypes where the total area is below this.
                 entries = entries.Where(e => e.place.GeometryType == "Polygon" || e.place.GeometryType == "MultiPolygon")
-                    .Where(e => e.place.Area >= filterSize)
+                    //.Where(e => e.place.Area >= filterSize)
+                    .Where(e => e.AreaSize >= filterSize)
                     .ToList();
 
             if (entries.Count() == 1) //simple optimization, but must be applied after parameter rules are applied.
@@ -35,9 +36,9 @@ namespace CoreComponents
 
             var place = entries.Where(e => e.place.GeometryType == "Point").FirstOrDefault();
             if (place == null)
-                place = entries.Where(e => e.place.GeometryType == "LineString" || e.place.GeometryType == "MultiLineString").OrderBy(e => e.place.Length).FirstOrDefault();
+                place = entries.Where(e => e.place.GeometryType == "LineString" || e.place.GeometryType == "MultiLineString").OrderBy(e => e.AreaSize).FirstOrDefault();
             if (place == null)
-                place = entries.Where(e => e.place.GeometryType == "Polygon" || e.place.GeometryType == "MultiPolygon").OrderBy(e => e.place.Area).FirstOrDefault();
+                place = entries.Where(e => e.place.GeometryType == "Polygon" || e.place.GeometryType == "MultiPolygon").OrderBy(e => e.AreaSize).FirstOrDefault();
             return place;
         }
 
