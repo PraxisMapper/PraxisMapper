@@ -212,6 +212,12 @@ namespace Larry
                 PbfOperations.ExtractAreasFromLargeFile(ParserSettings.PbfFolder + "north-america-latest.osm.pbf");
             }
 
+            if (args.Any(a => a == "-fixAreaSizes"))
+            {
+                DBCommands.FixAreaSizes();
+            }
+
+
             if (args.Any(a => a.StartsWith("-populateEmptyArea:")))
             {
                 var db = new PraxisContext();
@@ -328,7 +334,7 @@ namespace Larry
                 saveProgress = null;
                 Log.WriteLog("Saved records for Cell4 " + parentCell + " in " + sw.Elapsed.ToString());
             }
-        }      
+        }
 
         //mostly-complete function for making files for a standalone app.
         public static void CreateStandaloneDB(long relationID, bool saveToDB = false, bool saveToFolder = true)
@@ -384,7 +390,7 @@ namespace Larry
                     var tile = MapTiles.DrawAreaMapTileSkia(ref areaList, areaForTile, 11);
 
                     if (saveToDB) //Some apps will prefer a single self-contained database file
-                        sqliteDb.MapTiles.Add(new MapTileDB() { image = tile, layer = 1, PlusCode = plusCode.CodeDigits.Substring(0,8) });
+                        sqliteDb.MapTiles.Add(new MapTileDB() { image = tile, layer = 1, PlusCode = plusCode.CodeDigits.Substring(0, 8) });
 
                     if (saveToFolder) //some apps, like my Solar2D apps, can't use the byte[] in a DB row and need files.
                         System.IO.File.WriteAllBytes(relationID + "Tiles\\" + plusCode.CodeDigits.Substring(0, 8) + ".pngTile", tile); //Solar2d also can't load pngs directly from an apk file in android, but the rule is extension based.

@@ -5,7 +5,7 @@
 
     public record NodeReference(long Id, float lat, float lon, string name, string type); //holds only the node data relevant to the application.
 
-    public record MapDataForJson(string name, string place, string type, long? WayId, long? NodeId, long? RelationId, int AreaTypeId, double AreaSize); //used for serializing MapData, since Geography types do not serialize nicely.
+    public record MapDataForJson(string name, string place, string type, long? WayId, long? NodeId, long? RelationId, int AreaTypeId, double? AreaSize); //used for serializing MapData, since Geography types do not serialize nicely.
 
     public record CoordPair(float lat, float lon);
 
