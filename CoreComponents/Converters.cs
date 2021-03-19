@@ -101,7 +101,7 @@ namespace CoreComponents
 
                     Polygon temp = factory.CreatePolygon(WayToCoordArray(w));
                     md.place = SimplifyArea(temp);
-                    md.AreaSize = md.place.Area;
+                    md.AreaSize = md.place.Length; //md.place.Area; //Area is square degrees, which make them way way smaller than I want to consider. I want to use external ring lenght, I think, for filter purposes.
                     if (md.place == null)
                     {
                         Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not counter-clockwise forward or reversed.");

@@ -72,7 +72,8 @@ namespace PraxisMapper.Controllers
                     var areaHeightDegrees = lat_degree_n - lat_degree_s;
                     var areaWidthDegrees = 360 / n;
 
-                    var filterSize = areaHeightDegrees / 512; //Height is always <= width, so use that divided by vertical resolution to get 1 pixel's size in degrees. Don't load stuff smaller than that.
+                    var filterSize = areaHeightDegrees / 256; //Height is always <= width, so use that divided by vertical resolution to get 1 pixel's size in degrees. Don't load stuff smaller than that.
+                    //Test: set to 256 instead of 512: don't load stuff that's not 2 pixels
 
                     DateTime expires = DateTime.Now;
                     byte[] results = null;

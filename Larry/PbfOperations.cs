@@ -221,6 +221,7 @@ namespace Larry
             md.AreaTypeId = areaTypeReference[md.type.StartsWith("admin") ? "admin" : md.type].First();
             md.RelationId = r.Id.Value;
             md.place = GeometrySupport.SimplifyArea(Tpoly);
+            md.AreaSize = md.place.Length; //md.place.Area; //ARea is square degrees, use perimeter length in degress instead for a more reasonable comparison.
             if (md.place == null)
                 return null;
 
