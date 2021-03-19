@@ -247,5 +247,31 @@ namespace Larry
                 File.Move(file, file + "Done");
             }
         }
+
+        public static void FixAreaSizes()
+        {
+            Log.WriteLog("Starting AreaSize fix at  " + DateTime.Now);
+            PraxisContext db = new PraxisContext();
+            var toFix = db.MapData.Where(m => m.AreaSize == null).ToList();
+            foreach(var fix in toFix)
+                fix.AreaSize = fix.place.Length;
+            //switch (fix.place.GeometryType)
+            //    {
+            //        case "MULTIPOLYGON":
+            //            fix.AreaSize = fix.place.Length;
+            //            break;
+            //        case "POLYGON":
+            //            fix.AreaSize = fix.place.Length;
+            //            break;
+            //        case "LINESTRING":
+            //            fix.AreaSize = fix.place.Length;
+            //            break;
+            //        case "MULTILINESTRING":
+            //            fix.AreaSize = fix.place.Length;
+            //            break;
+            //    }
+            db.SaveChanges();
+            Log.WriteLog("AreaSizes updated at  " + DateTime.Now);
+        }
     }
 }

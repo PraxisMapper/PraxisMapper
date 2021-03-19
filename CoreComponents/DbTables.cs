@@ -37,7 +37,7 @@ namespace CoreComponents
             public long? NodeId { get; set; }
             public long? RelationId { get; set; }
             public int AreaTypeId { get; set; }
-            public double AreaSize { get; set; } //Added recently, this should make drawing bigger map tiles faster when used as a filter to not load areas smaller than 1 pixel.
+            public double? AreaSize { get; set; } //Added recently, this should make drawing bigger map tiles faster when used as a filter to not load areas smaller than 1 pixel.
 
             public MapData Clone()
             {

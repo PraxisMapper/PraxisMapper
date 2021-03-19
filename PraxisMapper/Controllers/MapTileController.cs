@@ -127,7 +127,7 @@ namespace PraxisMapper.Controllers
             }
             catch(Exception ex)
             {
-                var a = ex;
+                ErrorLogger.LogError(ex);
                 return null;
             }
         }
