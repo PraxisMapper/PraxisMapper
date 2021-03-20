@@ -278,10 +278,11 @@ namespace CoreComponents
                 || tags["shop"].Count() > 0)) // mall is a value of shop, so those are included here now.
                 return "retail";
 
-            //Roads will be present most of the time since -processEverything is the default. But are checked next to last in case a road is, say, historic
+            //Roads will be present most of the time since -processEverything is the default. But are checked next to last in case they're also a more interesting type
+            // such as a Historic road.
             if (DbSettings.processRoads && tags["highway"].Any(v => relevantRoadValues.Contains(v))
             && !tags["footway"].Any(v => v == "sidewalk" || v == "crossing"))
-                return "road";
+            return "road";
 
             //Amenities are a separate tag, so i want to pull them out separately from (and before) buildings
             //There are lots of amenities, though, and i need to figure out the list that applies here 

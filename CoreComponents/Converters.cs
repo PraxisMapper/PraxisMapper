@@ -77,9 +77,10 @@ namespace CoreComponents
                 md.type = w.AreaType;
                 md.AreaTypeId = areaTypeReference[w.AreaType.StartsWith("admin") ? "admin" : w.AreaType].First();
 
-                //Adding support for LineStrings. A lot of rivers/streams/footpaths are treated this way. Trails MUST be done this way or looping trails become filled shapes. Roads are also forced to linestrings, to avoid confusing them with parking lots when they make a circle.
-                if (w.nds.First().id != w.nds.Last().id || w.AreaType == "trail" || w.AreaType == "road")
+                //Normally, we want to make sure looping roads/trails are linestrings. They can be marked with the tag area=yes to indicate that they should be drawn as a polygon.
+                if (w.nds.First().id != w.nds.Last().id || (w.AreaType == "trail" && w.forceArea == false) || (w.AreaType == "road" && w.forceArea == false))
                 {
+                    //this is a linestring.
                     if (w.nds.Count() < 2)
                     {
                         Log.WriteLog("Way " + w.id + " has 1 or 0 nodes to parse into a line. This is a point, not processing.");
@@ -91,7 +92,7 @@ namespace CoreComponents
                     md.AreaSize = md.place.Length;
                 }
                 else
-                {
+                { //Polygon
                     if (w.nds.Count <= 3)
                     {
                         Log.WriteLog("Way " + w.id + " doesn't have enough nodes to parse into a Polygon and first/last points are the same. This entry is an awkward line, not processing.");
@@ -101,7 +102,6 @@ namespace CoreComponents
 
                     Polygon temp = factory.CreatePolygon(WayToCoordArray(w));
                     md.place = SimplifyArea(temp);
-                    md.AreaSize = md.place.Length; //md.place.Area; //Area is square degrees, which make them way way smaller than I want to consider. I want to use external ring lenght, I think, for filter purposes.
                     if (md.place == null)
                     {
                         Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not counter-clockwise forward or reversed.");
@@ -114,7 +114,7 @@ namespace CoreComponents
                         w = null;
                         return null;
                     }
-
+                    md.AreaSize = md.place.Length; //md.place.Area; //Area is square degrees, which make them way way smaller than I want to consider. I want to use external ring lenght, I think, for filter purposes.
                     md.WayId = w.id;
                 }
                 w = null;

@@ -56,7 +56,8 @@ namespace Larry
                 id = w.Id.Value,
                 name = Place.GetPlaceName(w.Tags),
                 AreaType = Place.GetPlaceType(w.Tags),
-                nodRefs = w.Nodes.ToList()
+                nodRefs = w.Nodes.ToList(),
+                forceArea = (w.Tags.Any(t => t.Key =="area" && t.Value == "yes"))
             })
             .ToList();
             osmWays = null; //free up RAM we won't use again.
@@ -393,7 +394,7 @@ namespace Larry
             File.AppendAllLines(outputFile, new List<String>() { "]" });
         }
 
-        public static List<OsmSharp.Relation> GetRelationsFromPbf(string filename, string areaType, int skip = 0, int limit = 0)
+        public static List<OsmSharp.Relation> GetRelationsFromPbf(string filename, string areaType, int skip = 0, int limit = 4000000)
         {
             List<OsmSharp.Relation> filteredRelations = new List<OsmSharp.Relation>();
             using (var fs = File.OpenRead(filename))
@@ -632,7 +633,6 @@ namespace Larry
             {
                 try
                 {
-
                     string areatypename = areatype.AreaName;
                     Log.WriteLog("Checking for " + areatypename + " members in  " + filename + " at " + DateTime.Now);
                     string destFilename = System.IO.Path.GetFileName(filename).Replace(".osm.pbf", "");
@@ -751,11 +751,13 @@ namespace Larry
             var referencedWays = osmRelations.AsParallel().SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToLookup(k => k, v => (short)0);
             Log.WriteLog(referencedWays.Count() + " ways used within relations", Log.VerbosityLevels.High);
             Log.WriteLog("Relations loaded at " + DateTime.Now);
+
             var osmWays = GetWaysFromPbf(pbfFilename, areatypename, referencedWays);
             Log.WriteLog(osmWays.Count() + " ways found", Log.VerbosityLevels.High);
             var referencedNodes = osmWays.AsParallel().SelectMany(m => m.Nodes).Distinct().ToLookup(k => k, v => (short)0);
             Log.WriteLog(referencedNodes.Count() + " nodes used by ways", Log.VerbosityLevels.High);
             Log.WriteLog("Ways loaded at " + DateTime.Now);
+
             var osmNodes = GetNodesFromPbf(pbfFilename, areatypename, referencedNodes); //making this by-ref able would probably be the best memory optimization i could still do.
             referencedNodes = null;
             Log.WriteLog("Relevant data pulled from file at " + DateTime.Now);

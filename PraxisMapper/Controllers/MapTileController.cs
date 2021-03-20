@@ -19,6 +19,7 @@ namespace PraxisMapper.Controllers
         private static MemoryCache cache;
 
         //TODO: consider playing with the SKSVGCanvas to see if SVG maptiles are faster/smaller/better in any ways
+        //though the real delay is loading data from DB/disk, not drawing the loaded shapes.
 
         public MapTileController(IConfiguration configuration)
         {
@@ -72,8 +73,8 @@ namespace PraxisMapper.Controllers
                     var areaHeightDegrees = lat_degree_n - lat_degree_s;
                     var areaWidthDegrees = 360 / n;
 
-                    var filterSize = areaHeightDegrees / 256; //Height is always <= width, so use that divided by vertical resolution to get 1 pixel's size in degrees. Don't load stuff smaller than that.
-                    //Test: set to 256 instead of 512: don't load stuff that's not 2 pixels
+                    var filterSize = areaHeightDegrees / 128; //Height is always <= width, so use that divided by vertical resolution to get 1 pixel's size in degrees. Don't load stuff smaller than that.
+                    //Test: set to 128 instead of 512: don't load stuff that's not 4 pixels ~.008 degrees at zoom 8.
 
                     DateTime expires = DateTime.Now;
                     byte[] results = null;
@@ -108,6 +109,8 @@ namespace PraxisMapper.Controllers
                         case 5: //Custom objects (scavenger hunt). Should be points loaded up, not an overlay?
                             //this isnt supported yet as a game mode.
                             break;
+                        case 6: //Admin boundaries. Will need to work out rules on how to color/layer these. Possibly multiple layers, 1 per level? Probably not helpful for game stuff.
+                            break;
                     }
                     if (existingResults == null)
                         db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, CreatedOn = DateTime.Now, mode = layer, tileData = results, ExpireOn = expires });
@@ -118,7 +121,7 @@ namespace PraxisMapper.Controllers
                         existingResults.tileData = results;
                     }
                     db.SaveChanges();
-                    pt.Stop(tileKey);
+                    pt.Stop(tileKey + "|" + layer);
                     return File(results, "image/png");
                 }
 
