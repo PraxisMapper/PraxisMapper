@@ -129,7 +129,7 @@ namespace PraxisMapper.Controllers
                 GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
                 var places = GetPlaces(eightCell);
                 var results = MapTiles.DrawAreaMapTileSkia(ref places, eightCell, 10);
-                db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, CreatedOn = DateTime.Now, mode =1, resolutionScale = 10, tileData = results });
+                db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, CreatedOn = DateTime.Now, mode =1, resolutionScale = 10, tileData = results, areaCovered = Converters.GeoAreaToPolygon(eightCell) });
                 db.SaveChanges();
                 pt.Stop(plusCode8);
                 return File(results, "image/png");
@@ -154,7 +154,7 @@ namespace PraxisMapper.Controllers
                 GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
                 var places = GetPlaces(eightCell);
                 var results = MapTiles.DrawAreaMapTileSkia(ref places, eightCell, 11);
-                db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results });
+                db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(eightCell) });
                 db.SaveChanges();
                 pt.Stop(plusCode8);
                 return File(results, "image/png");
@@ -181,7 +181,7 @@ namespace PraxisMapper.Controllers
                 GeoArea TenCell = OpenLocationCode.DecodeValid(plusCode10);
                 var places = GetPlaces(TenCell);
                 var results = MapTiles.DrawAreaMapTileSkia(ref places, TenCell, 11);
-                db.MapTiles.Add(new MapTile() { PlusCode = plusCode10, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results });
+                db.MapTiles.Add(new MapTile() { PlusCode = plusCode10, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(TenCell) });
                 db.SaveChanges();
                 pt.Stop(plusCode10);
                 return File(results, "image/png");
@@ -209,7 +209,7 @@ namespace PraxisMapper.Controllers
                 var filterSize = resolutionCell6 / 400; //don't draw things smaller than 1 pixel.
                 var allPlaces = GetPlaces(sixCell, null, false, true, filterSize);
                 var results = MapTiles.DrawAreaMapTileSkia(ref allPlaces, sixCell, 10);
-                db.MapTiles.Add(new MapTile() { PlusCode = plusCode6, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 10, tileData = results });
+                db.MapTiles.Add(new MapTile() { PlusCode = plusCode6, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 10, tileData = results, areaCovered = Converters.GeoAreaToPolygon(sixCell) });
                 db.SaveChanges();
                 pt.Stop(plusCode6);
                 return File(results, "image/png");
@@ -233,7 +233,7 @@ namespace PraxisMapper.Controllers
                 GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
                 var allPlaces = GetPlaces(sixCell, null, false, false, resolutionCell10);
                 var results = MapTiles.DrawAreaMapTileSkia(ref allPlaces, sixCell, 11);
-                db.MapTiles.Add(new MapTile() { PlusCode = plusCode6, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results });
+                db.MapTiles.Add(new MapTile() { PlusCode = plusCode6, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(sixCell) });
                 db.SaveChanges();
                 pt.Stop(plusCode6);
                 return File(results, "image/png");

@@ -70,6 +70,7 @@ namespace CoreComponents
             public int mode { get; set; } //is this for general use, multiplayer area control. 1 = 'baseline map', 2 = 'Multiplayer Area Control' overlay.
             public DateTime CreatedOn { get; set; } //Timestamp for when a map tile was generated
             public DateTime ExpireOn { get; set; } //assume that a tile needs regenerated if passed this timestamp. Possibly cleared out via SQL script.
+            public Geometry areaCovered { get; set; } //This lets us find and expire map tiles if the data under them changes.
         }
 
         public class PremadeResults
@@ -183,6 +184,7 @@ namespace CoreComponents
             public int mode { get; set; } //is this for general use, multiplayer area control. 1 = 'baseline map', 2 = 'Multiplayer Area Control' overlay, etc.
             public DateTime CreatedOn { get; set; } //Timestamp for when a map tile was generated
             public DateTime ExpireOn { get; set; } //assume that a tile needs regenerated if passed this timestamp. Possibly cleared out via SQL script.
+            public Geometry areaCovered { get; set; } //This lets us find and expire map tiles if the data under them changes.
         }
 
         //In Process. To use to allow some customization of map tiles by setting colors for area types. Was for ImageSharp, needs redone for SkiaSharp

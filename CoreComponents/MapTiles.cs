@@ -342,6 +342,26 @@ namespace CoreComponents
             skms.Dispose(); ms.Close(); ms.Dispose();
             return results;
         }
+
+        public static void ExpireMapTiles(Geometry g)
+        {
+            var db = new PraxisContext();
+            var mapTiles = db.MapTiles.Where(m => m.areaCovered.Intersects(g)).ToList(); //TODO: can I select only the ExpiresOn value and have that save back correctly?
+            foreach (var mt in mapTiles)
+                mt.ExpireOn = DateTime.Now;
+
+            db.SaveChanges();
+        }
+
+        public static void ExpireSlippyMapTiles(Geometry g)
+        {
+            var db = new PraxisContext();
+            var mapTiles = db.SlippyMapTiles.Where(m => m.areaCovered.Intersects(g)).ToList(); //TODO: can I select only the ExpiresOn value and have that save back correctly?
+            foreach (var mt in mapTiles)
+                mt.ExpireOn = DateTime.Now;
+
+            db.SaveChanges();
+        }
     }
 }
 
