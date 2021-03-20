@@ -74,15 +74,15 @@ namespace PraxisMapper.Controllers
                     var areaWidthDegrees = 360 / n;
 
                     var filterSize = areaHeightDegrees / 128; //Height is always <= width, so use that divided by vertical resolution to get 1 pixel's size in degrees. Don't load stuff smaller than that.
-                    //Test: set to 128 instead of 512: don't load stuff that's not 4 pixels ~.008 degrees at zoom 8.
+                                                              //Test: set to 128 instead of 512: don't load stuff that's not 4 pixels ~.008 degrees at zoom 8.
 
+                    var dataLoadArea = new GeoArea(relevantArea.SouthLatitude - ConstantValues.resolutionCell10, relevantArea.WestLongitude - ConstantValues.resolutionCell10, relevantArea.NorthLatitude + ConstantValues.resolutionCell10, relevantArea.EastLongitude + ConstantValues.resolutionCell10);
                     DateTime expires = DateTime.Now;
                     byte[] results = null;
                     switch (layer)
                     {
                         case 1: //Base map tile
                             //add some padding so we don't clip off points at the edge of a tile
-                            var dataLoadArea = new GeoArea(relevantArea.SouthLatitude - ConstantValues.resolutionCell10, relevantArea.WestLongitude - ConstantValues.resolutionCell10, relevantArea.NorthLatitude + ConstantValues.resolutionCell10, relevantArea.EastLongitude + ConstantValues.resolutionCell10);
                             var places = GetPlaces(dataLoadArea, includeGenerated: false, filterSize: filterSize);
                             results = MapTiles.DrawAreaMapTileSlippySkia(ref places, relevantArea, areaHeightDegrees, areaWidthDegrees);
                             expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
@@ -101,8 +101,7 @@ namespace PraxisMapper.Controllers
                             expires = DateTime.Now.AddMinutes(1); //We want this to be live-ish, but not overwhelming, so we cache this for 60 seconds.
                             break;
                         case 4: //GeneratedMapData areas. Should be ready to test as an overlay.
-                            var dataLoadArea2 = new GeoArea(relevantArea.SouthLatitude - ConstantValues.resolutionCell10, relevantArea.WestLongitude - ConstantValues.resolutionCell10, relevantArea.NorthLatitude + ConstantValues.resolutionCell10, relevantArea.EastLongitude + ConstantValues.resolutionCell10);
-                            var places2 = GetGeneratedPlaces(dataLoadArea2);
+                            var places2 = GetGeneratedPlaces(dataLoadArea);
                             results = MapTiles.DrawAreaMapTileSlippySkia(ref places2, relevantArea, areaHeightDegrees, areaWidthDegrees, true);
                             expires = DateTime.Now.AddYears(10); //again, assuming these don't change unless you manually updated entries.
                             break;
@@ -113,7 +112,7 @@ namespace PraxisMapper.Controllers
                             break;
                     }
                     if (existingResults == null)
-                        db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, CreatedOn = DateTime.Now, mode = layer, tileData = results, ExpireOn = expires });
+                        db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, CreatedOn = DateTime.Now, mode = layer, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
                     else
                     {
                         existingResults.CreatedOn = DateTime.Now;
@@ -140,6 +139,7 @@ namespace PraxisMapper.Controllers
         public string CheckTileExpiration(string PlusCode, int mode) //For simplicity, maptiles expire after the Date part of a DateTime. Intended for base tiles.
         {
             //I pondered making this a boolean, but the client needs the expiration date to know if it's newer or older than it's version. Not if the server needs to redraw the tile. That happens on load.
+            //I think, what I actually need, is the CreatedOn, and if it's newer than the client's tile, replace it.
             PerformanceTracker pt = new PerformanceTracker("CheckTileExpiration");
             var db = new PraxisContext();
             var mapTileExp = db.MapTiles.Where(m => m.PlusCode == PlusCode && m.mode == mode).Select(m => m.ExpireOn).FirstOrDefault();

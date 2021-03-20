@@ -151,7 +151,7 @@ namespace PraxisMapper.Controllers
                 GeoArea pluscode = OpenLocationCode.DecodeValid(Cell8);
                 var places = GetPlaces(pluscode);
                 var tile = MapTiles.DrawAreaMapTileSkia(ref places, pluscode, 11);
-                baseMapTile = new MapTile() { CreatedOn = DateTime.Now, mode = 1, PlusCode = Cell8, resolutionScale = 11, tileData = tile };
+                baseMapTile = new MapTile() { CreatedOn = DateTime.Now, mode = 1, PlusCode = Cell8, resolutionScale = 11, tileData = tile, areaCovered = Converters.GeoAreaToPolygon(pluscode) };
                 db.MapTiles.Add(baseMapTile);
                 db.SaveChanges();
             }
@@ -166,7 +166,7 @@ namespace PraxisMapper.Controllers
                 var results = MapTiles.DrawMPControlAreaMapTileSkia(CellEightArea, 11);
                 if (factionColorTile == null) //create a new entry
                 {
-                    factionColorTile = new MapTile() { PlusCode = Cell8, CreatedOn = DateTime.Now, mode = 2, resolutionScale = 11, tileData = results };
+                    factionColorTile = new MapTile() { PlusCode = Cell8, CreatedOn = DateTime.Now, mode = 2, resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(CellEightArea) };
                     db.MapTiles.Add(factionColorTile);
                 }
                 else //update the existing entry.
