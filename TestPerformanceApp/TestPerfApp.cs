@@ -37,7 +37,11 @@ namespace PerformanceTestApp
 
         static void Main(string[] args)
         {
+            PraxisContext.serverMode = "SQLServer";
             PraxisContext.connectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;";
+
+            //PraxisContext.serverMode = "MariaDB";
+            //PraxisContext.connectionString = "server=localhost;database=praxis;user=root;password=asdf;";
 
             if (Debugger.IsAttached)
                 Console.WriteLine("Run this in Release mode for accurate numbers!");
@@ -58,7 +62,7 @@ namespace PerformanceTestApp
             //TestIntersectsPreparedVsNot();
             //TestRasterVsVectorCell8();
             //TestRasterVsVectorCell10();
-            TestImageSharpVsSkiaSharp();
+            TestImageSharpVsSkiaSharp(); //imagesharp was removed for being vastly slower.
 
             //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
             //These cannot all be enabled in one run. You must comment/uncomment each one separately.
@@ -66,6 +70,9 @@ namespace PerformanceTestApp
             //TestMariaDb();
 
 
+            //Sample code for later, I will want to make sure these indexes work as expected.
+            //CoreComponents.MapTiles.ExpireSlippyMapTiles(Converters.GeoAreaToPolygon(OpenLocationCode.DecodeValid("86HWHHFF")));
+            //TestMapTileIndexSpeed();
 
             //TODO: consider pulling 4-cell worth of places into memory, querying against that instead of a DB lookup every time?
             //tests app performance this way instead of db performance/network latency.
@@ -1022,15 +1029,15 @@ namespace PerformanceTestApp
             //params : 1119/1527/12/1
             //params: 8957 / 12224 / 15 / 1
             Log.WriteLog("Loading data for ImageSharp vs SkiaSharp performance test");
-            var x = 8957;
-            var y = 12224;
-            var zoom = 15;
-            var layer = 1;
-
-            //var x = 1119;
-            //var y = 1527;
-            //var zoom = 12;
+            //var x = 8957;
+            //var y = 12224;
+            //var zoom = 15;
             //var layer = 1;
+
+            var x = 1119;
+            var y = 1527;
+            var zoom = 12;
+            var layer = 1;
 
             var n = Math.Pow(2, zoom);
 
@@ -1063,6 +1070,39 @@ namespace PerformanceTestApp
 
             //Log.WriteLog("Raster performance:" + raster.ElapsedMilliseconds + "ms");
             //Log.WriteLog("Vector performance:" + vector.ElapsedMilliseconds + "ms");
+        }
+
+        public static void TestMapTileIndexSpeed()
+        {
+            //This looks like MariaDB and SQL Server are pretty close on performance in this case. Generating map tiles seems to favor SQL Server a lot though.
+            //Trying to see whats the fastest way to update some map tile info.
+            var db = new PraxisContext();
+            var tilecount = db.SlippyMapTiles.Count();
+            Log.WriteLog("Current maptile count: " + tilecount);
+
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+            var allTiles = db.SlippyMapTiles.ToList();
+            sw.Stop();
+            Log.WriteLog("All tiles loaded from DB in " + sw.Elapsed);
+            var randomTileArea = allTiles.OrderBy(t => new Guid()).First().areaCovered; //To use for checking the index.
+            sw.Restart();
+            var allTiles2 = db.SlippyMapTiles.ToList();
+            Log.WriteLog("All Tiles pulled again while in RAM in: " + sw.Elapsed);
+            sw.Restart();
+            var oneTile = db.SlippyMapTiles.First();
+            sw.Stop();
+            Log.WriteLog("Loaded 1 map tile in: " + sw.Elapsed);
+            sw.Restart();
+            var indexedTile = db.SlippyMapTiles.Where(s => s.areaCovered.Intersects(randomTileArea)).ToList();
+            sw.Stop();
+            Log.WriteLog("loaded 1 random tile via index in : " + sw.Elapsed);
+            sw.Restart();
+            MapTiles.ExpireSlippyMapTiles(randomTileArea);
+            sw.Stop();
+            Log.WriteLog("Expired 1 random map tile in:" + sw.Elapsed);
+
+
         }
     }
 }
