@@ -355,6 +355,8 @@ namespace CoreComponents
 
         public static void ExpireSlippyMapTiles(Geometry g)
         {
+            //Might this be better off as raw SQL? If I expire, say, an entire state, that could be a lot of map tiles to pull into RAM just for a date to change.
+            //var raw = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE ST_INTERSECTS(areaCovered, ST_GeomFromText(" + g.AsText() + "))";
             var db = new PraxisContext();
             var mapTiles = db.SlippyMapTiles.Where(m => m.areaCovered.Intersects(g)).ToList(); //TODO: can I select only the ExpiresOn value and have that save back correctly?
             foreach (var mt in mapTiles)
