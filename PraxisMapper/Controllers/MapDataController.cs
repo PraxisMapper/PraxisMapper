@@ -55,7 +55,7 @@ namespace PraxisMapper.Controllers
             }
             var box = OpenLocationCode.DecodeValid(codeString8);
 
-            var places = GetPlaces(OpenLocationCode.DecodeValid(codeString8));  //All the places in this 8-code
+            var places = GetPlaces(OpenLocationCode.DecodeValid(codeString8), includeGenerated: Configuration.GetValue<bool>("generateAreas") == true);  //All the places in this 8-code
             if (Configuration.GetValue<bool>("generateAreas") && !places.Any(p => p.AreaTypeId < 13 || p.AreaTypeId == 100)) //check for 100 to not make new entries in the same spot.
             {
                 var newAreas = CreateInterestingPlaces(codeString8);
@@ -152,7 +152,7 @@ namespace PraxisMapper.Controllers
                 //Create this entry
                 //requires a list of colors to use, which might vary per app
                 GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
-                var places = GetPlaces(eightCell, includeGenerated: false);
+                var places = GetPlaces(eightCell, includeGenerated: Configuration.GetValue<bool>("generateAreas") == true);
                 var results = MapTiles.DrawAreaMapTileSkia(ref places, eightCell, 11);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(eightCell) });
                 db.SaveChanges();
