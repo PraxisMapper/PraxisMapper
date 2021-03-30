@@ -1,46 +1,35 @@
 ﻿<html>
 <head>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+    @*<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
           integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
           crossorigin="" />
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
             integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
-            crossorigin=""></script>
+            crossorigin=""></script>*@
 
-    @* Local resource links, but I have yet to correctly get these to load and run.
+    
         <link rel="stylesheet" href="~/Content/leaflet.css" />
-        <script src="~/Scripts/leaflet.js"></script> *@
+        <script src="~/Content/Scripts/leaflet.js"></script> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 </head>
 <body>
-    <script type="text/javascript">
-        //Put in core code bits of the live game here for now, split out to separate files when needed.
-
-        function getPlusCode(lat, lon) {
-            //TODO: port to JS.
-        }
-
-        function 
-
-    </script>
-
     <div id="mapid" style="height:100%">
 
     </div>
     <script type="text/javascript">
         var url = '../MapTile/DrawSlippyTile/{x}/{y}/{z}/{id}'
         var baseData = L.tileLayer(url, {id: 1, tileSize:512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
-        var ptt = L.tileLayer(url, { id: 2, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
-        var ac = L.tileLayer(url, { id: 3, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
-        var generated = L.tileLayer(url, { id: 4, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
+        //var ptt = L.tileLayer(url, { id: 2, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
+        //var ac = L.tileLayer(url, { id: 3, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
+        //var generated = L.tileLayer(url, { id: 4, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
 
         var baseLayers = {
             "Base Data": baseData,
         };
         var overlays = {
-            "Paint The Town": ptt,
-            "Area Control": ac,
-            "Server-Generated": generated
+            //"Paint The Town": ptt,
+            //"Area Control": ac,
+            //"Server-Generated": generated
         };
 
     var mymap = L.map('mapid').setView([41.503425, -81.698995], 13);
@@ -55,7 +44,7 @@
     accessToken: 'none'
     }).addTo(mymap);
 
-        L.control.layers(baseLayers, overlays).addTo(mymap);
+        //L.control.layers(baseLayers, overlays).addTo(mymap);
 
         //use popups to display stuff on a map
         //L.popup().setLatLng([1, 2]).setContent("Basic Popup data.").openOn(mymap);
@@ -64,11 +53,12 @@
         //var polygon = L.polygon([1,2], [2, 3], [3, 4], [1, 2]).addTo(mymap);
 
         //using mobile gps, centers on user.
-        mymap.locate({setView: true, maxZoom: 12});
+        mymap.locate({setView: true, maxZoom: 16});
 
         function onMapClick(e) {
             //TODO: add logic
         }
     </script>
+    <script src="~/Content/Scripts/ZZTMap.js"></script>
 </body>
 </html>
