@@ -3,8 +3,10 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using PraxisMapper.Classes;
+using System.IO;
 
 namespace PraxisMapper
 {
@@ -39,7 +41,7 @@ namespace PraxisMapper
             }
 
             //app.UseHttpsRedirection(); //Testing using only http on app instead of https to allow me to use a personal PC while getting a server functional
-            //app.UseStaticFiles(); //Was to let Leaflet load, but I haven't yet gotten that lined up for some reason. Might need more settings or a specific path?
+            app.UseStaticFiles( new StaticFileOptions() { FileProvider = new PhysicalFileProvider(Path.Combine(env.ContentRootPath, "Content")), RequestPath = "/Content" });
             app.UseRouting();
 
             //app.UseAuthorization(); //I dont really use this on this API

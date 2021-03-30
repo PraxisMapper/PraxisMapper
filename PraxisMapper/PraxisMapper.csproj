@@ -37,7 +37,13 @@
     <None Update="Content\leaflet.css">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Scripts\leaflet.js">
+    <None Update="Content\Scripts\leaflet.js">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Content\Scripts\PlusCodes.js">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Content\Scripts\ZZTMap.js">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
