@@ -152,7 +152,7 @@ namespace PraxisMapper.Controllers
                 //Create this entry
                 //requires a list of colors to use, which might vary per app
                 GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
-                var places = GetPlaces(eightCell);
+                var places = GetPlaces(eightCell, includeGenerated: false);
                 var results = MapTiles.DrawAreaMapTileSkia(ref places, eightCell, 11);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(eightCell) });
                 db.SaveChanges();
