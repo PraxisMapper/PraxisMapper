@@ -83,7 +83,7 @@ namespace PraxisMapper.Controllers
                     {
                         case 1: //Base map tile
                             //add some padding so we don't clip off points at the edge of a tile
-                            var places = GetPlaces(dataLoadArea, includeGenerated: false, filterSize: filterSize);
+                            var places = GetPlaces(dataLoadArea, includeGenerated: false, filterSize: filterSize); //NOTE: in this case, we want generated areas to be their own slippy layer, so the config setting is ignored here.
                             results = MapTiles.DrawAreaMapTileSlippySkia(ref places, relevantArea, areaHeightDegrees, areaWidthDegrees);
                             expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                             break;
@@ -101,7 +101,7 @@ namespace PraxisMapper.Controllers
                             expires = DateTime.Now.AddMinutes(1); //We want this to be live-ish, but not overwhelming, so we cache this for 60 seconds.
                             break;
                         case 4: //GeneratedMapData areas. Should be ready to test as an overlay.
-                            var places2 = GetGeneratedPlaces(dataLoadArea);
+                            var places2 = GetGeneratedPlaces(dataLoadArea); //NOTE: this overlay doesn't need to check the config, since it doesn't create them, just displays them as their own layer.
                             results = MapTiles.DrawAreaMapTileSlippySkia(ref places2, relevantArea, areaHeightDegrees, areaWidthDegrees, true);
                             expires = DateTime.Now.AddYears(10); //again, assuming these don't change unless you manually updated entries.
                             break;
