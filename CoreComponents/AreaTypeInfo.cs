@@ -106,7 +106,7 @@ namespace CoreComponents
         public static string FindPlacesInCell10(double x, double y, ref List<MapData> places, bool entireCode = false)
         {
             var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell10, x + resolutionCell10));
-            var entriesHere = GetPlaces(box, places).ToList(); //Excluding admin boundaries from this list.  
+            var entriesHere = GetPlaces(box, places).ToList(); 
 
             if (entriesHere.Count() == 0)
                 return "";
