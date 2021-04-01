@@ -8,6 +8,7 @@ using static CoreComponents.ConstantValues;
 using static CoreComponents.DbTables;
 using static CoreComponents.Place;
 using static CoreComponents.Singletons;
+using SkiaSharp;
 
 namespace CoreComponents
 {
@@ -265,6 +266,59 @@ namespace CoreComponents
                 canvas.DrawPath(path, paint);
             }
 
+            var skms = new SkiaSharp.SKManagedWStream(ms);
+            bitmap.Encode(skms, SkiaSharp.SKEncodedImageFormat.Png, 100);
+            var results = ms.ToArray();
+            skms.Dispose(); ms.Close(); ms.Dispose();
+            return results;
+        }
+
+        public static byte[] DrawCell8GridLines(GeoArea totalArea)
+        {
+            int imageSizeX = MapTileSizeSquare;
+            int imageSizeY = MapTileSizeSquare;
+            SKBitmap bitmap = new SKBitmap(imageSizeX, imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
+            SKCanvas canvas = new SKCanvas(bitmap);
+            var bgColor = new SKColor();
+            SKColor.TryParse("00000000", out bgColor);
+            canvas.Clear(bgColor);
+            canvas.Scale(1, -1, imageSizeX / 2, imageSizeY / 2);
+            SKPaint paint = new SKPaint();
+            SKColor color = new SKColor();
+            SKColor.TryParse("#FF0000", out color);
+            paint.Color = color;
+            paint.Style = SKPaintStyle.Stroke;
+            paint.IsAntialias = true;
+
+            double degreesPerPixelX = totalArea.LongitudeWidth / imageSizeX;
+            double degreesPerPixelY = totalArea.LatitudeHeight / imageSizeY;
+
+            //This is hardcoded to Cell 8 spaced gridlines.
+            var imageLeft = totalArea.WestLongitude;
+            var spaceToFirstLineLeft = (imageLeft % resolutionCell8); 
+
+            var imageBottom = totalArea.SouthLatitude; 
+            var spaceToFirstLineBottom = (imageBottom % resolutionCell8); 
+
+            float lonLineTrackerDegrees = (float)(imageLeft - spaceToFirstLineLeft); //This is degree coords
+            while (lonLineTrackerDegrees <= totalArea.EastLongitude + resolutionCell8) //This means we should always draw at least 2 lines, even if they're off-canvas.
+            {
+                var geoLine = new LineString(new Coordinate[] { new Coordinate(lonLineTrackerDegrees, 90), new Coordinate(lonLineTrackerDegrees, -90) });
+                var points = Converters.PolygonToSKPoints(geoLine, totalArea, degreesPerPixelX, degreesPerPixelY);
+                canvas.DrawLine(points[0], points[1], paint);
+                lonLineTrackerDegrees += (float)resolutionCell8;
+            }
+
+            float latLineTrackerDegrees = (float)(imageBottom - spaceToFirstLineBottom); //This is degree coords
+            while (latLineTrackerDegrees <= totalArea.NorthLatitude + resolutionCell8) //This means we should always draw at least 2 lines, even if they're off-canvas.
+            {
+                var geoLine = new LineString(new Coordinate[] { new Coordinate(180, latLineTrackerDegrees), new Coordinate(-180, latLineTrackerDegrees) });
+                var points = Converters.PolygonToSKPoints(geoLine, totalArea, degreesPerPixelX, degreesPerPixelY);
+                canvas.DrawLine(points[0], points[1], paint);
+                latLineTrackerDegrees += (float)resolutionCell8;
+            }
+
+            var ms = new MemoryStream();
             var skms = new SkiaSharp.SKManagedWStream(ms);
             bitmap.Encode(skms, SkiaSharp.SKEncodedImageFormat.Png, 100);
             var results = ms.ToArray();
