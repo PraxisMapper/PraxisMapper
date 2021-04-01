@@ -53,7 +53,7 @@ namespace PraxisMapper.Controllers
                 PerformanceTracker pt = new PerformanceTracker("DrawSlippyTile");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var db = new PraxisContext();
-                var existingResults = db.SlippyMapTiles.Where(mt => mt.Values == tileKey && mt.mode == layer).FirstOrDefault(); //NOTE: PTT and AC shouldn't be cached for real long. Maybe a minute if at all.
+                var existingResults = db.SlippyMapTiles.Where(mt => mt.Values == tileKey && mt.mode == layer).FirstOrDefault(); 
                 if (existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
                 {
                     //Create this entry
@@ -109,6 +109,13 @@ namespace PraxisMapper.Controllers
                             //this isnt supported yet as a game mode.
                             break;
                         case 6: //Admin boundaries. Will need to work out rules on how to color/layer these. Possibly multiple layers, 1 per level? Probably not helpful for game stuff.
+                            break;
+                        case 7: //This might be the layer that shows game areas on the map. Draw outlines of them. Means games will also have a Geometry object attached to them for indexing.
+                            break;
+                        case 8: //This might be what gets called to load an actual game. The ID will be the game in question, so X and Y values could be ignored?
+                            break;
+                        case 9: //Draw Cell8 boundaries as lines. I thought about not saving these to the DB, but i can get single-ms time on reading an existing file instead of double-digit ms recalculating them.
+                            results = MapTiles.DrawCell8GridLines(relevantArea);
                             break;
                     }
                     if (existingResults == null)

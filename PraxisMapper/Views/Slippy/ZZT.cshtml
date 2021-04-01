@@ -19,7 +19,7 @@
     <script type="text/javascript">
         var url = '../MapTile/DrawSlippyTile/{x}/{y}/{z}/{id}'
         var baseData = L.tileLayer(url, {id: 1, tileSize:512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
-        //var ptt = L.tileLayer(url, { id: 2, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
+        var cell8Grids = L.tileLayer(url, { id: 9, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
         //var ac = L.tileLayer(url, { id: 3, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
         //var generated = L.tileLayer(url, { id: 4, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
 
@@ -27,7 +27,7 @@
             "Base Data": baseData,
         };
         var overlays = {
-            //"Paint The Town": ptt,
+            "Gridlines": cell8Grids,
             //"Area Control": ac,
             //"Server-Generated": generated
         };
@@ -44,7 +44,7 @@
     accessToken: 'none'
     }).addTo(mymap);
 
-        //L.control.layers(baseLayers, overlays).addTo(mymap);
+        L.control.layers(baseLayers, overlays).addTo(mymap);
 
         //use popups to display stuff on a map
         //L.popup().setLatLng([1, 2]).setContent("Basic Popup data.").openOn(mymap);

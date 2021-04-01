@@ -187,6 +187,23 @@ namespace CoreComponents
             public Geometry areaCovered { get; set; } //This lets us find and expire map tiles if the data under them changes.
         }
 
+        public class ZztGame //TODO rename
+        {
+            //The prototype class for the data a game played on a map needs to hold.
+            public long id { get; set; }
+            public string gameData { get; set; } //Expected: a JSON string of the game objects. Final format still TBD, but it'll be stored in string format.
+            public Geometry gameLocation { get; set; } //A square drawn around the game's bounds. Initial expectations are these will be a Cell8 or less, though could be as big as a Cell6 for max boundary limit.
+            public long UserId { get; set; } //The user that created this game.
+        }
+
+        public class GamesBeaten
+        {
+            //A simple table to track which players have cleared which games. Might be used for leaderboards, might also change color of the squares on the map for users? Both data columns need indexed.
+            public long id { get; set; }
+            public long UserId { get; set; }
+            public long ZztGameId { get; set; }
+        }
+
         //In Process. To use to allow some customization of map tiles by setting colors for area types. Was for ImageSharp, needs redone for SkiaSharp
         //public class DrawingRule //this needs properties to pass into ImageSharp.Drawing calls, mostly brush stuff.
         //{
