@@ -109,6 +109,9 @@ namespace PraxisMapper.Controllers
                             //this isnt supported yet as a game mode.
                             break;
                         case 6: //Admin boundaries. Will need to work out rules on how to color/layer these. Possibly multiple layers, 1 per level? Probably not helpful for game stuff.
+                            var placesAdmin = GetPlaces(dataLoadArea, includeGenerated: false, includeAdmin: true, filterSize: filterSize);
+                            results = MapTiles.DrawAdminBoundsMapTileSlippy(ref placesAdmin, relevantArea, areaHeightDegrees, areaWidthDegrees);
+                            expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                             break;
                         case 7: //This might be the layer that shows game areas on the map. Draw outlines of them. Means games will also have a Geometry object attached to them for indexing.
                             break;

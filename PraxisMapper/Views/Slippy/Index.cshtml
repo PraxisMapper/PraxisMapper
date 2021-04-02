@@ -16,11 +16,12 @@
 
     </div>
     <script type="text/javascript">
-        var url = 'MapTile/DrawSlippyTile/{x}/{y}/{z}/{id}'
+        var url = '/MapTile/DrawSlippyTile/{x}/{y}/{z}/{id}'
         var baseData = L.tileLayer(url, {id: 1, tileSize:512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
         var ptt = L.tileLayer(url, { id: 2, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
         var ac = L.tileLayer(url, { id: 3, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
         var generated = L.tileLayer(url, { id: 4, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
+        var adminBounds = L.tileLayer(url, { id: 6, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
 
         var baseLayers = {
             "Base Data": baseData,
@@ -28,11 +29,12 @@
         var overlays = {
             "Paint The Town": ptt,
             "Area Control": ac,
-            "Server-Generated": generated
+            "Server-Generated": generated,
+            "Admin Boundaries": adminBounds
         };
 
     var mymap = L.map('mapid').setView([41.503425, -81.698995], 13);
-    L.tileLayer('MapTile/DrawSlippyTile/{x}/{y}/{z}/1', {
+    L.tileLayer('/MapTile/DrawSlippyTile/{x}/{y}/{z}/1', {
     maxZoom: 20,
     minZoom: 9,
     zoom: 12,
