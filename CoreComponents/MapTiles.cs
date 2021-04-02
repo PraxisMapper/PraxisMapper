@@ -326,7 +326,35 @@ namespace CoreComponents
             return results;
         }
 
-        public static byte[] InnerDrawSkia(ref List<MapData> allPlaces, GeoArea totalArea, double degreesPerPixelX, double degreesPerPixelY, int imageSizeX, int imageSizeY, bool transparent = false)
+        public static byte[] DrawAdminBoundsMapTileSlippy(ref List<MapData> allPlaces, GeoArea totalArea, double areaHeight, double areaWidth, bool transparent = false)
+        {
+            //Resolution scaling here is flexible, since we're always drawing a 512x512 tile.
+            double degreesPerPixelX, degreesPerPixelY;
+            degreesPerPixelX = areaWidth / MapTileSizeSquare;
+            degreesPerPixelY = areaHeight / MapTileSizeSquare;
+            bool drawEverything = false; //for debugging/testing
+            var smallestFeature = (drawEverything ? 0 : degreesPerPixelX < degreesPerPixelY ? degreesPerPixelX : degreesPerPixelY);
+
+            List<MapData> rowPlaces;
+            MemoryStream ms = new MemoryStream();
+            int imagesizeX = MapTileSizeSquare;
+            int imagesizeY = MapTileSizeSquare;
+
+            //To make sure we don't get any seams on our maptiles (or points that don't show a full circle, we add a little extra area to the image before drawing (Skia just doesn't draw things outside the canvas)
+            var loadDataArea = new GeoArea(new GeoPoint(totalArea.Min.Latitude - resolutionCell10, totalArea.Min.Longitude - resolutionCell10), new GeoPoint(totalArea.Max.Latitude + resolutionCell10, totalArea.Max.Longitude + resolutionCell10));
+
+            //crop all places to the current area. This removes a ton of work from the process by simplifying geometry to only what's relevant, instead of drawing all of a great lake or state-wide park.
+            var cropArea = Converters.GeoAreaToPolygon(loadDataArea);
+            //allPlaces = allPlaces.Where(a => a.AreaSize >= smallestFeature).OrderByDescending(a => a.AreaSize).ToList(); /98% good enough , wrong occasionally on long roads through small parks and the like.
+            allPlaces = allPlaces.OrderByDescending(a => a.place.Area).ThenByDescending(a => a.place.Length).ToList();
+            foreach (var ap in allPlaces)
+                ap.place = ap.place.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
+
+            return InnerDrawSkia(ref allPlaces, totalArea, degreesPerPixelX, degreesPerPixelY, imagesizeX, imagesizeY, colorEachPlace: true);
+
+        }
+
+        public static byte[] InnerDrawSkia(ref List<MapData> allPlaces, GeoArea totalArea, double degreesPerPixelX, double degreesPerPixelY, int imageSizeX, int imageSizeY, bool transparent = false, bool colorEachPlace = false)
         {
             //Some image items setup.
             SkiaSharp.SKBitmap bitmap = new SkiaSharp.SKBitmap(imageSizeX, imageSizeY, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul);
@@ -345,7 +373,10 @@ namespace CoreComponents
             {
                 var hexcolor = areaColorReference[place.AreaTypeId].FirstOrDefault();
 
-                SkiaSharp.SKColor.TryParse(hexcolor, out color); //NOTE: this is AARRGGBB, so when I do transparency I need to add that to the front, not the back.
+                if (colorEachPlace == false)
+                    SkiaSharp.SKColor.TryParse(hexcolor, out color); //NOTE: this is AARRGGBB, so when I do transparency I need to add that to the front, not the back.
+                else
+                    color = PickColorForAdminBounds(place);
                 paint.Color = color;
                 paint.StrokeWidth = 1;
                 switch (place.place.GeometryType)
@@ -417,6 +448,17 @@ namespace CoreComponents
                 mt.ExpireOn = DateTime.Now;
 
             db.SaveChanges();
+        }
+
+        public static SKColor PickColorForAdminBounds(MapData place)
+        {
+            //Each place should get a unique, but consistent, color. Which means we're mostly looking for a hash
+            var hasher = System.Security.Cryptography.MD5.Create();
+            var value = place.name.ToByteArrayUnicode();
+            var hash = hasher.ComputeHash(value);
+
+            SKColor results = new SKColor(hash[0], hash[1], hash[2], Convert.ToByte(64)); //all have the same transparency level
+            return results;
         }
     }
 }
