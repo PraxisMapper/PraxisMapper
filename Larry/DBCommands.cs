@@ -244,7 +244,8 @@ namespace Larry
                 for (int i = 0; i <= entries.Count() / 10000; i++)
                 {
                     var subList = entries.Skip(i * 10000).Take(10000).ToList();
-                    db.MapData.AddRange(subList);
+                    db.MapData.AddRange(subList.Where(s => s.AreaTypeId != 13));
+                    db.AdminBounds.AddRange(subList.Where(s => s.AreaTypeId == 13));
                     db.SaveChanges();//~3seconds on dev machine per pass at 10k entries at once.
                     Log.WriteLog("Entry pass " + i + " of " + (entries.Count() / 10000) + " completed");
                 }

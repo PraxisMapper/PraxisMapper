@@ -170,7 +170,7 @@ namespace CoreComponents
             List<MapData> allPlaces = GetPlaces(loadDataArea, null, false, true, smallestFeature); //Includes generated here with the final True parameter.
             List<long> placeIDs = allPlaces.Select(a => a.MapDataId).ToList();
             Dictionary<long, int> teamClaims = db.AreaControlTeams.Where(act => placeIDs.Contains(act.MapDataId)).ToDictionary(k => k.MapDataId, v => v.FactionId);
-            allPlaces = allPlaces.Where(a => teamClaims.ContainsKey(a.MapDataId)).ToList();            
+            allPlaces = allPlaces.Where(a => teamClaims.ContainsKey(a.MapDataId)).ToList();
 
             //crop all places to the current area. This removes a ton of work from the process by simplifying geometry to only what's relevant, instead of drawing all of a great lake or state-wide park.
             var cropArea = Converters.GeoAreaToPolygon(loadDataArea);
@@ -196,7 +196,7 @@ namespace CoreComponents
 
             List<MapData> rowPlaces;
             MemoryStream ms = new MemoryStream();
-            int imagesizeX = MapTileSizeSquare; 
+            int imagesizeX = MapTileSizeSquare;
             int imagesizeY = MapTileSizeSquare;
 
             //To make sure we don't get any seams on our maptiles (or points that don't show a full circle, we add a little extra area to the image before drawing (Skia just doesn't draw things outside the canvas)
@@ -288,6 +288,7 @@ namespace CoreComponents
             SKColor.TryParse("#FF0000", out color);
             paint.Color = color;
             paint.Style = SKPaintStyle.Stroke;
+            paint.StrokeWidth = 3;
             paint.IsAntialias = true;
 
             double degreesPerPixelX = totalArea.LongitudeWidth / imageSizeX;
@@ -295,27 +296,81 @@ namespace CoreComponents
 
             //This is hardcoded to Cell 8 spaced gridlines.
             var imageLeft = totalArea.WestLongitude;
-            var spaceToFirstLineLeft = (imageLeft % resolutionCell8); 
+            var spaceToFirstLineLeft = (imageLeft % resolutionCell8);
 
-            var imageBottom = totalArea.SouthLatitude; 
-            var spaceToFirstLineBottom = (imageBottom % resolutionCell8); 
+            var imageBottom = totalArea.SouthLatitude;
+            var spaceToFirstLineBottom = (imageBottom % resolutionCell8);
 
-            float lonLineTrackerDegrees = (float)(imageLeft - spaceToFirstLineLeft); //This is degree coords
+            double lonLineTrackerDegrees = imageLeft - spaceToFirstLineLeft; //This is degree coords
             while (lonLineTrackerDegrees <= totalArea.EastLongitude + resolutionCell8) //This means we should always draw at least 2 lines, even if they're off-canvas.
             {
                 var geoLine = new LineString(new Coordinate[] { new Coordinate(lonLineTrackerDegrees, 90), new Coordinate(lonLineTrackerDegrees, -90) });
                 var points = Converters.PolygonToSKPoints(geoLine, totalArea, degreesPerPixelX, degreesPerPixelY);
                 canvas.DrawLine(points[0], points[1], paint);
-                lonLineTrackerDegrees += (float)resolutionCell8;
+                lonLineTrackerDegrees += resolutionCell8;
             }
 
-            float latLineTrackerDegrees = (float)(imageBottom - spaceToFirstLineBottom); //This is degree coords
+            double latLineTrackerDegrees = imageBottom - spaceToFirstLineBottom; //This is degree coords
             while (latLineTrackerDegrees <= totalArea.NorthLatitude + resolutionCell8) //This means we should always draw at least 2 lines, even if they're off-canvas.
             {
                 var geoLine = new LineString(new Coordinate[] { new Coordinate(180, latLineTrackerDegrees), new Coordinate(-180, latLineTrackerDegrees) });
                 var points = Converters.PolygonToSKPoints(geoLine, totalArea, degreesPerPixelX, degreesPerPixelY);
                 canvas.DrawLine(points[0], points[1], paint);
-                latLineTrackerDegrees += (float)resolutionCell8;
+                latLineTrackerDegrees += resolutionCell8;
+            }
+
+            var ms = new MemoryStream();
+            var skms = new SkiaSharp.SKManagedWStream(ms);
+            bitmap.Encode(skms, SkiaSharp.SKEncodedImageFormat.Png, 100);
+            var results = ms.ToArray();
+            skms.Dispose(); ms.Close(); ms.Dispose();
+            return results;
+        }
+
+        public static byte[] DrawCell10GridLines(GeoArea totalArea)
+        {
+            int imageSizeX = MapTileSizeSquare;
+            int imageSizeY = MapTileSizeSquare;
+            SKBitmap bitmap = new SKBitmap(imageSizeX, imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
+            SKCanvas canvas = new SKCanvas(bitmap);
+            var bgColor = new SKColor();
+            SKColor.TryParse("00000000", out bgColor);
+            canvas.Clear(bgColor);
+            canvas.Scale(1, -1, imageSizeX / 2, imageSizeY / 2);
+            SKPaint paint = new SKPaint();
+            SKColor color = new SKColor();
+            SKColor.TryParse("#00CCFF", out color);
+            paint.Color = color;
+            paint.Style = SKPaintStyle.Stroke;
+            paint.StrokeWidth = 1;
+            paint.IsAntialias = true;
+
+            double degreesPerPixelX = totalArea.LongitudeWidth / imageSizeX;
+            double degreesPerPixelY = totalArea.LatitudeHeight / imageSizeY;
+
+            //This is hardcoded to Cell 8 spaced gridlines.
+            var imageLeft = totalArea.WestLongitude;
+            var spaceToFirstLineLeft = (imageLeft % resolutionCell10);
+
+            var imageBottom = totalArea.SouthLatitude;
+            var spaceToFirstLineBottom = (imageBottom % resolutionCell10);
+
+            double lonLineTrackerDegrees = imageLeft - spaceToFirstLineLeft; //This is degree coords
+            while (lonLineTrackerDegrees <= totalArea.EastLongitude + resolutionCell10) //This means we should always draw at least 2 lines, even if they're off-canvas.
+            {
+                var geoLine = new LineString(new Coordinate[] { new Coordinate(lonLineTrackerDegrees, 90), new Coordinate(lonLineTrackerDegrees, -90) });
+                var points = Converters.PolygonToSKPoints(geoLine, totalArea, degreesPerPixelX, degreesPerPixelY);
+                canvas.DrawLine(points[0], points[1], paint);
+                lonLineTrackerDegrees += resolutionCell10;
+            }
+
+            double latLineTrackerDegrees = imageBottom - spaceToFirstLineBottom; //This is degree coords
+            while (latLineTrackerDegrees <= totalArea.NorthLatitude + resolutionCell10) //This means we should always draw at least 2 lines, even if they're off-canvas.
+            {
+                var geoLine = new LineString(new Coordinate[] { new Coordinate(180, latLineTrackerDegrees), new Coordinate(-180, latLineTrackerDegrees) });
+                var points = Converters.PolygonToSKPoints(geoLine, totalArea, degreesPerPixelX, degreesPerPixelY);
+                canvas.DrawLine(points[0], points[1], paint);
+                latLineTrackerDegrees += resolutionCell10;
             }
 
             var ms = new MemoryStream();
@@ -413,7 +468,7 @@ namespace CoreComponents
                         break;
                     case "Point":
                         paint.Style = SkiaSharp.SKPaintStyle.Fill;
-                        var circleRadius = (float)(resolutionCell10 / degreesPerPixelX); //I want points to be drawn as 1 Cell10 in radius.
+                        var circleRadius = (float)(resolutionCell10 / degreesPerPixelX / 2); //I want points to be drawn as 1 Cell10 in diameter.
                         var convertedPoint = Converters.PolygonToSKPoints(place.place, totalArea, degreesPerPixelX, degreesPerPixelY);
                         canvas.DrawCircle(convertedPoint[0], circleRadius, paint);
                         break;
@@ -428,22 +483,23 @@ namespace CoreComponents
             return results;
         }
 
-        public static void ExpireMapTiles(Geometry g)
+        public static void ExpireMapTiles(Geometry g, int limitModeTo = 0)
         {
+            //If this would be faster as raw SQL, see function below for a template on how to write that.
             var db = new PraxisContext();
-            var mapTiles = db.MapTiles.Where(m => m.areaCovered.Intersects(g)).ToList(); //TODO: can I select only the ExpiresOn value and have that save back correctly?
+            var mapTiles = db.MapTiles.Where(m => m.areaCovered.Intersects(g) && (limitModeTo == 0 || m.mode == limitModeTo)).ToList(); //TODO: can I select only the ExpiresOn value and have that save back correctly?
             foreach (var mt in mapTiles)
                 mt.ExpireOn = DateTime.Now;
 
             db.SaveChanges();
         }
 
-        public static void ExpireSlippyMapTiles(Geometry g)
+        public static void ExpireSlippyMapTiles(Geometry g, int limitModeTo = 0)
         {
             //Might this be better off as raw SQL? If I expire, say, an entire state, that could be a lot of map tiles to pull into RAM just for a date to change.
             //var raw = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE ST_INTERSECTS(areaCovered, ST_GeomFromText(" + g.AsText() + "))";
             var db = new PraxisContext();
-            var mapTiles = db.SlippyMapTiles.Where(m => m.areaCovered.Intersects(g)).ToList(); //TODO: can I select only the ExpiresOn value and have that save back correctly?
+            var mapTiles = db.SlippyMapTiles.Where(m => m.areaCovered.Intersects(g) && (limitModeTo == 0 || m.mode == limitModeTo)).ToList(); //TODO: can I select only the ExpiresOn value and have that save back correctly?
             foreach (var mt in mapTiles)
                 mt.ExpireOn = DateTime.Now;
 

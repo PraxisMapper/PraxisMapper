@@ -37,7 +37,7 @@ namespace Larry
             {
                 var md = Converters.ConvertNodeToMapData(n.First());
 
-                if (md != null) //null can be returned from the functions that convert OSM entries to MapData
+                if (md != null && md.AreaTypeId != 14) //null can be returned from the functions that convert OSM entries to MapData. We don't want buildings to be a single point, because thats usually a tagging error.
                 {
                     var recordVersion = new MapDataForJson(md.name, md.place.AsText(), md.type, md.WayId, md.NodeId, md.RelationId, md.AreaTypeId, md.AreaSize);
                     var test = JsonSerializer.Serialize(recordVersion, typeof(MapDataForJson));
