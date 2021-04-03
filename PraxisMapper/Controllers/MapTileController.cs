@@ -87,20 +87,15 @@ namespace PraxisMapper.Controllers
                             results = MapTiles.DrawAreaMapTileSlippySkia(ref places, relevantArea, areaHeightDegrees, areaWidthDegrees);
                             expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                             break;
-                        case 2: //PaintTheTown overlay. Not yet done.
-                            //I have to convert the area into PlusCode coordinates, then translate the found claims into rectangles to cover the right area.
-                            //check what Cell8s are covered in the requested tile. Call LearnCell8 for all of those to find rectangles to draw.
-                            //Might need to limit this down to a certain zoom level?
-                            //This will need multiple entries, one per instance running. I will use the All-Time entries for now.
-                            //results = MapTiles.DrawPaintTownSlippyTile(relevantArea, 2);
+                        case 2: //PaintTheTown overlay. 
                             results = MapTiles.DrawPaintTownSlippyTileSkia(relevantArea, 2);
                             expires = DateTime.Now.AddMinutes(1); //We want this to be live-ish, but not overwhelming, so we cache this for 60 seconds.
                             break;
-                        case 3: //MultiplayerAreaControl overlay. Ready to test as an overlay.
+                        case 3: //MultiplayerAreaControl overlay.
                             results = MapTiles.DrawMPAreaMapTileSlippySkia(relevantArea, areaHeightDegrees, areaWidthDegrees);
-                            expires = DateTime.Now.AddMinutes(1); //We want this to be live-ish, but not overwhelming, so we cache this for 60 seconds.
+                            expires = DateTime.Now.AddYears(10); //These expire when an area inside gets claimed now, so we can let this be permanent.
                             break;
-                        case 4: //GeneratedMapData areas. Should be ready to test as an overlay.
+                        case 4: //GeneratedMapData areas.
                             var places2 = GetGeneratedPlaces(dataLoadArea); //NOTE: this overlay doesn't need to check the config, since it doesn't create them, just displays them as their own layer.
                             results = MapTiles.DrawAreaMapTileSlippySkia(ref places2, relevantArea, areaHeightDegrees, areaWidthDegrees, true);
                             expires = DateTime.Now.AddYears(10); //again, assuming these don't change unless you manually updated entries.
@@ -119,6 +114,15 @@ namespace PraxisMapper.Controllers
                             break;
                         case 9: //Draw Cell8 boundaries as lines. I thought about not saving these to the DB, but i can get single-ms time on reading an existing file instead of double-digit ms recalculating them.
                             results = MapTiles.DrawCell8GridLines(relevantArea);
+                            break;
+                        case 10: //Draw Cell10 boundaries as lines. I thought about not saving these to the DB, but i can get single-ms time on reading an existing file instead of double-digit ms recalculating them.
+                            results = MapTiles.DrawCell10GridLines(relevantArea);
+                            break;
+                        case 11: //Admin bounds as a base layer. Countries only. Or states?
+                            var placesAdminStates = GetAdminBoundaries(dataLoadArea);
+                            placesAdminStates = placesAdminStates.Where(p => p.type == "admin4").ToList();
+                            results = MapTiles.DrawAdminBoundsMapTileSlippy(ref placesAdminStates, relevantArea, areaHeightDegrees, areaWidthDegrees);
+                            expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                             break;
                     }
                     if (existingResults == null)

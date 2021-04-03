@@ -76,49 +76,58 @@ namespace PraxisMapper.Controllers
             teamClaim.FactionId = factionId;
             teamClaim.claimedAt = DateTime.Now;
             db.SaveChanges();
-            Tuple<long, int> shortcut = new Tuple<long, int>(MapDataId, factionId); //tell the application later not to hit the DB on every tile for this entry.
-            ExpireAreaControlMapTilesCell8(mapData, shortcut); //If this works correctly, i can set a much longer default expiration value on AreaControl tiles than 1 minute I currently use.
+            //Tuple<long, int> shortcut = new Tuple<long, int>(MapDataId, factionId); //tell the application later not to hit the DB on every tile for this entry.
+            //ExpireAreaControlMapTilesCell8(mapData); //If this works correctly, i can set a much longer default expiration value on AreaControl tiles than 1 minute I currently use.
+            MapTiles.ExpireMapTiles(mapData.place, 2);
+            MapTiles.ExpireSlippyMapTiles(mapData.place, 2);
             
             return true;
         }
 
-        public static void ExpireAreaControlMapTilesCell8(MapData md, Tuple<long, int> shortcut = null)
-        {
-            PerformanceTracker pt = new PerformanceTracker("ExpireAreaControlMapTilesCell8");
-            var db = new PraxisContext();
-            var space = md.place.Envelope;
-            var geoAreaToRefresh = new GeoArea(new GeoPoint(space.Coordinates.Min().Y, space.Coordinates.Min().X), new GeoPoint(space.Coordinates.Max().Y, space.Coordinates.Max().X));
-            var Cell8XTiles = geoAreaToRefresh.LongitudeWidth / resolutionCell8;
-            var Cell8YTiles = geoAreaToRefresh.LatitudeHeight / resolutionCell8;
+        //public static void ExpireAreaControlMapTilesCell8(MapData md)
+        //{
+        //    PerformanceTracker pt = new PerformanceTracker("ExpireAreaControlMapTilesCell8");
+        //    var db = new PraxisContext();
+        //    var space = md.place.Envelope;
+        //    var geoAreaToRefresh = new GeoArea(new GeoPoint(space.Coordinates.Min().Y, space.Coordinates.Min().X), new GeoPoint(space.Coordinates.Max().Y, space.Coordinates.Max().X));
+        //    var Cell8XTiles = geoAreaToRefresh.LongitudeWidth / resolutionCell8;
+        //    var Cell8YTiles = geoAreaToRefresh.LatitudeHeight / resolutionCell8;
 
-            double minx = geoAreaToRefresh.WestLongitude;
-            double miny = geoAreaToRefresh.SouthLatitude;
+        //    double minx = geoAreaToRefresh.WestLongitude;
+        //    double miny = geoAreaToRefresh.SouthLatitude;
 
-            int xTiles = (int)Cell8XTiles + 1;
-            IPreparedGeometry pg = pgf.Create(md.place); //this is supposed to be faster than regular geometry.
-            for (var x = 0; x < xTiles; x++)
-            {
+        //    var expiringTiles = db.MapTiles.Where(m => m.mode == 2 && m.areaCovered.Intersects(md.place)).ToList();
+        //    foreach(var et in expiringTiles)
+        //    {
+        //        et.ExpireOn = DateTime.Now; //The player is waiting for their claim to process. Mark them done and move on, redraw the map tile on next request to load it.
+        //    }
+        //    db.SaveChanges();
 
-                int yTiles = (int)(Cell8YTiles + 1);
-                for (var y = 0; y < Cell8YTiles; y++)
-                {
-                    var db2 = new PraxisContext();
-                    var olc = new OpenLocationCode(new GeoPoint(miny + (resolutionCell8 * y), minx + (resolutionCell8 * x)));
-                    var olc8 = olc.CodeDigits.Substring(0, 8);
-                    var olcPoly = GeoAreaToPolygon(OpenLocationCode.DecodeValid(olc8));
-                    if (pg.Intersects(olcPoly))
-                    {
-                        var maptiles8 = db2.MapTiles.Where(m => m.PlusCode == olc8 && m.resolutionScale == 11 && m.mode == 2).FirstOrDefault();
-                        if (maptiles8 != null)
-                        {
-                            maptiles8.ExpireOn = DateTime.Now.AddDays(-1);
-                        }    
-                    }
-                    db2.SaveChanges();
-                }
-            }
-            pt.Stop(md.MapDataId + "|" + md.name);
-        }
+        //    //int xTiles = (int)Cell8XTiles + 1;
+        //    //IPreparedGeometry pg = pgf.Create(md.place); //this is supposed to be faster than regular geometry.
+        //    //for (var x = 0; x < xTiles; x++)
+        //    //{
+
+        //    //    int yTiles = (int)(Cell8YTiles + 1);
+        //    //    for (var y = 0; y < Cell8YTiles; y++)
+        //    //    {
+        //    //        var db2 = new PraxisContext();
+        //    //        var olc = new OpenLocationCode(new GeoPoint(miny + (resolutionCell8 * y), minx + (resolutionCell8 * x)));
+        //    //        var olc8 = olc.CodeDigits.Substring(0, 8);
+        //    //        var olcPoly = GeoAreaToPolygon(OpenLocationCode.DecodeValid(olc8));
+        //    //        if (pg.Intersects(olcPoly))
+        //    //        {
+        //    //            var maptiles8 = db2.MapTiles.Where(m => m.PlusCode == olc8 && m.resolutionScale == 11 && m.mode == 2).FirstOrDefault();
+        //    //            if (maptiles8 != null)
+        //    //            {
+        //    //                maptiles8.ExpireOn = DateTime.Now.AddDays(-1);
+        //    //            }    
+        //    //        }
+        //    //        db2.SaveChanges();
+        //    //    }
+        //    //}
+        //    pt.Stop(md.MapDataId + "|" + md.name);
+        //}
 
         [HttpGet]
         [Route("/[controller]/GetFactions")]

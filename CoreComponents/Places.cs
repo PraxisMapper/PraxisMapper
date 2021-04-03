@@ -56,7 +56,21 @@ namespace CoreComponents
                 places.AddRange(db.GeneratedMapData.Where(md => location.Intersects(md.place)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
             }
             return places;
-        }        
+        }
+
+
+        public static List<MapData> GetAdminBoundaries(GeoArea area, List<MapData> source = null)
+        {
+            //If you ONLY want to get admin boundaries, use this function. Using GetPlaces searches for all place types, and is very slow by comparison.
+            List<MapData> places = new List<MapData>();
+            if (source == null)
+            {
+                var db = new CoreComponents.PraxisContext();
+                var location = Converters.GeoAreaToPolygon(area);
+                places = db.MapData.Where(md => md.AreaTypeId == 13 && md.place.Intersects(md.place)).ToList();
+            }
+            return places;
+        }
 
         //Note: This should have the padding added to area before this is called, if checking for tiles that need regenerated.
         public static bool DoPlacesExist(GeoArea area, List<MapData> source = null, bool includeGenerated = true)

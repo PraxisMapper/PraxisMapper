@@ -159,6 +159,7 @@ namespace PraxisMapper.Controllers
                         entry.CanFlipFactionAt = DateTime.Now.AddSeconds(config.Cell10LockoutTimer);
                     }
                 }
+
                 db.SaveChanges();
                 pt.Stop(Cell10 + claimed);
                 return claimed;
