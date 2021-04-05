@@ -43,7 +43,31 @@ namespace CoreComponents
             {
                 return (MapData)this.MemberwiseClone();
             }
-        }       
+        }
+
+        public class AdminBound //A copy of MapData for the AdminBound table.
+        {
+            public long AdminBoundId { get; set; }
+            public string name { get; set; }
+
+            [Column(TypeName = "geography")]
+            [Required]
+            public Geometry place { get; set; } //allows any sub-type of Geometry to be used
+            public string type { get; set; }//Still need this for admin boundary levels.
+            public long? WayId { get; set; }
+            public long? NodeId { get; set; }
+            public long? RelationId { get; set; }
+            public int AreaTypeId { get; set; }
+            public double? AreaSize { get; set; } //Added recently, this should make drawing bigger map tiles faster when used as a filter to not load areas smaller than 1 pixel.
+
+            public AdminBound Clone()
+            {
+                return (AdminBound)this.MemberwiseClone();
+            }
+
+            public static implicit operator MapData(AdminBound a) => new MapData() { AreaSize = a.AreaSize, AreaTypeId = a.AreaTypeId, MapDataId = 0, name = a.name, NodeId = a.NodeId, place = a.place, RelationId = a.RelationId, type = a.type, WayId = a.WayId };
+            public static implicit operator AdminBound(MapData a) => new AdminBound() { AreaSize = a.AreaSize, AreaTypeId = a.AreaTypeId, AdminBoundId = 0, name = a.name, NodeId = a.NodeId, place = a.place, RelationId = a.RelationId, type = a.type, WayId = a.WayId };
+        }
 
         //Reference table
         public class AreaType

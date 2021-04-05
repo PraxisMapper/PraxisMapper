@@ -44,15 +44,18 @@ namespace CoreComponents
 
         public static MapData ConvertNodeToMapData(NodeReference n)
         {
-            return new MapData()
-            {
-                name = n.name,
-                type = n.type,
-                place = factory.CreatePoint(new Coordinate(n.lon, n.lat)),
-                NodeId = n.Id,
-                AreaTypeId = areaTypeReference[n.type.StartsWith("admin") ? "admin" : n.type].First(),
-                AreaSize = .000125 //We treat points as being 1 cell10 in size for filtering purposes. don't draw them if you can't see them.
-            };
+            //Admin boundaries and buildings should not be points.
+            if (!n.type.StartsWith("admin") && n.type != "building")
+                return new MapData()
+                {
+                    name = n.name,
+                    type = n.type,
+                    place = factory.CreatePoint(new Coordinate(n.lon, n.lat)),
+                    NodeId = n.Id,
+                    AreaTypeId = areaTypeReference[n.type.StartsWith("admin") ? "admin" : n.type].First(),
+                    AreaSize = .000125 //We treat points as being 1 cell10 in size for filtering purposes. don't draw them if you can't see them.
+                };
+            return null; //These should get filtered out before writing to file.
         }
 
         public static MapData ConvertWayToMapData(ref WayData w)

@@ -67,7 +67,8 @@ namespace CoreComponents
             {
                 var db = new CoreComponents.PraxisContext();
                 var location = Converters.GeoAreaToPolygon(area);
-                places = db.MapData.Where(md => md.AreaTypeId == 13 && md.place.Intersects(md.place)).ToList();
+                var asAdminBounds =  db.AdminBounds.Where(md => location.Intersects(md.place)).ToList();
+                places = asAdminBounds.Select(m => (MapData)m).ToList();
             }
             return places;
         }

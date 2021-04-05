@@ -401,11 +401,11 @@ namespace CoreComponents
             //crop all places to the current area. This removes a ton of work from the process by simplifying geometry to only what's relevant, instead of drawing all of a great lake or state-wide park.
             var cropArea = Converters.GeoAreaToPolygon(loadDataArea);
             //allPlaces = allPlaces.Where(a => a.AreaSize >= smallestFeature).OrderByDescending(a => a.AreaSize).ToList(); /98% good enough , wrong occasionally on long roads through small parks and the like.
-            allPlaces = allPlaces.OrderByDescending(a => a.place.Area).ThenByDescending(a => a.place.Length).ToList();
+            allPlaces = allPlaces.Where(a => a.place.GeometryType != "Point").OrderByDescending(a => a.place.Area).ThenByDescending(a => a.place.Length).ToList(); //Points aren't real helpful for admin boundaries.
             foreach (var ap in allPlaces)
                 ap.place = ap.place.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
 
-            return InnerDrawSkia(ref allPlaces, totalArea, degreesPerPixelX, degreesPerPixelY, imagesizeX, imagesizeY, colorEachPlace: true);
+            return InnerDrawSkia(ref allPlaces, totalArea, degreesPerPixelX, degreesPerPixelY, imagesizeX, imagesizeY, transparent: true, colorEachPlace: true);
 
         }
 
