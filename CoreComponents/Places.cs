@@ -250,12 +250,26 @@ namespace CoreComponents
             //admin boundaries: identify what political entities you're in. Smaller numbers are bigger levels (countries), bigger numbers are smaller entries (states, counties, cities, neighborhoods)
             //This should be the lowest priority tag on a cell, since this is probably the least interesting piece of info you could know.
             //OSM Wiki has more info on which ones mean what and where they're used.
+            //2 == Country
             if (DbSettings.processAdmin && tags["boundary"].Any(v => v == "administrative")) //Admin_level appears on other elements, including goverment-tagged stuff, capitals, etc.
             {
                 string level = tags["admin_level"].FirstOrDefault();
-                if (level != null)
-                    return "admin" + level.ToInt();
-                return "admin0"; //indicates relation wasn't tagged with a level.
+                switch (level)
+                {
+                    case "2":
+                        return "country";
+                    case "4":
+                        return "state";
+                    case "5":
+                    case "6":
+                    case "7":
+                    case "8":
+                    case "9":
+                    case "10":
+                            return "cityish";
+                    default:
+                        return "unknown"; //indicates relation wasn't tagged with a level.
+                }
             }
 
             //Cemetaries are ok. They don't seem to appreciate Pokemon Go, but they're a public space and often encourage activity in them (thats not PoGo)

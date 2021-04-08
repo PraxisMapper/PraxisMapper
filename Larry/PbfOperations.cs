@@ -320,6 +320,7 @@ namespace Larry
                 1205149, //lake michigan --not valid geometry?
                 4039486, //lake superior
                 //Admin boundaries:
+                //Any relation with admin_level == 2 is a country.
                 148838, //US Admin bounds
                 9331155, //48 Contiguous US states
                 1428125, //Canada
@@ -344,7 +345,11 @@ namespace Larry
             File.Delete(outputFile); //Clear out any existing entries.
 
             File.AppendAllLines(outputFile, new List<String>() { "[" });
-            var rs = source.Where(s => s.Type == OsmGeoType.Relation && manualRelationId.Contains(s.Id.Value)).Select(s => (OsmSharp.Relation)s).ToList();
+            var rs = source.Where(s => s.Type == OsmGeoType.Relation &&
+                (manualRelationId.Contains(s.Id.Value)
+                //This clause adds countries, but it errored out on me somwhere after about 10 hours of running on planet-latest.
+                || s.Tags.Any(t => t.Key == "admin_level" && t.Value == "2")) //Countries
+                ).Select(s => (OsmSharp.Relation)s).ToList();
             Log.WriteLog("Relation data pass completed at " + DateTime.Now);
             List<WayData> ways = new List<WayData>();
             var referencedWays = rs.SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToLookup(k => k, v => v);

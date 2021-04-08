@@ -102,6 +102,26 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
+        [Route("/[controller]/LearnCell8Recent/{instanceID}/{Cell8}")]
+        public string LearnCell8Recent(int instanceID, string Cell8)
+        {
+            try
+            {
+                Classes.PerformanceTracker pt = new Classes.PerformanceTracker("LearnCell8PaintTown");
+                var cellData = PaintTown.LearnCell8(instanceID, Cell8, true);
+                string results = "";
+                foreach (var cell in cellData)
+                    results += cell.Cell10 + "=" + cell.FactionId + "|";
+                return results;
+            }
+            catch (Exception ex)
+            {
+                Classes.ErrorLogger.LogError(ex);
+                return "";
+            }
+        }
+
+        [HttpGet]
         [Route("/[controller]/ClaimCell10/{factionId}/{Cell10}")]
         public int ClaimCell10(int factionId, string Cell10)
         {
