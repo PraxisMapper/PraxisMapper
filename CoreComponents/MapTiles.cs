@@ -424,6 +424,14 @@ namespace CoreComponents
             SkiaSharp.SKPaint paint = new SkiaSharp.SKPaint();
             SkiaSharp.SKColor color = new SkiaSharp.SKColor();
             paint.IsAntialias = true;
+            //I want to draw lines at least 3 pixels wide for Cell8HighRes tiles and similar Slippy tiles. (Zoom 14-20 on Slippy)
+            //otherwise they can be 1 as we zoom out. (Zoom 13 and lower)
+            if (degreesPerPixelX <= .00003125) //value at Cell8HighRes command parameters
+                paint.StrokeWidth = 3;
+            else
+                paint.StrokeWidth = 1;
+
+
             foreach (var place in allPlaces) //If i get unexpected black background, an admin area probably got passed in with AllPlaces. Filter those out at the level above this function.
             {
                 var hexcolor = areaColorReference[place.AreaTypeId].FirstOrDefault();
@@ -433,7 +441,7 @@ namespace CoreComponents
                 else
                     color = PickColorForAdminBounds(place);
                 paint.Color = color;
-                paint.StrokeWidth = 1;
+                //paint.StrokeWidth = 1;
                 switch (place.place.GeometryType)
                 {
                     case "Polygon":
@@ -453,11 +461,13 @@ namespace CoreComponents
                         break;
                     case "LineString":
                         paint.Style = SkiaSharp.SKPaintStyle.Stroke;
+                        //paint.StrokeWidth = 3; //Trails and roads are just too small to see outdoors.
                         var points = Converters.PolygonToSKPoints(place.place, totalArea, degreesPerPixelX, degreesPerPixelY);
                         for (var line = 0; line < points.Length - 1; line++)
                             canvas.DrawLine(points[line], points[line + 1], paint);
                         break;
                     case "MultiLineString":
+                        //paint.StrokeWidth = 3; //Trails and roads are just too small to see outdoors.
                         foreach (var p in ((MultiLineString)place.place).Geometries)
                         {
                             paint.Style = SkiaSharp.SKPaintStyle.Stroke;

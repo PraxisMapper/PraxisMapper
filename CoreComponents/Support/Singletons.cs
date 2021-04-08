@@ -31,7 +31,7 @@ namespace CoreComponents
             new AreaType() { AreaTypeId = 9, AreaName = "retail", OsmTags = "", HtmlColorCode = "EB63EB" },
             new AreaType() { AreaTypeId = 10, AreaName = "tourism", OsmTags = "", HtmlColorCode = "1999D1" },
             new AreaType() { AreaTypeId = 11, AreaName = "historical", OsmTags = "", HtmlColorCode = "B3B3B3" },
-            new AreaType() { AreaTypeId = 12, AreaName = "trail", OsmTags = "", HtmlColorCode = "782E05" },
+            new AreaType() { AreaTypeId = 12, AreaName = "trail", OsmTags = "", HtmlColorCode = "F0E68C" },//was 782E05
             //These areas are more for map tiles than gameplay
             new AreaType() { AreaTypeId = 13, AreaName = "admin", OsmTags = "",HtmlColorCode = "FF2020" }, //Though there could be some gameplay or leaderboarding about cities/states/countries visited using this.
             new AreaType() { AreaTypeId = 14, AreaName = "building", OsmTags = "", HtmlColorCode = "808080" },

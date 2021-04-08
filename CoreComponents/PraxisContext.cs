@@ -90,6 +90,7 @@ namespace CoreComponents
             model.Entity<PaintTownEntry>().HasIndex(m => m.PaintTownConfigId);
             model.Entity<PaintTownEntry>().HasIndex(m => m.Cell8); //index for looking up current tiles.
             model.Entity<PaintTownEntry>().HasIndex(m => m.Cell10); //index for claiming
+            //No index on the claimedAt column, since the Cell8Recent call should use the Cell8 index, and then scanning over a max of 400 entries shouldn't be terrible. Add that here if this assumption is wrong.
 
             model.Entity<PaintTownScoreRecord>().HasIndex(m => m.PaintTownConfigId);
             model.Entity<PaintTownScoreRecord>().HasIndex(m => m.WinningFactionID);
