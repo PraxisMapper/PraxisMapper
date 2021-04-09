@@ -526,10 +526,10 @@ namespace CoreComponents
 
         public static byte[] DrawUserPath(string pointListAsString)
         {
-            //String is formatted as Lat^Lon|Lat^Lon repeating
+            //String is formatted as Lat,Lon~Lat,Lon~ repeating. Characters chosen to not be percent-encoded if submitted as part of the URL.
             //first, convert this to a list of latlon points
             string[] pointToConvert = pointListAsString.Split("|");
-            List<Coordinate> coords = pointToConvert.Select(p => new Coordinate(double.Parse(p.Split('^')[0]), double.Parse(p.Split('^')[1]))).ToList();
+            List<Coordinate> coords = pointToConvert.Select(p => new Coordinate(double.Parse(p.Split(',')[0]), double.Parse(p.Split(',')[1]))).ToList();
 
             var mapBuffer = resolutionCell8 / 2; //Leave some area around the edges of where they went.
             GeoArea mapToDraw = new GeoArea(coords.Min(c => c.Y) - mapBuffer, coords.Min(c => c.X) - mapBuffer, coords.Max(c => c.Y) + mapBuffer, coords.Max(c => c.X) + mapBuffer);
@@ -548,6 +548,7 @@ namespace CoreComponents
             SKCanvas canvas = new SKCanvas(sKBitmap);
             SKPaint paint = new SKPaint();
             paint.Style = SKPaintStyle.Stroke;
+            paint.StrokeWidth = 4; //Larger than normal lines at any zoom level.
             paint.Color = new SKColor(255, 255, 255); //Pure White, for maximum visibility.
             for (var x = 0; x < drawableLine.Length - 1; x++)
                 canvas.DrawLine(drawableLine[x], drawableLine[x + 1], paint);
