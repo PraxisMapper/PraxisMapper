@@ -160,5 +160,12 @@ namespace PraxisMapper.Controllers
             pt.Stop();
             return mapTileExp.ToShortDateString();
         }
+
+        [HttpGet]
+        [Route("/[controller]/DrawPath/{path}")]
+        public byte[] DrawPath(string path)
+        {
+            return MapTiles.DrawUserPath(path);
+        }
     }
 }
