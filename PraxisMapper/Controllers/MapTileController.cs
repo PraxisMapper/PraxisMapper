@@ -162,9 +162,11 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        [Route("/[controller]/DrawPath/{path}")]
-        public byte[] DrawPath(string path)
+        [Route("/[controller]/DrawPath")]
+        public byte[] DrawPath()
         {
+            //NOTE: URL limitations block this from being a usable REST style path, so this one may require reading data bindings from the body instead
+            string path = new System.IO.StreamReader(Request.Body).ReadToEnd();
             return MapTiles.DrawUserPath(path);
         }
     }
