@@ -412,32 +412,31 @@ namespace CoreComponents
         public static byte[] InnerDrawSkia(ref List<MapData> allPlaces, GeoArea totalArea, double degreesPerPixelX, double degreesPerPixelY, int imageSizeX, int imageSizeY, bool transparent = false, bool colorEachPlace = false)
         {
             //Some image items setup.
-            SkiaSharp.SKBitmap bitmap = new SkiaSharp.SKBitmap(imageSizeX, imageSizeY, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul);
-            SkiaSharp.SKCanvas canvas = new SkiaSharp.SKCanvas(bitmap);
-            var bgColor = new SkiaSharp.SKColor();
+            SKBitmap bitmap = new SKBitmap(imageSizeX, imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
+            SKCanvas canvas = new SKCanvas(bitmap);
+            var bgColor = new SKColor();
             if (transparent)
-                SkiaSharp.SKColor.TryParse("00000000", out bgColor);
+                SKColor.TryParse("00000000", out bgColor);
             else
-                SkiaSharp.SKColor.TryParse(areaColorReference[999].FirstOrDefault(), out bgColor);
+                SKColor.TryParse(areaColorReference[999].FirstOrDefault(), out bgColor);
             canvas.Clear(bgColor);
             canvas.Scale(1, -1, imageSizeX / 2, imageSizeY / 2);
-            SkiaSharp.SKPaint paint = new SkiaSharp.SKPaint();
-            SkiaSharp.SKColor color = new SkiaSharp.SKColor();
+            SKPaint paint = new SKPaint();
+            SKColor color = new SKColor();
             paint.IsAntialias = true;
             //I want to draw lines at least 3 pixels wide for Cell8HighRes tiles and similar Slippy tiles. (Zoom 14-20 on Slippy)
             //otherwise they can be 1 as we zoom out. (Zoom 13 and lower)
             if (degreesPerPixelX <= .00003125) //value at Cell8HighRes command parameters
-                paint.StrokeWidth = 3;
+                paint.StrokeWidth = 3; //Makes trails, roads, and some rivers easier to see.
             else
                 paint.StrokeWidth = 1;
-
 
             foreach (var place in allPlaces) //If i get unexpected black background, an admin area probably got passed in with AllPlaces. Filter those out at the level above this function.
             {
                 var hexcolor = areaColorReference[place.AreaTypeId].FirstOrDefault();
 
                 if (colorEachPlace == false)
-                    SkiaSharp.SKColor.TryParse(hexcolor, out color); //NOTE: this is AARRGGBB, so when I do transparency I need to add that to the front, not the back.
+                    SKColor.TryParse(hexcolor, out color); //NOTE: this is AARRGGBB, so when I do transparency I need to add that to the front, not the back.
                 else
                     color = PickColorForAdminBounds(place);
                 paint.Color = color;
@@ -445,39 +444,37 @@ namespace CoreComponents
                 switch (place.place.GeometryType)
                 {
                     case "Polygon":
-                        var path = new SkiaSharp.SKPath();
+                        var path = new SKPath();
                         path.AddPoly(Converters.PolygonToSKPoints(place.place, totalArea, degreesPerPixelX, degreesPerPixelY));
-                        paint.Style = SkiaSharp.SKPaintStyle.Fill;
+                        paint.Style = SKPaintStyle.Fill;
                         canvas.DrawPath(path, paint);
                         break;
                     case "MultiPolygon":
                         foreach (var p in ((MultiPolygon)place.place).Geometries)
                         {
-                            var path2 = new SkiaSharp.SKPath();
+                            var path2 = new SKPath();
                             path2.AddPoly(Converters.PolygonToSKPoints(p, totalArea, degreesPerPixelX, degreesPerPixelY));
-                            paint.Style = SkiaSharp.SKPaintStyle.Fill;
+                            paint.Style = SKPaintStyle.Fill;
                             canvas.DrawPath(path2, paint);
                         }
                         break;
                     case "LineString":
-                        paint.Style = SkiaSharp.SKPaintStyle.Stroke;
-                        //paint.StrokeWidth = 3; //Trails and roads are just too small to see outdoors.
+                        paint.Style = SKPaintStyle.Stroke;
                         var points = Converters.PolygonToSKPoints(place.place, totalArea, degreesPerPixelX, degreesPerPixelY);
                         for (var line = 0; line < points.Length - 1; line++)
                             canvas.DrawLine(points[line], points[line + 1], paint);
                         break;
                     case "MultiLineString":
-                        //paint.StrokeWidth = 3; //Trails and roads are just too small to see outdoors.
                         foreach (var p in ((MultiLineString)place.place).Geometries)
                         {
-                            paint.Style = SkiaSharp.SKPaintStyle.Stroke;
+                            paint.Style = SKPaintStyle.Stroke;
                             var points2 = Converters.PolygonToSKPoints(p, totalArea, degreesPerPixelX, degreesPerPixelY);
                             for (var line = 0; line < points2.Length - 1; line++)
                                 canvas.DrawLine(points2[line], points2[line + 1], paint);
                         }
                         break;
                     case "Point":
-                        paint.Style = SkiaSharp.SKPaintStyle.Fill;
+                        paint.Style = SKPaintStyle.Fill;
                         var circleRadius = (float)(resolutionCell10 / degreesPerPixelX / 2); //I want points to be drawn as 1 Cell10 in diameter.
                         var convertedPoint = Converters.PolygonToSKPoints(place.place, totalArea, degreesPerPixelX, degreesPerPixelY);
                         canvas.DrawCircle(convertedPoint[0], circleRadius, paint);
@@ -486,8 +483,8 @@ namespace CoreComponents
             }
 
             var ms = new MemoryStream();
-            var skms = new SkiaSharp.SKManagedWStream(ms);
-            bitmap.Encode(skms, SkiaSharp.SKEncodedImageFormat.Png, 100);
+            var skms = new SKManagedWStream(ms);
+            bitmap.Encode(skms, SKEncodedImageFormat.Png, 100);
             var results = ms.ToArray();
             skms.Dispose(); ms.Close(); ms.Dispose();
             return results;
@@ -524,6 +521,42 @@ namespace CoreComponents
             var hash = hasher.ComputeHash(value);
 
             SKColor results = new SKColor(hash[0], hash[1], hash[2], Convert.ToByte(64)); //all have the same transparency level
+            return results;
+        }
+
+        public static byte[] DrawUserPath(string pointListAsString)
+        {
+            //String is formatted as Lat^Lon|Lat^Lon repeating
+            //first, convert this to a list of latlon points
+            string[] pointToConvert = pointListAsString.Split("|");
+            List<Coordinate> coords = pointToConvert.Select(p => new Coordinate(double.Parse(p.Split('^')[0]), double.Parse(p.Split('^')[1]))).ToList();
+
+            var mapBuffer = resolutionCell8 / 2; //Leave some area around the edges of where they went.
+            GeoArea mapToDraw = new GeoArea(coords.Min(c => c.Y) - mapBuffer, coords.Min(c => c.X) - mapBuffer, coords.Max(c => c.Y) + mapBuffer, coords.Max(c => c.X) + mapBuffer);
+
+            double degreesPerPixelX = mapToDraw.LongitudeWidth / 1024;
+            double degreesPerPixelY = mapToDraw.LatitudeHeight / 1024;
+
+            LineString line = new LineString(coords.ToArray());
+            var drawableLine = Converters.PolygonToSKPoints(line, mapToDraw, degreesPerPixelX, degreesPerPixelY);
+
+            //Now, draw that path on the map.
+            var places = GetPlaces(mapToDraw, null, false, false, degreesPerPixelX * 4);
+            var baseImage = InnerDrawSkia(ref places, mapToDraw, degreesPerPixelX, degreesPerPixelY, 1024, 1024);
+
+            SKBitmap sKBitmap = SKBitmap.Decode(baseImage);
+            SKCanvas canvas = new SKCanvas(sKBitmap);
+            SKPaint paint = new SKPaint();
+            paint.Style = SKPaintStyle.Stroke;
+            paint.Color = new SKColor(255, 255, 255); //Pure White, for maximum visibility.
+            for (var x = 0; x < drawableLine.Length - 1; x++)
+                canvas.DrawLine(drawableLine[x], drawableLine[x + 1], paint);
+
+            var ms = new MemoryStream();
+            var skms = new SKManagedWStream(ms);
+            sKBitmap.Encode(skms, SKEncodedImageFormat.Png, 100);
+            var results = ms.ToArray();
+            skms.Dispose(); ms.Close(); ms.Dispose();
             return results;
         }
     }
