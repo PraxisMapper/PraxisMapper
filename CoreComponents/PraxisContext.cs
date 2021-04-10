@@ -27,6 +27,8 @@ namespace CoreComponents
         public DbSet<ErrorLog> ErrorLogs { get; set; }
         public DbSet<ServerSetting>  ServerSettings { get; set; }
         public DbSet<TileTracking> TileTrackings { get; set; }
+        public DbSet<ZztGame> ZztGames { get; set; }
+        public DbSet<GamesBeaten> GamesBeaten { get; set; }
 
 
         //IConfiguration Config;
