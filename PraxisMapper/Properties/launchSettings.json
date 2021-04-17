@@ -40,7 +40,7 @@
     "IIS": {
       "commandName": "IIS",
       "launchBrowser": true,
-      "launchUrl": "http://localhost/PraxisMapper/"
+      "launchUrl": "http://localhost/PraxisMapper/slippy/zzt"
     }
   }
 }

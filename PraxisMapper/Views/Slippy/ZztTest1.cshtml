@@ -1,0 +1,73 @@
+﻿<html>
+<head>
+    @*<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+              integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+              crossorigin="" />
+        <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+                integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
+                crossorigin=""></script>*@
+
+
+    <link rel="stylesheet" href="~/Content/leaflet.css" />
+    <script src="~/Content/Scripts/leaflet.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+</head>
+<body>
+    <div id="mapid" style="height:100%">
+    </div>
+
+    <script type="text/javascript">
+        //This page is for attempting to work out logic for 'play' mode of the ZZT concept.
+        //Go to the appropriate marsh, load the default objects, parse the scripts.
+
+        var url = '../MapTile/DrawSlippyTile/{x}/{y}/{z}/{id}'
+        var baseData = L.tileLayer(url, {id: 1, tileSize:512, maxZoom: 20, minZoom: 9, zoomOffset: -1, attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Imagery via <a href= "https://github.com/drakewill-crl/PraxisMapper">PraxisMapper</a>' })
+        var cell8Grids = L.tileLayer(url, { id: 9, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1, attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Imagery via <a href= "https://github.com/drakewill-crl/PraxisMapper">PraxisMapper</a>' })
+        var cell10Grids = L.tileLayer(url, { id: 10, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1, attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Imagery via <a href= "https://github.com/drakewill-crl/PraxisMapper">PraxisMapper</a>' })
+        //var ac = L.tileLayer(url, { id: 3, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1, attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Imagery via <a href= "https://github.com/drakewill-crl/PraxisMapper">PraxisMapper</a>', })
+        //var generated = L.tileLayer(url, { id: 4, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1, attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Imagery via <a href= "https://github.com/drakewill-crl/PraxisMapper">PraxisMapper</a>', })
+        var adminBounds = L.tileLayer(url, { id: 6, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1, attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Imagery via <a href= "https://github.com/drakewill-crl/PraxisMapper">PraxisMapper</a>' })
+        var states = L.tileLayer(url, { id: 11, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1, attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Imagery via <a href= "https://github.com/drakewill-crl/PraxisMapper">PraxisMapper</a>' })
+        var baseLayers = {
+            "Base Data": baseData,
+            "States": states,
+        };
+        var overlays = {
+            "Gridlines": cell8Grids,
+            "Small Gridlines": cell10Grids,
+            //"Area Control": ac,
+            //"Server-Generated": generated
+            "Admin Bounds": adminBounds,
+        };
+
+    var mymap = L.map('mapid').setView([41.503425, -81.698995], 13);
+        //L.tileLayer("base", baseData).addTo(mymap);
+        L.tileLayer('../MapTile/DrawSlippyTile/{x}/{y}/{z}/1', {
+            maxZoom: 20,
+            minZoom: 9,
+            zoom: 12,
+            id: 'none',
+            tileSize: 512,
+            zoomOffset: -1,
+            attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Imagery via <a href= "https://github.com/drakewill-crl/PraxisMapper">PraxisMapper</a>',
+            accessToken: 'none'
+        }).addTo(mymap);
+
+        L.control.layers(baseLayers, overlays).addTo(mymap);
+
+        //use popups to display stuff on a map
+        //L.popup().setLatLng([1, 2]).setContent("Basic Popup data.").openOn(mymap);
+
+        //polygons are easy to add. getting this list means i need a button to listen to taps to set places.
+        //var polygon = L.polygon([1,2], [2, 3], [3, 4], [1, 2]).addTo(mymap);
+
+        //using mobile gps, centers on user.
+        mymap.locate({setView: true, maxZoom: 16});
+
+        function onMapClick(e) {
+            //TODO: add logic
+        }
+    </script>
+    <script src="~/Content/Scripts/ZZTMap.js"></script>
+</body>
+</html>

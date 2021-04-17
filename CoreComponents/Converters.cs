@@ -149,5 +149,11 @@ namespace CoreComponents
             SkiaSharp.SKPoint[] points = place.Coordinates.Select(o => new SkiaSharp.SKPoint((float)((o.X - drawingArea.WestLongitude) * (1 / degreesPerPixelX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / degreesPerPixelY)))).ToArray();
             return points;
         }
+
+        public static GeoArea GeometryToGeoArea(Geometry g)
+        {
+            GeoArea results = new GeoArea(g.Envelope.Coordinates.Min(c => c.Y), g.Envelope.Coordinates.Min(c => c.X), g.Envelope.Coordinates.Max(c => c.Y), g.Envelope.Coordinates.Max(c => c.X));
+            return results;
+        }
     }
 }
