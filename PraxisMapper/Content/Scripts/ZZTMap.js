@@ -25,3 +25,27 @@ const fish = {
     },
     playerNear: "script goes here",
 };
+
+//hard-coding test game to run through engine later
+const testGame = {
+    id: 1,
+    name: "Test Game",
+    author: 1,  //user ID
+    madeOn: "20210407000000", //TODO: proper JS date value
+    gameData: {
+        init: "alert('Evaluated init call!);", //eval-able statement here
+        objects: {
+            {
+                id: "1",
+                location: "86HWHH779V",
+                type: "fish",
+                onPlayerEnter: "location=86HWHH77CV;",
+            },
+        },
+        win: "" //eval-able statement here
+    },
+    location: "geometry text here", //a square around 
+    sizeX: 20, //estimate
+    sizeY: 20, //estimate
+    //winCondition: "or is this in GameData?"
+};

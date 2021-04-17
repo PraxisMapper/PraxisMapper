@@ -12,7 +12,7 @@ namespace CoreComponents
             //Which factions own which Cell10s nearby?
             var db = new PraxisContext();
             List<PaintTownEntry> cellData;
-            if (recent)
+            if (!recent)
                 cellData = db.PaintTownEntries.Where(t => t.PaintTownConfigId == instanceID && t.Cell8 == Cell8).ToList();
             else
                 cellData = db.PaintTownEntries.Where(t => t.PaintTownConfigId == instanceID && t.Cell8 == Cell8 && t.ClaimedAt > DateTime.Now.AddSeconds(-30)).ToList();

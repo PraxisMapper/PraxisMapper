@@ -92,6 +92,7 @@ namespace PraxisMapper.Controllers
                 string results = "";
                 foreach (var cell in cellData)
                     results += cell.Cell10 + "=" + cell.FactionId + "|";
+                pt.Stop();
                 return results;
             }
             catch (Exception ex)
@@ -107,11 +108,13 @@ namespace PraxisMapper.Controllers
         {
             try
             {
-                Classes.PerformanceTracker pt = new Classes.PerformanceTracker("LearnCell8PaintTown");
+                Classes.PerformanceTracker pt = new Classes.PerformanceTracker("LearnCell8PaintTownRecent");
                 var cellData = PaintTown.LearnCell8(instanceID, Cell8, true);
                 string results = "";
                 foreach (var cell in cellData)
                     results += cell.Cell10 + "=" + cell.FactionId + "|";
+
+                pt.Stop();
                 return results;
             }
             catch (Exception ex)

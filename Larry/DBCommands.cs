@@ -260,6 +260,7 @@ namespace Larry
             Log.WriteLog("Starting AreaSize fix at  " + DateTime.Now);
             PraxisContext db = new PraxisContext();
             var toFix = db.MapData.Where(m => m.AreaSize == null).ToList();
+            //var toFix = db.MapData.Where(m => m.MapDataId == 2500925).ToList();
             foreach(var fix in toFix)
                 fix.AreaSize = fix.place.Length;
             //switch (fix.place.GeometryType)
