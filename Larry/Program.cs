@@ -239,6 +239,12 @@ namespace Larry
                     }
                 }
             }
+
+            if (args.Any(a => a.StartsWith("-testDbDump")))
+            {
+                PbfRawDump.DumpToDb(ParserSettings.PbfFolder + "delaware-latest.osm.pbf"); //Delaware is the smallest state.
+            }
+
             return;
         }
 

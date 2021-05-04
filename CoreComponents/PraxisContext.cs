@@ -30,6 +30,9 @@ namespace CoreComponents
         public DbSet<ZztGame> ZztGames { get; set; }
         public DbSet<GamesBeaten> GamesBeaten { get; set; }
 
+        public DbSet<StoredNode> StoredNodes { get; set; }
+        public DbSet<StoredWay> StoredWays { get; set; }
+        public DbSet<StoredRelation> StoredRelations { get; set; }
 
         //IConfiguration Config;
         public static string connectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;"; //Needs a default value.
@@ -107,6 +110,7 @@ namespace CoreComponents
         public static string GeneratedMapDataIndex = "CREATE SPATIAL INDEX GeneratedMapDataSpatialIndex ON GeneratedMapData(place)";
         public static string MapTileIndex = "CREATE SPATIAL INDEX MapTileSpatialIndex ON MapTiles(areaCovered)";
         public static string SlippyMapTileIndex = "CREATE SPATIAL INDEX SlippyMapTileSpatialIndex ON SlippyMapTiles(areaCovered)";
+        //TODO: add spatial index to StoredNode/way/relation tables.
 
         //MariaDB may not actually require these triggers. MSSQL insists on its data passing its own validity check, MariaDB appears not to so far. Keeping these for now in case I'm wrong.
         //public static string MapDataValidTriggerMariaDB= "CREATE TRIGGER dbo.MakeValid ON dbo.MapData AFTER INSERT AS BEGIN UPDATE dbo.MapData SET place = place.MakeValid() WHERE MapDataId in (SELECT MapDataId from inserted) END";
