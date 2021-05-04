@@ -1,5 +1,6 @@
 ﻿using NetTopologySuite.Geometries;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -227,6 +228,56 @@ namespace CoreComponents
             public long UserId { get; set; }
             public long ZztGameId { get; set; }
         }
+
+        //As it turns out, I might need to store/load raw map data after all, for creating accurate map tiles without any external applications.
+        //so back to using these stand-ins for OSM data types, plus a join table to parse tags later. This will take up a ton more space than the pbf or the DB, though.
+        public class StoredNode
+        {
+            public long id { get; set; } //internal PKey id
+            //public long OsmId { get; set; } //OSM id for reference with ways
+            public double lat { get; set; }
+            public double lon { get; set; }
+            public ICollection<NodeTags> NodeTags { get; set; }
+        }
+
+        public class StoredWay
+        {
+            public long id { get; set; }
+            public ICollection<long> Nodes; //Points to OsmIds
+            public ICollection<WayTags> WayTags { get; set; }
+        }
+
+        public class StoredRelation
+        {
+            public long id { get; set; }
+            public ICollection<RelationTags> RelationTags { get; set; }
+        }
+
+        public class NodeTags
+        {
+            public long id { get; set; }
+            public long StoredNodeId { get; set; }
+            public string Key { get; set; }
+            public string Value { get; set; }
+        }
+        public class WayTags
+        {
+            public long id { get; set; }
+            public long StoredWayId { get; set; }
+            public string Key { get; set; }
+            public string Value { get; set; }
+        }
+        public class RelationTags
+        {
+            public long id { get; set; }
+            public long StoredRelationId { get; set; }
+            public string Key { get; set; }
+            public string Value { get; set; }
+        }
+
+
+
+
 
         //In Process. To use to allow some customization of map tiles by setting colors for area types. Was for ImageSharp, needs redone for SkiaSharp
         //public class DrawingRule //this needs properties to pass into ImageSharp.Drawing calls, mostly brush stuff.

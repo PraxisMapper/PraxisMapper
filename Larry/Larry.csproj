@@ -37,4 +37,10 @@
     <ProjectReference Include="..\CoreComponents\CoreComponents.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Reference Include="VectorTileRendererPraxisMapper">
+      <HintPath>..\..\VectorTileRenderer\VectorTileRendererPraxisMapper\bin\Debug\net5.0\VectorTileRendererPraxisMapper.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
 </Project>

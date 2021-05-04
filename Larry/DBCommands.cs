@@ -41,27 +41,36 @@ namespace Larry
         public static void InsertAreaTypesToDb()
         {
             var db = new PraxisContext();
-            db.Database.BeginTransaction();
             if (ParserSettings.DbMode == "SQLServer")
+            {
+                db.Database.BeginTransaction();
                 db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT AreaTypes ON;");
+            }
             db.AreaTypes.AddRange(areaTypes);
             db.SaveChanges();
             if (ParserSettings.DbMode == "SQLServer")
+            {
                 db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT dbo.AreaTypes OFF;");
-            db.Database.CommitTransaction();
+                db.Database.CommitTransaction();
+            }
         }
 
         public static void InsertDefaultFactionsToDb()
         {
             var db = new PraxisContext();
-            db.Database.BeginTransaction();
+            
             if (ParserSettings.DbMode == "SQLServer")
+            {
+                db.Database.BeginTransaction();
                 db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Factions ON;");
+            }
             db.Factions.AddRange(defaultFaction);
             db.SaveChanges();
             if (ParserSettings.DbMode == "SQLServer")
+            {
                 db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Factions OFF;");
-            db.Database.CommitTransaction();
+                db.Database.CommitTransaction();
+            }
         }
 
         public static void InsertDefaultServerConfig()
@@ -213,6 +222,7 @@ namespace Larry
                         if (updateCounter > 1000)
                         {
                             db.SaveChanges();
+                            db = new PraxisContext();
                             updateCounter = 0;
                             Log.WriteLog(updateTotal + " entries updated to DB");
                         }
@@ -247,6 +257,7 @@ namespace Larry
                     db.MapData.AddRange(subList.Where(s => s.AreaTypeId != 13));
                     db.AdminBounds.AddRange(subList.Where(s => s.AreaTypeId == 13).Select(s => (AdminBound)s).ToList());
                     db.SaveChanges();//~3seconds on dev machine per pass at 10k entries at once.
+                    db = new PraxisContext();
                     Log.WriteLog("Entry pass " + i + " of " + (entries.Count() / 10000) + " completed");
                 }
 
