@@ -52,7 +52,7 @@ namespace CoreComponents
                 optionsBuilder.UseSqlServer(connectionString, x => x.UseNetTopologySuite());
             else if (serverMode == "MariaDB")
             {
-                optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), x => x.UseNetTopologySuite().CharSetBehavior(Pomelo.EntityFrameworkCore.MySql.Infrastructure.CharSetBehavior.NeverAppend).EnableRetryOnFailure());
+                optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), x => x.UseNetTopologySuite().EnableRetryOnFailure());
             }
 
             //optionsBuilder.UseMemoryCache(mc);//I think this improves performance at the cost of RAM usage. Needs additional testing.
