@@ -7,23 +7,26 @@ using VectorTileRendererPraxisMapper;
 
 namespace Larry
 {
-    class VTRTest
+    public static class VTRTest
     {
-        public static void DrawTileFromPBF()
+        public static void DrawTileFromPBF(string filename)
         {
             // load style and fonts
-            var style = new Style("basic-style.json");
+            var style = new Style("liberty-style.json");
             style.FontDirectory = "styles/fonts/";
 
             // set pbf as tile provider
-            var provider = new VectorTileRendererPraxisMapper.Sources.PbfTileSource("tile.pbf"); //TODO: set this to Ohio or something.
-            style.SetSourceProvider(0, provider);
+            var provider = new VectorTileRendererPraxisMapper.Sources.PbfTileSource(filename); //This appears to want a MapBox format file, not an OSM format file. SO I need to change that up before this work the way I want it to.
+            //style.SetSourceProvider(0, provider);
 
             // render it on a skia canvas
             var zoom = 13; //might want to zoom in closer?
             var canvas = new SkiaCanvas();
-            //TODO: check that style.Layers has a vector layer, and tweak this stuff around a little to render a tile in Ohio.
-            var bitmap = Renderer.Render(style, canvas, 0, 0, zoom, 512, 512, 1).Result;
+            //Delaware is 2384, 3138,13
+            //var bitmap = Renderer.Render(style, canvas, 2384, 3138, zoom, 512, 512, 1).Result;
+
+            //System.IO.File.WriteAllBytes("testTile.png", bitmap);
+
 
             //imageView.Source = bitmap;
         }

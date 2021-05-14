@@ -78,7 +78,7 @@ namespace CoreComponents
                 md.name = w.name;
                 md.WayId = w.id;
                 md.type = w.AreaType;
-                md.AreaTypeId = areaTypeReference[w.AreaType.StartsWith("admin") ? "admin" : w.AreaType].First();
+                md.AreaTypeId = areaTypeReference[w.AreaType.StartsWith("admin") ? "admin" : w.AreaType].FirstOrDefault();
 
                 //Normally, we want to make sure looping roads/trails are linestrings. They can be marked with the tag area=yes to indicate that they should be drawn as a polygon.
                 if (w.nds.First().id != w.nds.Last().id || (w.AreaType == "trail" && w.forceArea == false) || (w.AreaType == "road" && w.forceArea == false))

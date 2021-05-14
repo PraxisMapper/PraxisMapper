@@ -247,6 +247,17 @@ namespace Larry
                 PbfRawDump.DumpToDb(ParserSettings.PbfFolder + "delaware-latest.osm.pbf"); //Delaware is the smallest state.
             }
 
+            if (args.Any(a => a.StartsWith("-DrawFromRaw")))
+            {
+                DrawFromRawPbf.DrawFromRawTest1(ParserSettings.PbfFolder + "ohio-latest.osm.pbf"); //Delaware is the smallest state.
+            }
+
+            //This library wasn't labeled correctly. It wants MapBox data, not OSM data.
+            //if (args.Any(a => a.StartsWith("-VTRtest")))
+            //{
+            //VTRTest.DrawTileFromPBF(ParserSettings.PbfFolder + "delaware-latest.osm.pbf");
+            //}
+
             return;
         }
 
