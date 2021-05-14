@@ -287,7 +287,7 @@ namespace CoreComponents
                 return "natureReserve";
 
             //Tourist locations that aren' specifically businesses (public art and educational stuff is good. Hotels aren't).
-            if (DbSettings.processTourism && tags["tourism"].Any(v => relevantTourismValues.Contains(v)))
+            if (DbSettings.processTourism && tags["tourism"].Any(v => relevantTourismValues.Contains(v))) //TODO: ponder revoking this relevant value limitation. Amusement parks should absolutely count.
                 return "tourism"; //TODO: create sub-values for tourism types?
 
             //Universities are good. Primary schools are not so good.  Don't include all education values.
