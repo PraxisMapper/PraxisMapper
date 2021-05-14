@@ -74,11 +74,13 @@ namespace Larry
 
             if (args.Any(a => a == "-createDB")) //setup the destination database
             {
+                Console.WriteLine("Creating database with current database settings.");
                 DBCommands.MakePraxisDB();
             }
 
             if (args.Any(a => a == "-cleanDB"))
             {
+                Console.WriteLine("Clearing out tables for testing.");
                 DBCommands.CleanDb();
             }
 

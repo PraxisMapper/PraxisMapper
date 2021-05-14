@@ -1,9 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using NetTopologySuite.Geometries;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 using static CoreComponents.DbTables;
 
 namespace CoreComponents
@@ -99,6 +101,8 @@ namespace CoreComponents
 
             model.Entity<PaintTownScoreRecord>().HasIndex(m => m.PaintTownConfigId);
             model.Entity<PaintTownScoreRecord>().HasIndex(m => m.WinningFactionID);
+
+            model.Entity<StoredWay>().Property(w => w.Nodes).HasConversion(w => JsonConvert.SerializeObject(w), w => JsonConvert.DeserializeObject<long[]>(w));
         }
 
         //A trigger to ensure all data inserted is valid by SQL Server rules.
