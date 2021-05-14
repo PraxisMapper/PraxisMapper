@@ -11,7 +11,7 @@ namespace CoreComponents
         public class PlayerData
         {
             public int PlayerDataID { get; set; }
-            public string deviceID { get; set; }   
+            public string deviceID { get; set; }
             public string DisplayName { get; set; }
             public long FactionId { get; set; }
         }
@@ -84,9 +84,9 @@ namespace CoreComponents
             public long TileTrackingId { get; set; }
             public string PlusCodeCompleted { get; set; }
         }
-        
+
         public class MapTile
-        { 
+        {
             public long MapTileId { get; set; } //int should be OK for a limited range game and/or big tiles. Making this long just to make sure.
             public string PlusCode { get; set; } //MapTiles are drawn for Cell8 or Cell10 areas.
             public byte[] tileData { get; set; } //png binary data.
@@ -102,7 +102,7 @@ namespace CoreComponents
         {
             public long PremadeResultsId { get; set; }
             public string PlusCode6 { get; set; }
-            public string Data { get; set; } 
+            public string Data { get; set; }
         }
 
         public class AreaControlTeam //A table for tracking which player faction controls which area (we dont store data on player location on the servers)
@@ -243,7 +243,7 @@ namespace CoreComponents
         public class StoredWay
         {
             public long id { get; set; }
-            public ICollection<long> Nodes; //Points to OsmIds
+            public long[] Nodes { get; set; } //Points to OsmIds
             public ICollection<WayTags> WayTags { get; set; }
         }
 
