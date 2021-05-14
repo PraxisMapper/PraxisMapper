@@ -113,7 +113,7 @@ namespace CoreComponents
                     }
                     if (!md.place.IsValid)
                     {
-                        Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not valid according to its own internal check.");
+                        Log.WriteLog("Way " + w.id + " " + w.name + " needs more work to be parsable, it's not valid according to its own internal check.");
                         w = null;
                         return null;
                     }

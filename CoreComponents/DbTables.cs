@@ -1,4 +1,5 @@
 ﻿using NetTopologySuite.Geometries;
+using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -38,6 +39,8 @@ namespace CoreComponents
             public long? NodeId { get; set; }
             public long? RelationId { get; set; }
             public int AreaTypeId { get; set; }
+            [NotMapped]
+            public SKPaint paint { get; set; }
             public double? AreaSize { get; set; } //Added recently, this should make drawing bigger map tiles faster when used as a filter to not load areas smaller than 1 pixel.
 
             public MapData Clone()
@@ -178,19 +181,34 @@ namespace CoreComponents
         }
 
         //Incomplete idea.
-        //public class TagParserEntry
-        //{
-        //    //For users that customize the rules for parsing tags.
-        //    //Some types may have duplicate entries to handle wider spreads?
-        //    //Will need to support ||, &&, and ! conditions.
-        //    //Tag pairs are Key:Value per OSM data.
-        //    public int id { get; set; }
-        //    public string name { get; set; }
-        //    public int typeID { get; set; }
-        //    public string matchRules { get; set; }
-        //    public string HtmlColorCode { get; set; }
-        //    public int Priority { get; set; } //order tags should be matched in. EX: Retail should be matched before Building, since its more specific and useful.
-        //}
+        public class TagParserEntry
+        {
+            //For users that customize the rules for parsing tags.
+            //Some types may have duplicate entries to handle wider spreads?
+            //Will need to support ||, &&, and ! conditions.
+            //Tag pairs are Key:Value per OSM data.
+            public long id { get; set; }
+            public string name { get; set; }
+            public int typeID { get; set; }
+            public ICollection<TagParserMatchRule> TagParserMatchRules { get; set; }
+            public string HtmlColorCode { get; set; }
+            public string FillOrStroke { get; set; }
+            public float LineWidth { get; set; }
+            public string LinePattern { get; set; } //solid, dashed, other varieties?
+            [NotMapped]
+            public SKPaint paint { get; set; } //Fill in on app start.
+            public int Priority { get; set; } //order tags should be matched in. EX: Retail should be matched before Building, since its more specific and useful. But usually smallest/shortest path goes last and biggest/longest goes first
+        }
+
+        public class TagParserMatchRule
+        { 
+            public long id { get; set; }
+            public ICollection<TagParserEntry> TagParserEntries { get; set; }
+            public string Key { get; set; } //the left side of the key:value tag
+            public string Value { get; set; } //the right side of the key:value tag
+            public string MatchType { get; set; } //Any, all, contains, not.
+        }
+
 
         public class ServerSetting
         {
