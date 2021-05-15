@@ -36,7 +36,7 @@ namespace Larry
                         var way = (OsmSharp.Way)entry;
                         var w = new CoreComponents.DbTables.StoredWay();
                         w.id = way.Id.Value;
-                        w.Nodes = way.Nodes;
+                        //w.Nodes = way.Nodes;
                         w.WayTags = way.Tags.Select(t => new CoreComponents.DbTables.WayTags() { Key = t.Key, Value = t.Value }).ToList();
                         db.StoredWays.Add(w);
                         //db.SaveChanges();
