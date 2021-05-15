@@ -21,6 +21,9 @@ namespace Larry
             //Not automatic entries executed below:
             db.Database.ExecuteSqlRaw(PraxisContext.MapDataIndex);
             db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataIndex);
+            db.Database.ExecuteSqlRaw(PraxisContext.MapTileIndex);
+            db.Database.ExecuteSqlRaw(PraxisContext.SlippyMapTileIndex);
+            db.Database.ExecuteSqlRaw(PraxisContext.StoredWaysIndex);
 
             if (ParserSettings.DbMode == "SQLServer")
             {

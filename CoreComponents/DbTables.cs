@@ -98,6 +98,8 @@ namespace CoreComponents
             public int mode { get; set; } //is this for general use, multiplayer area control. 1 = 'baseline map', 2 = 'Multiplayer Area Control' overlay.
             public DateTime CreatedOn { get; set; } //Timestamp for when a map tile was generated
             public DateTime ExpireOn { get; set; } //assume that a tile needs regenerated if passed this timestamp. Possibly cleared out via SQL script.
+            [Column(TypeName = "geography")]
+            [Required]
             public Geometry areaCovered { get; set; } //This lets us find and expire map tiles if the data under them changes.
         }
 
@@ -227,6 +229,8 @@ namespace CoreComponents
             public int mode { get; set; } //is this for general use, multiplayer area control. 1 = 'baseline map', 2 = 'Multiplayer Area Control' overlay, etc.
             public DateTime CreatedOn { get; set; } //Timestamp for when a map tile was generated
             public DateTime ExpireOn { get; set; } //assume that a tile needs regenerated if passed this timestamp. Possibly cleared out via SQL script.
+            [Column(TypeName = "geography")]
+            [Required]
             public Geometry areaCovered { get; set; } //This lets us find and expire map tiles if the data under them changes.
         }
 
@@ -258,10 +262,14 @@ namespace CoreComponents
             public ICollection<NodeTags> NodeTags { get; set; }
         }
 
+        //NOTE: i don't store names in this table, since this is just for highly accurate map tiles. Names can stay in the gameplay tables.
+        //Ooh, i could point the gameplay tables here for stuff? No, i need the geometry index on them.
         public class StoredWay
         {
             public long id { get; set; }
-            public long[] Nodes { get; set; } //Points to OsmIds
+            [Column(TypeName = "geography")]
+            [Required]
+            public Geometry wayGeometry { get; set; }
             public ICollection<WayTags> WayTags { get; set; }
         }
 
@@ -274,21 +282,21 @@ namespace CoreComponents
         public class NodeTags
         {
             public long id { get; set; }
-            public long StoredNodeId { get; set; }
+            public StoredNode storedNode { get; set; }
             public string Key { get; set; }
             public string Value { get; set; }
         }
         public class WayTags
         {
             public long id { get; set; }
-            public long StoredWayId { get; set; }
+            public StoredWay storedWay { get; set; }
             public string Key { get; set; }
             public string Value { get; set; }
         }
         public class RelationTags
         {
             public long id { get; set; }
-            public long StoredRelationId { get; set; }
+            public StoredRelation storedRelation { get; set; }
             public string Key { get; set; }
             public string Value { get; set; }
         }

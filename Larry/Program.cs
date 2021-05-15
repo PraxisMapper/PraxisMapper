@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Threading.Tasks;
 using static CoreComponents.ConstantValues;
 using static CoreComponents.DbTables;
 using static CoreComponents.Place;
@@ -250,6 +251,140 @@ namespace Larry
             if (args.Any(a => a.StartsWith("-DrawFromRaw")))
             {
                 DrawFromRawPbf.DrawFromRawTest1(ParserSettings.PbfFolder + "ohio-latest.osm.pbf"); //Delaware is the smallest state.
+            }
+
+            if (args.Any(a => a.StartsWith("-importV4")))
+            {
+                // 4th generation of logic for importing OSM data from PBF file.
+                //V4 rules:
+                //Tags will be saved to a separate table for all 3 major types. (this lets me update formatting rules without reimporting data).
+                //All ways are processed into the database as geometry objects. (MapData format, possibly new table.) 
+                //Relations are processed as before, and their ways are removed from the database (assuming there's no additional relevant tags on those components)
+                //--A lot of relations are ways that I'll want to connect and fill in as areas, rather than drawing lines to indicate them.  But I don't want to draw ways that make a relation multiple times (unless they're tagged in a way where i should, like the inner polygon for a graveyard on the university grounds)
+                //Only nodes with tags will be imported as their own entries. Untagged nodes will be used to process way geometry and then discarded/not stored.
+
+                //Memory sanity: might need to calculate bounds, split into sub-regions to process
+                //this setup hits much higher memory use requirements than the earlier setups did that processed only ways with tags and their specific nodes.
+                //might need a rule on parsing data in areas and then some kind of upsert or way to avoid duplicate Way entries that sit on the borders.
+                //check min/max lat and lon on nodes.
+
+                //load data. Testing with ohio again.
+                string pbfFilename = ParserSettings.PbfFolder + "ohio-latest.osm.pbf";
+                var fs = System.IO.File.OpenRead(pbfFilename);
+                var boxSteps = 4; //squared, so 4 means we'll check 16 sub-boxes. 
+
+                Log.WriteLog("Starting " + pbfFilename + " V4 data read at " + DateTime.Now);
+                var source = new PBFOsmStreamSource(fs);
+                float north = source.Where(s => s.Type == OsmGeoType.Node).Max(s => (float)((OsmSharp.Node)s).Latitude);
+                float south = source.Where(s => s.Type == OsmGeoType.Node).Min(s => (float)((OsmSharp.Node)s).Latitude);
+                float west = source.Where(s => s.Type == OsmGeoType.Node).Min(s => (float)((OsmSharp.Node)s).Longitude);
+                float east = source.Where(s => s.Type == OsmGeoType.Node).Max(s => (float)((OsmSharp.Node)s).Longitude);
+                Log.WriteLog("Bounding box for provided file determined at " + DateTime.Now + ", splitting into " + (boxSteps * boxSteps) + " sub-passes.");
+
+                //TODO: use these bounds to split the entry into 
+                
+                //use west and south as baseline values, add 
+                var latSteps = (north - south) / boxSteps;
+                var lonSteps = (east - west) / boxSteps;
+
+
+                for (int i = 1; i <= boxSteps; i++)
+                    for (int j = 1; j <= boxSteps; j++)
+                    {
+                        Log.WriteLog("Box " + i + "," + j + ":" + west + " to " + (west + (lonSteps * i)) + " | " + (south + (latSteps * i)) + " to " + south);
+                        var thisBox = source.FilterBox(west, south + (latSteps * i), west + (lonSteps * i), south, true); //I think this is the right setup for this. 
+                        var allData = thisBox.ToList(); //1 minute to get to this step, another 20-60 seconds here. Dramatically faster than re-loading everything from thisbox.Where() each run.
+
+                        //Haven't decided how to use these yet.
+                        //List<OsmSharp.Relation> relations = source.AsParallel().Where(p => p.Type == OsmGeoType.Relation)
+                        //    .Select(p => (OsmSharp.Relation)p)
+                        //.ToList();
+                        //Log.WriteLog("Relations loaded at " + DateTime.Now);
+
+                        List<OsmSharp.Way> ways = allData.AsParallel().Where(p => p.Type == OsmGeoType.Way)
+                            .Select(p => (OsmSharp.Way)p)
+                        .ToList();
+                        Log.WriteLog("Ways read at " + DateTime.Now);
+
+                        var nodes = allData.AsParallel().Where(p => p.Type == OsmGeoType.Node)
+                            .Select(p => (OsmSharp.Node)p)
+                        .ToLookup(n => n.Id);
+                        Log.WriteLog("All Relevant data pulled from box " + i + "," + j + " at " + DateTime.Now);
+
+                        var mapDatas = new List<MapData>();
+                        var db = new PraxisContext();
+                        db.ChangeTracker.AutoDetectChangesEnabled = false;
+                        double entryCounter = 0;
+                        double totalCounter = 0;
+                        var totalEntries = ways.Count();
+                        DateTime startedProcess = DateTime.Now;
+                        TimeSpan difference = DateTime.Now - DateTime.Now;
+                        System.Threading.ReaderWriterLockSlim locker = new System.Threading.ReaderWriterLockSlim();
+                        var awaitResults = db.SaveChangesAsync();
+                        //foreach (var w in ways)
+
+                        Parallel.ForEach(ways, w =>
+                        {
+                            totalCounter++;
+                            //get node data and translate it to image coords
+                            WayData wd = new WayData();
+                            foreach (long nr in w.Nodes)
+                            {
+                                var osmNode = nodes[nr].FirstOrDefault();
+                                if (osmNode != null)
+                                {
+                                    var myNode = new NodeData(osmNode.Id.Value, (float)osmNode.Latitude, (float)osmNode.Longitude);
+                                    wd.nds.Add(myNode);
+                                }
+                            }
+
+                            //quick hack to make this work. Actual area type is ignored.
+                            wd.AreaType = "park";
+                            wd.id = w.Id.Value;
+                            var place = Converters.ConvertWayToMapData(ref wd);
+                            if (place == null)
+                                //continue;
+                                return;
+                            //place.paint = GetStyleForOsmWay(w.Tags);
+                            StoredWay sw = new StoredWay();
+                            sw.wayGeometry = place.place;
+                            //Note: truncating tags will save a lot of Hd space. They're almost twice the size of the actual geometry table.
+                            sw.WayTags = w.Tags.Where(t =>
+                                        t.Key != "source" && 
+                                        !t.Key.StartsWith("tiger:") &&
+                                        !t.Key.StartsWith("addr:") &&
+                                        !t.Key.StartsWith("turn:") &&
+                                        !t.Key.StartsWith("change:") &&
+                                        !t.Key.StartsWith("source:") &&
+                                        !t.Key.StartsWith("gnis:") &&
+                                        !t.Key.StartsWith("hgv:")
+                                        )
+                                        .Select(t => new WayTags() { storedWay = sw, Key = t.Key, Value = t.Value }).ToList();
+                            locker.EnterWriteLock(); //Only one thread gets to save at a time.
+                            db.StoredWays.Add(sw);
+                            entryCounter++;
+                            if (entryCounter > 10000)
+                            {
+                                //Task.WaitAll(awaitResults); //Don't start saving if we haven't finished the last save.
+                                //awaitResults = db.SaveChangesAsync(); //Async fails because we'll Add the next entry before this saves.
+                                db.SaveChanges(); //This takes about 1.5s per 1000 entries, and about 4000 entries get processed per second, so even async doesn't help here.
+                                entryCounter = 0;
+                                difference = DateTime.Now - startedProcess;
+                                double percentage = (totalCounter / totalEntries) * 100;
+                                var entriesPerSecond = totalCounter / difference.TotalSeconds;
+                                var secondsLeft = (totalEntries - totalCounter) / entriesPerSecond;
+                                TimeSpan estimatedTime = TimeSpan.FromSeconds(secondsLeft);
+                                Log.WriteLog(Math.Round(entriesPerSecond) + " Ways per second processed, " + Math.Round(percentage, 2) + "% done, estimated time remaining: " + estimatedTime.ToString());
+                            }
+                            locker.ExitWriteLock();
+                        });
+                        db.SaveChanges(); //Get the last entries saved before we move on.
+                    }
+                //Reorder MapDatas correctly.
+                //mapDatas = mapDatas.OrderByDescending(m => m.place.Area).ThenByDescending(m => m.place.Length).ToList();
+                
+
+
             }
 
             //This library wasn't labeled correctly. It wants MapBox data, not OSM data.

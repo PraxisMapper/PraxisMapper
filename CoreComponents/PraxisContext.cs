@@ -102,7 +102,7 @@ namespace CoreComponents
             model.Entity<PaintTownScoreRecord>().HasIndex(m => m.PaintTownConfigId);
             model.Entity<PaintTownScoreRecord>().HasIndex(m => m.WinningFactionID);
 
-            model.Entity<StoredWay>().Property(w => w.Nodes).HasConversion(w => JsonConvert.SerializeObject(w), w => JsonConvert.DeserializeObject<long[]>(w));
+            //model.Entity<StoredWay>().Property(w => w.Nodes).HasConversion(w => JsonConvert.SerializeObject(w), w => JsonConvert.DeserializeObject<long[]>(w));
         }
 
         //A trigger to ensure all data inserted is valid by SQL Server rules.
@@ -114,6 +114,7 @@ namespace CoreComponents
         public static string GeneratedMapDataIndex = "CREATE SPATIAL INDEX GeneratedMapDataSpatialIndex ON GeneratedMapData(place)";
         public static string MapTileIndex = "CREATE SPATIAL INDEX MapTileSpatialIndex ON MapTiles(areaCovered)";
         public static string SlippyMapTileIndex = "CREATE SPATIAL INDEX SlippyMapTileSpatialIndex ON SlippyMapTiles(areaCovered)";
+        public static string StoredWaysIndex = "CREATE SPATIAL INDEX StoredWaysIndex ON StoredWays(wayGeometry)";
         //TODO: add spatial index to StoredNode/way/relation tables.
 
         //MariaDB may not actually require these triggers. MSSQL insists on its data passing its own validity check, MariaDB appears not to so far. Keeping these for now in case I'm wrong.
