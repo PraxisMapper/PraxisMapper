@@ -263,37 +263,43 @@ namespace Larry
                 //--A lot of relations are ways that I'll want to connect and fill in as areas, rather than drawing lines to indicate them.  But I don't want to draw ways that make a relation multiple times (unless they're tagged in a way where i should, like the inner polygon for a graveyard on the university grounds)
                 //Only nodes with tags will be imported as their own entries. Untagged nodes will be used to process way geometry and then discarded/not stored.
 
-                //Memory sanity: might need to calculate bounds, split into sub-regions to process
-                //this setup hits much higher memory use requirements than the earlier setups did that processed only ways with tags and their specific nodes.
-                //might need a rule on parsing data in areas and then some kind of upsert or way to avoid duplicate Way entries that sit on the borders.
-                //check min/max lat and lon on nodes.
+                //I need to avoid adding duplicate entries, and i dont want to do huge passes per entry added. 
+                //Is there an 'ignore on duplicate' command or setting in MariaDB and SQL Server? I might need to set those.
 
                 //load data. Testing with ohio again.
-                string pbfFilename = ParserSettings.PbfFolder + "ohio-latest.osm.pbf";
+                string pbfFilename = ParserSettings.PbfFolder + "delaware-latest.osm.pbf";
                 var fs = System.IO.File.OpenRead(pbfFilename);
-                var boxSteps = 4; //squared, so 4 means we'll check 16 sub-boxes. 
+                var boxSteps = 1; //squared, so 4 means we'll check 16 sub-boxes. 
 
                 Log.WriteLog("Starting " + pbfFilename + " V4 data read at " + DateTime.Now);
+                //var fs = System.IO.File.OpenRead(pbfFilename);
                 var source = new PBFOsmStreamSource(fs);
                 float north = source.Where(s => s.Type == OsmGeoType.Node).Max(s => (float)((OsmSharp.Node)s).Latitude);
                 float south = source.Where(s => s.Type == OsmGeoType.Node).Min(s => (float)((OsmSharp.Node)s).Latitude);
                 float west = source.Where(s => s.Type == OsmGeoType.Node).Min(s => (float)((OsmSharp.Node)s).Longitude);
                 float east = source.Where(s => s.Type == OsmGeoType.Node).Max(s => (float)((OsmSharp.Node)s).Longitude);
                 Log.WriteLog("Bounding box for provided file determined at " + DateTime.Now + ", splitting into " + (boxSteps * boxSteps) + " sub-passes.");
-
-                //TODO: use these bounds to split the entry into 
-                
+               
                 //use west and south as baseline values, add 
                 var latSteps = (north - south) / boxSteps;
                 var lonSteps = (east - west) / boxSteps;
 
-
-                for (int i = 1; i <= boxSteps; i++)
-                    for (int j = 1; j <= boxSteps; j++)
+                for (int i = 1; i <= boxSteps; i++) //i is for longitude
+                    for (int j = 1; j <= boxSteps; j++) //j is for latitude.
                     {
-                        Log.WriteLog("Box " + i + "," + j + ":" + west + " to " + (west + (lonSteps * i)) + " | " + (south + (latSteps * i)) + " to " + south);
-                        var thisBox = source.FilterBox(west, south + (latSteps * i), west + (lonSteps * i), south, true); //I think this is the right setup for this. 
-                        var allData = thisBox.ToList(); //1 minute to get to this step, another 20-60 seconds here. Dramatically faster than re-loading everything from thisbox.Where() each run.
+                        //maybe if i functionalize this inner loop, that'll clear out whatever's persisting in memory.
+
+                        //This block was moved here, hoping to get stuff to GC away and free up memory. Didn't seem to work. Just makes loading stuff take longer.
+                        //fs = System.IO.File.OpenRead(pbfFilename);
+                        //source.Dispose(); source = null;
+                        fs.Close(); fs.Dispose();
+                        fs = System.IO.File.OpenRead(pbfFilename);
+                        source = new PBFOsmStreamSource(fs);
+                        //end hopefullly-GC-ing block
+
+                        Log.WriteLog("Box " + i + "," + j + ":" + west + " to " + (west + (lonSteps * i)) + " | " + (south + (latSteps * j)) + " to " + south);
+                        var thisBox = source.FilterBox(west, south + (latSteps * j), west + (lonSteps * i), south, true); //I think this is the right setup for this. 
+                        var allData = thisBox.ToList(); //Dramatically faster than re-loading everything from thisbox.Where() each run.
 
                         //Haven't decided how to use these yet.
                         //List<OsmSharp.Relation> relations = source.AsParallel().Where(p => p.Type == OsmGeoType.Relation)
@@ -310,8 +316,10 @@ namespace Larry
                             .Select(p => (OsmSharp.Node)p)
                         .ToLookup(n => n.Id);
                         Log.WriteLog("All Relevant data pulled from box " + i + "," + j + " at " + DateTime.Now);
+                        allData.Clear();
+                        allData = null;
 
-                        var mapDatas = new List<MapData>();
+                        //var mapDatas = new List<MapData>();
                         var db = new PraxisContext();
                         db.ChangeTracker.AutoDetectChangesEnabled = false;
                         double entryCounter = 0;
@@ -322,7 +330,6 @@ namespace Larry
                         System.Threading.ReaderWriterLockSlim locker = new System.Threading.ReaderWriterLockSlim();
                         var awaitResults = db.SaveChangesAsync();
                         //foreach (var w in ways)
-
                         Parallel.ForEach(ways, w =>
                         {
                             totalCounter++;
@@ -348,26 +355,58 @@ namespace Larry
                             //place.paint = GetStyleForOsmWay(w.Tags);
                             StoredWay sw = new StoredWay();
                             sw.wayGeometry = place.place;
-                            //Note: truncating tags will save a lot of Hd space. They're almost twice the size of the actual geometry table.
+                            //Note: truncating tags will save a lot of Hd space. Tags take up about twice the space of actual Way geometry if you don't remove them.
+                            //This is a pretty solid list of tags I don't need to save for a game that needs maptiles.
                             sw.WayTags = w.Tags.Where(t =>
-                                        t.Key != "source" && 
-                                        !t.Key.StartsWith("tiger:") &&
+                                        t.Key != "source" &&
                                         !t.Key.StartsWith("addr:") &&
-                                        !t.Key.StartsWith("turn:") &&
+                                        !t.Key.StartsWith("alt_name:") &&
+                                        !t.Key.StartsWith("brand") &&
+                                        !t.Key.StartsWith("building:") &&
                                         !t.Key.StartsWith("change:") &&
-                                        !t.Key.StartsWith("source:") &&
+                                        !t.Key.StartsWith("contact:") &&
+                                        !t.Key.StartsWith("created_by") &&
+                                        !t.Key.StartsWith("demolished:") &&
+                                        !t.Key.StartsWith("destination:") &&
+                                        !t.Key.StartsWith("disused:") &&
+                                        !t.Key.StartsWith("email") &&
+                                        !t.Key.StartsWith("fax") &&
+                                        !t.Key.StartsWith("FIXME") &&
+                                        !t.Key.StartsWith("generator:") &&
                                         !t.Key.StartsWith("gnis:") &&
-                                        !t.Key.StartsWith("hgv:")
+                                        !t.Key.StartsWith("hgv:") &&
+                                        !t.Key.StartsWith("import_uuid") &&
+                                        !t.Key.StartsWith("junction:") &&
+                                        !t.Key.StartsWith("maxspeed") &&
+                                        !t.Key.StartsWith("mtb:") &&
+                                        !t.Key.StartsWith("nist:") &&
+                                        !t.Key.StartsWith("not:") &&
+                                        !t.Key.StartsWith("old_name:") &&
+                                        !t.Key.StartsWith("parking:") &&
+                                        !t.Key.StartsWith("payment:") &&
+                                        !t.Key.StartsWith("name:") &&
+                                        !t.Key.StartsWith("recycling:") &&
+                                        !t.Key.StartsWith("ref:") &&
+                                        !t.Key.StartsWith("reg_name:") &&
+                                        !t.Key.StartsWith("roof:") &&
+                                        !t.Key.StartsWith("source:") &&
+                                        !t.Key.StartsWith("subject:") &&
+                                        !t.Key.StartsWith("telephone") &&
+                                        !t.Key.StartsWith("tiger:") &&
+                                        !t.Key.StartsWith("turn:") &&                                        
+                                        !t.Key.StartsWith("was:")
                                         )
                                         .Select(t => new WayTags() { storedWay = sw, Key = t.Key, Value = t.Value }).ToList();
                             locker.EnterWriteLock(); //Only one thread gets to save at a time.
                             db.StoredWays.Add(sw);
+                            //bulkList.Add(sw);
                             entryCounter++;
                             if (entryCounter > 10000)
                             {
                                 //Task.WaitAll(awaitResults); //Don't start saving if we haven't finished the last save.
                                 //awaitResults = db.SaveChangesAsync(); //Async fails because we'll Add the next entry before this saves.
-                                db.SaveChanges(); //This takes about 1.5s per 1000 entries, and about 4000 entries get processed per second, so even async doesn't help here.
+                                //db.SaveChanges(); //This takes about 1.5s per 1000 entries, and about 4000 entries get processed per second, so even async doesn't help here.
+                                //Bulk insert is nearly useless, possibly because of the geometry column.
                                 entryCounter = 0;
                                 difference = DateTime.Now - startedProcess;
                                 double percentage = (totalCounter / totalEntries) * 100;
@@ -378,13 +417,18 @@ namespace Larry
                             }
                             locker.ExitWriteLock();
                         });
+                        Log.WriteLog("Saving changes to the database.....");
+                        System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                        sw.Start();
                         db.SaveChanges(); //Get the last entries saved before we move on.
+                        sw.Stop();
+                        Log.WriteLog("Saving complete in " + sw.Elapsed + ". Moving on to the next block.");
+                        //another attempt at memory management
+                        ways.Clear(); ways = null;
+                        nodes = null;
+                        db.Dispose(); db = null;
+                        source.Dispose(); source = null;
                     }
-                //Reorder MapDatas correctly.
-                //mapDatas = mapDatas.OrderByDescending(m => m.place.Area).ThenByDescending(m => m.place.Length).ToList();
-                
-
-
             }
 
             //This library wasn't labeled correctly. It wants MapBox data, not OSM data.
