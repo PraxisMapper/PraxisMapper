@@ -267,6 +267,8 @@ namespace CoreComponents
         public class StoredWay
         {
             public long id { get; set; }
+            public long sourceItemID { get; set; }
+            public int sourceItemType { get; set; } //1: node, 2: way, 3: relation.
             [Column(TypeName = "geography")]
             [Required]
             public Geometry wayGeometry { get; set; }

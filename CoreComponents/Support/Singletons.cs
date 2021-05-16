@@ -82,7 +82,11 @@ namespace CoreComponents
         public static List<TagParserEntry> defaultTagParserEntries = new List<TagParserEntry>()
         {
             //new TagParserEntry() { id = 1, name ="water", HtmlColorCode = "0000B3", TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "", Value = "", MatchType = "" }} },
-            new TagParserEntry() { id = 1, name ="water", HtmlColorCode = "0000B3", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "natural", Value = "water", MatchType = "or"}, new TagParserMatchRule() {Key="waterway", Value ="*", MatchType="or" }} },
+            new TagParserEntry() { id = 1, name ="water", HtmlColorCode = "0000B3", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() { 
+                new TagParserMatchRule() { Key = "natural", Value = "water", MatchType = "or"}, 
+                new TagParserMatchRule() {Key="waterway", Value ="*", MatchType="or" },
+                new TagParserMatchRule() {Key="natural", Value ="bay", MatchType="or" },
+            }},
             new TagParserEntry() { id = 2, name ="wetland", HtmlColorCode = "0C4026", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "natural", Value = "wetland", MatchType = "equals" }} },
             new TagParserEntry() { id = 3, name ="park", HtmlColorCode = "00B300", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "leisure", Value = "park", MatchType = "equals" }} },
             new TagParserEntry() { id = 4, name ="beach", HtmlColorCode = "D7B526", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "natural", Value = "beach", MatchType = "or" }, new TagParserMatchRule() {Key = "leisure", Value="beach_resort", MatchType="or"} } },
@@ -92,14 +96,14 @@ namespace CoreComponents
             new TagParserEntry() { id = 8, name ="retail", HtmlColorCode = "EB63EB",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "landuse", Value = "retail", MatchType = "or"}, new TagParserMatchRule() {Key="building", Value="retail", MatchType="or" }, new TagParserMatchRule() {Key="shop", Value="*", MatchType="or" } } },
             new TagParserEntry() { id = 9, name ="tourism", HtmlColorCode = "1999D1",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "tourism", Value = "*", MatchType = "equals" }} },
             new TagParserEntry() { id = 10, name ="historical", HtmlColorCode = "B3B3B3",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "historic", Value = "*", MatchType = "equals" }} },
-            new TagParserEntry() { id = 11, name ="trail", HtmlColorCode = "F0E68C", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid",TagParserMatchRules = new List<TagParserMatchRule>() {
+            new TagParserEntry() { id = 11, name ="trail", HtmlColorCode = "F0E68C", FillOrStroke = "stroke", LineWidth=1, LinePattern= "solid",TagParserMatchRules = new List<TagParserMatchRule>() {
                 new TagParserMatchRule() {Key="highway", Value="path|bridleway|cycleway|footway|living_street", MatchType="any"},
                 new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"}
             }
             },
             new TagParserEntry() { id = 12, name ="admin", HtmlColorCode = "00FF2020",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" }} }, //We got rid of these for a reason, don't bring htem back. These are transparent.
             new TagParserEntry() { id = 13, name ="building", HtmlColorCode = "808080", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid",TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "building", Value = "*", MatchType = "equals" }} },
-            new TagParserEntry() { id = 14, name ="road", HtmlColorCode = "0D0D0D",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>()
+            new TagParserEntry() { id = 14, name ="road", HtmlColorCode = "0D0D0D",FillOrStroke = "stroke", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>()
             {
                 new TagParserMatchRule() { Key = "highway", Value = "motorway|trunk|primary|secondary|tertiary|unclassified|residential|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|service|road", MatchType = "any" },
                 new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"}
@@ -109,11 +113,24 @@ namespace CoreComponents
 
             //New generic entries for mapping by color
             new TagParserEntry() { id = 16, name ="greenspace", HtmlColorCode = "90EE90",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() { 
-                new TagParserMatchRule() { Key = "landuse", Value = "grass", MatchType = "equals" }} 
+                new TagParserMatchRule() { Key = "landuse", Value = "grass", MatchType = "or" },
+                new TagParserMatchRule() { Key = "landuse", Value = "farmland", MatchType = "or" },
+                new TagParserMatchRule() { Key = "landuse", Value = "meadow", MatchType = "or" },
+                new TagParserMatchRule() { Key = "natural", Value = "scrub", MatchType = "or" },
+                new TagParserMatchRule() { Key = "landuse", Value = "vineyard", MatchType = "or" },
+                new TagParserMatchRule() { Key = "landuse", Value = "recreation_ground", MatchType = "or" },
+                new TagParserMatchRule() { Key = "landuse", Value = "village_green", MatchType = "or" }
+            } 
             },
             new TagParserEntry() { id = 17, name ="alsobeach", HtmlColorCode = "D7B526",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() {
-                new TagParserMatchRule() { Key = "natural", Value = "sand", MatchType = "equals" }}
+                new TagParserMatchRule() { Key = "natural", Value = "sand", MatchType = "or" },
+                new TagParserMatchRule() { Key = "surface", Value = "sand", MatchType = "or" }}
             },
+            new TagParserEntry() { id = 18, name ="darkgreenspace", HtmlColorCode = "124504",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() {
+                new TagParserMatchRule() { Key = "natural", Value = "wood", MatchType = "or" },
+               new TagParserMatchRule() { Key = "landuse", Value = "forest", MatchType = "or" },
+               new TagParserMatchRule() { Key = "landuse", Value = "orchard", MatchType = "or" },
+            }},
             new TagParserEntry() { id = 9999, name ="background", HtmlColorCode = "545454", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid",TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "default" }} }
         };
      }
