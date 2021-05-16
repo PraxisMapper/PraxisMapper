@@ -302,10 +302,24 @@ namespace Larry
                         var allData = thisBox.ToList(); //Dramatically faster than re-loading everything from thisbox.Where() each run.
 
                         //Haven't decided how to use these yet.
-                        //List<OsmSharp.Relation> relations = source.AsParallel().Where(p => p.Type == OsmGeoType.Relation)
+                        //Lets be lazy and use Complete relations instead of filling h
+                        var relations = source.AsParallel() //.Where(p => p.Type == OsmGeoType.Relation)
+                                                            //.Select(p => p)
+                            .ToComplete()
+                            .Where(p => p.Type == OsmGeoType.Relation)
+                        .ToList();
+                        
+                        //List<OsmSharp.Complete.CompleteRelation> relations = allData.AsParallel().Where(p => p.Type == OsmGeoType.Relation)
+                        //    .ToComplete()
+                        //    .Select(p => (OsmSharp.Complete.CompleteRelation)p)
+                        //.ToList();
+                         Log.WriteLog("Relations loaded at " + DateTime.Now);
+
+                        //var relation2 = allData.AsParallel().Where(p => p.Type == OsmGeoType.Relation)
                         //    .Select(p => (OsmSharp.Relation)p)
                         //.ToList();
-                        //Log.WriteLog("Relations loaded at " + DateTime.Now);
+
+                        
 
                         List<OsmSharp.Way> ways = allData.AsParallel().Where(p => p.Type == OsmGeoType.Way)
                             .Select(p => (OsmSharp.Way)p)
@@ -329,6 +343,98 @@ namespace Larry
                         TimeSpan difference = DateTime.Now - DateTime.Now;
                         System.Threading.ReaderWriterLockSlim locker = new System.Threading.ReaderWriterLockSlim();
                         var awaitResults = db.SaveChangesAsync();
+
+                        //Parallel.ForEach(relations, re => {
+                        foreach (var re in relations) { 
+                            totalCounter++;
+                            //get node data and translate it to image coords
+                            var r = (OsmSharp.Complete.CompleteRelation)re;
+                            var thisrel = PbfOperations.ProcessCompleteRelation(r);
+                            //WayData wd = PbfOperations.ProcessRelation(r, ref ways);
+                            
+                            //foreach (long nr in w.Nodes)
+                            //{
+                            //    var osmNode = nodes[nr].FirstOrDefault();
+                            //    if (osmNode != null)
+                            //    {
+                            //        var myNode = new NodeData(osmNode.Id.Value, (float)osmNode.Latitude, (float)osmNode.Longitude);
+                            //        wd.nds.Add(myNode);
+                            //    }
+                            //}
+
+                            //quick hack to make this work. Actual area type is ignored.
+                            
+                            if (thisrel == null)
+                                continue;
+                                //return;
+                            //place.paint = GetStyleForOsmWay(w.Tags);
+                            StoredWay swR = new StoredWay();
+                            swR.wayGeometry = thisrel.place;
+                            //Note: truncating tags will save a lot of Hd space. Tags take up about twice the space of actual Way geometry if you don't remove them.
+                            //This is a pretty solid list of tags I don't need to save for a game that needs maptiles.
+                            swR.WayTags = r.Tags.Where(t =>
+                                        t.Key != "source" &&
+                                        !t.Key.StartsWith("addr:") &&
+                                        !t.Key.StartsWith("alt_name:") &&
+                                        !t.Key.StartsWith("brand") &&
+                                        !t.Key.StartsWith("building:") &&
+                                        !t.Key.StartsWith("change:") &&
+                                        !t.Key.StartsWith("contact:") &&
+                                        !t.Key.StartsWith("created_by") &&
+                                        !t.Key.StartsWith("demolished:") &&
+                                        !t.Key.StartsWith("destination:") &&
+                                        !t.Key.StartsWith("disused:") &&
+                                        !t.Key.StartsWith("email") &&
+                                        !t.Key.StartsWith("fax") &&
+                                        !t.Key.StartsWith("FIXME") &&
+                                        !t.Key.StartsWith("generator:") &&
+                                        !t.Key.StartsWith("gnis:") &&
+                                        !t.Key.StartsWith("hgv:") &&
+                                        !t.Key.StartsWith("import_uuid") &&
+                                        !t.Key.StartsWith("junction:") &&
+                                        !t.Key.StartsWith("maxspeed") &&
+                                        !t.Key.StartsWith("mtb:") &&
+                                        !t.Key.StartsWith("nist:") &&
+                                        !t.Key.StartsWith("not:") &&
+                                        !t.Key.StartsWith("old_name:") &&
+                                        !t.Key.StartsWith("parking:") &&
+                                        !t.Key.StartsWith("payment:") &&
+                                        !t.Key.StartsWith("name:") &&
+                                        !t.Key.StartsWith("recycling:") &&
+                                        !t.Key.StartsWith("ref:") &&
+                                        !t.Key.StartsWith("reg_name:") &&
+                                        !t.Key.StartsWith("roof:") &&
+                                        !t.Key.StartsWith("source:") &&
+                                        !t.Key.StartsWith("subject:") &&
+                                        !t.Key.StartsWith("telephone") &&
+                                        !t.Key.StartsWith("tiger:") &&
+                                        !t.Key.StartsWith("turn:") &&
+                                        !t.Key.StartsWith("was:")
+                                        )
+                                        .Select(t => new WayTags() { storedWay = swR, Key = t.Key, Value = t.Value }).ToList();
+                            locker.EnterWriteLock(); //Only one thread gets to save at a time.
+                            db.StoredWays.Add(swR);
+                            //bulkList.Add(sw);
+                            entryCounter++;
+                            if (entryCounter > 10000)
+                            {
+                                //Task.WaitAll(awaitResults); //Don't start saving if we haven't finished the last save.
+                                //awaitResults = db.SaveChangesAsync(); //Async fails because we'll Add the next entry before this saves.
+                                //db.SaveChanges(); //This takes about 1.5s per 1000 entries, and about 4000 entries get processed per second, so even async doesn't help here.
+                                //Bulk insert is nearly useless, possibly because of the geometry column.
+                                entryCounter = 0;
+                                difference = DateTime.Now - startedProcess;
+                                double percentage = (totalCounter / totalEntries) * 100;
+                                var entriesPerSecond = totalCounter / difference.TotalSeconds;
+                                var secondsLeft = (totalEntries - totalCounter) / entriesPerSecond;
+                                TimeSpan estimatedTime = TimeSpan.FromSeconds(secondsLeft);
+                                Log.WriteLog(Math.Round(entriesPerSecond) + " Relations per second processed, " + Math.Round(percentage, 2) + "% done, estimated time remaining: " + estimatedTime.ToString());
+                            }
+                            locker.ExitWriteLock();
+                        db.SaveChanges();
+                        } //);
+
+
                         //foreach (var w in ways)
                         Parallel.ForEach(ways, w =>
                         {
