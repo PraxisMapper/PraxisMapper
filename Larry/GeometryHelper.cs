@@ -123,7 +123,7 @@ namespace Larry
             }
 
             //Separate sets
-            var innerEntries = r.Members.Where(m => m.Role == "inner").Select(m => (OsmSharp.Complete.CompleteWay)m.Member).ToList(); //these are almost always closed polygons.
+            var innerEntries = r.Members.Where(m => m.Role == "inner" && m.Member.Type == OsmSharp.OsmGeoType.Way).Select(m => (OsmSharp.Complete.CompleteWay)m.Member).ToList(); //these are almost always closed polygons.
             var outerEntries = r.Members.Where(m => m.Role == "outer" && m.Member.Type == OsmSharp.OsmGeoType.Way).Select(m => (OsmSharp.Complete.CompleteWay)m.Member).ToList(); //Some outer roles aren't tagged.
             //Not all relations tag members correctly, so if there's none tagged make them outer.
 
