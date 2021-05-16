@@ -58,7 +58,7 @@ namespace PraxisMapper.Controllers
                 PerformanceTracker pt = new PerformanceTracker("DrawSlippyTile");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var db = new PraxisContext();
-                var existingResults = db.SlippyMapTiles.Where(mt => mt.Values == tileKey && mt.mode == layer).FirstOrDefault(); 
+                var existingResults = db.SlippyMapTiles.Where(mt => mt.Values == tileKey && mt.mode == layer).FirstOrDefault();
                 if (existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
                 {
                     //Create this entry
@@ -149,7 +149,7 @@ namespace PraxisMapper.Controllers
                 pt.Stop(tileKey + "|" + layer);
                 return File(existingResults.tileData, "image/png");
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 ErrorLogger.LogError(ex);
                 return null;
@@ -183,7 +183,7 @@ namespace PraxisMapper.Controllers
         public byte[] SlippyTestV4(int x, int y, int zoom, int layer)
         {
             //this would be part of app startup if i go with this.
-            foreach (var tpe  in Singletons.defaultTagParserEntries)
+            foreach (var tpe in Singletons.defaultTagParserEntries)
             {
                 SetPaintForTPE(tpe);
             }
@@ -249,7 +249,7 @@ namespace PraxisMapper.Controllers
             //}
             //var ways = elements.Where(e => e.Type == OsmSharp.OsmGeoType.Way).Select(e => (OsmSharp.Way)e).ToList(); //How to order these?
             //var mapDatas = new List<MapData>();
-             foreach (var w in drawnItems)
+            foreach (var w in drawnItems)
             {
 
                 //TODO: assign each Place a Style, or maybe its own Paint element, so I can look that up once and reuse the results.
@@ -257,7 +257,7 @@ namespace PraxisMapper.Controllers
                 var tempList = new List<WayTags>();
                 if (w.WayTags != null)
                     tempList = w.WayTags.ToList();
-                paint = GetStyleForOsmWay(tempList, ref styles);
+                paint = GetStyleForOsmWay(tempList, ref styles); 
                 var path = new SKPath();
                 switch (w.wayGeometry.GeometryType)
                 {
@@ -378,13 +378,13 @@ namespace PraxisMapper.Controllers
             int matches = 0;
             bool OrMatched = false;
 
-
+            //Step 1: check all the rules against these tags.
             for (var i = 0; i < tpe.TagParserMatchRules.Count(); i++) // var entry in tpe.TagParserMatchRules)
             {
                 var entry = tpe.TagParserMatchRules.ElementAt(i);
                 if (entry.Value == "*") //The Key needs to exist, but any value counts.
                 {
-                    if (tags.Any(t => t.Key ==entry.Key))
+                    if (tags.Any(t => t.Key == entry.Key))
                     {
                         matches++;
                         rulesMatch[i] = true;
@@ -396,8 +396,8 @@ namespace PraxisMapper.Controllers
                 {
                     case "any":
                     case "or":
-                    case "not": //I think not uses the pipe split. TODO doublecheck.
-                        if (!tags.Any(t => t.Key == entry.Key))
+                    case "not": //Not uses the same check here, we check in step 2 if not was't matched. //I think not uses the pipe split. TODO doublecheck.
+                        if (!tags.Any(t => t.Key == entry.Key)) //Not requires this tag to explicitly exist, possibly. //entry.MatchType != "not" &&  
                             continue;
 
                         var possibleValues = entry.Value.Split("|");
@@ -407,14 +407,13 @@ namespace PraxisMapper.Controllers
                             matches++;
                             rulesMatch[i] = true;
                             //if (entry.MatchType == "or") //Othewise, Or and Any logic are the same.
-                               // OrMatched = true; 
+                            // OrMatched = true; 
                         }
                         break;
                     case "equals":
-                    
                         if (!tags.Any(t => t.Key == entry.Key))
                             continue;
-                        if (tags.Where(t => t.Key ==entry.Key).Select(t => t.Value).FirstOrDefault() == entry.Value)
+                        if (tags.Where(t => t.Key == entry.Key).Select(t => t.Value).FirstOrDefault() == entry.Value)
                         {
                             matches++;
                             rulesMatch[i] = true;
@@ -427,29 +426,32 @@ namespace PraxisMapper.Controllers
                 }
             }
 
-            if (rulesMatch.All(r => r == true))
-                return true;
+            //if (rulesMatch.All(r => r == true))
+            //return true;
 
-            //if (tpe.TagParserMatchRules.Any(r => r.MatchType == "or"))
-            //{
-                //Now we have to check if we have 1 OR match, AND none of the mandatory ones failed, and no NOT conditions.
-                for (int i = 0; i < rulesMatch.Length; i++)
+            //Step 2: walk through and confirm we have all the rules correct or not for this set.
+            //Now we have to check if we have 1 OR match, AND none of the mandatory ones failed, and no NOT conditions.
+            int orCounter = 0;
+            for (int i = 0; i < rulesMatch.Length; i++)
+            {
+                var rule = tpe.TagParserMatchRules.ElementAt(i);
+
+                if (rulesMatch[i] == true && rule.MatchType == "not") //We don't want to match this!
+                    return false;
+
+                if (rulesMatch[i] == false && (rule.MatchType == "equals" || rule.MatchType == "any"))
+                    return false;
+
+                if (rule.MatchType == "or")
                 {
-                    if (rulesMatch[i] == true && tpe.TagParserMatchRules.ElementAt(i).MatchType == "not") //We don't want to match this!
-                        return false;
-
-                    if (rulesMatch[i] == false && tpe.TagParserMatchRules.ElementAt(i).MatchType == "equals")
-                        return false;
-                
-                    if (rulesMatch[i] == false && tpe.TagParserMatchRules.ElementAt(i).MatchType == "any")  
-                        return false;
-
-                    if (rulesMatch[i] == true && tpe.TagParserMatchRules.ElementAt(i).MatchType == "or")
+                    orCounter++;
+                    if (rulesMatch[i] == true)
                         OrMatched = true;
                 }
+            }
 
             //Now, we should have bailed out if any mandatory thing didn't match right. Should only be on whether or not any of our Or checks passsed.
-            if (OrMatched == true)
+            if (orCounter == 0 || OrMatched == true)
                 return true;
 
             return false;

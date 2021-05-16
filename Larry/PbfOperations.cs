@@ -243,7 +243,7 @@ namespace Larry
                 Log.WriteLog("Relation " + r.Id + " " + relationName + " has ways with 0 nodes.");
             }
             //convert to lines, polygon, or multipolygon as needed.
-            Geometry Tpoly = GeometryHelper.GetGeometryFromCompleteWays(shapeList, r);
+            Geometry Tpoly = GeometryHelper.GetGeometryFromCompleteWays(r);
             if (Tpoly == null)
             {
                 //error converting it

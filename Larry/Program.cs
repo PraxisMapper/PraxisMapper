@@ -343,6 +343,7 @@ namespace Larry
                         TimeSpan difference = DateTime.Now - DateTime.Now;
                         System.Threading.ReaderWriterLockSlim locker = new System.Threading.ReaderWriterLockSlim();
                         var awaitResults = db.SaveChangesAsync();
+                        HashSet<long> processedWaysToSkip = new HashSet<long>();
 
                         //Parallel.ForEach(relations, re => {
                         foreach (var re in relations) { 
@@ -370,6 +371,8 @@ namespace Larry
                             //place.paint = GetStyleForOsmWay(w.Tags);
                             StoredWay swR = new StoredWay();
                             swR.wayGeometry = thisrel.place;
+                            swR.sourceItemID = r.Id;
+                            swR.sourceItemType = 3; //relation
                             //Note: truncating tags will save a lot of Hd space. Tags take up about twice the space of actual Way geometry if you don't remove them.
                             //This is a pretty solid list of tags I don't need to save for a game that needs maptiles.
                             swR.WayTags = r.Tags.Where(t =>
@@ -414,6 +417,9 @@ namespace Larry
                                         .Select(t => new WayTags() { storedWay = swR, Key = t.Key, Value = t.Value }).ToList();
                             locker.EnterWriteLock(); //Only one thread gets to save at a time.
                             db.StoredWays.Add(swR);
+                            foreach (var way in r.Members.Where(m => m.Member.Type == OsmGeoType.Way))
+                                processedWaysToSkip.Add(way.Member.Id);
+
                             //bulkList.Add(sw);
                             entryCounter++;
                             if (entryCounter > 10000)
@@ -431,8 +437,10 @@ namespace Larry
                                 Log.WriteLog(Math.Round(entriesPerSecond) + " Relations per second processed, " + Math.Round(percentage, 2) + "% done, estimated time remaining: " + estimatedTime.ToString());
                             }
                             locker.ExitWriteLock();
-                        db.SaveChanges();
                         } //);
+
+                        db.SaveChanges(); //save relations.
+                        
 
 
                         //foreach (var w in ways)
@@ -461,6 +469,8 @@ namespace Larry
                             //place.paint = GetStyleForOsmWay(w.Tags);
                             StoredWay sw = new StoredWay();
                             sw.wayGeometry = place.place;
+                            sw.sourceItemID = w.Id.Value;
+                            sw.sourceItemType = 2; //way
                             //Note: truncating tags will save a lot of Hd space. Tags take up about twice the space of actual Way geometry if you don't remove them.
                             //This is a pretty solid list of tags I don't need to save for a game that needs maptiles.
                             sw.WayTags = w.Tags.Where(t =>
