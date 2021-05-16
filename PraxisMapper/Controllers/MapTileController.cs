@@ -1,10 +1,15 @@
 ﻿using CoreComponents;
 using Google.OpenLocationCode;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
+using NetTopologySuite.Geometries;
 using PraxisMapper.Classes;
+using SkiaSharp;
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using static CoreComponents.DbTables;
 using static CoreComponents.Place;
@@ -109,6 +114,9 @@ namespace PraxisMapper.Controllers
                             expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                             break;
                         case 7: //This might be the layer that shows game areas on the map. Draw outlines of them. Means games will also have a Geometry object attached to them for indexing.
+                            //7 is currently testing for V4 data setup, drawing all OSM Ways on the map tile.
+                            results = SlippyTestV4(x, y, zoom, 7);
+                            //expires = DateTime.Now.AddMinutes(10); //Assuming you are going to manually update/clear tiles when you reload base data
                             break;
                         case 8: //This might be what gets called to load an actual game. The ID will be the game in question, so X and Y values could be ignored?
                             break;
@@ -168,6 +176,283 @@ namespace PraxisMapper.Controllers
             //NOTE: URL limitations block this from being a usable REST style path, so this one may require reading data bindings from the body instead
             string path = new System.IO.StreamReader(Request.Body).ReadToEnd();
             return MapTiles.DrawUserPath(path);
+        }
+
+        [HttpGet]
+        [Route("/[controller]/DrawSlippyTileV4Test/{x}/{y}/{zoom}/{layer}")]
+        public byte[] SlippyTestV4(int x, int y, int zoom, int layer)
+        {
+            //this would be part of app startup if i go with this.
+            foreach (var tpe  in Singletons.defaultTagParserEntries)
+            {
+                SetPaintForTPE(tpe);
+            }
+
+            Random r = new Random();
+            //FileStream fs = new FileStream(filename, FileMode.Open);
+            //get location in lat/long format.
+            //Delaware is 2384, 3138,13
+            //Cedar point, where I had issues before, is 35430/48907/17
+            //int x = 2384;
+            //int y = 3138;
+            //int zoom = 13;
+            //int x = 35430;
+            //int y = 48907;
+            //int zoom = 17;
+
+            var n = Math.Pow(2, zoom);
+
+            var lon_degree_w = x / n * 360 - 180;
+            var lon_degree_e = (x + 1) / n * 360 - 180;
+            var lat_rads_n = Math.Atan(Math.Sinh(Math.PI * (1 - 2 * y / n)));
+            var lat_degree_n = lat_rads_n * 180 / Math.PI;
+            var lat_rads_s = Math.Atan(Math.Sinh(Math.PI * (1 - 2 * (y + 1) / n)));
+            var lat_degree_s = lat_rads_s * 180 / Math.PI;
+
+            var relevantArea = new GeoArea(lat_degree_s, lon_degree_w, lat_degree_n, lon_degree_e);
+            var areaHeightDegrees = lat_degree_n - lat_degree_s;
+            var areaWidthDegrees = 360 / n;
+
+            //Get relevant data from PBF 
+            //(can change that to other data source later)
+            //var elements = GetData((float)relevantArea.WestLongitude, (float)relevantArea.EastLongitude, (float)relevantArea.SouthLatitude, (float)relevantArea.NorthLatitude, fs);
+            var db = new PraxisContext();
+            //db.ChangeTracker.LazyLoadingEnabled = false;
+            var geo = Converters.GeoAreaToPolygon(relevantArea);
+            var drawnItems = db.StoredWays.Include(c => c.WayTags).Where(w => w.wayGeometry.Intersects(geo)).OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToList();
+
+            var styles = Singletons.defaultTagParserEntries;
+
+            //TEST LOGIC:
+            //take each relation, complete it, draw it in a random color.
+            //Take each area, complete it, draw it in a random color.
+            //Nodes that meet standalone drawing criteria get a solid white dot.
+
+            //baseline image data stuff
+            int imageSizeX = 512;
+            int imageSizeY = 512;
+            double degreesPerPixelX = relevantArea.LongitudeWidth / imageSizeX;
+            double degreesPerPixelY = relevantArea.LatitudeHeight / imageSizeX;
+            SKBitmap bitmap = new SKBitmap(512, 512, SKColorType.Rgba8888, SKAlphaType.Premul);
+            SKCanvas canvas = new SKCanvas(bitmap);
+            var bgColor = new SKColor();
+            SKColor.TryParse("00FFFFFF", out bgColor);
+            canvas.Clear(bgColor);
+            canvas.Scale(1, -1, imageSizeX / 2, imageSizeY / 2);
+            SKPaint paint = new SKPaint();
+            SKColor color = new SKColor();
+            //var nodes = elements.Where(e => e.Type == OsmSharp.OsmGeoType.Node).Select(e => (OsmSharp.Node)e).ToLookup(k => k.Id);
+            //var rels = elements.Where(e => e.Type == OsmSharp.OsmGeoType.Relation).Select(e => (OsmSharp.Relation)e).ToList();
+            //foreach (var r2 in rels)
+            //{
+            //    //Draw this?
+            //}
+            //var ways = elements.Where(e => e.Type == OsmSharp.OsmGeoType.Way).Select(e => (OsmSharp.Way)e).ToList(); //How to order these?
+            //var mapDatas = new List<MapData>();
+             foreach (var w in drawnItems)
+            {
+
+                //TODO: assign each Place a Style, or maybe its own Paint element, so I can look that up once and reuse the results.
+                //instead of looping over each Style every time.
+                var tempList = new List<WayTags>();
+                if (w.WayTags != null)
+                    tempList = w.WayTags.ToList();
+                paint = GetStyleForOsmWay(tempList, ref styles);
+                var path = new SKPath();
+                switch (w.wayGeometry.GeometryType)
+                {
+                    case "Polygon":
+                        path.AddPoly(Converters.PolygonToSKPoints(w.wayGeometry, relevantArea, degreesPerPixelX, degreesPerPixelY));
+                        //paint.Style = SKPaintStyle.Fill;
+                        //paint.Color = new SKColor((byte)r.Next(0, 255), (byte)r.Next(0, 255), (byte)r.Next(0, 255));
+                        canvas.DrawPath(path, paint);
+                        break;
+                    case "MultiPolygon":
+                        //paint.Color = new SKColor((byte)r.Next(0, 255), (byte)r.Next(0, 255), (byte)r.Next(0, 255));
+                        //paint.Style = SKPaintStyle.Fill;
+                        foreach (var p in ((MultiPolygon)w.wayGeometry).Geometries)
+                        {
+                            var path2 = new SKPath();
+                            path2.AddPoly(Converters.PolygonToSKPoints(p, relevantArea, degreesPerPixelX, degreesPerPixelY));
+                            canvas.DrawPath(path2, paint);
+                        }
+                        break;
+                    case "LineString":
+                        //paint.Style = SKPaintStyle.Stroke;
+                        //paint.Color = new SKColor((byte)r.Next(0, 255), (byte)r.Next(0, 255), (byte)r.Next(0, 255));
+                        var points = Converters.PolygonToSKPoints(w.wayGeometry, relevantArea, degreesPerPixelX, degreesPerPixelY);
+                        for (var line = 0; line < points.Length - 1; line++)
+                            canvas.DrawLine(points[line], points[line + 1], paint);
+                        break;
+                    case "MultiLineString":
+                        foreach (var p in ((MultiLineString)w.wayGeometry).Geometries)
+                        {
+                            //paint.Style = SKPaintStyle.Stroke;
+                            //paint.Color = new SKColor((byte)r.Next(0, 255), (byte)r.Next(0, 255), (byte)r.Next(0, 255));
+                            var points2 = Converters.PolygonToSKPoints(p, relevantArea, degreesPerPixelX, degreesPerPixelY);
+                            for (var line = 0; line < points2.Length - 1; line++)
+                                canvas.DrawLine(points2[line], points2[line + 1], paint);
+                        }
+                        break;
+                    case "Point":
+                        //paint.Style = SKPaintStyle.Fill;
+                        var circleRadius = (float)(.000125 / degreesPerPixelX / 2); //I want points to be drawn as 1 Cell10 in diameter.
+                        var convertedPoint = Converters.PolygonToSKPoints(w.wayGeometry, relevantArea, degreesPerPixelX, degreesPerPixelY);
+                        //paint.Color = new SKColor((byte)r.Next(0, 255), (byte)r.Next(0, 255), (byte)r.Next(0, 255));
+                        canvas.DrawCircle(convertedPoint[0], circleRadius, paint);
+                        break;
+                }
+
+                //draw all the WayData entry.
+                //var path = new SKPath();
+                //path.AddPoly(Converters.PolygonToSKPoints(place.place, relevantArea, degreesPerPixelX, degreesPerPixelY));
+                //paint.Style = SKPaintStyle.Fill;
+                //paint.Color = new SKColor((byte)r.Next(0, 255), (byte)r.Next(0, 255), (byte)r.Next(0, 255));
+                //canvas.DrawPath(path, paint);
+            }
+
+            //Save object to .png file.
+            var ms = new MemoryStream();
+            var skms = new SKManagedWStream(ms);
+            bitmap.Encode(skms, SKEncodedImageFormat.Png, 100);
+            var results = ms.ToArray();
+            skms.Dispose(); ms.Close(); ms.Dispose();
+            //File.WriteAllBytes("test.png", results);
+            return results;
+        }
+
+        public static void SetPaintForTPE(TagParserEntry tpe)
+        {
+            var paint = new SKPaint();
+            paint.Color = SKColor.Parse(tpe.HtmlColorCode);
+            if (tpe.FillOrStroke == "fill")
+                paint.Style = SKPaintStyle.Fill;
+            else
+                paint.Style = SKPaintStyle.Stroke;
+            paint.StrokeWidth = tpe.LineWidth;
+            tpe.paint = paint;
+        }
+
+        public static SKPaint GetStyleForOsmWay(List<WayTags> tags, ref List<TagParserEntry> styles)
+        {
+            //TODO: make this faster, i should make the SKPaint objects once at startup, then return those here instead of generating them per thing I need to draw.
+
+            //Drawing order: 
+            //these styles should be drawing in Descending Index order (Continents are 88, then countries and states, then roads, etc etc.... airport taxiways are 1).
+
+            //Search logic:
+            //SourceLayer is the general name of the category of stuff to draw. Transportation, for example.
+            //Filter has some rules on what things this specific entry should apply to.
+            //Most specific filter should apply, but if its the category than use the base category values.
+
+            //I might just want to write my own rules, and possibly make then DB entries? simplify them down to just Skia rules?
+            //also, if it doesn't find any rules, draw background color.
+
+            //now, attempt to see if these tags apply in any way to our style list.
+            //foreach (var rules in styleLayerList.Layers)
+            //{
+            //    //get rules
+            //    var filterRules = rules.Filter;
+            //    var areaName = rules.SourceLayer;
+            //}
+            if (tags == null || tags.Count() == 0)
+            {
+                var style = styles.Last(); //background must be last.
+                return style.paint;
+            }
+
+            foreach (var drawingRules in styles)
+            {
+                if (MatchOnTags(drawingRules, tags))
+                {
+                    return drawingRules.paint;
+                }
+            }
+            return null;
+        }
+
+        public static bool MatchOnTags(TagParserEntry tpe, List<WayTags> tags)
+        {
+            int rulesCount = tpe.TagParserMatchRules.Count();
+            bool[] rulesMatch = new bool[rulesCount];
+            int matches = 0;
+            bool OrMatched = false;
+
+
+            for (var i = 0; i < tpe.TagParserMatchRules.Count(); i++) // var entry in tpe.TagParserMatchRules)
+            {
+                var entry = tpe.TagParserMatchRules.ElementAt(i);
+                if (entry.Value == "*") //The Key needs to exist, but any value counts.
+                {
+                    if (tags.Any(t => t.Key ==entry.Key))
+                    {
+                        matches++;
+                        rulesMatch[i] = true;
+                        continue;
+                    }
+                }
+
+                switch (entry.MatchType)
+                {
+                    case "any":
+                    case "or":
+                    case "not": //I think not uses the pipe split. TODO doublecheck.
+                        if (!tags.Any(t => t.Key == entry.Key))
+                            continue;
+
+                        var possibleValues = entry.Value.Split("|");
+                        var actualValue = tags.Where(t => t.Key == entry.Key).Select(t => t.Value).FirstOrDefault();
+                        if (possibleValues.Contains(actualValue))
+                        {
+                            matches++;
+                            rulesMatch[i] = true;
+                            //if (entry.MatchType == "or") //Othewise, Or and Any logic are the same.
+                               // OrMatched = true; 
+                        }
+                        break;
+                    case "equals":
+                    
+                        if (!tags.Any(t => t.Key == entry.Key))
+                            continue;
+                        if (tags.Where(t => t.Key ==entry.Key).Select(t => t.Value).FirstOrDefault() == entry.Value)
+                        {
+                            matches++;
+                            rulesMatch[i] = true;
+                        }
+
+                        break;
+                    case "default":
+                        //Always matches. Can only be on one entry, which is the last entry and the default color if nothing else matches.
+                        return true;
+                }
+            }
+
+            if (rulesMatch.All(r => r == true))
+                return true;
+
+            //if (tpe.TagParserMatchRules.Any(r => r.MatchType == "or"))
+            //{
+                //Now we have to check if we have 1 OR match, AND none of the mandatory ones failed, and no NOT conditions.
+                for (int i = 0; i < rulesMatch.Length; i++)
+                {
+                    if (rulesMatch[i] == true && tpe.TagParserMatchRules.ElementAt(i).MatchType == "not") //We don't want to match this!
+                        return false;
+
+                    if (rulesMatch[i] == false && tpe.TagParserMatchRules.ElementAt(i).MatchType == "equals")
+                        return false;
+                
+                    if (rulesMatch[i] == false && tpe.TagParserMatchRules.ElementAt(i).MatchType == "any")  
+                        return false;
+
+                    if (rulesMatch[i] == true && tpe.TagParserMatchRules.ElementAt(i).MatchType == "or")
+                        OrMatched = true;
+                }
+
+            //Now, we should have bailed out if any mandatory thing didn't match right. Should only be on whether or not any of our Or checks passsed.
+            if (OrMatched == true)
+                return true;
+
+            return false;
         }
     }
 }

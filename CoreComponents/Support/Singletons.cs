@@ -97,7 +97,7 @@ namespace CoreComponents
                 new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"}
             }
             },
-            new TagParserEntry() { id = 12, name ="admin", HtmlColorCode = "FF2020",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" }} },
+            //new TagParserEntry() { id = 12, name ="admin", HtmlColorCode = "FF2020",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" }} }, //We got rid of these for a reason, don't bring htem back.
             new TagParserEntry() { id = 13, name ="building", HtmlColorCode = "808080", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid",TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "building", Value = "*", MatchType = "equals" }} },
             new TagParserEntry() { id = 14, name ="road", HtmlColorCode = "0D0D0D",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>()
             {
@@ -110,6 +110,9 @@ namespace CoreComponents
             //New generic entries for mapping by color
             new TagParserEntry() { id = 16, name ="greenspace", HtmlColorCode = "90EE90",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() { 
                 new TagParserMatchRule() { Key = "landuse", Value = "grass", MatchType = "equals" }} 
+            },
+            new TagParserEntry() { id = 17, name ="alsobeach", HtmlColorCode = "D7B526",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() {
+                new TagParserMatchRule() { Key = "natural", Value = "sand", MatchType = "equals" }}
             },
             new TagParserEntry() { id = 9999, name ="background", HtmlColorCode = "545454", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid",TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "default" }} }
         };
