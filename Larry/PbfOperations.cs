@@ -229,6 +229,47 @@ namespace Larry
             return md;
         }
 
+        public static MapData ProcessCompleteRelation(OsmSharp.Complete.CompleteRelation r)
+        {
+            PraxisContext db = new PraxisContext();
+            string relationName = GetPlaceName(r.Tags);
+            Log.WriteLog("Processing CompleteRelation " + r.Id + " " + relationName + " to MapData at " + DateTime.Now, Log.VerbosityLevels.High);
+
+            var shapeList = r.Members.Where(m => m.Member.Type == OsmGeoType.Way).Select(m => (OsmSharp.Complete.CompleteWay)m.Member).ToList();
+
+            //Now we have our list of Ways. Check if there's lines that need made into a polygon.
+            if (shapeList.Any(s => s.Nodes.Count() == 0))
+            {
+                Log.WriteLog("Relation " + r.Id + " " + relationName + " has ways with 0 nodes.");
+            }
+            //convert to lines, polygon, or multipolygon as needed.
+            Geometry Tpoly = GeometryHelper.GetGeometryFromCompleteWays(shapeList, r);
+            if (Tpoly == null)
+            {
+                //error converting it
+                Log.WriteLog("Relation " + r.Id + " " + relationName + " failed to get a polygon from ways. Error.");
+                return null;
+            }
+
+            if (!Tpoly.IsValid)
+            {
+                Log.WriteLog("Relation " + r.Id + " " + relationName + " Is not valid geometry. Error.");
+                return null;
+            }
+
+            MapData md = new MapData();
+            md.name = Place.GetPlaceName(r.Tags);
+            md.type = Place.GetPlaceType(r.Tags);
+            md.AreaTypeId = 1; //again, this is ignored later.//areaTypeReference[md.type.StartsWith("admin") ? "admin" : md.type].First();
+            md.RelationId = r.Id;
+            md.place = GeometrySupport.SimplifyArea(Tpoly);
+            md.AreaSize = md.place.Length; //md.place.Area; //ARea is square degrees, use perimeter length in degress instead for a more reasonable comparison.
+            if (md.place == null)
+                return null;
+
+            return md;
+        }
+
         public static void ValidateFile(string filename)
         {
             //Ohio.pbf results: 

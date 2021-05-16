@@ -144,6 +144,20 @@ namespace CoreComponents
             return results.ToArray();
         }
 
+        public static Coordinate[] CompleteWayToCoordArray(OsmSharp.Complete.CompleteWay w)
+        {
+            if (w == null)
+                return null;
+
+            List<Coordinate> results = new List<Coordinate>();
+            results.Capacity = w.Nodes.Count();
+
+            foreach (var node in w.Nodes)
+                results.Add(new Coordinate(node.Longitude.Value, node.Latitude.Value));
+
+            return results.ToArray();
+        }
+
         public static SkiaSharp.SKPoint[] PolygonToSKPoints(Geometry place, GeoArea drawingArea, double degreesPerPixelX, double degreesPerPixelY)
         {
             SkiaSharp.SKPoint[] points = place.Coordinates.Select(o => new SkiaSharp.SKPoint((float)((o.X - drawingArea.WestLongitude) * (1 / degreesPerPixelX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / degreesPerPixelY)))).ToArray();
