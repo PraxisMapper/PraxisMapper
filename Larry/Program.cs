@@ -17,9 +17,11 @@ using static CoreComponents.ConstantValues;
 using static CoreComponents.DbTables;
 using static CoreComponents.Place;
 using static CoreComponents.Singletons;
+using static CoreComponents.TagParser;
 
 //TODO: look into using Span<T> instead of lists? This might be worth looking at performance differences. (and/or Memory<T>, which might be a parent for Spans)
 //TODO: Ponder using https://download.bbbike.org/osm/ as a data source to get a custom extract of an area (for when users want a local-focused app, probably via a wizard GUI)
+//OR could use an additional input for filterbox.
 
 namespace Larry
 {
@@ -259,29 +261,29 @@ namespace Larry
             {
                 // 4th generation of logic for importing OSM data from PBF file.
                 //V4 rules:
-                //Tags will be saved to a separate table for all 3 major types. (this lets me update formatting rules without reimporting data).
-                //All ways are processed into the database as geometry objects. (MapData format, possibly new table.) 
-                //Relations are processed as before, and their ways are removed from the database (assuming there's no additional relevant tags on those components)
-                //--A lot of relations are ways that I'll want to connect and fill in as areas, rather than drawing lines to indicate them.  But I don't want to draw ways that make a relation multiple times (unless they're tagged in a way where i should, like the inner polygon for a graveyard on the university grounds)
+                //Tags will be saved to a separate table. (this lets me update formatting rules without reimporting data).
+                //All entries  are processed into the database as geometry objects into one table.
+                //Use the built-in Feature converter in OsmSharp.Geo instead of maintaining the OSM-to-Geometry logic myself.
                 //Only nodes with tags will be imported as their own entries. Untagged nodes will be used to process way geometry and then discarded/not stored.
+                //attempt to stream data to avoid memory issues.
 
                 //I need to avoid adding duplicate entries, and i dont want to do huge passes per entry added. 
-                //Is there an 'ignore on duplicate' command or setting in MariaDB and SQL Server? I might need to set those.
+                //Is there an 'ignore on duplicate' command or setting in MariaDB and SQL Server? I might need to set those. CAn it be the default behavior?
 
-                //load data. Testing with ohio again.
+                TagParser.Initialize();
+                //load data. Testing with delaware for speed again.
                 string pbfFilename = ParserSettings.PbfFolder + "delaware-latest.osm.pbf";
                 var fs = System.IO.File.OpenRead(pbfFilename);
                 var boxSteps = 1; //squared, so 4 means we'll check 16 sub-boxes. 
 
                 Log.WriteLog("Starting " + pbfFilename + " V4 data read at " + DateTime.Now);
-                //var fs = System.IO.File.OpenRead(pbfFilename);
                 var source = new PBFOsmStreamSource(fs);
                 float north = source.Where(s => s.Type == OsmGeoType.Node).Max(s => (float)((OsmSharp.Node)s).Latitude);
                 float south = source.Where(s => s.Type == OsmGeoType.Node).Min(s => (float)((OsmSharp.Node)s).Latitude);
                 float west = source.Where(s => s.Type == OsmGeoType.Node).Min(s => (float)((OsmSharp.Node)s).Longitude);
                 float east = source.Where(s => s.Type == OsmGeoType.Node).Max(s => (float)((OsmSharp.Node)s).Longitude);
                 Log.WriteLog("Bounding box for provided file determined at " + DateTime.Now + ", splitting into " + (boxSteps * boxSteps) + " sub-passes.");
-               
+
                 //use west and south as baseline values, add step amounts to those to determine boxes
                 var latSteps = (north - south) / boxSteps;
                 var lonSteps = (east - west) / boxSteps;
@@ -290,6 +292,7 @@ namespace Larry
                     for (int j = 0; j < boxSteps; j++) //j is for latitude.
                     {
                         //maybe if i functionalize this inner loop, that'll clear out whatever's persisting in memory.
+                        HashSet<long> waysToSkip = new HashSet<long>();
 
                         //This block was moved here, hoping to get stuff to GC away and free up memory. Didn't seem to work. Just makes loading stuff take longer.
                         //fs = System.IO.File.OpenRead(pbfFilename);
@@ -299,29 +302,20 @@ namespace Larry
                         source = new PBFOsmStreamSource(fs);
                         //end hopefullly-GC-ing block
 
-                        Log.WriteLog("Box " + i + "," + j + ":" + (west + (lonSteps * i)) + " to " + ((west + (lonSteps * (i +1))) + " | " + (south + (latSteps * j)) + " to " + (south + (latSteps * (j + 1)))));
-                        var thisBox = source.FilterBox((west + (lonSteps * i)), south + (latSteps * (j + 1)), west + (lonSteps * (i  +1)), south + (latSteps * j), true); //I think this is the right setup for this. 
-                                                                                                                          //var allData = thisBox.ToList(); //Dramatically faster than re-loading everything from thisbox.Where() each run.
-
-                        //Haven't decided how to use these yet.
-                        //Lets be lazy and use Complete relations instead of filling h
-                        //var relations = source.AsParallel() //.Where(p => p.Type == OsmGeoType.Relation)
-                        //                                    //.Select(p => p)
-                        //    .ToComplete()
-                        //    .Where(p => p.Type == OsmGeoType.Relation)
-                        //.ToList();
-
+                        Log.WriteLog("Box " + i + "," + j + ":" + (west + (lonSteps * i)) + " to " + ((west + (lonSteps * (i + 1))) + " | " + (south + (latSteps * j)) + " to " + (south + (latSteps * (j + 1)))));
+                        var thisBox = source.FilterBox((west + (lonSteps * i)), south + (latSteps * (j + 1)), west + (lonSteps * (i + 1)), south + (latSteps * j), true); //I think this is the right setup for this. 
+                                                                                                                                                                          //var allData = thisBox.ToList(); //Dramatically faster than re-loading everything from thisbox.Where() each run.
                         var relations = thisBox.AsParallel()
                         .ToComplete()
-                        .Where(p => p.Type == OsmGeoType.Relation)
-                       .ToList();
+                        .Where(p => p.Type == OsmGeoType.Relation);
+                       //.ToList();
                         //.First();
 
 
                         //This seems to work, but I do want to include info from the relation too
                         //var relations2 = thisBox.AsParallel()
-                          //  .Where(p => p.Type == OsmGeoType.Relation)
-                          //  .ToFeatureSource();
+                        //  .Where(p => p.Type == OsmGeoType.Relation)
+                        //  .ToFeatureSource();
 
 
                         //foreach(var r in relations2)
@@ -337,7 +331,7 @@ namespace Larry
                         //TODO: in order to make sure every element displays correctly, I need to force linestrings that should be filled
                         //to be polygons here. (Otherwise, they don't show up in tiles that don't touch the edge of the string. See: Delaware Bay).
 
-                        foreach (var r in relations)
+                        foreach (var r in relations) //This is where the first memory peak hits. it does load everything into memory
                         {
                             try
                             {
@@ -350,7 +344,7 @@ namespace Larry
                                 var swR = new StoredWay();
                                 swR.sourceItemID = r.Id;
                                 swR.sourceItemType = 3;
-                                swR.wayGeometry = feature.First().Geometry;                                
+                                swR.wayGeometry = feature.First().Geometry;
                                 swR.WayTags = r.Tags.Where(t =>
                                             t.Key != "source" &&
                                             !t.Key.StartsWith("addr:") &&
@@ -392,19 +386,21 @@ namespace Larry
                                             )
                                             .Select(t => new WayTags() { storedWay = swR, Key = t.Key, Value = t.Value }).ToList();
 
-                                //Attemp1 to fix things.
+
                                 if (swR.wayGeometry.GeometryType == "LinearRing") //may need to expand this to LineString and check end points? but LinearRing should cover that?
                                 {
-                                    //Check if the tags require this elements to be fill
-                                    //TOOD: functionalize new logic so i can use it everywhere without copypasting.
-                                    //var paintStyle = GetStyleForOsmWay(tempList, ref styles);
-                                    //if paintStyle.style == "fill"
-                                    //convert this linear ring to a polygon.
-                                    //and then update hte DB element.
+                                    //I want to update all LinearRings to Polygons, and let the style determine if they're Filled or Stroked.
+                                    var poly = factory.CreatePolygon((LinearRing)swR.wayGeometry);
+                                    swR.wayGeometry = poly;
                                 }
                                 db.StoredWays.Add(swR);
+
+                                foreach(var w in ((OsmSharp.Complete.CompleteRelation)r).Members)
+                                {
+                                    waysToSkip.Add(w.Member.Id);
+                                }
                             }
-                            catch(Exception ex)
+                            catch (Exception ex)
                             {
                                 Log.WriteLog("Error Processing Relation " + r.Id + ": " + ex.Message);
                             }
@@ -429,10 +425,13 @@ namespace Larry
                         .ToList();
                         Log.WriteLog("Ways read at " + DateTime.Now);
 
-                        foreach(var w in ways)
+                        foreach (var w in ways)
                         {
                             try
                             {
+                                if (waysToSkip.Contains(w.Id))
+                                    continue;
+
                                 var feature = OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(w);
                                 if (feature.Count() != 1)
                                 {
@@ -485,7 +484,7 @@ namespace Larry
                                             .Select(t => new WayTags() { storedWay = sw2, Key = t.Key, Value = t.Value }).ToList();
                                 db.StoredWays.Add(sw2);
                             }
-                            catch(Exception ex)
+                            catch (Exception ex)
                             {
                                 if (w == null)
                                     Log.WriteLog("Error Processing Way : Way was null");
@@ -504,7 +503,7 @@ namespace Larry
                         //allData = null;
 
                         ////var mapDatas = new List<MapData>();
-                        
+
                         //double entryCounter = 0;
                         //double totalCounter = 0;
                         //var totalEntries = ways.Count();
@@ -521,7 +520,7 @@ namespace Larry
                         //    var r = (OsmSharp.Complete.CompleteRelation)re;
                         //    var thisrel = PbfOperations.ProcessCompleteRelation(r);
                         //    //WayData wd = PbfOperations.ProcessRelation(r, ref ways);
-                            
+
                         //    //foreach (long nr in w.Nodes)
                         //    //{
                         //    //    var osmNode = nodes[nr].FirstOrDefault();
@@ -533,7 +532,7 @@ namespace Larry
                         //    //}
 
                         //    //quick hack to make this work. Actual area type is ignored.
-                            
+
                         //    if (thisrel == null)
                         //        continue;
                         //        //return;
@@ -609,7 +608,7 @@ namespace Larry
                         //} //);
 
                         //db.SaveChanges(); //save relations.
-                        
+
 
 
                         //foreach (var w in ways)

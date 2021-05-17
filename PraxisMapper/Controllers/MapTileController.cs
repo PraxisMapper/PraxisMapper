@@ -13,6 +13,7 @@ using System.IO;
 using System.Linq;
 using static CoreComponents.DbTables;
 using static CoreComponents.Place;
+using static CoreComponents.TagParser;
 
 namespace PraxisMapper.Controllers
 {
@@ -220,13 +221,13 @@ namespace PraxisMapper.Controllers
             //db.ChangeTracker.LazyLoadingEnabled = false;
             var geo = Converters.GeoAreaToPolygon(relevantArea);
             var geoString = geo.ToText();
-            var drawnItems = db.StoredWays.Include(c => c.WayTags).Where(w => geo.Intersects(w.wayGeometry)).ToList(); //.OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToList();
-            var drawnItemsSQL = db.StoredWays.Include(c => c.WayTags).Where(w => w.wayGeometry.Intersects(geo)).OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToQueryString();
+            var drawnItems = db.StoredWays.Include(c => c.WayTags).Where(w => geo.Intersects(w.wayGeometry)).OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToList();
+            //var drawnItemsSQL = db.StoredWays.Include(c => c.WayTags).Where(w => w.wayGeometry.Intersects(geo)).OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToQueryString();
 
             //var testing
-            var drawn2 = db.StoredWays.Include(c => c.WayTags).Where(w => w.wayGeometry.Intersects(geo) || w.wayGeometry.Contains(geo)).OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToList();
+            //var drawn2 = db.StoredWays.Include(c => c.WayTags).Where(w => w.wayGeometry.Intersects(geo) || w.wayGeometry.Contains(geo)).OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToList();
             //var drawn3 = db.StoredWays.Include(c => c.WayTags).Where(w => geo.Covers(w.wayGeometry)).OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToList();
-            var drawn4 = db.StoredWays.Where(w => w.wayGeometry.Intersects(geo)).ToList();
+            //var drawn4 = db.StoredWays.Where(w => w.wayGeometry.Intersects(geo)).ToList();
 
 
             var styles = Singletons.defaultTagParserEntries;
@@ -347,140 +348,6 @@ namespace PraxisMapper.Controllers
             return results;
         }
 
-        public static void SetPaintForTPE(TagParserEntry tpe)
-        {
-            var paint = new SKPaint();
-            paint.Color = SKColor.Parse(tpe.HtmlColorCode);
-            if (tpe.FillOrStroke == "fill")
-                paint.Style = SKPaintStyle.Fill;
-            else
-                paint.Style = SKPaintStyle.Stroke;
-            paint.StrokeWidth = tpe.LineWidth;
-            tpe.paint = paint;
-        }
-
-        public static SKPaint GetStyleForOsmWay(List<WayTags> tags, ref List<TagParserEntry> styles)
-        {
-            //TODO: make this faster, i should make the SKPaint objects once at startup, then return those here instead of generating them per thing I need to draw.
-
-            //Drawing order: 
-            //these styles should be drawing in Descending Index order (Continents are 88, then countries and states, then roads, etc etc.... airport taxiways are 1).
-
-            //Search logic:
-            //SourceLayer is the general name of the category of stuff to draw. Transportation, for example.
-            //Filter has some rules on what things this specific entry should apply to.
-            //Most specific filter should apply, but if its the category than use the base category values.
-
-            //I might just want to write my own rules, and possibly make then DB entries? simplify them down to just Skia rules?
-            //also, if it doesn't find any rules, draw background color.
-
-            //now, attempt to see if these tags apply in any way to our style list.
-            //foreach (var rules in styleLayerList.Layers)
-            //{
-            //    //get rules
-            //    var filterRules = rules.Filter;
-            //    var areaName = rules.SourceLayer;
-            //}
-            if (tags == null || tags.Count() == 0)
-            {
-                var style = styles.Last(); //background must be last.
-                return style.paint;
-            }
-
-            foreach (var drawingRules in styles)
-            {
-                if (MatchOnTags(drawingRules, tags))
-                {
-                    return drawingRules.paint;
-                }
-            }
-            return null;
-        }
-
-        public static bool MatchOnTags(TagParserEntry tpe, List<WayTags> tags)
-        {
-            int rulesCount = tpe.TagParserMatchRules.Count();
-            bool[] rulesMatch = new bool[rulesCount];
-            int matches = 0;
-            bool OrMatched = false;
-
-            //Step 1: check all the rules against these tags.
-            for (var i = 0; i < tpe.TagParserMatchRules.Count(); i++) // var entry in tpe.TagParserMatchRules)
-            {
-                var entry = tpe.TagParserMatchRules.ElementAt(i);
-                if (entry.Value == "*") //The Key needs to exist, but any value counts.
-                {
-                    if (tags.Any(t => t.Key == entry.Key))
-                    {
-                        matches++;
-                        rulesMatch[i] = true;
-                        continue;
-                    }
-                }
-
-                switch (entry.MatchType)
-                {
-                    case "any":
-                    case "or":
-                    case "not": //Not uses the same check here, we check in step 2 if not was't matched. //I think not uses the pipe split. TODO doublecheck.
-                        if (!tags.Any(t => t.Key == entry.Key)) //Not requires this tag to explicitly exist, possibly. //entry.MatchType != "not" &&  
-                            continue;
-
-                        var possibleValues = entry.Value.Split("|");
-                        var actualValue = tags.Where(t => t.Key == entry.Key).Select(t => t.Value).FirstOrDefault();
-                        if (possibleValues.Contains(actualValue))
-                        {
-                            matches++;
-                            rulesMatch[i] = true;
-                            //if (entry.MatchType == "or") //Othewise, Or and Any logic are the same.
-                            // OrMatched = true; 
-                        }
-                        break;
-                    case "equals":
-                        if (!tags.Any(t => t.Key == entry.Key))
-                            continue;
-                        if (tags.Where(t => t.Key == entry.Key).Select(t => t.Value).FirstOrDefault() == entry.Value)
-                        {
-                            matches++;
-                            rulesMatch[i] = true;
-                        }
-
-                        break;
-                    case "default":
-                        //Always matches. Can only be on one entry, which is the last entry and the default color if nothing else matches.
-                        return true;
-                }
-            }
-
-            //if (rulesMatch.All(r => r == true))
-            //return true;
-
-            //Step 2: walk through and confirm we have all the rules correct or not for this set.
-            //Now we have to check if we have 1 OR match, AND none of the mandatory ones failed, and no NOT conditions.
-            int orCounter = 0;
-            for (int i = 0; i < rulesMatch.Length; i++)
-            {
-                var rule = tpe.TagParserMatchRules.ElementAt(i);
-
-                if (rulesMatch[i] == true && rule.MatchType == "not") //We don't want to match this!
-                    return false;
-
-                if (rulesMatch[i] == false && (rule.MatchType == "equals" || rule.MatchType == "any"))
-                    return false;
-
-                if (rule.MatchType == "or")
-                {
-                    orCounter++;
-                    if (rulesMatch[i] == true)
-                        OrMatched = true;
-                }
-            }
-
-            //Now, we should have bailed out if any mandatory thing didn't match right. Should only be on whether or not any of our Or checks passsed.
-            if (orCounter == 0 || OrMatched == true)
-                return true;
-
-            return false;
-        }
+        
     }
 }

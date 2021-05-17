@@ -196,7 +196,7 @@ namespace CoreComponents
             public string HtmlColorCode { get; set; }
             public string FillOrStroke { get; set; }
             public float LineWidth { get; set; }
-            public string LinePattern { get; set; } //solid, dashed, other varieties?
+            public string LinePattern { get; set; } //solid, dashed, other varieties? //If blank, solid line. If not, split string into float[] on |
             [NotMapped]
             public SKPaint paint { get; set; } //Fill in on app start.
             public int Priority { get; set; } //order tags should be matched in. EX: Retail should be matched before Building, since its more specific and useful. But usually smallest/shortest path goes last and biggest/longest goes first
