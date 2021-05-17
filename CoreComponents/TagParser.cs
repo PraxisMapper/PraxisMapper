@@ -42,6 +42,7 @@ namespace CoreComponents
                 paint.PathEffect = SKPathEffect.CreateDash(linesAndGaps, 0);
                 paint.StrokeCap = SKStrokeCap.Butt;
             }
+            paint.StrokeJoin = SKStrokeJoin.Round;
             tpe.paint = paint;
         }
 
