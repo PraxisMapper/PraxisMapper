@@ -29,8 +29,8 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer.NetTopologySuite" Version="5.0.6" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="5.0.1" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="5.0.0" />
-    <PackageReference Include="NetTopologySuite.Core" Version="1.15.3" />
-    <PackageReference Include="OsmSharp.Geo" Version="6.2.0" />
+    <PackageReference Include="NetTopologySuite" Version="2.2.0" />
+    <PackageReference Include="OsmSharp.Geo" Version="7.0.0-pre014" />
     <PackageReference Include="Z.EntityFramework.Extensions.EFCore" Version="5.1.36" />
   </ItemGroup>
 

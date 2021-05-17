@@ -219,7 +219,15 @@ namespace PraxisMapper.Controllers
             var db = new PraxisContext();
             //db.ChangeTracker.LazyLoadingEnabled = false;
             var geo = Converters.GeoAreaToPolygon(relevantArea);
-            var drawnItems = db.StoredWays.Include(c => c.WayTags).Where(w => w.wayGeometry.Intersects(geo)).OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToList();
+            var geoString = geo.ToText();
+            var drawnItems = db.StoredWays.Include(c => c.WayTags).Where(w => geo.Intersects(w.wayGeometry)).ToList(); //.OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToList();
+            var drawnItemsSQL = db.StoredWays.Include(c => c.WayTags).Where(w => w.wayGeometry.Intersects(geo)).OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToQueryString();
+
+            //var testing
+            var drawn2 = db.StoredWays.Include(c => c.WayTags).Where(w => w.wayGeometry.Intersects(geo) || w.wayGeometry.Contains(geo)).OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToList();
+            //var drawn3 = db.StoredWays.Include(c => c.WayTags).Where(w => geo.Covers(w.wayGeometry)).OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToList();
+            var drawn4 = db.StoredWays.Where(w => w.wayGeometry.Intersects(geo)).ToList();
+
 
             var styles = Singletons.defaultTagParserEntries;
 
@@ -251,13 +259,11 @@ namespace PraxisMapper.Controllers
             //var mapDatas = new List<MapData>();
             foreach (var w in drawnItems)
             {
-
-                //TODO: assign each Place a Style, or maybe its own Paint element, so I can look that up once and reuse the results.
-                //instead of looping over each Style every time.
                 var tempList = new List<WayTags>();
                 if (w.WayTags != null)
                     tempList = w.WayTags.ToList();
-                paint = GetStyleForOsmWay(tempList, ref styles); 
+                paint = GetStyleForOsmWay(tempList, ref styles);
+                paint.IsAntialias = true;
                 var path = new SKPath();
                 switch (w.wayGeometry.GeometryType)
                 {
@@ -278,9 +284,25 @@ namespace PraxisMapper.Controllers
                         }
                         break;
                     case "LineString":
+                        //TODO: determine if this LineString is a closed shape and if that closed shape is supposed to be filled.
+                        var firstPoint = w.wayGeometry.Coordinates.First();
+                        var lastPoint = w.wayGeometry.Coordinates.Last();
+                        var points = Converters.PolygonToSKPoints(w.wayGeometry, relevantArea, degreesPerPixelX, degreesPerPixelY);
+                        if (firstPoint.Equals(lastPoint))
+                        {
+                            //This is a closed shape. Check to see if it's supposed to be filled in.
+                            if (paint.Style == SKPaintStyle.Fill)
+                            {
+                                var path3 = new SKPath();
+                                path3.AddPoly(points);
+                                canvas.DrawPath(path3, paint);
+                                continue;
+                            }
+                        }
                         //paint.Style = SKPaintStyle.Stroke;
                         //paint.Color = new SKColor((byte)r.Next(0, 255), (byte)r.Next(0, 255), (byte)r.Next(0, 255));
-                        var points = Converters.PolygonToSKPoints(w.wayGeometry, relevantArea, degreesPerPixelX, degreesPerPixelY);
+                        //var points = Converters.PolygonToSKPoints(w.wayGeometry, relevantArea, degreesPerPixelX, degreesPerPixelY);
+                        var a = points.First() == points.Last();
                         for (var line = 0; line < points.Length - 1; line++)
                             canvas.DrawLine(points[line], points[line + 1], paint);
                         break;
@@ -301,6 +323,10 @@ namespace PraxisMapper.Controllers
                         //paint.Color = new SKColor((byte)r.Next(0, 255), (byte)r.Next(0, 255), (byte)r.Next(0, 255));
                         canvas.DrawCircle(convertedPoint[0], circleRadius, paint);
                         break;
+                    default:
+                        Log.WriteLog("This wasn't supposed to happen!");
+                        break;
+
                 }
 
                 //draw all the WayData entry.
