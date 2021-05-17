@@ -106,7 +106,7 @@ namespace CoreComponents
                 new TagParserMatchRule() {Key="highway", Value="path|bridleway|cycleway|footway|living_street", MatchType="any"},
                 new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"}
             }},
-            new TagParserEntry() { id = 12, name ="admin", HtmlColorCode = "FF2020",FillOrStroke = "stroke", LineWidth=2, LinePattern= "10|5", TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" }} }, //We got rid of these for a reason, don't bring htem back. These are transparent.
+            new TagParserEntry() { id = 12, name ="admin", HtmlColorCode = "FF2020",FillOrStroke = "stroke", LineWidth=2, LinePattern= "10|5", TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" }} },
             new TagParserEntry() { id = 13, name ="building", HtmlColorCode = "808080", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid",TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "building", Value = "*", MatchType = "equals" }} },
             new TagParserEntry() { id = 14, name ="road", HtmlColorCode = "0D0D0D",FillOrStroke = "stroke", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>()
             {
