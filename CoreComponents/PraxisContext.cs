@@ -35,6 +35,8 @@ namespace CoreComponents
         public DbSet<StoredNode> StoredNodes { get; set; }
         public DbSet<StoredWay> StoredWays { get; set; }
         public DbSet<StoredRelation> StoredRelations { get; set; }
+        public DbSet<TagParserEntry> TagParserEntries { get; set; }
+        public DbSet<TagParserMatchRule> TagParserMatchRules { get; set; }
 
         //IConfiguration Config;
         public static string connectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;"; //Needs a default value.

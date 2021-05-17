@@ -39,6 +39,7 @@ namespace Larry
             InsertDefaultServerConfig();
             InsertDefaultFactionsToDb();
             InsertDefaultPaintTownConfigs();
+            InsertDefaultStyle();
         }
 
         public static void InsertAreaTypesToDb()
@@ -81,6 +82,23 @@ namespace Larry
             var db = new PraxisContext();
             db.ServerSettings.Add(new ServerSetting() { NorthBound = 90, SouthBound = -90, EastBound = 180, WestBound = -180 });
             db.SaveChanges();
+        }
+
+        public static void InsertDefaultStyle()
+        {
+            var db = new PraxisContext();
+            if (ParserSettings.DbMode == "SQLServer")
+            {
+                db.Database.BeginTransaction();
+                db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT TagParserEntries ON;");
+            }
+            db.TagParserEntries.AddRange(Singletons.defaultTagParserEntries);
+            db.SaveChanges();
+            if (ParserSettings.DbMode == "SQLServer")
+            {
+                db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT TagParserEntries OFF;");
+                db.Database.CommitTransaction();
+            }
         }
 
         public static void InsertDefaultPaintTownConfigs()
