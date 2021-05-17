@@ -46,7 +46,7 @@ namespace CoreComponents
             tpe.paint = paint;
         }
 
-        public static SKPaint GetStyleForOsmWay(List<WayTags> tags, ref List<TagParserEntry> styles)
+        public static SKPaint GetStyleForOsmWay(List<WayTags> tags)
         {                      
             if (tags == null || tags.Count() == 0)
             {
@@ -150,7 +150,7 @@ namespace CoreComponents
             var db = new PraxisContext();
             foreach (var sw in db.StoredWays)
             {
-                var paintStyle = GetStyleForOsmWay(sw.WayTags.ToList(), ref styles);
+                var paintStyle = GetStyleForOsmWay(sw.WayTags.ToList());
                 if (sw.wayGeometry.GeometryType == "LinearRing" && paintStyle.Style == SKPaintStyle.Fill)
                 {
                         var poly = factory.CreatePolygon((LinearRing)sw.wayGeometry);

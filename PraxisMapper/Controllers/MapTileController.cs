@@ -184,12 +184,6 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/DrawSlippyTileV4Test/{x}/{y}/{zoom}/{layer}")]
         public byte[] SlippyTestV4(int x, int y, int zoom, int layer)
         {
-            //this would be part of app startup if i go with this.
-            foreach (var tpe in Singletons.defaultTagParserEntries)
-            {
-                SetPaintForTPE(tpe);
-            }
-
             Random r = new Random();
             //FileStream fs = new FileStream(filename, FileMode.Open);
             //get location in lat/long format.
@@ -215,28 +209,10 @@ namespace PraxisMapper.Controllers
             var areaHeightDegrees = lat_degree_n - lat_degree_s;
             var areaWidthDegrees = 360 / n;
 
-            //Get relevant data from PBF 
-            //(can change that to other data source later)
-            //var elements = GetData((float)relevantArea.WestLongitude, (float)relevantArea.EastLongitude, (float)relevantArea.SouthLatitude, (float)relevantArea.NorthLatitude, fs);
             var db = new PraxisContext();
-            //db.ChangeTracker.LazyLoadingEnabled = false;
             var geo = Converters.GeoAreaToPolygon(relevantArea);
             var geoString = geo.ToText();
             var drawnItems = db.StoredWays.Include(c => c.WayTags).Where(w => geo.Intersects(w.wayGeometry)).OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToList();
-            //var drawnItemsSQL = db.StoredWays.Include(c => c.WayTags).Where(w => w.wayGeometry.Intersects(geo)).OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToQueryString();
-
-            //var testing
-            //var drawn2 = db.StoredWays.Include(c => c.WayTags).Where(w => w.wayGeometry.Intersects(geo) || w.wayGeometry.Contains(geo)).OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToList();
-            //var drawn3 = db.StoredWays.Include(c => c.WayTags).Where(w => geo.Covers(w.wayGeometry)).OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToList();
-            //var drawn4 = db.StoredWays.Where(w => w.wayGeometry.Intersects(geo)).ToList();
-
-
-            var styles = Singletons.defaultTagParserEntries;
-
-            //TEST LOGIC:
-            //take each relation, complete it, draw it in a random color.
-            //Take each area, complete it, draw it in a random color.
-            //Nodes that meet standalone drawing criteria get a solid white dot.
 
             //baseline image data stuff
             int imageSizeX = 512;
@@ -250,34 +226,22 @@ namespace PraxisMapper.Controllers
             canvas.Clear(bgColor);
             canvas.Scale(1, -1, imageSizeX / 2, imageSizeY / 2);
             SKPaint paint = new SKPaint();
-            SKColor color = new SKColor();
-            //var nodes = elements.Where(e => e.Type == OsmSharp.OsmGeoType.Node).Select(e => (OsmSharp.Node)e).ToLookup(k => k.Id);
-            //var rels = elements.Where(e => e.Type == OsmSharp.OsmGeoType.Relation).Select(e => (OsmSharp.Relation)e).ToList();
-            //foreach (var r2 in rels)
-            //{
-            //    //Draw this?
-            //}
-            //var ways = elements.Where(e => e.Type == OsmSharp.OsmGeoType.Way).Select(e => (OsmSharp.Way)e).ToList(); //How to order these?
-            //var mapDatas = new List<MapData>();
+            
             foreach (var w in drawnItems)
             {
                 var tempList = new List<WayTags>();
                 if (w.WayTags != null)
                     tempList = w.WayTags.ToList();
-                paint = GetStyleForOsmWay(tempList, ref styles);
+                paint = GetStyleForOsmWay(tempList);
                 paint.IsAntialias = true;
                 var path = new SKPath();
                 switch (w.wayGeometry.GeometryType)
                 {
                     case "Polygon":
                         path.AddPoly(Converters.PolygonToSKPoints(w.wayGeometry, relevantArea, degreesPerPixelX, degreesPerPixelY));
-                        //paint.Style = SKPaintStyle.Fill;
-                        //paint.Color = new SKColor((byte)r.Next(0, 255), (byte)r.Next(0, 255), (byte)r.Next(0, 255));
                         canvas.DrawPath(path, paint);
                         break;
                     case "MultiPolygon":
-                        //paint.Color = new SKColor((byte)r.Next(0, 255), (byte)r.Next(0, 255), (byte)r.Next(0, 255));
-                        //paint.Style = SKPaintStyle.Fill;
                         foreach (var p in ((MultiPolygon)w.wayGeometry).Geometries)
                         {
                             var path2 = new SKPath();
@@ -286,7 +250,6 @@ namespace PraxisMapper.Controllers
                         }
                         break;
                     case "LineString":
-                        //TODO: determine if this LineString is a closed shape and if that closed shape is supposed to be filled.
                         var firstPoint = w.wayGeometry.Coordinates.First();
                         var lastPoint = w.wayGeometry.Coordinates.Last();
                         var points = Converters.PolygonToSKPoints(w.wayGeometry, relevantArea, degreesPerPixelX, degreesPerPixelY);
@@ -301,9 +264,6 @@ namespace PraxisMapper.Controllers
                                 continue;
                             }
                         }
-                        //paint.Style = SKPaintStyle.Stroke;
-                        //paint.Color = new SKColor((byte)r.Next(0, 255), (byte)r.Next(0, 255), (byte)r.Next(0, 255));
-                        //var points = Converters.PolygonToSKPoints(w.wayGeometry, relevantArea, degreesPerPixelX, degreesPerPixelY);
                         var a = points.First() == points.Last();
                         for (var line = 0; line < points.Length - 1; line++)
                             canvas.DrawLine(points[line], points[line + 1], paint);
@@ -311,18 +271,14 @@ namespace PraxisMapper.Controllers
                     case "MultiLineString":
                         foreach (var p in ((MultiLineString)w.wayGeometry).Geometries)
                         {
-                            //paint.Style = SKPaintStyle.Stroke;
-                            //paint.Color = new SKColor((byte)r.Next(0, 255), (byte)r.Next(0, 255), (byte)r.Next(0, 255));
                             var points2 = Converters.PolygonToSKPoints(p, relevantArea, degreesPerPixelX, degreesPerPixelY);
                             for (var line = 0; line < points2.Length - 1; line++)
                                 canvas.DrawLine(points2[line], points2[line + 1], paint);
                         }
                         break;
                     case "Point":
-                        //paint.Style = SKPaintStyle.Fill;
                         var circleRadius = (float)(.000125 / degreesPerPixelX / 2); //I want points to be drawn as 1 Cell10 in diameter.
                         var convertedPoint = Converters.PolygonToSKPoints(w.wayGeometry, relevantArea, degreesPerPixelX, degreesPerPixelY);
-                        //paint.Color = new SKColor((byte)r.Next(0, 255), (byte)r.Next(0, 255), (byte)r.Next(0, 255));
                         canvas.DrawCircle(convertedPoint[0], circleRadius, paint);
                         break;
                     default:
@@ -330,25 +286,14 @@ namespace PraxisMapper.Controllers
                         break;
 
                 }
-
-                //draw all the WayData entry.
-                //var path = new SKPath();
-                //path.AddPoly(Converters.PolygonToSKPoints(place.place, relevantArea, degreesPerPixelX, degreesPerPixelY));
-                //paint.Style = SKPaintStyle.Fill;
-                //paint.Color = new SKColor((byte)r.Next(0, 255), (byte)r.Next(0, 255), (byte)r.Next(0, 255));
-                //canvas.DrawPath(path, paint);
             }
 
-            //Save object to .png file.
             var ms = new MemoryStream();
             var skms = new SKManagedWStream(ms);
             bitmap.Encode(skms, SKEncodedImageFormat.Png, 100);
             var results = ms.ToArray();
             skms.Dispose(); ms.Close(); ms.Dispose();
-            //File.WriteAllBytes("test.png", results);
             return results;
-        }
-
-        
+        }        
     }
 }
