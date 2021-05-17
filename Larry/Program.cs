@@ -387,7 +387,7 @@ namespace Larry
                                             .Select(t => new WayTags() { storedWay = swR, Key = t.Key, Value = t.Value }).ToList();
 
 
-                                if (swR.wayGeometry.GeometryType == "LinearRing") //may need to expand this to LineString and check end points? but LinearRing should cover that?
+                                if (swR.wayGeometry.GeometryType == "LinearRing" || (swR.wayGeometry.GeometryType == "LineString" && swR.wayGeometry.Coordinates.First() == swR.wayGeometry.Coordinates.Last()))
                                 {
                                     //I want to update all LinearRings to Polygons, and let the style determine if they're Filled or Stroked.
                                     var poly = factory.CreatePolygon((LinearRing)swR.wayGeometry);
@@ -482,6 +482,12 @@ namespace Larry
                                             !t.Key.StartsWith("was:")
                                             )
                                             .Select(t => new WayTags() { storedWay = sw2, Key = t.Key, Value = t.Value }).ToList();
+                                if (sw2.wayGeometry.GeometryType == "LinearRing" || (sw2.wayGeometry.GeometryType == "LineString" && sw2.wayGeometry.Coordinates.First() == sw2.wayGeometry.Coordinates.Last()))
+                                {
+                                    //I want to update all LinearRings to Polygons, and let the style determine if they're Filled or Stroked.
+                                    var poly = factory.CreatePolygon((LinearRing)sw2.wayGeometry);
+                                    sw2.wayGeometry = poly;
+                                }
                                 db.StoredWays.Add(sw2);
                             }
                             catch (Exception ex)
