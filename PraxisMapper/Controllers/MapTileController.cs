@@ -40,7 +40,8 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        [Route("/[controller]/DrawSlippyTile/{x}/{y}/{zoom}/{layer}")]
+        //[Route("/[controller]/DrawSlippyTile/{x}/{y}/{zoom}/{layer}")] //old, not slippy map conventions
+        [Route("/[controller]/DrawSlippyTile/{layer}/{zoom}/{x}/{y}.png")] //slippy map conventions.
         public FileContentResult DrawSlippyTile(int x, int y, int zoom, int layer)
         {
             //slippymaps don't use coords. They use a grid from -180W to 180E, 85.0511N to -85.0511S (they might also use radians, not degrees, for an additional conversion step)
