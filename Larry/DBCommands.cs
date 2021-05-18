@@ -87,6 +87,11 @@ namespace Larry
         public static void InsertDefaultStyle()
         {
             var db = new PraxisContext();
+            //Remove any existing entries, in case I'm refreshing the rules on an existing entry.
+            db.Database.ExecuteSqlRaw("DELETE FROM TagParserEntriesTagParserMatchRules");
+            db.Database.ExecuteSqlRaw("DELETE FROM TagParserEntries");
+            db.Database.ExecuteSqlRaw("DELETE FROM TagParserMatchRules");
+
             if (ParserSettings.DbMode == "SQLServer")
             {
                 db.Database.BeginTransaction();
@@ -137,7 +142,6 @@ namespace Larry
             Log.WriteLog("GeneratedMapData cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
             osm.Database.ExecuteSqlRaw("TRUNCATE TABLE SlippyMapTiles");
             Log.WriteLog("SlippyMapTiles cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
-
             Log.WriteLog("DB cleaned at " + DateTime.Now);
         }
 

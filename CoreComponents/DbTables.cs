@@ -200,6 +200,7 @@ namespace CoreComponents
             [NotMapped]
             public SKPaint paint { get; set; } //Fill in on app start.
             public int Priority { get; set; } //order tags should be matched in. EX: Retail should be matched before Building, since its more specific and useful. But usually smallest/shortest path goes last and biggest/longest goes first
+            public bool IsGameElement { get; set; } // This tag should be used when asking for game areas, not just map tiles. Would let me use a single table for both again.
         }
 
         public class TagParserMatchRule
