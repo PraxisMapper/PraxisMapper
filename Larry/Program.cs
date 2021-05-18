@@ -252,11 +252,6 @@ namespace Larry
                 PbfRawDump.DumpToDb(ParserSettings.PbfFolder + "delaware-latest.osm.pbf"); //Delaware is the smallest state.
             }
 
-            if (args.Any(a => a.StartsWith("-DrawFromRaw")))
-            {
-                DrawFromRawPbf.DrawFromRawTest1(ParserSettings.PbfFolder + "ohio-latest.osm.pbf"); //Delaware is the smallest state.
-            }
-
             if (args.Any(a => a.StartsWith("-importV4")))
             {
                 // 4th generation of logic for importing OSM data from PBF file.
@@ -264,8 +259,8 @@ namespace Larry
                 //Tags will be saved to a separate table. (this lets me update formatting rules without reimporting data).
                 //All entries  are processed into the database as geometry objects into one table.
                 //Use the built-in Feature converter in OsmSharp.Geo instead of maintaining the OSM-to-Geometry logic myself.
-                //Only nodes with tags will be imported as their own entries. Untagged nodes will be used to process way geometry and then discarded/not stored.
-                //attempt to stream data to avoid memory issues.
+                //Only nodes that match the tag rules will be imported as their own entries. Untagged nodes will be ignored.
+                //attempt to stream data to avoid memory issues. MIght need to do multiple filters on small areas (degree square? half-degree?)
 
                 //I need to avoid adding duplicate entries, and i dont want to do huge passes per entry added. 
                 //Is there an 'ignore on duplicate' command or setting in MariaDB and SQL Server? I might need to set those. CAn it be the default behavior?
@@ -282,452 +277,215 @@ namespace Larry
                 float south = source.Where(s => s.Type == OsmGeoType.Node).Min(s => (float)((OsmSharp.Node)s).Latitude);
                 float west = source.Where(s => s.Type == OsmGeoType.Node).Min(s => (float)((OsmSharp.Node)s).Longitude);
                 float east = source.Where(s => s.Type == OsmGeoType.Node).Max(s => (float)((OsmSharp.Node)s).Longitude);
-                Log.WriteLog("Bounding box for provided file determined at " + DateTime.Now + ", splitting into " + (boxSteps * boxSteps) + " sub-passes.");
+                var minsouth = (float)Math.Truncate(south);
+                var minWest = (float)Math.Truncate(west);
+                var maxNorth = (float)Math.Truncate(north) + 1;
+                var maxEast = (float)Math.Truncate(east) + 1;
+                Log.WriteLog("Bounding box for provided file determined at " + DateTime.Now + ", splitting into " + ((maxNorth - minsouth) * (maxEast - minWest)) + " sub-passes.");
+                source.Dispose(); source = null;
+                fs.Close(); fs.Dispose(); fs = null;
 
-                //use west and south as baseline values, add step amounts to those to determine boxes
-                var latSteps = (north - south) / boxSteps;
-                var lonSteps = (east - west) / boxSteps;
+                HashSet<long> relationsToReload = new HashSet<long>();
 
-                for (int i = 0; i < boxSteps; i++) //i is for longitude
-                    for (int j = 0; j < boxSteps; j++) //j is for latitude.
+                for (var i = minWest; i < maxEast; i++)
+                    for (var j = minsouth; j < maxNorth; j++)
                     {
-                        //maybe if i functionalize this inner loop, that'll clear out whatever's persisting in memory.
-                        HashSet<long> waysToSkip = new HashSet<long>();
-
-                        //This block was moved here, hoping to get stuff to GC away and free up memory. Didn't seem to work. Just makes loading stuff take longer.
-                        //fs = System.IO.File.OpenRead(pbfFilename);
-                        //source.Dispose(); source = null;
-                        fs.Close(); fs.Dispose();
-                        fs = System.IO.File.OpenRead(pbfFilename);
-                        source = new PBFOsmStreamSource(fs);
-                        //end hopefullly-GC-ing block
-
-                        Log.WriteLog("Box " + i + "," + j + ":" + (west + (lonSteps * i)) + " to " + ((west + (lonSteps * (i + 1))) + " | " + (south + (latSteps * j)) + " to " + (south + (latSteps * (j + 1)))));
-                        var thisBox = source.FilterBox((west + (lonSteps * i)), south + (latSteps * (j + 1)), west + (lonSteps * (i + 1)), south + (latSteps * j), true); //I think this is the right setup for this. 
-                                                                                                                                                                          //var allData = thisBox.ToList(); //Dramatically faster than re-loading everything from thisbox.Where() each run.
-                        var relations = thisBox.AsParallel()
-                        .ToComplete()
-                        .Where(p => p.Type == OsmGeoType.Relation);
-                       //.ToList();
-                        //.First();
-
-
-                        //This seems to work, but I do want to include info from the relation too
-                        //var relations2 = thisBox.AsParallel()
-                        //  .Where(p => p.Type == OsmGeoType.Relation)
-                        //  .ToFeatureSource();
-
-
-                        //foreach(var r in relations2)
-                        //{
-                        //    var feature = OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(r);
-                        //}    
-
-                        Log.WriteLog("Relations loaded at " + DateTime.Now);
-
-                        var db = new PraxisContext();
-                        db.ChangeTracker.AutoDetectChangesEnabled = false;
-
-                        //TODO: in order to make sure every element displays correctly, I need to force linestrings that should be filled
-                        //to be polygons here. (Otherwise, they don't show up in tiles that don't touch the edge of the string. See: Delaware Bay).
-
-                        foreach (var r in relations) //This is where the first memory peak hits. it does load everything into memory
-                        {
-                            try
-                            {
-                                var feature = OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(r); //Should always be 1, but this is a List value.
-                                if (feature.Count() != 1)
-                                {
-                                    Log.WriteLog("Error: Relation " + r.Id + " didn't return expected number of features (" + feature.Count() + ")");
-                                    continue;
-                                }
-                                var swR = new StoredWay();
-                                swR.sourceItemID = r.Id;
-                                swR.sourceItemType = 3;
-                                swR.wayGeometry = feature.First().Geometry;
-                                swR.WayTags = r.Tags.Where(t =>
-                                            t.Key != "source" &&
-                                            !t.Key.StartsWith("addr:") &&
-                                            !t.Key.StartsWith("alt_name:") &&
-                                            !t.Key.StartsWith("brand") &&
-                                            !t.Key.StartsWith("building:") &&
-                                            !t.Key.StartsWith("change:") &&
-                                            !t.Key.StartsWith("contact:") &&
-                                            !t.Key.StartsWith("created_by") &&
-                                            !t.Key.StartsWith("demolished:") &&
-                                            !t.Key.StartsWith("destination:") &&
-                                            !t.Key.StartsWith("disused:") &&
-                                            !t.Key.StartsWith("email") &&
-                                            !t.Key.StartsWith("fax") &&
-                                            !t.Key.StartsWith("FIXME") &&
-                                            !t.Key.StartsWith("generator:") &&
-                                            !t.Key.StartsWith("gnis:") &&
-                                            !t.Key.StartsWith("hgv:") &&
-                                            !t.Key.StartsWith("import_uuid") &&
-                                            !t.Key.StartsWith("junction:") &&
-                                            !t.Key.StartsWith("maxspeed") &&
-                                            !t.Key.StartsWith("mtb:") &&
-                                            !t.Key.StartsWith("nist:") &&
-                                            !t.Key.StartsWith("not:") &&
-                                            !t.Key.StartsWith("old_name:") &&
-                                            !t.Key.StartsWith("parking:") &&
-                                            !t.Key.StartsWith("payment:") &&
-                                            !t.Key.StartsWith("name:") &&
-                                            !t.Key.StartsWith("recycling:") &&
-                                            !t.Key.StartsWith("ref:") &&
-                                            !t.Key.StartsWith("reg_name:") &&
-                                            !t.Key.StartsWith("roof:") &&
-                                            !t.Key.StartsWith("source:") &&
-                                            !t.Key.StartsWith("subject:") &&
-                                            !t.Key.StartsWith("telephone") &&
-                                            !t.Key.StartsWith("tiger:") &&
-                                            !t.Key.StartsWith("turn:") &&
-                                            !t.Key.StartsWith("was:")
-                                            )
-                                            .Select(t => new WayTags() { storedWay = swR, Key = t.Key, Value = t.Value }).ToList();
-
-
-                                if (swR.wayGeometry.GeometryType == "LinearRing" || (swR.wayGeometry.GeometryType == "LineString" && swR.wayGeometry.Coordinates.First() == swR.wayGeometry.Coordinates.Last()))
-                                {
-                                    //I want to update all LinearRings to Polygons, and let the style determine if they're Filled or Stroked.
-                                    var poly = factory.CreatePolygon((LinearRing)swR.wayGeometry);
-                                    swR.wayGeometry = poly;
-                                }
-                                db.StoredWays.Add(swR);
-
-                                foreach(var w in ((OsmSharp.Complete.CompleteRelation)r).Members)
-                                {
-                                    waysToSkip.Add(w.Member.Id);
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                Log.WriteLog("Error Processing Relation " + r.Id + ": " + ex.Message);
-                            }
-                        }
-
-
-                        //List<OsmSharp.Complete.CompleteRelation> relations = allData.AsParallel().Where(p => p.Type == OsmGeoType.Relation)
-                        //    .ToComplete()
-                        //    .Select(p => (OsmSharp.Complete.CompleteRelation)p)
-                        //.ToList();
-                        Log.WriteLog("Relations loaded at " + DateTime.Now);
-
-                        //var relation2 = allData.AsParallel().Where(p => p.Type == OsmGeoType.Relation)
-                        //    .Select(p => (OsmSharp.Relation)p)
-                        //.ToList();
-
-
-
-                        var ways = thisBox.AsParallel()
-                        .ToComplete()
-                        .Where(p => p.Type == OsmGeoType.Way)
-                        .ToList();
-                        Log.WriteLog("Ways read at " + DateTime.Now);
-
-                        foreach (var w in ways)
-                        {
-                            try
-                            {
-                                if (waysToSkip.Contains(w.Id))
-                                    continue;
-
-                                var feature = OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(w);
-                                if (feature.Count() != 1)
-                                {
-                                    Log.WriteLog("Error: Way " + w.Id + " didn't return expected number of features (" + feature.Count() + ")");
-                                    continue;
-                                }
-                                var sw2 = new StoredWay();
-                                sw2.sourceItemID = w.Id;
-                                sw2.sourceItemType = 2;
-                                sw2.wayGeometry = feature.First().Geometry;
-                                sw2.WayTags = w.Tags.Where(t =>
-                                            t.Key != "source" &&
-                                            !t.Key.StartsWith("addr:") &&
-                                            !t.Key.StartsWith("alt_name:") &&
-                                            !t.Key.StartsWith("brand") &&
-                                            !t.Key.StartsWith("building:") &&
-                                            !t.Key.StartsWith("change:") &&
-                                            !t.Key.StartsWith("contact:") &&
-                                            !t.Key.StartsWith("created_by") &&
-                                            !t.Key.StartsWith("demolished:") &&
-                                            !t.Key.StartsWith("destination:") &&
-                                            !t.Key.StartsWith("disused:") &&
-                                            !t.Key.StartsWith("email") &&
-                                            !t.Key.StartsWith("fax") &&
-                                            !t.Key.StartsWith("FIXME") &&
-                                            !t.Key.StartsWith("generator:") &&
-                                            !t.Key.StartsWith("gnis:") &&
-                                            !t.Key.StartsWith("hgv:") &&
-                                            !t.Key.StartsWith("import_uuid") &&
-                                            !t.Key.StartsWith("junction:") &&
-                                            !t.Key.StartsWith("maxspeed") &&
-                                            !t.Key.StartsWith("mtb:") &&
-                                            !t.Key.StartsWith("nist:") &&
-                                            !t.Key.StartsWith("not:") &&
-                                            !t.Key.StartsWith("old_name:") &&
-                                            !t.Key.StartsWith("parking:") &&
-                                            !t.Key.StartsWith("payment:") &&
-                                            !t.Key.StartsWith("name:") &&
-                                            !t.Key.StartsWith("recycling:") &&
-                                            !t.Key.StartsWith("ref:") &&
-                                            !t.Key.StartsWith("reg_name:") &&
-                                            !t.Key.StartsWith("roof:") &&
-                                            !t.Key.StartsWith("source:") &&
-                                            !t.Key.StartsWith("subject:") &&
-                                            !t.Key.StartsWith("telephone") &&
-                                            !t.Key.StartsWith("tiger:") &&
-                                            !t.Key.StartsWith("turn:") &&
-                                            !t.Key.StartsWith("was:")
-                                            )
-                                            .Select(t => new WayTags() { storedWay = sw2, Key = t.Key, Value = t.Value }).ToList();
-                                if (sw2.wayGeometry.GeometryType == "LinearRing" || (sw2.wayGeometry.GeometryType == "LineString" && sw2.wayGeometry.Coordinates.First() == sw2.wayGeometry.Coordinates.Last()))
-                                {
-                                    //I want to update all LinearRings to Polygons, and let the style determine if they're Filled or Stroked.
-                                    var poly = factory.CreatePolygon((LinearRing)sw2.wayGeometry);
-                                    sw2.wayGeometry = poly;
-                                }
-                                db.StoredWays.Add(sw2);
-                            }
-                            catch (Exception ex)
-                            {
-                                if (w == null)
-                                    Log.WriteLog("Error Processing Way : Way was null");
-                                else
-                                    Log.WriteLog("Error Processing Way " + w.Id + ": " + ex.Message);
-                            }
-                        }
-
-                        db.SaveChanges();
-
-                        //var nodes = allData.AsParallel().Where(p => p.Type == OsmGeoType.Node)
-                        //    .Select(p => (OsmSharp.Node)p)
-                        //.ToLookup(n => n.Id);
-                        //Log.WriteLog("All Relevant data pulled from box " + i + "," + j + " at " + DateTime.Now);
-                        //allData.Clear();
-                        //allData = null;
-
-                        ////var mapDatas = new List<MapData>();
-
-                        //double entryCounter = 0;
-                        //double totalCounter = 0;
-                        //var totalEntries = ways.Count();
-                        //DateTime startedProcess = DateTime.Now;
-                        //TimeSpan difference = DateTime.Now - DateTime.Now;
-                        //System.Threading.ReaderWriterLockSlim locker = new System.Threading.ReaderWriterLockSlim();
-                        //var awaitResults = db.SaveChangesAsync();
-                        //HashSet<long> processedWaysToSkip = new HashSet<long>();
-
-                        ////Parallel.ForEach(relations, re => {
-                        //foreach (var re in relations) { 
-                        //    totalCounter++;
-                        //    //get node data and translate it to image coords
-                        //    var r = (OsmSharp.Complete.CompleteRelation)re;
-                        //    var thisrel = PbfOperations.ProcessCompleteRelation(r);
-                        //    //WayData wd = PbfOperations.ProcessRelation(r, ref ways);
-
-                        //    //foreach (long nr in w.Nodes)
-                        //    //{
-                        //    //    var osmNode = nodes[nr].FirstOrDefault();
-                        //    //    if (osmNode != null)
-                        //    //    {
-                        //    //        var myNode = new NodeData(osmNode.Id.Value, (float)osmNode.Latitude, (float)osmNode.Longitude);
-                        //    //        wd.nds.Add(myNode);
-                        //    //    }
-                        //    //}
-
-                        //    //quick hack to make this work. Actual area type is ignored.
-
-                        //    if (thisrel == null)
-                        //        continue;
-                        //        //return;
-                        //    //place.paint = GetStyleForOsmWay(w.Tags);
-                        //    StoredWay swR = new StoredWay();
-                        //    swR.wayGeometry = thisrel.place;
-                        //    swR.sourceItemID = r.Id;
-                        //    swR.sourceItemType = 3; //relation
-                        //    //Note: truncating tags will save a lot of Hd space. Tags take up about twice the space of actual Way geometry if you don't remove them.
-                        //    //This is a pretty solid list of tags I don't need to save for a game that needs maptiles.
-                        //    swR.WayTags = r.Tags.Where(t =>
-                        //                t.Key != "source" &&
-                        //                !t.Key.StartsWith("addr:") &&
-                        //                !t.Key.StartsWith("alt_name:") &&
-                        //                !t.Key.StartsWith("brand") &&
-                        //                !t.Key.StartsWith("building:") &&
-                        //                !t.Key.StartsWith("change:") &&
-                        //                !t.Key.StartsWith("contact:") &&
-                        //                !t.Key.StartsWith("created_by") &&
-                        //                !t.Key.StartsWith("demolished:") &&
-                        //                !t.Key.StartsWith("destination:") &&
-                        //                !t.Key.StartsWith("disused:") &&
-                        //                !t.Key.StartsWith("email") &&
-                        //                !t.Key.StartsWith("fax") &&
-                        //                !t.Key.StartsWith("FIXME") &&
-                        //                !t.Key.StartsWith("generator:") &&
-                        //                !t.Key.StartsWith("gnis:") &&
-                        //                !t.Key.StartsWith("hgv:") &&
-                        //                !t.Key.StartsWith("import_uuid") &&
-                        //                !t.Key.StartsWith("junction:") &&
-                        //                !t.Key.StartsWith("maxspeed") &&
-                        //                !t.Key.StartsWith("mtb:") &&
-                        //                !t.Key.StartsWith("nist:") &&
-                        //                !t.Key.StartsWith("not:") &&
-                        //                !t.Key.StartsWith("old_name:") &&
-                        //                !t.Key.StartsWith("parking:") &&
-                        //                !t.Key.StartsWith("payment:") &&
-                        //                !t.Key.StartsWith("name:") &&
-                        //                !t.Key.StartsWith("recycling:") &&
-                        //                !t.Key.StartsWith("ref:") &&
-                        //                !t.Key.StartsWith("reg_name:") &&
-                        //                !t.Key.StartsWith("roof:") &&
-                        //                !t.Key.StartsWith("source:") &&
-                        //                !t.Key.StartsWith("subject:") &&
-                        //                !t.Key.StartsWith("telephone") &&
-                        //                !t.Key.StartsWith("tiger:") &&
-                        //                !t.Key.StartsWith("turn:") &&
-                        //                !t.Key.StartsWith("was:")
-                        //                )
-                        //                .Select(t => new WayTags() { storedWay = swR, Key = t.Key, Value = t.Value }).ToList();
-                        //    locker.EnterWriteLock(); //Only one thread gets to save at a time.
-                        //    db.StoredWays.Add(swR);
-                        //    foreach (var way in r.Members.Where(m => m.Member.Type == OsmGeoType.Way))
-                        //        processedWaysToSkip.Add(way.Member.Id);
-
-                        //    //bulkList.Add(sw);
-                        //    entryCounter++;
-                        //    if (entryCounter > 10000)
-                        //    {
-                        //        //Task.WaitAll(awaitResults); //Don't start saving if we haven't finished the last save.
-                        //        //awaitResults = db.SaveChangesAsync(); //Async fails because we'll Add the next entry before this saves.
-                        //        //db.SaveChanges(); //This takes about 1.5s per 1000 entries, and about 4000 entries get processed per second, so even async doesn't help here.
-                        //        //Bulk insert is nearly useless, possibly because of the geometry column.
-                        //        entryCounter = 0;
-                        //        difference = DateTime.Now - startedProcess;
-                        //        double percentage = (totalCounter / totalEntries) * 100;
-                        //        var entriesPerSecond = totalCounter / difference.TotalSeconds;
-                        //        var secondsLeft = (totalEntries - totalCounter) / entriesPerSecond;
-                        //        TimeSpan estimatedTime = TimeSpan.FromSeconds(secondsLeft);
-                        //        Log.WriteLog(Math.Round(entriesPerSecond) + " Relations per second processed, " + Math.Round(percentage, 2) + "% done, estimated time remaining: " + estimatedTime.ToString());
-                        //    }
-                        //    locker.ExitWriteLock();
-                        //} //);
-
-                        //db.SaveChanges(); //save relations.
-
-
-
-                        //foreach (var w in ways)
-                        //Parallel.ForEach(ways, w =>
-                        //{
-                        //    totalCounter++;
-                        //    //get node data and translate it to image coords
-                        //    WayData wd = new WayData();
-                        //    foreach (long nr in w.Nodes)
-                        //    {
-                        //        var osmNode = nodes[nr].FirstOrDefault();
-                        //        if (osmNode != null)
-                        //        {
-                        //            var myNode = new NodeData(osmNode.Id.Value, (float)osmNode.Latitude, (float)osmNode.Longitude);
-                        //            wd.nds.Add(myNode);
-                        //        }
-                        //    }
-
-                        //    //quick hack to make this work. Actual area type is ignored.
-                        //    wd.AreaType = "park";
-                        //    wd.id = w.Id.Value;
-                        //    var place = Converters.ConvertWayToMapData(ref wd);
-                        //    if (place == null)
-                        //        //continue;
-                        //        return;
-                        //    //place.paint = GetStyleForOsmWay(w.Tags);
-                        //    StoredWay sw = new StoredWay();
-                        //    sw.wayGeometry = place.place;
-                        //    sw.sourceItemID = w.Id.Value;
-                        //    sw.sourceItemType = 2; //way
-                        //    //Note: truncating tags will save a lot of Hd space. Tags take up about twice the space of actual Way geometry if you don't remove them.
-                        //    //This is a pretty solid list of tags I don't need to save for a game that needs maptiles.
-                        //    sw.WayTags = w.Tags.Where(t =>
-                        //                t.Key != "source" &&
-                        //                !t.Key.StartsWith("addr:") &&
-                        //                !t.Key.StartsWith("alt_name:") &&
-                        //                !t.Key.StartsWith("brand") &&
-                        //                !t.Key.StartsWith("building:") &&
-                        //                !t.Key.StartsWith("change:") &&
-                        //                !t.Key.StartsWith("contact:") &&
-                        //                !t.Key.StartsWith("created_by") &&
-                        //                !t.Key.StartsWith("demolished:") &&
-                        //                !t.Key.StartsWith("destination:") &&
-                        //                !t.Key.StartsWith("disused:") &&
-                        //                !t.Key.StartsWith("email") &&
-                        //                !t.Key.StartsWith("fax") &&
-                        //                !t.Key.StartsWith("FIXME") &&
-                        //                !t.Key.StartsWith("generator:") &&
-                        //                !t.Key.StartsWith("gnis:") &&
-                        //                !t.Key.StartsWith("hgv:") &&
-                        //                !t.Key.StartsWith("import_uuid") &&
-                        //                !t.Key.StartsWith("junction:") &&
-                        //                !t.Key.StartsWith("maxspeed") &&
-                        //                !t.Key.StartsWith("mtb:") &&
-                        //                !t.Key.StartsWith("nist:") &&
-                        //                !t.Key.StartsWith("not:") &&
-                        //                !t.Key.StartsWith("old_name:") &&
-                        //                !t.Key.StartsWith("parking:") &&
-                        //                !t.Key.StartsWith("payment:") &&
-                        //                !t.Key.StartsWith("name:") &&
-                        //                !t.Key.StartsWith("recycling:") &&
-                        //                !t.Key.StartsWith("ref:") &&
-                        //                !t.Key.StartsWith("reg_name:") &&
-                        //                !t.Key.StartsWith("roof:") &&
-                        //                !t.Key.StartsWith("source:") &&
-                        //                !t.Key.StartsWith("subject:") &&
-                        //                !t.Key.StartsWith("telephone") &&
-                        //                !t.Key.StartsWith("tiger:") &&
-                        //                !t.Key.StartsWith("turn:") &&                                        
-                        //                !t.Key.StartsWith("was:")
-                        //                )
-                        //                .Select(t => new WayTags() { storedWay = sw, Key = t.Key, Value = t.Value }).ToList();
-                        //    locker.EnterWriteLock(); //Only one thread gets to save at a time.
-                        //    db.StoredWays.Add(sw);
-                        //    //bulkList.Add(sw);
-                        //    entryCounter++;
-                        //    if (entryCounter > 10000)
-                        //    {
-                        //        //Task.WaitAll(awaitResults); //Don't start saving if we haven't finished the last save.
-                        //        //awaitResults = db.SaveChangesAsync(); //Async fails because we'll Add the next entry before this saves.
-                        //        //db.SaveChanges(); //This takes about 1.5s per 1000 entries, and about 4000 entries get processed per second, so even async doesn't help here.
-                        //        //Bulk insert is nearly useless, possibly because of the geometry column.
-                        //        entryCounter = 0;
-                        //        difference = DateTime.Now - startedProcess;
-                        //        double percentage = (totalCounter / totalEntries) * 100;
-                        //        var entriesPerSecond = totalCounter / difference.TotalSeconds;
-                        //        var secondsLeft = (totalEntries - totalCounter) / entriesPerSecond;
-                        //        TimeSpan estimatedTime = TimeSpan.FromSeconds(secondsLeft);
-                        //        Log.WriteLog(Math.Round(entriesPerSecond) + " Ways per second processed, " + Math.Round(percentage, 2) + "% done, estimated time remaining: " + estimatedTime.ToString());
-                        //    }
-                        //    locker.ExitWriteLock();
-                        //});
-                        Log.WriteLog("Saving changes to the database.....");
-                        System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-                        sw.Start();
-                        db.SaveChanges(); //Get the last entries saved before we move on.
-                        sw.Stop();
-                        Log.WriteLog("Saving complete in " + sw.Elapsed + ". Moving on to the next block.");
-                        //another attempt at memory management
-                        //ways.Clear(); ways = null;
-                        //nodes = null;
-                        db.Dispose(); db = null;
-                        source.Dispose(); source = null;
+                        var failedRelations = ProcessDegreeAreaV4(j, i, pbfFilename); //This happens to be a 4-digit PlusCode, being 1 degree square.
+                        foreach (var fr in failedRelations)
+                            relationsToReload.Add(fr);
                     }
+                //NOTES:
+                //This mostly works, but larger relations (Delaware Bay, again) doesn't load up.
+                //I might have to do a special pass for larger relations, since it seems like it might be specifically the big lineString ones
+                //that fail when chopped up into smaller pieces.
+                //Could track those.
+
+                //special pass for failed elements:
+                Log.WriteLog("Attempting to reload failed elements...");
+                fs = System.IO.File.OpenRead(pbfFilename);
+                source = new PBFOsmStreamSource(fs);
+                PraxisContext db = new PraxisContext();
+                var secondChance = source.ToComplete().Where(s => s.Type == OsmGeoType.Relation && !relationsToReload.Contains(s.Id)); //logic change - only load relations we haven't tried yet.
+                foreach(var sc in secondChance)
+                {
+                    var found = ConvertOsmEntryToStoredWay(sc);
+                    if (found != null)
+                    {
+                        db.StoredWays.Add(found);
+                    }
+                }
+                Log.WriteLog("Saving final data....");
+                db.SaveChanges();
+                Log.WriteLog("Final pass completed.");
+
+
+
             }
+        }
 
-            //This library wasn't labeled correctly. It wants MapBox data, not OSM data.
-            //if (args.Any(a => a.StartsWith("-VTRtest")))
-            //{
-            //VTRTest.DrawTileFromPBF(ParserSettings.PbfFolder + "delaware-latest.osm.pbf");
-            //}
+        //return;
+        //}
 
-            return;
+        public static List<long> ProcessDegreeAreaV4(float south, float west, string filename)
+        {
+            List<long> failedRelations = new List<long>(); //return this, so the parent function knows what to look for in a full-pass.
+
+            Log.WriteLog("Starting " + filename + " V4 data read at " + DateTime.Now);
+            var fs = new FileStream(filename, FileMode.Open);
+            var source = new PBFOsmStreamSource(fs);
+            HashSet<long> waysToSkip = new HashSet<long>();
+
+            Log.WriteLog("Box from " + south + "," + west + " to " + (south + 1) + "," + (west + 1));
+            var thisBox = source.FilterBox(west, south + 1, west + 1, south, true);
+            var relations = thisBox.AsParallel()
+            .ToComplete()
+            .Where(p => p.Type == OsmGeoType.Relation);
+
+            var db = new PraxisContext();
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
+
+            long relationCounter = 0;
+            double totalCounter = 0;
+            double totalRelations = relations.Count();
+            long totalItems = 0;
+            DateTime startedProcess = DateTime.Now;
+            TimeSpan difference = DateTime.Now - DateTime.Now;
+            System.Threading.ReaderWriterLockSlim locker = new System.Threading.ReaderWriterLockSlim();
+
+            Log.WriteLog("Loading relation data into RAM...");
+            foreach (var r in relations) //This is where the first memory peak hits. it does load everything into memory
+            //Parallel.ForEach(relations, r => //Relations might possibly be faster multithreading than not, though it's not a big difference.
+            {
+                if (totalCounter == 0)
+                {
+                    Log.WriteLog("Data loaded.");
+                    startedProcess = DateTime.Now;
+                    difference = startedProcess - startedProcess;
+                }
+                totalCounter++;
+                try
+                {
+                    failedRelations.Add(r.Id);
+                    var convertedRelation = ConvertOsmEntryToStoredWay(r);
+                    if (convertedRelation == null)
+                    {
+                        //failedRelations.Add(r.Id);
+                        continue;
+                    }
+
+                    //locker.EnterWriteLock();
+                    db.StoredWays.Add(convertedRelation);
+                    totalItems++;
+                    relationCounter++;
+                    if (relationCounter > 100)
+                    {
+                        difference = DateTime.Now - startedProcess;
+                        double percentage = (totalCounter / totalRelations) * 100;
+                        var entriesPerSecond = totalCounter / difference.TotalSeconds;
+                        var secondsLeft = (totalRelations - totalCounter) / entriesPerSecond;
+                        TimeSpan estimatedTime = TimeSpan.FromSeconds(secondsLeft);
+                        Log.WriteLog(Math.Round(entriesPerSecond) + " Relations per second processed, " + Math.Round(percentage, 2) + "% done, estimated time remaining: " + estimatedTime.ToString());
+                        relationCounter = 0;
+                    }
+                    //locker.ExitWriteLock();
+
+                    foreach (var w in ((OsmSharp.Complete.CompleteRelation)r).Members)
+                    {
+                        if (w.Role == "outer") //Inner ways might have a tag match to apply later.
+                            waysToSkip.Add(w.Member.Id);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.WriteLog("Error Processing Relation " + r.Id + ": " + ex.Message);
+                }
+            } //);
+
+
+            Log.WriteLog("Relations loaded at " + DateTime.Now);
+
+            var ways = thisBox.AsParallel()
+            .ToComplete()
+            .Where(p => p.Type == OsmGeoType.Way && !waysToSkip.Contains(p.Id)); //avoid loading skippable Ways into RAM in the first place.
+
+            double wayCounter = 0;
+            double totalWays = ways.Count();
+            totalCounter = 0;
+            var fourPercentWays = totalWays / 25;
+
+            Log.WriteLog("Loading Way data into RAM...");
+            foreach (var w in ways) //Testing looks like multithreading doesn't provide any improvement here.
+            {
+                if (totalCounter == 0)
+                {
+                    Log.WriteLog("Data Loaded");
+                    startedProcess = DateTime.Now;
+                    difference = DateTime.Now - DateTime.Now;
+                }
+                totalCounter++;
+                try
+                {
+                    totalItems++;
+                    wayCounter++;
+                    var item = ConvertOsmEntryToStoredWay(w);
+                    if (item == null)
+                        continue;
+
+                    db.StoredWays.Add(item);
+                    if (wayCounter > 10000)
+                    {
+                        difference = DateTime.Now - startedProcess;
+                        double percentage = (totalCounter / totalWays) * 100;
+                        var entriesPerSecond = totalCounter / difference.TotalSeconds;
+                        var secondsLeft = (totalWays - totalCounter) / entriesPerSecond;
+                        TimeSpan estimatedTime = TimeSpan.FromSeconds(secondsLeft);
+                        Log.WriteLog(Math.Round(entriesPerSecond) + " Ways per second processed, " + Math.Round(percentage, 2) + "% done, estimated time remaining: " + estimatedTime.ToString());
+                        wayCounter = 0;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    if (w == null)
+                        Log.WriteLog("Error Processing Way : Way was null");
+                    else
+                        Log.WriteLog("Error Processing Way " + w.Id + ": " + ex.Message);
+                }
+            } //);
+
+            Log.WriteLog("Saving " + totalItems + " entries to the database.....");
+            System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+            sw.Start();
+            db.SaveChanges();
+            sw.Stop();
+            Log.WriteLog("Saving complete in " + sw.Elapsed + ".");
+
+            source.Dispose(); source = null;
+            fs.Close(); fs.Dispose(); fs = null;
+
+            return failedRelations;
+        }
+
+        public static StoredWay ConvertOsmEntryToStoredWay(OsmSharp.Complete.ICompleteOsmGeo g)
+        {
+            var feature = OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(g);
+            if (feature.Count() != 1)
+            {
+                Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + " didn't return expected number of features (" + feature.Count() + ")", Log.VerbosityLevels.High);
+                return null;
+            }
+            var sw = new StoredWay();
+            sw.name = GetPlaceName(g.Tags);
+            sw.sourceItemID = g.Id;
+            sw.sourceItemType = (g.Type == OsmGeoType.Relation ? 3 : g.Type == OsmGeoType.Way ? 2 : 1);
+            sw.wayGeometry = feature.First().Geometry;
+            sw.WayTags = TagParser.getFilteredTags(g.Tags);
+            if (sw.wayGeometry.GeometryType == "LinearRing" || (sw.wayGeometry.GeometryType == "LineString" && sw.wayGeometry.Coordinates.First() == sw.wayGeometry.Coordinates.Last()))
+            {
+                //I want to update all LinearRings to Polygons, and let the style determine if they're Filled or Stroked.
+                var poly = factory.CreatePolygon((LinearRing)sw.wayGeometry);
+                sw.wayGeometry = poly;
+            }
+            return sw;
         }
 
         public static void DetectMapTilesRecursive(string parentCell, bool skipExisting) //This was off slightly at one point, but I didn't document how much or why. Should be correct now.

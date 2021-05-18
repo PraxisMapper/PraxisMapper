@@ -267,12 +267,14 @@ namespace CoreComponents
         public class StoredWay
         {
             public long id { get; set; }
+            public string name { get; set; } //Consolidating info into one table.
             public long sourceItemID { get; set; }
             public int sourceItemType { get; set; } //1: node, 2: way, 3: relation.
             [Column(TypeName = "geography")]
             [Required]
             public Geometry wayGeometry { get; set; }
             public ICollection<WayTags> WayTags { get; set; }
+            public bool IsGameElement { get; set; } //To use when determining if this element should or shouldn't be used as an answer when determining game interaction in an area.
         }
 
         public class StoredRelation
