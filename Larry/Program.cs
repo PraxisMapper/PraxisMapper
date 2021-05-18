@@ -267,9 +267,8 @@ namespace Larry
 
                 TagParser.Initialize();
                 //load data. Testing with delaware for speed again.
-                string pbfFilename = ParserSettings.PbfFolder + "delaware-latest.osm.pbf";
+                string pbfFilename = ParserSettings.PbfFolder + "ohio-latest.osm.pbf";
                 var fs = System.IO.File.OpenRead(pbfFilename);
-                var boxSteps = 1; //squared, so 4 means we'll check 16 sub-boxes. 
 
                 Log.WriteLog("Starting " + pbfFilename + " V4 data read at " + DateTime.Now);
                 var source = new PBFOsmStreamSource(fs);
@@ -285,27 +284,54 @@ namespace Larry
                 source.Dispose(); source = null;
                 fs.Close(); fs.Dispose(); fs = null;
 
-                HashSet<long> relationsToReload = new HashSet<long>();
+                HashSet<long> relationsToSkip = new HashSet<long>();
 
+                //TODO: make a variant of this that writes the data in this square degree to a file, then splits off
+                //a new Task<> to process that file instead of reading it from the main file. This would let me use more thread
+                //and more RAM, like a big server environment.
                 for (var i = minWest; i < maxEast; i++)
                     for (var j = minsouth; j < maxNorth; j++)
                     {
-                        var failedRelations = ProcessDegreeAreaV4(j, i, pbfFilename); //This happens to be a 4-digit PlusCode, being 1 degree square.
-                        foreach (var fr in failedRelations)
-                            relationsToReload.Add(fr);
+                        var loadedRelations = ProcessDegreeAreaV4(j, i, pbfFilename); //This happens to be a 4-digit PlusCode, being 1 degree square.
+                        foreach (var lr in loadedRelations)
+                            relationsToSkip.Add(lr);
                     }
-                //NOTES:
-                //This mostly works, but larger relations (Delaware Bay, again) doesn't load up.
-                //I might have to do a special pass for larger relations, since it seems like it might be specifically the big lineString ones
-                //that fail when chopped up into smaller pieces.
-                //Could track those.
 
-                //special pass for failed elements:
-                Log.WriteLog("Attempting to reload failed elements...");
+                ////This is the multi-thread variant. TODO: test this logic.
+                //List<Task<List<long>>> taskStatuses = new List<Task<List<long>>>();
+                //for (var i = minWest; i < maxEast; i++)
+                //    for (var j = minsouth; j < maxNorth; j++)
+                //    {
+                //        fs = File.OpenRead(pbfFilename);
+                //        source = new PBFOsmStreamSource(fs);
+                //        var filtered = source.FilterBox(i, j + 1, i + 1, j, true);
+                //        string tempFile = "tempFile-" + i + "-" + j + ".pbf";
+                //        using (var destFile = new FileInfo(tempFile).Open(FileMode.Create))
+                //        {
+                //            var target = new PBFOsmStreamTarget(destFile);
+                //            target.RegisterSource(filtered);
+                //            target.Pull();
+                //        }
+                //        Task<List<long>> process = Task.Run(() => ProcessDegreeAreaV4(j, i, tempFile));
+                //        taskStatuses.Add(process);
+                //    }
+                //Task.WaitAll(taskStatuses.ToArray());
+                //foreach(var t in taskStatuses)
+                //{
+                //    foreach (var id in t.Result)
+                //        relationsToSkip.Add(id);
+                //}
+                ////end multithread variant.
+                
+
+
+                //special pass for missed elements. Some things, like Delaware Bay, don't show up on this process
+                //(Why isn't clear but its some OsmSharp behavior. Relations that aren't entirely contained in the filter area are excluded, I think?)
+                Log.WriteLog("Attempting to reload missed elements...");
                 fs = System.IO.File.OpenRead(pbfFilename);
                 source = new PBFOsmStreamSource(fs);
                 PraxisContext db = new PraxisContext();
-                var secondChance = source.ToComplete().Where(s => s.Type == OsmGeoType.Relation && !relationsToReload.Contains(s.Id)); //logic change - only load relations we haven't tried yet.
+                var secondChance = source.ToComplete().Where(s => s.Type == OsmGeoType.Relation && !relationsToSkip.Contains(s.Id)); //logic change - only load relations we haven't tried yet.
                 foreach(var sc in secondChance)
                 {
                     var found = ConvertOsmEntryToStoredWay(sc);
@@ -317,14 +343,9 @@ namespace Larry
                 Log.WriteLog("Saving final data....");
                 db.SaveChanges();
                 Log.WriteLog("Final pass completed.");
-
-
-
             }
         }
 
-        //return;
-        //}
 
         public static List<long> ProcessDegreeAreaV4(float south, float west, string filename)
         {
@@ -335,6 +356,8 @@ namespace Larry
             var source = new PBFOsmStreamSource(fs);
             HashSet<long> waysToSkip = new HashSet<long>();
 
+            //One degree square shouldn't use up more than 8GB of RAM. I can cut this to half a degree, spend 4x longer reading files from disk,
+            //and totally avoid any OOM errors on almost any machine.
             Log.WriteLog("Box from " + south + "," + west + " to " + (south + 1) + "," + (west + 1));
             var thisBox = source.FilterBox(west, south + 1, west + 1, south, true);
             var relations = thisBox.AsParallel()
