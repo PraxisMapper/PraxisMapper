@@ -61,6 +61,10 @@ namespace CoreComponents
             {
                 optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), x => x.UseNetTopologySuite().EnableRetryOnFailure());
             }
+            else if (serverMode == "PostgreSQL") //A lot of mapping stuff defaults to PostgreSQL, so I should evaluate it here. It does seem to take some specific setup steps, versus MariaDB
+            {
+                optionsBuilder.UseNpgsql("Host=localhost;Database=praxis;Username=postgres;Password=asdf", o => o.UseNetTopologySuite());
+            }
 
             //optionsBuilder.UseMemoryCache(mc);//I think this improves performance at the cost of RAM usage. Needs additional testing.
         }
@@ -105,6 +109,11 @@ namespace CoreComponents
             model.Entity<PaintTownScoreRecord>().HasIndex(m => m.WinningFactionID);
 
             //model.Entity<StoredWay>().Property(w => w.Nodes).HasConversion(w => JsonConvert.SerializeObject(w), w => JsonConvert.DeserializeObject<long[]>(w));
+
+            if (serverMode == "PostgreSQL")
+            {
+                model.HasPostgresExtension("postgis");
+            }
         }
 
         //A trigger to ensure all data inserted is valid by SQL Server rules.

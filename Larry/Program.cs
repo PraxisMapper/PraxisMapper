@@ -322,6 +322,7 @@ namespace Larry
                 //        relationsToSkip.Add(id);
                 //}
                 ////end multithread variant.
+                /////Oh, dont forget to delete the temp files.
                 
 
 
@@ -342,7 +343,7 @@ namespace Larry
                 }
                 Log.WriteLog("Saving final data....");
                 db.SaveChanges();
-                Log.WriteLog("Final pass completed.");
+                Log.WriteLog("Final pass completed at " + DateTime.Now);
             }
         }
 
