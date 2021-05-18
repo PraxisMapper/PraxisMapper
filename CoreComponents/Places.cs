@@ -200,16 +200,25 @@ namespace CoreComponents
         {
             if (tagsO.Count() == 0)
                 return "";
-            var tags = tagsO.ToLookup(k => k.Key, v => v.Value);
+            var retVal = tagsO.GetValue("name");
+            if (string.IsNullOrWhiteSpace(retVal))
+                retVal = tagsO.GetValue("note");
+            if (retVal == null)
+                retVal = "";
 
-            string name = tags["name"].FirstOrDefault();
-            if (name == null || name == "")
-                //some things have a Note rather than a Name. Use that as a backup.
-                name = tags["note"].FirstOrDefault();
-            if (name == null)
-                return "";
+            return retVal;
 
-            return name;
+            //Not sure if this was faster.
+            //var tags = tagsO.ToLookup(k => k.Key, v => v.Value);
+
+            //string name = tags["name"].FirstOrDefault();
+            //if (name == null || name == "")
+            //    //some things have a Note rather than a Name. Use that as a backup.
+            //    name = tags["note"].FirstOrDefault();
+            //if (name == null)
+            //    return "";
+
+            //return name;
         }
 
         public static string GetPlaceType(TagsCollectionBase tagsO)
