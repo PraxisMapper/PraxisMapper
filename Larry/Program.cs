@@ -247,6 +247,7 @@ namespace Larry
                 }
             }
 
+            //This logic path probably isn't necessary, with importV4 replacing its logic of 'save everything now, draw at runtime'
             if (args.Any(a => a.StartsWith("-testDbDump")))
             {
                 PbfRawDump.DumpToDb(ParserSettings.PbfFolder + "delaware-latest.osm.pbf"); //Delaware is the smallest state.
@@ -267,7 +268,7 @@ namespace Larry
 
                 TagParser.Initialize();
                 //load data. Testing with delaware for speed again.
-                string pbfFilename = ParserSettings.PbfFolder + "ohio-latest.osm.pbf";
+                string pbfFilename = ParserSettings.PbfFolder + "delaware-latest.osm.pbf";
                 var fs = System.IO.File.OpenRead(pbfFilename);
 
                 Log.WriteLog("Starting " + pbfFilename + " V4 data read at " + DateTime.Now);
@@ -286,44 +287,54 @@ namespace Larry
 
                 HashSet<long> relationsToSkip = new HashSet<long>();
 
+                bool testMultithreaded = false;
+
                 //TODO: make a variant of this that writes the data in this square degree to a file, then splits off
                 //a new Task<> to process that file instead of reading it from the main file. This would let me use more thread
                 //and more RAM, like a big server environment.
-                for (var i = minWest; i < maxEast; i++)
-                    for (var j = minsouth; j < maxNorth; j++)
+                if (!testMultithreaded)
+                {
+                    for (var i = minWest; i < maxEast; i++)
+                        for (var j = minsouth; j < maxNorth; j++)
+                        {
+                            var loadedRelations = ProcessDegreeAreaV4(j, i, pbfFilename); //This happens to be a 4-digit PlusCode, being 1 degree square.
+                            foreach (var lr in loadedRelations)
+                                relationsToSkip.Add(lr);
+                        }
+                }
+                else
+                {
+                    //This is the multi-thread variant. TODO: test this logic.
+                    List<string> tempFiles = new List<string>();
+                    List<Task<List<long>>> taskStatuses = new List<Task<List<long>>>();
+                    for (var i = minWest; i < maxEast; i++)
+                        for (var j = minsouth; j < maxNorth; j++)
+                        {
+                            fs = File.OpenRead(pbfFilename);
+                            source = new PBFOsmStreamSource(fs);
+                            var filtered = source.FilterBox(i, j + 1, i + 1, j, true);
+                            string tempFile = "tempFile-" + i + "-" + j + ".pbf";
+                            using (var destFile = new FileInfo(tempFile).Open(FileMode.Create))
+                            {
+                                tempFiles.Add(tempFile);
+                                var target = new PBFOsmStreamTarget(destFile);
+                                target.RegisterSource(filtered);
+                                target.Pull();
+                            }
+                            Task<List<long>> process = Task.Run(() => ProcessDegreeAreaV4(j, i, tempFile));
+                            taskStatuses.Add(process);
+                        }
+                    Task.WaitAll(taskStatuses.ToArray());
+                    foreach (var t in taskStatuses)
                     {
-                        var loadedRelations = ProcessDegreeAreaV4(j, i, pbfFilename); //This happens to be a 4-digit PlusCode, being 1 degree square.
-                        foreach (var lr in loadedRelations)
-                            relationsToSkip.Add(lr);
+                        foreach (var id in t.Result)
+                            relationsToSkip.Add(id);
                     }
-
-                ////This is the multi-thread variant. TODO: test this logic.
-                //List<Task<List<long>>> taskStatuses = new List<Task<List<long>>>();
-                //for (var i = minWest; i < maxEast; i++)
-                //    for (var j = minsouth; j < maxNorth; j++)
-                //    {
-                //        fs = File.OpenRead(pbfFilename);
-                //        source = new PBFOsmStreamSource(fs);
-                //        var filtered = source.FilterBox(i, j + 1, i + 1, j, true);
-                //        string tempFile = "tempFile-" + i + "-" + j + ".pbf";
-                //        using (var destFile = new FileInfo(tempFile).Open(FileMode.Create))
-                //        {
-                //            var target = new PBFOsmStreamTarget(destFile);
-                //            target.RegisterSource(filtered);
-                //            target.Pull();
-                //        }
-                //        Task<List<long>> process = Task.Run(() => ProcessDegreeAreaV4(j, i, tempFile));
-                //        taskStatuses.Add(process);
-                //    }
-                //Task.WaitAll(taskStatuses.ToArray());
-                //foreach(var t in taskStatuses)
-                //{
-                //    foreach (var id in t.Result)
-                //        relationsToSkip.Add(id);
-                //}
-                ////end multithread variant.
-                /////Oh, dont forget to delete the temp files.
-                
+                    //end multithread variant.
+                    ///Oh, dont forget to delete the temp files.
+                    foreach (var tf in tempFiles)
+                        File.Delete(tf);
+                }
 
 
                 //special pass for missed elements. Some things, like Delaware Bay, don't show up on this process

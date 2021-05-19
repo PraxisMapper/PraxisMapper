@@ -19,11 +19,23 @@ namespace Larry
             db.Database.EnsureCreated(); //all the automatic stuff EF does for us
 
             //Not automatic entries executed below:
-            db.Database.ExecuteSqlRaw(PraxisContext.MapDataIndex);
-            db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataIndex);
-            db.Database.ExecuteSqlRaw(PraxisContext.MapTileIndex);
-            db.Database.ExecuteSqlRaw(PraxisContext.SlippyMapTileIndex);
-            db.Database.ExecuteSqlRaw(PraxisContext.StoredWaysIndex);
+            //PostgreSQL will make automatic spatial indexes
+            if (ParserSettings.DbMode == "PostgreSQL")
+            {
+                db.Database.ExecuteSqlRaw(PraxisContext.MapDataIndexPG); //PostgreSQL needs its own create-index syntax
+                db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataIndexPG);
+                db.Database.ExecuteSqlRaw(PraxisContext.MapTileIndexPG);
+                db.Database.ExecuteSqlRaw(PraxisContext.SlippyMapTileIndexPG);
+                db.Database.ExecuteSqlRaw(PraxisContext.StoredWaysIndexPG);
+            }
+            else
+            {
+                db.Database.ExecuteSqlRaw(PraxisContext.MapDataIndex); //PostgreSQL needs its own create-index syntax
+                db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataIndex);
+                db.Database.ExecuteSqlRaw(PraxisContext.MapTileIndex);
+                db.Database.ExecuteSqlRaw(PraxisContext.SlippyMapTileIndex);
+                db.Database.ExecuteSqlRaw(PraxisContext.StoredWaysIndex);
+            }
 
             if (ParserSettings.DbMode == "SQLServer")
             {
@@ -88,9 +100,12 @@ namespace Larry
         {
             var db = new PraxisContext();
             //Remove any existing entries, in case I'm refreshing the rules on an existing entry.
-            db.Database.ExecuteSqlRaw("DELETE FROM TagParserEntriesTagParserMatchRules");
-            db.Database.ExecuteSqlRaw("DELETE FROM TagParserEntries");
-            db.Database.ExecuteSqlRaw("DELETE FROM TagParserMatchRules");
+            if (ParserSettings.DbMode != "PostgreSQL") //PostgreSQL has stricter requirements on its syntax.
+            {
+                db.Database.ExecuteSqlRaw("DELETE FROM TagParserEntriesTagParserMatchRules");
+                db.Database.ExecuteSqlRaw("DELETE FROM TagParserEntries");
+                db.Database.ExecuteSqlRaw("DELETE FROM TagParserMatchRules");
+            }
 
             if (ParserSettings.DbMode == "SQLServer")
             {
