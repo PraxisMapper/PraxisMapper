@@ -18,6 +18,7 @@ using static CoreComponents.DbTables;
 using static CoreComponents.Place;
 using static CoreComponents.Singletons;
 using static CoreComponents.TagParser;
+using SkiaSharp;
 
 //TODO: look into using Span<T> instead of lists? This might be worth looking at performance differences. (and/or Memory<T>, which might be a parent for Spans)
 //TODO: Ponder using https://download.bbbike.org/osm/ as a data source to get a custom extract of an area (for when users want a local-focused app, probably via a wizard GUI)
@@ -482,6 +483,54 @@ namespace Larry
                         Log.WriteLog("Error Processing Way " + w.Id + ": " + ex.Message);
                 }
             } //);
+
+            Log.WriteLog("Ways loaded at " + DateTime.Now);
+
+            var defaultColor = SKColor.Parse(defaultTagParserEntries.Last().HtmlColorCode);
+            var points = thisBox.AsParallel()
+            .ToComplete() //unnecessary for nodes, but needed for the converter function.
+            .Where(p => p.Type == OsmGeoType.Node && p.Tags.Count > 0 && GetStyleForOsmWay(p.Tags.Select(t => new WayTags() { Key = t.Key, Value = t.Value }).ToList()).Color != defaultColor);
+            double nodeCounter = 0;
+            double totalnodes = points.Count();
+            totalCounter = 0;
+            Log.WriteLog("Loading Node data into RAM...");
+            foreach (OsmSharp.Node p in points)
+            {
+                if (totalCounter == 0)
+                {
+                    Log.WriteLog("Node Data Loaded");
+                    startedProcess = DateTime.Now;
+                    difference = DateTime.Now - DateTime.Now;
+                }
+                totalCounter++;
+                try
+                {
+                    totalItems++;
+                    nodeCounter++;
+                    var item = GeometrySupport.ConvertOsmEntryToStoredWay(p);
+                    if (item == null)
+                        continue;
+
+                    db.StoredWays.Add(item);
+                    if (nodeCounter > 10000)
+                    {
+                        difference = DateTime.Now - startedProcess;
+                        double percentage = (totalCounter / totalnodes) * 100;
+                        var entriesPerSecond = totalCounter / difference.TotalSeconds;
+                        var secondsLeft = (totalnodes - totalCounter) / entriesPerSecond;
+                        TimeSpan estimatedTime = TimeSpan.FromSeconds(secondsLeft);
+                        Log.WriteLog(Math.Round(entriesPerSecond) + " Nodes per second processed, " + Math.Round(percentage, 2) + "% done, estimated time remaining: " + estimatedTime.ToString());
+                        wayCounter = 0;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    if (p == null)
+                        Log.WriteLog("Error Processing Node: Node was null");
+                    else
+                        Log.WriteLog("Error Processing Node  " + p.Id + ": " + ex.Message);
+                }
+            }
 
             Log.WriteLog("Saving " + totalItems + " entries to the database.....");
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
