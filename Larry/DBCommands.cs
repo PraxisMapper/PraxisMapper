@@ -102,9 +102,9 @@ namespace Larry
             //Remove any existing entries, in case I'm refreshing the rules on an existing entry.
             if (ParserSettings.DbMode != "PostgreSQL") //PostgreSQL has stricter requirements on its syntax.
             {
-                db.Database.ExecuteSqlRaw("DELETE FROM TagParserEntriesTagParserMatchRules");
-                db.Database.ExecuteSqlRaw("DELETE FROM TagParserEntries");
-                db.Database.ExecuteSqlRaw("DELETE FROM TagParserMatchRules");
+                //db.Database.ExecuteSqlRaw("DELETE FROM TagParserEntriesTagParserMatchRules");
+                //db.Database.ExecuteSqlRaw("DELETE FROM TagParserEntries");
+                //db.Database.ExecuteSqlRaw("DELETE FROM TagParserMatchRules");
             }
 
             if (ParserSettings.DbMode == "SQLServer")

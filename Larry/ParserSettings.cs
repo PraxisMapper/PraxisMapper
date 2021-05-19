@@ -20,11 +20,11 @@
         //public static string DbMode = "SQLServer";
         //public static string DbConnectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;";
 
-        //public static string DbMode = "MariaDB";
-        //public static string DbConnectionString = "server=localhost;database=praxis;user=root;password=asdf;";
-
-        public static string DbMode = "PostgreSQL";
+        public static string DbMode = "MariaDB";
         public static string DbConnectionString = "server=localhost;database=praxis;user=root;password=asdf;";
+
+        //public static string DbMode = "PostgreSQL";
+        //public static string DbConnectionString = "server=localhost;database=praxis;user=root;password=asdf;";
 
         
     }
