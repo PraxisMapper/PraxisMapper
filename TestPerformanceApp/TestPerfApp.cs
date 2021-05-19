@@ -2,6 +2,7 @@
 using CoreComponents.Support;
 using Google.Common.Geometry;
 using Google.OpenLocationCode;
+using Microsoft.EntityFrameworkCore;
 using NetTopologySuite;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Prepared;
@@ -43,6 +44,9 @@ namespace PerformanceTestApp
             //PraxisContext.serverMode = "MariaDB";
             //PraxisContext.connectionString = "server=localhost;database=praxis;user=root;password=asdf;";
 
+            //PraxisContext.serverMode = "PostgreSQL";
+            //PraxisContext.connectionString = "server=localhost;database=praxis;user=root;password=asdf;";
+
             if (Debugger.IsAttached)
                 Console.WriteLine("Run this in Release mode for accurate numbers!");
             //This is for running and archiving performance tests on different code approaches.
@@ -62,12 +66,14 @@ namespace PerformanceTestApp
             //TestIntersectsPreparedVsNot();
             //TestRasterVsVectorCell8();
             //TestRasterVsVectorCell10();
-            TestImageSharpVsSkiaSharp(); //imagesharp was removed for being vastly slower.
+            //TestImageSharpVsSkiaSharp(); //imagesharp was removed for being vastly slower.
 
             //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
             //These cannot all be enabled in one run. You must comment/uncomment each one separately.
-            //TestSqlServer(); 
-            //TestMariaDb();
+            //ALSO, these need updated somehow to be self-contained and consistent. Like, maybe load Delaware data or something as a baseline.
+            //TestDBPerformance("SQLServer");
+            //TestDBPerformance("MariaDB");
+            TestDBPerformance("PostgreSQL");
 
 
             //Sample code for later, I will want to make sure these indexes work as expected.
@@ -838,73 +844,148 @@ namespace PerformanceTestApp
             Log.WriteLog("converted record list to string output in " + sw.ElapsedMilliseconds);
         }
 
-        public static void TestSqlServer()
+        public static void TestDBPerformance(string mode)
         {
-            Log.WriteLog("Starting SqlServer performance test.");
-            PraxisContext.connectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;";
-            PraxisContext.serverMode = "SQLServer";
+            if (mode == "SQLServer")
+            {
+                Log.WriteLog("Starting SqlServer performance test.");
+                PraxisContext.connectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;";
+                PraxisContext.serverMode = "SQLServer";
+            }
+            else if (mode == "MariaDB")
+            {
+                Log.WriteLog("Starting MariaDb performance test.");
+                PraxisContext.connectionString = "server=localhost;database=praxis;user=root;password=asdf;";
+                PraxisContext.serverMode = "MariaDB";
+            }
+            else if (mode == "PostgreSQL")
+            {
+                Log.WriteLog("Starting PostgreSQL performance test.");
+                PraxisContext.connectionString = "server=localhost;database=praxis;user=root;password=asdf;";
+                PraxisContext.serverMode = "PostgreSQL";
+            }
+            MakePraxisDB(PraxisContext.serverMode);
 
-            PraxisContext dbSqlServer = new PraxisContext();
-
-            int maxRandom = dbSqlServer.MapData.Count();
             Random r = new Random();
             Stopwatch sw = new Stopwatch();
-            sw.Start();
-            for (var i = 0; i < 1000; i++)
+            PraxisContext dbPG = new PraxisContext();
+            Log.WriteLog("Loading Delaware data for consistency.");
+            LoadBaselineData(dbPG, @"D:\Projects\PraxisMapper Files\XmlToProcess\delaware-latest.osm.pbf"); //~17MB PBF, shouldn't be serious stress on anything.
+
+
+            int maxRandom = dbPG.StoredWays.Count();
+            sw.Restart();
+            for (var i = 0; i < 10000; i++)
             {
                 //read 1000 random entries;
                 int entry = r.Next(1, maxRandom);
-                var tempEntry = dbSqlServer.MapData.Where(m => m.MapDataId == entry).FirstOrDefault();
+                var tempEntry = dbPG.StoredWays.Where(m => m.id == entry).FirstOrDefault();
             }
             sw.Stop();
-            Log.WriteLog("1000 random reads done in " + sw.ElapsedMilliseconds + "ms");
+            Log.WriteLog("10,000 random reads done in " + sw.ElapsedMilliseconds + "ms");
 
-
+            //load all Delaware elements back into memory.
+            GeoArea delaware = new GeoArea(38, -77, 41, -74);
+            var poly = Converters.GeoAreaToPolygon(delaware);
             sw.Restart();
-            for (var i = 0; i < 1000; i++)
+            var allEntires = dbPG.StoredWays.Where(w => w.wayGeometry.Intersects(poly)).ToList();
+            sw.Stop();
+            Log.WriteLog("Loaded all Delaware items in " + sw.ElapsedMilliseconds + "ms");
+
+            sw.Start();
+            for (var i = 0; i < 10000; i++)
             {
                 //write 1000 random entries;
                 var entry = CreateInterestingPlaces("22334455", false);
-                dbSqlServer.GeneratedMapData.AddRange(entry);
+                dbPG.GeneratedMapData.AddRange(entry);
             }
-            dbSqlServer.SaveChanges();
+            dbPG.SaveChanges();
             sw.Stop();
-            Log.WriteLog("1000 random writes done in " + sw.ElapsedMilliseconds + "ms");
-
-
+            Log.WriteLog("10,000 random writes done in " + sw.ElapsedMilliseconds + "ms");
         }
 
-        public static void TestMariaDb()
+        public static void LoadBaselineData(PraxisContext db, string filename)
         {
-            Log.WriteLog("Starting MariaDb performance test.");
-            PraxisContext.connectionString = "server=localhost;database=praxis;user=root;password=asdf;";
-            PraxisContext.serverMode = "MariaDB";
-            Random r = new Random();
+            var fs = System.IO.File.OpenRead(filename);
+            var source = new PBFOsmStreamSource(fs);
+
+            var relations = source.AsParallel()
+            .ToComplete()
+            .Where(p => p.Type == OsmGeoType.Relation);
+            foreach (var r in relations) 
+            {
+                var convertedRelation = ConvertOsmEntryToStoredWay(r);
+                if (convertedRelation == null)
+                {
+                    continue;
+                }
+
+                //locker.EnterWriteLock();
+                convertedRelation.wayGeometry = SimplifyArea(convertedRelation.wayGeometry);
+                if (convertedRelation.wayGeometry == null)
+                    continue;
+                db.StoredWays.Add(convertedRelation);
+                //db.SaveChanges();
+            }
+
+            var ways = source.AsParallel()
+            .ToComplete()
+            .Where(p => p.Type == OsmGeoType.Way);
+            foreach (var w in ways)
+            {
+                var convertedWay = ConvertOsmEntryToStoredWay(w);
+                if (convertedWay == null)
+                {
+                    continue;
+                }
+
+                //locker.EnterWriteLock();
+                convertedWay.wayGeometry = SimplifyArea(convertedWay.wayGeometry);
+                if (convertedWay.wayGeometry == null)
+                    continue;
+                db.StoredWays.Add(convertedWay);
+                //db.SaveChanges();
+            }
+
             Stopwatch sw = new Stopwatch();
-
-            PraxisContext dbMaria = new PraxisContext();
-            int maxRandom = dbMaria.MapData.Count();
-            sw.Restart();
-            for (var i = 0; i < 1000; i++)
-            {
-                //read 1000 random entries;
-                int entry = r.Next(1, maxRandom);
-                var tempEntry = dbMaria.MapData.Where(m => m.MapDataId == entry).FirstOrDefault();
-            }
-            sw.Stop();
-            Log.WriteLog("1000 random reads done in " + sw.ElapsedMilliseconds + "ms");
-
-
             sw.Start();
-            for (var i = 0; i < 1000; i++)
-            {
-                //write 1000 random entries;
-                var entry = CreateInterestingPlaces("22334455", false);
-                dbMaria.GeneratedMapData.AddRange(entry);
-            }
-            dbMaria.SaveChanges();
+            db.SaveChanges();
             sw.Stop();
-            Log.WriteLog("1000 random writes done in " + sw.ElapsedMilliseconds + "ms");
+            Log.WriteLog("Saved baseline data to DB in " + sw.Elapsed);
+        }
+
+        public static StoredWay ConvertOsmEntryToStoredWay(OsmSharp.Complete.ICompleteOsmGeo g)
+        {
+            try
+            {
+                var feature = OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(g);
+                if (feature.Count() != 1)
+                {
+                    Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + " didn't return expected number of features (" + feature.Count() + ")", Log.VerbosityLevels.High);
+                    return null;
+                }
+                var sw = new StoredWay();
+                sw.name = GetPlaceName(g.Tags);
+                sw.sourceItemID = g.Id;
+                sw.sourceItemType = (g.Type == OsmGeoType.Relation ? 3 : g.Type == OsmGeoType.Way ? 2 : 1);
+                var geo = SimplifyArea(feature.First().Geometry);
+                if (geo == null)
+                return null;
+                geo.SRID = 4326;//Required for SQL Server to accept data this way.
+                sw.wayGeometry = geo;
+                sw.WayTags = TagParser.getFilteredTags(g.Tags);
+                if (sw.wayGeometry.GeometryType == "LinearRing" || (sw.wayGeometry.GeometryType == "LineString" && sw.wayGeometry.Coordinates.First() == sw.wayGeometry.Coordinates.Last()))
+                {
+                    //I want to update all LinearRings to Polygons, and let the style determine if they're Filled or Stroked.
+                    var poly = factory.CreatePolygon((LinearRing)sw.wayGeometry);
+                    sw.wayGeometry = poly;
+                }
+                return sw;
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         //testing if this is better/more efficient (on the phone side) than passing strings along. Only used in TestPerf.
@@ -1103,6 +1184,154 @@ namespace PerformanceTestApp
             Log.WriteLog("Expired 1 random map tile in:" + sw.Elapsed);
 
 
+        }
+
+
+        public static void MakePraxisDB(string mode)
+        {
+            PraxisContext db = new PraxisContext();
+            db.Database.EnsureCreated(); //all the automatic stuff EF does for us
+
+            //Not automatic entries executed below:
+            //PostgreSQL will make automatic spatial indexes
+            if (mode == "PostgreSQL")
+            {
+                db.Database.ExecuteSqlRaw(PraxisContext.MapDataIndexPG); //PostgreSQL needs its own create-index syntax
+                db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataIndexPG);
+                db.Database.ExecuteSqlRaw(PraxisContext.MapTileIndexPG);
+                db.Database.ExecuteSqlRaw(PraxisContext.SlippyMapTileIndexPG);
+                db.Database.ExecuteSqlRaw(PraxisContext.StoredWaysIndexPG);
+            }
+            else
+            {
+                db.Database.ExecuteSqlRaw(PraxisContext.MapDataIndex); //PostgreSQL needs its own create-index syntax
+                db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataIndex);
+                db.Database.ExecuteSqlRaw(PraxisContext.MapTileIndex);
+                db.Database.ExecuteSqlRaw(PraxisContext.SlippyMapTileIndex);
+                db.Database.ExecuteSqlRaw(PraxisContext.StoredWaysIndex);
+            }
+
+            if (mode == "SQLServer")
+            {
+                db.Database.ExecuteSqlRaw(PraxisContext.MapDataValidTriggerMSSQL);
+                db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataValidTriggerMSSQL);
+            }
+            if (mode == "MariaDB")
+            {
+                db.Database.ExecuteSqlRaw("SET collation_server = 'utf8mb4_unicode_ci'; SET character_set_server = 'utf8mb4'"); //MariaDB defaults to latin2_swedish, we need Unicode.
+            }
+
+            InsertAreaTypesToDb(mode);
+            InsertDefaultServerConfig();
+            InsertDefaultFactionsToDb(mode);
+            InsertDefaultPaintTownConfigs();
+            InsertDefaultStyle(mode);
+        }
+
+        public static void InsertAreaTypesToDb(string mode)
+        {
+            var db = new PraxisContext();
+            if (mode == "SQLServer")
+            {
+                db.Database.BeginTransaction();
+                db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT AreaTypes ON;");
+            }
+            db.AreaTypes.AddRange(areaTypes);
+            db.SaveChanges();
+            if (mode == "SQLServer")
+            {
+                db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT dbo.AreaTypes OFF;");
+                db.Database.CommitTransaction();
+            }
+        }
+
+        public static void InsertDefaultFactionsToDb(string mode)
+        {
+            var db = new PraxisContext();
+
+            if (mode == "SQLServer")
+            {
+                db.Database.BeginTransaction();
+                db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Factions ON;");
+            }
+            db.Factions.AddRange(defaultFaction);
+            db.SaveChanges();
+            if (mode == "SQLServer")
+            {
+                db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Factions OFF;");
+                db.Database.CommitTransaction();
+            }
+        }
+
+        public static void InsertDefaultServerConfig()
+        {
+            var db = new PraxisContext();
+            db.ServerSettings.Add(new ServerSetting() { NorthBound = 90, SouthBound = -90, EastBound = 180, WestBound = -180 });
+            db.SaveChanges();
+        }
+
+        public static void InsertDefaultStyle(string mode)
+        {
+            var db = new PraxisContext();
+            //Remove any existing entries, in case I'm refreshing the rules on an existing entry.
+            if (mode != "PostgreSQL") //PostgreSQL has stricter requirements on its syntax.
+            {
+                //db.Database.ExecuteSqlRaw("DELETE FROM TagParserEntriesTagParserMatchRules");
+                //db.Database.ExecuteSqlRaw("DELETE FROM TagParserEntries");
+                //db.Database.ExecuteSqlRaw("DELETE FROM TagParserMatchRules");
+            }
+
+            if (mode == "SQLServer")
+            {
+                db.Database.BeginTransaction();
+                db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT TagParserEntries ON;");
+            }
+            db.TagParserEntries.AddRange(Singletons.defaultTagParserEntries);
+            db.SaveChanges();
+            if (mode == "SQLServer")
+            {
+                db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT TagParserEntries OFF;");
+                db.Database.CommitTransaction();
+            }
+        }
+
+        public static void InsertDefaultPaintTownConfigs()
+        {
+            var db = new PraxisContext();
+            //we set the reset time to next Saturday at midnight for a default.
+            var nextSaturday = DateTime.Now.AddDays(6 - (int)DateTime.Now.DayOfWeek);
+            nextSaturday.AddHours(-nextSaturday.Hour);
+            nextSaturday.AddMinutes(-nextSaturday.Minute);
+            nextSaturday.AddSeconds(-nextSaturday.Second);
+
+            var tomorrow = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day).AddDays(1);
+            db.PaintTownConfigs.Add(new PaintTownConfig() { Name = "All-Time", Cell10LockoutTimer = 300, DurationHours = -1, NextReset = nextSaturday });
+            db.PaintTownConfigs.Add(new PaintTownConfig() { Name = "Weekly", Cell10LockoutTimer = 300, DurationHours = 168, NextReset = new DateTime(2099, 12, 31) });
+            //db.PaintTownConfigs.Add(new PaintTownConfig() { Name = "Daily", Cell10LockoutTimer = 30, DurationHours = 24, NextReset = tomorrow });
+
+            //PaintTheTown requires dummy entries in the playerData table, or it doesn't know which factions exist. It's faster to do this once here than to check on every call to playerData
+            foreach (var faction in Singletons.defaultFaction)
+                db.PlayerData.Add(new PlayerData() { deviceID = "dummy" + faction.FactionId, FactionId = faction.FactionId });
+            db.SaveChanges();
+        }
+
+        public static void CleanDb()
+        {
+            Log.WriteLog("Cleaning DB at " + DateTime.Now);
+            PraxisContext osm = new PraxisContext();
+            osm.Database.SetCommandTimeout(900);
+
+            osm.Database.ExecuteSqlRaw("TRUNCATE TABLE MapData");
+            Log.WriteLog("MapData cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
+            osm.Database.ExecuteSqlRaw("TRUNCATE TABLE MapTiles");
+            Log.WriteLog("MapTiles cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
+            osm.Database.ExecuteSqlRaw("TRUNCATE TABLE PerformanceInfo");
+            Log.WriteLog("PerformanceInfo cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
+            osm.Database.ExecuteSqlRaw("TRUNCATE TABLE GeneratedMapData");
+            Log.WriteLog("GeneratedMapData cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
+            osm.Database.ExecuteSqlRaw("TRUNCATE TABLE SlippyMapTiles");
+            Log.WriteLog("SlippyMapTiles cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
+            Log.WriteLog("DB cleaned at " + DateTime.Now);
         }
     }
 }

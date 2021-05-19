@@ -346,7 +346,7 @@ namespace Larry
                 var secondChance = source.ToComplete().Where(s => s.Type == OsmGeoType.Relation && !relationsToSkip.Contains(s.Id)); //logic change - only load relations we haven't tried yet.
                 foreach(var sc in secondChance)
                 {
-                    var found = ConvertOsmEntryToStoredWay(sc);
+                    var found = GeometrySupport.ConvertOsmEntryToStoredWay(sc);
                     if (found != null)
                     {
                         db.StoredWays.Add(found);
@@ -389,7 +389,6 @@ namespace Larry
 
             Log.WriteLog("Loading relation data into RAM...");
             foreach (var r in relations) //This is where the first memory peak hits. it does load everything into memory
-            //Parallel.ForEach(relations, r => //Relations might possibly be faster multithreading than not, though it's not a big difference.
             {
                 if (totalCounter == 0)
                 {
@@ -401,14 +400,12 @@ namespace Larry
                 try
                 {
                     failedRelations.Add(r.Id);
-                    var convertedRelation = ConvertOsmEntryToStoredWay(r);
+                    var convertedRelation = GeometrySupport.ConvertOsmEntryToStoredWay(r);
                     if (convertedRelation == null)
                     {
-                        //failedRelations.Add(r.Id);
                         continue;
                     }
 
-                    //locker.EnterWriteLock();
                     db.StoredWays.Add(convertedRelation);
                     totalItems++;
                     relationCounter++;
@@ -422,7 +419,6 @@ namespace Larry
                         Log.WriteLog(Math.Round(entriesPerSecond) + " Relations per second processed, " + Math.Round(percentage, 2) + "% done, estimated time remaining: " + estimatedTime.ToString());
                         relationCounter = 0;
                     }
-                    //locker.ExitWriteLock();
 
                     foreach (var w in ((OsmSharp.Complete.CompleteRelation)r).Members)
                     {
@@ -462,7 +458,7 @@ namespace Larry
                 {
                     totalItems++;
                     wayCounter++;
-                    var item = ConvertOsmEntryToStoredWay(w);
+                    var item = GeometrySupport.ConvertOsmEntryToStoredWay(w);
                     if (item == null)
                         continue;
 
@@ -500,28 +496,7 @@ namespace Larry
             return failedRelations;
         }
 
-        public static StoredWay ConvertOsmEntryToStoredWay(OsmSharp.Complete.ICompleteOsmGeo g)
-        {
-            var feature = OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(g);
-            if (feature.Count() != 1)
-            {
-                Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + " didn't return expected number of features (" + feature.Count() + ")", Log.VerbosityLevels.High);
-                return null;
-            }
-            var sw = new StoredWay();
-            sw.name = GetPlaceName(g.Tags);
-            sw.sourceItemID = g.Id;
-            sw.sourceItemType = (g.Type == OsmGeoType.Relation ? 3 : g.Type == OsmGeoType.Way ? 2 : 1);
-            sw.wayGeometry = feature.First().Geometry;
-            sw.WayTags = TagParser.getFilteredTags(g.Tags);
-            if (sw.wayGeometry.GeometryType == "LinearRing" || (sw.wayGeometry.GeometryType == "LineString" && sw.wayGeometry.Coordinates.First() == sw.wayGeometry.Coordinates.Last()))
-            {
-                //I want to update all LinearRings to Polygons, and let the style determine if they're Filled or Stroked.
-                var poly = factory.CreatePolygon((LinearRing)sw.wayGeometry);
-                sw.wayGeometry = poly;
-            }
-            return sw;
-        }
+        
 
         public static void DetectMapTilesRecursive(string parentCell, bool skipExisting) //This was off slightly at one point, but I didn't document how much or why. Should be correct now.
         {

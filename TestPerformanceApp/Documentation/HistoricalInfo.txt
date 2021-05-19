@@ -126,22 +126,6 @@ ConcurrentBag took 46264 ticks (4ms)
 However, real-world testing shows ConcurrentBag<T> makes processing Ohio a minute slower, makes RAM contents vary a lot, never fully utilizes the CPU.
 Because these use a ton of RAM, and I'm trying to work out how to limit RAM usage on the most problematic files, this won't be used.
 
-
-Database Performance Results
-Run this in Release mode for accurate numbers!
-Starting SqlServer performance test.
-1000 random reads done in 781ms
-1000 random writes done in 775ms
-Starting MariaDb performance test.
-
-Run this in Release mode for accurate numbers!
-Starting MariaDb performance test.
-1000 random reads done in 1151ms
-1000 random writes done in 1617ms
-Decision: Sql Server will remain the default for testing purposes.
-MariaDB appears to take twice as long on writes to spatial indexes, since this test specifically hit those.
-I am curious about seeing these numbers change as load increases (this is with about 500MB of data)
-
 TestIntersectsPreparedVsNot 1/21/21
 Loading data for Intersect performance test.
 Cell6 Data loaded.
@@ -171,3 +155,31 @@ Loading data for ImageSharp vs SkiaSharp performance test
 ImageSharp performance:452ms
 SkiaSharp performance:103ms
 Decision: SkiaSharp wins. 2-4x faster. Looks identical. Simpler customization options.
+
+Re-evaluating DB performance 5/19/21:
+Starting SqlServer performance test.
+Loading Delaware data for consistency.
+Saved baseline data to DB in 00:01:19.5911684
+10,000 random reads done in 5585ms
+Loaded all Delaware items in 1756ms
+10,000 random writes done in 9322ms
+Starting MariaDb performance test.
+Loading Delaware data for consistency.
+Saved baseline data to DB in 00:01:41.0343120
+10,000 random reads done in 12966ms
+Loaded all Delaware items in 725ms
+10,000 random writes done in 6664ms
+Starting PostgreSQL performance test.
+Loading Delaware data for consistency.
+Saved baseline data to DB in 00:01:09.2225004
+10,000 random reads done in 6119ms
+Loaded all Delaware items in 1162ms
+10,000 random writes done in 6334ms
+Summary:
+MS SQL: 1:19,  5585, 1756, 9322
+Maria:  1:41, 12966,  725, 6664
+PgSQL:  1:09,  6119, 1162, 6334 
+(all 3 databases were run from the same hard drive on the same PC, so there shouldn't be too much difference between these results based on underlying hardware.)
+Conclusion: MariaDB is the slowest on big bulk inserts and reading 1 random element, but seems to be the fastest on big reads as well.
+MSSQL and PostgreSQL are pretty close in performance.
+
