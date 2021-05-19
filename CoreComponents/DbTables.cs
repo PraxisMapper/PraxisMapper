@@ -271,6 +271,7 @@ namespace CoreComponents
             public string name { get; set; } //Consolidating info into one table.
             public long sourceItemID { get; set; }
             public int sourceItemType { get; set; } //1: node, 2: way, 3: relation.
+            
             [Column(TypeName = "geography")]
             [Required]
             public Geometry wayGeometry { get; set; }
