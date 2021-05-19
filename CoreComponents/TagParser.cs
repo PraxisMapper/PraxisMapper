@@ -49,11 +49,9 @@ namespace CoreComponents
 
         public static SKPaint GetStyleForOsmWay(List<WayTags> tags)
         {
+            var defaultPaint = styles.Last(); //background color must be last if I want un-matched areas to be hidden, its own color if i want areas with no ways at all to show up.
             if (tags == null || tags.Count() == 0)
-            {
-                var style = styles.Last(); //background color must be last if I want un-matched areas to be hidden, its own color if i want areas with no ways at all to show up.
-                return style.paint;
-            }
+                return defaultPaint.paint;
 
             foreach (var drawingRules in styles)
             {
@@ -62,7 +60,7 @@ namespace CoreComponents
                     return drawingRules.paint;
                 }
             }
-            return null;
+            return defaultPaint.paint;
         }
 
         public static bool MatchOnTags(TagParserEntry tpe, List<WayTags> tags)
