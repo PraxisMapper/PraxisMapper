@@ -8,6 +8,7 @@ using static CoreComponents.Singletons;
 
 namespace Larry
 {
+    //TODO: look into this class. It may be made redundant by using OsmSharp.Geo and the V4 import logic.
     public static class GeometryHelper
     {
         public static Geometry GetGeometryFromWays(List<WayData> shapeList, OsmSharp.Relation r)
