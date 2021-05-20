@@ -9,6 +9,7 @@ using static CoreComponents.DbTables;
 using static CoreComponents.Place;
 using static CoreComponents.Singletons;
 using SkiaSharp;
+using Microsoft.EntityFrameworkCore;
 
 namespace CoreComponents
 {
@@ -556,6 +557,96 @@ namespace CoreComponents
             var ms = new MemoryStream();
             var skms = new SKManagedWStream(ms);
             sKBitmap.Encode(skms, SKEncodedImageFormat.Png, 100);
+            var results = ms.ToArray();
+            skms.Dispose(); ms.Close(); ms.Dispose();
+            return results;
+        }
+
+        //This generic function takes the area to draw, a size to make the canvas, and then draws it all.
+        public static byte[] DrawAreaAtSizeV4(GeoArea relevantArea, long imageSizeX, long imageSizeY)
+        {
+            Random r = new Random();
+          
+            var db = new PraxisContext();
+            var geo = Converters.GeoAreaToPolygon(relevantArea);
+            var geoString = geo.ToText();
+            var drawnItems = db.StoredWays.Include(c => c.WayTags).Where(w => geo.Intersects(w.wayGeometry)).OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToList();
+
+            //baseline image data stuff           
+            double degreesPerPixelX = relevantArea.LongitudeWidth / imageSizeX;
+            double degreesPerPixelY = relevantArea.LatitudeHeight / imageSizeX;
+            SKBitmap bitmap = new SKBitmap(512, 512, SKColorType.Rgba8888, SKAlphaType.Premul);
+            SKCanvas canvas = new SKCanvas(bitmap);
+            var bgColor = new SKColor();
+            SKColor.TryParse("00FFFFFF", out bgColor);
+            canvas.Clear(bgColor);
+            canvas.Scale(1, -1, imageSizeX / 2, imageSizeY / 2);
+            SKPaint paint = new SKPaint();
+
+            foreach (var w in drawnItems)
+            {
+                var tempList = new List<WayTags>();
+                if (w.WayTags != null)
+                    tempList = w.WayTags.ToList();
+                paint = CoreComponents.TagParser.GetStyleForOsmWay(tempList);
+                paint.IsAntialias = true;
+                var path = new SKPath();
+                switch (w.wayGeometry.GeometryType)
+                {
+                    case "Polygon":
+                        path.AddPoly(Converters.PolygonToSKPoints(w.wayGeometry, relevantArea, degreesPerPixelX, degreesPerPixelY));
+                        canvas.DrawPath(path, paint);
+                        break;
+                    case "MultiPolygon":
+                        foreach (var p in ((MultiPolygon)w.wayGeometry).Geometries)
+                        {
+                            var path2 = new SKPath();
+                            path2.AddPoly(Converters.PolygonToSKPoints(p, relevantArea, degreesPerPixelX, degreesPerPixelY));
+                            canvas.DrawPath(path2, paint);
+                        }
+                        break;
+                    case "LineString":
+                        var firstPoint = w.wayGeometry.Coordinates.First();
+                        var lastPoint = w.wayGeometry.Coordinates.Last();
+                        var points = Converters.PolygonToSKPoints(w.wayGeometry, relevantArea, degreesPerPixelX, degreesPerPixelY);
+                        if (firstPoint.Equals(lastPoint))
+                        {
+                            //This is a closed shape. Check to see if it's supposed to be filled in.
+                            if (paint.Style == SKPaintStyle.Fill)
+                            {
+                                var path3 = new SKPath();
+                                path3.AddPoly(points);
+                                canvas.DrawPath(path3, paint);
+                                continue;
+                            }
+                        }
+                        var a = points.First() == points.Last();
+                        for (var line = 0; line < points.Length - 1; line++)
+                            canvas.DrawLine(points[line], points[line + 1], paint);
+                        break;
+                    case "MultiLineString":
+                        foreach (var p in ((MultiLineString)w.wayGeometry).Geometries)
+                        {
+                            var points2 = Converters.PolygonToSKPoints(p, relevantArea, degreesPerPixelX, degreesPerPixelY);
+                            for (var line = 0; line < points2.Length - 1; line++)
+                                canvas.DrawLine(points2[line], points2[line + 1], paint);
+                        }
+                        break;
+                    case "Point":
+                        var circleRadius = (float)(.000125 / degreesPerPixelX / 2); //I want points to be drawn as 1 Cell10 in diameter.
+                        var convertedPoint = Converters.PolygonToSKPoints(w.wayGeometry, relevantArea, degreesPerPixelX, degreesPerPixelY);
+                        canvas.DrawCircle(convertedPoint[0], circleRadius, paint);
+                        break;
+                    default:
+                        Log.WriteLog("Unknown geometry type found, not drawn. Element " + w.id);
+                        break;
+
+                }
+            }
+
+            var ms = new MemoryStream();
+            var skms = new SKManagedWStream(ms);
+            bitmap.Encode(skms, SKEncodedImageFormat.Png, 100);
             var results = ms.ToArray();
             skms.Dispose(); ms.Close(); ms.Dispose();
             return results;

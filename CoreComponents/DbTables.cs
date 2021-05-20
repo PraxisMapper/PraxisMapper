@@ -265,6 +265,7 @@ namespace CoreComponents
 
         //NOTE: i don't store names in this table, since this is just for highly accurate map tiles. Names can stay in the gameplay tables.
         //Ooh, i could point the gameplay tables here for stuff? No, i need the geometry index on them.
+        //Should rename these to StoredGeometry since it holds all types
         public class StoredWay
         {
             public long id { get; set; }

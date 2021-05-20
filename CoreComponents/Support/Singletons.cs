@@ -148,6 +148,10 @@ namespace CoreComponents
             new TagParserEntry() { id = 23, name ="sidewalk", HtmlColorCode = "C0C0C0",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() {
                 new TagParserMatchRule() { Key = "highway", Value = "pedestrian", MatchType = "equals" },
             }},
+            //Transparent: we don't usually want to draw census boundaries
+            new TagParserEntry() { id = 24, name ="censusbounds", HtmlColorCode = "00C0C0C0",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() {
+                new TagParserMatchRule() { Key = "boundary", Value = "census", MatchType = "equals" },
+            }},
 
             //NOTE: hiding elements of a given type will have to be done by drawing those elements in a transparent color (see the admin entry at id 12 for an example)
             new TagParserEntry() { id = 9999, name ="background", HtmlColorCode = "545454", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid",TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "default" }} }
