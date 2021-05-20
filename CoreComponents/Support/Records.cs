@@ -13,4 +13,7 @@
 
     //for investigating if its faster to return the places and their Cel10 entries instead of a Cell10 and its properties
     public record Cell10Info(string placeName, string Cell10, int areaTypeId);
+
+    //V4 types. WayGeometry and WayTags get serialized somewhere.
+    public record StoredWayForJson(long id, string name, long sourceItemID, int sourceItemType, string wayGeometry, string WayTags, bool IsGameElement);
 }
