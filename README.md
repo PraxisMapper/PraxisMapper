@@ -11,7 +11,7 @@ Source code for a test application, Hypothesis, is available at https://github.c
 # Requirements
 * Visual Studio 2019 16.8 Community (or the mac/linux equivalent)
 * .NET 5.0
-* SQL Server 2016 or newer OR MariaDB 10.2+ (Required for spatial data types and indexing)
+* SQL Server 2016 or newer OR MariaDB 10.2+ (Required for spatial data types and indexing) OR PostgreSQL
 
 
 # Features
