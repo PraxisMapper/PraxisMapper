@@ -125,9 +125,10 @@ namespace Larry
         public static List<long> ProcessDegreeAreaV4(float south, float west, string filename, bool saveToFile = false)
         {
             List<long> processedRelations = new List<long>(); //return this, so the parent function knows what to look for in a full-pass.
+            var destFilename = ParserSettings.JsonMapDataFolder + Path.GetFileNameWithoutExtension(filename) + ".json";
 
             if (saveToFile)
-                WriteSingleStoredWayToFile(filename + ".json", null, open: true);
+                WriteSingleStoredWayToFile(destFilename, null, open: true);
 
             Log.WriteLog("Starting " + filename + " V4 data read at " + DateTime.Now);
             var fs = new FileStream(filename, FileMode.Open);
@@ -172,7 +173,7 @@ namespace Larry
                     }
 
                     if (saveToFile)
-                        WriteSingleStoredWayToFile(filename + ".json", convertedRelation);
+                        WriteSingleStoredWayToFile(destFilename, convertedRelation);
                     else
                         db.StoredWays.Add(convertedRelation);
 
@@ -227,7 +228,7 @@ namespace Larry
                         continue;
 
                     if (saveToFile)
-                        WriteSingleStoredWayToFile(filename + ".json", item);
+                        WriteSingleStoredWayToFile(destFilename, item);
                     else
                         db.StoredWays.Add(item);
 
@@ -274,7 +275,7 @@ namespace Larry
                         continue;
 
                     if (saveToFile)
-                        WriteSingleStoredWayToFile(filename + ".json", item);
+                        WriteSingleStoredWayToFile(destFilename, item);
                     else
                         db.StoredWays.Add(item);
 
@@ -309,7 +310,7 @@ namespace Larry
             return processedRelations;
         }
 
-        public static void ProcessV4MinimumRam(string filename)
+        public static void ProcessV4MinimumRam(string filename) //TODO complete this.
         {
             //Minimum RAM mode is going to be a fair amount slower, but should work on a wider array of home computers.
             //Differences from normal mode:
@@ -320,14 +321,14 @@ namespace Larry
 
         public static void WriteStoredWayListToFile(string filename, ref List<StoredWay> mapdata)
         {
-            System.IO.StreamWriter sw = new StreamWriter(filename);
+            StreamWriter sw = new StreamWriter(filename);
             sw.Write("[" + Environment.NewLine);
             foreach (var md in mapdata)
             {
                 if (md != null) //null can be returned from the functions that convert OSM entries to MapData
                 {
-                    var recordVersion = new CoreComponents.Support.StoredWayForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.wayGeometry.AsText(), string.Join("~", md.WayTags.Select(t => t.storedWay + "|" + t.Key + "|" + t.Value)), md.IsGameElement);
-                    var test = JsonSerializer.Serialize(recordVersion, typeof(CoreComponents.Support.StoredWayForJson));
+                    var recordVersion = new StoredWayForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.wayGeometry.AsText(), string.Join("~", md.WayTags.Select(t => t.storedWay + "|" + t.Key + "|" + t.Value)), md.IsGameElement);
+                    var test = JsonSerializer.Serialize(recordVersion, typeof(StoredWayForJson));
                     sw.Write(test);
                     sw.Write("," + Environment.NewLine);
                 }
@@ -335,7 +336,7 @@ namespace Larry
             sw.Write("]");
             sw.Close();
             sw.Dispose();
-            Log.WriteLog("All MapData entries were serialized individually and saved to file at " + DateTime.Now);
+            Log.WriteLog("All StoredWay entries were serialized individually and saved to file at " + DateTime.Now);
         }
 
         public static void WriteSingleStoredWayToFile(string filename, StoredWay md, bool open = false, bool close = false)
@@ -461,6 +462,42 @@ namespace Larry
                 temp.wayGeometry = mp;
             }
             return temp;
+        }
+
+        public static void SplitPbfToSubfiles(string filename)
+        {
+            Log.WriteLog("Splitting " + filename + " into square degree files. " + DateTime.Now);
+            var fs = new FileStream(filename, FileMode.Open);
+            var source = new PBFOsmStreamSource(fs);
+            float north = source.Where(s => s.Type == OsmGeoType.Node).Max(s => (float)((OsmSharp.Node)s).Latitude);
+            float south = source.Where(s => s.Type == OsmGeoType.Node).Min(s => (float)((OsmSharp.Node)s).Latitude);
+            float west = source.Where(s => s.Type == OsmGeoType.Node).Min(s => (float)((OsmSharp.Node)s).Longitude);
+            float east = source.Where(s => s.Type == OsmGeoType.Node).Max(s => (float)((OsmSharp.Node)s).Longitude);
+            var minsouth = (float)Math.Truncate(south);
+            var minWest = (float)Math.Truncate(west);
+            var maxNorth = (float)Math.Truncate(north) + 1;
+            var maxEast = (float)Math.Truncate(east) + 1;
+            Log.WriteLog("Bounding box for provided file determined at " + DateTime.Now + ", splitting into " + ((maxNorth - minsouth) * (maxEast - minWest)) + " sub-files.");
+            source.Dispose(); source = null;
+            fs.Close(); fs.Dispose(); fs = null;
+
+            for (var i = minWest; i < maxEast; i++)
+                for (var j = minsouth; j < maxNorth; j++)
+                {
+                    string tempFile = ParserSettings.PbfFolder + "splitFile-" + i + "-" + j + ".pbf";
+                    if (File.Exists(tempFile))
+                    {
+                        Log.WriteLog("File " + tempFile + " already exists, skipping.");
+                        continue;
+                    }
+                    using (var destFile = new FileInfo(tempFile).Open(FileMode.Create))
+                    {
+                        var filtered = source.FilterBox(i, j + 1, i + 1, j, true);
+                        var target = new PBFOsmStreamTarget(destFile);
+                        target.RegisterSource(filtered);
+                        target.Pull();
+                    }
+                }
         }
 
         public static void ReportProgress(DateTime startedProcess, double totalItems, double itemsProcessed, string itemName)

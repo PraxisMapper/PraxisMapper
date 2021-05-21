@@ -16,7 +16,8 @@ namespace CoreComponents
     public static class MapTiles
     {
         const int MapTileSizeSquare = 512;
-
+        static SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.Fill }; //BlendMode is the important part for an Eraser.
+        
         public static void GetResolutionValues(int CellSize, out double resX, out double resY) //This is degrees per pixel in a maptile.
         {
             switch (CellSize)
@@ -563,19 +564,21 @@ namespace CoreComponents
         }
 
         //This generic function takes the area to draw, a size to make the canvas, and then draws it all.
-        public static byte[] DrawAreaAtSizeV4(GeoArea relevantArea, long imageSizeX, long imageSizeY)
+        //Optional parameter allows you to pass in different stuff that the DB alone has, possibly for manual or one-off changes to styling
+        //or other elements converted for maptile purposes.
+        public static byte[] DrawAreaAtSizeV4(GeoArea relevantArea, int imageSizeX, int imageSizeY, List<StoredWay> drawnItems = null)
         {
             Random r = new Random();
           
             var db = new PraxisContext();
             var geo = Converters.GeoAreaToPolygon(relevantArea);
-            var geoString = geo.ToText();
-            var drawnItems = db.StoredWays.Include(c => c.WayTags).Where(w => geo.Intersects(w.wayGeometry)).OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToList();
+            if (drawnItems == null)
+                drawnItems = db.StoredWays.Include(c => c.WayTags).Where(w => geo.Intersects(w.wayGeometry)).OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToList();
 
             //baseline image data stuff           
             double degreesPerPixelX = relevantArea.LongitudeWidth / imageSizeX;
             double degreesPerPixelY = relevantArea.LatitudeHeight / imageSizeX;
-            SKBitmap bitmap = new SKBitmap(512, 512, SKColorType.Rgba8888, SKAlphaType.Premul);
+            SKBitmap bitmap = new SKBitmap(imageSizeX, imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
             SKCanvas canvas = new SKCanvas(bitmap);
             var bgColor = new SKColor();
             SKColor.TryParse("00FFFFFF", out bgColor);
@@ -593,16 +596,38 @@ namespace CoreComponents
                 var path = new SKPath();
                 switch (w.wayGeometry.GeometryType)
                 {
+                    //Polygons without holes are super easy and fast: draw the path.
+                    //Polygons with holes require their own bitmap to be drawn correctly and then overlaid onto the canvas.
+                    //TODO: use blend mode on the paths! don't make them bitmaps! That will let me get maximum performance AND accuracy!
                     case "Polygon":
-                        path.AddPoly(Converters.PolygonToSKPoints(w.wayGeometry, relevantArea, degreesPerPixelX, degreesPerPixelY));
-                        canvas.DrawPath(path, paint);
+                        var p = w.wayGeometry as Polygon;
+                        if (p.Holes.Length == 0)
+                        {
+                            path.AddPoly(Converters.PolygonToSKPoints(p, relevantArea, degreesPerPixelX, degreesPerPixelY));
+                            canvas.DrawPath(path, paint);
+                        }
+                        else
+                        {
+                            var innerBitmap = DrawPolygon((Polygon)w.wayGeometry, paint, relevantArea, imageSizeX, imageSizeY, degreesPerPixelX, degreesPerPixelY);
+                            canvas.DrawBitmap(innerBitmap, 0, 0, paint);
+                            //canvas.Save(); //Not sure if this helps or not
+                        }
                         break;
                     case "MultiPolygon":
-                        foreach (var p in ((MultiPolygon)w.wayGeometry).Geometries)
+                        foreach (var p2 in ((MultiPolygon)w.wayGeometry).Geometries)
                         {
-                            var path2 = new SKPath();
-                            path2.AddPoly(Converters.PolygonToSKPoints(p, relevantArea, degreesPerPixelX, degreesPerPixelY));
-                            canvas.DrawPath(path2, paint);
+                            var p2p = p2 as Polygon;
+                            if (p2p.Holes.Length == 0)
+                            {
+                                path.AddPoly(Converters.PolygonToSKPoints(p2p, relevantArea, degreesPerPixelX, degreesPerPixelY));
+                                canvas.DrawPath(path, paint);
+                            }
+                            else
+                            {
+                                var innerBitmap = DrawPolygon(p2p, paint, relevantArea, imageSizeX, imageSizeY, degreesPerPixelX, degreesPerPixelY);
+                                canvas.DrawBitmap(innerBitmap, 0, 0, paint);
+                                //canvas.Save(); //Not sure if this helps or not
+                            }
                         }
                         break;
                     case "LineString":
@@ -625,9 +650,9 @@ namespace CoreComponents
                             canvas.DrawLine(points[line], points[line + 1], paint);
                         break;
                     case "MultiLineString":
-                        foreach (var p in ((MultiLineString)w.wayGeometry).Geometries)
+                        foreach (var p3 in ((MultiLineString)w.wayGeometry).Geometries)
                         {
-                            var points2 = Converters.PolygonToSKPoints(p, relevantArea, degreesPerPixelX, degreesPerPixelY);
+                            var points2 = Converters.PolygonToSKPoints(p3, relevantArea, degreesPerPixelX, degreesPerPixelY);
                             for (var line = 0; line < points2.Length - 1; line++)
                                 canvas.DrawLine(points2[line], points2[line + 1], paint);
                         }
@@ -640,7 +665,6 @@ namespace CoreComponents
                     default:
                         Log.WriteLog("Unknown geometry type found, not drawn. Element " + w.id);
                         break;
-
                 }
             }
 
@@ -650,6 +674,30 @@ namespace CoreComponents
             var results = ms.ToArray();
             skms.Dispose(); ms.Close(); ms.Dispose();
             return results;
+        }
+
+        public static SKBitmap DrawPolygon(Polygon polygon, SKPaint paint, GeoArea relevantArea, int imageSizeX, int imageSizeY, double degreesPerPixelX, double degreesPerPixelY)
+        {
+            //In order to do this the most correct, i have to draw the outer ring, then erase all the innner rings.
+            //THEN draw that image overtop the original.
+            SKBitmap bitmap = new SKBitmap(imageSizeX, imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
+            SKCanvas canvas = new SKCanvas(bitmap);
+            var bgColor = new SKColor();
+            SKColor.TryParse("000000000", out bgColor); //Be transparent, not white, for this operation.
+            canvas.Clear(bgColor);
+            canvas.Scale(1, 1, imageSizeX / 2, imageSizeY / 2); //This gets flipped here, then flipped again later when drawing on the main image.
+            var path = new SKPath();
+            path.AddPoly(Converters.PolygonToSKPoints(polygon.ExteriorRing, relevantArea, degreesPerPixelX, degreesPerPixelY));
+            canvas.DrawPath(path, paint);
+
+            foreach (var hole in polygon.InteriorRings)
+            {
+                path = new SKPath();
+                path.AddPoly(Converters.PolygonToSKPoints(hole, relevantArea, degreesPerPixelX, degreesPerPixelY));
+                canvas.DrawPath(path, eraser);
+            }
+
+            return bitmap;
         }
     }
 }
