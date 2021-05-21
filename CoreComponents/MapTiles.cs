@@ -598,7 +598,8 @@ namespace CoreComponents
                 {
                     //Polygons without holes are super easy and fast: draw the path.
                     //Polygons with holes require their own bitmap to be drawn correctly and then overlaid onto the canvas.
-                    //TODO: use blend mode on the paths! don't make them bitmaps! That will let me get maximum performance AND accuracy!
+                    //I want to use paths to fix things for performance reasons, but I have to use Bitmaps because paths apply their blend mode to
+                    //ALL elements already drawn, not just the last one.
                     case "Polygon":
                         var p = w.wayGeometry as Polygon;
                         if (p.Holes.Length == 0)
