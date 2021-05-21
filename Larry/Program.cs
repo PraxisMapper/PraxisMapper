@@ -19,6 +19,7 @@ using static CoreComponents.Place;
 using static CoreComponents.Singletons;
 using static CoreComponents.TagParser;
 using SkiaSharp;
+using Microsoft.EntityFrameworkCore;
 
 //TODO: look into using Span<T> instead of lists? This might be worth looking at performance differences. (and/or Memory<T>, which might be a parent for Spans)
 //TODO: Ponder using https://download.bbbike.org/osm/ as a data source to get a custom extract of an area (for when users want a local-focused app, probably via a wizard GUI)
@@ -276,6 +277,50 @@ namespace Larry
                     V4Import.ProcessFileV4(filename);
                 }
             }
+
+            //new V4 options to piecemeal up some of the process.
+            if (args.Any(a => a.StartsWith("-splitToSubPbfs")))
+            {
+                //This should generally be done on large files to make sure each sub-file is complete. It won't merge results if you run it on 2 overlapping
+                //extract files.
+                Log.WriteLog("Loading large file to split now. Remember to use only the largest extract file you have for this or results will not be as expected.");
+
+                var filename = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").Where(f => !f.StartsWith("split")).First(); //don't look at any existing split files.
+                Log.WriteLog("Loading " + filename + " to split. Remember to use only the largest extract file you have for this or results will not be as expected.");
+                V4Import.SplitPbfToSubfiles(filename);
+            }
+
+            //testing generic image drawing function
+            if (args.Any(a => a.StartsWith("-testDrawOhio")))
+            {
+                //remove admin boundaries from the map.
+                TagParser.Initialize();
+                var makeAdminClear = TagParser.styles.Where(s => s.name == "admin").FirstOrDefault();
+                makeAdminClear.paint.Color = new SKColor(0, 0, 0, 0);//transparent;
+
+                //GeoArea ohio = new GeoArea(38, -84, 42, -80); //All of the state, hits over 10GB in C# memory space
+                //GeoArea ohio = new GeoArea(41.2910, -81.9257, 41.6414,  -81.3970); //Cleveland
+                GeoArea ohio = new GeoArea(41.49943, -81.61139, 41.50612, -81.60201); //CWRU
+                var ohioPoly = Converters.GeoAreaToPolygon(ohio);
+                var db = new PraxisContext();
+                db.Database.SetCommandTimeout(900);
+                var stuffToDraw = db.StoredWays.Include(c => c.WayTags).Where(s => s.wayGeometry.Intersects(ohioPoly)).OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToList();
+
+                //TODO: check Adventure Island at Cedar Point, see why it's 1 grey blob instead of a bunch of ways
+
+                //drawing one specific, problematic relation for now. I think it's not correctly cutting out inner ways when converting it to geometry?
+                //This is the one that's borked up. the sidewalks at CWRU.
+                //var stuffToDraw = db.StoredWays.Include(c => c.WayTags).Where(s => s.sourceItemID == 6565313).ToList();
+
+                //NOTE ordering is skipped to get data back in a reasonable time. This is testing my draw logic speed, not MariaDB;s sort speed.
+                //TODO: add timestamps for how long these take to draw. Will see how fast Skia is at various scales. Is Skia faster on big images? no, thats a fluke.
+                File.WriteAllBytes("cwru-512.png", MapTiles.DrawAreaAtSizeV4(ohio, 512, 512, stuffToDraw)); //63 ohio, 3.3 cleveland
+                File.WriteAllBytes("cwru-1024.png", MapTiles.DrawAreaAtSizeV4(ohio, 1024, 1024, stuffToDraw));//63.7 seconds, 3.6 cleveland
+                File.WriteAllBytes("cleveland-2048.png", MapTiles.DrawAreaAtSizeV4(ohio, 2048, 2048, stuffToDraw)); //58 seconds, 3.9 cleveland
+                File.WriteAllBytes("cleveland-4096.png", MapTiles.DrawAreaAtSizeV4(ohio, 4096, 4096, stuffToDraw)); //51 seconds, 5.3 cleveland
+                File.WriteAllBytes("cleveland-reallybig.png", MapTiles.DrawAreaAtSizeV4(ohio, 15000, 15000, stuffToDraw)); //100 seconds, 21.7 cleveland
+            }
+
         }
 
         public static void DetectMapTilesRecursive(string parentCell, bool skipExisting) //This was off slightly at one point, but I didn't document how much or why. Should be correct now.
