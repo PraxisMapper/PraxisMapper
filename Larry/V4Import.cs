@@ -469,12 +469,14 @@ namespace Larry
             Log.WriteLog("Splitting " + filename + " into square degree files. " + DateTime.Now);
             var fs = new FileStream(filename, FileMode.Open);
             var source = new PBFOsmStreamSource(fs);
+           
             //Uncomment this when processing is done.
             double north = -360, south = 360, east = -360, west = 360;
             DateTime processStart = DateTime.Now;
             int counter = 0;
-            var list = source.Where(s => s.Type == OsmGeoType.Node); 
+            var list = source.Where(s => s.Type == OsmGeoType.Node);
             //This loop takes ~15 minutes on my dev PC for the northamerica-latest file to read through the nodes, then 5 extra minutes to skim the rest of the file.
+            //You still want to use the smallest file you can for this.
             foreach (OsmSharp.Node node in list)
             {
                 if (node.Latitude.Value > north)
@@ -488,7 +490,7 @@ namespace Larry
                     east = node.Longitude.Value;
 
                 counter++;
-                if (counter % 10000000 == 0)
+                if (counter % 10000000 == 0) //Planet.osm has 8 billion nodes, for reference.
                 {
                     ReportProgress(processStart, 0, counter, "Nodes for bounding box");
                     Log.WriteLog("Current bounds are " + south + "," + west + " to " + north + "," + east);
@@ -506,6 +508,8 @@ namespace Larry
             //maxEast = -4;
             Log.WriteLog("Bounding box for provided file determined at " + DateTime.Now + ", splitting into " + ((maxNorth - minsouth) * (maxEast - minWest)) + " sub-files.");
 
+            //it look likes this takes over 30 minutes on my dev PC to read through the parent file. It's going to split the continent into 13,728 sub-files
+            //Thats something like 9+ months of processing one file. Not acceptable. Need a new plan.
             for (var i = minWest; i < maxEast; i++)
                 for (var j = minsouth; j < maxNorth; j++)
                 {
