@@ -469,17 +469,42 @@ namespace Larry
             Log.WriteLog("Splitting " + filename + " into square degree files. " + DateTime.Now);
             var fs = new FileStream(filename, FileMode.Open);
             var source = new PBFOsmStreamSource(fs);
-            float north = source.Where(s => s.Type == OsmGeoType.Node).Max(s => (float)((OsmSharp.Node)s).Latitude);
-            float south = source.Where(s => s.Type == OsmGeoType.Node).Min(s => (float)((OsmSharp.Node)s).Latitude);
-            float west = source.Where(s => s.Type == OsmGeoType.Node).Min(s => (float)((OsmSharp.Node)s).Longitude);
-            float east = source.Where(s => s.Type == OsmGeoType.Node).Max(s => (float)((OsmSharp.Node)s).Longitude);
+            //Uncomment this when processing is done.
+            double north = -360, south = 360, east = -360, west = 360;
+            DateTime processStart = DateTime.Now;
+            int counter = 0;
+            var list = source.Where(s => s.Type == OsmGeoType.Node); 
+            //This loop takes ~15 minutes on my dev PC for the northamerica-latest file to read through the nodes, then 5 extra minutes to skim the rest of the file.
+            foreach (OsmSharp.Node node in list)
+            {
+                if (node.Latitude.Value > north)
+                    north = node.Latitude.Value;
+                else if (node.Latitude.Value < south)
+                    south = node.Latitude.Value;
+
+                if (node.Longitude.Value < west)
+                    west = node.Longitude.Value;
+                else if (node.Longitude.Value > east)
+                    east = node.Longitude.Value;
+
+                counter++;
+                if (counter % 10000000 == 0)
+                {
+                    ReportProgress(processStart, 0, counter, "Nodes for bounding box");
+                    Log.WriteLog("Current bounds are " + south + "," + west + " to " + north + "," + east);
+                }
+            }
             var minsouth = (float)Math.Truncate(south);
             var minWest = (float)Math.Truncate(west);
             var maxNorth = (float)Math.Truncate(north) + 1;
             var maxEast = (float)Math.Truncate(east) + 1;
+
+            //North America values.
+            //minsouth = 6;
+            //minWest = -180;
+            //maxNorth = 84;
+            //maxEast = -4;
             Log.WriteLog("Bounding box for provided file determined at " + DateTime.Now + ", splitting into " + ((maxNorth - minsouth) * (maxEast - minWest)) + " sub-files.");
-            source.Dispose(); source = null;
-            fs.Close(); fs.Dispose(); fs = null;
 
             for (var i = minWest; i < maxEast; i++)
                 for (var j = minsouth; j < maxNorth; j++)
@@ -503,11 +528,18 @@ namespace Larry
         public static void ReportProgress(DateTime startedProcess, double totalItems, double itemsProcessed, string itemName)
         {
             var difference = DateTime.Now - startedProcess;
-            double percentage = (itemsProcessed / totalItems) * 100;
             var entriesPerSecond = itemsProcessed / difference.TotalSeconds;
-            var secondsLeft = (totalItems - itemsProcessed) / entriesPerSecond;
-            TimeSpan estimatedTime = TimeSpan.FromSeconds(secondsLeft);
-            Log.WriteLog(Math.Round(entriesPerSecond) + " " + itemName + " per second processed, " + Math.Round(percentage, 2) + "% done, estimated time remaining: " + estimatedTime.ToString());
+
+            if (totalItems > 0)
+            {
+                double percentage = (itemsProcessed / totalItems) * 100;
+                var secondsLeft = (totalItems - itemsProcessed) / entriesPerSecond;
+                TimeSpan estimatedTime = TimeSpan.FromSeconds(secondsLeft);
+                Log.WriteLog(Math.Round(entriesPerSecond) + " " + itemName + " per second processed, " + Math.Round(percentage, 2) + "% done, estimated time remaining: " + estimatedTime.ToString());
+            }
+            else
+                Log.WriteLog(Math.Round(entriesPerSecond) + " " + itemName + " per second processed, unknown time remaining.");
+
         }
     }
 }
