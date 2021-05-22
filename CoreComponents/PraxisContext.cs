@@ -32,9 +32,12 @@ namespace CoreComponents
         public DbSet<ZztGame> ZztGames { get; set; }
         public DbSet<GamesBeaten> GamesBeaten { get; set; }
 
-        public DbSet<StoredNode> StoredNodes { get; set; }
+        //public DbSet<StoredNode> StoredNodes { get; set; }
         public DbSet<StoredWay> StoredWays { get; set; }
-        public DbSet<StoredRelation> StoredRelations { get; set; }
+        //public DbSet<WayTags> WayTags { get; set; } //This can be automatically added just from it's reference in storedWays, but then I can't access the table directly from the entities.
+        //If I need to do some queries or additional indexing, i might add this into the context to update it that way.
+        
+        //public DbSet<StoredRelation> StoredRelations { get; set; }
         public DbSet<TagParserEntry> TagParserEntries { get; set; }
         public DbSet<TagParserMatchRule> TagParserMatchRules { get; set; }
 

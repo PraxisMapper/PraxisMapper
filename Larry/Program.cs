@@ -249,12 +249,6 @@ namespace Larry
                 }
             }
 
-            //This logic path probably isn't necessary, with importV4 replacing its logic of 'save everything now, draw at runtime'
-            if (args.Any(a => a.StartsWith("-testDbDump")))
-            {
-                PbfRawDump.DumpToDb(ParserSettings.PbfFolder + "delaware-latest.osm.pbf"); //Delaware is the smallest state.
-            }
-
             if (args.Any(a => a.StartsWith("-importV4")))
             {
                 // 4th generation of logic for importing OSM data from PBF file.
