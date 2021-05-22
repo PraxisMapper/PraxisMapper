@@ -296,7 +296,7 @@ namespace Larry
                 //remove admin boundaries from the map.
                 TagParser.Initialize(true);
                 var makeAdminClear = TagParser.styles.Where(s => s.name == "admin").FirstOrDefault();
-                makeAdminClear.paint.Color = new SKColor(0, 0, 0, 0);//transparent;
+                makeAdminClear.paint.Color = SKColors.Transparent;
 
                 //GeoArea ohio = new GeoArea(38, -84, 42, -80); //All of the state, hits over 10GB in C# memory space
                 //GeoArea ohio = new GeoArea(41.2910, -81.9257, 41.6414,  -81.3970); //Cleveland
@@ -306,13 +306,7 @@ namespace Larry
                 db.Database.SetCommandTimeout(900);
                 var stuffToDraw = db.StoredWays.Include(c => c.WayTags).Where(s => s.wayGeometry.Intersects(ohioPoly)).OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToList();
 
-                //TODO: check Adventure Island at Cedar Point, see why it's 1 grey blob instead of a bunch of ways
-
-                //drawing one specific, problematic relation for now. I think it's not correctly cutting out inner ways when converting it to geometry?
-                //This is the one that's borked up. the sidewalks at CWRU.
-                //var stuffToDraw = db.StoredWays.Include(c => c.WayTags).Where(s => s.sourceItemID == 6565313).ToList();
-
-                //NOTE ordering is skipped to get data back in a reasonable time. This is testing my draw logic speed, not MariaDB;s sort speed.
+                //NOTE ordering is skipped to get data back in a reasonable time. This is testing my draw logic speed, not MariaDB's sort speed.
                 //TODO: add timestamps for how long these take to draw. Will see how fast Skia is at various scales. Is Skia faster on big images? no, thats a fluke.
                 File.WriteAllBytes("cwru-512.png", MapTiles.DrawAreaAtSizeV4(ohio, 512, 512, stuffToDraw)); //63 ohio, 3.3 cleveland
                 File.WriteAllBytes("cwru-1024.png", MapTiles.DrawAreaAtSizeV4(ohio, 1024, 1024, stuffToDraw));//63.7 seconds, 3.6 cleveland

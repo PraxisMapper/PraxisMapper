@@ -205,7 +205,6 @@ namespace PraxisMapper.Controllers
             var teams = db.Factions.ToLookup(k => k.FactionId, v => v.Name);
             var data = db.PaintTownEntries.Where(t => t.PaintTownConfigId == instanceID).GroupBy(g => g.FactionId).Select(t => new { instanceID = instanceID, team = t.Key, score = t.Count() }).OrderByDescending(t => t.score).ToList();
             var modeName = db.PaintTownConfigs.Where(t => t.PaintTownConfigId == instanceID).FirstOrDefault().Name;
-            //TODO: data to string of some kind.
             string results = modeName + "#" + DateTime.Now + "|";
             foreach (var d in data)
             {
@@ -290,7 +289,7 @@ namespace PraxisMapper.Controllers
 
             Classes.PerformanceTracker pt = new Classes.PerformanceTracker("CheckForReset");
 
-            //TODO: cache these results into memory so I can skip a DB lookup every single call. Should probably be done on startup.
+            //TODO: use the cached resetTimes value instead of a DB call every time we're called.
             var db = new PraxisContext();
             var twConfig = db.PaintTownConfigs.Where(t => t.PaintTownConfigId == instanceID).FirstOrDefault();
             if (twConfig.DurationHours == -1) //This is a permanent instance.

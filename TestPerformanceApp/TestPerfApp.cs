@@ -67,13 +67,14 @@ namespace PerformanceTestApp
             //TestRasterVsVectorCell8();
             //TestRasterVsVectorCell10();
             //TestImageSharpVsSkiaSharp(); //imagesharp was removed for being vastly slower.
+            TestTagParser();
 
             //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
             //These cannot all be enabled in one run. You must comment/uncomment each one separately.
             //ALSO, these need updated somehow to be self-contained and consistent. Like, maybe load Delaware data or something as a baseline.
             //TestDBPerformance("SQLServer");
             //TestDBPerformance("MariaDB");
-            TestDBPerformance("PostgreSQL");
+            //TestDBPerformance("PostgreSQL");
 
 
             //Sample code for later, I will want to make sure these indexes work as expected.
@@ -1332,6 +1333,80 @@ namespace PerformanceTestApp
             osm.Database.ExecuteSqlRaw("TRUNCATE TABLE SlippyMapTiles");
             Log.WriteLog("SlippyMapTiles cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
             Log.WriteLog("DB cleaned at " + DateTime.Now);
+        }
+
+        public static void TestTagParser()
+        {
+            //For future reference: default was the code from the previous commit, 
+            //alt is the code checked in with this change. over 1,000 loops its faster on all the scenarios tested
+            //usually running in about half the time.
+            Log.WriteLog("perf-testing tag parser options");
+            TagParser.Initialize(true);
+            System.Threading.Thread.Sleep(100);
+            List<WayTags> emptyList = new List<WayTags>();
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+            for (var i = 0; i < 1000; i++)
+                foreach (var style in TagParser.styles)
+                    TagParser.GetStyleForOsmWay(emptyList);
+                    //TagParser.MatchOnTags(style, emptyList);
+            sw.Stop();
+            Log.WriteLog("1000 empty lists run in " + sw.ElapsedTicks + " ticks with default" + sw.ElapsedMilliseconds);
+
+            //sw.Restart();
+            //for (var i = 0; i < 1000; i++)
+            //    foreach (var style in TagParser.styles)
+            //        TagParser.MatchOnTagsAlt(style, emptyList);
+            //sw.Stop();
+            //Log.WriteLog("1000 empty lists run in " + sw.ElapsedTicks + " ticks with alt");
+
+            //test with a set that matches on the default entry only.
+            List<WayTags> defaultSingle = new List<WayTags>();
+            defaultSingle.Add(new WayTags() { Key = "badEntry", Value = "mustBeDefault" });
+
+            sw.Restart();
+            for (var i = 0; i < 1000; i++)
+                foreach (var style in TagParser.styles)
+                    TagParser.GetStyleForOsmWay(defaultSingle);
+                    //TagParser.MatchOnTags(style, defaultSingle);
+            sw.Stop();
+            Log.WriteLog("1000 default-match lists run in " + sw.ElapsedTicks + " ticks" + sw.ElapsedMilliseconds);
+
+            //sw.Restart();
+            //for (var i = 0; i < 1000; i++)
+            //    foreach (var style in TagParser.styles)
+            //        TagParser.MatchOnTagsAlt(style, defaultSingle);
+            //sw.Stop();
+            //Log.WriteLog("1000 default-match lists run in " + sw.ElapsedTicks + " ticks with alt");
+
+            //test with a set that has a lot of tags.
+            List<WayTags> biglist = new List<WayTags>();
+            biglist.Add(new WayTags() { Key = "badEntry", Value = "nothing" });
+            biglist.Add(new WayTags() { Key = "place", Value = "neighborhood" });
+            biglist.Add(new WayTags() { Key = "natual", Value = "hill" });
+            biglist.Add(new WayTags() { Key = "lanes", Value = "7" });
+            biglist.Add(new WayTags() { Key = "placeholder", Value = "stuff" });
+            biglist.Add(new WayTags() { Key = "screensize", Value = "small" });
+            biglist.Add(new WayTags() { Key = "twoMore", Value = "entries" });
+            biglist.Add(new WayTags() { Key = "andHere", Value = "WeGo" });
+            biglist.Add(new WayTags() { Key = "waterway", Value = "river" });
+
+            sw.Restart();
+            for (var i = 0; i < 1000; i++)
+                foreach (var style in TagParser.styles)
+                    TagParser.GetStyleForOsmWay(biglist);
+                    //TagParser.MatchOnTags(style, defaultSingle);
+            sw.Stop();
+            Log.WriteLog("1000 big match on water lists run in " + sw.ElapsedTicks + " ticks" + sw.ElapsedMilliseconds);
+
+            //sw.Restart();
+            //for (var i = 0; i < 1000; i++)
+            //    foreach (var style in TagParser.styles)
+            //        TagParser.MatchOnTagsAlt(style, defaultSingle);
+            //sw.Stop();
+            //Log.WriteLog("1000 big match on water lists run in " + sw.ElapsedTicks + " ticks with alt");
+
+
         }
     }
 }

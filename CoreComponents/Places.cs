@@ -15,6 +15,11 @@ namespace CoreComponents
     {
         //for now, anything that does a query on MapData or a list of MapData entries
         //Places will be the name for interactible or important areas on the map. Was not previously a fixed name for that.
+
+        //This class is pending a rework to the newest storage logic. 
+        //All elements in the table with Geometry will be valid, and the TagParser rules will determine which ones are game elements
+        //this allows it to be customized much easier, and changed on the fly without reloading data.
+        //A lot of the current code will need changed to match that new logic, though. And generated areas may remain separate.
         public static List<MapData> GetPlaces(GeoArea area, List<MapData> source = null, bool includeAdmin = false, bool includeGenerated= true, double filterSize = 0)
         {
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
@@ -296,8 +301,8 @@ namespace CoreComponents
                 return "natureReserve";
 
             //Tourist locations that aren' specifically businesses (public art and educational stuff is good. Hotels aren't).
-            if (DbSettings.processTourism && tags["tourism"].Any(v => relevantTourismValues.Contains(v))) //TODO: ponder revoking this relevant value limitation. Amusement parks should absolutely count.
-                return "tourism"; //TODO: create sub-values for tourism types?
+            if (DbSettings.processTourism && tags["tourism"].Any(v => relevantTourismValues.Contains(v)))
+                return "tourism"; 
 
             //Universities are good. Primary schools are not so good.  Don't include all education values.
             if (DbSettings.processUniversity && tags["amenity"].Any(v => v == "university" || v == "college"))
@@ -414,9 +419,9 @@ namespace CoreComponents
 
         public static bool IsInBounds(OpenLocationCode code, ServerSetting bounds)
         {
-            //TODO: ponder how to handle this without a DB call each time. This should probably be cached by the app, so i need to cache ServerSettings and pass it in from the parent app.
+            //TODO: Bounds should loaded from the database at startup
+            //right now, they're saved to a cache after the first actual webpage call. 
             var db = new PraxisContext();
-            //var bounds = db.ServerSettings.FirstOrDefault();
             var area = code.Decode();
 
             return (bounds.NorthBound >= area.NorthLatitude && bounds.SouthBound <= area.SouthLatitude

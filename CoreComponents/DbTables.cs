@@ -129,7 +129,7 @@ namespace CoreComponents
 
         public class GeneratedMapData
         {
-            public long GeneratedMapDataId { get; set; } //TODO: determine the best way to make this separate table not have ID collisions, if possible, with the main MapData table.
+            public long GeneratedMapDataId { get; set; } 
             public string name { get; set; } //probably won't get a specific name by default, but games may want one here.
 
             [Column(TypeName = "geography")]

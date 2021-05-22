@@ -10,6 +10,7 @@ using static CoreComponents.Place;
 using static CoreComponents.Singletons;
 using SkiaSharp;
 using Microsoft.EntityFrameworkCore;
+using CoreComponents.Support;
 
 namespace CoreComponents
 {
@@ -56,9 +57,10 @@ namespace CoreComponents
         public static void GetSlippyResolutions(int xTile, int yTile, int zoomLevel, out double resX, out double resY) //This is degrees per pixel in a maptile.
         {
             //NOTE: currently, this calculation is done in 2 steps, with the last one to get resX and resY at the end done in an inner function and earlier code using a GeoArea based on the coordinates.
-            //I would have to redo the code to pull that all out at once, or just have this return areawidth/height without dividing them(which is just degrees, not degrees per pixel).
             //These are harder to cache, because they change based on latitude. X tiles are always the same, Y tiles scale with latitude.
-            //TODO: could probably slightly optimize the math down a little bit to reduce repeated operations.
+
+            //var stats = new ImageStats();
+
             var n = Math.Pow(2, zoomLevel);
 
             var lon_degree_w = xTile / n * 360 - 180;
@@ -517,6 +519,7 @@ namespace CoreComponents
 
         public static SKColor PickColorForAdminBounds(MapData place)
         {
+            //TODO: this is a test function, and should be treated as such. Move to Corecomponents and update to the new data storage setup.
             //Each place should get a unique, but consistent, color. Which means we're mostly looking for a hash
             var hasher = System.Security.Cryptography.MD5.Create();
             var value = place.name.ToByteArrayUnicode();
@@ -563,6 +566,14 @@ namespace CoreComponents
             return results;
         }
 
+        public static byte[] DrawAreaAtSizeV4(ImageStats stats, List<StoredWay> drawnItems = null)
+        {
+            //This should become the standard path as I convert parts of the app to the new system.
+            //Once it is, copy that code to this function and remove unnecesssary or redundant parts
+            //like calculating degrees per pixel.
+            return DrawAreaAtSizeV4(stats.area, stats.imageSizeX, stats.imageSizeY, drawnItems);
+        }
+
         //This generic function takes the area to draw, a size to make the canvas, and then draws it all.
         //Optional parameter allows you to pass in different stuff that the DB alone has, possibly for manual or one-off changes to styling
         //or other elements converted for maptile purposes.
@@ -595,8 +606,9 @@ namespace CoreComponents
                 paint = style.paint;
                 var path = new SKPath();
 
-                if (style.name == "background")
-                    continue;
+                if (paint.Color.Alpha == 0)
+                    continue; //This area is transparent, skip drawing it entirely.
+
                 switch (w.wayGeometry.GeometryType)
                 {
                     //Polygons without holes are super easy and fast: draw the path.
@@ -689,7 +701,7 @@ namespace CoreComponents
             var bgColor = new SKColor();
             SKColor.TryParse("000000000", out bgColor); //Be transparent, not white, for this operation.
             canvas.Clear(bgColor);
-            canvas.Scale(1, 1, imageSizeX / 2, imageSizeY / 2); //This gets flipped here, then flipped again later when drawing on the main image.
+            canvas.Scale(1, 1, imageSizeX / 2, imageSizeY / 2); 
             var path = new SKPath();
             path.AddPoly(Converters.PolygonToSKPoints(polygon.ExteriorRing, relevantArea, degreesPerPixelX, degreesPerPixelY));
             canvas.DrawPath(path, paint);
