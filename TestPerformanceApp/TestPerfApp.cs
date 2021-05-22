@@ -993,7 +993,7 @@ namespace PerformanceTestApp
         public static Cell10Info CellInfoFindPlacesInCell10(double x, double y, ref List<MapData> places)
         {
             var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell10, x + resolutionCell10));
-            var entriesHere = GetPlaces(box, places).Where(p => p.AreaTypeId != 13).ToList(); //Excluding admin boundaries from this list.  
+            var entriesHere = GetPlacesMapDAta(box, places).Where(p => p.AreaTypeId != 13).ToList(); //Excluding admin boundaries from this list.  
 
             if (entriesHere.Count() == 0)
                 return null;
@@ -1036,15 +1036,15 @@ namespace PerformanceTestApp
             sw.Restart();
 
             var preppedPlace = pgf.Create(Converters.GeoAreaToPolygon(Cell8));
-            var placesPreppedCell = places.Where(md => preppedPlace.Intersects(md.place)).ToList();
+            //var placesPreppedCell = places.Where(md => preppedPlace.Intersects(md.place)).ToList();
             sw.Stop();
             Log.WriteLog("Prepped Cell8 & Normal geometries search took " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds + "ms)");
             sw.Restart();
 
-            var preppedPlaces = places.Select(p => pgf.Create(p.place)).ToList();
+            //var preppedPlaces = places.Select(p => pgf.Create(p.place)).ToList();
             var prepTime = sw.ElapsedTicks;
             var locationNormal = Converters.GeoAreaToPolygon(Cell8);
-            var placesPreppedList = preppedPlaces.Where(p => p.Intersects(locationNormal)).ToList();
+            //var placesPreppedList = preppedPlaces.Where(p => p.Intersects(locationNormal)).ToList();
             sw.Stop();
 
             Log.WriteLog("Prepped List & Normal Cell8 search took " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds + "ms), " + prepTime + " ticks were prepping list");
@@ -1064,7 +1064,7 @@ namespace PerformanceTestApp
                 {
                     string cellToCheck = testCell + OpenLocationCode.CodeAlphabet[pos1].ToString() + OpenLocationCode.CodeAlphabet[pos2].ToString();
                     var area = new OpenLocationCode(cellToCheck).Decode();
-                    var places = GetPlaces(area, null, false, false);
+                    var places = GetPlacesMapDAta(area, null, false, false);
 
                     raster.Start();
                     //MapTiles.DrawAreaMapTileRaster(ref places, area, 11); 
@@ -1091,7 +1091,7 @@ namespace PerformanceTestApp
                 {
                     string cellToCheck = testCell + OpenLocationCode.CodeAlphabet[pos1].ToString() + OpenLocationCode.CodeAlphabet[pos2].ToString();
                     var area = new OpenLocationCode(cellToCheck).Decode();
-                    var places = GetPlaces(area, null, false, false);
+                    var places = GetPlacesMapDAta(area, null, false, false);
 
                     raster.Start();
                     //MapTiles.DrawAreaMapTileRaster(ref places, area, 11);
@@ -1135,7 +1135,7 @@ namespace PerformanceTestApp
             var areaWidthDegrees = 360 / n;
 
             
-            var places = GetPlaces(relevantArea, includeGenerated: false);
+            var places = GetPlacesMapDAta(relevantArea, includeGenerated: false);
             var places2 = places.Select(p => p.Clone()).ToList(); //Trimming occurs in the draw functions, so we need a copy to make the test fair.
             Stopwatch sw = new Stopwatch();
             sw.Start();

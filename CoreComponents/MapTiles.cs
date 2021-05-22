@@ -103,7 +103,7 @@ namespace CoreComponents
             int imagesizeY = (int)Math.Ceiling(totalArea.LatitudeHeight / degreesPerPixelY);
 
             var db = new PraxisContext();
-            List<MapData> allPlaces = GetPlaces(dataLoadArea, null, false, true, filterSize); //Includes generated here with the final True parameter.
+            List<MapData> allPlaces = GetPlacesMapDAta(dataLoadArea, null, false, true, filterSize); //Includes generated here with the final True parameter.
             List<long> placeIDs = allPlaces.Select(a => a.MapDataId).ToList();
             Dictionary<long, int> teamClaims = db.AreaControlTeams.Where(act => placeIDs.Contains(act.MapDataId)).ToDictionary(k => k.MapDataId, v => v.FactionId);
 
@@ -152,6 +152,10 @@ namespace CoreComponents
             return InnerDrawSkia(ref allPlaces, totalArea, degreesPerPixelX, degreesPerPixelY, imagesizeX, imagesizeY);
         }
 
+        public static byte[] DrawMPAreaMapTileSlippySkia(ImageStats info)
+        {
+            return DrawMPAreaMapTileSlippySkia(info.area, info.area.LatitudeHeight, info.area.LongitudeWidth);
+        }
         public static byte[] DrawMPAreaMapTileSlippySkia(GeoArea totalArea, double areaHeight, double areaWidth)
         {
             //Resolution scaling here is flexible, since we're always drawing a 512x512 tile.
@@ -171,7 +175,7 @@ namespace CoreComponents
             var loadDataArea = new GeoArea(new GeoPoint(totalArea.Min.Latitude - resolutionCell10, totalArea.Min.Longitude - resolutionCell10), new GeoPoint(totalArea.Max.Latitude + resolutionCell10, totalArea.Max.Longitude + resolutionCell10));
 
             var db = new PraxisContext();
-            List<MapData> allPlaces = GetPlaces(loadDataArea, null, false, true, smallestFeature); //Includes generated here with the final True parameter.
+            List<MapData> allPlaces = GetPlacesMapDAta(loadDataArea, null, false, true, smallestFeature); //Includes generated here with the final True parameter.
             List<long> placeIDs = allPlaces.Select(a => a.MapDataId).ToList();
             Dictionary<long, int> teamClaims = db.AreaControlTeams.Where(act => placeIDs.Contains(act.MapDataId)).ToDictionary(k => k.MapDataId, v => v.FactionId);
             allPlaces = allPlaces.Where(a => teamClaims.ContainsKey(a.MapDataId)).ToList();
@@ -188,6 +192,12 @@ namespace CoreComponents
 
             return InnerDrawSkia(ref allPlaces, totalArea, degreesPerPixelX, degreesPerPixelY, imagesizeX, imagesizeY, true);
         }
+
+        //public static byte[] DrawAreaMapTileSlippySkia(ref List<StoredWay> allPlaces, ImageStats info)
+        //{
+        //    //return DrawAreaMapTileSlippySkia(ref allPlaces, info.area, info.area.LatitudeHeight, info.area.LongitudeWidth,false);
+          
+        //}
 
         public static byte[] DrawAreaMapTileSlippySkia(ref List<MapData> allPlaces, GeoArea totalArea, double areaHeight, double areaWidth, bool transparent = false)
         {
@@ -385,6 +395,12 @@ namespace CoreComponents
             return results;
         }
 
+        public static byte[] DrawAdminBoundsMapTileSlippy(ref List<StoredWay> allPlaces, ImageStats info)
+        {
+            return null;
+            //return DrawAdminBoundsMapTileSlippy(ref allPlaces, info.area, info.area.LatitudeHeight, info.area.LongitudeWidth, false);
+        }
+
         public static byte[] DrawAdminBoundsMapTileSlippy(ref List<MapData> allPlaces, GeoArea totalArea, double areaHeight, double areaWidth, bool transparent = false)
         {
             //Resolution scaling here is flexible, since we're always drawing a 512x512 tile.
@@ -546,7 +562,7 @@ namespace CoreComponents
             var drawableLine = Converters.PolygonToSKPoints(line, mapToDraw, degreesPerPixelX, degreesPerPixelY);
 
             //Now, draw that path on the map.
-            var places = GetPlaces(mapToDraw, null, false, false, degreesPerPixelX * 4);
+            var places = GetPlacesMapDAta(mapToDraw, null, false, false, degreesPerPixelX * 4);
             var baseImage = InnerDrawSkia(ref places, mapToDraw, degreesPerPixelX, degreesPerPixelY, 1024, 1024);
 
             SKBitmap sKBitmap = SKBitmap.Decode(baseImage);
@@ -582,7 +598,6 @@ namespace CoreComponents
             //This is the new core drawing function. Takes in an area, the items to draw, and the size of the image to draw. 
             //The drawn items get their paint pulled from the TagParser's list. If I need multiple match lists, I'll need to make a way
             //to pick which list of tagparser rules to use.
-            Random r = new Random();
           
             var db = new PraxisContext();
             var geo = Converters.GeoAreaToPolygon(relevantArea);
@@ -595,7 +610,7 @@ namespace CoreComponents
             SKBitmap bitmap = new SKBitmap(imageSizeX, imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
             SKCanvas canvas = new SKCanvas(bitmap);
             var bgColor = new SKColor();
-            SKColor.TryParse("00FFFFFF", out bgColor);
+            SKColor.TryParse("00FFFFFF", out bgColor); //transparent white
             canvas.Clear(bgColor);
             canvas.Scale(1, -1, imageSizeX / 2, imageSizeY / 2);
             SKPaint paint = new SKPaint();

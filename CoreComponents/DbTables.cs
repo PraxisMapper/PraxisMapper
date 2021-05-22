@@ -283,6 +283,11 @@ namespace CoreComponents
             {
                 return (sourceItemType == 3 ? "Relation " : sourceItemType == 2 ? "Way " : "Node ") +  sourceItemID.ToString() + ":" + name;
             }
+
+            public StoredWay Clone()
+            {
+                return (StoredWay)this.MemberwiseClone();
+            }
         }
 
         public class StoredRelation
