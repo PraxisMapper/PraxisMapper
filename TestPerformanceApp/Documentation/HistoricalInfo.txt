@@ -183,3 +183,11 @@ PgSQL:  1:09,  6119, 1162, 6334
 Conclusion: MariaDB is the slowest on big bulk inserts and reading 1 random element, but seems to be the fastest on big reads as well.
 MSSQL and PostgreSQL are pretty close in performance.
 
+TagParser benchmarking 5/22/21:
+perf-testing tag parser options
+1000 empty lists run in 9590 ticks with default (0ms avg)
+1000 single entry default-match lists run in 1542570 ticks (0.154ms avg)
+1000 8-tag match-water lists run in 2343411 ticks(0.234ms avg)
+1000 8-tag default match lists run in 2316723 ticks(0.231ms avg)
+1000 40-tag default match lists run in 23529037 ticks(2.352ms avg)
+Summary: the TagParser engine is sufficiently fast to use. This is about twice as fast as the previous logic in that loop.

@@ -38,11 +38,11 @@ namespace PerformanceTestApp
 
         static void Main(string[] args)
         {
-            PraxisContext.serverMode = "SQLServer";
-            PraxisContext.connectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;";
+            //PraxisContext.serverMode = "SQLServer";
+            //PraxisContext.connectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;";
 
-            //PraxisContext.serverMode = "MariaDB";
-            //PraxisContext.connectionString = "server=localhost;database=praxis;user=root;password=asdf;";
+            PraxisContext.serverMode = "MariaDB";
+            PraxisContext.connectionString = "server=localhost;database=praxis;user=root;password=asdf;";
 
             //PraxisContext.serverMode = "PostgreSQL";
             //PraxisContext.connectionString = "server=localhost;database=praxis;user=root;password=asdf;";
@@ -1351,7 +1351,7 @@ namespace PerformanceTestApp
                     TagParser.GetStyleForOsmWay(emptyList);
                     //TagParser.MatchOnTags(style, emptyList);
             sw.Stop();
-            Log.WriteLog("1000 empty lists run in " + sw.ElapsedTicks + " ticks with default" + sw.ElapsedMilliseconds);
+            Log.WriteLog("1000 empty lists run in " + sw.ElapsedTicks + " ticks with default (" + sw.ElapsedMilliseconds / 1000.0 + "ms avg)");
 
             //sw.Restart();
             //for (var i = 0; i < 1000; i++)
@@ -1370,7 +1370,7 @@ namespace PerformanceTestApp
                     TagParser.GetStyleForOsmWay(defaultSingle);
                     //TagParser.MatchOnTags(style, defaultSingle);
             sw.Stop();
-            Log.WriteLog("1000 default-match lists run in " + sw.ElapsedTicks + " ticks" + sw.ElapsedMilliseconds);
+            Log.WriteLog("1000 single entry default-match lists run in " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds / 1000.0 +"ms avg)");
 
             //sw.Restart();
             //for (var i = 0; i < 1000; i++)
@@ -1397,7 +1397,31 @@ namespace PerformanceTestApp
                     TagParser.GetStyleForOsmWay(biglist);
                     //TagParser.MatchOnTags(style, defaultSingle);
             sw.Stop();
-            Log.WriteLog("1000 big match on water lists run in " + sw.ElapsedTicks + " ticks" + sw.ElapsedMilliseconds);
+            Log.WriteLog("1000 8-tag match-water lists run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 1000.0 + "ms avg)");
+
+            biglist.Remove(biglist.Last()); //Remove the water-match tag.
+            biglist.Add(new WayTags() { Key = "other", Value = "tag" });
+
+            sw.Restart();
+            for (var i = 0; i < 1000; i++)
+                foreach (var style in TagParser.styles)
+                    TagParser.GetStyleForOsmWay(biglist);
+            //TagParser.MatchOnTags(style, defaultSingle);
+            sw.Stop();
+            Log.WriteLog("1000 8-tag default match lists run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 1000.0 + "ms avg)");
+
+            biglist.AddRange(biglist);
+            biglist.AddRange(biglist);
+            biglist.AddRange(biglist);
+            biglist.AddRange(biglist);
+
+            sw.Restart();
+            for (var i = 0; i < 1000; i++)
+                foreach (var style in TagParser.styles)
+                    TagParser.GetStyleForOsmWay(biglist);
+            //TagParser.MatchOnTags(style, defaultSingle);
+            sw.Stop();
+            Log.WriteLog("1000 40-tag default match lists run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 1000.0 + "ms avg)");
 
             //sw.Restart();
             //for (var i = 0; i < 1000; i++)

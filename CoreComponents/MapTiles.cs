@@ -16,8 +16,8 @@ namespace CoreComponents
 {
     public static class MapTiles
     {
-        const int MapTileSizeSquare = 512;
-        static SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.Fill }; //BlendMode is the important part for an Eraser.
+        public const int MapTileSizeSquare = 512;
+        static SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
         
         public static void GetResolutionValues(int CellSize, out double resX, out double resY) //This is degrees per pixel in a maptile.
         {
@@ -579,6 +579,9 @@ namespace CoreComponents
         //or other elements converted for maptile purposes.
         public static byte[] DrawAreaAtSizeV4(GeoArea relevantArea, int imageSizeX, int imageSizeY, List<StoredWay> drawnItems = null)
         {
+            //This is the new core drawing function. Takes in an area, the items to draw, and the size of the image to draw. 
+            //The drawn items get their paint pulled from the TagParser's list. If I need multiple match lists, I'll need to make a way
+            //to pick which list of tagparser rules to use.
             Random r = new Random();
           
             var db = new PraxisContext();
@@ -604,11 +607,10 @@ namespace CoreComponents
                     tempList = w.WayTags.ToList();
                 var style = CoreComponents.TagParser.GetStyleForOsmWay(tempList);
                 paint = style.paint;
-                var path = new SKPath();
-
                 if (paint.Color.Alpha == 0)
                     continue; //This area is transparent, skip drawing it entirely.
 
+                var path = new SKPath();
                 switch (w.wayGeometry.GeometryType)
                 {
                     //Polygons without holes are super easy and fast: draw the path.
@@ -655,19 +657,18 @@ namespace CoreComponents
                             //This is a closed shape. Check to see if it's supposed to be filled in.
                             if (paint.Style == SKPaintStyle.Fill)
                             {
-                                var path3 = new SKPath();
-                                path3.AddPoly(points);
-                                canvas.DrawPath(path3, paint);
+                                path.AddPoly(points);
+                                canvas.DrawPath(path, paint);
                                 continue;
                             }
                         }
-                        var a = points.First() == points.Last();
                         for (var line = 0; line < points.Length - 1; line++)
                             canvas.DrawLine(points[line], points[line + 1], paint);
                         break;
                     case "MultiLineString":
                         foreach (var p3 in ((MultiLineString)w.wayGeometry).Geometries)
                         {
+                            //TODO: might want to see if I need to move the LineString logic here, or if multiline string are never filled areas.
                             var points2 = Converters.PolygonToSKPoints(p3, relevantArea, degreesPerPixelX, degreesPerPixelY);
                             for (var line = 0; line < points2.Length - 1; line++)
                                 canvas.DrawLine(points2[line], points2[line + 1], paint);

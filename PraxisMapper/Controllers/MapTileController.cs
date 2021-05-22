@@ -1,4 +1,5 @@
 ﻿using CoreComponents;
+using CoreComponents.Support;
 using Google.OpenLocationCode;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -179,42 +180,13 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/DrawSlippyTileV4Test/{x}/{y}/{zoom}/{layer}")]
         public byte[] SlippyTestV4(int x, int y, int zoom, int layer)
         {
-            Random r = new Random();
-            //FileStream fs = new FileStream(filename, FileMode.Open);
-            //get location in lat/long format.
-            //Delaware is 2384, 3138,13
-            //Cedar point, where I had issues before, is 35430/48907/17
-            //int x = 2384;
-            //int y = 3138;
-            //int zoom = 13;
-            //int x = 35430;
-            //int y = 48907;
-            //int zoom = 17;
-
-            var n = Math.Pow(2, zoom);
-
-            var lon_degree_w = x / n * 360 - 180;
-            var lon_degree_e = (x + 1) / n * 360 - 180;
-            var lat_rads_n = Math.Atan(Math.Sinh(Math.PI * (1 - 2 * y / n)));
-            var lat_degree_n = lat_rads_n * 180 / Math.PI;
-            var lat_rads_s = Math.Atan(Math.Sinh(Math.PI * (1 - 2 * (y + 1) / n)));
-            var lat_degree_s = lat_rads_s * 180 / Math.PI;
-
-            var relevantArea = new GeoArea(lat_degree_s, lon_degree_w, lat_degree_n, lon_degree_e);
-            var areaHeightDegrees = lat_degree_n - lat_degree_s;
-            var areaWidthDegrees = 360 / n;
+            var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare, MapTiles.MapTileSizeSquare);
 
             var db = new PraxisContext();
-            var geo = Converters.GeoAreaToPolygon(relevantArea);
+            var geo = Converters.GeoAreaToPolygon(info.area);
             var drawnItems = db.StoredWays.Include(c => c.WayTags).Where(w => geo.Intersects(w.wayGeometry)).OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToList();
 
-            //baseline image data stuff
-            int imageSizeX = 512;
-            int imageSizeY = 512;
-            double degreesPerPixelX = relevantArea.LongitudeWidth / imageSizeX;
-            double degreesPerPixelY = relevantArea.LatitudeHeight / imageSizeX;
-
-            return MapTiles.DrawAreaAtSizeV4(relevantArea, imageSizeX, imageSizeY, drawnItems);
+            return MapTiles.DrawAreaAtSizeV4(info, drawnItems);
         }        
     }
 }
