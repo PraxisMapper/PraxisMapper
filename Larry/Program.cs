@@ -270,7 +270,7 @@ namespace Larry
 
                 //NOTE: this worked fine once. I added node processing, and then it crashed on an OOM error at 8GB? But i also had my usual system stuff running in the background, include a browser.
                 //Continue testing on bigger files to see if there's issues somewhere still. If so, might need to implement in some skip/take logic to stay within ram limit
-                TagParser.Initialize();
+                TagParser.Initialize(true);
                 List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
                 foreach (string filename in filenames)
                 {
@@ -294,7 +294,7 @@ namespace Larry
             if (args.Any(a => a.StartsWith("-testDrawOhio")))
             {
                 //remove admin boundaries from the map.
-                TagParser.Initialize();
+                TagParser.Initialize(true);
                 var makeAdminClear = TagParser.styles.Where(s => s.name == "admin").FirstOrDefault();
                 makeAdminClear.paint.Color = new SKColor(0, 0, 0, 0);//transparent;
 

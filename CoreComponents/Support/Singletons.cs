@@ -130,9 +130,10 @@ namespace CoreComponents
             new TagParserEntry() { id = 18, name ="greenspace", HtmlColorCode = "90EE90",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() {
                 new TagParserMatchRule() { Key = "landuse", Value = "grass|farmland|farmyard|meadow|vineyard|recreation_ground|village_green", MatchType = "or" },
                 new TagParserMatchRule() { Key = "natural", Value = "scrub|heath|grassland", MatchType = "or" },
+                new TagParserMatchRule() { Key = "leisure", Value = "garden|playground", MatchType = "or" },
             }},
             new TagParserEntry() { id = 19, name ="alsobeach", HtmlColorCode = "D7B526",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() {
-                new TagParserMatchRule() { Key = "natural", Value = "sand|shingle|dune", MatchType = "or" },
+                new TagParserMatchRule() { Key = "natural", Value = "sand|shingle|dune|scree", MatchType = "or" },
                 new TagParserMatchRule() { Key = "surface", Value = "sand", MatchType = "or" }
             }},
             new TagParserEntry() { id = 20, name ="darkgreenspace", HtmlColorCode = "124504",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() {
@@ -149,11 +150,15 @@ namespace CoreComponents
                 new TagParserMatchRule() { Key = "highway", Value = "pedestrian", MatchType = "equals" },
             }},
             //Transparent: we don't usually want to draw census boundaries
-            new TagParserEntry() { id = 24, name ="censusbounds", HtmlColorCode = "00C0C0C0",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() {
+            new TagParserEntry() { id = 24, name ="censusbounds", HtmlColorCode = "00000000",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() {
                 new TagParserMatchRule() { Key = "boundary", Value = "census", MatchType = "equals" },
             }},
+            //Transparents: Explicitly things that don't help when drawn in one color.
+            new TagParserEntry() { id = 24, name ="donotdraw", HtmlColorCode = "00000000",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() {
+                new TagParserMatchRule() { Key = "place", Value = "locality|islet", MatchType = "any" },
+            }},
 
-            //NOTE: hiding elements of a given type will have to be done by drawing those elements in a transparent color (see the admin entry at id 12 for an example)
+            //NOTE: hiding elements of a given type is done by drawing those elements in a transparent color
             new TagParserEntry() { id = 9999, name ="background", HtmlColorCode = "545454", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid",TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "default" }} }
         };
     }
