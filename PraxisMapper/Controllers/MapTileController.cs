@@ -118,7 +118,7 @@ namespace PraxisMapper.Controllers
                         case 7: //This might be the layer that shows game areas on the map. Draw outlines of them. Means games will also have a Geometry object attached to them for indexing.
                             //7 is currently testing for V4 data setup, drawing all OSM Ways on the map tile.
                             results = SlippyTestV4(x, y, zoom, 7);
-                            expires = DateTime.Now.AddYears(10);
+                            expires = DateTime.Now.AddHours(10);
                             break;
                         case 8: //This might be what gets called to load an actual game. The ID will be the game in question, so X and Y values could be ignored?
                             break;
@@ -218,84 +218,8 @@ namespace PraxisMapper.Controllers
             int imageSizeY = 512;
             double degreesPerPixelX = relevantArea.LongitudeWidth / imageSizeX;
             double degreesPerPixelY = relevantArea.LatitudeHeight / imageSizeX;
-            //SKBitmap bitmap = new SKBitmap(512, 512, SKColorType.Rgba8888, SKAlphaType.Premul);
-            //SKCanvas canvas = new SKCanvas(bitmap);
-            //var bgColor = new SKColor();
-            //SKColor.TryParse("00FFFFFF", out bgColor);
-            //canvas.Clear(bgColor);
-            //canvas.Scale(1, -1, imageSizeX / 2, imageSizeY / 2);
-            //SKPaint paint = new SKPaint();
-
 
             return MapTiles.DrawAreaAtSizeV4(relevantArea, imageSizeX, imageSizeY, drawnItems);
-            
-            //foreach (var w in drawnItems)
-            //{
-            //    var tempList = new List<WayTags>();
-            //    if (w.WayTags != null)
-            //        tempList = w.WayTags.ToList();
-            //    paint = GetStyleForOsmWay(tempList);
-            //    paint.IsAntialias = true;
-            //    var path = new SKPath();
-            //    switch (w.wayGeometry.GeometryType)
-            //    {
-            //        case "Polygon":
-            //            path.AddPoly(Converters.PolygonToSKPoints(w.wayGeometry, relevantArea, degreesPerPixelX, degreesPerPixelY));
-            //            canvas.DrawPath(path, paint);
-            //            break;
-            //        case "MultiPolygon":
-            //            foreach (var p in ((MultiPolygon)w.wayGeometry).Geometries)
-            //            {
-            //                var path2 = new SKPath();
-            //                path2.AddPoly(Converters.PolygonToSKPoints(p, relevantArea, degreesPerPixelX, degreesPerPixelY));
-            //                canvas.DrawPath(path2, paint);
-            //            }
-            //            break;
-            //        case "LineString":
-            //            var firstPoint = w.wayGeometry.Coordinates.First();
-            //            var lastPoint = w.wayGeometry.Coordinates.Last();
-            //            var points = Converters.PolygonToSKPoints(w.wayGeometry, relevantArea, degreesPerPixelX, degreesPerPixelY);
-            //            if (firstPoint.Equals(lastPoint))
-            //            {
-            //                //This is a closed shape. Check to see if it's supposed to be filled in.
-            //                if (paint.Style == SKPaintStyle.Fill)
-            //                {
-            //                    var path3 = new SKPath();
-            //                    path3.AddPoly(points);
-            //                    canvas.DrawPath(path3, paint);
-            //                    continue;
-            //                }
-            //            }
-            //            var a = points.First() == points.Last();
-            //            for (var line = 0; line < points.Length - 1; line++)
-            //                canvas.DrawLine(points[line], points[line + 1], paint);
-            //            break;
-            //        case "MultiLineString":
-            //            foreach (var p in ((MultiLineString)w.wayGeometry).Geometries)
-            //            {
-            //                var points2 = Converters.PolygonToSKPoints(p, relevantArea, degreesPerPixelX, degreesPerPixelY);
-            //                for (var line = 0; line < points2.Length - 1; line++)
-            //                    canvas.DrawLine(points2[line], points2[line + 1], paint);
-            //            }
-            //            break;
-            //        case "Point":
-            //            var circleRadius = (float)(.000125 / degreesPerPixelX / 2); //I want points to be drawn as 1 Cell10 in diameter.
-            //            var convertedPoint = Converters.PolygonToSKPoints(w.wayGeometry, relevantArea, degreesPerPixelX, degreesPerPixelY);
-            //            canvas.DrawCircle(convertedPoint[0], circleRadius, paint);
-            //            break;
-            //        default:
-            //            Log.WriteLog("This wasn't supposed to happen!");
-            //            break;
-
-            //    }
-            //}
-
-            //var ms = new MemoryStream();
-            //var skms = new SKManagedWStream(ms);
-            //bitmap.Encode(skms, SKEncodedImageFormat.Png, 100);
-            //var results = ms.ToArray();
-            //skms.Dispose(); ms.Close(); ms.Dispose();
-            //return results;
         }        
     }
 }

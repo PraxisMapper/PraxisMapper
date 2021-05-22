@@ -252,7 +252,7 @@ namespace Larry
             var defaultColor = SKColor.Parse(defaultTagParserEntries.Last().HtmlColorCode);
             var points = thisBox.AsParallel()
             .ToComplete() //unnecessary for nodes, but needed for the converter function.
-            .Where(p => p.Type == OsmGeoType.Node && p.Tags.Count > 0 && GetStyleForOsmWay(p.Tags.Select(t => new WayTags() { Key = t.Key, Value = t.Value }).ToList()).Color != defaultColor);
+            .Where(p => p.Type == OsmGeoType.Node && p.Tags.Count > 0 && GetStyleForOsmWay(p.Tags.Select(t => new WayTags() { Key = t.Key, Value = t.Value }).ToList()).paint.Color != defaultColor);
             double nodeCounter = 0;
             double totalnodes = points.Count();
             totalCounter = 0;

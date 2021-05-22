@@ -16,12 +16,12 @@ namespace CoreComponents
     {
         public static List<TagParserEntry> styles;
 
-        public static void Initialize()
+        public static void Initialize(bool onlyDefaults)
         {
             //Load TPE entries from DB for app.
             var db = new PraxisContext();
             styles = db.TagParserEntries.Include(t => t.TagParserMatchRules).ToList();
-            if (styles == null || styles.Count() == 0)
+            if (onlyDefaults || styles == null || styles.Count() == 0)
                 styles = Singletons.defaultTagParserEntries;
 
             foreach (var s in styles)
@@ -33,7 +33,7 @@ namespace CoreComponents
             var paint = new SKPaint();
             paint.Color = SKColor.Parse(tpe.HtmlColorCode);
             if (tpe.FillOrStroke == "fill")
-                paint.Style = SKPaintStyle.Fill;
+                paint.Style = SKPaintStyle.StrokeAndFill;
             else
                 paint.Style = SKPaintStyle.Stroke;
             paint.StrokeWidth = tpe.LineWidth;
@@ -44,23 +44,24 @@ namespace CoreComponents
                 paint.StrokeCap = SKStrokeCap.Butt;
             }
             paint.StrokeJoin = SKStrokeJoin.Round;
+            paint.IsAntialias = true;
             tpe.paint = paint;
         }
 
-        public static SKPaint GetStyleForOsmWay(List<WayTags> tags)
+        public static TagParserEntry GetStyleForOsmWay(List<WayTags> tags)
         {
             var defaultPaint = styles.Last(); //background color must be last if I want un-matched areas to be hidden, its own color if i want areas with no ways at all to show up.
             if (tags == null || tags.Count() == 0)
-                return defaultPaint.paint;
+                return defaultPaint;
 
             foreach (var drawingRules in styles)
             {
                 if (MatchOnTags(drawingRules, tags))
                 {
-                    return drawingRules.paint;
+                    return drawingRules;
                 }
             }
-            return defaultPaint.paint;
+            return defaultPaint;
         }
 
         public static bool MatchOnTags(TagParserEntry tpe, List<WayTags> tags)
@@ -150,7 +151,7 @@ namespace CoreComponents
             foreach (var sw in db.StoredWays)
             {
                 var paintStyle = GetStyleForOsmWay(sw.WayTags.ToList());
-                if (sw.wayGeometry.GeometryType == "LinearRing" && paintStyle.Style == SKPaintStyle.Fill)
+                if (sw.wayGeometry.GeometryType == "LinearRing" && paintStyle.paint.Style == SKPaintStyle.Fill)
                 {
                     var poly = factory.CreatePolygon((LinearRing)sw.wayGeometry);
                     sw.wayGeometry = poly;

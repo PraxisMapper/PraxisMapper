@@ -591,9 +591,12 @@ namespace CoreComponents
                 var tempList = new List<WayTags>();
                 if (w.WayTags != null)
                     tempList = w.WayTags.ToList();
-                paint = CoreComponents.TagParser.GetStyleForOsmWay(tempList);
-                paint.IsAntialias = true;
+                var style = CoreComponents.TagParser.GetStyleForOsmWay(tempList);
+                paint = style.paint;
                 var path = new SKPath();
+
+                if (style.name == "background")
+                    continue;
                 switch (w.wayGeometry.GeometryType)
                 {
                     //Polygons without holes are super easy and fast: draw the path.

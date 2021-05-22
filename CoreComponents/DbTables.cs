@@ -278,6 +278,11 @@ namespace CoreComponents
             public Geometry wayGeometry { get; set; }
             public ICollection<WayTags> WayTags { get; set; }
             public bool IsGameElement { get; set; } //To use when determining if this element should or shouldn't be used as an answer when determining game interaction in an area.
+
+            public override string ToString()
+            {
+                return (sourceItemType == 3 ? "Relation " : sourceItemType == 2 ? "Way " : "Node ") +  sourceItemID.ToString() + ":" + name;
+            }
         }
 
         public class StoredRelation
@@ -299,6 +304,11 @@ namespace CoreComponents
             public StoredWay storedWay { get; set; }
             public string Key { get; set; }
             public string Value { get; set; }
+
+            public override string ToString()
+            {
+                return Key + ":" + Value;
+            }
         }
         public class RelationTags
         {
