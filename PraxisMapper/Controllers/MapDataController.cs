@@ -62,7 +62,7 @@ namespace PraxisMapper.Controllers
                 places = newAreas.Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }).ToList();
             }
 
-            //TODO: test this logic for performance without the splitArea code now that I crop all the elements down to just the requested area.
+            //TODO: run some tests and see if SkiaSharp requires this crop for performance reasons. It seems pretty fast without it.
             var cropArea = Converters.GeoAreaToPolygon(box);
             foreach (var p in places)
                 p.place = p.place.Intersection(cropArea);

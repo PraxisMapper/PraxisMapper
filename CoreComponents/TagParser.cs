@@ -15,6 +15,7 @@ namespace CoreComponents
     public static class TagParser
     {
         public static List<TagParserEntry> styles;
+        public static TagParserEntry defaultStyle; //background color must be last if I want un-matched areas to be hidden, its own color if i want areas with no ways at all to show up.
 
         public static void Initialize(bool onlyDefaults)
         {
@@ -26,6 +27,8 @@ namespace CoreComponents
 
             foreach (var s in styles)
                 SetPaintForTPE(s);
+
+            defaultStyle = styles.Last();
         }
 
         public static void SetPaintForTPE(TagParserEntry tpe)
@@ -50,9 +53,8 @@ namespace CoreComponents
 
         public static TagParserEntry GetStyleForOsmWay(List<WayTags> tags)
         {
-            var defaultPaint = styles.Last(); //background color must be last if I want un-matched areas to be hidden, its own color if i want areas with no ways at all to show up.
             if (tags == null || tags.Count() == 0)
-                return defaultPaint;
+                return defaultStyle;
 
             foreach (var drawingRules in styles)
             {
@@ -61,85 +63,70 @@ namespace CoreComponents
                     return drawingRules;
                 }
             }
-            return defaultPaint;
+            return defaultStyle;
         }
 
         public static bool MatchOnTags(TagParserEntry tpe, List<WayTags> tags)
         {
-            int rulesCount = tpe.TagParserMatchRules.Count();
-            bool[] rulesMatch = new bool[rulesCount];
-            int matches = 0;
+            //Changing this to return as soon as any entry fails makes it run about twice as fast.
             bool OrMatched = false;
+            int orRuleCount = 0;
 
             //Step 1: check all the rules against these tags.
-            for (var i = 0; i < tpe.TagParserMatchRules.Count(); i++) // var entry in tpe.TagParserMatchRules)
+            //The * value is required for all the rules, so check it first.
+            for (var i = 0; i < tpe.TagParserMatchRules.Count(); i++)
             {
                 var entry = tpe.TagParserMatchRules.ElementAt(i);
                 if (entry.Value == "*") //The Key needs to exist, but any value counts.
                 {
                     if (tags.Any(t => t.Key == entry.Key))
-                    {
-                        matches++;
-                        rulesMatch[i] = true;
                         continue;
-                    }
                 }
 
                 switch (entry.MatchType)
                 {
                     case "any":
-                    case "or":
-                    case "not": //Not uses the same check here, we check in step 2 if not was't matched. 
                         if (!tags.Any(t => t.Key == entry.Key))
-                            continue;
+                            return false;
 
                         var possibleValues = entry.Value.Split("|");
                         var actualValue = tags.Where(t => t.Key == entry.Key).Select(t => t.Value).FirstOrDefault();
-                        if (possibleValues.Contains(actualValue))
-                        {
-                            matches++;
-                            rulesMatch[i] = true;
-                        }
+                        if (!possibleValues.Contains(actualValue))
+                            return false;
                         break;
-                    case "equals":
+                    case "or": //Or rules don't fail early, since only one of them needs to match. Otherwise is the same as ANY logic.
+                        orRuleCount++;
                         if (!tags.Any(t => t.Key == entry.Key))
                             continue;
-                        if (tags.Where(t => t.Key == entry.Key).Select(t => t.Value).FirstOrDefault() == entry.Value)
-                        {
-                            matches++;
-                            rulesMatch[i] = true;
-                        }
 
+                        var possibleValuesOr = entry.Value.Split("|");
+                        var actualValueOr = tags.Where(t => t.Key == entry.Key).Select(t => t.Value).FirstOrDefault();
+                        if (possibleValuesOr.Contains(actualValueOr))
+                            OrMatched = true;
+                        break;
+                    case "not":
+                        if (!tags.Any(t => t.Key == entry.Key))
+                            continue;
+
+                        var possibleValuesNot = entry.Value.Split("|");
+                        var actualValueNot = tags.Where(t => t.Key == entry.Key).Select(t => t.Value).FirstOrDefault();
+                        if (possibleValuesNot.Contains(actualValueNot))
+                            return false; //Not does not want to match this.
+                        break;
+                    case "equals": //for single possible values, EQUALS is slightly faster than ANY
+                        if (!tags.Any(t => t.Key == entry.Key))
+                            return false;
+                        if (tags.Where(t => t.Key == entry.Key).Select(t => t.Value).FirstOrDefault() != entry.Value)
+                            return false;
                         break;
                     case "default":
-                        //Always matches. Can only be on one entry, which is the last entry and the default color if nothing else matches.
+                        //Always matches. Can only be on one entry, which is the last entry and the default color
                         return true;
                 }
             }
 
-            //Step 2: walk through and confirm we have all the rules correct or not for this set.
-            //Now we have to check if we have 1 OR match, AND none of the mandatory ones failed, and no NOT conditions.
-            int orCounter = 0;
-            for (int i = 0; i < rulesMatch.Length; i++)
-            {
-                var rule = tpe.TagParserMatchRules.ElementAt(i);
-
-                if (rulesMatch[i] == true && rule.MatchType == "not") //We don't want to match this!
-                    return false;
-
-                if (rulesMatch[i] == false && (rule.MatchType == "equals" || rule.MatchType == "any"))
-                    return false;
-
-                if (rule.MatchType == "or")
-                {
-                    orCounter++;
-                    if (rulesMatch[i] == true)
-                        OrMatched = true;
-                }
-            }
-
             //Now, we should have bailed out if any mandatory thing didn't match. Should only be on whether or not any of our Or checks passsed.
-            if (orCounter == 0 || OrMatched == true)
+            if (OrMatched || orRuleCount == 0)
                 return true;
 
             return false;

@@ -24,9 +24,6 @@ namespace PraxisMapper.Controllers
         private readonly IConfiguration Configuration;
         private static MemoryCache cache;
 
-        //TODO: consider playing with the SKSVGCanvas to see if SVG maptiles are faster/smaller/better in any ways
-        //though the real delay is loading data from DB/disk, not drawing the loaded shapes.
-
         public MapTileController(IConfiguration configuration)
         {
             Configuration = configuration;
@@ -52,8 +49,6 @@ namespace PraxisMapper.Controllers
             //BUT Also, PlusCodes have 20^(zoom/2) tiles, and Slippy maps have 2^zoom tiles, this doesn't even line up nicely.
             //Slippy Map tiles might just have to be their own thing.
             //I will also say these are 512x512 images.
-            //TODO: should I set a longer timeout for these webtiles, and expire them when something in them gets updated?
-            //This is much harder to detect for slippy maps, since I have to re-caculate the X and Y on a bunch of zoom levels for it.
 
             try
             {

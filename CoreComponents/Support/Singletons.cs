@@ -9,6 +9,8 @@ namespace CoreComponents
 {
     public static class Singletons
     {
+        //TODO: convert this to a namespace, make each entry its own class?
+        //Rempve redundant values that don't apply to V4 storage.
         public static List<string> relevantTourismValues = new List<string>() { "artwork", "attraction", "gallery", "museum", "viewpoint", "zoo" }; //The stuff we care about in the tourism category. Zoo and attraction are debatable. This doesn't seem to include Disney World.
         public static List<string> relevantTrailValues = new List<string>() { "path", "bridleway", "cycleway", "footway", "living_street" }; //The stuff we care about in the highway category for trails. Living Streets are nonexistant in the US.
         public static List<string> relevantRoadValues = new List<string>() { "motorway", "trunk", "primary", "secondary", "tertiary", "unclassified", "residential", "motorway_link", "trunk_link", "primary_link", "secondary_link", "tertiary_link", "service", "road" }; //The stuff we care about in the highway category for roads. A lot more options for this.
@@ -17,7 +19,6 @@ namespace CoreComponents
         public static PreparedGeometryFactory pgf = new PreparedGeometryFactory();
         public static bool SimplifyAreas = false;
 
-        //TOD: make this the default list, then load the list from the DB? Works for PraxisMapper, but not Larry without some rules to parse tags.
         public static List<AreaType> areaTypes = new List<AreaType>() {
             //Areas here are for the original explore concept
             new AreaType() { AreaTypeId = 999, AreaName = "", OsmTags = "", HtmlColorCode = "545454"}, //the default background color. 0 causes insert to fail with an identity column
@@ -66,18 +67,13 @@ namespace CoreComponents
 
         public static ILookup<long, string> teamColorReferenceLookupSkia = defaultFaction.ToLookup(k => k.FactionId, v => v.HtmlColor.Substring(6, 2) + v.HtmlColor.Substring(0, 6)); //needed to make the Dictionary<> correctly.
 
-        //Unfinished, for future plans to have tags be defined by database entries instead of a single code block
-        //public static List<TagParserEntry> defaultTagParserEntries = new List<TagParserEntry>()
-        //{
-        //new TagParserEntry() { name = "wetland", typeID = 2, matchRules =  "natural:wetland" }
-        //};
-
-        //Remember, each individual rule must be true in order for the entry to apply.
-        //A * value is a wildcard that means any entry counts as a match for that value.
+        
+        //A * value is a wildcard that means any value counts as a match for that key.
         //types vary:
         //any: one of the pipe delimited values in the value is present for the given key.
-        //equals: the one specific value exists on that key
-        //or: as long as one of the rules with or is true, accept this entry as a match. each Or entry should be treated as its own 'any' for parsing purposes. Other entries that aren't of the Or type must also be true.
+        //equals: the one specific value exists on that key. Slightly faster than Any when matching a single key, but trivially so.
+        //or: as long as one of the rules with or is true, accept this entry as a match. each Or entry should be treated as its own 'any' for parsing purposes.
+        //not: this rule must be FALSE for the style to be applied.
         //default: always true.
         public static List<TagParserEntry> defaultTagParserEntries = new List<TagParserEntry>()
         {
@@ -159,6 +155,7 @@ namespace CoreComponents
             }},
 
             //NOTE: hiding elements of a given type is done by drawing those elements in a transparent color
+            //My default set wants to draw things that haven't yet been identified, so I can see what needs improvement or matched by a rule.
             new TagParserEntry() { id = 9999, name ="background", HtmlColorCode = "545454", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid",TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "default" }} }
         };
     }
