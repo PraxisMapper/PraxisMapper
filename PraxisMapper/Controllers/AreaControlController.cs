@@ -158,7 +158,7 @@ namespace PraxisMapper.Controllers
             {
                 //Create this map tile.
                 GeoArea pluscode = OpenLocationCode.DecodeValid(Cell8);
-                var places = GetPlaces(pluscode, includeGenerated: Configuration.GetValue<bool>("generateAreas"));
+                var places = GetPlacesMapDAta(pluscode, includeGenerated: Configuration.GetValue<bool>("generateAreas"));
                 var tile = MapTiles.DrawAreaMapTileSkia(ref places, pluscode, 11);
                 baseMapTile = new MapTile() { CreatedOn = DateTime.Now, mode = 1, PlusCode = Cell8, resolutionScale = 11, tileData = tile, areaCovered = Converters.GeoAreaToPolygon(pluscode) };
                 db.MapTiles.Add(baseMapTile);
@@ -171,7 +171,7 @@ namespace PraxisMapper.Controllers
                 //Draw this entry
                 //requires a list of colors to use, which might vary per app
                 GeoArea CellEightArea = OpenLocationCode.DecodeValid(Cell8);
-                var places = GetPlaces(CellEightArea, includeGenerated: Configuration.GetValue<bool>("generateAreas"));
+                var places = GetPlacesMapDAta(CellEightArea, includeGenerated: Configuration.GetValue<bool>("generateAreas"));
                 var results = MapTiles.DrawMPControlAreaMapTileSkia(CellEightArea, 11);
                 if (factionColorTile == null) //create a new entry
                 {

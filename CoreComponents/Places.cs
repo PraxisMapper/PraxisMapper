@@ -1,4 +1,5 @@
 ﻿using Google.OpenLocationCode;
+using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
 using OsmSharp.Tags;
 using System;
@@ -20,7 +21,7 @@ namespace CoreComponents
         //All elements in the table with Geometry will be valid, and the TagParser rules will determine which ones are game elements
         //this allows it to be customized much easier, and changed on the fly without reloading data.
         //A lot of the current code will need changed to match that new logic, though. And generated areas may remain separate.
-        public static List<MapData> GetPlaces(GeoArea area, List<MapData> source = null, bool includeAdmin = false, bool includeGenerated= true, double filterSize = 0)
+        public static List<MapData> GetPlacesMapDAta(GeoArea area, List<MapData> source = null, bool includeAdmin = false, bool includeGenerated= true, double filterSize = 0)
         {
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
             //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
@@ -49,7 +50,34 @@ namespace CoreComponents
             return places;
         }
 
-        public static List<MapData> GetGeneratedPlaces(GeoArea area, List<MapData> source = null)
+        public static List<StoredWay> GetPlaces(GeoArea area, List<StoredWay> source = null, double filterSize = 0)
+        {
+            //parameters i will need to restore later.
+            //bool includeAdmin = false; this is no longer a hard-coded set. This is now a TagParser thing.
+            bool includeGenerated = false;
+
+            //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
+            //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
+            List<StoredWay> places;
+            if (source == null)
+            {
+                var location = Converters.GeoAreaToPolygon(area); //Prepared items don't work on a DB lookup.
+                var db = new CoreComponents.PraxisContext();
+                    places = db.StoredWays.Include(s => s.WayTags).Where(md => location.Intersects(md.wayGeometry)).OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToList(); // && md.AreaSize > filterSize
+                //TODO: make including generated areas a toggle? or assume that this call is trivial performance-wise on an empty table
+                //A toggle might be good since this also affects maptiles
+                //if (includeGenerated)
+                    //places.AddRange(db.StoredWays.Where(md => location.Intersects(md.wayGeometry)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
+            }
+            else
+            {
+                var location = Converters.GeoAreaToPreparedPolygon(area);
+                places = source.Where(md => location.Intersects(md.wayGeometry)).Select(md => md.Clone()).ToList(); // && md.AreaSize > filterSize
+            }
+            return places;
+        }
+
+        public static List<MapData> GetGeneratedPlaces(GeoArea area, List<MapData> source)
         {
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
             //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
@@ -63,8 +91,38 @@ namespace CoreComponents
             return places;
         }
 
+        public static List<StoredWay> GetGeneratedPlaces(GeoArea area)
+        {
+            //TODO: work out how I'm going to store generated places in the new schema.
+            return null;
+            
+            //List<MapData> places = new List<MapData>();
+            //if (source == null)
+            //{
+            //    var db = new CoreComponents.PraxisContext();
+            //    var location = Converters.GeoAreaToPolygon(area); //Prepared items don't work on a DB lookup.
+            //    places.AddRange(db.GeneratedMapData.Where(md => location.Intersects(md.place)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
+            //}
+            //return places;
+        }
 
-        public static List<MapData> GetAdminBoundaries(GeoArea area, List<MapData> source = null)
+        public static List<StoredWay> GetAdminBoundaries(GeoArea area, List<StoredWay> source = null)
+        {
+            //Another function that's replaced by TagParser rules.
+            return null;
+
+            //List<StoredWay> places = new List<StoredWay>();
+            //if (source == null)
+            //{
+            //    var db = new CoreComponents.PraxisContext();
+            //    var location = Converters.GeoAreaToPolygon(area);
+            //    var asAdminBounds = db.AdminBounds.Where(md => location.Intersects(md.place)).ToList();
+            //    places = asAdminBounds.Select(m => (MapData)m).ToList();
+            //}
+            //return places;
+        }
+
+        public static List<MapData> GetAdminBoundariesOld(GeoArea area, List<MapData> source = null)
         {
             //If you ONLY want to get admin boundaries, use this function. Using GetPlaces searches for all place types, and is very slow by comparison.
             List<MapData> places = new List<MapData>();

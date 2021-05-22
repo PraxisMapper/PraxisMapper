@@ -55,7 +55,7 @@ namespace PraxisMapper.Controllers
             }
             var box = OpenLocationCode.DecodeValid(codeString8);
 
-            var places = GetPlaces(OpenLocationCode.DecodeValid(codeString8), includeGenerated: Configuration.GetValue<bool>("generateAreas"));  //All the places in this 8-code
+            var places = GetPlacesMapDAta(OpenLocationCode.DecodeValid(codeString8), includeGenerated: Configuration.GetValue<bool>("generateAreas"));  //All the places in this 8-code
             if (Configuration.GetValue<bool>("generateAreas") && !places.Any(p => p.AreaTypeId < 13 || p.AreaTypeId == 100)) //check for 100 to not make new entries in the same spot.
             {
                 var newAreas = CreateInterestingPlaces(codeString8);
@@ -93,7 +93,7 @@ namespace PraxisMapper.Controllers
             //this function exclusively gets them.
             PerformanceTracker pt = new PerformanceTracker("LearnAdminBoundaries");
             var box = new GeoArea(new GeoPoint(lat, lon), new GeoPoint(lat + resolutionCell10, lon + resolutionCell10));
-            var entriesHere = GetPlaces(box, null, true, false).Where(p => p.AreaTypeId == 13).OrderBy(p => p.type).ToList();
+            var entriesHere = GetPlacesMapDAta(box, null, true, false).Where(p => p.AreaTypeId == 13).OrderBy(p => p.type).ToList();
 
             StringBuilder sb = new StringBuilder();
             foreach (var entry in entriesHere)
@@ -127,7 +127,7 @@ namespace PraxisMapper.Controllers
                 //Create this entry
                 //requires a list of colors to use, which might vary per app
                 GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
-                var places = GetPlaces(eightCell, includeGenerated:Configuration.GetValue<bool>("generateAreas"));
+                var places = GetPlacesMapDAta(eightCell, includeGenerated:Configuration.GetValue<bool>("generateAreas"));
                 var results = MapTiles.DrawAreaMapTileSkia(ref places, eightCell, 10);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, CreatedOn = DateTime.Now, mode =1, resolutionScale = 10, tileData = results, areaCovered = Converters.GeoAreaToPolygon(eightCell) });
                 db.SaveChanges();
@@ -152,7 +152,7 @@ namespace PraxisMapper.Controllers
                 //Create this entry
                 //requires a list of colors to use, which might vary per app
                 GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
-                var places = GetPlaces(eightCell, includeGenerated: Configuration.GetValue<bool>("generateAreas"));
+                var places = GetPlacesMapDAta(eightCell, includeGenerated: Configuration.GetValue<bool>("generateAreas"));
                 var results = MapTiles.DrawAreaMapTileSkia(ref places, eightCell, 11);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(eightCell) });
                 db.SaveChanges();
@@ -179,7 +179,7 @@ namespace PraxisMapper.Controllers
                 //Create this entry
                 //requires a list of colors to use, which might vary per app
                 GeoArea TenCell = OpenLocationCode.DecodeValid(plusCode10);
-                var places = GetPlaces(TenCell, includeGenerated: Configuration.GetValue<bool>("generateAreas"));
+                var places = GetPlacesMapDAta(TenCell, includeGenerated: Configuration.GetValue<bool>("generateAreas"));
                 var results = MapTiles.DrawAreaMapTileSkia(ref places, TenCell, 11);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode10, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(TenCell) });
                 db.SaveChanges();
@@ -207,7 +207,7 @@ namespace PraxisMapper.Controllers
                 //requires a list of colors to use, which might vary per app
                 GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
                 var filterSize = resolutionCell6 / 400; //don't draw things smaller than 1 pixel.
-                var allPlaces = GetPlaces(sixCell, null, false, Configuration.GetValue<bool>("generateAreas"), filterSize);
+                var allPlaces = GetPlacesMapDAta(sixCell, null, false, Configuration.GetValue<bool>("generateAreas"), filterSize);
                 var results = MapTiles.DrawAreaMapTileSkia(ref allPlaces, sixCell, 10);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode6, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 10, tileData = results, areaCovered = Converters.GeoAreaToPolygon(sixCell) });
                 db.SaveChanges();
@@ -231,7 +231,7 @@ namespace PraxisMapper.Controllers
             {
                 //requires a list of colors to use, which might vary per app. Defined in AreaType
                 GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
-                var allPlaces = GetPlaces(sixCell, null, false, Configuration.GetValue<bool>("generateAreas"), resolutionCell10);
+                var allPlaces = GetPlacesMapDAta(sixCell, null, false, Configuration.GetValue<bool>("generateAreas"), resolutionCell10);
                 var results = MapTiles.DrawAreaMapTileSkia(ref allPlaces, sixCell, 11);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode6, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(sixCell) });
                 db.SaveChanges();
@@ -249,7 +249,7 @@ namespace PraxisMapper.Controllers
             //Flex endpoint doesnt save data to DB or cache stuff yet.
             PerformanceTracker pt = new PerformanceTracker("DrawFlex");
             GeoArea box = new GeoArea(new GeoPoint(lat - (size / 2), lon - (size / 2)), new GeoPoint(lat + (size / 2), lon + (size / 2)));
-            var allPlaces = GetPlaces(box, includeGenerated: Configuration.GetValue<bool>("generateAreas"));
+            var allPlaces = GetPlacesMapDAta(box, includeGenerated: Configuration.GetValue<bool>("generateAreas"));
             byte[] results;
             if (resolution == 10)
                 results = MapTiles.DrawAreaMapTileSkia(ref allPlaces, box, 10);
@@ -269,7 +269,7 @@ namespace PraxisMapper.Controllers
             //attach a debug point here and read the results.
 
             //Exact point for area? or 10cell space to find trails too?
-            var places = GetPlaces(new OpenLocationCode(lat, lon).Decode(), includeGenerated: Configuration.GetValue<bool>("generateAreas"));
+            var places = GetPlacesMapDAta(new OpenLocationCode(lat, lon).Decode(), includeGenerated: Configuration.GetValue<bool>("generateAreas"));
             var results = FindPlacesInCell10(lon, lat, ref places, true);
         }
 
@@ -305,7 +305,7 @@ namespace PraxisMapper.Controllers
             //}
             GeoArea box = new GeoArea(new GeoPoint(lat - (size / 2), lon - (size / 2)), new GeoPoint(lat + (size / 2), lon + (size / 2)));
 
-            var places = GetPlaces(box, includeGenerated: Configuration.GetValue<bool>("generateAreas"));  //All the places in this area
+            var places = GetPlacesMapDAta(box, includeGenerated: Configuration.GetValue<bool>("generateAreas"));  //All the places in this area
             StringBuilder sb = new StringBuilder();
             sb.AppendLine(pointDesc);
             //This endpoint puts the whole 10-digit plus code (without the separator) at the start of the line. I can't guarentee that any digits are shared since this isn't a grid-bound endpoint.
@@ -326,7 +326,7 @@ namespace PraxisMapper.Controllers
             //If you want to own the part of a MapData entry within a cell8, this calculates how many squares it takes up (and therefore how many points it takes to claim it)
             PerformanceTracker pt = new PerformanceTracker("CalculateAreaPoints");
             GeoArea box = OpenLocationCode.DecodeValid(plusCode8);
-            var places = GetPlaces(box, includeGenerated: Configuration.GetValue<bool>("generateAreas"));
+            var places = GetPlacesMapDAta(box, includeGenerated: Configuration.GetValue<bool>("generateAreas"));
             var plusCodePoly = Converters.GeoAreaToPolygon(box);
             var results = GetScoresForArea(plusCodePoly, places);
             pt.Stop();
@@ -341,7 +341,7 @@ namespace PraxisMapper.Controllers
             //If you want to claim an entire MapData entry, no matter the size, this calculates how many squares it takes up (and therefore how many points it takes to claim it)
             PerformanceTracker pt = new PerformanceTracker("CalculateFullAreaPoints");
             GeoArea box = OpenLocationCode.DecodeValid(plusCode8);
-            var places = GetPlaces(box, includeGenerated: Configuration.GetValue<bool>("generateAreas"));
+            var places = GetPlacesMapDAta(box, includeGenerated: Configuration.GetValue<bool>("generateAreas"));
             var results =  GetScoresForFullArea(places);
             pt.Stop();
             return results;
@@ -353,7 +353,7 @@ namespace PraxisMapper.Controllers
         {
             PerformanceTracker pt = new PerformanceTracker("CalculateFlexAreaPoints");
             GeoArea box = new GeoArea(new GeoPoint(lat - (size / 2), lon - (size / 2)), new GeoPoint(lat + (size / 2), lon + (size / 2)));
-            var places = GetPlaces(box, includeGenerated: Configuration.GetValue<bool>("generateAreas"));
+            var places = GetPlacesMapDAta(box, includeGenerated: Configuration.GetValue<bool>("generateAreas"));
             var poly = Converters.GeoAreaToPolygon(box);
             var results = GetScoresForArea(poly, places);
             pt.Stop();
@@ -366,7 +366,7 @@ namespace PraxisMapper.Controllers
         {
             PerformanceTracker pt = new PerformanceTracker("CalculateFlexFullAreaPoints");
             GeoArea box = new GeoArea(new GeoPoint(lat - (size / 2), lon - (size / 2)), new GeoPoint(lat + (size / 2), lon + (size / 2)));
-            var places = GetPlaces(box, includeGenerated: Configuration.GetValue<bool>("generateAreas"));
+            var places = GetPlacesMapDAta(box, includeGenerated: Configuration.GetValue<bool>("generateAreas"));
             var poly = Converters.GeoAreaToPolygon(box);
             var results =  GetScoresForArea(poly, places);
             pt.Stop();
