@@ -789,61 +789,61 @@ namespace PerformanceTestApp
             }
         }
 
-        public static void TestRecordVsStringBuilders()
-        {
-            List<MapData> mapData = new List<MapData>();
-            StringBuilder sb = new StringBuilder();
-            GeoArea area = new GeoArea(1, 2, 3, 4);
+        //public static void TestRecordVsStringBuilders()
+        //{
+        //    List<MapData> mapData = new List<MapData>();
+        //    StringBuilder sb = new StringBuilder();
+        //    GeoArea area = new GeoArea(1, 2, 3, 4);
 
-            var xCells = area.LongitudeWidth / resolutionCell10;
-            var yCells = area.LatitudeHeight / resolutionCell10;
+        //    var xCells = area.LongitudeWidth / resolutionCell10;
+        //    var yCells = area.LatitudeHeight / resolutionCell10;
 
-            Stopwatch sw = new Stopwatch();
-            sw.Start();
-            for (double xx = 0; xx < xCells; xx += 1)
-            {
-                for (double yy = 0; yy < yCells; yy += 1)
-                {
-                    double x = area.Min.Longitude + (resolutionCell10 * xx);
-                    double y = area.Min.Latitude + (resolutionCell10 * yy);
+        //    Stopwatch sw = new Stopwatch();
+        //    sw.Start();
+        //    for (double xx = 0; xx < xCells; xx += 1)
+        //    {
+        //        for (double yy = 0; yy < yCells; yy += 1)
+        //        {
+        //            double x = area.Min.Longitude + (resolutionCell10 * xx);
+        //            double y = area.Min.Latitude + (resolutionCell10 * yy);
 
-                    var placesFound = AreaTypeInfo.FindPlacesInCell10(x, y, ref mapData, true);
-                    if (!string.IsNullOrWhiteSpace(placesFound))
-                        sb.AppendLine(placesFound);
-                }
-            }
-            sw.Stop();
-            Log.WriteLog("Searched and built String response in " + sw.ElapsedMilliseconds);
+        //            var placesFound = AreaTypeInfo.FindPlacesInCell10(x, y, ref mapData, true);
+        //            if (!string.IsNullOrWhiteSpace(placesFound))
+        //                sb.AppendLine(placesFound);
+        //        }
+        //    }
+        //    sw.Stop();
+        //    Log.WriteLog("Searched and built String response in " + sw.ElapsedMilliseconds);
 
-            //now test again with new function
-            List<Cell10Info> info = new List<Cell10Info>();
-            sw.Restart();
-            for (double xx = 0; xx < xCells; xx += 1)
-            {
-                for (double yy = 0; yy < yCells; yy += 1)
-                {
-                    double x = area.Min.Longitude + (resolutionCell10 * xx);
-                    double y = area.Min.Latitude + (resolutionCell10 * yy);
+        //    //now test again with new function
+        //    List<Cell10Info> info = new List<Cell10Info>();
+        //    sw.Restart();
+        //    for (double xx = 0; xx < xCells; xx += 1)
+        //    {
+        //        for (double yy = 0; yy < yCells; yy += 1)
+        //        {
+        //            double x = area.Min.Longitude + (resolutionCell10 * xx);
+        //            double y = area.Min.Latitude + (resolutionCell10 * yy);
 
-                    var placesFound = CellInfoFindPlacesInCell10(x, y, ref mapData);
-                    if (placesFound != null)
-                        info.Add(placesFound);
-                }
-            }
-            sw.Stop();
-            Log.WriteLog("Searched and built Cell10Info Record response in " + sw.ElapsedMilliseconds);
+        //            var placesFound = CellInfoFindPlacesInCell10(x, y, ref mapData);
+        //            if (placesFound != null)
+        //                info.Add(placesFound);
+        //        }
+        //    }
+        //    sw.Stop();
+        //    Log.WriteLog("Searched and built Cell10Info Record response in " + sw.ElapsedMilliseconds);
 
-            //todo: also check parsing record results to string for api endpoint
-            StringBuilder sb2 = new StringBuilder();
-            sw.Restart();
-            foreach (var place in info.Select(i => i.placeName).Distinct())
-            {
-                var codes = string.Join(",", info.Where(i => i.placeName == place).Select(i => i.Cell10));
-                sb.Append(place + "|" + codes + Environment.NewLine);
-            }
-            sw.Stop();
-            Log.WriteLog("converted record list to string output in " + sw.ElapsedMilliseconds);
-        }
+        //    //todo: also check parsing record results to string for api endpoint
+        //    StringBuilder sb2 = new StringBuilder();
+        //    sw.Restart();
+        //    foreach (var place in info.Select(i => i.placeName).Distinct())
+        //    {
+        //        var codes = string.Join(",", info.Where(i => i.placeName == place).Select(i => i.Cell10));
+        //        sb.Append(place + "|" + codes + Environment.NewLine);
+        //    }
+        //    sw.Stop();
+        //    Log.WriteLog("converted record list to string output in " + sw.ElapsedMilliseconds);
+        //}
 
         public static void TestDBPerformance(string mode)
         {
@@ -990,10 +990,10 @@ namespace PerformanceTestApp
         }
 
         //testing if this is better/more efficient (on the phone side) than passing strings along. Only used in TestPerf.
-        public static Cell10Info CellInfoFindPlacesInCell10(double x, double y, ref List<MapData> places)
+        public static Cell10Info CellInfoFindPlacesInCell10(double x, double y, ref List<StoredWay> places)
         {
             var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell10, x + resolutionCell10));
-            var entriesHere = GetPlacesMapDAta(box, places).Where(p => p.AreaTypeId != 13).ToList(); //Excluding admin boundaries from this list.  
+            var entriesHere = GetPlaces(box, places).ToList(); 
 
             if (entriesHere.Count() == 0)
                 return null;
@@ -1009,7 +1009,7 @@ namespace PerformanceTestApp
                 //TODO: decide on passing in a value for the split instead of a bool so this can be reused a little more
                 //olc = new OpenLocationCode(y, x).CodeDigits.Substring(6, 4); //This takes lat, long, Coordinate takes X, Y. This line is correct.
                 // olc = new OpenLocationCode(y, x).CodeDigits.Substring(8, 2); //This takes lat, long, Coordinate takes X, Y. This line is correct.
-                return new Cell10Info(area.name, olc, area.AreaTypeId);
+                return new Cell10Info(area.name, olc, area.sourceItemType); //TODO: set this up later to hold gameplay area type.
             }
             return null;
         }

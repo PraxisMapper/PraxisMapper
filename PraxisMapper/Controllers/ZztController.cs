@@ -84,7 +84,7 @@ namespace PraxisMapper.Controllers
             var db = new PraxisContext();
             var game = db.ZztGames.Where(z => z.id == gameId).First();
             var geoArea = Converters.GeometryToGeoArea(game.gameLocation);
-            var terrain = Place.GetPlacesMapDAta(geoArea, null, false, false);
+            var terrain = Place.GetPlaces(geoArea);
             var textData = AreaTypeInfo.SearchArea(ref geoArea, ref terrain, true);
             pt.Stop();
             return textData.ToString();

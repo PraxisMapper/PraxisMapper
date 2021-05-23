@@ -15,6 +15,7 @@ namespace CoreComponents
     public static class Place 
     {
         //for now, anything that does a query on MapData or a list of MapData entries
+        //(To become a place for anything that works with the V4 data set)
         //Places will be the name for interactible or important areas on the map. Was not previously a fixed name for that.
 
         //This class is pending a rework to the newest storage logic. 
@@ -77,19 +78,19 @@ namespace CoreComponents
             return places;
         }
 
-        public static List<MapData> GetGeneratedPlaces(GeoArea area, List<MapData> source)
-        {
-            //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
-            //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
-            List<MapData> places = new List<MapData>();
-            if (source == null)
-            {
-                var db = new CoreComponents.PraxisContext();
-                var location = Converters.GeoAreaToPolygon(area); //Prepared items don't work on a DB lookup.
-                places.AddRange(db.GeneratedMapData.Where(md => location.Intersects(md.place)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
-            }
-            return places;
-        }
+        //public static List<MapData> GetGeneratedPlaces(GeoArea area, List<MapData> source)
+        //{
+        //    //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
+        //    //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
+        //    List<MapData> places = new List<MapData>();
+        //    if (source == null)
+        //    {
+        //        var db = new CoreComponents.PraxisContext();
+        //        var location = Converters.GeoAreaToPolygon(area); //Prepared items don't work on a DB lookup.
+        //        places.AddRange(db.GeneratedMapData.Where(md => location.Intersects(md.place)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
+        //    }
+        //    return places;
+        //}
 
         public static List<StoredWay> GetGeneratedPlaces(GeoArea area)
         {
@@ -122,37 +123,38 @@ namespace CoreComponents
             //return places;
         }
 
-        public static List<MapData> GetAdminBoundariesOld(GeoArea area, List<MapData> source = null)
-        {
-            //If you ONLY want to get admin boundaries, use this function. Using GetPlaces searches for all place types, and is very slow by comparison.
-            List<MapData> places = new List<MapData>();
-            if (source == null)
-            {
-                var db = new CoreComponents.PraxisContext();
-                var location = Converters.GeoAreaToPolygon(area);
-                var asAdminBounds =  db.AdminBounds.Where(md => location.Intersects(md.place)).ToList();
-                places = asAdminBounds.Select(m => (MapData)m).ToList();
-            }
-            return places;
-        }
+        //public static List<MapData> GetAdminBoundariesOld(GeoArea area, List<MapData> source = null)
+        //{
+        //    //If you ONLY want to get admin boundaries, use this function. Using GetPlaces searches for all place types, and is very slow by comparison.
+        //    List<MapData> places = new List<MapData>();
+        //    if (source == null)
+        //    {
+        //        var db = new CoreComponents.PraxisContext();
+        //        var location = Converters.GeoAreaToPolygon(area);
+        //        var asAdminBounds =  db.AdminBounds.Where(md => location.Intersects(md.place)).ToList();
+        //        places = asAdminBounds.Select(m => (MapData)m).ToList();
+        //    }
+        //    return places;
+        //}
 
         //Note: This should have the padding added to area before this is called, if checking for tiles that need regenerated.
-        public static bool DoPlacesExist(GeoArea area, List<MapData> source = null, bool includeGenerated = true)
+        public static bool DoPlacesExist(GeoArea area, List<StoredWay> source = null)
         {
             //As GetPlaces, but only checks if there are entries. This also currently skipss admin boundaries as well for determining if stuff 'exists', since those aren't drawn.
+            bool includeGenerated = false; //parameter to readd later
             var location = Converters.GeoAreaToPolygon(area);
             bool places;
             if (source == null)
             {
                 var db = new PraxisContext();
-                places = db.MapData.Any(md => md.place.Intersects(location) && md.AreaTypeId != 13); //Ignore admin boundaries for this purpose.
+                places = db.StoredWays.Any(md => md.wayGeometry.Intersects(location));
                 if (includeGenerated)
-                    places = places || db.GeneratedMapData.Any(md => md.place.Intersects(location));
+                    places = places; // || db.GeneratedMapData.Any(md => md.place.Intersects(location));
                 return places;
             }
             else
             {
-                places = source.Any(md => md.place.Intersects(location));
+                places = source.Any(md => md.wayGeometry.Intersects(location));
             }
             return places;
         }
@@ -270,20 +272,9 @@ namespace CoreComponents
                 retVal = "";
 
             return retVal;
-
-            //Not sure if this was faster.
-            //var tags = tagsO.ToLookup(k => k.Key, v => v.Value);
-
-            //string name = tags["name"].FirstOrDefault();
-            //if (name == null || name == "")
-            //    //some things have a Note rather than a Name. Use that as a backup.
-            //    name = tags["note"].FirstOrDefault();
-            //if (name == null)
-            //    return "";
-
-            //return name;
         }
 
+        //This is to be replaced with TagParser.GetAreaType()
         public static string GetPlaceType(TagsCollectionBase tagsO)
         {
             //This is how we will figure out which area a cell counts as now.

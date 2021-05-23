@@ -55,17 +55,19 @@ namespace PraxisMapper.Controllers
             }
             var box = OpenLocationCode.DecodeValid(codeString8);
 
-            var places = GetPlacesMapDAta(OpenLocationCode.DecodeValid(codeString8), includeGenerated: Configuration.GetValue<bool>("generateAreas"));  //All the places in this 8-code
-            if (Configuration.GetValue<bool>("generateAreas") && !places.Any(p => p.AreaTypeId < 13 || p.AreaTypeId == 100)) //check for 100 to not make new entries in the same spot.
-            {
-                var newAreas = CreateInterestingPlaces(codeString8);
-                places = newAreas.Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }).ToList();
-            }
+            var places = GetPlaces(OpenLocationCode.DecodeValid(codeString8)); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")  //All the places in this 8-code
+
+            //TODO: restore the auto-generate interesting areas logic with v4
+            //if (Configuration.GetValue<bool>("generateAreas") && !places.Any(p => p.AreaTypeId < 13 || p.AreaTypeId == 100)) //check for 100 to not make new entries in the same spot.
+            //{
+            //    var newAreas = CreateInterestingPlaces(codeString8);
+            //    places = newAreas.Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }).ToList();
+            //}
 
             //TODO: run some tests and see if SkiaSharp requires this crop for performance reasons. It seems pretty fast without it.
             var cropArea = Converters.GeoAreaToPolygon(box);
             foreach (var p in places)
-                p.place = p.place.Intersection(cropArea);
+                p.wayGeometry  = p.wayGeometry.Intersection(cropArea);
 
             StringBuilder sb = new StringBuilder();
             sb.AppendLine(codeString8);
@@ -269,7 +271,7 @@ namespace PraxisMapper.Controllers
             //attach a debug point here and read the results.
 
             //Exact point for area? or 10cell space to find trails too?
-            var places = GetPlacesMapDAta(new OpenLocationCode(lat, lon).Decode(), includeGenerated: Configuration.GetValue<bool>("generateAreas"));
+            var places = GetPlaces(new OpenLocationCode(lat, lon).Decode()); // , includeGenerated: Configuration.GetValue<bool>("generateAreas")
             var results = FindPlacesInCell10(lon, lat, ref places, true);
         }
 
@@ -305,7 +307,7 @@ namespace PraxisMapper.Controllers
             //}
             GeoArea box = new GeoArea(new GeoPoint(lat - (size / 2), lon - (size / 2)), new GeoPoint(lat + (size / 2), lon + (size / 2)));
 
-            var places = GetPlacesMapDAta(box, includeGenerated: Configuration.GetValue<bool>("generateAreas"));  //All the places in this area
+            var places = GetPlaces(box); //includeGenerated: Configuration.GetValue<bool>("generateAreas")  //All the places in this area
             StringBuilder sb = new StringBuilder();
             sb.AppendLine(pointDesc);
             //This endpoint puts the whole 10-digit plus code (without the separator) at the start of the line. I can't guarentee that any digits are shared since this isn't a grid-bound endpoint.

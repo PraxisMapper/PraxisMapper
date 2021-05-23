@@ -66,6 +66,29 @@ namespace CoreComponents
             return defaultStyle;
         }
 
+        public static TagParserEntry GetStyleForOsmWay(TagsCollectionBase tags)
+        {
+            var tempTags = tags.Select(t => new WayTags() { Key = t.Key, Value = t.Value }).ToList();
+            return GetStyleForOsmWay(tempTags);
+        }
+
+        public static string GetAreaType(TagsCollectionBase tags)
+        {
+            var tempTags = tags.Select(t => new WayTags() { Key = t.Key, Value = t.Value }).ToList();
+            return GetAreaType(tempTags);
+        }
+        public static string GetAreaType(List<WayTags> tags)
+        {
+            if (tags == null || tags.Count() == 0)
+                return defaultStyle.name;
+            
+            foreach (var drawingRules in styles)
+                if (MatchOnTags(drawingRules, tags))
+                    return drawingRules.name;
+                
+            return defaultStyle.name;
+        }
+
         public static bool MatchOnTags(TagParserEntry tpe, List<WayTags> tags)
         {
             //Changing this to return as soon as any entry fails makes it run about twice as fast.

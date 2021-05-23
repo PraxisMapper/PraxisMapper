@@ -51,15 +51,15 @@ namespace Larry
 
             Log.WriteLog("Converting " + osmWays.Count() + " OsmWays to my Ways at " + DateTime.Now);
             ways.Capacity = osmWays.Count();
-            ways = osmWays.AsParallel().Select(w => new WayData()
-            {
-                id = w.Id.Value,
-                name = Place.GetPlaceName(w.Tags),
-                AreaType = Place.GetPlaceType(w.Tags),
-                nodRefs = w.Nodes.ToList(),
-                forceArea = (w.Tags.Any(t => t.Key =="area" && t.Value == "yes"))
-            })
-            .ToList();
+            //ways = osmWays.AsParallel().Select(w => new WayData()
+            //{
+            //    id = w.Id.Value,
+            //    name = Place.GetPlaceName(w.Tags),
+            //    AreaType = TagParser.GetAreaType(w.Tags), //Place.GetPlaceType(w.Tags),
+            //    nodRefs = w.Nodes.ToList(),
+            //    forceArea = (w.Tags.Any(t => t.Key == "area" && t.Value == "yes"))
+            //});
+            //.ToList();
             osmWays = null; //free up RAM we won't use again.
             Log.WriteLog("List created at " + DateTime.Now);
 
