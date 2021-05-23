@@ -15,7 +15,7 @@ namespace CoreComponents
         public DbSet<PlayerData> PlayerData { get; set; }
         public DbSet<PerformanceInfo> PerformanceInfo { get; set; }
         //public DbSet<MapData> MapData { get; set; }
-        public DbSet<AdminBound> AdminBounds { get; set; } //Identical to MapData, but only for entries where AreaTypeId == 13. Should help performance a good amount.
+        //public DbSet<AdminBound> AdminBounds { get; set; } //Identical to MapData, but only for entries where AreaTypeId == 13. Should help performance a good amount.
         public DbSet<MapTile> MapTiles { get; set; }
 
         public DbSet<SlippyMapTile> SlippyMapTiles { get; set; }
@@ -79,11 +79,11 @@ namespace CoreComponents
             //generatedMapData only gets searched on its primary key and place (which has an index defined elsewhere at creation)
 
             //for checking OSM data, and allowing items to be updated instead of simply replaced in the future.
-            model.Entity<AdminBound>().HasIndex(p => p.WayId);
-            model.Entity<AdminBound>().HasIndex(p => p.RelationId);
-            model.Entity<AdminBound>().HasIndex(p => p.NodeId);
-            model.Entity<AdminBound>().HasIndex(p => p.AreaTypeId); //At the least, helpful for sorting out admin entries from others.
-            model.Entity<AdminBound>().HasIndex(p => p.AreaSize); //Used as a filter when drawing larger area maptiles. Tell the DB not to load points smaller than 1 pixel. This is in degrees for lines, degrees squared for areas and points.
+            //model.Entity<AdminBound>().HasIndex(p => p.WayId);
+            //model.Entity<AdminBound>().HasIndex(p => p.RelationId);
+            //model.Entity<AdminBound>().HasIndex(p => p.NodeId);
+            //model.Entity<AdminBound>().HasIndex(p => p.AreaTypeId); //At the least, helpful for sorting out admin entries from others.
+            //model.Entity<AdminBound>().HasIndex(p => p.AreaSize); //Used as a filter when drawing larger area maptiles. Tell the DB not to load points smaller than 1 pixel. This is in degrees for lines, degrees squared for areas and points.
 
             model.Entity<MapTile>().HasIndex(m => m.PlusCode);
             model.Entity<MapTile>().Property(m => m.PlusCode).HasMaxLength(12);
