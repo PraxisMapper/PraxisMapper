@@ -98,7 +98,7 @@ namespace CoreComponents
         {
             public long AreaControlTeamId { get; set; }
             public int FactionId { get; set; }
-            public long MapDataId { get; set; }
+            public long StoredWayId { get; set; }
             public bool IsGeneratedArea { get; set; }
             public long points { get; set; } //a quick reference of how many cells this area takes to own. Saving here to reduce calculations if/when I set up a scoreboard of areas owned.
             public DateTime claimedAt { get; set; }
@@ -120,8 +120,6 @@ namespace CoreComponents
             [Required]
             public Geometry place { get; set; } //allows any sub-type of Geometry to be used
             public string type { get; set; }// not apparently used in this table, but kept for possible compatibility depending on how AreaTypeId ends up being used.
-
-            public int AreaTypeId { get; set; } //This will probably be a fixed value.
             public DateTime GeneratedAt { get; set; }
         }
 
@@ -166,12 +164,9 @@ namespace CoreComponents
 
         }
 
-        //Incomplete idea.
         public class TagParserEntry
         {
             //For users that customize the rules for parsing tags.
-            //Some types may have duplicate entries to handle wider spreads?
-            //Will need to support ||, &&, and ! conditions.
             //Tag pairs are Key:Value per OSM data.
             public long id { get; set; }
             public string name { get; set; }
@@ -195,7 +190,6 @@ namespace CoreComponents
             public string Value { get; set; } //the right side of the key:value tag
             public string MatchType { get; set; } //Any, all, contains, not.
         }
-
 
         public class ServerSetting
         {
@@ -236,26 +230,15 @@ namespace CoreComponents
             public long ZztGameId { get; set; }
         }
 
-        //As it turns out, I might need to store/load raw map data after all, for creating accurate map tiles without any external applications.
-        //so back to using these stand-ins for OSM data types, plus a join table to parse tags later. This will take up a ton more space than the pbf or the DB, though.
-        public class StoredNode
-        {
-            public long id { get; set; } //internal PKey id
-            //public long OsmId { get; set; } //OSM id for reference with ways
-            public double lat { get; set; }
-            public double lon { get; set; }
-            public ICollection<NodeTags> NodeTags { get; set; }
-        }
-
-        //NOTE: i don't store names in this table, since this is just for highly accurate map tiles. Names can stay in the gameplay tables.
-        //Ooh, i could point the gameplay tables here for stuff? No, i need the geometry index on them.
-        //Should rename these to StoredGeometry since it holds all types
+        //This is the new, 4th iteration of geography data storage for PraxisMapper.
+        //All types can be stored in this one table, though some data will be applied on read
+        //because the TagParser will determine it on-demand instead of storing changeable data.
         public class StoredWay
         {
             public long id { get; set; }
-            public string name { get; set; } //Consolidating info into one table.
+            public string name { get; set; }
             public long sourceItemID { get; set; }
-            public int sourceItemType { get; set; } //1: node, 2: way, 3: relation.
+            public int sourceItemType { get; set; } //1: node, 2: way, 3: relation, 4: Generated (non-real area)? Kinda want generated stuff to sit in its own table still.
             
             [Column(TypeName = "geography")]
             [Required]
@@ -263,7 +246,7 @@ namespace CoreComponents
             public ICollection<WayTags> WayTags { get; set; }
             public bool IsGameElement { get; set; } //To use when determining if this element should or shouldn't be used as an answer when determining game interaction in an area.
             [NotMapped]
-            public string GameElementName { get; set; } //Placeholder for TagParser to load up the name of the matching style for this element, but don't save it to the DB.
+            public string GameElementName { get; set; } //Placeholder for TagParser to load up the name of the matching style for this element, but don't save it to the DB so we can change it on the fly.
             public double AreaSize { get; set; } //For sorting purposes.
 
             public override string ToString()
@@ -276,20 +259,7 @@ namespace CoreComponents
                 return (StoredWay)this.MemberwiseClone();
             }
         }
-
-        public class StoredRelation
-        {
-            public long id { get; set; }
-            public ICollection<RelationTags> RelationTags { get; set; }
-        }
-
-        public class NodeTags
-        {
-            public long id { get; set; }
-            public StoredNode storedNode { get; set; }
-            public string Key { get; set; }
-            public string Value { get; set; }
-        }
+                
         public class WayTags
         {
             public long id { get; set; }
@@ -301,36 +271,7 @@ namespace CoreComponents
             {
                 return Key + ":" + Value;
             }
-        }
-        public class RelationTags
-        {
-            public long id { get; set; }
-            public StoredRelation storedRelation { get; set; }
-            public string Key { get; set; }
-            public string Value { get; set; }
-        }
-
-
-
-
-
-        //In Process. To use to allow some customization of map tiles by setting colors for area types. Was for ImageSharp, needs redone for SkiaSharp
-        //public class DrawingRule //this needs properties to pass into ImageSharp.Drawing calls, mostly brush stuff.
-        //{
-        //    public int id { get; set; }
-        //    public int AreaTypeID { get; set;}
-        //    public int BrushType { get; set; } //Solid, Pattern, Image, Recolor, Gradients (Linear, Radial, Path, Elliptic) = 8 total types
-        //    public int BrushColor { get; set; }
-        //    public int BrushPattern { get; set; }
-        //    public int BrushSize { get; set; }
-        //    //Gradients will need a list of colors and possibly other parameters.
-        //    //Recolor needs a target and destination color
-        //    //Image needs an image file to use.
-        //    //Pattern needs a pattern type
-        //}
-
-
-
+        }       
     }
 }
 

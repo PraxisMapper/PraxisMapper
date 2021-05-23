@@ -141,7 +141,7 @@ namespace CoreComponents
             //Replacing this one requires multiple style list support first.
             List<StoredWay> allPlaces = GetPlaces(loadDataArea); //, null, false, true, smallestFeature //Includes generated here with the final True parameter.
             List<long> placeIDs = allPlaces.Select(a => a.sourceItemID).ToList();
-            Dictionary<long, int> teamClaims = db.AreaControlTeams.Where(act => placeIDs.Contains(act.MapDataId)).ToDictionary(k => k.MapDataId, v => v.FactionId);
+            Dictionary<long, int> teamClaims = db.AreaControlTeams.Where(act => placeIDs.Contains(act.StoredWayId)).ToDictionary(k => k.StoredWayId, v => v.FactionId);
             allPlaces = allPlaces.Where(a => teamClaims.ContainsKey(a.sourceItemID)).ToList();
 
             //crop all places to the current area. This removes a ton of work from the process by simplifying geometry to only what's relevant, instead of drawing all of a great lake or state-wide park.
@@ -526,7 +526,7 @@ namespace CoreComponents
                 var tempList = new List<WayTags>();
                 if (w.WayTags != null)
                     tempList = w.WayTags.ToList();
-                var style = CoreComponents.TagParser.GetStyleForOsmWay(tempList);
+                var style = CoreComponents.TagParser.GetStyleForOsmWay(w);
                 paint = style.paint;
                 if (paint.Color.Alpha == 0)
                     continue; //This area is transparent, skip drawing it entirely.

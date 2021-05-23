@@ -60,7 +60,7 @@ namespace PraxisMapper.Controllers
         {
             PraxisContext db = new PraxisContext();
             var mapData = db.StoredWays.Where(md => md.id == MapDataId).FirstOrDefault();
-            var teamClaim = db.AreaControlTeams.Where(a => a.MapDataId == MapDataId).FirstOrDefault();
+            var teamClaim = db.AreaControlTeams.Where(a => a.StoredWayId == MapDataId).FirstOrDefault();
             if (teamClaim == null)
             {
                 teamClaim = new DbTables.AreaControlTeam();
@@ -71,7 +71,7 @@ namespace PraxisMapper.Controllers
                     //mapData = db.GeneratedMapData.Where(md => md.GeneratedMapDataId == MapDataId - 100000000).Select(m => new MapData() { MapDataId = MapDataId, place = m.place }).FirstOrDefault();
                     //teamClaim.IsGeneratedArea = true;
                 }
-                teamClaim.MapDataId = MapDataId;
+                teamClaim.StoredWayId = MapDataId;
                 teamClaim.points = GetScoreForSinglePlace(mapData.wayGeometry);
             }
             teamClaim.FactionId = factionId;
@@ -248,7 +248,7 @@ namespace PraxisMapper.Controllers
             //Return the area name (or type if unnamed), the team that owns it, and its point cost (pipe-separated)
             PerformanceTracker pt = new PerformanceTracker("AreaOwners");
             var db = new PraxisContext();
-            var owner = db.AreaControlTeams.Where(a => a.MapDataId == mapDataId).FirstOrDefault();
+            var owner = db.AreaControlTeams.Where(a => a.StoredWayId == mapDataId).FirstOrDefault();
             var mapData = db.StoredWays.Where(m => m.id == mapDataId).FirstOrDefault();
             //if (mapData == null && (Configuration.GetValue<bool>("generateAreas") == true)) //TODO restore this feature.
                 //mapData = db.GeneratedMapData.Where(m => m.GeneratedMapDataId == mapDataId - 100000000).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }).FirstOrDefault();
