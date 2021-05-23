@@ -73,15 +73,6 @@ namespace CoreComponents
             public static implicit operator AdminBound(MapData a) => new AdminBound() { AreaSize = a.AreaSize, AreaTypeId = a.AreaTypeId, AdminBoundId = 0, name = a.name, NodeId = a.NodeId, place = a.place, RelationId = a.RelationId, type = a.type, WayId = a.WayId };
         }
 
-        //Reference table
-        //public class AreaType //remove this
-        //{
-        //    public int AreaTypeId { get; set; }
-        //    public string AreaName { get; set; }
-        //    public string OsmTags { get; set; } //These are not 1:1, so this column may not be useful after all.
-        //    public string HtmlColorCode { get; set; } //for tile-drawing operations, possibly in-app stuff too.
-        //}
-
         public class TileTracking
         {
             public long TileTrackingId { get; set; }
@@ -101,13 +92,6 @@ namespace CoreComponents
             [Column(TypeName = "geography")]
             [Required]
             public Geometry areaCovered { get; set; } //This lets us find and expire map tiles if the data under them changes.
-        }
-
-        public class PremadeResults
-        {
-            public long PremadeResultsId { get; set; }
-            public string PlusCode6 { get; set; }
-            public string Data { get; set; }
         }
 
         public class AreaControlTeam //A table for tracking which player faction controls which area (we dont store data on player location on the servers)
