@@ -97,7 +97,7 @@ namespace CoreComponents
         public class AreaControlTeam //A table for tracking which player faction controls which area (we dont store data on player location on the servers)
         {
             public long AreaControlTeamId { get; set; }
-            public int FactionId { get; set; }
+            public long FactionId { get; set; }
             public long StoredWayId { get; set; }
             public bool IsGeneratedArea { get; set; }
             public long points { get; set; } //a quick reference of how many cells this area takes to own. Saving here to reduce calculations if/when I set up a scoreboard of areas owned.

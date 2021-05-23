@@ -14,6 +14,8 @@ namespace CoreComponents
 {
     public static class GeometrySupport
     {
+        //Shared class for functions that do work on Geometry objects.
+        //GeometryHelper is specific to Larry, and should only contain code that won't be useful outside the console app if any.
         public static Polygon CCWCheck(Polygon p)
         {
             if (p == null)
@@ -133,23 +135,14 @@ namespace CoreComponents
 
         public static void WriteSingleStoredWayToFile(string filename, StoredWay md) //, bool open = false, bool close = false
         {
-            //System.IO.StreamWriter sw = new StreamWriter(filename, true);
-            //if (open)
-            //File.AppendAllText(filename, "[" + Environment.NewLine);
-
             if (md != null) //null can be returned from the functions that convert OSM entries to MapData
             {
                 var recordVersion = new CoreComponents.Support.StoredWayForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.wayGeometry.AsText(), string.Join("~", md.WayTags.Select(t => t.storedWay + "|" + t.Key + "|" + t.Value)), md.IsGameElement);
                 var test = JsonSerializer.Serialize(recordVersion, typeof(CoreComponents.Support.StoredWayForJson));
                 File.AppendAllText(filename, test + Environment.NewLine);
             }
-
-            //if (close)
-            //File.AppendAllText(filename, "]");
         }
 
-
-        //TODO pending difference: This will just save 1 entry per line. No JSON array indicator or trailing commas.
         public static List<StoredWay> ReadStoredWaysFileToMemory(string filename)
         {
             StreamReader sr = new StreamReader(filename);
