@@ -219,7 +219,7 @@ namespace Larry
             MapData md = new MapData();
             md.name = Place.GetPlaceName(r.Tags);
             md.type = TagParser.GetAreaType(r.Tags); 
-            md.AreaTypeId = areaTypeReference[md.type.StartsWith("admin") ? "admin" : md.type].First();
+            //md.AreaTypeId = areaTypeReference[md.type.StartsWith("admin") ? "admin" : md.type].First();
             md.RelationId = r.Id.Value;
             md.place = GeometrySupport.SimplifyArea(Tpoly);
             md.AreaSize = md.place.Length; //md.place.Area; //ARea is square degrees, use perimeter length in degress instead for a more reasonable comparison.
@@ -655,47 +655,47 @@ namespace Larry
             return filteredEntries;
         }
 
-        public static void SerializeFilesFromPBF(string filename)
-        {
-            System.IO.FileInfo fi = new FileInfo(filename);
-            if (ParserSettings.ForceSeparateFiles || fi.Length > ParserSettings.FilesizeSplit) //This is mostly pre-emptive, size is not a particularly great predictor of the need to split files in practice.
-            {
-                //Parse this file into area type sub-files from disk, so that I can do more work in less RAM.
-                SerializeSeparateFilesFromPBF(filename);
-                return;
-            }
+        //public static void SerializeFilesFromPBF(string filename)
+        //{
+        //    System.IO.FileInfo fi = new FileInfo(filename);
+        //    if (ParserSettings.ForceSeparateFiles || fi.Length > ParserSettings.FilesizeSplit) //This is mostly pre-emptive, size is not a particularly great predictor of the need to split files in practice.
+        //    {
+        //        //Parse this file into area type sub-files from disk, so that I can do more work in less RAM.
+        //        SerializeSeparateFilesFromPBF(filename);
+        //        return;
+        //    }
 
-            Log.WriteLog("Checking for members in  " + filename + " at " + DateTime.Now);
-            string destFilename = System.IO.Path.GetFileName(filename).Replace(".osm.pbf", "");
-            ProcessRelationData(null, filename, ParserSettings.JsonMapDataFolder + destFilename + "-MapData" + (ParserSettings.UseHighAccuracy ? "-highAcc" : "-lowAcc") + ".json");
+        //    Log.WriteLog("Checking for members in  " + filename + " at " + DateTime.Now);
+        //    string destFilename = System.IO.Path.GetFileName(filename).Replace(".osm.pbf", "");
+        //    ProcessRelationData(null, filename, ParserSettings.JsonMapDataFolder + destFilename + "-MapData" + (ParserSettings.UseHighAccuracy ? "-highAcc" : "-lowAcc") + ".json");
 
-            Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
-            File.Move(filename, filename + "Done");
-        }
+        //    Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
+        //    File.Move(filename, filename + "Done");
+        //}
 
-        public static void SerializeSeparateFilesFromPBF(string filename)
-        {
-            foreach (var areatype in areaTypes.Where(a => a.AreaTypeId < 100)) //each pass takes roughly the same amount of time to read, but uses less ram than holding the stream in memory or all content at once.
-            {
-                try
-                {
-                    string areatypename = areatype.AreaName;
-                    Log.WriteLog("Checking for " + areatypename + " members in  " + filename + " at " + DateTime.Now);
-                    string destFilename = System.IO.Path.GetFileName(filename).Replace(".osm.pbf", "");
+        //public static void SerializeSeparateFilesFromPBF(string filename)
+        //{
+        //    foreach (var areatype in areaTypes.Where(a => a.AreaTypeId < 100)) //each pass takes roughly the same amount of time to read, but uses less ram than holding the stream in memory or all content at once.
+        //    {
+        //        try
+        //        {
+        //            string areatypename = areatype.AreaName;
+        //            Log.WriteLog("Checking for " + areatypename + " members in  " + filename + " at " + DateTime.Now);
+        //            string destFilename = System.IO.Path.GetFileName(filename).Replace(".osm.pbf", "");
 
-                    ProcessRelationData(areatypename, filename, ParserSettings.JsonMapDataFolder + destFilename + "-MapData-" + areatypename + (ParserSettings.UseHighAccuracy ? "-highAcc" : "-lowAcc") + ".json");                    
-                }
-                catch (Exception ex)
-                {
-                    //do nothing, just recover and move on.
-                    Log.WriteLog("Attempting last chance processing");
-                    LastChanceSerializer(filename, areatype.AreaName);
-                }
-            }
+        //            ProcessRelationData(areatypename, filename, ParserSettings.JsonMapDataFolder + destFilename + "-MapData-" + areatypename + (ParserSettings.UseHighAccuracy ? "-highAcc" : "-lowAcc") + ".json");                    
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            //do nothing, just recover and move on.
+        //            Log.WriteLog("Attempting last chance processing");
+        //            LastChanceSerializer(filename, areatype.AreaName);
+        //        }
+        //    }
 
-            Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
-            File.Move(filename, filename + "Done");
-        }
+        //    Log.WriteLog("Processed " + filename + " at " + DateTime.Now);
+        //    File.Move(filename, filename + "Done");
+        //}
 
         public static void LastChanceSerializer(string filename, string areaType)
         {

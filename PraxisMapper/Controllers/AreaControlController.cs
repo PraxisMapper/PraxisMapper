@@ -255,8 +255,8 @@ namespace PraxisMapper.Controllers
                 //This is an error, probably from not clearing data between server instances.
                 return "MissingArea|Nobody|0";
 
-            if (string.IsNullOrWhiteSpace(mapData.name))
-                mapData.name = areaIdReference[mapData.AreaTypeId].FirstOrDefault();
+            //if (string.IsNullOrWhiteSpace(mapData.name))
+                //mapData.name = areaIdReference[mapData.AreaTypeId].FirstOrDefault();
 
             if (owner != null)
             {

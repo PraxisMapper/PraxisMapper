@@ -52,7 +52,7 @@ namespace CoreComponents
                     type = n.type,
                     place = factory.CreatePoint(new Coordinate(n.lon, n.lat)),
                     NodeId = n.Id,
-                    AreaTypeId = areaTypeReference[n.type.StartsWith("admin") ? "admin" : n.type].First(),
+                    //AreaTypeId = areaTypeReference[n.type.StartsWith("admin") ? "admin" : n.type].First(),
                     AreaSize = .000125 //We treat points as being 1 cell10 in size for filtering purposes. don't draw them if you can't see them.
                 };
             return null; //These should get filtered out before writing to file.
@@ -78,7 +78,7 @@ namespace CoreComponents
                 md.name = w.name;
                 md.WayId = w.id;
                 md.type = w.AreaType;
-                md.AreaTypeId = areaTypeReference[w.AreaType.StartsWith("admin") ? "admin" : w.AreaType].FirstOrDefault();
+                //md.AreaTypeId = areaTypeReference[w.AreaType.StartsWith("admin") ? "admin" : w.AreaType].FirstOrDefault();
 
                 //Normally, we want to make sure looping roads/trails are linestrings. They can be marked with the tag area=yes to indicate that they should be drawn as a polygon.
                 if (w.nds.First().id != w.nds.Last().id || (w.AreaType == "trail" && w.forceArea == false) || (w.AreaType == "road" && w.forceArea == false))

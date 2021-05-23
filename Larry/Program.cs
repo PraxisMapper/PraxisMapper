@@ -125,17 +125,18 @@ namespace Larry
                 FileCommands.ResetFiles(ParserSettings.JsonMapDataFolder);
             }
 
-            if (args.Any(a => a == "-trimPbfFiles"))
-            {
-                FileCommands.MakeAllSerializedFilesFromPBF();
-            }
+            //Replace with V4 import call.
+            //if (args.Any(a => a == "-trimPbfFiles"))
+            //{
+            //    FileCommands.MakeAllSerializedFilesFromPBF();
+            //}
 
-            if (args.Any(a => a.StartsWith("-trimPbfsByType")))
-            {
-                List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
-                foreach (string filename in filenames)
-                    PbfOperations.SerializeSeparateFilesFromPBF(filename);
-            }
+            //if (args.Any(a => a.StartsWith("-trimPbfsByType")))
+            //{
+            //    List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
+            //    foreach (string filename in filenames)
+            //        PbfOperations.SerializeSeparateFilesFromPBF(filename);
+            //}
 
             if (args.Any(a => a.StartsWith("-lastChance")))
             {

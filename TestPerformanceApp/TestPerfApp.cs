@@ -1222,29 +1222,29 @@ namespace PerformanceTestApp
                 db.Database.ExecuteSqlRaw("SET collation_server = 'utf8mb4_unicode_ci'; SET character_set_server = 'utf8mb4'"); //MariaDB defaults to latin2_swedish, we need Unicode.
             }
 
-            InsertAreaTypesToDb(mode);
+            //InsertAreaTypesToDb(mode);
             InsertDefaultServerConfig();
             InsertDefaultFactionsToDb(mode);
             InsertDefaultPaintTownConfigs();
             InsertDefaultStyle(mode);
         }
 
-        public static void InsertAreaTypesToDb(string mode)
-        {
-            var db = new PraxisContext();
-            if (mode == "SQLServer")
-            {
-                db.Database.BeginTransaction();
-                db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT AreaTypes ON;");
-            }
-            db.AreaTypes.AddRange(areaTypes);
-            db.SaveChanges();
-            if (mode == "SQLServer")
-            {
-                db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT dbo.AreaTypes OFF;");
-                db.Database.CommitTransaction();
-            }
-        }
+        //public static void InsertAreaTypesToDb(string mode)
+        //{
+        //    var db = new PraxisContext();
+        //    if (mode == "SQLServer")
+        //    {
+        //        db.Database.BeginTransaction();
+        //        db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT AreaTypes ON;");
+        //    }
+        //    db.AreaTypes.AddRange(areaTypes);
+        //    db.SaveChanges();
+        //    if (mode == "SQLServer")
+        //    {
+        //        db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT dbo.AreaTypes OFF;");
+        //        db.Database.CommitTransaction();
+        //    }
+        //}
 
         public static void InsertDefaultFactionsToDb(string mode)
         {

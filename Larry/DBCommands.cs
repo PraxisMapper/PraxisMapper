@@ -47,29 +47,29 @@ namespace Larry
                 db.Database.ExecuteSqlRaw("SET collation_server = 'utf8mb4_unicode_ci'; SET character_set_server = 'utf8mb4'"); //MariaDB defaults to latin2_swedish, we need Unicode.
             }
 
-            InsertAreaTypesToDb();
+            //InsertAreaTypesToDb();
             InsertDefaultServerConfig();
             InsertDefaultFactionsToDb();
             InsertDefaultPaintTownConfigs();
             InsertDefaultStyle();
         }
 
-        public static void InsertAreaTypesToDb()
-        {
-            var db = new PraxisContext();
-            if (ParserSettings.DbMode == "SQLServer")
-            {
-                db.Database.BeginTransaction();
-                db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT AreaTypes ON;");
-            }
-            db.AreaTypes.AddRange(areaTypes);
-            db.SaveChanges();
-            if (ParserSettings.DbMode == "SQLServer")
-            {
-                db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT dbo.AreaTypes OFF;");
-                db.Database.CommitTransaction();
-            }
-        }
+        //public static void InsertAreaTypesToDb()
+        //{
+        //    var db = new PraxisContext();
+        //    if (ParserSettings.DbMode == "SQLServer")
+        //    {
+        //        db.Database.BeginTransaction();
+        //        db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT AreaTypes ON;");
+        //    }
+        //    //db.AreaTypes.AddRange(areaTypes);
+        //    db.SaveChanges();
+        //    if (ParserSettings.DbMode == "SQLServer")
+        //    {
+        //        db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT dbo.AreaTypes OFF;");
+        //        db.Database.CommitTransaction();
+        //    }
+        //}
 
         public static void InsertDefaultFactionsToDb()
         {

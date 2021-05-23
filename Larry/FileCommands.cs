@@ -25,12 +25,12 @@ namespace Larry
             }
         }
 
-        public static void MakeAllSerializedFilesFromPBF()
-        {
-            List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
-            foreach (string filename in filenames)
-                SerializeFilesFromPBF(filename);
-        }
+        //public static void MakeAllSerializedFilesFromPBF()
+        //{
+        //    List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
+        //    foreach (string filename in filenames)
+        //        SerializeFilesFromPBF(filename);
+        //}
 
         
 

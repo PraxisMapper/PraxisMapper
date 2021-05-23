@@ -14,7 +14,7 @@ namespace CoreComponents
     {
         public DbSet<PlayerData> PlayerData { get; set; }
         public DbSet<PerformanceInfo> PerformanceInfo { get; set; }
-        public DbSet<AreaType> AreaTypes { get; set; }
+        //public DbSet<AreaType> AreaTypes { get; set; }
         public DbSet<MapData> MapData { get; set; }
         public DbSet<AdminBound> AdminBounds { get; set; } //Identical to MapData, but only for entries where AreaTypeId == 13. Should help performance a good amount.
         public DbSet<MapTile> MapTiles { get; set; }
