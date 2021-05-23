@@ -36,7 +36,7 @@ namespace CoreComponents
             //TODO: load team data from DB. Either its own table set or add a parameter to the main TagParserEntries table to indicate its purpose.
             teams = Singletons.defaultTeamColors;
             foreach (var t in teams)
-                SetPaintForTPE(t);  
+                SetPaintForTPE(t);
 
         }
 
@@ -60,18 +60,24 @@ namespace CoreComponents
             tpe.paint = paint;
         }
 
-        public static TagParserEntry GetStyleForOsmWay(List<WayTags> tags)
+        public static TagParserEntry GetStyleForOsmWay(StoredWay sw)
         {
+            var style = GetStyleForOsmWay(sw.WayTags.ToList());
+            sw.GameElementName = style.name;
+            return style;
+        }
+
+        public static TagParserEntry GetStyleForOsmWay(List<WayTags> tags)
+    {
             if (tags == null || tags.Count() == 0)
                 return defaultStyle;
-
+            
             foreach (var drawingRules in styles)
             {
                 if (MatchOnTags(drawingRules, tags))
-                {
                     return drawingRules;
-                }
             }
+            
             return defaultStyle;
         }
 
@@ -90,14 +96,19 @@ namespace CoreComponents
         {
             if (tags == null || tags.Count() == 0)
                 return defaultStyle.name;
-            
+
             foreach (var drawingRules in styles)
                 if (MatchOnTags(drawingRules, tags))
                     return drawingRules.name;
-                
+
             return defaultStyle.name;
         }
 
+        public static bool MatchOnTags(TagParserEntry tpe, StoredWay sw)
+        {
+            return MatchOnTags(tpe, sw.WayTags.ToList());
+        }
+        
         public static bool MatchOnTags(TagParserEntry tpe, List<WayTags> tags)
         {
             //Changing this to return as soon as any entry fails makes it run about twice as fast.
@@ -169,7 +180,7 @@ namespace CoreComponents
             var db = new PraxisContext();
             foreach (var sw in db.StoredWays)
             {
-                var paintStyle = GetStyleForOsmWay(sw.WayTags.ToList());
+                var paintStyle = GetStyleForOsmWay(sw);
                 if (sw.wayGeometry.GeometryType == "LinearRing" && paintStyle.paint.Style == SKPaintStyle.Fill)
                 {
                     var poly = factory.CreatePolygon((LinearRing)sw.wayGeometry);
