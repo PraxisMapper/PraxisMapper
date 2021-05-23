@@ -12,101 +12,101 @@ namespace Larry
     //YEP. This class can largely be replaced with OsmSharp.Geo.FeatureInterpreter.
     public static class GeometryHelper
     {
-        public static Geometry GetGeometryFromWays(List<WayData> shapeList, OsmSharp.Relation r)
-        {
-            //A common-ish case looks like the outer entries are lines that join together, and inner entries are polygons.
-            //Let's see if we can build a polygon (or more, possibly)
-            List<Coordinate> possiblePolygon = new List<Coordinate>();
-            //from the first line, find the line that starts with the same endpoint (or ends with the startpoint, but reverse that path).
-            //continue until a line ends with the first node. That's a closed shape.
+        //public static Geometry GetGeometryFromWays(List<WayData> shapeList, OsmSharp.Relation r)
+        //{
+        //    //A common-ish case looks like the outer entries are lines that join together, and inner entries are polygons.
+        //    //Let's see if we can build a polygon (or more, possibly)
+        //    List<Coordinate> possiblePolygon = new List<Coordinate>();
+        //    //from the first line, find the line that starts with the same endpoint (or ends with the startpoint, but reverse that path).
+        //    //continue until a line ends with the first node. That's a closed shape.
 
-            List<Polygon> existingPols = new List<Polygon>();
-            List<Polygon> innerPols = new List<Polygon>();
+        //    List<Polygon> existingPols = new List<Polygon>();
+        //    List<Polygon> innerPols = new List<Polygon>();
 
-            if (shapeList.Count == 0)
-            {
-                Log.WriteLog("Relation " + r.Id + " " + Place.GetPlaceName(r.Tags) + " has 0 ways in shapelist", Log.VerbosityLevels.High);
-                return null;
-            }
+        //    if (shapeList.Count == 0)
+        //    {
+        //        Log.WriteLog("Relation " + r.Id + " " + Place.GetPlaceName(r.Tags) + " has 0 ways in shapelist", Log.VerbosityLevels.High);
+        //        return null;
+        //    }
 
-            //Separate sets
-            var innerEntries = r.Members.Where(m => m.Role == "inner").Select(m => m.Id).ToList(); //these are almost always closed polygons.
-            var outerEntries = r.Members.Where(m => m.Role == "outer").Select(m => m.Id).ToList();
-            var innerPolys = new List<WayData>();
+        //    //Separate sets
+        //    var innerEntries = r.Members.Where(m => m.Role == "inner").Select(m => m.Id).ToList(); //these are almost always closed polygons.
+        //    var outerEntries = r.Members.Where(m => m.Role == "outer").Select(m => m.Id).ToList();
+        //    var innerPolys = new List<WayData>();
 
-            if (innerEntries.Count() + outerEntries.Count() > shapeList.Count)
-            {
-                Log.WriteLog("Relation " + r.Id + " " + Place.GetPlaceName(r.Tags) + " is missing Ways, odds of success are low.", Log.VerbosityLevels.High);
-            }
+        //    if (innerEntries.Count() + outerEntries.Count() > shapeList.Count)
+        //    {
+        //        Log.WriteLog("Relation " + r.Id + " " + Place.GetPlaceName(r.Tags) + " is missing Ways, odds of success are low.", Log.VerbosityLevels.High);
+        //    }
 
-            //Not all ways are tagged for this, so we can't always rely on this.
-            if (outerEntries.Count > 0)
-                shapeList = shapeList.Where(s => outerEntries.Contains(s.id)).ToList();
+        //    //Not all ways are tagged for this, so we can't always rely on this.
+        //    if (outerEntries.Count > 0)
+        //        shapeList = shapeList.Where(s => outerEntries.Contains(s.id)).ToList();
 
-            if (innerEntries.Count > 0)
-            {
-                innerPolys = shapeList.Where(s => innerEntries.Contains(s.id)).ToList();
-                while (innerPolys.Count() > 0)
-                    innerPols.Add(GetShapeFromLines(ref innerPolys));
-            }
+        //    if (innerEntries.Count > 0)
+        //    {
+        //        innerPolys = shapeList.Where(s => innerEntries.Contains(s.id)).ToList();
+        //        while (innerPolys.Count() > 0)
+        //            innerPols.Add(GetShapeFromLines(ref innerPolys));
+        //    }
 
-            //Remove any closed shapes first from the outer entries.
-            var closedShapes = shapeList.Where(s => s.nds.First().id == s.nds.Last().id).ToList();
-            foreach (var cs in closedShapes)
-            {
-                if (cs.nds.Count() > 3) // if SimplifyAreas is true, this might have been a closedShape that became a linestring or point from this.
-                {
-                    shapeList.Remove(cs);
-                    existingPols.Add(factory.CreatePolygon(cs.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray()));
-                }
-                else
-                    Log.WriteLog("Invalid closed shape found: " + cs.id);
-            }
+        //    //Remove any closed shapes first from the outer entries.
+        //    var closedShapes = shapeList.Where(s => s.nds.First().id == s.nds.Last().id).ToList();
+        //    foreach (var cs in closedShapes)
+        //    {
+        //        if (cs.nds.Count() > 3) // if SimplifyAreas is true, this might have been a closedShape that became a linestring or point from this.
+        //        {
+        //            shapeList.Remove(cs);
+        //            existingPols.Add(factory.CreatePolygon(cs.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray()));
+        //        }
+        //        else
+        //            Log.WriteLog("Invalid closed shape found: " + cs.id);
+        //    }
 
-            while (shapeList.Count() > 0)
-                existingPols.Add(GetShapeFromLines(ref shapeList)); //only outers here.
+        //    while (shapeList.Count() > 0)
+        //        existingPols.Add(GetShapeFromLines(ref shapeList)); //only outers here.
 
-            existingPols = existingPols.Where(e => e != null).ToList();
+        //    existingPols = existingPols.Where(e => e != null).ToList();
 
-            if (existingPols.Count() == 0)
-            {
-                Log.WriteLog("Relation " + r.Id + " " + Place.GetPlaceName(r.Tags) + " has no polygons and no lines that make polygons. Is this relation supposed to be an open line?", Log.VerbosityLevels.High);
-                return null;
-            }
+        //    if (existingPols.Count() == 0)
+        //    {
+        //        Log.WriteLog("Relation " + r.Id + " " + Place.GetPlaceName(r.Tags) + " has no polygons and no lines that make polygons. Is this relation supposed to be an open line?", Log.VerbosityLevels.High);
+        //        return null;
+        //    }
 
-            if (existingPols.Count() == 1)
-            {
-                //remove inner polygons
-                var returnData = existingPols.First();
-                foreach (var ir in innerPolys)
-                {
-                    if (ir.nds.First().id == ir.nds.Last().id)
-                    {
-                        var innerP = factory.CreateLineString(Converters.WayToCoordArray(ir));
-                        returnData.InteriorRings.Append(innerP);
-                    }
-                }
-                return returnData;
-            }
+        //    if (existingPols.Count() == 1)
+        //    {
+        //        //remove inner polygons
+        //        var returnData = existingPols.First();
+        //        foreach (var ir in innerPolys)
+        //        {
+        //            if (ir.nds.First().id == ir.nds.Last().id)
+        //            {
+        //                var innerP = factory.CreateLineString(Converters.WayToCoordArray(ir));
+        //                returnData.InteriorRings.Append(innerP);
+        //            }
+        //        }
+        //        return returnData;
+        //    }
 
-            //return a multipolygon instead.
-            Geometry multiPol = factory.CreateMultiPolygon(existingPols.Distinct().ToArray());
-            if (innerPols.Count() > 0)
-            {
-                var innerMultiPol = factory.CreateMultiPolygon(innerPols.Where(ip => ip != null).Distinct().ToArray());
-                try
-                {
-                    multiPol = multiPol.Difference(innerMultiPol);
-                }
-                catch (Exception ex)
-                {
-                    Log.WriteLog("Relation " + r.Id + " Error trying to pull difference from inner and outer polygons:" + ex.Message);
-                }
-            }
-            return multiPol;
-        }
+        //    //return a multipolygon instead.
+        //    Geometry multiPol = factory.CreateMultiPolygon(existingPols.Distinct().ToArray());
+        //    if (innerPols.Count() > 0)
+        //    {
+        //        var innerMultiPol = factory.CreateMultiPolygon(innerPols.Where(ip => ip != null).Distinct().ToArray());
+        //        try
+        //        {
+        //            multiPol = multiPol.Difference(innerMultiPol);
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            Log.WriteLog("Relation " + r.Id + " Error trying to pull difference from inner and outer polygons:" + ex.Message);
+        //        }
+        //    }
+        //    return multiPol;
+        //}
 
-        public static Geometry GetGeometryFromCompleteWays(OsmSharp.Complete.CompleteRelation r)
+        public static Geometry GetGeometryFromCompleteWays(OsmSharp.Complete.CompleteRelation r) //Might want this moved to Converters?
         {
             //A common-ish case looks like the outer entries are lines that join together, and inner entries are polygons.
             //Let's see if we can build a polygon (or more, possibly)

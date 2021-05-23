@@ -42,93 +42,93 @@ namespace CoreComponents
             return pgf.Create(GeoAreaToPolygon(plusCodeArea));
         }
 
-        public static MapData ConvertNodeToMapData(NodeReference n)
-        {
-            //Admin boundaries and buildings should not be points.
-            if (!n.type.StartsWith("admin") && n.type != "building")
-                return new MapData()
-                {
-                    name = n.name,
-                    type = n.type,
-                    place = factory.CreatePoint(new Coordinate(n.lon, n.lat)),
-                    NodeId = n.Id,
-                    //AreaTypeId = areaTypeReference[n.type.StartsWith("admin") ? "admin" : n.type].First(),
-                    AreaSize = .000125 //We treat points as being 1 cell10 in size for filtering purposes. don't draw them if you can't see them.
-                };
-            return null; //These should get filtered out before writing to file.
-        }
+        //public static MapData ConvertNodeToMapData(NodeReference n)
+        //{
+        //    //Admin boundaries and buildings should not be points.
+        //    if (!n.type.StartsWith("admin") && n.type != "building")
+        //        return new MapData()
+        //        {
+        //            name = n.name,
+        //            type = n.type,
+        //            place = factory.CreatePoint(new Coordinate(n.lon, n.lat)),
+        //            NodeId = n.Id,
+        //            //AreaTypeId = areaTypeReference[n.type.StartsWith("admin") ? "admin" : n.type].First(),
+        //            AreaSize = .000125 //We treat points as being 1 cell10 in size for filtering purposes. don't draw them if you can't see them.
+        //        };
+        //    return null; //These should get filtered out before writing to file.
+        //}
 
-        public static MapData ConvertWayToMapData(ref WayData w)
-        {
-            //An entry with no name and no type is probably a relation support entry.
-            //Something with a type and no name was found to be interesting but not named
-            //something with a name and no type is probably an intentionally excluded entry.
-            //I always want a type. Names are optional.
-            try
-            {
-                Log.WriteLog("Processing Way " + w.id + " " + w.name + " to MapData at " + DateTime.Now, Log.VerbosityLevels.High);
-                if (w.AreaType == "")
-                {
-                    w = null;
-                    return null;
-                }
+        //public static MapData ConvertWayToMapData(ref WayData w)
+        //{
+        //    //An entry with no name and no type is probably a relation support entry.
+        //    //Something with a type and no name was found to be interesting but not named
+        //    //something with a name and no type is probably an intentionally excluded entry.
+        //    //I always want a type. Names are optional.
+        //    try
+        //    {
+        //        Log.WriteLog("Processing Way " + w.id + " " + w.name + " to MapData at " + DateTime.Now, Log.VerbosityLevels.High);
+        //        if (w.AreaType == "")
+        //        {
+        //            w = null;
+        //            return null;
+        //        }
 
-                //Take a single tagged Way, and make it a usable MapData entry for the app.
-                MapData md = new MapData();
-                md.name = w.name;
-                md.WayId = w.id;
-                md.type = w.AreaType;
-                //md.AreaTypeId = areaTypeReference[w.AreaType.StartsWith("admin") ? "admin" : w.AreaType].FirstOrDefault();
+        //        //Take a single tagged Way, and make it a usable MapData entry for the app.
+        //        MapData md = new MapData();
+        //        md.name = w.name;
+        //        md.WayId = w.id;
+        //        md.type = w.AreaType;
+        //        //md.AreaTypeId = areaTypeReference[w.AreaType.StartsWith("admin") ? "admin" : w.AreaType].FirstOrDefault();
 
-                //Normally, we want to make sure looping roads/trails are linestrings. They can be marked with the tag area=yes to indicate that they should be drawn as a polygon.
-                if (w.nds.First().id != w.nds.Last().id || (w.AreaType == "trail" && w.forceArea == false) || (w.AreaType == "road" && w.forceArea == false))
-                {
-                    //this is a linestring.
-                    if (w.nds.Count() < 2)
-                    {
-                        Log.WriteLog("Way " + w.id + " has 1 or 0 nodes to parse into a line. This is a point, not processing.");
-                        w = null;
-                        return null;
-                    }
-                    LineString temp2 = factory.CreateLineString(w.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray());
-                    md.place = SimplifyArea(temp2); //Linestrings should get the same rounding effect as polygons, with the same maptile quality consequences.
-                    md.AreaSize = md.place.Length;
-                }
-                else
-                { //Polygon
-                    if (w.nds.Count <= 3)
-                    {
-                        Log.WriteLog("Way " + w.id + " doesn't have enough nodes to parse into a Polygon and first/last points are the same. This entry is an awkward line, not processing.");
-                        w = null;
-                        return null;
-                    }
+        //        //Normally, we want to make sure looping roads/trails are linestrings. They can be marked with the tag area=yes to indicate that they should be drawn as a polygon.
+        //        if (w.nds.First().id != w.nds.Last().id || (w.AreaType == "trail" && w.forceArea == false) || (w.AreaType == "road" && w.forceArea == false))
+        //        {
+        //            //this is a linestring.
+        //            if (w.nds.Count() < 2)
+        //            {
+        //                Log.WriteLog("Way " + w.id + " has 1 or 0 nodes to parse into a line. This is a point, not processing.");
+        //                w = null;
+        //                return null;
+        //            }
+        //            LineString temp2 = factory.CreateLineString(w.nds.Select(n => new Coordinate(n.lon, n.lat)).ToArray());
+        //            md.place = SimplifyArea(temp2); //Linestrings should get the same rounding effect as polygons, with the same maptile quality consequences.
+        //            md.AreaSize = md.place.Length;
+        //        }
+        //        else
+        //        { //Polygon
+        //            if (w.nds.Count <= 3)
+        //            {
+        //                Log.WriteLog("Way " + w.id + " doesn't have enough nodes to parse into a Polygon and first/last points are the same. This entry is an awkward line, not processing.");
+        //                w = null;
+        //                return null;
+        //            }
 
-                    Polygon temp = factory.CreatePolygon(WayToCoordArray(w));
-                    md.place = SimplifyArea(temp);
-                    if (md.place == null)
-                    {
-                        Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not counter-clockwise forward or reversed.");
-                        w = null;
-                        return null;
-                    }
-                    if (!md.place.IsValid)
-                    {
-                        Log.WriteLog("Way " + w.id + " " + w.name + " needs more work to be parsable, it's not valid according to its own internal check.");
-                        w = null;
-                        return null;
-                    }
-                    md.AreaSize = md.place.Length; //md.place.Area; //Area is square degrees, which make them way way smaller than I want to consider. I want to use external ring lenght, I think, for filter purposes.
-                    md.WayId = w.id;
-                }
-                w = null;
-                return md;
-            }
-            catch (Exception ex)
-            {
-                Log.WriteLog("Exception converting Way to MapData:" + ex.Message + ex.StackTrace);
-                return null;
-            }
-        }
+        //            Polygon temp = factory.CreatePolygon(WayToCoordArray(w));
+        //            md.place = SimplifyArea(temp);
+        //            if (md.place == null)
+        //            {
+        //                Log.WriteLog("Way " + w.id + " needs more work to be parsable, it's not counter-clockwise forward or reversed.");
+        //                w = null;
+        //                return null;
+        //            }
+        //            if (!md.place.IsValid)
+        //            {
+        //                Log.WriteLog("Way " + w.id + " " + w.name + " needs more work to be parsable, it's not valid according to its own internal check.");
+        //                w = null;
+        //                return null;
+        //            }
+        //            md.AreaSize = md.place.Length; //md.place.Area; //Area is square degrees, which make them way way smaller than I want to consider. I want to use external ring lenght, I think, for filter purposes.
+        //            md.WayId = w.id;
+        //        }
+        //        w = null;
+        //        return md;
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Log.WriteLog("Exception converting Way to MapData:" + ex.Message + ex.StackTrace);
+        //        return null;
+        //    }
+        //}
 
         public static Coordinate[] WayToCoordArray(Support.WayData w)
         {

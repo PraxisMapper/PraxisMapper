@@ -14,19 +14,19 @@ namespace CoreComponents
     {
         public DbSet<PlayerData> PlayerData { get; set; }
         public DbSet<PerformanceInfo> PerformanceInfo { get; set; }
-        public DbSet<MapData> MapData { get; set; }
+        //public DbSet<MapData> MapData { get; set; }
         public DbSet<AdminBound> AdminBounds { get; set; } //Identical to MapData, but only for entries where AreaTypeId == 13. Should help performance a good amount.
         public DbSet<MapTile> MapTiles { get; set; }
 
         public DbSet<SlippyMapTile> SlippyMapTiles { get; set; }
         public DbSet<Faction> Factions { get; set; }
         public DbSet<AreaControlTeam> AreaControlTeams { get; set; } //This is TeamClaims, rename this.
-        public DbSet<GeneratedMapData> GeneratedMapData { get; set; } 
+        public DbSet<GeneratedMapData> GeneratedMapData { get; set; }
         public DbSet<PaintTownConfig> PaintTownConfigs { get; set; }
         public DbSet<PaintTownEntry> PaintTownEntries { get; set; }
         public DbSet<PaintTownScoreRecord> PaintTownScoreRecords { get; set; }
         public DbSet<ErrorLog> ErrorLogs { get; set; }
-        public DbSet<ServerSetting>  ServerSettings { get; set; }
+        public DbSet<ServerSetting> ServerSettings { get; set; }
         public DbSet<TileTracking> TileTrackings { get; set; }
         public DbSet<ZztGame> ZztGames { get; set; }
         public DbSet<GamesBeaten> GamesBeaten { get; set; }
@@ -46,7 +46,7 @@ namespace CoreComponents
         //public DbSet<MinimumNode> MinimumNodes { get; set; }
         //public DbSet<MinimumWay> MinimumWays { get; set; }
         //public DbSet<MinimumRelation> minimumRelations { get; set; }
-        
+
         //public static MemoryCache mc = new MemoryCache(new MemoryCacheOptions()); //Docs on this are poor, and don't explain what EFCore will actually cache. I think it's queries, not results.
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -71,11 +71,11 @@ namespace CoreComponents
             model.Entity<PlayerData>().HasIndex(p => p.deviceID); //for updating data
 
             //for checking OSM data, and allowing items to be updated instead of simply replaced in the future.
-            model.Entity<MapData>().HasIndex(p => p.WayId); 
-            model.Entity<MapData>().HasIndex(p => p.RelationId); 
-            model.Entity<MapData>().HasIndex(p => p.NodeId); 
-            model.Entity<MapData>().HasIndex(p => p.AreaTypeId); //At the least, helpful for sorting out admin entries from others.
-            model.Entity<MapData>().HasIndex(p => p.AreaSize); //Used as a filter when drawing larger area maptiles. Tell the DB not to load points smaller than 1 pixel. This is in degrees for lines, degrees squared for areas and points.
+            //model.Entity<MapData>().HasIndex(p => p.WayId);
+            //model.Entity<MapData>().HasIndex(p => p.RelationId);
+            //model.Entity<MapData>().HasIndex(p => p.NodeId);
+            //model.Entity<MapData>().HasIndex(p => p.AreaTypeId); //At the least, helpful for sorting out admin entries from others.
+            //model.Entity<MapData>().HasIndex(p => p.AreaSize); //Used as a filter when drawing larger area maptiles. Tell the DB not to load points smaller than 1 pixel. This is in degrees for lines, degrees squared for areas and points.
             //generatedMapData only gets searched on its primary key and place (which has an index defined elsewhere at creation)
 
             //for checking OSM data, and allowing items to be updated instead of simply replaced in the future.
@@ -115,7 +115,7 @@ namespace CoreComponents
         //A trigger to ensure all data inserted is valid by SQL Server rules.
         public static string MapDataValidTriggerMSSQL = "CREATE TRIGGER dbo.MakeValid ON dbo.MapData AFTER INSERT AS BEGIN UPDATE dbo.MapData SET place = place.MakeValid() WHERE MapDataId in (SELECT MapDataId from inserted) END";
         public static string GeneratedMapDataValidTriggerMSSQL = "CREATE TRIGGER dbo.GenereatedMapDataMakeValid ON dbo.GeneratedMapData AFTER INSERT AS BEGIN UPDATE dbo.GeneratedMapData SET place = place.MakeValid() WHERE GeneratedMapDataId in (SELECT GeneratedMapDataId from inserted) END";
-        
+
         //An index that I don't think EFCore can create correctly automatically.
         public static string MapDataIndex = "CREATE SPATIAL INDEX MapDataSpatialIndex ON MapData(place)";
         public static string GeneratedMapDataIndex = "CREATE SPATIAL INDEX GeneratedMapDataSpatialIndex ON GeneratedMapData(place)";
@@ -138,8 +138,99 @@ namespace CoreComponents
         //public static string PerformanceInfoSproc = "CREATE PROCEDURE SavePerfInfo @functionName nvarchar(500), @runtime bigint, @calledAt datetime2, @notes nvarchar(max) AS BEGIN INSERT INTO dbo.PerformanceInfo(functionName, runTime, calledAt, notes) VALUES(@functionName, @runtime, @calledAt, @notes) END";
 
         //This doesn't appear to be any faster. The query isn't the slow part. Keeping this code as a reference for how to precompile queries.
-        public static Func<PraxisContext, Geometry, IEnumerable<MapData>> compiledIntersectQuery = 
-            EF.CompileQuery((PraxisContext context, Geometry place) =>  context.MapData.Where(md => md.place.Intersects(place)));
+        //public static Func<PraxisContext, Geometry, IEnumerable<MapData>> compiledIntersectQuery =
+          //  EF.CompileQuery((PraxisContext context, Geometry place) => context.MapData.Where(md => md.place.Intersects(place)));
+
+
+        public void MakePraxisDB()
+        {
+            PraxisContext db = new PraxisContext();
+            db.Database.EnsureCreated(); //all the automatic stuff EF does for us
+
+            //Not automatic entries executed below:
+            //PostgreSQL will make automatic spatial indexes
+            if (serverMode == "PostgreSQL")
+            {
+                db.Database.ExecuteSqlRaw(PraxisContext.MapDataIndexPG); //PostgreSQL needs its own create-index syntax
+                db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataIndexPG);
+                db.Database.ExecuteSqlRaw(PraxisContext.MapTileIndexPG);
+                db.Database.ExecuteSqlRaw(PraxisContext.SlippyMapTileIndexPG);
+                db.Database.ExecuteSqlRaw(PraxisContext.StoredWaysIndexPG);
+            }
+            else //SQL Server and MariaDB share the same syntax here
+            {
+                db.Database.ExecuteSqlRaw(PraxisContext.MapDataIndex);
+                db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataIndex);
+                db.Database.ExecuteSqlRaw(PraxisContext.MapTileIndex);
+                db.Database.ExecuteSqlRaw(PraxisContext.SlippyMapTileIndex);
+                db.Database.ExecuteSqlRaw(PraxisContext.StoredWaysIndex);
+            }
+
+            if (serverMode == "SQLServer")
+            {
+                db.Database.ExecuteSqlRaw(PraxisContext.MapDataValidTriggerMSSQL);
+                db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataValidTriggerMSSQL);
+            }
+            if (serverMode == "MariaDB")
+            {
+                db.Database.ExecuteSqlRaw("SET collation_server = 'utf8mb4_unicode_ci'; SET character_set_server = 'utf8mb4'"); //MariaDB defaults to latin2_swedish, we need Unicode.
+            }
+
+            InsertDefaultServerConfig();
+            InsertDefaultFactionsToDb();
+            //InsertDefaultPaintTownConfigs();
+            InsertDefaultStyle();
+        }
+
+        public static void InsertDefaultFactionsToDb()
+        {
+            var db = new PraxisContext();
+
+            if (serverMode == "SQLServer")
+            {
+                db.Database.BeginTransaction();
+                db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Factions ON;");
+            }
+            db.Factions.AddRange(Singletons.defaultFaction);
+            db.SaveChanges();
+            if (serverMode == "SQLServer")
+            {
+                db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Factions OFF;");
+                db.Database.CommitTransaction();
+            }
+        }
+
+        public static void InsertDefaultServerConfig()
+        {
+            var db = new PraxisContext();
+            db.ServerSettings.Add(new ServerSetting() { NorthBound = 90, SouthBound = -90, EastBound = 180, WestBound = -180 });
+            db.SaveChanges();
+        }
+
+        public static void InsertDefaultStyle()
+        {
+            var db = new PraxisContext();
+            //Remove any existing entries, in case I'm refreshing the rules on an existing entry.
+            if (serverMode != "PostgreSQL") //PostgreSQL has stricter requirements on its syntax.
+            {
+                //db.Database.ExecuteSqlRaw("DELETE FROM TagParserEntriesTagParserMatchRules");
+                //db.Database.ExecuteSqlRaw("DELETE FROM TagParserEntries");
+                //db.Database.ExecuteSqlRaw("DELETE FROM TagParserMatchRules");
+            }
+
+            if (serverMode == "SQLServer")
+            {
+                db.Database.BeginTransaction();
+                db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT TagParserEntries ON;");
+            }
+            db.TagParserEntries.AddRange(Singletons.defaultTagParserEntries);
+            db.SaveChanges();
+            if (serverMode == "SQLServer")
+            {
+                db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT TagParserEntries OFF;");
+                db.Database.CommitTransaction();
+            }
+        }
     }
 }
 

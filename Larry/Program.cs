@@ -83,7 +83,8 @@ namespace Larry
             if (args.Any(a => a == "-createDB")) //setup the destination database
             {
                 Console.WriteLine("Creating database with current database settings.");
-                DBCommands.MakePraxisDB();
+                var db = new PraxisContext();
+                db.MakePraxisDB();
             }
 
             if (args.Any(a => a == "-cleanDB"))
@@ -139,18 +140,19 @@ namespace Larry
             //        PbfOperations.SerializeSeparateFilesFromPBF(filename);
             //}
 
-            if (args.Any(a => a.StartsWith("-lastChance")))
-            {
-                //split this arg
-                var areaType = args.Where(a => a.StartsWith("-lastChance")).First().Split(":")[1];
-                List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
-                foreach (string filename in filenames)
-                    PbfOperations.LastChanceSerializer(filename, areaType);
-            }
+            //if (args.Any(a => a.StartsWith("-lastChance")))
+            //{
+            //    //split this arg
+            //    var areaType = args.Where(a => a.StartsWith("-lastChance")).First().Split(":")[1];
+            //    List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
+            //    foreach (string filename in filenames)
+            //        PbfOperations.LastChanceSerializer(filename, areaType);
+            //}
 
             if (args.Any(a => a == "-readMapData"))
             {
-                DBCommands.AddMapDataToDBFromFiles();
+                //TODO: replace this function with a StoredWays version.
+                //DBCommands.AddMapDataToDBFromFiles();
             }
 
             if (args.Any(a => a == "-updateDatabase"))
@@ -235,7 +237,7 @@ namespace Larry
                 var cell6 = args.Where(a => a.StartsWith("-populateEmptyArea:")).First().Split(":")[1];
                 CodeArea box6 = OpenLocationCode.DecodeValid(cell6);
                 var location6 = Converters.GeoAreaToPolygon(box6);
-                var places = db.MapData.Where(md => md.place.Intersects(location6) && md.AreaTypeId < 13).ToList();
+                var places = db.StoredWays.Where(md => md.wayGeometry.Intersects(location6)).ToList(); //TODO: filter this down to only areas with IsGameElement == true
                 var fakeplaces = db.GeneratedMapData.Where(md => md.place.Intersects(location6)).ToList();
 
                 for (int x = 0; x < 20; x++)
@@ -245,7 +247,7 @@ namespace Larry
                         string cell8 = cell6 + OpenLocationCode.CodeAlphabet[x] + OpenLocationCode.CodeAlphabet[y];
                         CodeArea box = OpenLocationCode.DecodeValid(cell8);
                         var location = Converters.GeoAreaToPolygon(box);
-                        if (!places.Any(md => md.place.Intersects(location)) && !fakeplaces.Any(md => md.place.Intersects(location)))
+                        if (!places.Any(md => md.wayGeometry.Intersects(location)) && !fakeplaces.Any(md => md.place.Intersects(location)))
                             CreateInterestingPlaces(cell8);
                     }
                 }
@@ -482,72 +484,18 @@ namespace Larry
         {
             //trying to find one relation to fix.
             string filename = ParserSettings.PbfFolder + "ohio-latest.osm.pbf";
-
-            List<NodeData> nodes = new List<NodeData>();
-            List<WayData> ways = new List<WayData>();
-            List<MapData> processedEntries = new List<MapData>();
-            //Minimizes time spend boosting capacity and copying the internal values later.
-            nodes.Capacity = 100000;
-            ways.Capacity = 100000;
-            processedEntries.Capacity = 100000;
-
             long oneId = 6113131;
 
             FileStream fs = new FileStream(filename, FileMode.Open);
             var source = new PBFOsmStreamSource(fs);
-            var relation = source.Where(s => s.Type == OsmGeoType.Relation && s.Id == oneId).Select(s => (OsmSharp.Relation)s).ToList(); //should be a list of 1
-            var referencedWays = relation.SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToLookup(k => k, v => v);
-            var ways2 = source.Where(s => s.Type == OsmGeoType.Way && referencedWays[s.Id.Value].Count() > 0).Select(s => (OsmSharp.Way)s).ToList();
-            var referencedNodes = ways2.SelectMany(m => m.Nodes).Distinct().ToLookup(k => k, v => v);
-            var nodes2 = source.Where(s => s.Type == OsmGeoType.Node && referencedNodes[s.Id.Value].Count() > 0).Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetPlaceName(n.Tags), TagParser.GetAreaType(n.Tags))).ToList();
-            Log.WriteLog("Relevant data pulled from file at" + DateTime.Now);
-
-            //Log.WriteLog("Creating node lookup for " + osmNodes.Count() + " nodes"); //33 million nodes across 2 million ways will tank this app at 16GB RAM
-            var osmNodeLookup = nodes2.AsParallel().ToLookup(k => k.Id, v => v);
-            Log.WriteLog("Found " + osmNodeLookup.Count() + " unique nodes");
-
-            //Write nodes as mapdata if they're tagged separately from other things.
-            Log.WriteLog("Finding tagged nodes at " + DateTime.Now);
-            var taggedNodes = nodes2.AsParallel().Where(n => n.name != "" && n.type != "").ToList();
-            processedEntries.AddRange(taggedNodes.Select(s => Converters.ConvertNodeToMapData(s)));
-            taggedNodes = null;
-
-            //This is now the slowest part of the processing function.
-            Log.WriteLog("Converting " + ways2.Count() + " OsmWays to my Ways at " + DateTime.Now);
-            ways.Capacity = ways2.Count();
-            ways = ways2.AsParallel().Select(w => new WayData()
-            {
-                id = w.Id.Value,
-                name = GetPlaceName(w.Tags),
-                AreaType = TagParser.GetAreaType(w.Tags),
-                nodRefs = w.Nodes.ToList()
-            })
-            .ToList();
-            ways2 = null; //free up RAM we won't use again.
-            Log.WriteLog("List created at " + DateTime.Now);
-
-            int wayCounter = 0;
-            //foreach (WayData w in ways)
-            System.Threading.Tasks.Parallel.ForEach(ways, (w) =>
-            {
-                wayCounter++;
-                if (wayCounter % 10000 == 0)
-                    Log.WriteLog(wayCounter + " processed so far");
-
-                PbfOperations.LoadNodesIntoWay(ref w, ref osmNodeLookup);
-            });
-
-            Log.WriteLog("Ways populated with Nodes at " + DateTime.Now);
-            nodes2 = null; //done with these now, can free up RAM again.
-
-            processedEntries.AddRange(PbfOperations.ProcessRelations(ref relation, ref ways));
-
-            processedEntries.AddRange(ways.Select(w => Converters.ConvertWayToMapData(ref w)));
-            ways = null;
+            var relation = source.ToComplete().Where(s => s.Type == OsmGeoType.Relation && s.Id == oneId).Select(s => (OsmSharp.Complete.CompleteRelation)s).FirstOrDefault();
+            var converted = GeometrySupport.ConvertOsmEntryToStoredWay(relation);
+            StoredWay sw = new StoredWay();
+            Log.WriteLog("Relevant data pulled from file and converted at" + DateTime.Now);
 
             string destFileName = System.IO.Path.GetFileNameWithoutExtension(filename);
-            FileCommands.WriteMapDataToFile(ParserSettings.JsonMapDataFolder + destFileName + "-MapData-Test.json", ref processedEntries);
-            DBCommands.AddMapDataToDBFromFiles();
+            GeometrySupport.WriteSingleStoredWayToFile(ParserSettings.JsonMapDataFolder + destFileName + "-MapData-Test.json", converted);
+            //DBCommands.AddMapDataToDBFromFiles();
         }
 
         public static void DownloadPbfFile(string topLevel, string subLevel1, string subLevel2, string destinationFolder)

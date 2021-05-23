@@ -1,4 +1,7 @@
-﻿using System.Linq;
+﻿using SkiaSharp;
+using System;
+using System.Linq;
+using static CoreComponents.DbTables;
 
 namespace CoreComponents
 {
@@ -45,6 +48,18 @@ namespace CoreComponents
 
 
             return "";
+        }
+
+        public static SKColor PickStaticColorForArea(StoredWay place)
+        {
+            //TODO: this is a test function, and should be treated as such. Move to Corecomponents and update to the new data storage setup.
+            //Each place should get a unique, but consistent, color. Which means we're mostly looking for a hash
+            var hasher = System.Security.Cryptography.MD5.Create();
+            var value = place.name.ToByteArrayUnicode();
+            var hash = hasher.ComputeHash(value);
+
+            SKColor results = new SKColor(hash[0], hash[1], hash[2], Convert.ToByte(64)); //all have the same transparency level
+            return results;
         }
 
         public static void LoadCustomData()
