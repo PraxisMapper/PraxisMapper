@@ -654,17 +654,17 @@ namespace PerformanceTestApp
             List<OsmSharp.Relation> filteredEntries;
             if (areaType == null)
                 filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
-                    GetPlaceType(p.Tags) != "")
+                    TagParser.GetAreaType(p.Tags) != "")
                 .Select(p => (OsmSharp.Relation)p)
                 .ToList();
             else if (areaType == "admin")
                 filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
-                    GetPlaceType(p.Tags).StartsWith(areaType))
+                    TagParser.GetAreaType(p.Tags).StartsWith(areaType))
                 .Select(p => (OsmSharp.Relation)p)
                 .ToList();
             else
                 filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
-                GetPlaceType(p.Tags) == areaType
+                TagParser.GetAreaType(p.Tags) == areaType
             )
                 .Select(p => (OsmSharp.Relation)p)
                 .ToList();
