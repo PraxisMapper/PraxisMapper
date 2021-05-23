@@ -233,7 +233,7 @@ namespace CoreComponents
                 if (polygon != null)
                 {
                     GeneratedMapData gmd = new GeneratedMapData();
-                    gmd.AreaTypeId = 100; //a fixed type for when we want to treat generated areas differently than fixed, real world areas.
+                    //gmd.AreaTypeId = 100; //a fixed type for when we want to treat generated areas differently than fixed, real world areas.
                     //gmd.AreaTypeId = r.Next(1, 13); //Randomly assign this area an interesting area type, for games that want one.
                     gmd.name = ""; //not using this on this level. 
                     gmd.place = polygon;
