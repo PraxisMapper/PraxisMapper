@@ -330,7 +330,7 @@ namespace Larry
                         { } //OK
                         else
                         {
-                            Log.WriteLog("Relation " + r.Id + "  " + GetPlaceName(r.Tags) + " is missing Way " + m.Id);
+                            Log.WriteLog("Relation " + r.Id + "  " + TagParser.GetPlaceName(r.Tags) + " is missing Way " + m.Id);
                             badRelations.Add(r.Id.Value);
                             gotoNext = true;
                             continue;
@@ -396,7 +396,7 @@ namespace Larry
             var referencedWays = rs.SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToLookup(k => k, v => v);
             var ways2 = source.Where(s => s.Type == OsmGeoType.Way && referencedWays[s.Id.Value].Count() > 0).Select(s => (OsmSharp.Way)s).ToList();
             var referencedNodes = ways2.SelectMany(m => m.Nodes).Distinct().ToLookup(k => k, v => v);
-            var nodes2 = source.Where(s => s.Type == OsmGeoType.Node && referencedNodes[s.Id.Value].Count() > 0).Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, Place.GetPlaceName(n.Tags), TagParser.GetAreaType(n.Tags))).ToList();
+            var nodes2 = source.Where(s => s.Type == OsmGeoType.Node && referencedNodes[s.Id.Value].Count() > 0).Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, TagParser.GetPlaceName(n.Tags), TagParser.GetAreaType(n.Tags))).ToList();
             Log.WriteLog("Relevant data pulled from file at" + DateTime.Now);
 
             var osmNodeLookup = nodes2.AsParallel().ToLookup(k => k.Id, v => v);
@@ -599,7 +599,7 @@ namespace Larry
                 filteredEntries = source.AsParallel().Where(p => p.Type == OsmGeoType.Node &&
                (TagParser.GetAreaType(p.Tags) != "" || nodes[p.Id.Value].Count() > 0)
            )
-               .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetPlaceName(n.Tags), TagParser.GetAreaType(n.Tags)))
+               .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, TagParser.GetPlaceName(n.Tags), TagParser.GetAreaType(n.Tags)))
                .ToLookup(k => k.Id, v => v);
             }
             else if (areaType == "admin")
@@ -607,7 +607,7 @@ namespace Larry
                 filteredEntries = source.AsParallel().Where(p => p.Type == OsmGeoType.Node &&
                (TagParser.GetAreaType(p.Tags).StartsWith(areaType) || nodes[p.Id.Value].Count() > 0)
             )
-               .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetPlaceName(n.Tags), areaType))
+               .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, TagParser.GetPlaceName(n.Tags), areaType))
                .ToLookup(k => k.Id, v => v);
             }
             else
@@ -615,7 +615,7 @@ namespace Larry
                 filteredEntries = source.AsParallel().Where(p => p.Type == OsmGeoType.Node &&
                    ((TagParser.GetAreaType(p.Tags) == areaType && !onlyReferenced) || nodes.Contains(p.Id.Value))
                )
-                   .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetPlaceName(n.Tags), areaType))
+                   .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, TagParser.GetPlaceName(n.Tags), areaType))
                    .ToLookup(k => k.Id, v => v);
             }
 
@@ -632,7 +632,7 @@ namespace Larry
                 filteredEntries = source.AsParallel().Where(p => p.Type == OsmGeoType.Node &&
                (TagParser.GetAreaType(p.Tags) != "" || nodes.Contains(p.Id.Value))
            )
-               .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetPlaceName(n.Tags), TagParser.GetAreaType(n.Tags)))
+               .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, TagParser.GetPlaceName(n.Tags), TagParser.GetAreaType(n.Tags)))
                .ToLookup(k => k.Id, v => v);
             }
             else if (areaType == "admin")
@@ -640,7 +640,7 @@ namespace Larry
                 filteredEntries = source.AsParallel().Where(p => p.Type == OsmGeoType.Node &&
                (TagParser.GetAreaType(p.Tags).StartsWith(areaType) || nodes.Contains(p.Id.Value))
             )
-               .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetPlaceName(n.Tags), areaType))
+               .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, TagParser.GetPlaceName(n.Tags), areaType))
                .ToLookup(k => k.Id, v => v);
             }
             else
@@ -648,7 +648,7 @@ namespace Larry
                 filteredEntries = source.AsParallel().Where(p => p.Type == OsmGeoType.Node &&
                    (TagParser.GetAreaType(p.Tags) == areaType || nodes.Contains(p.Id.Value))
                )
-                   .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, GetPlaceName(n.Tags), areaType))
+                   .Select(n => new NodeReference(n.Id.Value, (float)((OsmSharp.Node)n).Latitude.Value, (float)((OsmSharp.Node)n).Longitude.Value, TagParser.GetPlaceName(n.Tags), areaType))
                    .ToLookup(k => k.Id, v => v);
             }
 

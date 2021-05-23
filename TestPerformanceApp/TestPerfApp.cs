@@ -3,7 +3,6 @@ using CoreComponents.Support;
 using Google.Common.Geometry;
 using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
-using NetTopologySuite;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Prepared;
 using OsmSharp;
@@ -966,7 +965,7 @@ namespace PerformanceTestApp
                     return null;
                 }
                 var sw = new StoredWay();
-                sw.name = GetPlaceName(g.Tags);
+                sw.name = TagParser.GetPlaceName(g.Tags);
                 sw.sourceItemID = g.Id;
                 sw.sourceItemType = (g.Type == OsmGeoType.Relation ? 3 : g.Type == OsmGeoType.Way ? 2 : 1);
                 var geo = SimplifyArea(feature.First().Geometry);

@@ -5,8 +5,6 @@ using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using static CoreComponents.DbTables;
 using static CoreComponents.Singletons;
 
@@ -175,7 +173,7 @@ namespace CoreComponents
             return false;
         }
 
-        public static void UpdateDbForStyleChange()
+        public static void UpdateDbForStyleChange() //Unused, but potentially important if I am saving geometry formats based on the default tag results. If I'm doing that, i should stop.
         {
             var db = new PraxisContext();
             foreach (var sw in db.StoredWays)
@@ -231,6 +229,19 @@ namespace CoreComponents
                 !t.Key.StartsWith("was:")
                 )
                 .Select(t => new WayTags() { Key = t.Key, Value = t.Value }).ToList();
+        }
+
+        public static string GetPlaceName(TagsCollectionBase tagsO) //Should this be part of TagParser? Probably.
+        {
+            if (tagsO.Count() == 0)
+                return "";
+            var retVal = tagsO.GetValue("name");
+            if (string.IsNullOrWhiteSpace(retVal))
+                retVal = tagsO.GetValue("note");
+            if (retVal == null)
+                retVal = "";
+
+            return retVal;
         }
     }
 }

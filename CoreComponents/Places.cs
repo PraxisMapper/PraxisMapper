@@ -1,7 +1,6 @@
 ﻿using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
-using OsmSharp.Tags;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -262,19 +261,6 @@ namespace CoreComponents
             }
 
             return areasToAdd;
-        }
-
-        public static string GetPlaceName(TagsCollectionBase tagsO)
-        {
-            if (tagsO.Count() == 0)
-                return "";
-            var retVal = tagsO.GetValue("name");
-            if (string.IsNullOrWhiteSpace(retVal))
-                retVal = tagsO.GetValue("note");
-            if (retVal == null)
-                retVal = "";
-
-            return retVal;
         }
 
         public static string LoadDataOnPlace(long id)
