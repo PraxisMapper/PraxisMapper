@@ -277,7 +277,7 @@ namespace CoreComponents
             return retVal;
         }
 
-        public static string LoadDataOnPlace(long id)
+        public static string LoadDataOnPlace(long id) //TODO: update this to StoredWay table.
         {
             //Debugging helper call. Loads up some information on an area and display it.
             var db = new PraxisContext();
@@ -311,7 +311,7 @@ namespace CoreComponents
             double EastLimit = -360;
 
             //OK, a better idea might be just to scan the world map with a Cell8-sized box that reaches the whole way across, and stop when you hit HasPlaces.
-            //This could be optimized by scanning bigger plus codes down to smaller ones, but this gets u
+            //This could be optimized by scanning bigger plus codes down to smaller ones, but this gets it done.
             var northscanner = new GeoArea(new GeoPoint(90 - resolution, -180), new GeoPoint(90, 180));
             while(!DoPlacesExist(northscanner))
             {

@@ -74,13 +74,13 @@ namespace CoreComponents
         }
 
         //Reference table
-        public class AreaType
-        {
-            public int AreaTypeId { get; set; }
-            public string AreaName { get; set; }
-            public string OsmTags { get; set; } //These are not 1:1, so this column may not be useful after all.
-            public string HtmlColorCode { get; set; } //for tile-drawing operations, possibly in-app stuff too.
-        }
+        //public class AreaType //remove this
+        //{
+        //    public int AreaTypeId { get; set; }
+        //    public string AreaName { get; set; }
+        //    public string OsmTags { get; set; } //These are not 1:1, so this column may not be useful after all.
+        //    public string HtmlColorCode { get; set; } //for tile-drawing operations, possibly in-app stuff too.
+        //}
 
         public class TileTracking
         {

@@ -123,38 +123,6 @@ namespace CoreComponents
             return image;
         }
 
-        public static byte[] DrawAreaMapTileSkia(ref List<MapData> allPlaces, GeoArea totalArea, int pixelSizeCells)
-        {
-            //Initial suggestion for these is to use a pixelSizeCell value 2 steps down from the areas size
-            //EX: for Cell8 tiles, use 11 for the pixel cell size (this is the default I use, smallest location in a pixel sets the color)
-            //or for Cell4 tiles, use Cell8 pixel size. (alternative sort for pixel color: largest area? Exclude points?)
-            //But this is gaining flexibilty, and adjusting pixelSizeCells to a double to be degreesPerPixel allows for more freedom.
-            double degreesPerPixelX, degreesPerPixelY;
-            double filterSize = 0;
-            GetResolutionValues(pixelSizeCells, out degreesPerPixelX, out degreesPerPixelY);
-            if (pixelSizeCells < 10) // Roads and buildings are good at Cell10+. Not helpful at Cell8-;
-                filterSize = degreesPerPixelX / 2; //things smaller than half a pixel will not be considered for the map tile. Might just want to toggle the alternate sort rules for pixels (most area, not smallest item)
-
-            List<MapData> rowPlaces;
-            MemoryStream ms = new MemoryStream();
-            int imagesizeX = (int)Math.Ceiling(totalArea.LongitudeWidth / degreesPerPixelX);
-            int imagesizeY = (int)Math.Ceiling(totalArea.LatitudeHeight / degreesPerPixelY);
-
-            //To make sure we don't get any seams on our maptiles (or points that don't show a full circle, we add a little extra area to the image before drawing, then crop it out at the end.
-            //Do this after determining image size, since Skia will ignore parts off-canvas.
-            var dataLoadArea = new GeoArea(new GeoPoint(totalArea.Min.Latitude - resolutionCell10, totalArea.Min.Longitude - resolutionCell10), new GeoPoint(totalArea.Max.Latitude + resolutionCell10, totalArea.Max.Longitude + resolutionCell10));
-
-            //crop all places to the current area. This removes a ton of work from the process by simplifying geometry to only what's relevant, instead of drawing all of a great lake or state-wide park.
-            var cropArea = Converters.GeoAreaToPolygon(dataLoadArea);
-            //A quick fix to drawing order when multiple areas take up the entire cell: sort before the crop (otherwise, the areas are drawn in a random order, which makes some disappear)
-            //Affects small map tiles more often than larger ones, but it can affect both.
-            allPlaces = allPlaces.OrderByDescending(a => a.AreaSize).ToList();
-            foreach (var ap in allPlaces)
-                ap.place = ap.place.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
-
-            return InnerDrawSkia(ref allPlaces, totalArea, degreesPerPixelX, degreesPerPixelY, imagesizeX, imagesizeY);
-        }
-
         public static byte[] DrawMPAreaMapTileSlippySkia(ImageStats info)
         {
             return DrawMPAreaMapTileSlippySkia(info.area, info.area.LatitudeHeight, info.area.LongitudeWidth);
@@ -196,39 +164,6 @@ namespace CoreComponents
 
             ImageStats info = new ImageStats(loadDataArea, MapTileSizeSquare, MapTileSizeSquare);
             return DrawAreaAtSizeV4(info, allPlaces, TagParser.teams); //TODO: force transparent background on this one.
-        }
-
-        //public static byte[] DrawAreaMapTileSlippySkia(ref List<StoredWay> allPlaces, ImageStats info)
-        //{
-        //    //return DrawAreaMapTileSlippySkia(ref allPlaces, info.area, info.area.LatitudeHeight, info.area.LongitudeWidth,false);
-          
-        //}
-
-        public static byte[] DrawAreaMapTileSlippySkia(ref List<MapData> allPlaces, GeoArea totalArea, double areaHeight, double areaWidth, bool transparent = false)
-        {
-            //Resolution scaling here is flexible, since we're always drawing a 512x512 tile.
-            double degreesPerPixelX, degreesPerPixelY;
-            degreesPerPixelX = areaWidth / MapTileSizeSquare;
-            degreesPerPixelY = areaHeight / MapTileSizeSquare;
-            bool drawEverything = false; //for debugging/testing
-            var smallestFeature = (drawEverything ? 0 : degreesPerPixelX < degreesPerPixelY ? degreesPerPixelX : degreesPerPixelY);
-
-            List<MapData> rowPlaces;
-            MemoryStream ms = new MemoryStream();
-            int imagesizeX = MapTileSizeSquare;
-            int imagesizeY = MapTileSizeSquare;
-
-            //To make sure we don't get any seams on our maptiles (or points that don't show a full circle, we add a little extra area to the image before drawing (Skia just doesn't draw things outside the canvas)
-            var loadDataArea = new GeoArea(new GeoPoint(totalArea.Min.Latitude - resolutionCell10, totalArea.Min.Longitude - resolutionCell10), new GeoPoint(totalArea.Max.Latitude + resolutionCell10, totalArea.Max.Longitude + resolutionCell10));
-
-            //crop all places to the current area. This removes a ton of work from the process by simplifying geometry to only what's relevant, instead of drawing all of a great lake or state-wide park.
-            var cropArea = Converters.GeoAreaToPolygon(loadDataArea);
-            //allPlaces = allPlaces.Where(a => a.AreaSize >= smallestFeature).OrderByDescending(a => a.AreaSize).ToList(); /98% good enough , wrong occasionally on long roads through small parks and the like.
-            allPlaces = allPlaces.OrderByDescending(a => a.place.Area).ThenByDescending(a => a.place.Length).ToList();
-            foreach (var ap in allPlaces)
-                ap.place = ap.place.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
-
-            return InnerDrawSkia(ref allPlaces, totalArea, degreesPerPixelX, degreesPerPixelY, imagesizeX, imagesizeY);
         }
 
         public static byte[] DrawPaintTownSlippyTileSkia(GeoArea relevantArea, int instanceID)
@@ -402,36 +337,9 @@ namespace CoreComponents
 
         public static byte[] DrawAdminBoundsMapTileSlippy(ref List<StoredWay> allPlaces, ImageStats info)
         {
-            return null;
+            //The correct replacement for this is to just do the normal draw, but only feed in admin bound areas.
+            return null; 
             //return DrawAdminBoundsMapTileSlippy(ref allPlaces, info.area, info.area.LatitudeHeight, info.area.LongitudeWidth, false);
-        }
-
-        public static byte[] DrawAdminBoundsMapTileSlippy(ref List<MapData> allPlaces, GeoArea totalArea, double areaHeight, double areaWidth, bool transparent = false)
-        {
-            //Resolution scaling here is flexible, since we're always drawing a 512x512 tile.
-            double degreesPerPixelX, degreesPerPixelY;
-            degreesPerPixelX = areaWidth / MapTileSizeSquare;
-            degreesPerPixelY = areaHeight / MapTileSizeSquare;
-            bool drawEverything = false; //for debugging/testing
-            var smallestFeature = (drawEverything ? 0 : degreesPerPixelX < degreesPerPixelY ? degreesPerPixelX : degreesPerPixelY);
-
-            List<MapData> rowPlaces;
-            MemoryStream ms = new MemoryStream();
-            int imagesizeX = MapTileSizeSquare;
-            int imagesizeY = MapTileSizeSquare;
-
-            //To make sure we don't get any seams on our maptiles (or points that don't show a full circle, we add a little extra area to the image before drawing (Skia just doesn't draw things outside the canvas)
-            var loadDataArea = new GeoArea(new GeoPoint(totalArea.Min.Latitude - resolutionCell10, totalArea.Min.Longitude - resolutionCell10), new GeoPoint(totalArea.Max.Latitude + resolutionCell10, totalArea.Max.Longitude + resolutionCell10));
-
-            //crop all places to the current area. This removes a ton of work from the process by simplifying geometry to only what's relevant, instead of drawing all of a great lake or state-wide park.
-            var cropArea = Converters.GeoAreaToPolygon(loadDataArea);
-            //allPlaces = allPlaces.Where(a => a.AreaSize >= smallestFeature).OrderByDescending(a => a.AreaSize).ToList(); /98% good enough , wrong occasionally on long roads through small parks and the like.
-            allPlaces = allPlaces.Where(a => a.place.GeometryType != "Point").OrderByDescending(a => a.place.Area).ThenByDescending(a => a.place.Length).ToList(); //Points aren't real helpful for admin boundaries.
-            foreach (var ap in allPlaces)
-                ap.place = ap.place.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
-
-            return InnerDrawSkia(ref allPlaces, totalArea, degreesPerPixelX, degreesPerPixelY, imagesizeX, imagesizeY, transparent: true, colorEachPlace: true);
-
         }
 
         public static byte[] InnerDrawSkia(ref List<MapData> allPlaces, GeoArea totalArea, double degreesPerPixelX, double degreesPerPixelY, int imageSizeX, int imageSizeY, bool transparent = false, bool colorEachPlace = false)
@@ -443,7 +351,7 @@ namespace CoreComponents
             if (transparent)
                 SKColor.TryParse("00000000", out bgColor);
             else
-                SKColor.TryParse(areaColorReference[999].FirstOrDefault(), out bgColor);
+                //SKColor.TryParse(areaColorReference[999].FirstOrDefault(), out bgColor);
             canvas.Clear(bgColor);
             canvas.Scale(1, -1, imageSizeX / 2, imageSizeY / 2);
             SKPaint paint = new SKPaint();
@@ -458,12 +366,12 @@ namespace CoreComponents
 
             foreach (var place in allPlaces) //If i get unexpected black background, an admin area probably got passed in with AllPlaces. Filter those out at the level above this function.
             {
-                var hexcolor = areaColorReference[place.AreaTypeId].FirstOrDefault();
+                //var hexcolor = areaColorReference[place.AreaTypeId].FirstOrDefault();
 
-                if (colorEachPlace == false)
-                    SKColor.TryParse(hexcolor, out color); //NOTE: this is AARRGGBB, so when I do transparency I need to add that to the front, not the back.
-                else
-                    color = PickColorForAdminBounds(place);
+                //if (colorEachPlace == false)
+                    //SKColor.TryParse(hexcolor, out color); //NOTE: this is AARRGGBB, so when I do transparency I need to add that to the front, not the back.
+                //else
+                    //color = PickColorForAdminBounds(place);
                 paint.Color = color;
                 //paint.StrokeWidth = 1;
                 switch (place.place.GeometryType)
