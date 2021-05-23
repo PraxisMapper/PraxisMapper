@@ -1052,107 +1052,107 @@ namespace PerformanceTestApp
         }
 
 
-        public static void TestRasterVsVectorCell8()
-        {
-            Log.WriteLog("Loading data for Raster Vs Vector performance test. 400 cell8 test.");
-            string testCell = "86HWHH";
-            Stopwatch raster = new Stopwatch();
-            Stopwatch vector = new Stopwatch();
-            for (int pos1 = 0; pos1 < 20; pos1++)
-                //System.Threading.Tasks.Parallel.For(0, 20, (pos2) =>
-                for (int pos2 = 0; pos2 < 20; pos2++)
-                {
-                    string cellToCheck = testCell + OpenLocationCode.CodeAlphabet[pos1].ToString() + OpenLocationCode.CodeAlphabet[pos2].ToString();
-                    var area = new OpenLocationCode(cellToCheck).Decode();
-                    var places = GetPlacesMapDAta(area, null, false, false);
+        //public static void TestRasterVsVectorCell8()
+        //{
+        //    Log.WriteLog("Loading data for Raster Vs Vector performance test. 400 cell8 test.");
+        //    string testCell = "86HWHH";
+        //    Stopwatch raster = new Stopwatch();
+        //    Stopwatch vector = new Stopwatch();
+        //    for (int pos1 = 0; pos1 < 20; pos1++)
+        //        //System.Threading.Tasks.Parallel.For(0, 20, (pos2) =>
+        //        for (int pos2 = 0; pos2 < 20; pos2++)
+        //        {
+        //            string cellToCheck = testCell + OpenLocationCode.CodeAlphabet[pos1].ToString() + OpenLocationCode.CodeAlphabet[pos2].ToString();
+        //            var area = new OpenLocationCode(cellToCheck).Decode();
+        //            var places = GetPlacesMapDAta(area, null, false, false);
 
-                    raster.Start();
-                    //MapTiles.DrawAreaMapTileRaster(ref places, area, 11); 
-                    raster.Stop();
+        //            raster.Start();
+        //            //MapTiles.DrawAreaMapTileRaster(ref places, area, 11); 
+        //            raster.Stop();
 
-                    vector.Start();
-                    //MapTiles.DrawAreaMapTile(ref places, area, 11);
-                    vector.Stop();
-                }
+        //            vector.Start();
+        //            //MapTiles.DrawAreaMapTile(ref places, area, 11);
+        //            vector.Stop();
+        //        }
 
-            Log.WriteLog("Raster performance:" + raster.ElapsedMilliseconds + "ms");
-            Log.WriteLog("Vector performance:" + vector.ElapsedMilliseconds + "ms");
-        }
+        //    Log.WriteLog("Raster performance:" + raster.ElapsedMilliseconds + "ms");
+        //    Log.WriteLog("Vector performance:" + vector.ElapsedMilliseconds + "ms");
+        //}
 
-        public static void TestRasterVsVectorCell10()
-        {
-            Log.WriteLog("Loading data for Raster Vs Vector performance test. 400 cell10 test.");
-            string testCell = "86HWHHQ6";
-            Stopwatch raster = new Stopwatch();
-            Stopwatch vector = new Stopwatch();
-            for (int pos1 = 0; pos1 < 20; pos1++)
-                //System.Threading.Tasks.Parallel.For(0, 20, (pos2) =>
-                for (int pos2 = 0; pos2 < 20; pos2++)
-                {
-                    string cellToCheck = testCell + OpenLocationCode.CodeAlphabet[pos1].ToString() + OpenLocationCode.CodeAlphabet[pos2].ToString();
-                    var area = new OpenLocationCode(cellToCheck).Decode();
-                    var places = GetPlacesMapDAta(area, null, false, false);
+        //public static void TestRasterVsVectorCell10()
+        //{
+        //    Log.WriteLog("Loading data for Raster Vs Vector performance test. 400 cell10 test.");
+        //    string testCell = "86HWHHQ6";
+        //    Stopwatch raster = new Stopwatch();
+        //    Stopwatch vector = new Stopwatch();
+        //    for (int pos1 = 0; pos1 < 20; pos1++)
+        //        //System.Threading.Tasks.Parallel.For(0, 20, (pos2) =>
+        //        for (int pos2 = 0; pos2 < 20; pos2++)
+        //        {
+        //            string cellToCheck = testCell + OpenLocationCode.CodeAlphabet[pos1].ToString() + OpenLocationCode.CodeAlphabet[pos2].ToString();
+        //            var area = new OpenLocationCode(cellToCheck).Decode();
+        //            var places = GetPlacesMapDAta(area, null, false, false);
 
-                    raster.Start();
-                    //MapTiles.DrawAreaMapTileRaster(ref places, area, 11);
-                    raster.Stop();
+        //            raster.Start();
+        //            //MapTiles.DrawAreaMapTileRaster(ref places, area, 11);
+        //            raster.Stop();
 
-                    vector.Start();
-                    //MapTiles.DrawAreaMapTile(ref places, area, 11);
-                    vector.Stop();
-                }
+        //            vector.Start();
+        //            //MapTiles.DrawAreaMapTile(ref places, area, 11);
+        //            vector.Stop();
+        //        }
 
-            Log.WriteLog("Raster performance:" + raster.ElapsedMilliseconds + "ms");
-            Log.WriteLog("Vector performance:" + vector.ElapsedMilliseconds + "ms");
-        }
+        //    Log.WriteLog("Raster performance:" + raster.ElapsedMilliseconds + "ms");
+        //    Log.WriteLog("Vector performance:" + vector.ElapsedMilliseconds + "ms");
+        //}
 
-        public static void TestImageSharpVsSkiaSharp()
-        {
-            //params : 1119/1527/12/1
-            //params: 8957 / 12224 / 15 / 1
-            Log.WriteLog("Loading data for ImageSharp vs SkiaSharp performance test");
-            //var x = 8957;
-            //var y = 12224;
-            //var zoom = 15;
-            //var layer = 1;
+        //public static void TestImageSharpVsSkiaSharp()
+        //{
+        //    //params : 1119/1527/12/1
+        //    //params: 8957 / 12224 / 15 / 1
+        //    Log.WriteLog("Loading data for ImageSharp vs SkiaSharp performance test");
+        //    //var x = 8957;
+        //    //var y = 12224;
+        //    //var zoom = 15;
+        //    //var layer = 1;
 
-            var x = 1119;
-            var y = 1527;
-            var zoom = 12;
-            var layer = 1;
+        //    var x = 1119;
+        //    var y = 1527;
+        //    var zoom = 12;
+        //    var layer = 1;
 
-            var n = Math.Pow(2, zoom);
+        //    var n = Math.Pow(2, zoom);
 
-            var lon_degree_w = x / n * 360 - 180;
-            var lon_degree_e = (x + 1) / n * 360 - 180;
-            var lat_rads_n = Math.Atan(Math.Sinh(Math.PI * (1 - 2 * y / n)));
-            var lat_degree_n = lat_rads_n * 180 / Math.PI;
-            var lat_rads_s = Math.Atan(Math.Sinh(Math.PI * (1 - 2 * (y + 1) / n)));
-            var lat_degree_s = lat_rads_s * 180 / Math.PI;
+        //    var lon_degree_w = x / n * 360 - 180;
+        //    var lon_degree_e = (x + 1) / n * 360 - 180;
+        //    var lat_rads_n = Math.Atan(Math.Sinh(Math.PI * (1 - 2 * y / n)));
+        //    var lat_degree_n = lat_rads_n * 180 / Math.PI;
+        //    var lat_rads_s = Math.Atan(Math.Sinh(Math.PI * (1 - 2 * (y + 1) / n)));
+        //    var lat_degree_s = lat_rads_s * 180 / Math.PI;
 
-            var relevantArea = new GeoArea(lat_degree_s, lon_degree_w, lat_degree_n, lon_degree_e);
-            var areaHeightDegrees = lat_degree_n - lat_degree_s;
-            var areaWidthDegrees = 360 / n;
+        //    var relevantArea = new GeoArea(lat_degree_s, lon_degree_w, lat_degree_n, lon_degree_e);
+        //    var areaHeightDegrees = lat_degree_n - lat_degree_s;
+        //    var areaWidthDegrees = 360 / n;
 
             
-            var places = GetPlacesMapDAta(relevantArea, includeGenerated: false);
-            var places2 = places.Select(p => p.Clone()).ToList(); //Trimming occurs in the draw functions, so we need a copy to make the test fair.
-            Stopwatch sw = new Stopwatch();
-            sw.Start();
-            //var results1 = MapTiles.DrawAreaMapTileSlippy(ref places, relevantArea, areaHeightDegrees, areaWidthDegrees);
-            sw.Stop();
-            //System.IO.File.WriteAllBytes("ImageSharp-" + x + "_" + y + "_" + "_" + zoom + ".png", results1);
-            Log.WriteLog("ImageSharp performance:" + sw.ElapsedMilliseconds + "ms");
-            sw.Restart();
-            var results2 = MapTiles.DrawAreaMapTileSlippySkia(ref places2, relevantArea, areaHeightDegrees, areaWidthDegrees);
-            sw.Stop();
-            System.IO.File.WriteAllBytes("SkiaSharp-" + x + "_" + y + "_" + "_" + zoom + ".png", results2);
-            Log.WriteLog("SkiaSharp performance:" + sw.ElapsedMilliseconds + "ms"); //This is 3x as fast at zoom 12 and zoom 15.
+        //    var places = GetPlacesMapDAta(relevantArea, includeGenerated: false);
+        //    var places2 = places.Select(p => p.Clone()).ToList(); //Trimming occurs in the draw functions, so we need a copy to make the test fair.
+        //    Stopwatch sw = new Stopwatch();
+        //    sw.Start();
+        //    //var results1 = MapTiles.DrawAreaMapTileSlippy(ref places, relevantArea, areaHeightDegrees, areaWidthDegrees);
+        //    sw.Stop();
+        //    //System.IO.File.WriteAllBytes("ImageSharp-" + x + "_" + y + "_" + "_" + zoom + ".png", results1);
+        //    Log.WriteLog("ImageSharp performance:" + sw.ElapsedMilliseconds + "ms");
+        //    sw.Restart();
+        //    var results2 = MapTiles.DrawAreaMapTileSlippySkia(ref places2, relevantArea, areaHeightDegrees, areaWidthDegrees);
+        //    sw.Stop();
+        //    System.IO.File.WriteAllBytes("SkiaSharp-" + x + "_" + y + "_" + "_" + zoom + ".png", results2);
+        //    Log.WriteLog("SkiaSharp performance:" + sw.ElapsedMilliseconds + "ms"); //This is 3x as fast at zoom 12 and zoom 15.
 
 
-            //Log.WriteLog("Raster performance:" + raster.ElapsedMilliseconds + "ms");
-            //Log.WriteLog("Vector performance:" + vector.ElapsedMilliseconds + "ms");
-        }
+        //    //Log.WriteLog("Raster performance:" + raster.ElapsedMilliseconds + "ms");
+        //    //Log.WriteLog("Vector performance:" + vector.ElapsedMilliseconds + "ms");
+        //}
 
         public static void TestMapTileIndexSpeed()
         {
