@@ -278,6 +278,9 @@ namespace CoreComponents
             public Geometry wayGeometry { get; set; }
             public ICollection<WayTags> WayTags { get; set; }
             public bool IsGameElement { get; set; } //To use when determining if this element should or shouldn't be used as an answer when determining game interaction in an area.
+            [NotMapped]
+            public string GameElementName { get; set; } //Placeholder for TagParser to load up the name of the matching style for this element, but don't save it to the DB.
+            public double AreaSize { get; set; } //For sorting purposes.
 
             public override string ToString()
             {

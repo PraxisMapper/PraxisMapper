@@ -268,7 +268,7 @@ namespace Larry
                 List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
                 foreach (string filename in filenames)
                 {
-                    V4Import.ProcessFileV4(filename);
+                    V4Import.ProcessFilePiecesV4(filename);
                 }
             }
 
@@ -417,16 +417,16 @@ namespace Larry
             var sqliteDb = new StandaloneContext(relationID.ToString());// "placeholder";
             sqliteDb.Database.EnsureCreated();
 
-            var fullArea = mainDb.MapData.Where(m => m.RelationId == relationID).FirstOrDefault();
+            var fullArea = mainDb.StoredWays.Where(m => m.sourceItemID == relationID && m.sourceItemType == 3).FirstOrDefault();
             if (fullArea == null)
                 return;
 
             //Add a Cell8's worth of space to the edges of the area.
-            GeoArea buffered = new GeoArea(fullArea.place.EnvelopeInternal.MinY, fullArea.place.EnvelopeInternal.MinX, fullArea.place.EnvelopeInternal.MaxY, fullArea.place.EnvelopeInternal.MaxX);
+            GeoArea buffered = new GeoArea(fullArea.wayGeometry.EnvelopeInternal.MinY, fullArea.wayGeometry.EnvelopeInternal.MinX, fullArea.wayGeometry.EnvelopeInternal.MaxY, fullArea.wayGeometry.EnvelopeInternal.MaxX);
             //var intersectCheck = Converters.GeoAreaToPreparedPolygon(buffered);
             var intersectCheck = Converters.GeoAreaToPolygon(buffered); //Cant use prepared geometry against the db directly
 
-            var allPlaces = mainDb.MapData.Where(md => intersectCheck.Intersects(md.place)).ToList();
+            var allPlaces = mainDb.StoredWays.Where(md => intersectCheck.Intersects(md.wayGeometry)).ToList();
 
             //now we have the list of places we need to be concerned with. 
             //start drawing maptiles and sorting out data.
@@ -443,7 +443,7 @@ namespace Larry
                     var plusCode = new OpenLocationCode(y, x, 10);
                     var areaForTile = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell8, x + resolutionCell8));
                     var acheck2 = Converters.GeoAreaToPolygon(areaForTile);
-                    var areaList = allPlaces.Where(a => a.place.Intersects(acheck2)).Select(a => a.Clone()).ToList();
+                    var areaList = allPlaces.Where(a => a.wayGeometry.Intersects(acheck2)).Select(a => a.Clone()).ToList();
 
                     System.Text.StringBuilder terrainInfo = AreaTypeInfo.SearchArea(ref areaForTile, ref areaList, true);
                     var splitData = terrainInfo.ToString().Split(Environment.NewLine);
@@ -456,7 +456,9 @@ namespace Larry
                         sqliteDb.TerrainInfo.Add(new TerrainInfo() { Name = subParts[1], areaType = subParts[2].ToInt(), PlusCode = subParts[0], MapDataID = subParts[3].ToInt() });
                     }
 
-                    var tile = MapTiles.DrawAreaMapTileSkia(ref areaList, areaForTile, 11);
+                    //var tile = MapTiles.DrawAreaMapTileSkia(ref areaList, areaForTile, 11);
+                    var info = new ImageStats(areaForTile, 80, 100); //These are Cell11-sized. I no longer need to specifically call that out with a specific function.
+                    var tile = MapTiles.DrawAreaAtSizeV4(info, areaList);
 
                     if (saveToDB) //Some apps will prefer a single self-contained database file
                         sqliteDb.MapTiles.Add(new MapTileDB() { image = tile, layer = 1, PlusCode = plusCode.CodeDigits.Substring(0, 8) });

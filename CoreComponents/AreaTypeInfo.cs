@@ -8,10 +8,10 @@ using static CoreComponents.Place;
 
 namespace CoreComponents
 {
-    //this is data on an Area (PlusCode cell), so AreaTypeInfo is the correct name. Places are MapData entries.
-    public static class AreaTypeInfo
+    //this is data on an Area (PlusCode cell), so AreaTypeInfo is the correct name. Places are StoredWay entries.
+    public static class AreaTypeInfo 
     {
-        public static MapData PickSmallestEntry(List<MapData> entries, bool allowPoints = true, double filterSize = 0)
+        public static StoredWay PickSmallestEntry(List<StoredWay> entries, bool allowPoints = true, double filterSize = 0)
         {
             //Current sorting rules:
             //If points are not allowed, remove them from the list
@@ -23,10 +23,10 @@ namespace CoreComponents
             //(In general, the smaller areas should be overlaid on larger areas.)
 
             if (!allowPoints)
-                entries = entries.Where(e => e.place.GeometryType != "Point").ToList();
+                entries = entries.Where(e => e.wayGeometry.GeometryType != "Point").ToList();
 
             if (filterSize != 0) // remove areatypes where the total area is below this.
-                entries = entries.Where(e => e.place.GeometryType == "Polygon" || e.place.GeometryType == "MultiPolygon")
+                entries = entries.Where(e => e.wayGeometry.GeometryType == "Polygon" || e.wayGeometry.GeometryType == "MultiPolygon")
                     //.Where(e => e.place.Area >= filterSize)
                     .Where(e => e.AreaSize >= filterSize)
                     .ToList();
@@ -34,50 +34,23 @@ namespace CoreComponents
             if (entries.Count() == 1) //simple optimization, but must be applied after parameter rules are applied.
                 return entries.First();
 
-            var place = entries.Where(e => e.place.GeometryType == "Point").FirstOrDefault();
+            var place = entries.Where(e => e.wayGeometry.GeometryType == "Point").FirstOrDefault();
             if (place == null)
-                place = entries.Where(e => e.place.GeometryType == "LineString" || e.place.GeometryType == "MultiLineString").OrderBy(e => e.AreaSize).FirstOrDefault();
+                place = entries.Where(e => e.wayGeometry.GeometryType == "LineString" || e.wayGeometry.GeometryType == "MultiLineString").OrderBy(e => e.AreaSize).FirstOrDefault();
             if (place == null)
-                place = entries.Where(e => e.place.GeometryType == "Polygon" || e.place.GeometryType == "MultiPolygon").OrderBy(e => e.AreaSize).FirstOrDefault();
+                place = entries.Where(e => e.wayGeometry.GeometryType == "Polygon" || e.wayGeometry.GeometryType == "MultiPolygon").OrderBy(e => e.AreaSize).FirstOrDefault();
             return place;
         }
 
-        //public static PreparedMapData PickSmallestEntry(List<PreparedMapData> entries, bool allowPoints = true, double filterSize = 0)
-        //{
-        //    //Current sorting rules:
-        //    //If points are not allowed, remove them from the list
-        //    //If there's only one place, take it without any additional queries. Otherwise:
-        //    //if there's a Point in the mapdata list, take the first one (No additional sub-sorting applied yet)
-        //    //else if there's a Line in the mapdata list, take the shortest one by length
-        //    //else if there's polygonal areas here, take the smallest one by area 
-        //    //(In general, the smaller areas should be overlaid on larger areas.)
-        //    if (!allowPoints)
-        //        entries = entries.Where(e => e.place.Geometry.GeometryType != "Point").ToList();
 
-        //    if (filterSize != 0)
-        //        entries = entries.Where(e => e.place.Geometry.GeometryType == "Polygon" || e.place.Geometry.GeometryType == "MultiPolygon")
-        //            .Where(e => e.place.Geometry.Area >= filterSize)
-        //            .ToList();
-
-        //    if (entries.Count() == 1) //simple optimization
-        //        return entries.First();
-
-        //    var place = entries.Where(e => e.place.Geometry.GeometryType == "Point").FirstOrDefault();
-        //    if (place == null)
-        //        place = entries.Where(e => e.place.Geometry.GeometryType == "LineString" || e.place.Geometry.GeometryType == "MultiLineString").OrderBy(e => e.place.Geometry.Length).FirstOrDefault();
-        //    if (place == null)
-        //        place = entries.Where(e => e.place.Geometry.GeometryType == "Polygon" || e.place.Geometry.GeometryType == "MultiPolygon").OrderBy(e => e.place.Geometry.Area).FirstOrDefault();
-        //    return place;
-        //}
-
-        public static string DetermineAreaPlace(List<MapData> entriesHere)
+        public static string DetermineAreaPlace(List<StoredWay> entriesHere)
         {
             //Which Place in this given Area is the one that should be displayed on the game/map as the name? picks the smallest one.
             var entry = PickSmallestEntry(entriesHere);
-            return entry.name + "|" + entry.AreaTypeId + "|" + entry.MapDataId;
+            return entry.name + "|" + entry.sourceItemType + "|" + entry.sourceItemID;
         }
 
-        public static StringBuilder SearchArea(ref GeoArea area, ref List<MapData> mapData, bool entireCode = false)
+        public static StringBuilder SearchArea(ref GeoArea area, ref List<StoredWay> mapData, bool entireCode = false)
         {
             StringBuilder sb = new StringBuilder();
             if (mapData.Count() == 0)
@@ -103,10 +76,10 @@ namespace CoreComponents
 
 
         //The core data transfer function for the original mode planned.
-        public static string FindPlacesInCell10(double x, double y, ref List<MapData> places, bool entireCode = false)
+        public static string FindPlacesInCell10(double x, double y, ref List<StoredWay> places, bool entireCode = false)
         {
             var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell10, x + resolutionCell10));
-            var entriesHere = GetPlacesMapDAta(box, places).ToList(); 
+            var entriesHere = GetPlaces(box, places).ToList(); 
 
             if (entriesHere.Count() == 0)
                 return "";
