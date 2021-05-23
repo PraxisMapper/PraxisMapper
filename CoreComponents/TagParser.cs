@@ -17,7 +17,7 @@ namespace CoreComponents
         public static TagParserEntry defaultStyle; //background color must be last if I want un-matched areas to be hidden, its own color if i want areas with no ways at all to show up.
         public static TagParserEntry defaultTeam; //background color must be last if I want un-matched areas to be hidden, its own color if i want areas with no ways at all to show up.
 
-        public static void Initialize(bool onlyDefaults)
+        public static void Initialize(bool onlyDefaults = false)
         {
             //Load TPE entries from DB for app.
             var db = new PraxisContext();
@@ -29,7 +29,6 @@ namespace CoreComponents
                 SetPaintForTPE(s);
 
             defaultStyle = styles.Last();
-
 
             //TODO: load team data from DB. Either its own table set or add a parameter to the main TagParserEntries table to indicate its purpose.
             teams = Singletons.defaultTeamColors;
