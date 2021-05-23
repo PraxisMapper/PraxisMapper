@@ -1,11 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
-using NetTopologySuite.Geometries;
-using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text.Json.Serialization;
 using static CoreComponents.DbTables;
 
 namespace CoreComponents
@@ -84,6 +77,10 @@ namespace CoreComponents
             //model.Entity<AdminBound>().HasIndex(p => p.NodeId);
             //model.Entity<AdminBound>().HasIndex(p => p.AreaTypeId); //At the least, helpful for sorting out admin entries from others.
             //model.Entity<AdminBound>().HasIndex(p => p.AreaSize); //Used as a filter when drawing larger area maptiles. Tell the DB not to load points smaller than 1 pixel. This is in degrees for lines, degrees squared for areas and points.
+
+            model.Entity<StoredWay>().HasIndex(m => m.AreaSize); //Enables server-side sorting on biggest-to-smallest draw order.
+            model.Entity<StoredWay>().HasIndex(m => m.sourceItemID);
+            model.Entity<StoredWay>().HasIndex(m => m.sourceItemType);
 
             model.Entity<MapTile>().HasIndex(m => m.PlusCode);
             model.Entity<MapTile>().Property(m => m.PlusCode).HasMaxLength(12);

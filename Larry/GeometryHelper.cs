@@ -120,7 +120,7 @@ namespace Larry
 
             if (r.Members.Length == 0)
             {
-                Log.WriteLog("Relation " + r.Id + " " + Place.GetPlaceName(r.Tags) + " has 0 members", Log.VerbosityLevels.High);
+                Log.WriteLog("Relation " + r.Id + " " + TagParser.GetPlaceName(r.Tags) + " has 0 members", Log.VerbosityLevels.High);
                 return null;
             }
 
