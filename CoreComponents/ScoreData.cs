@@ -15,21 +15,6 @@ namespace CoreComponents
         //Lines are measured in their length.  (A trail that's 25 * resolutionCell10 long is 25 Score)
         //OSM points are assigned a Score of 1 as the minimum interactable size object. 
 
-        public static string GetScoresForArea(Geometry areaPoly, List<MapData> places)
-        {
-            //Determines the Scores for the Places, limited to the intersection of the current Area. 1 Cell10 = 1 Score.
-            //EX: if a park overlaps 800 Cell10s, but the current area overlaps 250 of them, this returns 250 for that park.
-            //Lists each Place and its corresponding Score.
-            List<Tuple<string, int, long>> areaSizes = new List<Tuple<string, int, long>>();
-            foreach (var md in places)
-            {
-                var containedArea = md.place.Intersection(areaPoly);
-                var areaCell10Count = GetScoreForSinglePlace(containedArea);
-                areaSizes.Add(new Tuple<string, int, long>(md.name, areaCell10Count, md.MapDataId));
-            }
-            return string.Join(Environment.NewLine, areaSizes.Select(a => a.Item1 + "|" + a.Item2 + "|" + a.Item3));
-        }
-
         public static string GetScoresForArea(Geometry areaPoly, List<StoredWay> places)
         {
             //Determines the Scores for the Places, limited to the intersection of the current Area. 1 Cell10 = 1 Score.
@@ -53,16 +38,6 @@ namespace CoreComponents
             foreach (var place in places)
             {
                 areaSizes.Add(place.name, GetScoreForSinglePlace(place.wayGeometry));
-            }
-            return string.Join(Environment.NewLine, areaSizes.Select(a => a.Key + "|" + a.Value));
-        }
-        public static string GetScoresForFullArea(List<MapData> places)
-        {
-            //As above, but counts the Places' full area, not the area in the given Cell8 or Cell10. 
-            Dictionary<string, int> areaSizes = new Dictionary<string, int>();
-            foreach (var place in places)
-            {
-                areaSizes.Add(place.name, GetScoreForSinglePlace(place.place));
             }
             return string.Join(Environment.NewLine, areaSizes.Select(a => a.Key + "|" + a.Value));
         }

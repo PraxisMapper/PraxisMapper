@@ -59,7 +59,7 @@ namespace PraxisMapper.Controllers
         public bool ClaimArea(long MapDataId, int factionId)
         {
             PraxisContext db = new PraxisContext();
-            var mapData = db.MapData.Where(md => md.MapDataId == MapDataId).FirstOrDefault();
+            var mapData = db.StoredWays.Where(md => md.id == MapDataId).FirstOrDefault();
             var teamClaim = db.AreaControlTeams.Where(a => a.MapDataId == MapDataId).FirstOrDefault();
             if (teamClaim == null)
             {
@@ -67,19 +67,20 @@ namespace PraxisMapper.Controllers
                 db.AreaControlTeams.Add(teamClaim);
                 if (mapData == null)
                 {
-                    mapData = db.GeneratedMapData.Where(md => md.GeneratedMapDataId == MapDataId - 100000000).Select(m => new MapData() { MapDataId = MapDataId, place = m.place }).FirstOrDefault();
-                    teamClaim.IsGeneratedArea = true;
+                    //TODO: restore this feature.
+                    //mapData = db.GeneratedMapData.Where(md => md.GeneratedMapDataId == MapDataId - 100000000).Select(m => new MapData() { MapDataId = MapDataId, place = m.place }).FirstOrDefault();
+                    //teamClaim.IsGeneratedArea = true;
                 }
                 teamClaim.MapDataId = MapDataId;
-                teamClaim.points = GetScoreForSinglePlace(mapData.place);
+                teamClaim.points = GetScoreForSinglePlace(mapData.wayGeometry);
             }
             teamClaim.FactionId = factionId;
             teamClaim.claimedAt = DateTime.Now;
             db.SaveChanges();
             //Tuple<long, int> shortcut = new Tuple<long, int>(MapDataId, factionId); //tell the application later not to hit the DB on every tile for this entry.
             //ExpireAreaControlMapTilesCell8(mapData); //If this works correctly, i can set a much longer default expiration value on AreaControl tiles than 1 minute I currently use.
-            MapTiles.ExpireMapTiles(mapData.place, 2);
-            MapTiles.ExpireSlippyMapTiles(mapData.place, 2);
+            MapTiles.ExpireMapTiles(mapData.wayGeometry, 2);
+            MapTiles.ExpireSlippyMapTiles(mapData.wayGeometry, 2);
             
             return true;
         }
@@ -172,7 +173,7 @@ namespace PraxisMapper.Controllers
                 //requires a list of colors to use, which might vary per app
                 GeoArea CellEightArea = OpenLocationCode.DecodeValid(Cell8);
                 var places = GetPlaces(CellEightArea); // , includeGenerated: Configuration.GetValue<bool>("generateAreas") TODO restore generated area logic.
-                var results = MapTiles.DrawMPControlAreaMapTileSkia(CellEightArea, 11); //TODO replacing this one requires multiple style list support.
+                var results = MapTiles.DrawAreaAtSizeV4(CellEightArea, 80, 100, places, TagParser.teams); //MapTiles.DrawMPControlAreaMapTileSkia(CellEightArea, 11); //TODO replacing this one requires multiple style list support.
                 if (factionColorTile == null) //create a new entry
                 {
                     factionColorTile = new MapTile() { PlusCode = Cell8, CreatedOn = DateTime.Now, mode = 2, resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(CellEightArea) };
@@ -217,8 +218,8 @@ namespace PraxisMapper.Controllers
             string results = "";
             //return a separated list of maptiles that need updated.
             var db = new PraxisContext();
-            var md = db.MapData.Where(m => m.MapDataId == mapDataId).FirstOrDefault();
-            var space = md.place.Envelope;
+            var md = db.StoredWays.Where(m => m.id == mapDataId).FirstOrDefault();
+            var space = md.wayGeometry.Envelope;
             var geoAreaToRefresh = new GeoArea(new GeoPoint(space.Coordinates.Min().Y, space.Coordinates.Min().X), new GeoPoint(space.Coordinates.Max().Y, space.Coordinates.Max().X));
             var Cell8XTiles = geoAreaToRefresh.LongitudeWidth / resolutionCell8;
             var Cell8YTiles = geoAreaToRefresh.LatitudeHeight / resolutionCell8;
@@ -228,7 +229,7 @@ namespace PraxisMapper.Controllers
                 {
                     var olc = new OpenLocationCode(new GeoPoint(geoAreaToRefresh.SouthLatitude + (resolutionCell8 * y), geoAreaToRefresh.WestLongitude + (resolutionCell8 * x)));
                     var olcPoly = Converters.GeoAreaToPolygon(olc.Decode());
-                    if (md.place.Intersects(olcPoly)) //If this intersects the original way, redraw that tile. Lets us minimize work for oddly-shaped areas.
+                    if (md.wayGeometry.Intersects(olcPoly)) //If this intersects the original way, redraw that tile. Lets us minimize work for oddly-shaped areas.
                     {
                         results += olc.CodeDigits + "|";
                     }
@@ -248,9 +249,9 @@ namespace PraxisMapper.Controllers
             PerformanceTracker pt = new PerformanceTracker("AreaOwners");
             var db = new PraxisContext();
             var owner = db.AreaControlTeams.Where(a => a.MapDataId == mapDataId).FirstOrDefault();
-            var mapData = db.MapData.Where(m => m.MapDataId == mapDataId).FirstOrDefault();
-            if (mapData == null && (Configuration.GetValue<bool>("generateAreas") == true))
-                mapData = db.GeneratedMapData.Where(m => m.GeneratedMapDataId == mapDataId - 100000000).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }).FirstOrDefault();
+            var mapData = db.StoredWays.Where(m => m.id == mapDataId).FirstOrDefault();
+            //if (mapData == null && (Configuration.GetValue<bool>("generateAreas") == true)) //TODO restore this feature.
+                //mapData = db.GeneratedMapData.Where(m => m.GeneratedMapDataId == mapDataId - 100000000).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }).FirstOrDefault();
             if (mapData == null)
                 //This is an error, probably from not clearing data between server instances.
                 return "MissingArea|Nobody|0";
@@ -262,12 +263,12 @@ namespace PraxisMapper.Controllers
             {
                 var factionName = db.Factions.Where(f => f.FactionId == owner.FactionId).FirstOrDefault().Name;
                 pt.Stop();
-                return mapData.name + "|" + factionName + "|" + GetScoreForSinglePlace(mapData.place);
+                return mapData.name + "|" + factionName + "|" + GetScoreForSinglePlace(mapData.wayGeometry);
             }
             else
             {
                 pt.Stop();
-                return mapData.name + "|Nobody|" + GetScoreForSinglePlace(mapData.place);
+                return mapData.name + "|Nobody|" + GetScoreForSinglePlace(mapData.wayGeometry);
             }
         }
 

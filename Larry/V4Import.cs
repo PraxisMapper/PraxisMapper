@@ -63,7 +63,7 @@ namespace Larry
                     }
 
                     if (saveToFile)
-                        WriteSingleStoredWayToFile(filename, convertedRelation);
+                        GeometrySupport.WriteSingleStoredWayToFile(filename, convertedRelation);
                     else
                         db.StoredWays.Add(convertedRelation);
 
@@ -116,7 +116,7 @@ namespace Larry
                         continue;
 
                     if (saveToFile)
-                        WriteSingleStoredWayToFile(filename, item);
+                        GeometrySupport.WriteSingleStoredWayToFile(filename, item);
                     else
                         db.StoredWays.Add(item);
 
@@ -163,7 +163,7 @@ namespace Larry
                         continue;
 
                     if (saveToFile)
-                        WriteSingleStoredWayToFile(filename, item);
+                        GeometrySupport.WriteSingleStoredWayToFile(filename, item);
                     else
                         db.StoredWays.Add(item);
 
@@ -288,7 +288,7 @@ namespace Larry
                 if (found != null)
                 {
                     if (saveToFiles)
-                        WriteSingleStoredWayToFile(extraFilename, found);
+                        GeometrySupport.WriteSingleStoredWayToFile(extraFilename, found);
                     else
                         db.StoredWays.Add(found);
                 }
@@ -498,108 +498,6 @@ namespace Larry
             //Always write directly to json file, not DB.
         }
 
-        public static void WriteStoredWayListToFile(string filename, ref List<StoredWay> mapdata)
-        {
-            StreamWriter sw = new StreamWriter(filename);
-            //sw.Write("[" + Environment.NewLine);
-            foreach (var md in mapdata)
-            {
-                if (md != null) //null can be returned from the functions that convert OSM entries to MapData
-                {
-                    var recordVersion = new StoredWayForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.wayGeometry.AsText(), string.Join("~", md.WayTags.Select(t => t.storedWay + "|" + t.Key + "|" + t.Value)), md.IsGameElement);
-                    var test = JsonSerializer.Serialize(recordVersion, typeof(StoredWayForJson));
-                    sw.WriteLine(test);
-                    //sw.WriteLine("," + Environment.NewLine);
-                }
-            }
-            //sw.Write("]");
-            sw.Close();
-            sw.Dispose();
-            Log.WriteLog("All StoredWay entries were serialized individually and saved to file at " + DateTime.Now);
-        }
-
-        public static void WriteSingleStoredWayToFile(string filename, StoredWay md) //, bool open = false, bool close = false
-        {
-            //System.IO.StreamWriter sw = new StreamWriter(filename, true);
-            //if (open)
-                //File.AppendAllText(filename, "[" + Environment.NewLine);
-
-            if (md != null) //null can be returned from the functions that convert OSM entries to MapData
-            {
-                var recordVersion = new CoreComponents.Support.StoredWayForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.wayGeometry.AsText(), string.Join("~", md.WayTags.Select(t => t.storedWay + "|" + t.Key + "|" + t.Value)), md.IsGameElement);
-                var test = JsonSerializer.Serialize(recordVersion, typeof(CoreComponents.Support.StoredWayForJson));
-                File.AppendAllText(filename, test + Environment.NewLine);
-            }
-
-            //if (close)
-                //File.AppendAllText(filename, "]");
-        }
-
-
-        //TODO pending difference: This will just save 1 entry per line. No JSON array indicator or trailing commas.
-        public static List<StoredWay> ReadStoredWaysFileToMemory(string filename)
-        {
-            StreamReader sr = new StreamReader(filename);
-            List<StoredWay> lm = new List<StoredWay>();
-            lm.Capacity = 100000;
-            JsonSerializerOptions jso = new JsonSerializerOptions();
-            jso.AllowTrailingCommas = true;
-
-            while (!sr.EndOfStream)
-            {
-                string line = sr.ReadLine();
-                var sw = ConvertSingleJsonStoredWay(line);
-                lm.Add(sw);
-            }
-
-            if (lm.Count() == 0)
-                Log.WriteLog("No entries for " + filename + "? why?");
-
-            sr.Close(); sr.Dispose();
-            Log.WriteLog("EOF Reached for " + filename + " at " + DateTime.Now);
-            return lm;
-        }
-
-        public static StoredWay ConvertSingleJsonStoredWay(string sw)
-        {
-            JsonSerializerOptions jso = new JsonSerializerOptions();
-            jso.AllowTrailingCommas = true;
-            NetTopologySuite.IO.WKTReader reader = new NetTopologySuite.IO.WKTReader();
-            reader.DefaultSRID = 4326;
-
-            StoredWayForJson j = (StoredWayForJson)JsonSerializer.Deserialize(sw.Substring(0, sw.Count() - 1), typeof(StoredWayForJson), jso);//TODO: confirm/deny that substring command is still necessary.
-            var temp = new StoredWay() { id = j.id, name = j.name, sourceItemID = j.sourceItemID, sourceItemType = j.sourceItemType, wayGeometry = reader.Read(j.wayGeometry), IsGameElement = j.IsGameElement };
-            if (!string.IsNullOrWhiteSpace(j.WayTags))
-            {
-                var tagData = j.WayTags.Split("~");
-                if (tagData.Count() > 0)
-                {
-                    foreach (var tag in tagData)
-                    {
-                        var elements = tag.Split("|");
-                        WayTags wt = new WayTags();
-                        wt.storedWay = temp;
-                        wt.Key = elements[1];
-                        wt.Value = elements[2];
-                    }
-                }
-            }
-
-            if (temp.wayGeometry is Polygon)
-            {
-                temp.wayGeometry = GeometrySupport.CCWCheck((Polygon)temp.wayGeometry);
-            }
-            if (temp.wayGeometry is MultiPolygon)
-            {
-                MultiPolygon mp = (MultiPolygon)temp.wayGeometry;
-                for (int i = 0; i < mp.Geometries.Count(); i++)
-                {
-                    mp.Geometries[i] = GeometrySupport.CCWCheck((Polygon)mp.Geometries[i]);
-                }
-                temp.wayGeometry = mp;
-            }
-            return temp;
-        }
 
         public static void SplitPbfToSubfiles(string filename)
         {

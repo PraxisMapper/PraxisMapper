@@ -243,7 +243,7 @@ namespace PerformanceTestApp
             foreach (int splitcount in splitChecks)
             {
                 sw.Restart();
-                List<MapData>[] placeArray;
+                List<StoredWay>[] placeArray;
                 GeoArea[] areaArray;
                 StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
                 //Converters.SplitArea(box, splitcount, places, out placeArray, out areaArray);
@@ -256,136 +256,136 @@ namespace PerformanceTestApp
             }
         }
 
-        public static void TestPlaceLookupPlans()
-        {
-            //For determining which way of finding areas is faster.
-            //Unfortunately, only intersects finds ways/points unless youre exactly standing on them.
-            System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+        //public static void TestPlaceLookupPlans()
+        //{
+        //    //For determining which way of finding areas is faster.
+        //    //Unfortunately, only intersects finds ways/points unless youre exactly standing on them.
+        //    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
 
-            List<long> intersectsPolygonRuntimes = new List<long>(50);
-            List<long> containsPointRuntimes = new List<long>(50);
-            List<long> AlgorithmRuntimes = new List<long>(50);
-            List<long> precachedAlgorithmRuntimes = new List<long>(50);
+        //    List<long> intersectsPolygonRuntimes = new List<long>(50);
+        //    List<long> containsPointRuntimes = new List<long>(50);
+        //    List<long> AlgorithmRuntimes = new List<long>(50);
+        //    List<long> precachedAlgorithmRuntimes = new List<long>(50);
 
-            //tryint to determine the fastest way to search areas. Pull a 6-cell's worth of data from the DB, then parse it into 10cells.
-            //Option 1: make a box, check Intersects.
-            //Option 2: make a point, check Contains. (NOTE: a polygon does not Contain() its boundaries, so a point directly on a boundary line will not be identified)
-            //Option 3: try NetTopologySuite.Algorithm.Locate.IndexedPointInAreaLocator ?
-            //Option 4: consider using Contains against something like NetTopologySuite.Geometries.Prepared.PreparedGeometryFactory().Prepare(geom) instead of just Place? This might be outdated
+        //    //tryint to determine the fastest way to search areas. Pull a 6-cell's worth of data from the DB, then parse it into 10cells.
+        //    //Option 1: make a box, check Intersects.
+        //    //Option 2: make a point, check Contains. (NOTE: a polygon does not Contain() its boundaries, so a point directly on a boundary line will not be identified)
+        //    //Option 3: try NetTopologySuite.Algorithm.Locate.IndexedPointInAreaLocator ?
+        //    //Option 4: consider using Contains against something like NetTopologySuite.Geometries.Prepared.PreparedGeometryFactory().Prepare(geom) instead of just Place? This might be outdated
 
-            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values. //share this here, so i compare the actual algorithms instead of this boilerplate, mandatory entry.
-            var db = new PraxisContext();
+        //    var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326); //SRID matches Plus code values. //share this here, so i compare the actual algorithms instead of this boilerplate, mandatory entry.
+        //    var db = new PraxisContext();
 
-            for (int i = 0; i < 50; i++)
-            {
+        //    for (int i = 0; i < 50; i++)
+        //    {
 
-                var point = GetRandomBoundedCoordPair();
-                var olc = OpenLocationCode.Encode(point.lat, point.lon);
-                var codeString = olc.Substring(0, 6);
-                sw.Restart();
-                var box = OpenLocationCode.DecodeValid(codeString);
-                var cord1 = new NetTopologySuite.Geometries.Coordinate(box.Min.Longitude, box.Min.Latitude);
-                var cord2 = new NetTopologySuite.Geometries.Coordinate(box.Min.Longitude, box.Max.Latitude);
-                var cord3 = new NetTopologySuite.Geometries.Coordinate(box.Max.Longitude, box.Max.Latitude);
-                var cord4 = new NetTopologySuite.Geometries.Coordinate(box.Max.Longitude, box.Min.Latitude);
-                var cordSeq = new NetTopologySuite.Geometries.Coordinate[5] { cord4, cord3, cord2, cord1, cord4 };
-                var location = factory.CreatePolygon(cordSeq); //the 6 cell.
+        //        var point = GetRandomBoundedCoordPair();
+        //        var olc = OpenLocationCode.Encode(point.lat, point.lon);
+        //        var codeString = olc.Substring(0, 6);
+        //        sw.Restart();
+        //        var box = OpenLocationCode.DecodeValid(codeString);
+        //        var cord1 = new NetTopologySuite.Geometries.Coordinate(box.Min.Longitude, box.Min.Latitude);
+        //        var cord2 = new NetTopologySuite.Geometries.Coordinate(box.Min.Longitude, box.Max.Latitude);
+        //        var cord3 = new NetTopologySuite.Geometries.Coordinate(box.Max.Longitude, box.Max.Latitude);
+        //        var cord4 = new NetTopologySuite.Geometries.Coordinate(box.Max.Longitude, box.Min.Latitude);
+        //        var cordSeq = new NetTopologySuite.Geometries.Coordinate[5] { cord4, cord3, cord2, cord1, cord4 };
+        //        var location = factory.CreatePolygon(cordSeq); //the 6 cell.
 
-                var places = db.MapData.Where(md => md.place.Intersects(location)).ToList();
-                double resolution10 = .000125; //as defined
-                for (double x = box.Min.Longitude; x <= box.Max.Longitude; x += resolution10)
-                {
-                    for (double y = box.Min.Latitude; y <= box.Max.Latitude; y += resolution10)
-                    {
-                        //also remember these coords start at the lower-left, so i can add the resolution to get the max bounds
-                        var olcInner = new OpenLocationCode(y, x); //This takes lat, long, Coordinate takes X, Y. This line is correct.
-                        var cordSeq2 = new NetTopologySuite.Geometries.Coordinate[5] { new NetTopologySuite.Geometries.Coordinate(x, y), new NetTopologySuite.Geometries.Coordinate(x + resolution10, y), new NetTopologySuite.Geometries.Coordinate(x + resolution10, y + resolution10), new NetTopologySuite.Geometries.Coordinate(x, y + resolution10), new NetTopologySuite.Geometries.Coordinate(x, y) };
-                        var poly2 = factory.CreatePolygon(cordSeq2);
-                        var entriesHere = places.Where(md => md.place.Intersects(poly2)).ToList();
+        //        var places = db.MapData.Where(md => md.place.Intersects(location)).ToList();
+        //        double resolution10 = .000125; //as defined
+        //        for (double x = box.Min.Longitude; x <= box.Max.Longitude; x += resolution10)
+        //        {
+        //            for (double y = box.Min.Latitude; y <= box.Max.Latitude; y += resolution10)
+        //            {
+        //                //also remember these coords start at the lower-left, so i can add the resolution to get the max bounds
+        //                var olcInner = new OpenLocationCode(y, x); //This takes lat, long, Coordinate takes X, Y. This line is correct.
+        //                var cordSeq2 = new NetTopologySuite.Geometries.Coordinate[5] { new NetTopologySuite.Geometries.Coordinate(x, y), new NetTopologySuite.Geometries.Coordinate(x + resolution10, y), new NetTopologySuite.Geometries.Coordinate(x + resolution10, y + resolution10), new NetTopologySuite.Geometries.Coordinate(x, y + resolution10), new NetTopologySuite.Geometries.Coordinate(x, y) };
+        //                var poly2 = factory.CreatePolygon(cordSeq2);
+        //                var entriesHere = places.Where(md => md.place.Intersects(poly2)).ToList();
 
-                    }
-                }
-                sw.Stop(); //measuring time it takes to parse a 6-cell down to 10-cells.and wou
-                intersectsPolygonRuntimes.Add(sw.ElapsedMilliseconds);
-            }
+        //            }
+        //        }
+        //        sw.Stop(); //measuring time it takes to parse a 6-cell down to 10-cells.and wou
+        //        intersectsPolygonRuntimes.Add(sw.ElapsedMilliseconds);
+        //    }
 
-            for (int i = 0; i < 50; i++)
-            {
-                var point = GetRandomBoundedCoordPair();
-                var olc = OpenLocationCode.Encode(point.lat, point.lon);
-                var codeString = olc.Substring(0, 6);
-                sw.Restart();
-                var box = OpenLocationCode.DecodeValid(codeString);
-                var cord1 = new NetTopologySuite.Geometries.Coordinate(box.Min.Longitude, box.Min.Latitude);
-                var cord2 = new NetTopologySuite.Geometries.Coordinate(box.Min.Longitude, box.Max.Latitude);
-                var cord3 = new NetTopologySuite.Geometries.Coordinate(box.Max.Longitude, box.Max.Latitude);
-                var cord4 = new NetTopologySuite.Geometries.Coordinate(box.Max.Longitude, box.Min.Latitude);
-                var cordSeq = new NetTopologySuite.Geometries.Coordinate[5] { cord4, cord3, cord2, cord1, cord4 };
-                var location = factory.CreatePolygon(cordSeq); //the 6 cell.
+        //    for (int i = 0; i < 50; i++)
+        //    {
+        //        var point = GetRandomBoundedCoordPair();
+        //        var olc = OpenLocationCode.Encode(point.lat, point.lon);
+        //        var codeString = olc.Substring(0, 6);
+        //        sw.Restart();
+        //        var box = OpenLocationCode.DecodeValid(codeString);
+        //        var cord1 = new NetTopologySuite.Geometries.Coordinate(box.Min.Longitude, box.Min.Latitude);
+        //        var cord2 = new NetTopologySuite.Geometries.Coordinate(box.Min.Longitude, box.Max.Latitude);
+        //        var cord3 = new NetTopologySuite.Geometries.Coordinate(box.Max.Longitude, box.Max.Latitude);
+        //        var cord4 = new NetTopologySuite.Geometries.Coordinate(box.Max.Longitude, box.Min.Latitude);
+        //        var cordSeq = new NetTopologySuite.Geometries.Coordinate[5] { cord4, cord3, cord2, cord1, cord4 };
+        //        var location = factory.CreatePolygon(cordSeq); //the 6 cell.
 
-                var places = db.MapData.Where(md => md.place.Intersects(location)).ToList();
-                double resolution10 = .000125; //as defined
-                for (double x = box.Min.Longitude; x <= box.Max.Longitude; x += resolution10)
-                {
-                    for (double y = box.Min.Latitude; y <= box.Max.Latitude; y += resolution10)
-                    {
-                        //Option 2, is Contains on a point faster?
-                        var location2 = factory.CreatePoint(new NetTopologySuite.Geometries.Coordinate(x, y));
-                        var places2 = places.Where(md => md.place.Contains(location)).ToList();
+        //        var places = db.MapData.Where(md => md.place.Intersects(location)).ToList();
+        //        double resolution10 = .000125; //as defined
+        //        for (double x = box.Min.Longitude; x <= box.Max.Longitude; x += resolution10)
+        //        {
+        //            for (double y = box.Min.Latitude; y <= box.Max.Latitude; y += resolution10)
+        //            {
+        //                //Option 2, is Contains on a point faster?
+        //                var location2 = factory.CreatePoint(new NetTopologySuite.Geometries.Coordinate(x, y));
+        //                var places2 = places.Where(md => md.place.Contains(location)).ToList();
 
-                    }
-                }
-                sw.Stop(); //measuring time it takes to parse a 6-cell down to 10-cells.and wou
-                containsPointRuntimes.Add(sw.ElapsedMilliseconds);
-            }
+        //            }
+        //        }
+        //        sw.Stop(); //measuring time it takes to parse a 6-cell down to 10-cells.and wou
+        //        containsPointRuntimes.Add(sw.ElapsedMilliseconds);
+        //    }
 
-            for (int i = 0; i < 50; i++)
-            {
-                var point = GetRandomBoundedCoordPair();
-                var olc = OpenLocationCode.Encode(point.lat, point.lon);
-                var codeString = olc.Substring(0, 6);
-                sw.Restart();
-                var box = OpenLocationCode.DecodeValid(codeString);
-                var cord1 = new NetTopologySuite.Geometries.Coordinate(box.Min.Longitude, box.Min.Latitude);
-                var cord2 = new NetTopologySuite.Geometries.Coordinate(box.Min.Longitude, box.Max.Latitude);
-                var cord3 = new NetTopologySuite.Geometries.Coordinate(box.Max.Longitude, box.Max.Latitude);
-                var cord4 = new NetTopologySuite.Geometries.Coordinate(box.Max.Longitude, box.Min.Latitude);
-                var cordSeq = new NetTopologySuite.Geometries.Coordinate[5] { cord4, cord3, cord2, cord1, cord4 };
-                var location = factory.CreatePolygon(cordSeq); //the 6 cell.
+        //    for (int i = 0; i < 50; i++)
+        //    {
+        //        var point = GetRandomBoundedCoordPair();
+        //        var olc = OpenLocationCode.Encode(point.lat, point.lon);
+        //        var codeString = olc.Substring(0, 6);
+        //        sw.Restart();
+        //        var box = OpenLocationCode.DecodeValid(codeString);
+        //        var cord1 = new NetTopologySuite.Geometries.Coordinate(box.Min.Longitude, box.Min.Latitude);
+        //        var cord2 = new NetTopologySuite.Geometries.Coordinate(box.Min.Longitude, box.Max.Latitude);
+        //        var cord3 = new NetTopologySuite.Geometries.Coordinate(box.Max.Longitude, box.Max.Latitude);
+        //        var cord4 = new NetTopologySuite.Geometries.Coordinate(box.Max.Longitude, box.Min.Latitude);
+        //        var cordSeq = new NetTopologySuite.Geometries.Coordinate[5] { cord4, cord3, cord2, cord1, cord4 };
+        //        var location = factory.CreatePolygon(cordSeq); //the 6 cell.
 
-                //var places = db.MapData.Where(md => md.place.Intersects(location)).ToList();
-                var indexedIn = db.MapData.Where(md => md.place.Contains(location)).Select(md => new NetTopologySuite.Algorithm.Locate.IndexedPointInAreaLocator(md.place)).ToList();
-                var fakeCoord = new NetTopologySuite.Geometries.Coordinate(point.lon, point.lat);
-                foreach (var ii in indexedIn)
-                    ii.Locate(fakeCoord); //force index creation on all items now instead of later.
+        //        //var places = db.MapData.Where(md => md.place.Intersects(location)).ToList();
+        //        var indexedIn = db.MapData.Where(md => md.place.Contains(location)).Select(md => new NetTopologySuite.Algorithm.Locate.IndexedPointInAreaLocator(md.place)).ToList();
+        //        var fakeCoord = new NetTopologySuite.Geometries.Coordinate(point.lon, point.lat);
+        //        foreach (var ii in indexedIn)
+        //            ii.Locate(fakeCoord); //force index creation on all items now instead of later.
 
-                double resolution10 = .000125; //as defined
-                for (double x = box.Min.Longitude; x <= box.Max.Longitude; x += resolution10)
-                {
-                    for (double y = box.Min.Latitude; y <= box.Max.Latitude; y += resolution10)
-                    {
-                        //Option 2, is Contains on a point faster?
-                        var location2 = new NetTopologySuite.Geometries.Coordinate(x, y);
-                        var places3 = indexedIn.Where(i => i.Locate(location2) == NetTopologySuite.Geometries.Location.Interior);
-                    }
-                }
-                sw.Stop(); //measuring time it takes to parse a 6-cell down to 10-cells.and wou
-                precachedAlgorithmRuntimes.Add(sw.ElapsedMilliseconds);
-            }
+        //        double resolution10 = .000125; //as defined
+        //        for (double x = box.Min.Longitude; x <= box.Max.Longitude; x += resolution10)
+        //        {
+        //            for (double y = box.Min.Latitude; y <= box.Max.Latitude; y += resolution10)
+        //            {
+        //                //Option 2, is Contains on a point faster?
+        //                var location2 = new NetTopologySuite.Geometries.Coordinate(x, y);
+        //                var places3 = indexedIn.Where(i => i.Locate(location2) == NetTopologySuite.Geometries.Location.Interior);
+        //            }
+        //        }
+        //        sw.Stop(); //measuring time it takes to parse a 6-cell down to 10-cells.and wou
+        //        precachedAlgorithmRuntimes.Add(sw.ElapsedMilliseconds);
+        //    }
 
-            //these commented numbers are out of date.
-            //var a = AlgorithmRuntimes.Average();
-            var b = intersectsPolygonRuntimes.Average();
-            var c = containsPointRuntimes.Average();
-            var d = precachedAlgorithmRuntimes.Average();
+        //    //these commented numbers are out of date.
+        //    //var a = AlgorithmRuntimes.Average();
+        //    var b = intersectsPolygonRuntimes.Average();
+        //    var c = containsPointRuntimes.Average();
+        //    var d = precachedAlgorithmRuntimes.Average();
 
-            Log.WriteLog("Intersect test average result is " + b + "ms");
-            Log.WriteLog("Contains Point test average result is " + c + "ms");
-            Log.WriteLog("Precached point test average result is " + d + "ms");
+        //    Log.WriteLog("Intersect test average result is " + b + "ms");
+        //    Log.WriteLog("Contains Point test average result is " + c + "ms");
+        //    Log.WriteLog("Precached point test average result is " + d + "ms");
 
 
-            return;
-        }
+        //    return;
+        //}
 
         public static void TestSpeedChangeByArea()
         {
@@ -483,17 +483,17 @@ namespace PerformanceTestApp
             }
         }
 
-        public static List<MapData> GetPlacesBase(GeoArea area, List<MapData> source = null)
+        public static List<StoredWay> GetPlacesBase(GeoArea area, List<StoredWay> source = null)
         {
             var location = Converters.GeoAreaToPolygon(area);
-            List<MapData> places;
+            List<StoredWay> places;
             if (source == null)
             {
                 var db = new CoreComponents.PraxisContext();
-                places = db.MapData.Where(md => md.place.Intersects(location)).ToList();
+                places = db.StoredWays.Where(md => md.wayGeometry.Intersects(location)).ToList();
             }
             else
-                places = source.Where(md => md.place.Intersects(location)).ToList();
+                places = source.Where(md => md.wayGeometry.Intersects(location)).ToList();
             return places;
         }
 
@@ -533,26 +533,26 @@ namespace PerformanceTestApp
         //    return places;
         //}
 
-        public static void TestMapDataAbbrev()
-        {
-            System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-            var db = new CoreComponents.PraxisContext();
+        //public static void TestMapDataAbbrev()
+        //{
+        //    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+        //    var db = new CoreComponents.PraxisContext();
 
-            for (int i = 0; i < 5; i++)
-            {
-                sw.Restart();
-                var places2 = db.MapData.Take(10000).ToList();
-                sw.Stop();
-                var placesTime = sw.ElapsedMilliseconds;
-                sw.Restart();
-                var places3 = db.MapData.Take(10000).Select(m => new MapDataAbbreviated(m.name, m.type, m.place)).ToList();
-                sw.Stop();
-                var abbrevTime = sw.ElapsedMilliseconds;
+        //    for (int i = 0; i < 5; i++)
+        //    {
+        //        sw.Restart();
+        //        var places2 = db.MapData.Take(10000).ToList();
+        //        sw.Stop();
+        //        var placesTime = sw.ElapsedMilliseconds;
+        //        sw.Restart();
+        //        var places3 = db.MapData.Take(10000).Select(m => new MapDataAbbreviated(m.name, m.type, m.place)).ToList();
+        //        sw.Stop();
+        //        var abbrevTime = sw.ElapsedMilliseconds;
 
-                Log.WriteLog("Full data time took " + placesTime + "ms");
-                Log.WriteLog("short data time took " + abbrevTime + "ms");
-            }
-        }
+        //        Log.WriteLog("Full data time took " + placesTime + "ms");
+        //        Log.WriteLog("short data time took " + abbrevTime + "ms");
+        //    }
+        //}
 
         public static void TestPrecompiledQuery()
         {
@@ -611,7 +611,7 @@ namespace PerformanceTestApp
             fs2.Read(fileInRam, 0, (int)fs2.Length);
             MemoryStream ms = new MemoryStream(fileInRam);
             List<OsmSharp.Relation> filteredRelations2 = new List<OsmSharp.Relation>();
-            List<MapData> contents2 = new List<MapData>();
+            List<StoredWay> contents2 = new List<StoredWay>();
             contents2.Capacity = 100000;
 
             var source2 = new PBFOsmStreamSource(ms);
@@ -728,7 +728,7 @@ namespace PerformanceTestApp
             fs2.Read(fileInRam, 0, (int)fs2.Length);
             MemoryStream ms = new MemoryStream(fileInRam);
             List<OsmSharp.Relation> filteredRelations2 = new List<OsmSharp.Relation>();
-            List<MapData> contents2 = new List<MapData>();
+            List<StoredWay> contents2 = new List<StoredWay>();
             contents2.Capacity = 100000;
 
             var source2 = new PBFOsmStreamSource(ms);
@@ -779,7 +779,7 @@ namespace PerformanceTestApp
         {
             //on testing, the slowest random result was 13ms.  Most are 0-1ms.
             var db = new PraxisContext();
-            var randomCap = db.MapData.Count();
+            var randomCap = db.StoredWays.Count();
             Random r = new Random();
             string website = "http://localhost/GPSExploreServerAPI/MapData/CalculateMapDataScore/";
             for (int i = 0; i < 100; i++)

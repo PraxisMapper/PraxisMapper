@@ -277,19 +277,21 @@ namespace CoreComponents
             return retVal;
         }
 
-        public static string LoadDataOnPlace(long id) //TODO: update this to StoredWay table.
+        public static string LoadDataOnPlace(long id)
         {
             //Debugging helper call. Loads up some information on an area and display it.
             var db = new PraxisContext();
-            var entries = db.MapData.Where(m => m.WayId == id || m.RelationId == id || m.NodeId == id || m.MapDataId == id).ToList();
+            var entries = db.StoredWays.Where(m => m.id == id || m.sourceItemID == id).ToList();
             string results = "";
             foreach (var entry in entries)
             {
-                var shape = entry.place;
+                var shape = entry.wayGeometry;
 
                 results += "Name: " + entry.name + Environment.NewLine;
-                results += "Game Type: " + entry.type + Environment.NewLine;
+                results += "Game Type: " + TagParser.GetAreaType(entry.WayTags.ToList()) + Environment.NewLine;
                 results += "Geometry Type: " + shape.GeometryType + Environment.NewLine;
+                results += "OSM Type: " + entry.sourceItemType + Environment.NewLine;
+                results += "Area Tags: " + String.Join(",", entry.WayTags.Select(t => t.Key + ":" + t.Value));
                 results += "IsValid? : " + shape.IsValid + Environment.NewLine;
                 results += "Area: " + shape.Area + Environment.NewLine; //Not documented, but I believe this is the area in square degrees. Is that a real unit?
                 results += "As Text: " + shape.AsText() + Environment.NewLine;
