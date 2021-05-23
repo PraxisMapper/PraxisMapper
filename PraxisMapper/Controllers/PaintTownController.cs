@@ -14,7 +14,7 @@ namespace PraxisMapper.Controllers
     public class PaintTownController : Controller
     {
         private readonly IConfiguration Configuration;
-        private static MemoryCache cache; //PaintTown is meant to be a rapidly-changing game mode, so it won't cache a lot of data in RAM.
+        private IMemoryCache cache; //Using this cache to pass around some values instead of making them DB lookups each time.
         public static bool isResetting = false;
         //PaintTown is a simplified version of AreaControl.
         //1) It operates on a per-Cell basis instead of a per-MapData entry basis.
@@ -25,7 +25,7 @@ namespace PraxisMapper.Controllers
         //TODO: allow pre-configured teams for specific events? this is difficult if I don't want to track users on the server, since this would have to be by deviceID
         //TODO: allow an option to let you choose to join a team. Yes, i wanted to avoid this. Yes, there's still good cases for it.
 
-        public PaintTownController(IConfiguration configuration)
+        public PaintTownController(IConfiguration configuration, IMemoryCache cacheSingleton)
         {
             try
             {
@@ -35,43 +35,22 @@ namespace PraxisMapper.Controllers
                 Classes.PerformanceTracker pt = new Classes.PerformanceTracker("PaintTownConstructor");
                 var db = new PraxisContext();
                 Configuration = configuration;
-                if (cache == null && Configuration.GetValue<bool>("enableCaching") == true)
-                {
-                    var options = new MemoryCacheOptions();
-                    options.SizeLimit = 1024;
-                    cache = new MemoryCache(options);
-
-                    //fill the cache with some early useful data
-                    Dictionary<int, DateTime> resetTimes = new Dictionary<int, DateTime>();
-                    foreach (var i in db.PaintTownConfigs)
-                    {
-                        if (i.Repeating)
-                            resetTimes.Add(i.PaintTownConfigId, i.NextReset);
-                    }
-                    MemoryCacheEntryOptions mco = new MemoryCacheEntryOptions() { Size = 1 };
-                    cache.Set("resetTimes", resetTimes, mco);
-
-                    List<long> teams = db.Factions.Select(f => f.FactionId).ToList();
-                    cache.Set("factions", teams, mco);
-
-                    var settings = db.ServerSettings.FirstOrDefault();
-                    cache.Set("settings", settings, mco);
-                }
+                cache = cacheSingleton; //Fallback code on actual functions if this is null for some reason.
 
                 if (cache != null)
                 {
-                    Dictionary<int, DateTime> cachedTimes = null;
-                    if (cache.TryGetValue("resetTimes", out cachedTimes))
-                    foreach (var t in cachedTimes)
-                        if (t.Value < DateTime.Now)
-                            CheckForReset(t.Key);
+                    //reset check.
+                    List<PaintTownConfig> cachedConfigs = null;
+                    if (cache.TryGetValue("PTTConfigs", out cachedConfigs))
+                        foreach (var t in cachedConfigs)
+                            CheckForReset(t);
                 }
                 else
                 {
                     var instances = db.PaintTownConfigs.ToList();
                     foreach (var i in instances)
-                        if (i.Repeating) //Don't check this on non-repeating instances.
-                            CheckForReset(i.PaintTownConfigId); //Do this on every call so we don't have to have an external app handle these, and we don't miss one.
+                        //if (i.Repeating) //Don't check this on non-repeating instances.
+                            CheckForReset(i); //Do this on every call so we don't have to have an external app handle these, and we don't miss one.
                 }
                 pt.Stop();
             }
@@ -136,24 +115,25 @@ namespace PraxisMapper.Controllers
                 //run all the instances at once.
                 List<long> factions = null;
                 ServerSetting settings = null;
+                List<PaintTownConfig> configs = null;
                 if (cache != null)
                 {
-                    factions = (List<long>)cache.Get("factions");
-                    settings = (ServerSetting)cache.Get("settings");
+                    factions = (List<long>)cache.Get("Factions");
+                    settings = (ServerSetting)cache.Get("ServerSettings");
+                    configs = (List<PaintTownConfig>)cache.Get("PTTConfigs");
                 }
-                
-                if (factions == null)
+                else
+                {
                     factions = db.Factions.Select(f => f.FactionId).ToList();
+                    settings = db.ServerSettings.FirstOrDefault();
+                    configs = db.PaintTownConfigs.ToList();
+                }
 
                 if (!factions.Any(f => f == factionId))
                 {
                     pt.Stop("NoFaction:" + factionId);
                     return 0; //We got a claim for an invalid team, don't save anything.
-                }
-
-                //check boundaries
-                if (settings == null)
-                    settings = db.ServerSettings.FirstOrDefault();
+                } 
 
                 if (!Place.IsInBounds(Cell10, settings))
                 {
@@ -163,7 +143,7 @@ namespace PraxisMapper.Controllers
                 int claimed = 0;
 
                 //User will get a point if any of the configs get flipped from this claim.
-                foreach (var config in db.PaintTownConfigs.Where(t => t.Repeating || (t.StartTime < DateTime.Now && t.NextReset > DateTime.Now)).ToList())
+                foreach (var config in configs.Where(t => t.Repeating || (t.StartTime < DateTime.Now && t.NextReset > DateTime.Now)).ToList())
                 {
                     var entry = db.PaintTownEntries.Where(t => t.PaintTownConfigId == config.PaintTownConfigId && t.Cell10 == Cell10).FirstOrDefault();
                     if (entry == null)
@@ -187,7 +167,7 @@ namespace PraxisMapper.Controllers
                 pt.Stop(Cell10 + claimed);
                 return claimed;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 Classes.ErrorLogger.LogError(ex);
                 return 0;
@@ -202,9 +182,21 @@ namespace PraxisMapper.Controllers
             //which faction has the most cell10s?
             //also, report time, primarily for recordkeeping 
             var db = new PraxisContext();
-            var teams = db.Factions.ToLookup(k => k.FactionId, v => v.Name);
+            List<Faction> factions = null;
+            List<PaintTownConfig> configs = null;
+            if (cache != null)
+            {
+                factions = (List<Faction>)cache.Get("Factions");
+                configs = (List<PaintTownConfig>)cache.Get("PTTConfigs");
+            }
+            else
+            {
+                factions = db.Factions.ToList();
+                configs = db.PaintTownConfigs.ToList();
+            }
+            var teams = factions.ToLookup(k => k.FactionId, v => v.Name);
             var data = db.PaintTownEntries.Where(t => t.PaintTownConfigId == instanceID).GroupBy(g => g.FactionId).Select(t => new { instanceID = instanceID, team = t.Key, score = t.Count() }).OrderByDescending(t => t.score).ToList();
-            var modeName = db.PaintTownConfigs.Where(t => t.PaintTownConfigId == instanceID).FirstOrDefault().Name;
+            var modeName = configs.Where(t => t.PaintTownConfigId == instanceID).FirstOrDefault().Name;
             string results = modeName + "#" + DateTime.Now + "|";
             foreach (var d in data)
             {
@@ -227,14 +219,24 @@ namespace PraxisMapper.Controllers
             return parsedResults;
         }
 
-        [HttpGet] 
+        [HttpGet]
         [Route("/[controller]/ModeTime/{instanceID}")]
         public TimeSpan ModeTime(int instanceID)
         {
             Classes.PerformanceTracker pt = new Classes.PerformanceTracker("ModeTime");
             //how much time remains in the current session. Might be 3 minute rounds, might be week long rounds.
-            var db = new PraxisContext();
-            var time = db.PaintTownConfigs.Where(t => t.PaintTownConfigId == instanceID).Select(t => t.NextReset).FirstOrDefault();
+            DateTime time = new DateTime();
+            if (cache != null)
+            {
+                var configs = (List<PaintTownConfig>)cache.Get("PTTConfigs");
+                time = configs.Where(t => t.PaintTownConfigId == instanceID).Select(t => t.NextReset).FirstOrDefault();
+            }
+            else
+            {
+                var db = new PraxisContext();
+                time = db.PaintTownConfigs.Where(t => t.PaintTownConfigId == instanceID).Select(t => t.NextReset).FirstOrDefault();
+            }
+            
             pt.Stop(instanceID.ToString());
             return DateTime.Now - time;
         }
@@ -248,15 +250,25 @@ namespace PraxisMapper.Controllers
                 return;
 
             isResetting = true;
-            //Clear out any stored data and fire the game mode off again.
-            //Fire off a reset.
             var db = new PraxisContext();
-            var twConfig = db.PaintTownConfigs.Where(t => t.PaintTownConfigId == instanceID).FirstOrDefault();
+            PaintTownConfig twConfig = new PaintTownConfig();
+            if (cache != null)
+            {
+                List<PaintTownConfig> cachedConfigs = new List<PaintTownConfig>();
+                if (cache.TryGetValue("PTTConfigs", out cachedConfigs))
+                {
+                    twConfig = cachedConfigs.Where(c => c.PaintTownConfigId == instanceID).FirstOrDefault();
+                    db.Attach<PaintTownConfig>(twConfig);
+                }
+            }
+            else
+            {
+                twConfig = db.PaintTownConfigs.Where(t => t.PaintTownConfigId == instanceID).FirstOrDefault();
+            }
             var nextTime = twConfig.NextReset.AddHours(twConfig.DurationHours);
-            if (manaulReset && nextEndTime.HasValue)
+            if (manaulReset && nextEndTime.HasValue) //Manual reset expire at the usual time, so they're shorter, not longer, than a regular loop.
                 nextTime = nextEndTime.Value;
             twConfig.NextReset = nextTime;
-
             db.PaintTownEntries.RemoveRange(db.PaintTownEntries.Where(tw => tw.PaintTownConfigId == instanceID));
 
             //record score results.
@@ -275,28 +287,40 @@ namespace PraxisMapper.Controllers
         public string GetEndDate(int instanceID)
         {
             Classes.PerformanceTracker pt = new Classes.PerformanceTracker("GetEndDate");
+            PaintTownConfig twConfig = new PaintTownConfig();
+            string results;
+            if (cache != null)
+            {
+                List<PaintTownConfig> cachedConfigs = new List<PaintTownConfig>();
+                if (cache.TryGetValue("PTTConfigs", out cachedConfigs))
+                {
+                    twConfig = cachedConfigs.Where(c => c.PaintTownConfigId == instanceID).FirstOrDefault();
+                    results = twConfig.NextReset.ToString();
+                    pt.Stop();
+                    return results;
+                }
+            }
+
             var db = new PraxisContext();
-            var twConfig = db.PaintTownConfigs.Where(t => t.PaintTownConfigId == instanceID).FirstOrDefault();
-            var results = twConfig.NextReset.ToString();
+            twConfig = db.PaintTownConfigs.Where(t => t.PaintTownConfigId == instanceID).FirstOrDefault();
+            results = twConfig.NextReset.ToString();
             pt.Stop();
             return results;
         }
 
-        public void CheckForReset(int instanceID)
+        public void CheckForReset(PaintTownConfig twConfig)
         {
             if (isResetting)
                 return;
 
             Classes.PerformanceTracker pt = new Classes.PerformanceTracker("CheckForReset");
 
-            //TODO: use the cached resetTimes value instead of a DB call every time we're called.
-            var db = new PraxisContext();
-            var twConfig = db.PaintTownConfigs.Where(t => t.PaintTownConfigId == instanceID).FirstOrDefault();
             if (twConfig.DurationHours == -1) //This is a permanent instance.
                 return;
 
             if (DateTime.Now > twConfig.NextReset)
-                ResetGame(instanceID);
+                ResetGame(twConfig.PaintTownConfigId);
+
             pt.Stop();
         }
 
@@ -305,15 +329,28 @@ namespace PraxisMapper.Controllers
         public string GetInstances()
         {
             Classes.PerformanceTracker pt = new Classes.PerformanceTracker("GetInstances");
-
             var db = new PraxisContext();
+            string results = "";
+            if (cache != null)
+            {
+                List<PaintTownConfig> cachedConfigs = new List<PaintTownConfig>();
+                results = GetInstanceInfo(cachedConfigs);
+                pt.Stop();
+                return results;
+            }
+
             var instances = db.PaintTownConfigs.ToList();
+            results = GetInstanceInfo(instances);
+            pt.Stop();
+            return results;
+        }
+
+        private string GetInstanceInfo(List<PaintTownConfig> instances)
+        {
             string results = "";
             foreach (var i in instances)
-            {
                 results += i.PaintTownConfigId + "|" + i.NextReset.ToString() + "|" + i.Name + Environment.NewLine;
-            }
-            pt.Stop();
+            
             return results;
         }
 
