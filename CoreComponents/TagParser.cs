@@ -14,8 +14,10 @@ namespace CoreComponents
 {
     public static class TagParser
     {
-        public static List<TagParserEntry> styles;
+        public static List<TagParserEntry> styles; //For drawing maptiles
+        public static List<TagParserEntry> teams; //For doing Area Control tiles.
         public static TagParserEntry defaultStyle; //background color must be last if I want un-matched areas to be hidden, its own color if i want areas with no ways at all to show up.
+        public static TagParserEntry defaultTeam; //background color must be last if I want un-matched areas to be hidden, its own color if i want areas with no ways at all to show up.
 
         public static void Initialize(bool onlyDefaults)
         {
@@ -29,6 +31,13 @@ namespace CoreComponents
                 SetPaintForTPE(s);
 
             defaultStyle = styles.Last();
+
+
+            //TODO: load team data from DB. Either its own table set or add a parameter to the main TagParserEntries table to indicate its purpose.
+            teams = Singletons.defaultTeamColors;
+            foreach (var t in teams)
+                SetPaintForTPE(t);  
+
         }
 
         public static void SetPaintForTPE(TagParserEntry tpe)

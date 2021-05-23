@@ -158,5 +158,21 @@ namespace CoreComponents
             //My default set wants to draw things that haven't yet been identified, so I can see what needs improvement or matched by a rule.
             new TagParserEntry() { id = 9999, name ="background", HtmlColorCode = "545454", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid",TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "default" }} }
         };
+
+        public static List<TagParserEntry> defaultTeamColors = new List<TagParserEntry>()
+        {
+            new TagParserEntry() { id = 1, name ="Red Team", HtmlColorCode = "FF0000", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() {
+                new TagParserMatchRule() {Key = "team", Value = "red", MatchType = "equals"},
+            }},
+            new TagParserEntry() { id = 2, name ="Green Team", HtmlColorCode = "00FF00", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() {
+                new TagParserMatchRule() {Key = "team", Value = "green", MatchType = "equals"},
+            }},
+            new TagParserEntry() { id = 3, name ="Blue Team", HtmlColorCode = "0000FF", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() {
+                new TagParserMatchRule() {Key = "team", Value = "blue", MatchType = "equals"},
+            }},
+            new TagParserEntry() { id = 1, name ="Unclaimed", HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() {
+                new TagParserMatchRule() {Key = "*", Value = "*", MatchType = "default"},
+            }},
+        };
     }
 }

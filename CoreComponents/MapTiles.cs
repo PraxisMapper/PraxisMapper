@@ -98,26 +98,29 @@ namespace CoreComponents
 
             List<MapData> rowPlaces;
             //create a new bitmap.
-            MemoryStream ms = new MemoryStream();
-            int imagesizeX = (int)Math.Ceiling(totalArea.LongitudeWidth / degreesPerPixelX);
-            int imagesizeY = (int)Math.Ceiling(totalArea.LatitudeHeight / degreesPerPixelY);
+            
+            //MemoryStream ms = new MemoryStream();
+            //int imagesizeX = (int)Math.Ceiling(totalArea.LongitudeWidth / degreesPerPixelX);
+            //int imagesizeY = (int)Math.Ceiling(totalArea.LatitudeHeight / degreesPerPixelY);
 
             var db = new PraxisContext();
-            List<MapData> allPlaces = GetPlacesMapDAta(dataLoadArea, null, false, true, filterSize); //Includes generated here with the final True parameter.
-            List<long> placeIDs = allPlaces.Select(a => a.MapDataId).ToList();
+            //Replacing this one requires multiple style list support first.
+            List<StoredWay> allPlaces = GetPlaces(dataLoadArea);  //, null, false, true, filterSize //Includes generated here with the final True parameter.
+            List<long> placeIDs = allPlaces.Select(a => a.sourceItemID).ToList();
             Dictionary<long, int> teamClaims = db.AreaControlTeams.Where(act => placeIDs.Contains(act.MapDataId)).ToDictionary(k => k.MapDataId, v => v.FactionId);
 
             //crop all places to the current area. This removes a ton of work from the process by simplifying geometry to only what's relevant, instead of drawing all of a great lake or state-wide park.
             var cropArea = Converters.GeoAreaToPolygon(dataLoadArea);
+            ImageStats info = new ImageStats(dataLoadArea, 80, 100);
             //A quick fix to drawing order when multiple areas take up the entire cell: sort before the crop (otherwise, the areas are drawn in a random order, which makes some disappear)
             //Affects small map tiles more often than larger ones, but it can affect both.
-            allPlaces = allPlaces.Where(ap => teamClaims.ContainsKey(ap.MapDataId)).OrderByDescending(a => a.AreaSize).ToList();
+            allPlaces = allPlaces.Where(ap => teamClaims.ContainsKey(ap.sourceItemID)).OrderByDescending(a => a.AreaSize).ToList();
             foreach (var ap in allPlaces)
-                ap.place = ap.place.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
+                ap.wayGeometry = ap.wayGeometry.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
 
-            var image = InnerDrawSkia(ref allPlaces, totalArea, degreesPerPixelX, degreesPerPixelY, imagesizeX, imagesizeY, transparent: true);
+            var image = DrawAreaAtSizeV4(info, allPlaces); //InnerDrawSkia(ref allPlaces, totalArea, degreesPerPixelX, degreesPerPixelY, imagesizeX, imagesizeY, transparent: true);
 
-            return ms.ToArray();
+            return image;
         }
 
         public static byte[] DrawAreaMapTileSkia(ref List<MapData> allPlaces, GeoArea totalArea, int pixelSizeCells)
@@ -175,10 +178,11 @@ namespace CoreComponents
             var loadDataArea = new GeoArea(new GeoPoint(totalArea.Min.Latitude - resolutionCell10, totalArea.Min.Longitude - resolutionCell10), new GeoPoint(totalArea.Max.Latitude + resolutionCell10, totalArea.Max.Longitude + resolutionCell10));
 
             var db = new PraxisContext();
-            List<MapData> allPlaces = GetPlacesMapDAta(loadDataArea, null, false, true, smallestFeature); //Includes generated here with the final True parameter.
-            List<long> placeIDs = allPlaces.Select(a => a.MapDataId).ToList();
+            //Replacing this one requires multiple style list support first.
+            List<StoredWay> allPlaces = GetPlaces(loadDataArea); //, null, false, true, smallestFeature //Includes generated here with the final True parameter.
+            List<long> placeIDs = allPlaces.Select(a => a.sourceItemID).ToList();
             Dictionary<long, int> teamClaims = db.AreaControlTeams.Where(act => placeIDs.Contains(act.MapDataId)).ToDictionary(k => k.MapDataId, v => v.FactionId);
-            allPlaces = allPlaces.Where(a => teamClaims.ContainsKey(a.MapDataId)).ToList();
+            allPlaces = allPlaces.Where(a => teamClaims.ContainsKey(a.sourceItemID)).ToList();
 
             //crop all places to the current area. This removes a ton of work from the process by simplifying geometry to only what's relevant, instead of drawing all of a great lake or state-wide park.
             var cropArea = Converters.GeoAreaToPolygon(loadDataArea);
@@ -188,9 +192,10 @@ namespace CoreComponents
             //This where clause means things smaller than 1 pixel won't get drawn. It's a C# filter here, but it would be faster to do DB-side on a SizeColumn on Mapdata to save more time, in the function above this one.
             allPlaces = allPlaces.Where(a => a.AreaSize >= smallestFeature).OrderByDescending(a => a.AreaSize).ToList();
             foreach (var ap in allPlaces)
-                ap.place = ap.place.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
+                ap.wayGeometry = ap.wayGeometry.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
 
-            return InnerDrawSkia(ref allPlaces, totalArea, degreesPerPixelX, degreesPerPixelY, imagesizeX, imagesizeY, true);
+            ImageStats info = new ImageStats(loadDataArea, MapTileSizeSquare, MapTileSizeSquare);
+            return DrawAreaAtSizeV4(info, allPlaces, TagParser.teams); //TODO: force transparent background on this one.
         }
 
         //public static byte[] DrawAreaMapTileSlippySkia(ref List<StoredWay> allPlaces, ImageStats info)
@@ -555,6 +560,8 @@ namespace CoreComponents
             var mapBuffer = resolutionCell8 / 2; //Leave some area around the edges of where they went.
             GeoArea mapToDraw = new GeoArea(coords.Min(c => c.Y) - mapBuffer, coords.Min(c => c.X) - mapBuffer, coords.Max(c => c.Y) + mapBuffer, coords.Max(c => c.X) + mapBuffer);
 
+            ImageStats info = new ImageStats(mapToDraw, 1024, 1024);
+
             double degreesPerPixelX = mapToDraw.LongitudeWidth / 1024;
             double degreesPerPixelY = mapToDraw.LatitudeHeight / 1024;
 
@@ -562,8 +569,8 @@ namespace CoreComponents
             var drawableLine = Converters.PolygonToSKPoints(line, mapToDraw, degreesPerPixelX, degreesPerPixelY);
 
             //Now, draw that path on the map.
-            var places = GetPlacesMapDAta(mapToDraw, null, false, false, degreesPerPixelX * 4);
-            var baseImage = InnerDrawSkia(ref places, mapToDraw, degreesPerPixelX, degreesPerPixelY, 1024, 1024);
+            var places = GetPlaces(mapToDraw); //, null, false, false, degreesPerPixelX * 4 ///TODO: restore item filtering
+            var baseImage = DrawAreaAtSizeV4(info, places); //InnerDrawSkia(ref places, mapToDraw, degreesPerPixelX, degreesPerPixelY, 1024, 1024);
 
             SKBitmap sKBitmap = SKBitmap.Decode(baseImage);
             SKCanvas canvas = new SKCanvas(sKBitmap);
@@ -582,22 +589,33 @@ namespace CoreComponents
             return results;
         }
 
-        public static byte[] DrawAreaAtSizeV4(ImageStats stats, List<StoredWay> drawnItems = null)
+        public static byte[] DrawCell8V4(GeoArea Cell8, List<StoredWay> drawnItems = null)
         {
             //This should become the standard path as I convert parts of the app to the new system.
             //Once it is, copy that code to this function and remove unnecesssary or redundant parts
             //like calculating degrees per pixel.
-            return DrawAreaAtSizeV4(stats.area, stats.imageSizeX, stats.imageSizeY, drawnItems);
+            return DrawAreaAtSizeV4(Cell8, 80, 100,  drawnItems);
+        }
+
+        public static byte[] DrawAreaAtSizeV4(ImageStats stats, List<StoredWay> drawnItems = null, List<TagParserEntry> styles = null)
+        {
+            //This should become the standard path as I convert parts of the app to the new system.
+            //Once it is, copy that code to this function and remove unnecesssary or redundant parts
+            //like calculating degrees per pixel.
+            return DrawAreaAtSizeV4(stats.area, stats.imageSizeX, stats.imageSizeY, drawnItems, styles);
         }
 
         //This generic function takes the area to draw, a size to make the canvas, and then draws it all.
         //Optional parameter allows you to pass in different stuff that the DB alone has, possibly for manual or one-off changes to styling
         //or other elements converted for maptile purposes.
-        public static byte[] DrawAreaAtSizeV4(GeoArea relevantArea, int imageSizeX, int imageSizeY, List<StoredWay> drawnItems = null)
+        public static byte[] DrawAreaAtSizeV4(GeoArea relevantArea, int imageSizeX, int imageSizeY, List<StoredWay> drawnItems = null, List<TagParserEntry> styles = null)
         {
             //This is the new core drawing function. Takes in an area, the items to draw, and the size of the image to draw. 
             //The drawn items get their paint pulled from the TagParser's list. If I need multiple match lists, I'll need to make a way
             //to pick which list of tagparser rules to use.
+
+            if (styles == null)
+                styles = TagParser.styles;
           
             var db = new PraxisContext();
             var geo = Converters.GeoAreaToPolygon(relevantArea);

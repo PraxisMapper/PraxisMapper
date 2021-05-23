@@ -1,4 +1,5 @@
 ﻿using CoreComponents;
+using CoreComponents.Support;
 using Google.OpenLocationCode;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
@@ -95,11 +96,11 @@ namespace PraxisMapper.Controllers
             //this function exclusively gets them.
             PerformanceTracker pt = new PerformanceTracker("LearnAdminBoundaries");
             var box = new GeoArea(new GeoPoint(lat, lon), new GeoPoint(lat + resolutionCell10, lon + resolutionCell10));
-            var entriesHere = GetPlacesMapDAta(box, null, true, false).Where(p => p.AreaTypeId == 13).OrderBy(p => p.type).ToList();
+            var entriesHere = GetPlaces(box).Where(p => p.GameElementName == "admin").OrderByDescending(p => p.AreaSize).ToList();
 
             StringBuilder sb = new StringBuilder();
             foreach (var entry in entriesHere)
-                sb.AppendLine(entry.name + "|" + entry.type + "|" + entry.MapDataId);
+                sb.AppendLine(entry.name + "|" + entry.GameElementName + "|" + entry.sourceItemID);
 
             pt.Stop();
             return sb.ToString();
@@ -114,32 +115,32 @@ namespace PraxisMapper.Controllers
             return LearnCell8(Cell8, 1);
         }
 
-        [HttpGet]
-        [Route("/[controller]/DrawCell8/{plusCode8}")]
-        public FileContentResult DrawCell8(string plusCode8)
-        {
-            PerformanceTracker pt = new PerformanceTracker("DrawCell8");
-            //Load terrain data for an 8cell, turn it into a bitmap
-            //Will load these bitmaps on the 8cell grid in the game, so you can see what's around you in a bigger area.
+        //[HttpGet]
+        //[Route("/[controller]/DrawCell8/{plusCode8}")]
+        //public FileContentResult DrawCell8(string plusCode8)
+        //{
+        //    PerformanceTracker pt = new PerformanceTracker("DrawCell8");
+        //    //Load terrain data for an 8cell, turn it into a bitmap
+        //    //Will load these bitmaps on the 8cell grid in the game, so you can see what's around you in a bigger area.
 
-            var db = new PraxisContext();
-            var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode8 && mt.resolutionScale == 10 && mt.mode == 1).FirstOrDefault();
-            if (existingResults == null || existingResults.MapTileId == null)
-            {
-                //Create this entry
-                //requires a list of colors to use, which might vary per app
-                GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
-                var places = GetPlacesMapDAta(eightCell, includeGenerated:Configuration.GetValue<bool>("generateAreas"));
-                var results = MapTiles.DrawAreaMapTileSkia(ref places, eightCell, 10);
-                db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, CreatedOn = DateTime.Now, mode =1, resolutionScale = 10, tileData = results, areaCovered = Converters.GeoAreaToPolygon(eightCell) });
-                db.SaveChanges();
-                pt.Stop(plusCode8);
-                return File(results, "image/png");
-            }
+        //    var db = new PraxisContext();
+        //    var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode8 && mt.resolutionScale == 10 && mt.mode == 1).FirstOrDefault();
+        //    if (existingResults == null || existingResults.MapTileId == null)
+        //    {
+        //        //Create this entry
+        //        //requires a list of colors to use, which might vary per app
+        //        GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
+        //        var places = GetPlacesMapDAta(eightCell, includeGenerated:Configuration.GetValue<bool>("generateAreas"));
+        //        var results = MapTiles.DrawAreaMapTileSkia(ref places, eightCell, 10);
+        //        db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, CreatedOn = DateTime.Now, mode =1, resolutionScale = 10, tileData = results, areaCovered = Converters.GeoAreaToPolygon(eightCell) });
+        //        db.SaveChanges();
+        //        pt.Stop(plusCode8);
+        //        return File(results, "image/png");
+        //    }
 
-            pt.Stop(plusCode8);
-            return File(existingResults.tileData, "image/png");
-        }
+        //    pt.Stop(plusCode8);
+        //    return File(existingResults.tileData, "image/png");
+        //}
 
         [HttpGet]
         [Route("/[controller]/DrawCell8Highres/{plusCode8}")]
@@ -154,8 +155,8 @@ namespace PraxisMapper.Controllers
                 //Create this entry
                 //requires a list of colors to use, which might vary per app
                 GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
-                var places = GetPlacesMapDAta(eightCell, includeGenerated: Configuration.GetValue<bool>("generateAreas"));
-                var results = MapTiles.DrawAreaMapTileSkia(ref places, eightCell, 11);
+                var places = GetPlaces(eightCell); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")
+                var results = MapTiles.DrawCell8V4(eightCell, places);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(eightCell) });
                 db.SaveChanges();
                 pt.Stop(plusCode8);
@@ -171,8 +172,8 @@ namespace PraxisMapper.Controllers
         public FileContentResult DrawCell10Highres(string plusCode10)
         {
             PerformanceTracker pt = new PerformanceTracker("DrawCell10Highres");
-            //Load terrain data for an 8cell, turn it into a bitmap
-            //Will load these bitmaps on the 8cell grid in the game, so you can see what's around you in a bigger area.
+            //Load terrain data for a cell10, turn it into a bitmap
+            //Lots of small tiles is usually harder on the system a few bigger cells, so this is mostly a demo function.
 
             var db = new PraxisContext();
             var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode10 && mt.resolutionScale == 11 && mt.mode == 1).FirstOrDefault();
@@ -181,8 +182,8 @@ namespace PraxisMapper.Controllers
                 //Create this entry
                 //requires a list of colors to use, which might vary per app
                 GeoArea TenCell = OpenLocationCode.DecodeValid(plusCode10);
-                var places = GetPlacesMapDAta(TenCell, includeGenerated: Configuration.GetValue<bool>("generateAreas"));
-                var results = MapTiles.DrawAreaMapTileSkia(ref places, TenCell, 11);
+                var places = GetPlaces(TenCell); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")
+                var results = MapTiles.DrawAreaAtSizeV4(TenCell, 4, 5, places);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode10, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(TenCell) });
                 db.SaveChanges();
                 pt.Stop(plusCode10);
@@ -193,33 +194,35 @@ namespace PraxisMapper.Controllers
             return File(existingResults.tileData, "image/png");
         }
 
-        [HttpGet]
-        [Route("/[controller]/DrawCell6/{plusCode6}")]
-        public FileContentResult DrawCell6(string plusCode6)
-        {
-            PerformanceTracker pt = new PerformanceTracker("DrawCell6");
-            //Load terrain data for an 6cell, turn it into a bitmap
-            //Will load these bitmaps on the 6cell grid in the game, so you can see what's around you in a bigger area?
+        //[HttpGet]
+        //[Route("/[controller]/DrawCell6/{plusCode6}")]
+        //public FileContentResult DrawCell6(string plusCode6)
+        //{
+        //    PerformanceTracker pt = new PerformanceTracker("DrawCell6");
+        //    //Load terrain data for an 6cell, turn it into a bitmap
+        //    //Will load these bitmaps on the 6cell grid in the game, so you can see what's around you in a bigger area?
 
-            var db = new PraxisContext();
-            var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode6 && mt.resolutionScale == 10 && mt.mode == 1).FirstOrDefault();
-            if (existingResults == null || existingResults.MapTileId == null)
-            {
-                //Create this entry
-                //requires a list of colors to use, which might vary per app
-                GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
-                var filterSize = resolutionCell6 / 400; //don't draw things smaller than 1 pixel.
-                var allPlaces = GetPlacesMapDAta(sixCell, null, false, Configuration.GetValue<bool>("generateAreas"), filterSize);
-                var results = MapTiles.DrawAreaMapTileSkia(ref allPlaces, sixCell, 10);
-                db.MapTiles.Add(new MapTile() { PlusCode = plusCode6, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 10, tileData = results, areaCovered = Converters.GeoAreaToPolygon(sixCell) });
-                db.SaveChanges();
-                pt.Stop(plusCode6);
-                return File(results, "image/png");
-            }
+        //    var db = new PraxisContext();
+        //    var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode6 && mt.resolutionScale == 10 && mt.mode == 1).FirstOrDefault();
+        //    if (existingResults == null || existingResults.MapTileId == null)
+        //    {
+        //        //Create this entry
+        //        //requires a list of colors to use, which might vary per app
+        //        GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
+        //        var filterSize = resolutionCell6 / 400; //don't draw things smaller than 1 pixel.
+        //        //var allPlaces = GetPlacesMapDAta(sixCell, null, false, Configuration.GetValue<bool>("generateAreas"), filterSize);
+        //        //var results = MapTiles.DrawAreaMapTileSkia(ref allPlaces, sixCell, 10);
+        //        var places = GetPlaces(sixCell); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")
+        //        var results = MapTiles.DrawAreaAtSizeV4(sixCell, 320, 400, places);
+        //        db.MapTiles.Add(new MapTile() { PlusCode = plusCode6, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 10, tileData = results, areaCovered = Converters.GeoAreaToPolygon(sixCell) });
+        //        db.SaveChanges();
+        //        pt.Stop(plusCode6);
+        //        return File(results, "image/png");
+        //    }
 
-            pt.Stop(plusCode6);
-            return File(existingResults.tileData, "image/png");
-        }
+        //    pt.Stop(plusCode6);
+        //    return File(existingResults.tileData, "image/png");
+        //}
 
         [HttpGet]
         [Route("/[controller]/DrawCell6Highres/{plusCode6}")]
@@ -233,8 +236,8 @@ namespace PraxisMapper.Controllers
             {
                 //requires a list of colors to use, which might vary per app. Defined in AreaType
                 GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
-                var allPlaces = GetPlacesMapDAta(sixCell, null, false, Configuration.GetValue<bool>("generateAreas"), resolutionCell10);
-                var results = MapTiles.DrawAreaMapTileSkia(ref allPlaces, sixCell, 11);
+                var allPlaces = GetPlaces(sixCell); // , null, false, Configuration.GetValue<bool>("generateAreas"), resolutionCell10
+                var results = MapTiles.DrawAreaAtSizeV4(sixCell, 1600, 2000, allPlaces);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode6, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(sixCell) });
                 db.SaveChanges();
                 pt.Stop(plusCode6);
@@ -244,22 +247,24 @@ namespace PraxisMapper.Controllers
             return File(existingResults.tileData, "image/png");
         }
 
-        [HttpGet]
-        [Route("/[controller]/DrawFlex/{lat}/{lon}/{size}/{resolution}")]
-        public FileContentResult DrawFlex(double lat, double lon, double size, int resolution)
-        {
-            //Flex endpoint doesnt save data to DB or cache stuff yet.
-            PerformanceTracker pt = new PerformanceTracker("DrawFlex");
-            GeoArea box = new GeoArea(new GeoPoint(lat - (size / 2), lon - (size / 2)), new GeoPoint(lat + (size / 2), lon + (size / 2)));
-            var allPlaces = GetPlacesMapDAta(box, includeGenerated: Configuration.GetValue<bool>("generateAreas"));
-            byte[] results;
-            if (resolution == 10)
-                results = MapTiles.DrawAreaMapTileSkia(ref allPlaces, box, 10);
-            else
-                results = MapTiles.DrawAreaMapTileSkia(ref allPlaces, box, 11);
-            pt.Stop(lat + "|" + lon + "|" + size + "|" + resolution);
-            return File(results, "image/png");
-        }
+        // I will need to rethink the flex-draw function for V4.
+        //[HttpGet]
+        //[Route("/[controller]/DrawFlex/{lat}/{lon}/{size}/{resolution}")]
+        //public FileContentResult DrawFlex(double lat, double lon, double size, int resolution)
+        //{
+            
+        //    //Flex endpoint doesnt save data to DB or cache stuff yet.
+        //    PerformanceTracker pt = new PerformanceTracker("DrawFlex");
+        //    GeoArea box = new GeoArea(new GeoPoint(lat - (size / 2), lon - (size / 2)), new GeoPoint(lat + (size / 2), lon + (size / 2)));
+        //    var allPlaces = GetPlaces(box); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")
+        //    byte[] results;
+        //    if (resolution == 10)
+        //        results = MapTiles.DrawAreaMapTileSkia(ref allPlaces, box, 10);
+        //    else
+        //        results = MapTiles.DrawAreaMapTileSkia(ref allPlaces, box, 11);
+        //    pt.Stop(lat + "|" + lon + "|" + size + "|" + resolution);
+        //    return File(results, "image/png");
+        //}
 
         [HttpGet]
         [Route("/[controller]/GetPoint/{lat}/{lon}")]
@@ -328,7 +333,7 @@ namespace PraxisMapper.Controllers
             //If you want to own the part of a MapData entry within a cell8, this calculates how many squares it takes up (and therefore how many points it takes to claim it)
             PerformanceTracker pt = new PerformanceTracker("CalculateAreaPoints");
             GeoArea box = OpenLocationCode.DecodeValid(plusCode8);
-            var places = GetPlacesMapDAta(box, includeGenerated: Configuration.GetValue<bool>("generateAreas"));
+            var places = GetPlaces(box); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")
             var plusCodePoly = Converters.GeoAreaToPolygon(box);
             var results = GetScoresForArea(plusCodePoly, places);
             pt.Stop();
@@ -343,7 +348,7 @@ namespace PraxisMapper.Controllers
             //If you want to claim an entire MapData entry, no matter the size, this calculates how many squares it takes up (and therefore how many points it takes to claim it)
             PerformanceTracker pt = new PerformanceTracker("CalculateFullAreaPoints");
             GeoArea box = OpenLocationCode.DecodeValid(plusCode8);
-            var places = GetPlacesMapDAta(box, includeGenerated: Configuration.GetValue<bool>("generateAreas"));
+            var places = GetPlaces(box);// , includeGenerated: Configuration.GetValue<bool>("generateAreas")
             var results =  GetScoresForFullArea(places);
             pt.Stop();
             return results;
@@ -355,7 +360,7 @@ namespace PraxisMapper.Controllers
         {
             PerformanceTracker pt = new PerformanceTracker("CalculateFlexAreaPoints");
             GeoArea box = new GeoArea(new GeoPoint(lat - (size / 2), lon - (size / 2)), new GeoPoint(lat + (size / 2), lon + (size / 2)));
-            var places = GetPlacesMapDAta(box, includeGenerated: Configuration.GetValue<bool>("generateAreas"));
+            var places = GetPlaces(box); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")
             var poly = Converters.GeoAreaToPolygon(box);
             var results = GetScoresForArea(poly, places);
             pt.Stop();
@@ -368,7 +373,7 @@ namespace PraxisMapper.Controllers
         {
             PerformanceTracker pt = new PerformanceTracker("CalculateFlexFullAreaPoints");
             GeoArea box = new GeoArea(new GeoPoint(lat - (size / 2), lon - (size / 2)), new GeoPoint(lat + (size / 2), lon + (size / 2)));
-            var places = GetPlacesMapDAta(box, includeGenerated: Configuration.GetValue<bool>("generateAreas"));
+            var places = GetPlaces(box); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")
             var poly = Converters.GeoAreaToPolygon(box);
             var results =  GetScoresForArea(poly, places);
             pt.Stop();
@@ -376,14 +381,14 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        [Route("/[controller]/CalculateMapDataScore/{MapDataId}")]
-        public string CalculateMapDataScore(long MapDataId)
+        [Route("/[controller]/CalculateMapDataScore/{SourceItemId}/SourceTypeId")]
+        public string CalculateMapDataScore(long SourceItemId, int SourceTypeId)
         {
             PerformanceTracker pt = new PerformanceTracker("CalculateMapDataScore");
             var db = new PraxisContext();
-            var places = db.MapData.Where(m => m.MapDataId == MapDataId).ToList();
+            var places = db.StoredWays.Where(m => m.sourceItemID == SourceItemId && m.sourceItemType == SourceTypeId).ToList(); //odds are good that a big enough server would have overlapping IDs for relations and ways. Must check type.
             var results = GetScoresForFullArea(places);
-            pt.Stop(MapDataId.ToString());
+            pt.Stop(SourceTypeId.ToString());
             return results;
         }
     }

@@ -338,15 +338,15 @@ namespace Larry
             sw.Start();
 
             //ConcurrentBag<MapData>cell6Data = new ConcurrentBag<MapData>();
-            List<MapData> cell6Data = new List<MapData>();
+            List<StoredWay> cell6Data = new List<StoredWay>();
             if (parentCell.Length == 6)
             {
                 var area = OpenLocationCode.DecodeValid(parentCell);
                 var areaPoly = Converters.GeoAreaToPolygon(area);
-                var tempPlaces = GetPlacesMapDAta(area, null, false, false);
+                var tempPlaces = GetPlaces(area); //, null, false, false
                 foreach (var t in tempPlaces)
                 {
-                    t.place = t.place.Intersection(areaPoly);
+                    t.wayGeometry = t.wayGeometry.Intersection(areaPoly);
                     cell6Data.Add(t);
                 }
 
@@ -361,10 +361,11 @@ namespace Larry
                 {
                     string cellToCheck = parentCell + OpenLocationCode.CodeAlphabet[pos1].ToString() + OpenLocationCode.CodeAlphabet[pos2].ToString();
                     var area = new OpenLocationCode(cellToCheck).Decode();
+                    ImageStats info = new ImageStats(area, 80, 100); //values for Cell8 sized area with Cell11 resolution.
                     if (cellToCheck.Length == 8) //We don't want to do the DoPlacesExist check here, since we'll want empty tiles for empty areas at this l
                     {
-                        var places = GetPlacesMapDAta(area, cell6Data, false, false, 0); //These are cloned in GetPlaces, so we aren't intersecting areas twice and breaking drawing.
-                        var tileData = MapTiles.DrawAreaMapTileSkia(ref places, area, 11); //now Skia drawing, should be faster. Peaks around 2600/s. ImageSharp peaked at 1600/s.
+                        var places = GetPlaces(area, cell6Data); //These are cloned in GetPlaces, so we aren't intersecting areas twice and breaking drawing. //, false, false, 0
+                        var tileData = MapTiles.DrawAreaAtSizeV4(info, places); //MapTiles.DrawAreaMapTileSkia(ref places, area, 11); //now Skia drawing, should be faster. Peaks around 2600/s. ImageSharp peaked at 1600/s.
                         tilesGenerated.Add(new MapTile() { CreatedOn = DateTime.Now, mode = 1, tileData = tileData, resolutionScale = 11, PlusCode = cellToCheck });
                         Log.WriteLog("Cell " + cellToCheck + " Drawn", Log.VerbosityLevels.High);
                     }

@@ -22,37 +22,40 @@ namespace CoreComponents
         //All elements in the table with Geometry will be valid, and the TagParser rules will determine which ones are game elements
         //this allows it to be customized much easier, and changed on the fly without reloading data.
         //A lot of the current code will need changed to match that new logic, though. And generated areas may remain separate.
-        public static List<MapData> GetPlacesMapDAta(GeoArea area, List<MapData> source = null, bool includeAdmin = false, bool includeGenerated= true, double filterSize = 0)
-        {
-            //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
-            //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
-            List<MapData> places;
-            if (source == null)
-            {
-                var location = Converters.GeoAreaToPolygon(area); //Prepared items don't work on a DB lookup.
-                var db = new CoreComponents.PraxisContext();
-                if (includeAdmin)
-                    places = db.MapData.Where(md => location.Intersects(md.place) && md.AreaSize > filterSize).ToList();
-                else
-                    places = db.MapData.Where(md => md.AreaTypeId != 13 && location.Intersects(md.place) && md.AreaSize > filterSize).ToList();
-                //TODO: make including generated areas a toggle? or assume that this call is trivial performance-wise on an empty table
-                //A toggle might be good since this also affects maptiles
-                if (includeGenerated) 
-                    places.AddRange(db.GeneratedMapData.Where(md => location.Intersects(md.place)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
-            }
-            else
-            {
-                var location = Converters.GeoAreaToPreparedPolygon(area);
-                if (includeAdmin)
-                    places = source.Where(md => location.Intersects(md.place) && md.AreaSize > filterSize).Select(md => md.Clone()).ToList();
-                else
-                    places = source.Where(md => md.AreaTypeId != 13 && location.Intersects(md.place) && md.AreaSize > filterSize).Select(md => md.Clone()).ToList();
-            }
-            return places;
-        }
+        //public static List<MapData> GetPlacesMapDAta(GeoArea area, List<MapData> source = null, bool includeAdmin = false, bool includeGenerated= true, double filterSize = 0)
+        //{
+        //    //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
+        //    //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
+        //    List<MapData> places;
+        //    if (source == null)
+        //    {
+        //        var location = Converters.GeoAreaToPolygon(area); //Prepared items don't work on a DB lookup.
+        //        var db = new CoreComponents.PraxisContext();
+        //        if (includeAdmin)
+        //            places = db.MapData.Where(md => location.Intersects(md.place) && md.AreaSize > filterSize).ToList();
+        //        else
+        //            places = db.MapData.Where(md => md.AreaTypeId != 13 && location.Intersects(md.place) && md.AreaSize > filterSize).ToList();
+        //        //TODO: make including generated areas a toggle? or assume that this call is trivial performance-wise on an empty table
+        //        //A toggle might be good since this also affects maptiles
+        //        if (includeGenerated) 
+        //            places.AddRange(db.GeneratedMapData.Where(md => location.Intersects(md.place)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
+        //    }
+        //    else
+        //    {
+        //        var location = Converters.GeoAreaToPreparedPolygon(area);
+        //        if (includeAdmin)
+        //            places = source.Where(md => location.Intersects(md.place) && md.AreaSize > filterSize).Select(md => md.Clone()).ToList();
+        //        else
+        //            places = source.Where(md => md.AreaTypeId != 13 && location.Intersects(md.place) && md.AreaSize > filterSize).Select(md => md.Clone()).ToList();
+        //    }
+        //    return places;
+        //}
 
-        public static List<StoredWay> GetPlaces(GeoArea area, List<StoredWay> source = null, double filterSize = 0)
+        public static List<StoredWay> GetPlaces(GeoArea area, List<StoredWay> source = null, double filterSize = 0, List<TagParserEntry> styles = null)
         {
+
+            if (styles == null)
+                styles = TagParser.styles;
             //parameters i will need to restore later.
             //bool includeAdmin = false; this is no longer a hard-coded set. This is now a TagParser thing.
             bool includeGenerated = false;
