@@ -143,19 +143,19 @@ namespace Larry
         //    return;
         //}
 
-        public static void LoadNodesIntoWay(ref WayData w, ref ILookup<long, NodeReference> osmNodes)
-        {
-            foreach (long nr in w.nodRefs)
-            {
-                var osmNode = osmNodes[nr].FirstOrDefault();
-                if (osmNode != null)
-                {
-                    var myNode = new NodeData(osmNode.Id, osmNode.lat, osmNode.lon);
-                    w.nds.Add(myNode);
-                }
-            }
-            w.nodRefs = null; //free up a little memory we won't use again
-        }
+        //public static void LoadNodesIntoWay(ref WayData w, ref ILookup<long, NodeReference> osmNodes)
+        //{
+        //    foreach (long nr in w.nodRefs)
+        //    {
+        //        var osmNode = osmNodes[nr].FirstOrDefault();
+        //        if (osmNode != null)
+        //        {
+        //            var myNode = new NodeData(osmNode.Id, osmNode.lat, osmNode.lon);
+        //            w.nds.Add(myNode);
+        //        }
+        //    }
+        //    w.nodRefs = null; //free up a little memory we won't use again
+        //}
 
         //public static List<MapData> ProcessRelations(ref List<OsmSharp.Relation> osmRelations, ref List<WayData> ways)
         //{
@@ -392,7 +392,7 @@ namespace Larry
                 || s.Tags.Any(t => t.Key == "admin_level" && t.Value == "2")) //Countries
                 ).Select(s => (OsmSharp.Relation)s).ToList();
             Log.WriteLog("Relation data pass completed at " + DateTime.Now);
-            List<WayData> ways = new List<WayData>();
+            //List<WayData> ways = new List<WayData>();
             var referencedWays = rs.SelectMany(r => r.Members.Where(m => m.Type == OsmGeoType.Way).Select(m => m.Id)).Distinct().ToLookup(k => k, v => v);
             var ways2 = source.Where(s => s.Type == OsmGeoType.Way && referencedWays[s.Id.Value].Count() > 0).Select(s => (OsmSharp.Way)s).ToList();
             var referencedNodes = ways2.SelectMany(m => m.Nodes).Distinct().ToLookup(k => k, v => v);
@@ -402,27 +402,27 @@ namespace Larry
             var osmNodeLookup = nodes2.AsParallel().ToLookup(k => k.Id, v => v);
             Log.WriteLog("Found " + osmNodeLookup.Count() + " unique nodes");
 
-            ways.Capacity = ways2.Count();
-            ways = ways2.AsParallel().Select(w => new WayData()
-            {
-                id = w.Id.Value,
-                name = Place.GetPlaceName(w.Tags),
-                AreaType = TagParser.GetAreaType(w.Tags),
-                nodRefs = w.Nodes.ToList()
-            })
-            .ToList();
+            //ways.Capacity = ways2.Count();
+            //ways = ways2.AsParallel().Select(w => new WayData()
+            //{
+            //    id = w.Id.Value,
+            //    name = Place.GetPlaceName(w.Tags),
+            //    AreaType = TagParser.GetAreaType(w.Tags),
+            //    nodRefs = w.Nodes.ToList()
+            //})
+            //.ToList();
             ways2 = null; //free up RAM we won't use again.
             Log.WriteLog("List created at " + DateTime.Now);
 
             int wayCounter = 0;
-            System.Threading.Tasks.Parallel.ForEach(ways, (w) =>
-            {
-                wayCounter++;
-                if (wayCounter % 10000 == 0)
-                    Log.WriteLog(wayCounter + " processed so far");
+            //System.Threading.Tasks.Parallel.ForEach(ways, (w) =>
+            //{
+            //    wayCounter++;
+            //    if (wayCounter % 10000 == 0)
+            //        Log.WriteLog(wayCounter + " processed so far");
 
-                LoadNodesIntoWay(ref w, ref osmNodeLookup);
-            });
+            //    //LoadNodesIntoWay(ref w, ref osmNodeLookup);
+            //});
 
             Log.WriteLog("Ways populated with Nodes at " + DateTime.Now);
             nodes2 = null; //done with these now, can free up RAM again.

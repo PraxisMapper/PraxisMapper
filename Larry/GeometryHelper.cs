@@ -243,78 +243,78 @@ namespace Larry
             return multiPol;
         }
 
-        public static Polygon GetShapeFromLines(ref List<WayData> shapeList)
-        {
-            //takes shapelist as ref, returns a polygon, leaves any other entries in shapelist to be called again.
-            //NOTE: if this is a relation of lines that aren't a polygon (EX: a very long hiking trail), this should probably return the combined linestring? That's a different function
+        //public static Polygon GetShapeFromLines(ref List<WayData> shapeList)
+        //{
+        //    //takes shapelist as ref, returns a polygon, leaves any other entries in shapelist to be called again.
+        //    //NOTE: if this is a relation of lines that aren't a polygon (EX: a very long hiking trail), this should probably return the combined linestring? That's a different function
 
-            List<Coordinate> possiblePolygon = new List<Coordinate>();
-            var firstShape = shapeList.FirstOrDefault();
-            if (firstShape == null)
-            {
-                Log.WriteLog("shapelist has 0 ways in shapelist?", Log.VerbosityLevels.High);
-                return null;
-            }
-            shapeList.Remove(firstShape);
-            var nextStartnode = firstShape.nds.Last();
-            var processShape = false;
-            var isError = false;
-            possiblePolygon.AddRange(firstShape.nds.Where(n => n.id != nextStartnode.id).Select(n => new Coordinate(n.lon, n.lat)).ToList());
-            while (processShape == false)
-            {
-                var allPossibleLines = shapeList.Where(s => s.nds.First().id == nextStartnode.id).ToList();
-                if (allPossibleLines.Count > 1)
-                {
-                    Log.WriteLog("Shape has multiple possible lines to follow, might not process correctly.", Log.VerbosityLevels.High);
-                }
-                var lineToAdd = shapeList.Where(s => s.nds.First().id == nextStartnode.id && s.nds.First().id != s.nds.Last().id).FirstOrDefault();
-                if (lineToAdd == null)
-                {
-                    //check other direction
-                    var allPossibleLinesReverse = shapeList.Where(s => s.nds.Last().id == nextStartnode.id).ToList();
-                    if (allPossibleLinesReverse.Count > 1)
-                    {
-                        Log.WriteLog("Way has multiple possible lines to follow, might not process correctly (Reversed Order).");
-                    }
-                    lineToAdd = shapeList.Where(s => s.nds.Last().id == nextStartnode.id && s.nds.First().id != s.nds.Last().id).FirstOrDefault();
-                    if (lineToAdd == null)
-                    {
-                        //If all lines are joined and none remain, this might just be a relation of lines. Return a combined element
-                        Log.WriteLog("shape doesn't seem to have properly connecting lines, can't process as polygon.", Log.VerbosityLevels.High);
-                        processShape = true;
-                        isError = true;
-                    }
-                    else
-                        lineToAdd.nds.Reverse();
-                }
-                if (!isError)
-                {
-                    possiblePolygon.AddRange(lineToAdd.nds.Where(n => n.id != nextStartnode.id).Select(n => new Coordinate(n.lon, n.lat)).ToList());
-                    nextStartnode = lineToAdd.nds.Last();
-                    shapeList.Remove(lineToAdd);
+        //    List<Coordinate> possiblePolygon = new List<Coordinate>();
+        //    var firstShape = shapeList.FirstOrDefault();
+        //    if (firstShape == null)
+        //    {
+        //        Log.WriteLog("shapelist has 0 ways in shapelist?", Log.VerbosityLevels.High);
+        //        return null;
+        //    }
+        //    shapeList.Remove(firstShape);
+        //    var nextStartnode = firstShape.nds.Last();
+        //    var processShape = false;
+        //    var isError = false;
+        //    possiblePolygon.AddRange(firstShape.nds.Where(n => n.id != nextStartnode.id).Select(n => new Coordinate(n.lon, n.lat)).ToList());
+        //    while (processShape == false)
+        //    {
+        //        var allPossibleLines = shapeList.Where(s => s.nds.First().id == nextStartnode.id).ToList();
+        //        if (allPossibleLines.Count > 1)
+        //        {
+        //            Log.WriteLog("Shape has multiple possible lines to follow, might not process correctly.", Log.VerbosityLevels.High);
+        //        }
+        //        var lineToAdd = shapeList.Where(s => s.nds.First().id == nextStartnode.id && s.nds.First().id != s.nds.Last().id).FirstOrDefault();
+        //        if (lineToAdd == null)
+        //        {
+        //            //check other direction
+        //            var allPossibleLinesReverse = shapeList.Where(s => s.nds.Last().id == nextStartnode.id).ToList();
+        //            if (allPossibleLinesReverse.Count > 1)
+        //            {
+        //                Log.WriteLog("Way has multiple possible lines to follow, might not process correctly (Reversed Order).");
+        //            }
+        //            lineToAdd = shapeList.Where(s => s.nds.Last().id == nextStartnode.id && s.nds.First().id != s.nds.Last().id).FirstOrDefault();
+        //            if (lineToAdd == null)
+        //            {
+        //                //If all lines are joined and none remain, this might just be a relation of lines. Return a combined element
+        //                Log.WriteLog("shape doesn't seem to have properly connecting lines, can't process as polygon.", Log.VerbosityLevels.High);
+        //                processShape = true;
+        //                isError = true;
+        //            }
+        //            else
+        //                lineToAdd.nds.Reverse();
+        //        }
+        //        if (!isError)
+        //        {
+        //            possiblePolygon.AddRange(lineToAdd.nds.Where(n => n.id != nextStartnode.id).Select(n => new Coordinate(n.lon, n.lat)).ToList());
+        //            nextStartnode = lineToAdd.nds.Last();
+        //            shapeList.Remove(lineToAdd);
 
-                    if (possiblePolygon.First().Equals(possiblePolygon.Last()))
-                        processShape = true;
-                }
-            }
-            if (isError)
-                return null;
+        //            if (possiblePolygon.First().Equals(possiblePolygon.Last()))
+        //                processShape = true;
+        //        }
+        //    }
+        //    if (isError)
+        //        return null;
 
-            if (possiblePolygon.Count <= 3)
-            {
-                Log.WriteLog("Didn't find enough points to turn into a polygon. Probably an error.", Log.VerbosityLevels.High);
-                return null;
-            }
+        //    if (possiblePolygon.Count <= 3)
+        //    {
+        //        Log.WriteLog("Didn't find enough points to turn into a polygon. Probably an error.", Log.VerbosityLevels.High);
+        //        return null;
+        //    }
 
-            var poly = factory.CreatePolygon(possiblePolygon.ToArray());
-            poly = GeometrySupport.CCWCheck(poly);
-            if (poly == null)
-            {
-                Log.WriteLog("Found a shape that isn't CCW either way. Error.", Log.VerbosityLevels.High);
-                return null;
-            }
-            return poly;
-        }
+        //    var poly = factory.CreatePolygon(possiblePolygon.ToArray());
+        //    poly = GeometrySupport.CCWCheck(poly);
+        //    if (poly == null)
+        //    {
+        //        Log.WriteLog("Found a shape that isn't CCW either way. Error.", Log.VerbosityLevels.High);
+        //        return null;
+        //    }
+        //    return poly;
+        //}
 
         public static Polygon GetShapeFromLines(ref List<OsmSharp.Complete.CompleteWay> shapeList)
         {

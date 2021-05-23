@@ -130,19 +130,19 @@ namespace CoreComponents
         //    }
         //}
 
-        public static Coordinate[] WayToCoordArray(Support.WayData w)
-        {
-            if (w == null)
-                return null;
+        //public static Coordinate[] WayToCoordArray(Support.WayData w)
+        //{
+        //    if (w == null)
+        //        return null;
 
-            List<Coordinate> results = new List<Coordinate>();
-            results.Capacity = w.nds.Count();
+        //    List<Coordinate> results = new List<Coordinate>();
+        //    results.Capacity = w.nds.Count();
 
-            foreach (var node in w.nds)
-                results.Add(new Coordinate(node.lon, node.lat));
+        //    foreach (var node in w.nds)
+        //        results.Add(new Coordinate(node.lon, node.lat));
 
-            return results.ToArray();
-        }
+        //    return results.ToArray();
+        //}
 
         public static Coordinate[] CompleteWayToCoordArray(OsmSharp.Complete.CompleteWay w)
         {
