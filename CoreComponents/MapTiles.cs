@@ -19,65 +19,65 @@ namespace CoreComponents
         public const int MapTileSizeSquare = 512;
         static SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
         
-        public static void GetResolutionValues(int CellSize, out double resX, out double resY) //This is degrees per pixel in a maptile.
-        {
-            switch (CellSize)
-            {
-                case 2: //not real useful but lets allow it
-                    resX = resolutionCell2;
-                    resY = resolutionCell2;
-                    break;
-                case 4:
-                    resX = resolutionCell4;
-                    resY = resolutionCell4;
-                    break;
-                case 6:
-                    resX = resolutionCell6;
-                    resY = resolutionCell6;
-                    break;
-                case 8:
-                    resX = resolutionCell8;
-                    resY = resolutionCell8;
-                    break;
-                case 10:
-                    resX = resolutionCell10;
-                    resY = resolutionCell10;
-                    break;
-                case 11:
-                    resX = resolutionCell11Lon;
-                    resY = resolutionCell11Lat;
-                    break;
-                default: //Not a supported resolution
-                    resX = 0;
-                    resY = 0;
-                    break;
-            }
-        }
+        //public static void GetResolutionValues(int CellSize, out double resX, out double resY) //This is degrees per pixel in a maptile.
+        //{
+        //    switch (CellSize)
+        //    {
+        //        case 2: //not real useful but lets allow it
+        //            resX = resolutionCell2;
+        //            resY = resolutionCell2;
+        //            break;
+        //        case 4:
+        //            resX = resolutionCell4;
+        //            resY = resolutionCell4;
+        //            break;
+        //        case 6:
+        //            resX = resolutionCell6;
+        //            resY = resolutionCell6;
+        //            break;
+        //        case 8:
+        //            resX = resolutionCell8;
+        //            resY = resolutionCell8;
+        //            break;
+        //        case 10:
+        //            resX = resolutionCell10;
+        //            resY = resolutionCell10;
+        //            break;
+        //        case 11:
+        //            resX = resolutionCell11Lon;
+        //            resY = resolutionCell11Lat;
+        //            break;
+        //        default: //Not a supported resolution
+        //            resX = 0;
+        //            resY = 0;
+        //            break;
+        //    }
+        //}
 
-        public static void GetSlippyResolutions(int xTile, int yTile, int zoomLevel, out double resX, out double resY) //This is degrees per pixel in a maptile.
-        {
-            //NOTE: currently, this calculation is done in 2 steps, with the last one to get resX and resY at the end done in an inner function and earlier code using a GeoArea based on the coordinates.
-            //These are harder to cache, because they change based on latitude. X tiles are always the same, Y tiles scale with latitude.
+        //public static void GetSlippyResolutions(int xTile, int yTile, int zoomLevel, out double resX, out double resY) //This is degrees per pixel in a maptile.
+        //{
+        //    //NOTE: currently, this calculation is done in 2 steps, with the last one to get resX and resY at the end done in an inner function and earlier code using a GeoArea based on the coordinates.
+        //    //These are harder to cache, because they change based on latitude. X tiles are always the same, Y tiles scale with latitude.
 
-            //var stats = new ImageStats();
+        //    //var stats = new ImageStats();
 
-            var n = Math.Pow(2, zoomLevel);
+        //    var n = Math.Pow(2, zoomLevel);
 
-            var lon_degree_w = xTile / n * 360 - 180;
-            var lon_degree_e = (xTile + 1) / n * 360 - 180;
+        //    var lon_degree_w = xTile / n * 360 - 180;
+        //    var lon_degree_e = (xTile + 1) / n * 360 - 180;
 
-            var lat_rads_n = Math.Atan(Math.Sinh(Math.PI * (1 - 2 * yTile / n)));
-            var lat_degree_n = lat_rads_n * 180 / Math.PI;
+        //    var lat_rads_n = Math.Atan(Math.Sinh(Math.PI * (1 - 2 * yTile / n)));
+        //    var lat_degree_n = lat_rads_n * 180 / Math.PI;
 
-            var lat_rads_s = Math.Atan(Math.Sinh(Math.PI * (1 - 2 * (yTile + 1) / n)));
-            var lat_degree_s = lat_rads_s * 180 / Math.PI;
+        //    var lat_rads_s = Math.Atan(Math.Sinh(Math.PI * (1 - 2 * (yTile + 1) / n)));
+        //    var lat_degree_s = lat_rads_s * 180 / Math.PI;
 
-            var areaHeightDegrees = lat_degree_n - lat_degree_s;
-            var areaWidthDegrees = 360 / n;
+        //    var areaHeightDegrees = lat_degree_n - lat_degree_s;
+        //    var areaWidthDegrees = 360 / n;
 
-            resX = areaWidthDegrees / MapTileSizeSquare;
-            resY = areaHeightDegrees / MapTileSizeSquare;
-        }
+        //    resX = areaWidthDegrees / MapTileSizeSquare;
+        //    resY = areaHeightDegrees / MapTileSizeSquare;
+        //}
 
         //public static byte[] DrawMPControlAreaMapTileSkia(GeoArea totalArea, int pixelSizeCells, Tuple<long, int> shortcut = null)
         //{
@@ -127,6 +127,7 @@ namespace CoreComponents
         {
             return DrawMPAreaMapTileSlippySkia(info.area, info.area.LatitudeHeight, info.area.LongitudeWidth);
         }
+
         public static byte[] DrawMPAreaMapTileSlippySkia(GeoArea totalArea, double areaHeight, double areaWidth)
         {
             bool drawEverything = false; //for debugging/testing
@@ -138,24 +139,28 @@ namespace CoreComponents
             var loadDataArea = new GeoArea(new GeoPoint(totalArea.Min.Latitude - resolutionCell10, totalArea.Min.Longitude - resolutionCell10), new GeoPoint(totalArea.Max.Latitude + resolutionCell10, totalArea.Max.Longitude + resolutionCell10));
 
             var db = new PraxisContext();
-            //Replacing this one requires multiple style list support first.
             List<StoredWay> allPlaces = GetPlaces(loadDataArea); //, null, false, true, smallestFeature //Includes generated here with the final True parameter.
             List<long> placeIDs = allPlaces.Select(a => a.sourceItemID).ToList();
-            Dictionary<long, int> teamClaims = db.AreaControlTeams.Where(act => placeIDs.Contains(act.StoredWayId)).ToDictionary(k => k.StoredWayId, v => v.FactionId);
+            Dictionary<long, long> teamClaims = db.AreaControlTeams.Where(act => placeIDs.Contains(act.StoredWayId)).ToDictionary(k => k.StoredWayId, v => v.FactionId);
+            Dictionary<long, string> teamNames = db.Factions.ToDictionary(k => k.FactionId, v => v.Name);
             allPlaces = allPlaces.Where(a => teamClaims.ContainsKey(a.sourceItemID)).ToList();
-
             //crop all places to the current area. This removes a ton of work from the process by simplifying geometry to only what's relevant, instead of drawing all of a great lake or state-wide park.
             var cropArea = Converters.GeoAreaToPolygon(loadDataArea);
 
             //A quick fix to drawing order when multiple areas take up the entire cell: sort before the crop (otherwise, the areas are drawn in a random order, which makes some disappear)
             //Affects small map tiles more often than larger ones, but it can affect both.
-            //This where clause means things smaller than 1 pixel won't get drawn. It's a C# filter here, but it would be faster to do DB-side on a SizeColumn on Mapdata to save more time, in the function above this one.
             allPlaces = allPlaces.Where(a => a.AreaSize >= smallestFeature).OrderByDescending(a => a.AreaSize).ToList();
-            foreach (var ap in allPlaces)
+            foreach (var ap in allPlaces) //Crop geometry and set tags for coloring.
+            {
                 ap.wayGeometry = ap.wayGeometry.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
+                if (teamClaims.ContainsKey(ap.sourceItemID))
+                    ap.WayTags = new List<WayTags>() { new WayTags() { Key = "team", Value = teamNames[teamClaims[ap.sourceItemID]] } };
+                else
+                    ap.WayTags = new List<WayTags>() { new WayTags() { Key = "team", Value = "none" } };
+            }
 
             ImageStats info = new ImageStats(loadDataArea, MapTileSizeSquare, MapTileSizeSquare);
-            return DrawAreaAtSizeV4(info, allPlaces, TagParser.teams); //TODO: force transparent background on this one.
+            return DrawAreaAtSizeV4(info, allPlaces, TagParser.teams);
         }
 
         public static byte[] DrawPaintTownSlippyTileSkia(GeoArea relevantArea, int instanceID)
@@ -614,14 +619,14 @@ namespace CoreComponents
             return results;
         }
 
+        //TODO: have this take the same ImageStats object to cut down on parameters
         public static SKBitmap DrawPolygon(Polygon polygon, SKPaint paint, GeoArea relevantArea, int imageSizeX, int imageSizeY, double degreesPerPixelX, double degreesPerPixelY)
         {
             //In order to do this the most correct, i have to draw the outer ring, then erase all the innner rings.
             //THEN draw that image overtop the original.
             SKBitmap bitmap = new SKBitmap(imageSizeX, imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
             SKCanvas canvas = new SKCanvas(bitmap);
-            var bgColor = new SKColor();
-            SKColor.TryParse("000000000", out bgColor); //Be transparent, not white, for this operation.
+            var bgColor = SKColors.Transparent;
             canvas.Clear(bgColor);
             canvas.Scale(1, 1, imageSizeX / 2, imageSizeY / 2); 
             var path = new SKPath();
