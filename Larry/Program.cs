@@ -63,12 +63,13 @@ namespace Larry
             if (args.Any(a => a == "-noLogs"))
                 Log.Verbosity = Log.VerbosityLevels.Off;
 
-            if (args.Any(a => a == "-skipRoadsAndBuildings"))
-            {
-                DbSettings.processRoads = false;
-                DbSettings.processBuildings = false;
-                DbSettings.processParking = false;
-            }
+            //This is now done just by not having a TagParser entry for these items.
+            //if (args.Any(a => a == "-skipRoadsAndBuildings"))
+            //{
+            //    //DbSettings.processRoads = false;
+            //    //DbSettings.processBuildings = false;
+            //    //DbSettings.processParking = false;
+            //}
 
             if (args.Any(a => a == "-spaceSaver"))
             {
