@@ -13,14 +13,14 @@ namespace CoreComponents
 {
     public static class Place 
     {
-        //for now, anything that does a query on StoredWay or a list of StoredWay entries
+        //for now, anything that does a query on StoredOsmElement or a list of StoredOsmElement entries
         //Places will be the name for interactible or important areas on the map. Was not previously a fixed name for that.
 
         //All elements in the table with Geometry will be valid, and the TagParser rules will determine which ones are game elements
         //this allows it to be customized much easier, and changed on the fly without reloading data.
         //A lot of the current code will need changed to match that new logic, though. And generated areas may remain separate.
         
-        public static List<StoredWay> GetPlaces(GeoArea area, List<StoredWay> source = null, double filterSize = 0, List<TagParserEntry> styles = null)
+        public static List<StoredOsmElement> GetPlaces(GeoArea area, List<StoredOsmElement> source = null, double filterSize = 0, List<TagParserEntry> styles = null, bool skipTags = false)
         {
 
             if (styles == null)
@@ -30,24 +30,27 @@ namespace CoreComponents
 
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
             //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
-            List<StoredWay> places;
+            List<StoredOsmElement> places;
             if (source == null)
             {
                 var location = Converters.GeoAreaToPolygon(area); //Prepared items don't work on a DB lookup.
                 var db = new CoreComponents.PraxisContext();
-                    places = db.StoredWays.Include(s => s.WayTags).Where(md => location.Intersects(md.wayGeometry)).OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToList(); // && md.AreaSize > filterSize
-                //if (includeGenerated)
-                    //places.AddRange(db.StoredWays.Where(md => location.Intersects(md.wayGeometry)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
+                if (skipTags) //Should make the load slightly faster, when we do something like a team control check, where the data we want to look at isn't in the OSM tags.
+                    places = db.StoredWays.Where(md => location.Intersects(md.elementGeometry)).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList(); // && md.AreaSize > filterSize
+                else
+                    places = db.StoredWays.Include(s => s.Tags).Where(md => location.Intersects(md.elementGeometry)).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList(); // && md.AreaSize > filterSize
+                                                                                                                                                                                                                 //if (includeGenerated)
+                                                                                                                                                                                                                 //places.AddRange(db.StoredWays.Where(md => location.Intersects(md.elementGeometry)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
             }
             else
             {
                 var location = Converters.GeoAreaToPreparedPolygon(area);
-                places = source.Where(md => location.Intersects(md.wayGeometry)).Select(md => md.Clone()).ToList(); // && md.AreaSize > filterSize
+                places = source.Where(md => location.Intersects(md.elementGeometry)).Select(md => md.Clone()).ToList(); // && md.AreaSize > filterSize
             }
             return places;
         }
 
-        public static List<StoredWay> GetGeneratedPlaces(GeoArea area)
+        public static List<StoredOsmElement> GetGeneratedPlaces(GeoArea area)
         {
             //TODO: work out how I'm going to store generated places in the new schema.
             return null;
@@ -62,14 +65,14 @@ namespace CoreComponents
             //return places;
         }
 
-        public static List<StoredWay> GetAdminBoundaries(GeoArea area, List<StoredWay> source = null)
+        public static List<StoredOsmElement> GetAdminBoundaries(GeoArea area, List<StoredOsmElement> source = null)
         {
             //Another function that's replaced by TagParser rules.
             return null;
         }
 
         //Note: This should have the padding added to area before this is called, if checking for tiles that need regenerated.
-        public static bool DoPlacesExist(GeoArea area, List<StoredWay> source = null)
+        public static bool DoPlacesExist(GeoArea area, List<StoredOsmElement> source = null)
         {
             //As GetPlaces, but only checks if there are entries.
             bool includeGenerated = false; //parameter to readd later
@@ -78,14 +81,14 @@ namespace CoreComponents
             if (source == null)
             {
                 var db = new PraxisContext();
-                places = db.StoredWays.Any(md => md.wayGeometry.Intersects(location));
+                places = db.StoredWays.Any(md => md.elementGeometry.Intersects(location));
                 if (includeGenerated)
                     places = places; // || db.GeneratedMapData.Any(md => md.place.Intersects(location));
                 return places;
             }
             else
             {
-                places = source.Any(md => md.wayGeometry.Intersects(location));
+                places = source.Any(md => md.elementGeometry.Intersects(location));
             }
             return places;
         }
@@ -198,13 +201,13 @@ namespace CoreComponents
             string results = "";
             foreach (var entry in entries)
             {
-                var shape = entry.wayGeometry;
+                var shape = entry.elementGeometry;
 
                 results += "Name: " + entry.name + Environment.NewLine;
-                results += "Game Type: " + TagParser.GetAreaType(entry.WayTags.ToList()) + Environment.NewLine;
+                results += "Game Type: " + TagParser.GetAreaType(entry.Tags.ToList()) + Environment.NewLine;
                 results += "Geometry Type: " + shape.GeometryType + Environment.NewLine;
                 results += "OSM Type: " + entry.sourceItemType + Environment.NewLine;
-                results += "Area Tags: " + String.Join(",", entry.WayTags.Select(t => t.Key + ":" + t.Value));
+                results += "Area Tags: " + String.Join(",", entry.Tags.Select(t => t.Key + ":" + t.Value));
                 results += "IsValid? : " + shape.IsValid + Environment.NewLine;
                 results += "Area: " + shape.Area + Environment.NewLine; //Not documented, but I believe this is the area in square degrees. Is that a real unit?
                 results += "As Text: " + shape.AsText() + Environment.NewLine;

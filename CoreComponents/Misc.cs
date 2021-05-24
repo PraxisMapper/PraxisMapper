@@ -50,7 +50,7 @@ namespace CoreComponents
             return "";
         }
 
-        public static SKColor PickStaticColorForArea(StoredWay place)
+        public static SKColor PickStaticColorForArea(StoredOsmElement place)
         {
             //TODO: this is a test function, and should be treated as such. Move to Corecomponents and update to the new data storage setup.
             //Each place should get a unique, but consistent, color. Which means we're mostly looking for a hash

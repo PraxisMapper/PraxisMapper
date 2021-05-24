@@ -1,5 +1,4 @@
 ﻿using CoreComponents;
-using CoreComponents.Support;
 using Google.OpenLocationCode;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
@@ -20,7 +19,7 @@ namespace PraxisMapper.Controllers
     [ApiController]
     public class MapDataController : Controller
     {
-        //MapDataController handles commands related to reading MapData entries in an area. 
+        //MapDataController handles commands related to reading StoredOsmElement entries in an area. 
         //Drawing tiles, looking up interesting areas for gameplay, etc happen here.
         //CalculateX commands are here because they read the MapData table, but the player doing something with them happens in GameplayController.
 
@@ -64,11 +63,6 @@ namespace PraxisMapper.Controllers
             //    var newAreas = CreateInterestingPlaces(codeString8);
             //    places = newAreas.Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }).ToList();
             //}
-
-            //TODO: run some tests and see if SkiaSharp requires this crop for performance reasons. It seems pretty fast without it.
-            var cropArea = Converters.GeoAreaToPolygon(box);
-            foreach (var p in places)
-                p.wayGeometry  = p.wayGeometry.Intersection(cropArea);
 
             StringBuilder sb = new StringBuilder();
             sb.AppendLine(codeString8);
@@ -114,33 +108,6 @@ namespace PraxisMapper.Controllers
             var Cell8 = codeRequested.CodeDigits.Substring(0, 8);
             return LearnCell8(Cell8, 1);
         }
-
-        //[HttpGet]
-        //[Route("/[controller]/DrawCell8/{plusCode8}")]
-        //public FileContentResult DrawCell8(string plusCode8)
-        //{
-        //    PerformanceTracker pt = new PerformanceTracker("DrawCell8");
-        //    //Load terrain data for an 8cell, turn it into a bitmap
-        //    //Will load these bitmaps on the 8cell grid in the game, so you can see what's around you in a bigger area.
-
-        //    var db = new PraxisContext();
-        //    var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode8 && mt.resolutionScale == 10 && mt.mode == 1).FirstOrDefault();
-        //    if (existingResults == null || existingResults.MapTileId == null)
-        //    {
-        //        //Create this entry
-        //        //requires a list of colors to use, which might vary per app
-        //        GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
-        //        var places = GetPlacesMapDAta(eightCell, includeGenerated:Configuration.GetValue<bool>("generateAreas"));
-        //        var results = MapTiles.DrawAreaMapTileSkia(ref places, eightCell, 10);
-        //        db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, CreatedOn = DateTime.Now, mode =1, resolutionScale = 10, tileData = results, areaCovered = Converters.GeoAreaToPolygon(eightCell) });
-        //        db.SaveChanges();
-        //        pt.Stop(plusCode8);
-        //        return File(results, "image/png");
-        //    }
-
-        //    pt.Stop(plusCode8);
-        //    return File(existingResults.tileData, "image/png");
-        //}
 
         [HttpGet]
         [Route("/[controller]/DrawCell8Highres/{plusCode8}")]
@@ -194,36 +161,6 @@ namespace PraxisMapper.Controllers
             return File(existingResults.tileData, "image/png");
         }
 
-        //[HttpGet]
-        //[Route("/[controller]/DrawCell6/{plusCode6}")]
-        //public FileContentResult DrawCell6(string plusCode6)
-        //{
-        //    PerformanceTracker pt = new PerformanceTracker("DrawCell6");
-        //    //Load terrain data for an 6cell, turn it into a bitmap
-        //    //Will load these bitmaps on the 6cell grid in the game, so you can see what's around you in a bigger area?
-
-        //    var db = new PraxisContext();
-        //    var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode6 && mt.resolutionScale == 10 && mt.mode == 1).FirstOrDefault();
-        //    if (existingResults == null || existingResults.MapTileId == null)
-        //    {
-        //        //Create this entry
-        //        //requires a list of colors to use, which might vary per app
-        //        GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
-        //        var filterSize = resolutionCell6 / 400; //don't draw things smaller than 1 pixel.
-        //        //var allPlaces = GetPlacesMapDAta(sixCell, null, false, Configuration.GetValue<bool>("generateAreas"), filterSize);
-        //        //var results = MapTiles.DrawAreaMapTileSkia(ref allPlaces, sixCell, 10);
-        //        var places = GetPlaces(sixCell); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")
-        //        var results = MapTiles.DrawAreaAtSizeV4(sixCell, 320, 400, places);
-        //        db.MapTiles.Add(new MapTile() { PlusCode = plusCode6, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 10, tileData = results, areaCovered = Converters.GeoAreaToPolygon(sixCell) });
-        //        db.SaveChanges();
-        //        pt.Stop(plusCode6);
-        //        return File(results, "image/png");
-        //    }
-
-        //    pt.Stop(plusCode6);
-        //    return File(existingResults.tileData, "image/png");
-        //}
-
         [HttpGet]
         [Route("/[controller]/DrawCell6Highres/{plusCode6}")]
         public FileContentResult DrawCell6Highres(string plusCode6)
@@ -248,6 +185,7 @@ namespace PraxisMapper.Controllers
         }
 
         // I will need to rethink the flex-draw function for V4.
+        //could just pass area and imagesize to ImageStats, and not allow for resolution to be set.
         //[HttpGet]
         //[Route("/[controller]/DrawFlex/{lat}/{lon}/{size}/{resolution}")]
         //public FileContentResult DrawFlex(double lat, double lon, double size, int resolution)

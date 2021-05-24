@@ -46,6 +46,8 @@ namespace PerformanceTestApp
             //PraxisContext.serverMode = "PostgreSQL";
             //PraxisContext.connectionString = "server=localhost;database=praxis;user=root;password=asdf;";
 
+            TagParser.Initialize();
+
             if (Debugger.IsAttached)
                 Console.WriteLine("Run this in Release mode for accurate numbers!");
             //This is for running and archiving performance tests on different code approaches.
@@ -66,7 +68,9 @@ namespace PerformanceTestApp
             //TestRasterVsVectorCell8();
             //TestRasterVsVectorCell10();
             //TestImageSharpVsSkiaSharp(); //imagesharp was removed for being vastly slower.
-            TestTagParser();
+            //TestTagParser();
+            TestCropVsNoCropDraw("86HWPM");
+            TestCropVsNoCropDraw("86HW");
 
             //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
             //These cannot all be enabled in one run. You must comment/uncomment each one separately.
@@ -242,7 +246,7 @@ namespace PerformanceTestApp
             foreach (int splitcount in splitChecks)
             {
                 sw.Restart();
-                List<StoredWay>[] placeArray;
+                List<StoredOsmElement>[] placeArray;
                 GeoArea[] areaArray;
                 StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
                 //Converters.SplitArea(box, splitcount, places, out placeArray, out areaArray);
@@ -482,17 +486,17 @@ namespace PerformanceTestApp
             }
         }
 
-        public static List<StoredWay> GetPlacesBase(GeoArea area, List<StoredWay> source = null)
+        public static List<StoredOsmElement> GetPlacesBase(GeoArea area, List<StoredOsmElement> source = null)
         {
             var location = Converters.GeoAreaToPolygon(area);
-            List<StoredWay> places;
+            List<StoredOsmElement> places;
             if (source == null)
             {
                 var db = new CoreComponents.PraxisContext();
-                places = db.StoredWays.Where(md => md.wayGeometry.Intersects(location)).ToList();
+                places = db.StoredWays.Where(md => md.elementGeometry.Intersects(location)).ToList();
             }
             else
-                places = source.Where(md => md.wayGeometry.Intersects(location)).ToList();
+                places = source.Where(md => md.elementGeometry.Intersects(location)).ToList();
             return places;
         }
 
@@ -610,7 +614,7 @@ namespace PerformanceTestApp
             fs2.Read(fileInRam, 0, (int)fs2.Length);
             MemoryStream ms = new MemoryStream(fileInRam);
             List<OsmSharp.Relation> filteredRelations2 = new List<OsmSharp.Relation>();
-            List<StoredWay> contents2 = new List<StoredWay>();
+            List<StoredOsmElement> contents2 = new List<StoredOsmElement>();
             contents2.Capacity = 100000;
 
             var source2 = new PBFOsmStreamSource(ms);
@@ -727,7 +731,7 @@ namespace PerformanceTestApp
             fs2.Read(fileInRam, 0, (int)fs2.Length);
             MemoryStream ms = new MemoryStream(fileInRam);
             List<OsmSharp.Relation> filteredRelations2 = new List<OsmSharp.Relation>();
-            List<StoredWay> contents2 = new List<StoredWay>();
+            List<StoredOsmElement> contents2 = new List<StoredOsmElement>();
             contents2.Capacity = 100000;
 
             var source2 = new PBFOsmStreamSource(ms);
@@ -888,7 +892,7 @@ namespace PerformanceTestApp
             GeoArea delaware = new GeoArea(38, -77, 41, -74);
             var poly = Converters.GeoAreaToPolygon(delaware);
             sw.Restart();
-            var allEntires = dbPG.StoredWays.Where(w => w.wayGeometry.Intersects(poly)).ToList();
+            var allEntires = dbPG.StoredWays.Where(w => w.elementGeometry.Intersects(poly)).ToList();
             sw.Stop();
             Log.WriteLog("Loaded all Delaware items in " + sw.ElapsedMilliseconds + "ms");
 
@@ -921,8 +925,8 @@ namespace PerformanceTestApp
                 }
 
                 //locker.EnterWriteLock();
-                convertedRelation.wayGeometry = SimplifyArea(convertedRelation.wayGeometry);
-                if (convertedRelation.wayGeometry == null)
+                convertedRelation.elementGeometry = SimplifyArea(convertedRelation.elementGeometry);
+                if (convertedRelation.elementGeometry == null)
                     continue;
                 db.StoredWays.Add(convertedRelation);
                 //db.SaveChanges();
@@ -940,8 +944,8 @@ namespace PerformanceTestApp
                 }
 
                 //locker.EnterWriteLock();
-                convertedWay.wayGeometry = SimplifyArea(convertedWay.wayGeometry);
-                if (convertedWay.wayGeometry == null)
+                convertedWay.elementGeometry = SimplifyArea(convertedWay.elementGeometry);
+                if (convertedWay.elementGeometry == null)
                     continue;
                 db.StoredWays.Add(convertedWay);
                 //db.SaveChanges();
@@ -954,7 +958,7 @@ namespace PerformanceTestApp
             Log.WriteLog("Saved baseline data to DB in " + sw.Elapsed);
         }
 
-        public static StoredWay ConvertOsmEntryToStoredWay(OsmSharp.Complete.ICompleteOsmGeo g)
+        public static StoredOsmElement ConvertOsmEntryToStoredWay(OsmSharp.Complete.ICompleteOsmGeo g)
         {
             try
             {
@@ -964,7 +968,7 @@ namespace PerformanceTestApp
                     Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + " didn't return expected number of features (" + feature.Count() + ")", Log.VerbosityLevels.High);
                     return null;
                 }
-                var sw = new StoredWay();
+                var sw = new StoredOsmElement();
                 sw.name = TagParser.GetPlaceName(g.Tags);
                 sw.sourceItemID = g.Id;
                 sw.sourceItemType = (g.Type == OsmGeoType.Relation ? 3 : g.Type == OsmGeoType.Way ? 2 : 1);
@@ -972,13 +976,13 @@ namespace PerformanceTestApp
                 if (geo == null)
                 return null;
                 geo.SRID = 4326;//Required for SQL Server to accept data this way.
-                sw.wayGeometry = geo;
-                sw.WayTags = TagParser.getFilteredTags(g.Tags);
-                if (sw.wayGeometry.GeometryType == "LinearRing" || (sw.wayGeometry.GeometryType == "LineString" && sw.wayGeometry.Coordinates.First() == sw.wayGeometry.Coordinates.Last()))
+                sw.elementGeometry = geo;
+                sw.Tags = TagParser.getFilteredTags(g.Tags);
+                if (sw.elementGeometry.GeometryType == "LinearRing" || (sw.elementGeometry.GeometryType == "LineString" && sw.elementGeometry.Coordinates.First() == sw.elementGeometry.Coordinates.Last()))
                 {
                     //I want to update all LinearRings to Polygons, and let the style determine if they're Filled or Stroked.
-                    var poly = factory.CreatePolygon((LinearRing)sw.wayGeometry);
-                    sw.wayGeometry = poly;
+                    var poly = factory.CreatePolygon((LinearRing)sw.elementGeometry);
+                    sw.elementGeometry = poly;
                 }
                 return sw;
             }
@@ -989,7 +993,7 @@ namespace PerformanceTestApp
         }
 
         //testing if this is better/more efficient (on the phone side) than passing strings along. Only used in TestPerf.
-        //public static Cell10Info CellInfoFindPlacesInCell10(double x, double y, ref List<StoredWay> places)
+        //public static Cell10Info CellInfoFindPlacesInCell10(double x, double y, ref List<StoredOsmElement> places)
         //{
         //    var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell10, x + resolutionCell10));
         //    var entriesHere = GetPlaces(box, places).ToList(); 
@@ -1342,7 +1346,7 @@ namespace PerformanceTestApp
             Log.WriteLog("perf-testing tag parser options");
             TagParser.Initialize(true);
             System.Threading.Thread.Sleep(100);
-            List<WayTags> emptyList = new List<WayTags>();
+            List<ElementTags> emptyList = new List<ElementTags>();
             Stopwatch sw = new Stopwatch();
             sw.Start();
             for (var i = 0; i < 1000; i++)
@@ -1360,8 +1364,8 @@ namespace PerformanceTestApp
             //Log.WriteLog("1000 empty lists run in " + sw.ElapsedTicks + " ticks with alt");
 
             //test with a set that matches on the default entry only.
-            List<WayTags> defaultSingle = new List<WayTags>();
-            defaultSingle.Add(new WayTags() { Key = "badEntry", Value = "mustBeDefault" });
+            List<ElementTags> defaultSingle = new List<ElementTags>();
+            defaultSingle.Add(new ElementTags() { Key = "badEntry", Value = "mustBeDefault" });
 
             sw.Restart();
             for (var i = 0; i < 1000; i++)
@@ -1379,16 +1383,16 @@ namespace PerformanceTestApp
             //Log.WriteLog("1000 default-match lists run in " + sw.ElapsedTicks + " ticks with alt");
 
             //test with a set that has a lot of tags.
-            List<WayTags> biglist = new List<WayTags>();
-            biglist.Add(new WayTags() { Key = "badEntry", Value = "nothing" });
-            biglist.Add(new WayTags() { Key = "place", Value = "neighborhood" });
-            biglist.Add(new WayTags() { Key = "natual", Value = "hill" });
-            biglist.Add(new WayTags() { Key = "lanes", Value = "7" });
-            biglist.Add(new WayTags() { Key = "placeholder", Value = "stuff" });
-            biglist.Add(new WayTags() { Key = "screensize", Value = "small" });
-            biglist.Add(new WayTags() { Key = "twoMore", Value = "entries" });
-            biglist.Add(new WayTags() { Key = "andHere", Value = "WeGo" });
-            biglist.Add(new WayTags() { Key = "waterway", Value = "river" });
+            List<ElementTags> biglist = new List<ElementTags>();
+            biglist.Add(new ElementTags() { Key = "badEntry", Value = "nothing" });
+            biglist.Add(new ElementTags() { Key = "place", Value = "neighborhood" });
+            biglist.Add(new ElementTags() { Key = "natual", Value = "hill" });
+            biglist.Add(new ElementTags() { Key = "lanes", Value = "7" });
+            biglist.Add(new ElementTags() { Key = "placeholder", Value = "stuff" });
+            biglist.Add(new ElementTags() { Key = "screensize", Value = "small" });
+            biglist.Add(new ElementTags() { Key = "twoMore", Value = "entries" });
+            biglist.Add(new ElementTags() { Key = "andHere", Value = "WeGo" });
+            biglist.Add(new ElementTags() { Key = "waterway", Value = "river" });
 
             sw.Restart();
             for (var i = 0; i < 1000; i++)
@@ -1399,7 +1403,7 @@ namespace PerformanceTestApp
             Log.WriteLog("1000 8-tag match-water lists run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 1000.0 + "ms avg)");
 
             biglist.Remove(biglist.Last()); //Remove the water-match tag.
-            biglist.Add(new WayTags() { Key = "other", Value = "tag" });
+            biglist.Add(new ElementTags() { Key = "other", Value = "tag" });
 
             sw.Restart();
             for (var i = 0; i < 1000; i++)
@@ -1429,6 +1433,49 @@ namespace PerformanceTestApp
             //sw.Stop();
             //Log.WriteLog("1000 big match on water lists run in " + sw.ElapsedTicks + " ticks with alt");
 
+
+        }
+
+        public static void TestCropVsNoCropDraw(string CellToTest)
+        {
+            Log.WriteLog("perf-testing cropping StoredWay objects before drawing");
+
+            //load objects
+            GeoArea testArea6 = OpenLocationCode.DecodeValid(CellToTest);
+            var areaPoly = Converters.GeoAreaToPolygon(testArea6);
+            var db = new PraxisContext();
+            var places = db.StoredWays.Include(w => w.Tags).Where(w => w.elementGeometry.Intersects(areaPoly)).ToList();
+            Log.WriteLog("Loaded " + places.Count() + " objects for test");
+
+            ImageStats info = new ImageStats(testArea6, 512, 512); //using default Slippy map tile size for comparison.
+            //draw objects as is.
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+            var tile1 = MapTiles.DrawAreaAtSizeV4(info, places);
+            sw.Stop();
+            Log.WriteLog("Uncropped tile drawn in " + sw.ElapsedMilliseconds + "ms");
+
+            //crop all objects
+            sw.Restart();
+            foreach (var ap in places) //Crop geometry and set tags for coloring.
+                try //Error handling for 'non-noded intersection' errors.
+                {
+                    ap.elementGeometry = ap.elementGeometry.Intersection(areaPoly); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
+                }
+                catch (Exception ex)
+                {
+                    //not actually handling it.
+                }
+
+            sw.Stop();
+            Log.WriteLog("Geometry objects cropped in " + sw.ElapsedMilliseconds + "ms");
+
+            sw.Restart();
+            var tile2 = MapTiles.DrawAreaAtSizeV4(info, places);
+            sw.Stop();
+            Log.WriteLog("Cropped tile drawn in " + sw.ElapsedMilliseconds + "ms");
+
+            
 
         }
     }

@@ -16,15 +16,10 @@ namespace CoreComponents
 {
     public static class MapTiles
     {
-        public const int MapTileSizeSquare = 512;
+        public static int MapTileSizeSquare = 512; //Default value, updated by PraxisMapper at startup.
         static SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
-        
-        public static byte[] DrawMPAreaMapTileSlippySkia(ImageStats info)
-        {
-            return DrawMPAreaMapTileSlippySkia(info.area, info.area.LatitudeHeight, info.area.LongitudeWidth);
-        }
 
-        public static byte[] DrawMPAreaMapTileSlippySkia(GeoArea totalArea, double areaHeight, double areaWidth)
+        public static byte[] DrawMPAreaControlMapTile(ImageStats info, List<StoredOsmElement> places = null)
         {
             bool drawEverything = false; //for debugging/testing
             //var smallestFeature = (drawEverything ? 0 : degreesPerPixelX < degreesPerPixelY ? degreesPerPixelX : degreesPerPixelY);
@@ -32,49 +27,42 @@ namespace CoreComponents
 
             //To make sure we don't get any seams on our maptiles (or points that don't show a full circle, we add a little extra area to the image before drawing, then crop it out at the end.
             //Do this after determining image size, since Skia will ignore parts off-canvas.
-            var loadDataArea = new GeoArea(new GeoPoint(totalArea.Min.Latitude - resolutionCell10, totalArea.Min.Longitude - resolutionCell10), new GeoPoint(totalArea.Max.Latitude + resolutionCell10, totalArea.Max.Longitude + resolutionCell10));
+            var loadDataArea = new GeoArea(new GeoPoint(info.area.Min.Latitude - resolutionCell10, info.area.Min.Longitude - resolutionCell10), new GeoPoint(info.area.Max.Latitude + resolutionCell10, info.area.Max.Longitude + resolutionCell10));
 
             var db = new PraxisContext();
-            List<StoredWay> allPlaces = GetPlaces(loadDataArea); //, null, false, true, smallestFeature //Includes generated here with the final True parameter.
-            List<long> placeIDs = allPlaces.Select(a => a.sourceItemID).ToList();
+            if (places == null)
+                places = GetPlaces(loadDataArea, skipTags: true); //, null, false, true, smallestFeature //Includes generated here with the final True parameter.
+            List<long> placeIDs = places.Select(a => a.sourceItemID).ToList();
             Dictionary<long, long> teamClaims = db.AreaControlTeams.Where(act => placeIDs.Contains(act.StoredWayId)).ToDictionary(k => k.StoredWayId, v => v.FactionId);
             Dictionary<long, string> teamNames = db.Factions.ToDictionary(k => k.FactionId, v => v.Name);
-            allPlaces = allPlaces.Where(a => teamClaims.ContainsKey(a.sourceItemID)).ToList();
-            //crop all places to the current area. This removes a ton of work from the process by simplifying geometry to only what's relevant, instead of drawing all of a great lake or state-wide park.
-            var cropArea = Converters.GeoAreaToPolygon(loadDataArea);
+            places = places
+                .Where(a => teamClaims.ContainsKey(a.sourceItemID)) //Only draw elements claimed by a team.
+                .Where(a => a.AreaSize >= smallestFeature) //only draw elements big enough to draw
+                .OrderByDescending(a => a.AreaSize) //Order from biggest to smallest.
+                .ToList();
 
-            //A quick fix to drawing order when multiple areas take up the entire cell: sort before the crop (otherwise, the areas are drawn in a random order, which makes some disappear)
-            //Affects small map tiles more often than larger ones, but it can affect both.
-            allPlaces = allPlaces.Where(a => a.AreaSize >= smallestFeature).OrderByDescending(a => a.AreaSize).ToList();
-            foreach (var ap in allPlaces) //Crop geometry and set tags for coloring.
+            foreach (var ap in places) //Set team ownership via tags.
             {
-                ap.wayGeometry = ap.wayGeometry.Intersection(cropArea); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
                 if (teamClaims.ContainsKey(ap.sourceItemID))
-                    ap.WayTags = new List<WayTags>() { new WayTags() { Key = "team", Value = teamNames[teamClaims[ap.sourceItemID]] } };
+                    ap.Tags = new List<ElementTags>() { new ElementTags() { Key = "team", Value = teamNames[teamClaims[ap.sourceItemID]] } };
                 else
-                    ap.WayTags = new List<WayTags>() { new WayTags() { Key = "team", Value = "none" } };
+                    ap.Tags = new List<ElementTags>() { new ElementTags() { Key = "team", Value = "none" } };
             }
 
-            ImageStats info = new ImageStats(loadDataArea, MapTileSizeSquare, MapTileSizeSquare);
-            return DrawAreaAtSizeV4(info, allPlaces, TagParser.teams);
+            return DrawAreaAtSizeV4(info, places, TagParser.teams);
         }
 
-        public static byte[] DrawPaintTownSlippyTileSkia(GeoArea relevantArea, int instanceID)
+        public static byte[] DrawPaintTownSlippyTileSkia(ImageStats info, int instanceID)
         {
             //It might be fun on rare occasion to try and draw this all at once, but zoomed out too far and we won't see anything and will be very slow.
             //Find all Cell8s in the relevant area.
             MemoryStream ms = new MemoryStream();
-            var imagesizeX = MapTileSizeSquare;
-            var imagesizeY = MapTileSizeSquare;
-            var Cell8Wide = relevantArea.LongitudeWidth / resolutionCell8;
-            var Cell8High = relevantArea.LatitudeHeight / resolutionCell8;
-            var Cell10PixelSize = resolutionCell10 / relevantArea.LongitudeWidth; //Making this square for now.
-            var resolutionX = relevantArea.LongitudeWidth / imagesizeX;
-            var resolutionY = relevantArea.LatitudeHeight / imagesizeY;
+            var Cell8Wide = info.area.LongitudeWidth / resolutionCell8;
+            var Cell8High = info.area.LatitudeHeight / resolutionCell8;
 
             //These may or may not be the same, even if the map tile is smaller than 1 Cell8.
-            var firstCell8 = new OpenLocationCode(relevantArea.SouthLatitude, relevantArea.WestLongitude).CodeDigits.Substring(0, 8);
-            var lastCell8 = new OpenLocationCode(relevantArea.NorthLatitude, relevantArea.EastLongitude).CodeDigits.Substring(0, 8);
+            var firstCell8 = new OpenLocationCode(info.area.SouthLatitude, info.area.WestLongitude).CodeDigits.Substring(0, 8);
+            var lastCell8 = new OpenLocationCode(info.area.NorthLatitude,info.area.EastLongitude).CodeDigits.Substring(0, 8);
             if (firstCell8 != lastCell8)
             {
                 //quick hack to make sure we process enough data.
@@ -86,35 +74,34 @@ namespace CoreComponents
             for (var x = 0; x < Cell8Wide; x++)
                 for (var y = 0; y < Cell8High; y++)
                 {
-                    var thisCell = new OpenLocationCode(relevantArea.SouthLatitude + (resolutionCell8 * x), relevantArea.WestLongitude + (resolutionCell8 * y)).CodeDigits.Substring(0, 8);
+                    var thisCell = new OpenLocationCode(info.area.SouthLatitude + (resolutionCell8 * x), info.area.WestLongitude + (resolutionCell8 * y)).CodeDigits.Substring(0, 8);
                     var thisData = PaintTown.LearnCell8(instanceID, thisCell);
                     allData.AddRange(thisData);
                 }
 
             //Some image items setup.
-            SkiaSharp.SKBitmap bitmap = new SkiaSharp.SKBitmap(MapTileSizeSquare, MapTileSizeSquare, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul);
-            SkiaSharp.SKCanvas canvas = new SkiaSharp.SKCanvas(bitmap);
-            var bgColor = new SkiaSharp.SKColor();
-            SkiaSharp.SKColor.TryParse("00000000", out bgColor); //this one wants a transparent background.
+            SKBitmap bitmap = new SKBitmap(info.imageSizeX, info.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
+            SKCanvas canvas = new SKCanvas(bitmap);
+            var bgColor = SKColors.Transparent;
             canvas.Clear(bgColor);
-            canvas.Scale(1, -1, MapTileSizeSquare / 2, MapTileSizeSquare / 2);
-            SkiaSharp.SKPaint paint = new SkiaSharp.SKPaint();
-            SkiaSharp.SKColor color = new SkiaSharp.SKColor();
+            canvas.Scale(1, -1, info.imageSizeX / 2, info.imageSizeY / 2);
+            SKPaint paint = new SKPaint();
+            SKColor color = new SKColor();
             paint.IsAntialias = true;
             foreach (var line in allData)
             {
                 var location = OpenLocationCode.DecodeValid(line.Cell10);
                 var placeAsPoly = Converters.GeoAreaToPolygon(location);
-                var path = new SkiaSharp.SKPath();
-                path.AddPoly(Converters.PolygonToSKPoints(placeAsPoly, relevantArea, resolutionX, resolutionY));
-                paint.Style = SkiaSharp.SKPaintStyle.Fill;
-                SkiaSharp.SKColor.TryParse(teamColorReferenceLookupSkia[line.FactionId].FirstOrDefault(), out color);
+                var path = new SKPath();
+                path.AddPoly(Converters.PolygonToSKPoints(placeAsPoly, info.area, info.degreesPerPixelX, info.degreesPerPixelY));
+                paint.Style = SKPaintStyle.Fill;
+                SKColor.TryParse(teamColorReferenceLookupSkia[line.FactionId].FirstOrDefault(), out color);
                 paint.Color = color;
                 canvas.DrawPath(path, paint);
             }
 
-            var skms = new SkiaSharp.SKManagedWStream(ms);
-            bitmap.Encode(skms, SkiaSharp.SKEncodedImageFormat.Png, 100);
+            var skms = new SKManagedWStream(ms);
+            bitmap.Encode(skms, SKEncodedImageFormat.Png, 100);
             var results = ms.ToArray();
             skms.Dispose(); ms.Close(); ms.Dispose();
             return results;
@@ -228,7 +215,7 @@ namespace CoreComponents
             return results;
         }
 
-        public static byte[] DrawAdminBoundsMapTileSlippy(ref List<StoredWay> allPlaces, ImageStats info)
+        public static byte[] DrawAdminBoundsMapTileSlippy(ref List<StoredOsmElement> allPlaces, ImageStats info)
         {
             //The correct replacement for this is to just do the normal draw, but only feed in admin bound areas.
             return null; 
@@ -294,7 +281,7 @@ namespace CoreComponents
             return results;
         }
 
-        public static byte[] DrawCell8V4(GeoArea Cell8, List<StoredWay> drawnItems = null)
+        public static byte[] DrawCell8V4(GeoArea Cell8, List<StoredOsmElement> drawnItems = null)
         {
             //This should become the standard path as I convert parts of the app to the new system.
             //Once it is, copy that code to this function and remove unnecesssary or redundant parts
@@ -303,7 +290,7 @@ namespace CoreComponents
         }
 
 
-        public static byte[] DrawAreaAtSizeV4(GeoArea relevantArea, int imageSizeX, int imageSizeY, List<StoredWay> drawnItems = null, List<TagParserEntry> styles = null)
+        public static byte[] DrawAreaAtSizeV4(GeoArea relevantArea, int imageSizeX, int imageSizeY, List<StoredOsmElement> drawnItems = null, List<TagParserEntry> styles = null)
         {
             //Create an Info object and use that to pass to to the main image.
             ImageStats info = new ImageStats(relevantArea, imageSizeX, imageSizeY);
@@ -314,7 +301,7 @@ namespace CoreComponents
         //Optional parameter allows you to pass in different stuff that the DB alone has, possibly for manual or one-off changes to styling
         //or other elements converted for maptile purposes.
         
-        public static byte[] DrawAreaAtSizeV4(ImageStats stats, List<StoredWay> drawnItems = null, List<TagParserEntry> styles = null)
+        public static byte[] DrawAreaAtSizeV4(ImageStats stats, List<StoredOsmElement> drawnItems = null, List<TagParserEntry> styles = null)
     {
             //This is the new core drawing function. Takes in an area, the items to draw, and the size of the image to draw. 
             //The drawn items get their paint pulled from the TagParser's list. If I need multiple match lists, I'll need to make a way
@@ -326,7 +313,7 @@ namespace CoreComponents
             var db = new PraxisContext();
             var geo = Converters.GeoAreaToPolygon(stats.area);
             if (drawnItems == null)
-                drawnItems = db.StoredWays.Include(c => c.WayTags).Where(w => geo.Intersects(w.wayGeometry)).OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToList();
+                drawnItems = db.StoredWays.Include(c => c.Tags).Where(w => geo.Intersects(w.elementGeometry)).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList();
 
             //baseline image data stuff           
             SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
@@ -338,23 +325,23 @@ namespace CoreComponents
 
             foreach (var w in drawnItems)
             {
-                var tempList = new List<WayTags>();
-                if (w.WayTags != null)
-                    tempList = w.WayTags.ToList();
+                var tempList = new List<ElementTags>();
+                if (w.Tags != null)
+                    tempList = w.Tags.ToList();
                 var style = CoreComponents.TagParser.GetStyleForOsmWay(w);
                 paint = style.paint;
                 if (paint.Color.Alpha == 0)
                     continue; //This area is transparent, skip drawing it entirely.
 
                 var path = new SKPath();
-                switch (w.wayGeometry.GeometryType)
+                switch (w.elementGeometry.GeometryType)
                 {
                     //Polygons without holes are super easy and fast: draw the path.
                     //Polygons with holes require their own bitmap to be drawn correctly and then overlaid onto the canvas.
                     //I want to use paths to fix things for performance reasons, but I have to use Bitmaps because paths apply their blend mode to
                     //ALL elements already drawn, not just the last one.
                     case "Polygon":
-                        var p = w.wayGeometry as Polygon;
+                        var p = w.elementGeometry as Polygon;
                         if (p.Holes.Length == 0)
                         {
                             path.AddPoly(Converters.PolygonToSKPoints(p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
@@ -362,12 +349,12 @@ namespace CoreComponents
                         }
                         else
                         {
-                            var innerBitmap = DrawPolygon((Polygon)w.wayGeometry, paint, stats);
+                            var innerBitmap = DrawPolygon((Polygon)w.elementGeometry, paint, stats);
                             canvas.DrawBitmap(innerBitmap, 0, 0, paint);
                         }
                         break;
                     case "MultiPolygon":
-                        foreach (var p2 in ((MultiPolygon)w.wayGeometry).Geometries)
+                        foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries)
                         {
                             var p2p = p2 as Polygon;
                             if (p2p.Holes.Length == 0)
@@ -383,9 +370,9 @@ namespace CoreComponents
                         }
                         break;
                     case "LineString":
-                        var firstPoint = w.wayGeometry.Coordinates.First();
-                        var lastPoint = w.wayGeometry.Coordinates.Last();
-                        var points = Converters.PolygonToSKPoints(w.wayGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                        var firstPoint = w.elementGeometry.Coordinates.First();
+                        var lastPoint = w.elementGeometry.Coordinates.Last();
+                        var points = Converters.PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                         if (firstPoint.Equals(lastPoint))
                         {
                             //This is a closed shape. Check to see if it's supposed to be filled in.
@@ -400,7 +387,7 @@ namespace CoreComponents
                             canvas.DrawLine(points[line], points[line + 1], paint);
                         break;
                     case "MultiLineString":
-                        foreach (var p3 in ((MultiLineString)w.wayGeometry).Geometries)
+                        foreach (var p3 in ((MultiLineString)w.elementGeometry).Geometries)
                         {
                             //TODO: might want to see if I need to move the LineString logic here, or if multiline string are never filled areas.
                             var points2 = Converters.PolygonToSKPoints(p3, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
@@ -410,7 +397,7 @@ namespace CoreComponents
                         break;
                     case "Point":
                         var circleRadius = (float)(.000125 / stats.degreesPerPixelX / 2); //I want points to be drawn as 1 Cell10 in diameter.
-                        var convertedPoint = Converters.PolygonToSKPoints(w.wayGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                        var convertedPoint = Converters.PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                         canvas.DrawCircle(convertedPoint[0], circleRadius, paint);
                         break;
                     default:

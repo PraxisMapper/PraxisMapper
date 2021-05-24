@@ -237,7 +237,7 @@ namespace Larry
                 var cell6 = args.Where(a => a.StartsWith("-populateEmptyArea:")).First().Split(":")[1];
                 CodeArea box6 = OpenLocationCode.DecodeValid(cell6);
                 var location6 = Converters.GeoAreaToPolygon(box6);
-                var places = db.StoredWays.Where(md => md.wayGeometry.Intersects(location6)).ToList(); //TODO: filter this down to only areas with IsGameElement == true
+                var places = db.StoredWays.Where(md => md.elementGeometry.Intersects(location6)).ToList(); //TODO: filter this down to only areas with IsGameElement == true
                 var fakeplaces = db.GeneratedMapData.Where(md => md.place.Intersects(location6)).ToList();
 
                 for (int x = 0; x < 20; x++)
@@ -247,7 +247,7 @@ namespace Larry
                         string cell8 = cell6 + OpenLocationCode.CodeAlphabet[x] + OpenLocationCode.CodeAlphabet[y];
                         CodeArea box = OpenLocationCode.DecodeValid(cell8);
                         var location = Converters.GeoAreaToPolygon(box);
-                        if (!places.Any(md => md.wayGeometry.Intersects(location)) && !fakeplaces.Any(md => md.place.Intersects(location)))
+                        if (!places.Any(md => md.elementGeometry.Intersects(location)) && !fakeplaces.Any(md => md.place.Intersects(location)))
                             CreateInterestingPlaces(cell8);
                     }
                 }
@@ -302,7 +302,7 @@ namespace Larry
                 var ohioPoly = Converters.GeoAreaToPolygon(ohio);
                 var db = new PraxisContext();
                 db.Database.SetCommandTimeout(900);
-                var stuffToDraw = db.StoredWays.Include(c => c.WayTags).Where(s => s.wayGeometry.Intersects(ohioPoly)).OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToList();
+                var stuffToDraw = db.StoredWays.Include(c => c.Tags).Where(s => s.elementGeometry.Intersects(ohioPoly)).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList();
 
                 //NOTE ordering is skipped to get data back in a reasonable time. This is testing my draw logic speed, not MariaDB's sort speed.
                 //TODO: add timestamps for how long these take to draw. Will see how fast Skia is at various scales. Is Skia faster on big images? no, thats a fluke.
@@ -342,18 +342,13 @@ namespace Larry
             sw.Start();
 
             //ConcurrentBag<MapData>cell6Data = new ConcurrentBag<MapData>();
-            List<StoredWay> cell6Data = new List<StoredWay>();
+            List<StoredOsmElement> cell6Data = new List<StoredOsmElement>();
             if (parentCell.Length == 6)
             {
                 var area = OpenLocationCode.DecodeValid(parentCell);
                 var areaPoly = Converters.GeoAreaToPolygon(area);
                 var tempPlaces = GetPlaces(area); //, null, false, false
-                foreach (var t in tempPlaces)
-                {
-                    t.wayGeometry = t.wayGeometry.Intersection(areaPoly);
-                    cell6Data.Add(t);
-                }
-
+                cell6Data.AddRange(tempPlaces);
             }
 
             //This is fairly well optimized, and I suspect there's not much more I can do here to get this to go faster.
@@ -427,11 +422,11 @@ namespace Larry
                 return;
 
             //Add a Cell8's worth of space to the edges of the area.
-            GeoArea buffered = new GeoArea(fullArea.wayGeometry.EnvelopeInternal.MinY, fullArea.wayGeometry.EnvelopeInternal.MinX, fullArea.wayGeometry.EnvelopeInternal.MaxY, fullArea.wayGeometry.EnvelopeInternal.MaxX);
+            GeoArea buffered = new GeoArea(fullArea.elementGeometry.EnvelopeInternal.MinY, fullArea.elementGeometry.EnvelopeInternal.MinX, fullArea.elementGeometry.EnvelopeInternal.MaxY, fullArea.elementGeometry.EnvelopeInternal.MaxX);
             //var intersectCheck = Converters.GeoAreaToPreparedPolygon(buffered);
             var intersectCheck = Converters.GeoAreaToPolygon(buffered); //Cant use prepared geometry against the db directly
 
-            var allPlaces = mainDb.StoredWays.Where(md => intersectCheck.Intersects(md.wayGeometry)).ToList();
+            var allPlaces = mainDb.StoredWays.Where(md => intersectCheck.Intersects(md.elementGeometry)).ToList();
 
             //now we have the list of places we need to be concerned with. 
             //start drawing maptiles and sorting out data.
@@ -448,7 +443,7 @@ namespace Larry
                     var plusCode = new OpenLocationCode(y, x, 10);
                     var areaForTile = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell8, x + resolutionCell8));
                     var acheck2 = Converters.GeoAreaToPolygon(areaForTile);
-                    var areaList = allPlaces.Where(a => a.wayGeometry.Intersects(acheck2)).Select(a => a.Clone()).ToList();
+                    var areaList = allPlaces.Where(a => a.elementGeometry.Intersects(acheck2)).Select(a => a.Clone()).ToList();
 
                     System.Text.StringBuilder terrainInfo = AreaTypeInfo.SearchArea(ref areaForTile, ref areaList, true);
                     var splitData = terrainInfo.ToString().Split(Environment.NewLine);
@@ -490,7 +485,7 @@ namespace Larry
             var source = new PBFOsmStreamSource(fs);
             var relation = source.ToComplete().Where(s => s.Type == OsmGeoType.Relation && s.Id == oneId).Select(s => (OsmSharp.Complete.CompleteRelation)s).FirstOrDefault();
             var converted = GeometrySupport.ConvertOsmEntryToStoredWay(relation);
-            StoredWay sw = new StoredWay();
+            StoredOsmElement sw = new StoredOsmElement();
             Log.WriteLog("Relevant data pulled from file and converted at" + DateTime.Now);
 
             string destFileName = System.IO.Path.GetFileNameWithoutExtension(filename);

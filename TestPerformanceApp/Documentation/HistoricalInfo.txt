@@ -190,4 +190,18 @@ perf-testing tag parser options
 1000 8-tag match-water lists run in 2343411 ticks(0.234ms avg)
 1000 8-tag default match lists run in 2316723 ticks(0.231ms avg)
 1000 40-tag default match lists run in 23529037 ticks(2.352ms avg)
-Summary: the TagParser engine is sufficiently fast to use. This is about twice as fast as the previous logic in that loop.
+Conclusion: the TagParser engine is sufficiently fast to use. This is about twice as fast as the previous logic in that loop.
+
+Investigating if cropping area is still necessary 5/24/21: (on a Cell6 and a Cell4)
+perf-testing cropping StoredWay objects before drawing
+Loaded 751 objects for test
+Uncropped tile drawn in 121ms
+Geometry objects cropped in 534ms
+Cropped tile drawn in 50ms
+perf-testing cropping StoredWay objects before drawing
+Loaded 370408 objects for test
+Uncropped tile drawn in 8293ms
+Geometry objects cropped in 16418ms
+(//25 geometry errors trimmed)
+Cropped tile drawn in 7463ms
+Conclusion: Cropping geometry objects is no longer a performance boost. I think this changed with the swap from ImageSharp to SkiaSharp for drawing logic.

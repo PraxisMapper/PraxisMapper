@@ -13,6 +13,9 @@ using PraxisMapper.Classes;
 
 namespace PraxisMapper.Controllers
 {
+    //ZZT Controller is meant for players making their own, old school ZZT style games on the map. Real world terrains would let game pieces
+    //change their own behavior, though I will probably allow players to add in their own terrain pieces on top of the real map.
+
     [Route("api/[controller]")]
     [ApiController]
     public class ZztController : Controller

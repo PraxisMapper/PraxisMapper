@@ -21,7 +21,7 @@ namespace CoreComponents
         public DbSet<TileTracking> TileTrackings { get; set; }
         public DbSet<ZztGame> ZztGames { get; set; }
         public DbSet<GamesBeaten> GamesBeaten { get; set; }
-        public DbSet<StoredWay> StoredWays { get; set; }
+        public DbSet<StoredOsmElement> StoredWays { get; set; }
         public DbSet<TagParserEntry> TagParserEntries { get; set; }
         public DbSet<TagParserMatchRule> TagParserMatchRules { get; set; }
 
@@ -50,9 +50,9 @@ namespace CoreComponents
             //Create indexes here.
             model.Entity<PlayerData>().HasIndex(p => p.deviceID); //for updating data
 
-            model.Entity<StoredWay>().HasIndex(m => m.AreaSize); //Enables server-side sorting on biggest-to-smallest draw order.
-            model.Entity<StoredWay>().HasIndex(m => m.sourceItemID);
-            model.Entity<StoredWay>().HasIndex(m => m.sourceItemType);
+            model.Entity<StoredOsmElement>().HasIndex(m => m.AreaSize); //Enables server-side sorting on biggest-to-smallest draw order.
+            model.Entity<StoredOsmElement>().HasIndex(m => m.sourceItemID);
+            model.Entity<StoredOsmElement>().HasIndex(m => m.sourceItemType);
 
             model.Entity<MapTile>().HasIndex(m => m.PlusCode);
             model.Entity<MapTile>().Property(m => m.PlusCode).HasMaxLength(12);
@@ -157,7 +157,7 @@ namespace CoreComponents
         public static void InsertDefaultServerConfig()
         {
             var db = new PraxisContext();
-            db.ServerSettings.Add(new ServerSetting() { NorthBound = 90, SouthBound = -90, EastBound = 180, WestBound = -180 });
+            db.ServerSettings.Add(new ServerSetting() { NorthBound = 90, SouthBound = -90, EastBound = 180, WestBound = -180, SlippyMapTileSizeSquare = 512 });
             db.SaveChanges();
         }
 
