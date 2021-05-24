@@ -16,6 +16,10 @@ namespace CoreComponents
     {
         //Shared class for functions that do work on Geometry objects.
         //GeometryHelper is specific to Larry, and should only contain code that won't be useful outside the console app if any.
+
+        private static NetTopologySuite.IO.WKTReader reader = new NetTopologySuite.IO.WKTReader() {DefaultSRID = 4326 };
+        private static JsonSerializerOptions jso = new JsonSerializerOptions() { };
+        
         public static Polygon CCWCheck(Polygon p)
         {
             if (p == null)
@@ -121,7 +125,7 @@ namespace CoreComponents
             foreach (var md in mapdata)
                 if (md != null) //null can be returned from the functions that convert OSM entries to StoredElement
                 {
-                    var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.storedOsmElement + "|" + t.Key + "|" + t.Value)), md.IsGameElement);
+                    var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement);
                     var test = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
                     results.Add(test);
                     //sw.WriteLine(test);
@@ -136,7 +140,7 @@ namespace CoreComponents
         {
             if (md != null) //null can be returned from the functions that convert OSM entries to StoredElement
             {
-                var recordVersion = new CoreComponents.Support.StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.storedOsmElement + "|" + t.Key + "|" + t.Value)), md.IsGameElement);
+                var recordVersion = new CoreComponents.Support.StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement);
                 var test = JsonSerializer.Serialize(recordVersion, typeof(CoreComponents.Support.StoredOsmElementForJson));
                 File.AppendAllText(filename, test + Environment.NewLine);
             }
@@ -167,13 +171,8 @@ namespace CoreComponents
 
         public static StoredOsmElement ConvertSingleJsonStoredElement(string sw)
         {
-            JsonSerializerOptions jso = new JsonSerializerOptions();
-            jso.AllowTrailingCommas = true;
-            NetTopologySuite.IO.WKTReader reader = new NetTopologySuite.IO.WKTReader();
-            reader.DefaultSRID = 4326;
-
-            StoredOsmElementForJson j = (StoredOsmElementForJson)JsonSerializer.Deserialize(sw.Substring(0, sw.Count() - 1), typeof(StoredOsmElementForJson), jso);//TODO: confirm/deny that substring command is still necessary.
-            var temp = new StoredOsmElement() { id = j.id, name = j.name, sourceItemID = j.sourceItemID, sourceItemType = j.sourceItemType, elementGeometry = reader.Read(j.elementGeometry), IsGameElement = j.IsGameElement };
+            StoredOsmElementForJson j = (StoredOsmElementForJson)JsonSerializer.Deserialize(sw, typeof(StoredOsmElementForJson), jso);
+            var temp = new StoredOsmElement() { id = j.id, name = j.name, sourceItemID = j.sourceItemID, sourceItemType = j.sourceItemType, elementGeometry = reader.Read(j.elementGeometry), IsGameElement = j.IsGameElement, Tags = new List<ElementTags>() };
             if (!string.IsNullOrWhiteSpace(j.WayTags))
             {
                 var tagData = j.WayTags.Split("~");
@@ -181,10 +180,14 @@ namespace CoreComponents
                     foreach (var tag in tagData)
                     {
                         var elements = tag.Split("|");
-                        ElementTags wt = new ElementTags();
-                        wt.storedOsmElement = temp;
-                        wt.Key = elements[1];
-                        wt.Value = elements[2];
+                        if (elements.Length == 2)
+                        {
+                            ElementTags wt = new ElementTags();
+                            wt.storedOsmElement = temp;
+                            wt.Key = elements[0];
+                            wt.Value = elements[1];
+                            temp.Tags.Add(wt);
+                        }
                     }
             }
 

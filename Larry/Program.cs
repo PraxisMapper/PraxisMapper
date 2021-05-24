@@ -152,12 +152,28 @@ namespace Larry
 
             if (args.Any(a => a == "-loadJsonToDb"))
             {
+                var db = new PraxisContext();
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
                 List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.JsonMapDataFolder, "*.json").ToList();
+                long entryCounter = 0;
                 foreach (var jsonFileName in filenames)
                 {
-                    var entries = GeometrySupport.ReadStoredElementsFileToMemory(jsonFileName);
-                    var db = new PraxisContext();
-                    db.StoredOsmElements.AddRange(entries);
+                    var fr = File.OpenRead(jsonFileName);
+                    var sr = new StreamReader(fr);
+                    while (!sr.EndOfStream)
+                    {
+                        StoredOsmElement stored = GeometrySupport.ConvertSingleJsonStoredElement(sr.ReadLine());
+                        db.StoredOsmElements.Add(stored);
+                        entryCounter++;
+                        if (entryCounter > 10000)
+                        {
+                            db.SaveChanges();
+                            entryCounter = 0;
+                            //This limits the RAM creep you'd see from adding 3 million rows at a time.
+                            db = new PraxisContext();
+                            db.ChangeTracker.AutoDetectChangesEnabled = false;
+                        }
+                    }
                     db.SaveChanges();
                 }
             }
