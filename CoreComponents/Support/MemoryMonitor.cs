@@ -20,11 +20,7 @@ namespace CoreComponents.Support
             Log.WriteLog("GC Max Generation: " + GC.MaxGeneration);
 
             //A thread to report RAM use.
-            //GC.RegisterForFullGCNotification(99, 99);//This shows up way below maximum memory on the system. I want to only do this when I'm using swap file. Reports too often, isn't useful the way I want it to be.
-            Task.Factory.StartNew(() => { while (true) { UpdateMaxRamUsed(); System.Threading.Thread.Sleep(15000); } });
-            //Task.Factory.StartNew(() => { while (true) { CheckForGCNotification(); System.Threading.Thread.Sleep(1000); } }); //Shows up way too much
-
-            
+            Task.Factory.StartNew(() => { while (true) { UpdateMaxRamUsed(); System.Threading.Thread.Sleep(15000); } });            
         }
 
         ~MemoryMonitor()

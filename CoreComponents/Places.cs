@@ -13,50 +13,19 @@ namespace CoreComponents
 {
     public static class Place 
     {
-        //for now, anything that does a query on MapData or a list of MapData entries
-        //(To become a place for anything that works with the V4 data set)
+        //for now, anything that does a query on StoredWay or a list of StoredWay entries
         //Places will be the name for interactible or important areas on the map. Was not previously a fixed name for that.
 
-        //This class is pending a rework to the newest storage logic. 
         //All elements in the table with Geometry will be valid, and the TagParser rules will determine which ones are game elements
         //this allows it to be customized much easier, and changed on the fly without reloading data.
         //A lot of the current code will need changed to match that new logic, though. And generated areas may remain separate.
-        //public static List<MapData> GetPlacesMapDAta(GeoArea area, List<MapData> source = null, bool includeAdmin = false, bool includeGenerated= true, double filterSize = 0)
-        //{
-        //    //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
-        //    //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
-        //    List<MapData> places;
-        //    if (source == null)
-        //    {
-        //        var location = Converters.GeoAreaToPolygon(area); //Prepared items don't work on a DB lookup.
-        //        var db = new CoreComponents.PraxisContext();
-        //        if (includeAdmin)
-        //            places = db.MapData.Where(md => location.Intersects(md.place) && md.AreaSize > filterSize).ToList();
-        //        else
-        //            places = db.MapData.Where(md => md.AreaTypeId != 13 && location.Intersects(md.place) && md.AreaSize > filterSize).ToList();
-        //        //TODO: make including generated areas a toggle? or assume that this call is trivial performance-wise on an empty table
-        //        //A toggle might be good since this also affects maptiles
-        //        if (includeGenerated) 
-        //            places.AddRange(db.GeneratedMapData.Where(md => location.Intersects(md.place)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
-        //    }
-        //    else
-        //    {
-        //        var location = Converters.GeoAreaToPreparedPolygon(area);
-        //        if (includeAdmin)
-        //            places = source.Where(md => location.Intersects(md.place) && md.AreaSize > filterSize).Select(md => md.Clone()).ToList();
-        //        else
-        //            places = source.Where(md => md.AreaTypeId != 13 && location.Intersects(md.place) && md.AreaSize > filterSize).Select(md => md.Clone()).ToList();
-        //    }
-        //    return places;
-        //}
-
+        
         public static List<StoredWay> GetPlaces(GeoArea area, List<StoredWay> source = null, double filterSize = 0, List<TagParserEntry> styles = null)
         {
 
             if (styles == null)
                 styles = TagParser.styles;
             //parameters i will need to restore later.
-            //bool includeAdmin = false; this is no longer a hard-coded set. This is now a TagParser thing.
             bool includeGenerated = false;
 
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
@@ -67,8 +36,6 @@ namespace CoreComponents
                 var location = Converters.GeoAreaToPolygon(area); //Prepared items don't work on a DB lookup.
                 var db = new CoreComponents.PraxisContext();
                     places = db.StoredWays.Include(s => s.WayTags).Where(md => location.Intersects(md.wayGeometry)).OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToList(); // && md.AreaSize > filterSize
-                //TODO: make including generated areas a toggle? or assume that this call is trivial performance-wise on an empty table
-                //A toggle might be good since this also affects maptiles
                 //if (includeGenerated)
                     //places.AddRange(db.StoredWays.Where(md => location.Intersects(md.wayGeometry)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
             }
@@ -79,20 +46,6 @@ namespace CoreComponents
             }
             return places;
         }
-
-        //public static List<MapData> GetGeneratedPlaces(GeoArea area, List<MapData> source)
-        //{
-        //    //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
-        //    //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
-        //    List<MapData> places = new List<MapData>();
-        //    if (source == null)
-        //    {
-        //        var db = new CoreComponents.PraxisContext();
-        //        var location = Converters.GeoAreaToPolygon(area); //Prepared items don't work on a DB lookup.
-        //        places.AddRange(db.GeneratedMapData.Where(md => location.Intersects(md.place)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
-        //    }
-        //    return places;
-        //}
 
         public static List<StoredWay> GetGeneratedPlaces(GeoArea area)
         {
@@ -113,36 +66,12 @@ namespace CoreComponents
         {
             //Another function that's replaced by TagParser rules.
             return null;
-
-            //List<StoredWay> places = new List<StoredWay>();
-            //if (source == null)
-            //{
-            //    var db = new CoreComponents.PraxisContext();
-            //    var location = Converters.GeoAreaToPolygon(area);
-            //    var asAdminBounds = db.AdminBounds.Where(md => location.Intersects(md.place)).ToList();
-            //    places = asAdminBounds.Select(m => (MapData)m).ToList();
-            //}
-            //return places;
         }
-
-        //public static List<MapData> GetAdminBoundariesOld(GeoArea area, List<MapData> source = null)
-        //{
-        //    //If you ONLY want to get admin boundaries, use this function. Using GetPlaces searches for all place types, and is very slow by comparison.
-        //    List<MapData> places = new List<MapData>();
-        //    if (source == null)
-        //    {
-        //        var db = new CoreComponents.PraxisContext();
-        //        var location = Converters.GeoAreaToPolygon(area);
-        //        var asAdminBounds =  db.AdminBounds.Where(md => location.Intersects(md.place)).ToList();
-        //        places = asAdminBounds.Select(m => (MapData)m).ToList();
-        //    }
-        //    return places;
-        //}
 
         //Note: This should have the padding added to area before this is called, if checking for tiles that need regenerated.
         public static bool DoPlacesExist(GeoArea area, List<StoredWay> source = null)
         {
-            //As GetPlaces, but only checks if there are entries. This also currently skipss admin boundaries as well for determining if stuff 'exists', since those aren't drawn.
+            //As GetPlaces, but only checks if there are entries.
             bool includeGenerated = false; //parameter to readd later
             var location = Converters.GeoAreaToPolygon(area);
             bool places;
@@ -232,8 +161,6 @@ namespace CoreComponents
                 if (polygon != null)
                 {
                     GeneratedMapData gmd = new GeneratedMapData();
-                    //gmd.AreaTypeId = 100; //a fixed type for when we want to treat generated areas differently than fixed, real world areas.
-                    //gmd.AreaTypeId = r.Next(1, 13); //Randomly assign this area an interesting area type, for games that want one.
                     gmd.name = ""; //not using this on this level. 
                     gmd.place = polygon;
                     gmd.type = "generated";
@@ -290,8 +217,6 @@ namespace CoreComponents
         {
             //Auto-detect what the boundaries are for the database's data set. This might be better off as a Larry command to calculate, and save the results in a DB table.
             //NOTE: with the Aleutian islands, the USA is considered as wide as the entire map. These sit on both sides of the meridian.
-            //Detect which Cell2s are in play.
-            //List<OpenLocationCode> placesToScan = new List<OpenLocationCode>();
             //These 2 start in the opposite corners, to make sure the replacements are correctly detected.
             double SouthLimit = 360; 
             double NorthLimit = -360;
@@ -333,8 +258,6 @@ namespace CoreComponents
 
         public static bool IsInBounds(OpenLocationCode code, ServerSetting bounds)
         {
-            //TODO: Bounds should loaded from the database at startup
-            //right now, they're saved to a cache after the first actual webpage call. 
             var db = new PraxisContext();
             var area = code.Decode();
 
@@ -347,7 +270,7 @@ namespace CoreComponents
             if (bounds == null) //shouldn't happen, sanity check.
                 return true; 
 
-            var area = new OpenLocationCode(code); //Might need to re-add the + if its not present?
+            var area = new OpenLocationCode(code);
             return IsInBounds(area, bounds);
         }
     }
