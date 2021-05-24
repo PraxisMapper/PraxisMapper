@@ -2,8 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using CoreComponents;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -13,7 +16,19 @@ namespace PraxisMapper
     {
         public static void Main(string[] args)
         {
-            CreateHostBuilder(args).Build().Run();
+            var host = CreateHostBuilder(args).Build();
+
+            //Let's save some stuff to the cache.
+            var cache = host.Services.GetRequiredService<IMemoryCache>();
+            var db = new PraxisContext();
+            var serverSettings = db.ServerSettings.FirstOrDefault();
+            cache.Set("ServerSettings", serverSettings);
+            var factions = db.Factions.ToList();
+            cache.Set("Factions", factions);
+            var paintTownConfigs = db.PaintTownConfigs.ToList();
+            cache.Set("PTTConfigs", paintTownConfigs);
+
+            host.Run();
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>

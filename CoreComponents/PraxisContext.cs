@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using System;
 using static CoreComponents.DbTables;
 
 namespace CoreComponents
@@ -114,14 +115,14 @@ namespace CoreComponents
         public static string GeneratedMapDataValidTriggerMSSQL = "CREATE TRIGGER dbo.GenereatedMapDataMakeValid ON dbo.GeneratedMapData AFTER INSERT AS BEGIN UPDATE dbo.GeneratedMapData SET place = place.MakeValid() WHERE GeneratedMapDataId in (SELECT GeneratedMapDataId from inserted) END";
 
         //An index that I don't think EFCore can create correctly automatically.
-        public static string MapDataIndex = "CREATE SPATIAL INDEX MapDataSpatialIndex ON MapData(place)";
+        //public static string MapDataIndex = "CREATE SPATIAL INDEX MapDataSpatialIndex ON MapData(place)";
         public static string GeneratedMapDataIndex = "CREATE SPATIAL INDEX GeneratedMapDataSpatialIndex ON GeneratedMapData(place)";
         public static string MapTileIndex = "CREATE SPATIAL INDEX MapTileSpatialIndex ON MapTiles(areaCovered)";
         public static string SlippyMapTileIndex = "CREATE SPATIAL INDEX SlippyMapTileSpatialIndex ON SlippyMapTiles(areaCovered)";
         public static string StoredWaysIndex = "CREATE SPATIAL INDEX StoredWaysIndex ON StoredWays(wayGeometry)";
 
         //PostgreSQL uses its own CREATE INDEX command
-        public static string MapDataIndexPG = "CREATE INDEX mapdata_geom_idx ON public.\"MapData\" USING GIST(place)";
+        //public static string MapDataIndexPG = "CREATE INDEX mapdata_geom_idx ON public.\"MapData\" USING GIST(place)";
         public static string GeneratedMapDataIndexPG = "CREATE INDEX generatedmapdata_geom_idx ON public.\"GeneratedMapData\" USING GIST(place)";
         public static string MapTileIndexPG = "CREATE INDEX maptiles_geom_idx ON public.\"MapTiles\" USING GIST(\"areaCovered\")";
         public static string SlippyMapTileIndexPG = "CREATE INDEX slippmayptiles_geom_idx ON public.\"SlippyMapTiles\" USING GIST(\"areaCovered\")";
@@ -148,25 +149,22 @@ namespace CoreComponents
             //PostgreSQL will make automatic spatial indexes
             if (serverMode == "PostgreSQL")
             {
-                db.Database.ExecuteSqlRaw(PraxisContext.MapDataIndexPG); //PostgreSQL needs its own create-index syntax
-                db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataIndexPG);
-                db.Database.ExecuteSqlRaw(PraxisContext.MapTileIndexPG);
-                db.Database.ExecuteSqlRaw(PraxisContext.SlippyMapTileIndexPG);
-                db.Database.ExecuteSqlRaw(PraxisContext.StoredWaysIndexPG);
+                db.Database.ExecuteSqlRaw(GeneratedMapDataIndexPG);
+                db.Database.ExecuteSqlRaw(MapTileIndexPG);
+                db.Database.ExecuteSqlRaw(SlippyMapTileIndexPG);
+                db.Database.ExecuteSqlRaw(StoredWaysIndexPG);
             }
             else //SQL Server and MariaDB share the same syntax here
             {
-                db.Database.ExecuteSqlRaw(PraxisContext.MapDataIndex);
-                db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataIndex);
-                db.Database.ExecuteSqlRaw(PraxisContext.MapTileIndex);
-                db.Database.ExecuteSqlRaw(PraxisContext.SlippyMapTileIndex);
-                db.Database.ExecuteSqlRaw(PraxisContext.StoredWaysIndex);
+                db.Database.ExecuteSqlRaw(GeneratedMapDataIndex);
+                db.Database.ExecuteSqlRaw(MapTileIndex);
+                db.Database.ExecuteSqlRaw(SlippyMapTileIndex);
+                db.Database.ExecuteSqlRaw(StoredWaysIndex);
             }
 
             if (serverMode == "SQLServer")
             {
-                db.Database.ExecuteSqlRaw(PraxisContext.MapDataValidTriggerMSSQL);
-                db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataValidTriggerMSSQL);
+                db.Database.ExecuteSqlRaw(GeneratedMapDataValidTriggerMSSQL);
             }
             if (serverMode == "MariaDB")
             {
@@ -175,7 +173,7 @@ namespace CoreComponents
 
             InsertDefaultServerConfig();
             InsertDefaultFactionsToDb();
-            //InsertDefaultPaintTownConfigs();
+            InsertDefaultPaintTownConfigs();
             InsertDefaultStyle();
         }
 
@@ -227,6 +225,26 @@ namespace CoreComponents
                 db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT TagParserEntries OFF;");
                 db.Database.CommitTransaction();
             }
+        }
+
+        public static void InsertDefaultPaintTownConfigs()
+        {
+            var db = new PraxisContext();
+            //we set the reset time to next Saturday at midnight for a default.
+            var nextSaturday = DateTime.Now.AddDays(6 - (int)DateTime.Now.DayOfWeek);
+            nextSaturday.AddHours(-nextSaturday.Hour);
+            nextSaturday.AddMinutes(-nextSaturday.Minute);
+            nextSaturday.AddSeconds(-nextSaturday.Second);
+
+            var tomorrow = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day).AddDays(1);
+            db.PaintTownConfigs.Add(new PaintTownConfig() { Name = "All-Time", Cell10LockoutTimer = 300, DurationHours = -1, NextReset = nextSaturday });
+            db.PaintTownConfigs.Add(new PaintTownConfig() { Name = "Weekly", Cell10LockoutTimer = 300, DurationHours = 168, NextReset = nextSaturday });
+            //db.PaintTownConfigs.Add(new PaintTownConfig() { Name = "Daily", Cell10LockoutTimer = 30, DurationHours = 24, NextReset = tomorrow });
+
+            //PaintTheTown requires dummy entries in the playerData table, or it doesn't know which factions exist. It's faster to do this once here than to check on every call to playerData
+            foreach (var faction in Singletons.defaultFaction)
+                db.PlayerData.Add(new PlayerData() { deviceID = "dummy" + faction.FactionId, FactionId = faction.FactionId });
+            db.SaveChanges();
         }
     }
 }

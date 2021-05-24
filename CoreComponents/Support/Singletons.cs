@@ -150,7 +150,7 @@ namespace CoreComponents
                 new TagParserMatchRule() { Key = "boundary", Value = "census", MatchType = "equals" },
             }},
             //Transparents: Explicitly things that don't help when drawn in one color.
-            new TagParserEntry() { id = 24, name ="donotdraw", HtmlColorCode = "00000000",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() {
+            new TagParserEntry() { id = 25, name ="donotdraw", HtmlColorCode = "00000000",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() {
                 new TagParserMatchRule() { Key = "place", Value = "locality|islet", MatchType = "any" },
             }},
 
