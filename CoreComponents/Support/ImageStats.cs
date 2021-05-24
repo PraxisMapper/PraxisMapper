@@ -10,6 +10,7 @@ namespace CoreComponents.Support
     public class ImageStats
     {
         //a small helper class to calculate and reuse some common calculations
+        //TODO: start passing this into converters to cut down the number of parameters used.
         public int imageSizeX { get; set; }
         public int imageSizeY { get; set; }
         public double degreesPerPixelX { get; set; }

@@ -39,7 +39,7 @@ namespace CoreComponents
             if (p.Shell.IsCCW)
                 return p;
 
-            return null; //not CCW either way? Happen occasionally for some reason, and it will fail to write to the DB. I think its related to lines crossing over each other multiple times.
+            return null; //not CCW either way? Happen occasionally for some reason, and it will fail to write to a SQL Server DB. I think its related to lines crossing over each other multiple times?
         }
 
         public static Geometry SimplifyArea(Geometry place)
@@ -116,18 +116,13 @@ namespace CoreComponents
         public static void WriteStoredWayListToFile(string filename, ref List<StoredWay> mapdata)
         {
             StreamWriter sw = new StreamWriter(filename);
-            //sw.Write("[" + Environment.NewLine);
             foreach (var md in mapdata)
-            {
                 if (md != null) //null can be returned from the functions that convert OSM entries to MapData
                 {
                     var recordVersion = new StoredWayForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.wayGeometry.AsText(), string.Join("~", md.WayTags.Select(t => t.storedWay + "|" + t.Key + "|" + t.Value)), md.IsGameElement);
                     var test = JsonSerializer.Serialize(recordVersion, typeof(StoredWayForJson));
                     sw.WriteLine(test);
-                    //sw.WriteLine("," + Environment.NewLine);
                 }
-            }
-            //sw.Write("]");
             sw.Close();
             sw.Dispose();
             Log.WriteLog("All StoredWay entries were serialized individually and saved to file at " + DateTime.Now);
@@ -179,7 +174,6 @@ namespace CoreComponents
             {
                 var tagData = j.WayTags.Split("~");
                 if (tagData.Count() > 0)
-                {
                     foreach (var tag in tagData)
                     {
                         var elements = tag.Split("|");
@@ -188,13 +182,11 @@ namespace CoreComponents
                         wt.Key = elements[1];
                         wt.Value = elements[2];
                     }
-                }
             }
 
             if (temp.wayGeometry is Polygon)
-            {
                 temp.wayGeometry = GeometrySupport.CCWCheck((Polygon)temp.wayGeometry);
-            }
+
             if (temp.wayGeometry is MultiPolygon)
             {
                 MultiPolygon mp = (MultiPolygon)temp.wayGeometry;
