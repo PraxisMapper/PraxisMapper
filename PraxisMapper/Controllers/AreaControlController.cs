@@ -57,8 +57,8 @@ namespace PraxisMapper.Controllers
         public bool ClaimArea(long MapDataId, int factionId)
         {
             PraxisContext db = new PraxisContext();
-            var mapData = db.StoredWays.Where(md => md.id == MapDataId).FirstOrDefault();
-            var teamClaim = db.AreaControlTeams.Where(a => a.StoredWayId == MapDataId).FirstOrDefault();
+            var mapData = db.StoredOsmElements.Where(md => md.id == MapDataId).FirstOrDefault();
+            var teamClaim = db.AreaControlTeams.Where(a => a.StoredElementId == MapDataId).FirstOrDefault();
             if (teamClaim == null)
             {
                 teamClaim = new DbTables.AreaControlTeam();
@@ -69,7 +69,7 @@ namespace PraxisMapper.Controllers
                     //mapData = db.GeneratedMapData.Where(md => md.GeneratedMapDataId == MapDataId - 100000000).Select(m => new MapData() { MapDataId = MapDataId, place = m.place }).FirstOrDefault();
                     //teamClaim.IsGeneratedArea = true;
                 }
-                teamClaim.StoredWayId = MapDataId;
+                teamClaim.StoredElementId = MapDataId;
                 teamClaim.points = GetScoreForSinglePlace(mapData.elementGeometry);
             }
             teamClaim.FactionId = factionId;
@@ -176,7 +176,7 @@ namespace PraxisMapper.Controllers
             string results = "";
             //return a separated list of maptiles that need updated.
             var db = new PraxisContext();
-            var md = db.StoredWays.Where(m => m.id == mapDataId).FirstOrDefault();
+            var md = db.StoredOsmElements.Where(m => m.id == mapDataId).FirstOrDefault();
             var space = md.elementGeometry.Envelope;
             var geoAreaToRefresh = new GeoArea(new GeoPoint(space.Coordinates.Min().Y, space.Coordinates.Min().X), new GeoPoint(space.Coordinates.Max().Y, space.Coordinates.Max().X));
             var Cell8XTiles = geoAreaToRefresh.LongitudeWidth / resolutionCell8;
@@ -206,8 +206,8 @@ namespace PraxisMapper.Controllers
             //Return the area name (or type if unnamed), the team that owns it, and its point cost (pipe-separated)
             PerformanceTracker pt = new PerformanceTracker("AreaOwners");
             var db = new PraxisContext();
-            var owner = db.AreaControlTeams.Where(a => a.StoredWayId == mapDataId).FirstOrDefault();
-            var mapData = db.StoredWays.Where(m => m.id == mapDataId).FirstOrDefault();
+            var owner = db.AreaControlTeams.Where(a => a.StoredElementId == mapDataId).FirstOrDefault();
+            var mapData = db.StoredOsmElements.Where(m => m.id == mapDataId).FirstOrDefault();
             //if (mapData == null && (Configuration.GetValue<bool>("generateAreas") == true)) //TODO restore this feature.
                 //mapData = db.GeneratedMapData.Where(m => m.GeneratedMapDataId == mapDataId - 100000000).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }).FirstOrDefault();
             if (mapData == null)

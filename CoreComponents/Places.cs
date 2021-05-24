@@ -36,11 +36,11 @@ namespace CoreComponents
                 var location = Converters.GeoAreaToPolygon(area); //Prepared items don't work on a DB lookup.
                 var db = new CoreComponents.PraxisContext();
                 if (skipTags) //Should make the load slightly faster, when we do something like a team control check, where the data we want to look at isn't in the OSM tags.
-                    places = db.StoredWays.Where(md => location.Intersects(md.elementGeometry)).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList(); // && md.AreaSize > filterSize
+                    places = db.StoredOsmElements.Where(md => location.Intersects(md.elementGeometry)).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList(); // && md.AreaSize > filterSize
                 else
-                    places = db.StoredWays.Include(s => s.Tags).Where(md => location.Intersects(md.elementGeometry)).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList(); // && md.AreaSize > filterSize
+                    places = db.StoredOsmElements.Include(s => s.Tags).Where(md => location.Intersects(md.elementGeometry)).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList(); // && md.AreaSize > filterSize
                                                                                                                                                                                                                  //if (includeGenerated)
-                                                                                                                                                                                                                 //places.AddRange(db.StoredWays.Where(md => location.Intersects(md.elementGeometry)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
+                                                                                                                                                                                                                 //places.AddRange(db.StoredOsmElements.Where(md => location.Intersects(md.elementGeometry)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
             }
             else
             {
@@ -81,7 +81,7 @@ namespace CoreComponents
             if (source == null)
             {
                 var db = new PraxisContext();
-                places = db.StoredWays.Any(md => md.elementGeometry.Intersects(location));
+                places = db.StoredOsmElements.Any(md => md.elementGeometry.Intersects(location));
                 if (includeGenerated)
                     places = places; // || db.GeneratedMapData.Any(md => md.place.Intersects(location));
                 return places;
@@ -93,7 +93,7 @@ namespace CoreComponents
             return places;
         }
 
-        public static List<GeneratedMapData> CreateInterestingPlaces(string plusCode, bool autoSave = true)
+        public static List<GeneratedElement> CreateInterestingPlaces(string plusCode, bool autoSave = true)
         {
             //expected to receive a Cell8
             // populate it with some interesting regions for players.
@@ -101,7 +101,7 @@ namespace CoreComponents
             CodeArea cell8 = OpenLocationCode.DecodeValid(plusCode); //Reminder: resolution is .0025 on a Cell8
             int shapeCount = 1; // 2; //number of shapes to apply to the Cell8
             double shapeWarp = .3; //percentage a shape is allowed to have each vertexs drift by.
-            List<GeneratedMapData> areasToAdd = new List<GeneratedMapData>();
+            List<GeneratedElement> areasToAdd = new List<GeneratedElement>();
 
             for (int i = 0; i < shapeCount; i++)
             {
@@ -163,7 +163,7 @@ namespace CoreComponents
                 }
                 if (polygon != null)
                 {
-                    GeneratedMapData gmd = new GeneratedMapData();
+                    GeneratedElement gmd = new GeneratedElement();
                     gmd.name = ""; //not using this on this level. 
                     gmd.place = polygon;
                     gmd.type = "generated";
@@ -197,7 +197,7 @@ namespace CoreComponents
         {
             //Debugging helper call. Loads up some information on an area and display it.
             var db = new PraxisContext();
-            var entries = db.StoredWays.Where(m => m.id == id || m.sourceItemID == id).ToList();
+            var entries = db.StoredOsmElements.Where(m => m.id == id || m.sourceItemID == id).ToList();
             string results = "";
             foreach (var entry in entries)
             {

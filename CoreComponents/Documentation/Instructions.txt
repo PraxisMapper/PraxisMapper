@@ -1,35 +1,33 @@
 ﻿Requirements: 16+GB RAM (Will still page frequently with the most complicated areas, but they all finish in ~45 minutes in the worst case with an SSD)
 Global database is current ~45GB, would want at least 64GB RAM for a DB server to hold everything in memory.
-TODO: check if EFCore.BulkExtensions custom version is used by Larry, or if that's being overwritten by the NuGet version. It's not used on the web server app, so im not sure i need that custom file.
-
 
 Important Things to Remember:
-* This is not a MapTiles server, in the way that MapBox, or Google Maps Playable Locations, or Niantic etc. would provide.
--- https://openmaptiles.org/ is the place to go for a server that generates high-res map tiles.
-* This is a way to track Interesting Areas, and the game can decide how to display the map separately, or how Interesting Areas are treated.
+* This can function as a MapTile provider. The work to draw fully accurate mapTiles has been done. But primarily we want to be a game server.
+-- as much as MapTiles aren't the game itself, MapTiles are the primary thing people notice.
 * It's OK to do something that's already been done your own way. It's important to have an option that isn't under corporate control.
 * We use PlusCodes instead of S2 cells.
 -- Plus Codes are more human-friendly, in that you could remember 4-10 digits for a certain area. S2 cells are much harder to remember for a person. They're designed for indexing in a DB faster.
 -- They're square along cardinal directions. S2 cells are rhombus-shaped.
 -- A human can figure out how to navigate between 2 PlusCodes with some practice. This is possible on S2 cells, but requires much, much more effort.
 
-
 How to run this:
 
-1) Create and configure SQL Server or MariaDB for this app. Update connection string in Larry/ParserSettings.cs, create DB by running "Larry -createDB"
+1) Create and configure your DB (SQL Server, MariaDB, or PostgreSQL) for this app. Update connection string in Larry/ParserSettings.cs, create DB by running "Larry -createDB"
 
 2) Download the latest .osm.pbf files to use from Geofabrik.de (or another OSM mirror) and unzip them to the appropriate folder.
---Global data takes a long time to process, use the smallest data file/set reasonable for development and testing.
+--Use the smallest data file/set reasonable for development and testing. Files take up at least 10x the amount of RAM the filesize on disk. Usually more.
 --State-level is usually reasonable. Some specific areas have issues processing because of the amount of detail on some things. (Norway and Quebec have a ton of water entries in tiny details, for example)
+--the apps can filter down a file to a smaller area, for cases where a reasonable-sized file eats more ram than we have.
 
 3) Assuming this is a first setup, Run Larry with these arguments in order (separately is ideal, but could do all at once with enough RAM):
 -createDB (Creates DB according to the connection string.)
--trimPbfFiles(reads all .osm.pbf files in a folder, saves as JSON data to another folder. May take several runs to complete depending on RAM and file size being processed. Might get replaced or removed in the future since this no longer creates smaller files.)
-[If your file fails to complete, you may want to try -trimPbfsByType to split each category into its own output file.]
--readMapData (Reads the JSON files for MapData, saves to DB)
+-loadPbfsToDb (if you have the RAM to handle each individual file sequentially, this is the fastest process)
+OR
+-loadPbfsToJson
+-loadJsonToDb
+for a two-step process that makes later work faster.
 
-for changes that affect everything (EX: I changed tag types to process, i want new ways/updates from OSM), run Larry with -resetPbf and -resetJson, then follow step 3 again
-For changes that only affect processedWays/SPOIs (EX: testing a better approximation algorithm for ProcessedWays, changing schema on SPOI db table), i can read in existing JSON files instead of OSM PBFs
+Functions to replace entries in-line exist, but currently expect you to have used loadPbfsToJson.
 
 Server-side, assuming you want an AWS node running Windows Server.:
 Set AWS Security rules to only allow RDP from a narrow range (single IP if possible, /24 block for ISP if not.)
@@ -43,9 +41,8 @@ Should return something on error so I can figure out why a call doesnt work. I a
 Slippy map tiles are in!
 Go to /Slippy to view a nice, web style map viewer powered by PraxisMapper!
 
-Set these as the arguments for Larry to redo everything at once:
--cleanDB -resetPbf -resetJson -trimPbfFiles -readMapData -removeDupes
-
+Set these as the arguments for Larry to redo everything at once: (Assuming you have the ram to process your PBF files in question.)
+-cleanDB -resetPbf -resetJson -loadPbfsToDb -removeDupes
 
 Notes:
 Database side:
@@ -55,15 +52,6 @@ DECLARE @p1 geography
   SELECT * FROM MapData
   WHERE @p1.STWithin(place) = 1
 
-
- Logic:
- * If a node has an interesting place tag, treat it as a single point of interest
- * If a way has an interesting place tag, and is a polygon or a linestring,
- ** Check if it's area is smaller than a 10-cell (.000125 degrees)
- *** If so, treat it as a single point of interest
- ** Make a MapData entry for the area.
- * If a relation has an interesting place tag, treat any areas inside it as that type.
- * Relations might be named by a node with a Label tag instead of a name tag on the relation.
 
  Test Functions:
  -AnalyzeAllAreas

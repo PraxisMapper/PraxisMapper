@@ -86,7 +86,7 @@ namespace CoreComponents
             return simplerPlace;
         }
 
-        public static StoredOsmElement ConvertOsmEntryToStoredWay(OsmSharp.Complete.ICompleteOsmGeo g)
+        public static StoredOsmElement ConvertOsmEntryToStoredElement(OsmSharp.Complete.ICompleteOsmGeo g)
         {
             var feature = OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(g);
             if (feature.Count() != 1)
@@ -113,11 +113,11 @@ namespace CoreComponents
             return sw;
         }
 
-        public static void WriteStoredWayListToFile(string filename, ref List<StoredOsmElement> mapdata)
+        public static void WriteStoredElementListToFile(string filename, ref List<StoredOsmElement> mapdata)
         {
             StreamWriter sw = new StreamWriter(filename);
             foreach (var md in mapdata)
-                if (md != null) //null can be returned from the functions that convert OSM entries to MapData
+                if (md != null) //null can be returned from the functions that convert OSM entries to StoredElement
                 {
                     var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.storedOsmElement + "|" + t.Key + "|" + t.Value)), md.IsGameElement);
                     var test = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
@@ -125,12 +125,12 @@ namespace CoreComponents
                 }
             sw.Close();
             sw.Dispose();
-            Log.WriteLog("All StoredWay entries were serialized individually and saved to file at " + DateTime.Now);
+            Log.WriteLog("All StoredElement entries were serialized individually and saved to file at " + DateTime.Now);
         }
 
-        public static void WriteSingleStoredWayToFile(string filename, StoredOsmElement md) //, bool open = false, bool close = false
+        public static void WriteSingleStoredElementToFile(string filename, StoredOsmElement md) //, bool open = false, bool close = false
         {
-            if (md != null) //null can be returned from the functions that convert OSM entries to MapData
+            if (md != null) //null can be returned from the functions that convert OSM entries to StoredElement
             {
                 var recordVersion = new CoreComponents.Support.StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.storedOsmElement + "|" + t.Key + "|" + t.Value)), md.IsGameElement);
                 var test = JsonSerializer.Serialize(recordVersion, typeof(CoreComponents.Support.StoredOsmElementForJson));
@@ -138,7 +138,7 @@ namespace CoreComponents
             }
         }
 
-        public static List<StoredOsmElement> ReadStoredWaysFileToMemory(string filename)
+        public static List<StoredOsmElement> ReadStoredElementsFileToMemory(string filename)
         {
             StreamReader sr = new StreamReader(filename);
             List<StoredOsmElement> lm = new List<StoredOsmElement>();
@@ -149,7 +149,7 @@ namespace CoreComponents
             while (!sr.EndOfStream)
             {
                 string line = sr.ReadLine();
-                var sw = ConvertSingleJsonStoredWay(line);
+                var sw = ConvertSingleJsonStoredElement(line);
                 lm.Add(sw);
             }
 
@@ -161,7 +161,7 @@ namespace CoreComponents
             return lm;
         }
 
-        public static StoredOsmElement ConvertSingleJsonStoredWay(string sw)
+        public static StoredOsmElement ConvertSingleJsonStoredElement(string sw)
         {
             JsonSerializerOptions jso = new JsonSerializerOptions();
             jso.AllowTrailingCommas = true;

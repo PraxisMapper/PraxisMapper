@@ -175,7 +175,7 @@ namespace CoreComponents
         public static void UpdateDbForStyleChange() //Unused, but potentially important if I am saving geometry formats based on the default tag results. If I'm doing that, i should stop.
         {
             var db = new PraxisContext();
-            foreach (var sw in db.StoredWays)
+            foreach (var sw in db.StoredOsmElements)
             {
                 var paintStyle = GetStyleForOsmWay(sw);
                 if (sw.elementGeometry.GeometryType == "LinearRing" && paintStyle.paint.Style == SKPaintStyle.Fill)

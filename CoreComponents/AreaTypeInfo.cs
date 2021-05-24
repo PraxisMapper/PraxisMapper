@@ -17,8 +17,8 @@ namespace CoreComponents
             //If points are not allowed, remove them from the list
             //if filtersize is not 0, remove all lines and areas with an area below filtersize. Overrides allowPoints, always acts as allowPoints = false
             //If there's only one place, take it without any additional queries. Otherwise:
-            //if there's a Point in the mapdata list, take the first one (No additional sub-sorting applied yet)
-            //else if there's a Line in the mapdata list, take the shortest one by length
+            //if there's a Point in the storedElements list, take the first one (No additional sub-sorting applied yet)
+            //else if there's a Line in the storedElements list, take the shortest one by length
             //else if there's polygonal areas here, take the smallest one by area 
             //(In general, the smaller areas should be overlaid on larger areas.)
 
@@ -50,10 +50,10 @@ namespace CoreComponents
             return entry.name + "|" + entry.sourceItemType + "|" + entry.sourceItemID;
         }
 
-        public static StringBuilder SearchArea(ref GeoArea area, ref List<StoredOsmElement> mapData, bool entireCode = false)
+        public static StringBuilder SearchArea(ref GeoArea area, ref List<StoredOsmElement> elements, bool entireCode = false)
         {
             StringBuilder sb = new StringBuilder();
-            if (mapData.Count() == 0)
+            if (elements.Count() == 0)
                 return sb;
 
             var xCells = area.LongitudeWidth / resolutionCell10;
@@ -66,7 +66,7 @@ namespace CoreComponents
                     double x = area.Min.Longitude + (resolutionCell10 * xx);
                     double y = area.Min.Latitude + (resolutionCell10 * yy);
 
-                    var placesFound = FindPlacesInCell10(x, y, ref mapData, entireCode);
+                    var placesFound = FindPlacesInCell10(x, y, ref elements, entireCode);
                     if (!string.IsNullOrWhiteSpace(placesFound))
                         sb.AppendLine(placesFound);
                 }

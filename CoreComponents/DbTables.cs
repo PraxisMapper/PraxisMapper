@@ -37,7 +37,6 @@ namespace CoreComponents
             public long MapTileId { get; set; } //int should be OK for a limited range game and/or big tiles. Making this long just to make sure.
             public string PlusCode { get; set; } //MapTiles are drawn for Cell8 or Cell10 areas.
             public byte[] tileData { get; set; } //png binary data.
-            //public bool regenerate { get; set; } //TODO: If 1, re-make this tile because MapData for the area has changed. This might be done just by deleting the old map tile.
             public int resolutionScale { get; set; } //10 or 11, depending on the Cell size 1 pixel is. Usually 11
             public int mode { get; set; } //is this for general use, multiplayer area control. 1 = 'baseline map', 2 = 'Multiplayer Area Control' overlay.
             public DateTime CreatedOn { get; set; } //Timestamp for when a map tile was generated
@@ -51,7 +50,7 @@ namespace CoreComponents
         {
             public long AreaControlTeamId { get; set; }
             public long FactionId { get; set; }
-            public long StoredWayId { get; set; }
+            public long StoredElementId { get; set; }
             public bool IsGeneratedArea { get; set; }
             public long points { get; set; } //a quick reference of how many cells this area takes to own. Saving here to reduce calculations if/when I set up a scoreboard of areas owned.
             public DateTime claimedAt { get; set; }
@@ -64,9 +63,9 @@ namespace CoreComponents
             public string HtmlColor { get; set; } //Should be transparent, so this can be overlaid on top of the normal map tile.
         }
 
-        public class GeneratedMapData
+        public class GeneratedElement
         {
-            public long GeneratedMapDataId { get; set; } 
+            public long GeneratedElementId { get; set; } 
             public string name { get; set; } //probably won't get a specific name by default, but games may want one here.
 
             [Column(TypeName = "geography")]

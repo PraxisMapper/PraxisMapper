@@ -127,32 +127,39 @@ namespace Larry
                 FileCommands.ResetFiles(ParserSettings.JsonMapDataFolder);
             }
 
-            //Replace with V4 import call.
-            //if (args.Any(a => a == "-trimPbfFiles"))
-            //{
-            //    FileCommands.MakeAllSerializedFilesFromPBF();
-            //}
-
-            //if (args.Any(a => a.StartsWith("-trimPbfsByType")))
-            //{
-            //    List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
-            //    foreach (string filename in filenames)
-            //        PbfOperations.SerializeSeparateFilesFromPBF(filename);
-            //}
-
-            //if (args.Any(a => a.StartsWith("-lastChance")))
-            //{
-            //    //split this arg
-            //    var areaType = args.Where(a => a.StartsWith("-lastChance")).First().Split(":")[1];
-            //    List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
-            //    foreach (string filename in filenames)
-            //        PbfOperations.LastChanceSerializer(filename, areaType);
-            //}
-
-            if (args.Any(a => a == "-readMapData"))
+            if (args.Any(a => a == "-loadPbfsToDb"))
             {
-                //TODO: replace this function with a StoredWays version.
-                //DBCommands.AddMapDataToDBFromFiles();
+                List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
+                foreach (string filename in filenames)
+                {
+                    var fs = File.OpenRead(filename);
+                    var osmStream = new PBFOsmStreamSource(fs);
+                    PbfFileParser.ProcessFileCoreV4(osmStream);
+                }
+            }
+
+            if (args.Any(a => a == "-loadPbfsToJson"))
+            {
+                List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
+                foreach (string filename in filenames)
+                {
+                    string jsonFileName = ParserSettings.JsonMapDataFolder + Path.GetFileNameWithoutExtension(filename) + ".json";
+                    var fs = File.OpenRead(filename);
+                    var osmStream = new PBFOsmStreamSource(fs);
+                    PbfFileParser.ProcessFileCoreV4(osmStream, true, jsonFileName);
+                }
+            }
+
+            if (args.Any(a => a == "-loadJsonToDb"))
+            {
+                List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.JsonMapDataFolder, "*.json").ToList();
+                foreach (var jsonFileName in filenames)
+                {
+                    var entries = GeometrySupport.ReadStoredElementsFileToMemory(jsonFileName);
+                    var db = new PraxisContext();
+                    db.StoredOsmElements.AddRange(entries);
+                    db.SaveChanges();
+                }
             }
 
             if (args.Any(a => a == "-updateDatabase"))
@@ -172,13 +179,6 @@ namespace Larry
 
                 int relationId = args.Where(a => a.StartsWith("-createStandalone")).First().Split('|')[1].ToInt();
                 CreateStandaloneDB(relationId, false, true); //How map tiles are handled is determined by the optional parameters
-            }
-
-            if (args.Any(a => a.StartsWith("-checkFile:")))
-            {
-                //scan a file for information on what will or won't load.
-                string arg = args.Where(a => a.StartsWith("-checkFile:")).First().Replace("-checkFile:", "");
-                PbfOperations.ValidateFile(arg);
             }
 
             if (args.Any(a => a == "-autoCreateMapTiles")) //better for letting the app decide which tiles to create than manually calling out Cell6 names.
@@ -237,7 +237,7 @@ namespace Larry
                 var cell6 = args.Where(a => a.StartsWith("-populateEmptyArea:")).First().Split(":")[1];
                 CodeArea box6 = OpenLocationCode.DecodeValid(cell6);
                 var location6 = Converters.GeoAreaToPolygon(box6);
-                var places = db.StoredWays.Where(md => md.elementGeometry.Intersects(location6)).ToList(); //TODO: filter this down to only areas with IsGameElement == true
+                var places = db.StoredOsmElements.Where(md => md.elementGeometry.Intersects(location6)).ToList(); //TODO: filter this down to only areas with IsGameElement == true
                 var fakeplaces = db.GeneratedMapData.Where(md => md.place.Intersects(location6)).ToList();
 
                 for (int x = 0; x < 20; x++)
@@ -253,8 +253,8 @@ namespace Larry
                 }
             }
 
-            if (args.Any(a => a.StartsWith("-importV4")))
-            {
+            //if (args.Any(a => a.StartsWith("-importV4")))
+            //{
                 // 4th generation of logic for importing OSM data from PBF file.
                 //V4 rules:
                 //Tags will be saved to a separate table. (this lets me update formatting rules without reimporting data).
@@ -268,13 +268,13 @@ namespace Larry
 
                 //NOTE: this worked fine once. I added node processing, and then it crashed on an OOM error at 8GB? But i also had my usual system stuff running in the background, include a browser.
                 //Continue testing on bigger files to see if there's issues somewhere still. If so, might need to implement in some skip/take logic to stay within ram limit
-                TagParser.Initialize(true);
-                List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
-                foreach (string filename in filenames)
-                {
-                    V4Import.ProcessFilePiecesV4(filename);
-                }
-            }
+            //    TagParser.Initialize(true);
+            //    List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
+            //    foreach (string filename in filenames)
+            //    {
+            //        V4Import.ProcessFilePiecesV4(filename);
+            //    }
+            //}
 
             //new V4 options to piecemeal up some of the process.
             if (args.Any(a => a.StartsWith("-splitToSubPbfs")))
@@ -289,29 +289,29 @@ namespace Larry
             }
 
             //testing generic image drawing function
-            if (args.Any(a => a.StartsWith("-testDrawOhio")))
-            {
-                //remove admin boundaries from the map.
-                TagParser.Initialize(true);
-                var makeAdminClear = TagParser.styles.Where(s => s.name == "admin").FirstOrDefault();
-                makeAdminClear.paint.Color = SKColors.Transparent;
+            //if (args.Any(a => a.StartsWith("-testDrawOhio")))
+            //{
+            //    //remove admin boundaries from the map.
+            //    TagParser.Initialize(true);
+            //    var makeAdminClear = TagParser.styles.Where(s => s.name == "admin").FirstOrDefault();
+            //    makeAdminClear.paint.Color = SKColors.Transparent;
 
-                //GeoArea ohio = new GeoArea(38, -84, 42, -80); //All of the state, hits over 10GB in C# memory space
-                //GeoArea ohio = new GeoArea(41.2910, -81.9257, 41.6414,  -81.3970); //Cleveland
-                GeoArea ohio = new GeoArea(41.49943, -81.61139, 41.50612, -81.60201); //CWRU
-                var ohioPoly = Converters.GeoAreaToPolygon(ohio);
-                var db = new PraxisContext();
-                db.Database.SetCommandTimeout(900);
-                var stuffToDraw = db.StoredWays.Include(c => c.Tags).Where(s => s.elementGeometry.Intersects(ohioPoly)).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList();
+            //    //GeoArea ohio = new GeoArea(38, -84, 42, -80); //All of the state, hits over 10GB in C# memory space
+            //    //GeoArea ohio = new GeoArea(41.2910, -81.9257, 41.6414,  -81.3970); //Cleveland
+            //    GeoArea ohio = new GeoArea(41.49943, -81.61139, 41.50612, -81.60201); //CWRU
+            //    var ohioPoly = Converters.GeoAreaToPolygon(ohio);
+            //    var db = new PraxisContext();
+            //    db.Database.SetCommandTimeout(900);
+            //    var stuffToDraw = db.StoredOsmElements.Include(c => c.Tags).Where(s => s.elementGeometry.Intersects(ohioPoly)).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList();
 
-                //NOTE ordering is skipped to get data back in a reasonable time. This is testing my draw logic speed, not MariaDB's sort speed.
-                //TODO: add timestamps for how long these take to draw. Will see how fast Skia is at various scales. Is Skia faster on big images? no, thats a fluke.
-                File.WriteAllBytes("cwru-512.png", MapTiles.DrawAreaAtSizeV4(ohio, 512, 512, stuffToDraw)); //63 ohio, 3.3 cleveland
-                File.WriteAllBytes("cwru-1024.png", MapTiles.DrawAreaAtSizeV4(ohio, 1024, 1024, stuffToDraw));//63.7 seconds, 3.6 cleveland
-                File.WriteAllBytes("cleveland-2048.png", MapTiles.DrawAreaAtSizeV4(ohio, 2048, 2048, stuffToDraw)); //58 seconds, 3.9 cleveland
-                File.WriteAllBytes("cleveland-4096.png", MapTiles.DrawAreaAtSizeV4(ohio, 4096, 4096, stuffToDraw)); //51 seconds, 5.3 cleveland
-                File.WriteAllBytes("cleveland-reallybig.png", MapTiles.DrawAreaAtSizeV4(ohio, 15000, 15000, stuffToDraw)); //100 seconds, 21.7 cleveland
-            }
+            //    //NOTE ordering is skipped to get data back in a reasonable time. This is testing my draw logic speed, not MariaDB's sort speed.
+            //    //TODO: add timestamps for how long these take to draw. Will see how fast Skia is at various scales. Is Skia faster on big images? no, thats a fluke.
+            //    File.WriteAllBytes("cwru-512.png", MapTiles.DrawAreaAtSizeV4(ohio, 512, 512, stuffToDraw)); //63 ohio, 3.3 cleveland
+            //    File.WriteAllBytes("cwru-1024.png", MapTiles.DrawAreaAtSizeV4(ohio, 1024, 1024, stuffToDraw));//63.7 seconds, 3.6 cleveland
+            //    File.WriteAllBytes("cleveland-2048.png", MapTiles.DrawAreaAtSizeV4(ohio, 2048, 2048, stuffToDraw)); //58 seconds, 3.9 cleveland
+            //    File.WriteAllBytes("cleveland-4096.png", MapTiles.DrawAreaAtSizeV4(ohio, 4096, 4096, stuffToDraw)); //51 seconds, 5.3 cleveland
+            //    File.WriteAllBytes("cleveland-reallybig.png", MapTiles.DrawAreaAtSizeV4(ohio, 15000, 15000, stuffToDraw)); //100 seconds, 21.7 cleveland
+            //}
 
         }
 
@@ -417,7 +417,7 @@ namespace Larry
             var sqliteDb = new StandaloneContext(relationID.ToString());// "placeholder";
             sqliteDb.Database.EnsureCreated();
 
-            var fullArea = mainDb.StoredWays.Where(m => m.sourceItemID == relationID && m.sourceItemType == 3).FirstOrDefault();
+            var fullArea = mainDb.StoredOsmElements.Where(m => m.sourceItemID == relationID && m.sourceItemType == 3).FirstOrDefault();
             if (fullArea == null)
                 return;
 
@@ -426,7 +426,7 @@ namespace Larry
             //var intersectCheck = Converters.GeoAreaToPreparedPolygon(buffered);
             var intersectCheck = Converters.GeoAreaToPolygon(buffered); //Cant use prepared geometry against the db directly
 
-            var allPlaces = mainDb.StoredWays.Where(md => intersectCheck.Intersects(md.elementGeometry)).ToList();
+            var allPlaces = mainDb.StoredOsmElements.Where(md => intersectCheck.Intersects(md.elementGeometry)).ToList();
 
             //now we have the list of places we need to be concerned with. 
             //start drawing maptiles and sorting out data.
@@ -484,12 +484,12 @@ namespace Larry
             FileStream fs = new FileStream(filename, FileMode.Open);
             var source = new PBFOsmStreamSource(fs);
             var relation = source.ToComplete().Where(s => s.Type == OsmGeoType.Relation && s.Id == oneId).Select(s => (OsmSharp.Complete.CompleteRelation)s).FirstOrDefault();
-            var converted = GeometrySupport.ConvertOsmEntryToStoredWay(relation);
+            var converted = GeometrySupport.ConvertOsmEntryToStoredElement(relation);
             StoredOsmElement sw = new StoredOsmElement();
             Log.WriteLog("Relevant data pulled from file and converted at" + DateTime.Now);
 
             string destFileName = System.IO.Path.GetFileNameWithoutExtension(filename);
-            GeometrySupport.WriteSingleStoredWayToFile(ParserSettings.JsonMapDataFolder + destFileName + "-MapData-Test.json", converted);
+            GeometrySupport.WriteSingleStoredElementToFile(ParserSettings.JsonMapDataFolder + destFileName + "-MapData-Test.json", converted);
             //DBCommands.AddMapDataToDBFromFiles();
         }
 
