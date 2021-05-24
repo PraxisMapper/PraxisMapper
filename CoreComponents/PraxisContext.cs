@@ -102,7 +102,8 @@ namespace CoreComponents
         public void MakePraxisDB()
         {
             PraxisContext db = new PraxisContext();
-            db.Database.EnsureCreated(); //all the automatic stuff EF does for us
+            if (!db.Database.EnsureCreated()) //all the automatic stuff EF does for us
+                return;
 
             //Not automatic entries executed below:
             //PostgreSQL will make automatic spatial indexes
