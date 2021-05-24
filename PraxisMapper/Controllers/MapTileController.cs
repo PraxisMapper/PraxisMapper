@@ -2,19 +2,13 @@
 using CoreComponents.Support;
 using Google.OpenLocationCode;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
-using NetTopologySuite.Geometries;
 using PraxisMapper.Classes;
-using SkiaSharp;
 using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using static CoreComponents.DbTables;
 using static CoreComponents.Place;
-using static CoreComponents.TagParser;
 
 namespace PraxisMapper.Controllers
 {
@@ -43,9 +37,6 @@ namespace PraxisMapper.Controllers
         public FileContentResult DrawSlippyTile(int x, int y, int zoom, int layer)
         {
             //slippymaps don't use coords. They use a grid from -180W to 180E, 85.0511N to -85.0511S (they might also use radians, not degrees, for an additional conversion step)
-            //with 2^zoom level tiles in place. so, i need to do some math to get a coordinate
-            //X: -180 + ((360 / 2^zoom) * X)
-            //Y: 8
             //Remember to invert Y to match PlusCodes going south to north.
             //BUT Also, PlusCodes have 20^(zoom/2) tiles, and Slippy maps have 2^zoom tiles, this doesn't even line up nicely.
             //Slippy Map tiles might just have to be their own thing.
@@ -60,7 +51,6 @@ namespace PraxisMapper.Controllers
                 if (existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
                 {
                     //Create this entry
-
                     var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare, MapTiles.MapTileSizeSquare);
                     var filterSize = info.area.LatitudeHeight / 128; //Height is always <= width, so use that divided by vertical resolution to get 1 pixel's size in degrees. Don't load stuff smaller than that.
                                                               //Test: set to 128 instead of 512: don't load stuff that's not 4 pixels ~.008 degrees at zoom 8.
@@ -73,21 +63,19 @@ namespace PraxisMapper.Controllers
                         case 1: //Base map tile
                             //add some padding so we don't clip off points at the edge of a tile
                             var places = GetPlaces(dataLoadArea); //includeGenerated: false, filterSize: filterSize  //NOTE: in this case, we want generated areas to be their own slippy layer, so the config setting is ignored here.
-                            //results = MapTiles.DrawAreaMapTileSlippySkia(ref places, relevantArea, areaHeightDegrees, areaWidthDegrees);
                             results = MapTiles.DrawAreaAtSizeV4(info, places);
                             expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                             break;
                         case 2: //PaintTheTown overlay. 
-                            results = MapTiles.DrawPaintTownSlippyTileSkia(info.area, 2);
+                            results = MapTiles.DrawPaintTownSlippyTileSkia(info, 2);
                             expires = DateTime.Now.AddMinutes(1); //We want this to be live-ish, but not overwhelming, so we cache this for 60 seconds.
                             break;
                         case 3: //MultiplayerAreaControl overlay.
-                            results = MapTiles.DrawMPAreaMapTileSlippySkia(info);
+                            results = MapTiles.DrawMPAreaControlMapTile(info);
                             expires = DateTime.Now.AddYears(10); //These expire when an area inside gets claimed now, so we can let this be permanent.
                             break;
                         case 4: //GeneratedMapData areas.
                             var places2 = GetGeneratedPlaces(dataLoadArea); //NOTE: this overlay doesn't need to check the config, since it doesn't create them, just displays them as their own layer.
-                            //results = MapTiles.DrawAreaMapTileSlippySkia(ref places2, info.area, areaHeightDegrees, areaWidthDegrees, true);
                             results = MapTiles.DrawAreaAtSizeV4(info, places2);
                             expires = DateTime.Now.AddYears(10); //again, assuming these don't change unless you manually updated entries.
                             break;
@@ -100,9 +88,8 @@ namespace PraxisMapper.Controllers
                             expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                             break;
                         case 7: //This might be the layer that shows game areas on the map. Draw outlines of them. Means games will also have a Geometry object attached to them for indexing.
-                            //7 is currently testing for V4 data setup, drawing all OSM Ways on the map tile.
-                            //results = SlippyTestV4(x, y, zoom, 7);
-                            var places7 = GetPlaces(dataLoadArea); //includeGenerated: false, filterSize: filterSize  //NOTE: in this case, we want generated areas to be their own slippy layer, so the config setting is ignored here.
+                            //7 is currently a duplicate of 1, since the testing code has been promoted to the main drawing method now.
+                            var places7 = GetPlaces(dataLoadArea);
                             results = MapTiles.DrawAreaAtSizeV4(info, places7);
                             expires = DateTime.Now.AddHours(10);
                             break;
@@ -166,19 +153,6 @@ namespace PraxisMapper.Controllers
             //NOTE: URL limitations block this from being a usable REST style path, so this one may require reading data bindings from the body instead
             string path = new System.IO.StreamReader(Request.Body).ReadToEnd();
             return MapTiles.DrawUserPath(path);
-        }
-
-        [HttpGet]
-        [Route("/[controller]/DrawSlippyTileV4Test/{x}/{y}/{zoom}/{layer}")]
-        public byte[] SlippyTestV4(int x, int y, int zoom, int layer)
-        {
-            var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare, MapTiles.MapTileSizeSquare);
-
-            var db = new PraxisContext();
-            var geo = Converters.GeoAreaToPolygon(info.area);
-            var drawnItems = db.StoredWays.Include(c => c.WayTags).Where(w => geo.Intersects(w.wayGeometry)).OrderByDescending(w => w.wayGeometry.Area).ThenByDescending(w => w.wayGeometry.Length).ToList();
-
-            return MapTiles.DrawAreaAtSizeV4(info, drawnItems);
-        }        
+        }   
     }
 }

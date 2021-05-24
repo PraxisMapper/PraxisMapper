@@ -1,19 +1,17 @@
 ﻿using CoreComponents;
+using CoreComponents.Support;
 using Google.OpenLocationCode;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
-using NetTopologySuite.Geometries.Prepared;
 using PraxisMapper.Classes;
 using System;
 using System.IO;
 using System.Linq;
 using static CoreComponents.ConstantValues;
-using static CoreComponents.Converters;
 using static CoreComponents.DbTables;
 using static CoreComponents.Place;
 using static CoreComponents.ScoreData;
-using static CoreComponents.Singletons;
 
 namespace PraxisMapper.Controllers
 {
@@ -72,63 +70,18 @@ namespace PraxisMapper.Controllers
                     //teamClaim.IsGeneratedArea = true;
                 }
                 teamClaim.StoredWayId = MapDataId;
-                teamClaim.points = GetScoreForSinglePlace(mapData.wayGeometry);
+                teamClaim.points = GetScoreForSinglePlace(mapData.elementGeometry);
             }
             teamClaim.FactionId = factionId;
             teamClaim.claimedAt = DateTime.Now;
             db.SaveChanges();
             //Tuple<long, int> shortcut = new Tuple<long, int>(MapDataId, factionId); //tell the application later not to hit the DB on every tile for this entry.
             //ExpireAreaControlMapTilesCell8(mapData); //If this works correctly, i can set a much longer default expiration value on AreaControl tiles than 1 minute I currently use.
-            MapTiles.ExpireMapTiles(mapData.wayGeometry, 2);
-            MapTiles.ExpireSlippyMapTiles(mapData.wayGeometry, 2);
+            MapTiles.ExpireMapTiles(mapData.elementGeometry, 2);
+            MapTiles.ExpireSlippyMapTiles(mapData.elementGeometry, 2);
             
             return true;
         }
-
-        //public static void ExpireAreaControlMapTilesCell8(MapData md)
-        //{
-        //    PerformanceTracker pt = new PerformanceTracker("ExpireAreaControlMapTilesCell8");
-        //    var db = new PraxisContext();
-        //    var space = md.place.Envelope;
-        //    var geoAreaToRefresh = new GeoArea(new GeoPoint(space.Coordinates.Min().Y, space.Coordinates.Min().X), new GeoPoint(space.Coordinates.Max().Y, space.Coordinates.Max().X));
-        //    var Cell8XTiles = geoAreaToRefresh.LongitudeWidth / resolutionCell8;
-        //    var Cell8YTiles = geoAreaToRefresh.LatitudeHeight / resolutionCell8;
-
-        //    double minx = geoAreaToRefresh.WestLongitude;
-        //    double miny = geoAreaToRefresh.SouthLatitude;
-
-        //    var expiringTiles = db.MapTiles.Where(m => m.mode == 2 && m.areaCovered.Intersects(md.place)).ToList();
-        //    foreach(var et in expiringTiles)
-        //    {
-        //        et.ExpireOn = DateTime.Now; //The player is waiting for their claim to process. Mark them done and move on, redraw the map tile on next request to load it.
-        //    }
-        //    db.SaveChanges();
-
-        //    //int xTiles = (int)Cell8XTiles + 1;
-        //    //IPreparedGeometry pg = pgf.Create(md.place); //this is supposed to be faster than regular geometry.
-        //    //for (var x = 0; x < xTiles; x++)
-        //    //{
-
-        //    //    int yTiles = (int)(Cell8YTiles + 1);
-        //    //    for (var y = 0; y < Cell8YTiles; y++)
-        //    //    {
-        //    //        var db2 = new PraxisContext();
-        //    //        var olc = new OpenLocationCode(new GeoPoint(miny + (resolutionCell8 * y), minx + (resolutionCell8 * x)));
-        //    //        var olc8 = olc.CodeDigits.Substring(0, 8);
-        //    //        var olcPoly = GeoAreaToPolygon(OpenLocationCode.DecodeValid(olc8));
-        //    //        if (pg.Intersects(olcPoly))
-        //    //        {
-        //    //            var maptiles8 = db2.MapTiles.Where(m => m.PlusCode == olc8 && m.resolutionScale == 11 && m.mode == 2).FirstOrDefault();
-        //    //            if (maptiles8 != null)
-        //    //            {
-        //    //                maptiles8.ExpireOn = DateTime.Now.AddDays(-1);
-        //    //            }    
-        //    //        }
-        //    //        db2.SaveChanges();
-        //    //    }
-        //    //}
-        //    pt.Stop(md.MapDataId + "|" + md.name);
-        //}
 
         [HttpGet]
         [Route("/[controller]/GetFactions")]
@@ -155,12 +108,13 @@ namespace PraxisMapper.Controllers
             //We will try to minimize rework done.
             var db = new PraxisContext();
             var baseMapTile = db.MapTiles.Where(mt => mt.PlusCode == Cell8 && mt.resolutionScale == 11 && mt.mode == 1).FirstOrDefault();
+            System.Collections.Generic.List<StoredOsmElement> places = null;
+            GeoArea pluscode = OpenLocationCode.DecodeValid(Cell8);
             if (baseMapTile == null) //These don't expire, they should be cleared out on data change, or should I check expiration anyways?
             {
                 //Create this map tile.
-                GeoArea pluscode = OpenLocationCode.DecodeValid(Cell8);
-                var places = GetPlaces(pluscode); //, includeGenerated: Configuration.GetValue<bool>("generateAreas") //TODO restore generated area logic.
-                var tile = MapTiles.DrawCell8V4(pluscode, places); //MapTiles.DrawAreaMapTileSkia(ref places, pluscode, 11);
+                places = GetPlaces(pluscode); //, includeGenerated: Configuration.GetValue<bool>("generateAreas") //TODO restore generated area logic.
+                var tile = MapTiles.DrawCell8V4(pluscode, places); 
                 baseMapTile = new MapTile() { CreatedOn = DateTime.Now, mode = 1, PlusCode = Cell8, resolutionScale = 11, tileData = tile, areaCovered = Converters.GeoAreaToPolygon(pluscode) };
                 db.MapTiles.Add(baseMapTile);
                 db.SaveChanges();
@@ -172,8 +126,11 @@ namespace PraxisMapper.Controllers
                 //Draw this entry
                 //requires a list of colors to use, which might vary per app
                 GeoArea CellEightArea = OpenLocationCode.DecodeValid(Cell8);
-                var places = GetPlaces(CellEightArea); // , includeGenerated: Configuration.GetValue<bool>("generateAreas") TODO restore generated area logic.
-                var results = MapTiles.DrawAreaAtSizeV4(CellEightArea, 80, 100, places, TagParser.teams); //MapTiles.DrawMPControlAreaMapTileSkia(CellEightArea, 11); //TODO replacing this one requires multiple style list support.
+                if (places == null) //Don't download the data twice if we already have it, just reset the tags.
+                    places = GetPlaces(CellEightArea, skipTags: true); // , includeGenerated: Configuration.GetValue<bool>("generateAreas") TODO restore generated area logic.
+
+                ImageStats info = new ImageStats(pluscode, 80, 100); //Cell8 size
+                var results = MapTiles.DrawMPAreaControlMapTile(info, places);
                 if (factionColorTile == null) //create a new entry
                 {
                     factionColorTile = new MapTile() { PlusCode = Cell8, CreatedOn = DateTime.Now, mode = 2, resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(CellEightArea) };
@@ -190,6 +147,7 @@ namespace PraxisMapper.Controllers
 
             //Some image items setup.
             //hard-coded, the size of a Cell8 with res11 is 80x100
+            //TODO: functionalize layering tiles?
             SkiaSharp.SKBitmap bitmap = new SkiaSharp.SKBitmap(80, 100, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul);
             SkiaSharp.SKCanvas canvas = new SkiaSharp.SKCanvas(bitmap);
             SkiaSharp.SKPaint paint = new SkiaSharp.SKPaint();
@@ -219,7 +177,7 @@ namespace PraxisMapper.Controllers
             //return a separated list of maptiles that need updated.
             var db = new PraxisContext();
             var md = db.StoredWays.Where(m => m.id == mapDataId).FirstOrDefault();
-            var space = md.wayGeometry.Envelope;
+            var space = md.elementGeometry.Envelope;
             var geoAreaToRefresh = new GeoArea(new GeoPoint(space.Coordinates.Min().Y, space.Coordinates.Min().X), new GeoPoint(space.Coordinates.Max().Y, space.Coordinates.Max().X));
             var Cell8XTiles = geoAreaToRefresh.LongitudeWidth / resolutionCell8;
             var Cell8YTiles = geoAreaToRefresh.LatitudeHeight / resolutionCell8;
@@ -229,7 +187,7 @@ namespace PraxisMapper.Controllers
                 {
                     var olc = new OpenLocationCode(new GeoPoint(geoAreaToRefresh.SouthLatitude + (resolutionCell8 * y), geoAreaToRefresh.WestLongitude + (resolutionCell8 * x)));
                     var olcPoly = Converters.GeoAreaToPolygon(olc.Decode());
-                    if (md.wayGeometry.Intersects(olcPoly)) //If this intersects the original way, redraw that tile. Lets us minimize work for oddly-shaped areas.
+                    if (md.elementGeometry.Intersects(olcPoly)) //If this intersects the original way, redraw that tile. Lets us minimize work for oddly-shaped areas.
                     {
                         results += olc.CodeDigits + "|";
                     }
@@ -263,12 +221,12 @@ namespace PraxisMapper.Controllers
             {
                 var factionName = db.Factions.Where(f => f.FactionId == owner.FactionId).FirstOrDefault().Name;
                 pt.Stop();
-                return mapData.name + "|" + factionName + "|" + GetScoreForSinglePlace(mapData.wayGeometry);
+                return mapData.name + "|" + factionName + "|" + GetScoreForSinglePlace(mapData.elementGeometry);
             }
             else
             {
                 pt.Stop();
-                return mapData.name + "|Nobody|" + GetScoreForSinglePlace(mapData.wayGeometry);
+                return mapData.name + "|Nobody|" + GetScoreForSinglePlace(mapData.elementGeometry);
             }
         }
 

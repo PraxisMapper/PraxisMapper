@@ -151,6 +151,7 @@ namespace CoreComponents
             public double EastBound { get; set; }
             public double SouthBound { get; set; }
             public double WestBound { get; set; }
+            public int SlippyMapTileSizeSquare { get; set; }
         }
 
         public class SlippyMapTile
@@ -186,7 +187,7 @@ namespace CoreComponents
         //This is the new, 4th iteration of geography data storage for PraxisMapper.
         //All types can be stored in this one table, though some data will be applied on read
         //because the TagParser will determine it on-demand instead of storing changeable data.
-        public class StoredWay
+        public class StoredOsmElement
         {
             public long id { get; set; }
             public string name { get; set; }
@@ -195,8 +196,8 @@ namespace CoreComponents
             
             [Column(TypeName = "geography")]
             [Required]
-            public Geometry wayGeometry { get; set; }
-            public ICollection<WayTags> WayTags { get; set; }
+            public Geometry elementGeometry { get; set; }
+            public ICollection<ElementTags> Tags { get; set; }
             public bool IsGameElement { get; set; } //To use when determining if this element should or shouldn't be used as an answer when determining game interaction in an area.
             [NotMapped]
             public string GameElementName { get; set; } //Placeholder for TagParser to load up the name of the matching style for this element, but don't save it to the DB so we can change it on the fly.
@@ -207,16 +208,16 @@ namespace CoreComponents
                 return (sourceItemType == 3 ? "Relation " : sourceItemType == 2 ? "Way " : "Node ") +  sourceItemID.ToString() + ":" + name;
             }
 
-            public StoredWay Clone()
+            public StoredOsmElement Clone()
             {
-                return (StoredWay)this.MemberwiseClone();
+                return (StoredOsmElement)this.MemberwiseClone();
             }
         }
                 
-        public class WayTags
+        public class ElementTags
         {
             public long id { get; set; }
-            public StoredWay storedWay { get; set; }
+            public StoredOsmElement storedOsmElement { get; set; }
             public string Key { get; set; }
             public string Value { get; set; }
 

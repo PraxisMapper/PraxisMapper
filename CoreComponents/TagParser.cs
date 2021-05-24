@@ -57,14 +57,14 @@ namespace CoreComponents
             tpe.paint = paint;
         }
 
-        public static TagParserEntry GetStyleForOsmWay(StoredWay sw)
+        public static TagParserEntry GetStyleForOsmWay(StoredOsmElement sw)
         {
-            var style = GetStyleForOsmWay(sw.WayTags.ToList());
+            var style = GetStyleForOsmWay(sw.Tags.ToList());
             sw.GameElementName = style.name;
             return style;
         }
 
-        public static TagParserEntry GetStyleForOsmWay(List<WayTags> tags)
+        public static TagParserEntry GetStyleForOsmWay(List<ElementTags> tags)
     {
             if (tags == null || tags.Count() == 0)
                 return defaultStyle;
@@ -80,16 +80,16 @@ namespace CoreComponents
 
         public static TagParserEntry GetStyleForOsmWay(TagsCollectionBase tags)
         {
-            var tempTags = tags.Select(t => new WayTags() { Key = t.Key, Value = t.Value }).ToList();
+            var tempTags = tags.Select(t => new ElementTags() { Key = t.Key, Value = t.Value }).ToList();
             return GetStyleForOsmWay(tempTags);
         }
 
         public static string GetAreaType(TagsCollectionBase tags)
         {
-            var tempTags = tags.Select(t => new WayTags() { Key = t.Key, Value = t.Value }).ToList();
+            var tempTags = tags.Select(t => new ElementTags() { Key = t.Key, Value = t.Value }).ToList();
             return GetAreaType(tempTags);
         }
-        public static string GetAreaType(List<WayTags> tags)
+        public static string GetAreaType(List<ElementTags> tags)
         {
             if (tags == null || tags.Count() == 0)
                 return defaultStyle.name;
@@ -101,12 +101,12 @@ namespace CoreComponents
             return defaultStyle.name;
         }
 
-        public static bool MatchOnTags(TagParserEntry tpe, StoredWay sw)
+        public static bool MatchOnTags(TagParserEntry tpe, StoredOsmElement sw)
         {
-            return MatchOnTags(tpe, sw.WayTags.ToList());
+            return MatchOnTags(tpe, sw.Tags.ToList());
         }
         
-        public static bool MatchOnTags(TagParserEntry tpe, List<WayTags> tags)
+        public static bool MatchOnTags(TagParserEntry tpe, List<ElementTags> tags)
         {
             //Changing this to return as soon as any entry fails makes it run about twice as fast.
             bool OrMatched = false;
@@ -178,15 +178,15 @@ namespace CoreComponents
             foreach (var sw in db.StoredWays)
             {
                 var paintStyle = GetStyleForOsmWay(sw);
-                if (sw.wayGeometry.GeometryType == "LinearRing" && paintStyle.paint.Style == SKPaintStyle.Fill)
+                if (sw.elementGeometry.GeometryType == "LinearRing" && paintStyle.paint.Style == SKPaintStyle.Fill)
                 {
-                    var poly = factory.CreatePolygon((LinearRing)sw.wayGeometry);
-                    sw.wayGeometry = poly;
+                    var poly = factory.CreatePolygon((LinearRing)sw.elementGeometry);
+                    sw.elementGeometry = poly;
                 }
             }
         }
 
-        public static List<WayTags> getFilteredTags(TagsCollectionBase rawTags)
+        public static List<ElementTags> getFilteredTags(TagsCollectionBase rawTags)
         {
             return rawTags.Where(t =>
                 t.Key != "source" &&
@@ -227,7 +227,7 @@ namespace CoreComponents
                 !t.Key.StartsWith("turn:") &&
                 !t.Key.StartsWith("was:")
                 )
-                .Select(t => new WayTags() { Key = t.Key, Value = t.Value }).ToList();
+                .Select(t => new ElementTags() { Key = t.Key, Value = t.Value }).ToList();
         }
 
         public static string GetPlaceName(TagsCollectionBase tagsO) //Should this be part of TagParser? Probably.

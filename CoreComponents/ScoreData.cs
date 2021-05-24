@@ -15,7 +15,7 @@ namespace CoreComponents
         //Lines are measured in their length.  (A trail that's 25 * resolutionCell10 long is 25 Score)
         //OSM points are assigned a Score of 1 as the minimum interactable size object. 
 
-        public static string GetScoresForArea(Geometry areaPoly, List<StoredWay> places)
+        public static string GetScoresForArea(Geometry areaPoly, List<StoredOsmElement> places)
         {
             //Determines the Scores for the Places, limited to the intersection of the current Area. 1 Cell10 = 1 Score.
             //EX: if a park overlaps 800 Cell10s, but the current area overlaps 250 of them, this returns 250 for that park.
@@ -23,7 +23,7 @@ namespace CoreComponents
             List<Tuple<string, int, long>> areaSizes = new List<Tuple<string, int, long>>();
             foreach (var md in places)
             {
-                var containedArea = md.wayGeometry.Intersection(areaPoly);
+                var containedArea = md.elementGeometry.Intersection(areaPoly);
                 var areaCell10Count = GetScoreForSinglePlace(containedArea);
                 areaSizes.Add(new Tuple<string, int, long>(md.name, areaCell10Count, md.sourceItemID));
             }
@@ -31,13 +31,13 @@ namespace CoreComponents
         }
 
 
-        public static string GetScoresForFullArea(List<StoredWay> places)
+        public static string GetScoresForFullArea(List<StoredOsmElement> places)
         {
             //As above, but counts the Places' full area, not the area in the given Cell8 or Cell10. 
             Dictionary<string, int> areaSizes = new Dictionary<string, int>();
             foreach (var place in places)
             {
-                areaSizes.Add(place.name, GetScoreForSinglePlace(place.wayGeometry));
+                areaSizes.Add(place.name, GetScoreForSinglePlace(place.elementGeometry));
             }
             return string.Join(Environment.NewLine, areaSizes.Select(a => a.Key + "|" + a.Value));
         }

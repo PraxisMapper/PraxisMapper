@@ -8,10 +8,10 @@ using static CoreComponents.Place;
 
 namespace CoreComponents
 {
-    //this is data on an Area (PlusCode cell), so AreaTypeInfo is the correct name. Places are StoredWay entries.
+    //this is data on an Area (PlusCode cell), so AreaTypeInfo is the correct name. Places are StoredOsmElement entries.
     public static class AreaTypeInfo 
     {
-        public static StoredWay PickSmallestEntry(List<StoredWay> entries, bool allowPoints = true, double filterSize = 0)
+        public static StoredOsmElement PickSmallestEntry(List<StoredOsmElement> entries, bool allowPoints = true, double filterSize = 0)
         {
             //Current sorting rules:
             //If points are not allowed, remove them from the list
@@ -23,10 +23,10 @@ namespace CoreComponents
             //(In general, the smaller areas should be overlaid on larger areas.)
 
             if (!allowPoints)
-                entries = entries.Where(e => e.wayGeometry.GeometryType != "Point").ToList();
+                entries = entries.Where(e => e.elementGeometry.GeometryType != "Point").ToList();
 
             if (filterSize != 0) // remove areatypes where the total area is below this.
-                entries = entries.Where(e => e.wayGeometry.GeometryType == "Polygon" || e.wayGeometry.GeometryType == "MultiPolygon")
+                entries = entries.Where(e => e.elementGeometry.GeometryType == "Polygon" || e.elementGeometry.GeometryType == "MultiPolygon")
                     //.Where(e => e.place.Area >= filterSize)
                     .Where(e => e.AreaSize >= filterSize)
                     .ToList();
@@ -34,23 +34,23 @@ namespace CoreComponents
             if (entries.Count() == 1) //simple optimization, but must be applied after parameter rules are applied.
                 return entries.First();
 
-            var place = entries.Where(e => e.wayGeometry.GeometryType == "Point").FirstOrDefault();
+            var place = entries.Where(e => e.elementGeometry.GeometryType == "Point").FirstOrDefault();
             if (place == null)
-                place = entries.Where(e => e.wayGeometry.GeometryType == "LineString" || e.wayGeometry.GeometryType == "MultiLineString").OrderBy(e => e.AreaSize).FirstOrDefault();
+                place = entries.Where(e => e.elementGeometry.GeometryType == "LineString" || e.elementGeometry.GeometryType == "MultiLineString").OrderBy(e => e.AreaSize).FirstOrDefault();
             if (place == null)
-                place = entries.Where(e => e.wayGeometry.GeometryType == "Polygon" || e.wayGeometry.GeometryType == "MultiPolygon").OrderBy(e => e.AreaSize).FirstOrDefault();
+                place = entries.Where(e => e.elementGeometry.GeometryType == "Polygon" || e.elementGeometry.GeometryType == "MultiPolygon").OrderBy(e => e.AreaSize).FirstOrDefault();
             return place;
         }
 
 
-        public static string DetermineAreaPlace(List<StoredWay> entriesHere)
+        public static string DetermineAreaPlace(List<StoredOsmElement> entriesHere)
         {
             //Which Place in this given Area is the one that should be displayed on the game/map as the name? picks the smallest one.
             var entry = PickSmallestEntry(entriesHere);
             return entry.name + "|" + entry.sourceItemType + "|" + entry.sourceItemID;
         }
 
-        public static StringBuilder SearchArea(ref GeoArea area, ref List<StoredWay> mapData, bool entireCode = false)
+        public static StringBuilder SearchArea(ref GeoArea area, ref List<StoredOsmElement> mapData, bool entireCode = false)
         {
             StringBuilder sb = new StringBuilder();
             if (mapData.Count() == 0)
@@ -76,7 +76,7 @@ namespace CoreComponents
 
 
         //The core data transfer function for the original mode planned.
-        public static string FindPlacesInCell10(double x, double y, ref List<StoredWay> places, bool entireCode = false)
+        public static string FindPlacesInCell10(double x, double y, ref List<StoredOsmElement> places, bool entireCode = false)
         {
             var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell10, x + resolutionCell10));
             var entriesHere = GetPlaces(box, places).ToList(); 

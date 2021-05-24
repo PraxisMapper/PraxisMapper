@@ -86,7 +86,7 @@ namespace CoreComponents
             return simplerPlace;
         }
 
-        public static StoredWay ConvertOsmEntryToStoredWay(OsmSharp.Complete.ICompleteOsmGeo g)
+        public static StoredOsmElement ConvertOsmEntryToStoredWay(OsmSharp.Complete.ICompleteOsmGeo g)
         {
             var feature = OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(g);
             if (feature.Count() != 1)
@@ -94,7 +94,7 @@ namespace CoreComponents
                 Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + " didn't return expected number of features (" + feature.Count() + ")", Log.VerbosityLevels.High);
                 return null;
             }
-            var sw = new StoredWay();
+            var sw = new StoredOsmElement();
             sw.name = TagParser.GetPlaceName(g.Tags);
             sw.sourceItemID = g.Id;
             sw.sourceItemType = (g.Type == OsmGeoType.Relation ? 3 : g.Type == OsmGeoType.Way ? 2 : 1);
@@ -102,25 +102,25 @@ namespace CoreComponents
             if (geo == null)
                 return null;
             geo.SRID = 4326;//Required for SQL Server to accept data this way.
-            sw.wayGeometry = geo;
-            sw.WayTags = TagParser.getFilteredTags(g.Tags);
-            if (sw.wayGeometry.GeometryType == "LinearRing" || (sw.wayGeometry.GeometryType == "LineString" && sw.wayGeometry.Coordinates.First() == sw.wayGeometry.Coordinates.Last()))
+            sw.elementGeometry = geo;
+            sw.Tags = TagParser.getFilteredTags(g.Tags);
+            if (sw.elementGeometry.GeometryType == "LinearRing" || (sw.elementGeometry.GeometryType == "LineString" && sw.elementGeometry.Coordinates.First() == sw.elementGeometry.Coordinates.Last()))
             {
                 //I want to update all LinearRings to Polygons, and let the style determine if they're Filled or Stroked.
-                var poly = factory.CreatePolygon((LinearRing)sw.wayGeometry);
-                sw.wayGeometry = poly;
+                var poly = factory.CreatePolygon((LinearRing)sw.elementGeometry);
+                sw.elementGeometry = poly;
             }
             return sw;
         }
 
-        public static void WriteStoredWayListToFile(string filename, ref List<StoredWay> mapdata)
+        public static void WriteStoredWayListToFile(string filename, ref List<StoredOsmElement> mapdata)
         {
             StreamWriter sw = new StreamWriter(filename);
             foreach (var md in mapdata)
                 if (md != null) //null can be returned from the functions that convert OSM entries to MapData
                 {
-                    var recordVersion = new StoredWayForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.wayGeometry.AsText(), string.Join("~", md.WayTags.Select(t => t.storedWay + "|" + t.Key + "|" + t.Value)), md.IsGameElement);
-                    var test = JsonSerializer.Serialize(recordVersion, typeof(StoredWayForJson));
+                    var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.storedOsmElement + "|" + t.Key + "|" + t.Value)), md.IsGameElement);
+                    var test = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
                     sw.WriteLine(test);
                 }
             sw.Close();
@@ -128,20 +128,20 @@ namespace CoreComponents
             Log.WriteLog("All StoredWay entries were serialized individually and saved to file at " + DateTime.Now);
         }
 
-        public static void WriteSingleStoredWayToFile(string filename, StoredWay md) //, bool open = false, bool close = false
+        public static void WriteSingleStoredWayToFile(string filename, StoredOsmElement md) //, bool open = false, bool close = false
         {
             if (md != null) //null can be returned from the functions that convert OSM entries to MapData
             {
-                var recordVersion = new CoreComponents.Support.StoredWayForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.wayGeometry.AsText(), string.Join("~", md.WayTags.Select(t => t.storedWay + "|" + t.Key + "|" + t.Value)), md.IsGameElement);
-                var test = JsonSerializer.Serialize(recordVersion, typeof(CoreComponents.Support.StoredWayForJson));
+                var recordVersion = new CoreComponents.Support.StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.storedOsmElement + "|" + t.Key + "|" + t.Value)), md.IsGameElement);
+                var test = JsonSerializer.Serialize(recordVersion, typeof(CoreComponents.Support.StoredOsmElementForJson));
                 File.AppendAllText(filename, test + Environment.NewLine);
             }
         }
 
-        public static List<StoredWay> ReadStoredWaysFileToMemory(string filename)
+        public static List<StoredOsmElement> ReadStoredWaysFileToMemory(string filename)
         {
             StreamReader sr = new StreamReader(filename);
-            List<StoredWay> lm = new List<StoredWay>();
+            List<StoredOsmElement> lm = new List<StoredOsmElement>();
             lm.Capacity = 100000;
             JsonSerializerOptions jso = new JsonSerializerOptions();
             jso.AllowTrailingCommas = true;
@@ -161,15 +161,15 @@ namespace CoreComponents
             return lm;
         }
 
-        public static StoredWay ConvertSingleJsonStoredWay(string sw)
+        public static StoredOsmElement ConvertSingleJsonStoredWay(string sw)
         {
             JsonSerializerOptions jso = new JsonSerializerOptions();
             jso.AllowTrailingCommas = true;
             NetTopologySuite.IO.WKTReader reader = new NetTopologySuite.IO.WKTReader();
             reader.DefaultSRID = 4326;
 
-            StoredWayForJson j = (StoredWayForJson)JsonSerializer.Deserialize(sw.Substring(0, sw.Count() - 1), typeof(StoredWayForJson), jso);//TODO: confirm/deny that substring command is still necessary.
-            var temp = new StoredWay() { id = j.id, name = j.name, sourceItemID = j.sourceItemID, sourceItemType = j.sourceItemType, wayGeometry = reader.Read(j.wayGeometry), IsGameElement = j.IsGameElement };
+            StoredOsmElementForJson j = (StoredOsmElementForJson)JsonSerializer.Deserialize(sw.Substring(0, sw.Count() - 1), typeof(StoredOsmElementForJson), jso);//TODO: confirm/deny that substring command is still necessary.
+            var temp = new StoredOsmElement() { id = j.id, name = j.name, sourceItemID = j.sourceItemID, sourceItemType = j.sourceItemType, elementGeometry = reader.Read(j.elementGeometry), IsGameElement = j.IsGameElement };
             if (!string.IsNullOrWhiteSpace(j.WayTags))
             {
                 var tagData = j.WayTags.Split("~");
@@ -177,24 +177,24 @@ namespace CoreComponents
                     foreach (var tag in tagData)
                     {
                         var elements = tag.Split("|");
-                        WayTags wt = new WayTags();
-                        wt.storedWay = temp;
+                        ElementTags wt = new ElementTags();
+                        wt.storedOsmElement = temp;
                         wt.Key = elements[1];
                         wt.Value = elements[2];
                     }
             }
 
-            if (temp.wayGeometry is Polygon)
-                temp.wayGeometry = GeometrySupport.CCWCheck((Polygon)temp.wayGeometry);
+            if (temp.elementGeometry is Polygon)
+                temp.elementGeometry = GeometrySupport.CCWCheck((Polygon)temp.elementGeometry);
 
-            if (temp.wayGeometry is MultiPolygon)
+            if (temp.elementGeometry is MultiPolygon)
             {
-                MultiPolygon mp = (MultiPolygon)temp.wayGeometry;
+                MultiPolygon mp = (MultiPolygon)temp.elementGeometry;
                 for (int i = 0; i < mp.Geometries.Count(); i++)
                 {
                     mp.Geometries[i] = GeometrySupport.CCWCheck((Polygon)mp.Geometries[i]);
                 }
-                temp.wayGeometry = mp;
+                temp.elementGeometry = mp;
             }
             return temp;
         }

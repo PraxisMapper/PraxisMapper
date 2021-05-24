@@ -17,11 +17,11 @@ namespace PraxisMapper.Controllers
         private IMemoryCache cache; //Using this cache to pass around some values instead of making them DB lookups each time.
         public static bool isResetting = false;
         //PaintTown is a simplified version of AreaControl.
-        //1) It operates on a per-Cell basis instead of a per-MapData entry basis.
+        //1) It operates on a per-Cell basis instead of a per-StoredOsmElement entry basis.
         //2) The 'earn points to spend points' part is removed in favor of auto-claiming areas you walk into. (A lockout timer is applied to stop 2 people from constantly flipping one area ever half-second)
         //3) No direct interaction with the device is required. Game needs to be open, thats all.
-        //The leaderboards for PaintTown reset regularly (weekly? Hourly? ), and could be set to reset very quickly and restart (3 minutes of gameplay, 1 paused for reset). 
-        //Default config is a weekly run Sat-Fri, with a 30 second lockout on cells.
+        //The leaderboards for PaintTown reset regularly (weekly), and could be set to reset very quickly and restart (3 minutes of gameplay, 1 paused for reset). 
+        //Default config is a weekly run Sat-Fri, with a 300 second  (5 minute) lockout on cells.
         //TODO: allow pre-configured teams for specific events? this is difficult if I don't want to track users on the server, since this would have to be by deviceID
         //TODO: allow an option to let you choose to join a team. Yes, i wanted to avoid this. Yes, there's still good cases for it.
 
@@ -358,7 +358,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/ManualReset/{instanceID}")]
         public string ManualReset(int instanceID)
         {
-            //TODO: should be an admin command and require hte password.
+            //TODO: should be an admin command and require the password.
             ResetGame(instanceID, true);
             return "OK";
         }

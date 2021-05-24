@@ -118,8 +118,8 @@ namespace Larry
                                 item.GameElementName = entry.GameElementName;
                                 item.IsGameElement = entry.IsGameElement;
                                 item.name = entry.name;
-                                item.wayGeometry = entry.wayGeometry;
-                                item.WayTags = entry.WayTags;
+                                item.elementGeometry = entry.elementGeometry;
+                                item.Tags = entry.Tags;
                             }
                         }
                         else
@@ -181,7 +181,7 @@ namespace Larry
             var toFix = db.StoredWays.Where(m => m.AreaSize == null).ToList();
             //var toFix = db.MapData.Where(m => m.MapDataId == 2500925).ToList();
             foreach(var fix in toFix)
-                fix.AreaSize = fix.wayGeometry.Length;
+                fix.AreaSize = fix.elementGeometry.Length;
             db.SaveChanges();
             Log.WriteLog("AreaSizes updated at  " + DateTime.Now);
         }
