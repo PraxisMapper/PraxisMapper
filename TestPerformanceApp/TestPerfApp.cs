@@ -493,7 +493,7 @@ namespace PerformanceTestApp
             if (source == null)
             {
                 var db = new CoreComponents.PraxisContext();
-                places = db.StoredWays.Where(md => md.elementGeometry.Intersects(location)).ToList();
+                places = db.StoredOsmElements.Where(md => md.elementGeometry.Intersects(location)).ToList();
             }
             else
                 places = source.Where(md => md.elementGeometry.Intersects(location)).ToList();
@@ -782,7 +782,7 @@ namespace PerformanceTestApp
         {
             //on testing, the slowest random result was 13ms.  Most are 0-1ms.
             var db = new PraxisContext();
-            var randomCap = db.StoredWays.Count();
+            var randomCap = db.StoredOsmElements.Count();
             Random r = new Random();
             string website = "http://localhost/GPSExploreServerAPI/MapData/CalculateMapDataScore/";
             for (int i = 0; i < 100; i++)
@@ -877,13 +877,13 @@ namespace PerformanceTestApp
             LoadBaselineData(dbPG, @"D:\Projects\PraxisMapper Files\XmlToProcess\delaware-latest.osm.pbf"); //~17MB PBF, shouldn't be serious stress on anything.
 
 
-            int maxRandom = dbPG.StoredWays.Count();
+            int maxRandom = dbPG.StoredOsmElements.Count();
             sw.Restart();
             for (var i = 0; i < 10000; i++)
             {
                 //read 1000 random entries;
                 int entry = r.Next(1, maxRandom);
-                var tempEntry = dbPG.StoredWays.Where(m => m.id == entry).FirstOrDefault();
+                var tempEntry = dbPG.StoredOsmElements.Where(m => m.id == entry).FirstOrDefault();
             }
             sw.Stop();
             Log.WriteLog("10,000 random reads done in " + sw.ElapsedMilliseconds + "ms");
@@ -892,7 +892,7 @@ namespace PerformanceTestApp
             GeoArea delaware = new GeoArea(38, -77, 41, -74);
             var poly = Converters.GeoAreaToPolygon(delaware);
             sw.Restart();
-            var allEntires = dbPG.StoredWays.Where(w => w.elementGeometry.Intersects(poly)).ToList();
+            var allEntires = dbPG.StoredOsmElements.Where(w => w.elementGeometry.Intersects(poly)).ToList();
             sw.Stop();
             Log.WriteLog("Loaded all Delaware items in " + sw.ElapsedMilliseconds + "ms");
 
@@ -928,7 +928,7 @@ namespace PerformanceTestApp
                 convertedRelation.elementGeometry = SimplifyArea(convertedRelation.elementGeometry);
                 if (convertedRelation.elementGeometry == null)
                     continue;
-                db.StoredWays.Add(convertedRelation);
+                db.StoredOsmElements.Add(convertedRelation);
                 //db.SaveChanges();
             }
 
@@ -947,7 +947,7 @@ namespace PerformanceTestApp
                 convertedWay.elementGeometry = SimplifyArea(convertedWay.elementGeometry);
                 if (convertedWay.elementGeometry == null)
                     continue;
-                db.StoredWays.Add(convertedWay);
+                db.StoredOsmElements.Add(convertedWay);
                 //db.SaveChanges();
             }
 
@@ -1204,7 +1204,7 @@ namespace PerformanceTestApp
                 db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataIndexPG);
                 db.Database.ExecuteSqlRaw(PraxisContext.MapTileIndexPG);
                 db.Database.ExecuteSqlRaw(PraxisContext.SlippyMapTileIndexPG);
-                db.Database.ExecuteSqlRaw(PraxisContext.StoredWaysIndexPG);
+                db.Database.ExecuteSqlRaw(PraxisContext.StoredElementsIndexPG);
             }
             else
             {
@@ -1212,7 +1212,7 @@ namespace PerformanceTestApp
                 db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataIndex);
                 db.Database.ExecuteSqlRaw(PraxisContext.MapTileIndex);
                 db.Database.ExecuteSqlRaw(PraxisContext.SlippyMapTileIndex);
-                db.Database.ExecuteSqlRaw(PraxisContext.StoredWaysIndex);
+                db.Database.ExecuteSqlRaw(PraxisContext.StoredElementsIndex);
             }
 
             if (mode == "SQLServer")
@@ -1444,7 +1444,7 @@ namespace PerformanceTestApp
             GeoArea testArea6 = OpenLocationCode.DecodeValid(CellToTest);
             var areaPoly = Converters.GeoAreaToPolygon(testArea6);
             var db = new PraxisContext();
-            var places = db.StoredWays.Include(w => w.Tags).Where(w => w.elementGeometry.Intersects(areaPoly)).ToList();
+            var places = db.StoredOsmElements.Include(w => w.Tags).Where(w => w.elementGeometry.Intersects(areaPoly)).ToList();
             Log.WriteLog("Loaded " + places.Count() + " objects for test");
 
             ImageStats info = new ImageStats(testArea6, 512, 512); //using default Slippy map tile size for comparison.

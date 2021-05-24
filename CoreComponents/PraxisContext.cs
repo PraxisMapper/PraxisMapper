@@ -12,7 +12,7 @@ namespace CoreComponents
         public DbSet<SlippyMapTile> SlippyMapTiles { get; set; }
         public DbSet<Faction> Factions { get; set; }
         public DbSet<AreaControlTeam> AreaControlTeams { get; set; } //This is TeamClaims, rename this
-        public DbSet<GeneratedMapData> GeneratedMapData { get; set; }
+        public DbSet<GeneratedElement> GeneratedMapData { get; set; }
         public DbSet<PaintTownConfig> PaintTownConfigs { get; set; }
         public DbSet<PaintTownEntry> PaintTownEntries { get; set; }
         public DbSet<PaintTownScoreRecord> PaintTownScoreRecords { get; set; }
@@ -21,7 +21,7 @@ namespace CoreComponents
         public DbSet<TileTracking> TileTrackings { get; set; }
         public DbSet<ZztGame> ZztGames { get; set; }
         public DbSet<GamesBeaten> GamesBeaten { get; set; }
-        public DbSet<StoredOsmElement> StoredWays { get; set; }
+        public DbSet<StoredOsmElement> StoredOsmElements { get; set; }
         public DbSet<TagParserEntry> TagParserEntries { get; set; }
         public DbSet<TagParserMatchRule> TagParserMatchRules { get; set; }
 
@@ -61,7 +61,7 @@ namespace CoreComponents
             model.Entity<SlippyMapTile>().HasIndex(m => m.Values);
             model.Entity<SlippyMapTile>().HasIndex(m => m.mode);
 
-            model.Entity<AreaControlTeam>().HasIndex(m => m.StoredWayId);
+            model.Entity<AreaControlTeam>().HasIndex(m => m.StoredElementId);
             model.Entity<AreaControlTeam>().HasIndex(m => m.FactionId);
 
             model.Entity<PaintTownEntry>().HasIndex(m => m.FactionId);
@@ -87,13 +87,13 @@ namespace CoreComponents
         public static string GeneratedMapDataIndex = "CREATE SPATIAL INDEX GeneratedMapDataSpatialIndex ON GeneratedMapData(place)";
         public static string MapTileIndex = "CREATE SPATIAL INDEX MapTileSpatialIndex ON MapTiles(areaCovered)";
         public static string SlippyMapTileIndex = "CREATE SPATIAL INDEX SlippyMapTileSpatialIndex ON SlippyMapTiles(areaCovered)";
-        public static string StoredWaysIndex = "CREATE SPATIAL INDEX StoredWaysIndex ON StoredWays(wayGeometry)";
+        public static string StoredElementsIndex = "CREATE SPATIAL INDEX StoredOsmElementsIndex ON StoredOsmElements(wayGeometry)";
 
         //PostgreSQL uses its own CREATE INDEX syntax
         public static string GeneratedMapDataIndexPG = "CREATE INDEX generatedmapdata_geom_idx ON public.\"GeneratedMapData\" USING GIST(place)";
         public static string MapTileIndexPG = "CREATE INDEX maptiles_geom_idx ON public.\"MapTiles\" USING GIST(\"areaCovered\")";
         public static string SlippyMapTileIndexPG = "CREATE INDEX slippmayptiles_geom_idx ON public.\"SlippyMapTiles\" USING GIST(\"areaCovered\")";
-        public static string StoredWaysIndexPG = "CREATE INDEX storedWays_geom_idx ON public.\"StoredWays\" USING GIST(\"wayGeometry\")";
+        public static string StoredElementsIndexPG = "CREATE INDEX storedOsmElements_geom_idx ON public.\"StoredOsmElements\" USING GIST(\"elementGeometry\")";
 
         //This doesn't appear to be any faster. The query isn't the slow part. Keeping this code as a reference for how to precompile queries.
         //public static Func<PraxisContext, Geometry, IEnumerable<MapData>> compiledIntersectQuery =
@@ -111,14 +111,14 @@ namespace CoreComponents
                 db.Database.ExecuteSqlRaw(GeneratedMapDataIndexPG);
                 db.Database.ExecuteSqlRaw(MapTileIndexPG);
                 db.Database.ExecuteSqlRaw(SlippyMapTileIndexPG);
-                db.Database.ExecuteSqlRaw(StoredWaysIndexPG);
+                db.Database.ExecuteSqlRaw(StoredElementsIndexPG);
             }
             else //SQL Server and MariaDB share the same syntax here
             {
                 db.Database.ExecuteSqlRaw(GeneratedMapDataIndex);
                 db.Database.ExecuteSqlRaw(MapTileIndex);
                 db.Database.ExecuteSqlRaw(SlippyMapTileIndex);
-                db.Database.ExecuteSqlRaw(StoredWaysIndex);
+                db.Database.ExecuteSqlRaw(StoredElementsIndex);
             }
 
             if (serverMode == "SQLServer")

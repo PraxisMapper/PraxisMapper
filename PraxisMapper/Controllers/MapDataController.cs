@@ -324,7 +324,7 @@ namespace PraxisMapper.Controllers
         {
             PerformanceTracker pt = new PerformanceTracker("CalculateMapDataScore");
             var db = new PraxisContext();
-            var places = db.StoredWays.Where(m => m.sourceItemID == SourceItemId && m.sourceItemType == SourceTypeId).ToList(); //odds are good that a big enough server would have overlapping IDs for relations and ways. Must check type.
+            var places = db.StoredOsmElements.Where(m => m.sourceItemID == SourceItemId && m.sourceItemType == SourceTypeId).ToList(); //odds are good that a big enough server would have overlapping IDs for relations and ways. Must check type.
             var results = GetScoresForFullArea(places);
             pt.Stop(SourceTypeId.ToString());
             return results;

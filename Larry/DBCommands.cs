@@ -55,7 +55,7 @@ namespace Larry
             Log.WriteLog("Scanning for duplicate entries at " + DateTime.Now);
             var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
-            var dupedMapDatas = db.StoredWays.Where(md => md.sourceItemID != null && md.sourceItemType == 2).GroupBy(md => md.sourceItemID)
+            var dupedMapDatas = db.StoredOsmElements.Where(md => md.sourceItemID != null && md.sourceItemType == 2).GroupBy(md => md.sourceItemID)
                 .Select(m => new { m.Key, Count = m.Count() })
                 .ToDictionary(d => d.Key, v => v.Count)
                 .Where(md => md.Value > 1);
@@ -63,13 +63,13 @@ namespace Larry
 
             foreach (var dupe in dupedMapDatas)
             {
-                var entriesToDelete = db.StoredWays.Where(md => md.sourceItemID == dupe.Key && md.sourceItemType == 2); //.ToList();
-                db.StoredWays.RemoveRange(entriesToDelete.Skip(1));
+                var entriesToDelete = db.StoredOsmElements.Where(md => md.sourceItemID == dupe.Key && md.sourceItemType == 2); //.ToList();
+                db.StoredOsmElements.RemoveRange(entriesToDelete.Skip(1));
                 db.SaveChanges(); //so the app can make partial progress if it needs to restart
             }
             Log.WriteLog("Duped Way entries deleted at " + DateTime.Now);
 
-            dupedMapDatas = db.StoredWays.Where(md => md.sourceItemID != null && md.sourceItemType == 3).GroupBy(md => md.sourceItemID) //This might require a different approach, or possibly different server settings?
+            dupedMapDatas = db.StoredOsmElements.Where(md => md.sourceItemID != null && md.sourceItemType == 3).GroupBy(md => md.sourceItemID) //This might require a different approach, or possibly different server settings?
                 .Select(m => new { m.Key, Count = m.Count() })
                 .ToDictionary(d => d.Key, v => v.Count)
                 .Where(md => md.Value > 1);
@@ -77,8 +77,8 @@ namespace Larry
 
             foreach (var dupe in dupedMapDatas)
             {
-                var entriesToDelete = db.StoredWays.Where(md => md.sourceItemID == dupe.Key && md.sourceItemID == 3); //.ToList();
-                db.StoredWays.RemoveRange(entriesToDelete.Skip(1));
+                var entriesToDelete = db.StoredOsmElements.Where(md => md.sourceItemID == dupe.Key && md.sourceItemID == 3); //.ToList();
+                db.StoredOsmElements.RemoveRange(entriesToDelete.Skip(1));
                 db.SaveChanges(); //so the app can make partial progress if it needs to restart
             }
             Log.WriteLog("Duped Relation entries deleted at " + DateTime.Now);
@@ -96,7 +96,7 @@ namespace Larry
                     //Similar to the load process, but replaces existing entries instead of only inserting.
                     var db = new PraxisContext();
                     Log.WriteLog("Loading " + filename);
-                    var entries = GeometrySupport.ReadStoredWaysFileToMemory(filename);
+                    var entries = GeometrySupport.ReadStoredElementsFileToMemory(filename);
                     Log.WriteLog(entries.Count() + " entries to update in database for " + filename);
 
                     int updateCounter = 0;
@@ -105,7 +105,7 @@ namespace Larry
                     {
                         updateCounter++;
                         updateTotal++;
-                        var query = db.StoredWays.AsQueryable();
+                        var query = db.StoredOsmElements.AsQueryable();
                         if (entry.sourceItemID != null)
                             query = query.Where(md => md.sourceItemID == entry.sourceItemID && md.sourceItemType == entry.sourceItemType);
 
@@ -124,7 +124,7 @@ namespace Larry
                         }
                         else
                         {
-                            db.StoredWays.Add(entry);
+                            db.StoredOsmElements.Add(entry);
                         }
 
                         if (updateCounter > 1000)
@@ -146,7 +146,7 @@ namespace Larry
             });
         }
 
-        public static void AddMapDataToDBFromFiles() //TODO: update this to use StoredWays format.
+        public static void AddMapDataToDBFromFiles() //TODO: update this to use StoredOsmElements format.
         {
             //This function is pretty slow. I should figure out how to speed it up. Approx. 3,000 MapData entries per second right now.
             //Bulk inserts don't work on the geography columns.
@@ -178,7 +178,7 @@ namespace Larry
         {
             Log.WriteLog("Starting AreaSize fix at  " + DateTime.Now);
             PraxisContext db = new PraxisContext();
-            var toFix = db.StoredWays.Where(m => m.AreaSize == null).ToList();
+            var toFix = db.StoredOsmElements.Where(m => m.AreaSize == null).ToList();
             //var toFix = db.MapData.Where(m => m.MapDataId == 2500925).ToList();
             foreach(var fix in toFix)
                 fix.AreaSize = fix.elementGeometry.Length;

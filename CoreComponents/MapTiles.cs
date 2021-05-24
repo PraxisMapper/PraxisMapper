@@ -33,7 +33,7 @@ namespace CoreComponents
             if (places == null)
                 places = GetPlaces(loadDataArea, skipTags: true); //, null, false, true, smallestFeature //Includes generated here with the final True parameter.
             List<long> placeIDs = places.Select(a => a.sourceItemID).ToList();
-            Dictionary<long, long> teamClaims = db.AreaControlTeams.Where(act => placeIDs.Contains(act.StoredWayId)).ToDictionary(k => k.StoredWayId, v => v.FactionId);
+            Dictionary<long, long> teamClaims = db.AreaControlTeams.Where(act => placeIDs.Contains(act.StoredElementId)).ToDictionary(k => k.StoredElementId, v => v.FactionId);
             Dictionary<long, string> teamNames = db.Factions.ToDictionary(k => k.FactionId, v => v.Name);
             places = places
                 .Where(a => teamClaims.ContainsKey(a.sourceItemID)) //Only draw elements claimed by a team.
@@ -313,7 +313,7 @@ namespace CoreComponents
             var db = new PraxisContext();
             var geo = Converters.GeoAreaToPolygon(stats.area);
             if (drawnItems == null)
-                drawnItems = db.StoredWays.Include(c => c.Tags).Where(w => geo.Intersects(w.elementGeometry)).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList();
+                drawnItems = db.StoredOsmElements.Include(c => c.Tags).Where(w => geo.Intersects(w.elementGeometry)).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList();
 
             //baseline image data stuff           
             SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
