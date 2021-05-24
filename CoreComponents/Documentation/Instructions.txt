@@ -15,7 +15,7 @@ How to run this:
 1) Create and configure your DB (SQL Server, MariaDB, or PostgreSQL) for this app. Update connection string in Larry/ParserSettings.cs, create DB by running "Larry -createDB"
 
 2) Download the latest .osm.pbf files to use from Geofabrik.de (or another OSM mirror) and unzip them to the appropriate folder.
---Use the smallest data file/set reasonable for development and testing. Files take up at least 10x the amount of RAM the filesize on disk. Usually more.
+--Use the smallest data file/set reasonable for development and testing. Files take up somewhere around 50x the amount of RAM the filesize on disk. 180MB PBF could be 9GB of RAM once loaded.
 --State-level is usually reasonable. Some specific areas have issues processing because of the amount of detail on some things. (Norway and Quebec have a ton of water entries in tiny details, for example)
 --the apps can filter down a file to a smaller area, for cases where a reasonable-sized file eats more ram than we have.
 

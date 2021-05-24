@@ -115,20 +115,24 @@ namespace CoreComponents
 
         public static void WriteStoredElementListToFile(string filename, ref List<StoredOsmElement> mapdata)
         {
-            StreamWriter sw = new StreamWriter(filename);
+            //StreamWriter sw = new StreamWriter(filename);
+            //var fs = File.OpenWrite(filename);
+            List<string> results = new List<string>(mapdata.Count());
             foreach (var md in mapdata)
                 if (md != null) //null can be returned from the functions that convert OSM entries to StoredElement
                 {
                     var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.storedOsmElement + "|" + t.Key + "|" + t.Value)), md.IsGameElement);
                     var test = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
-                    sw.WriteLine(test);
+                    results.Add(test);
+                    //sw.WriteLine(test);
                 }
-            sw.Close();
-            sw.Dispose();
-            Log.WriteLog("All StoredElement entries were serialized individually and saved to file at " + DateTime.Now);
+            File.AppendAllLines(filename, results);
+            //sw.Close();
+            //sw.Dispose();
+            Log.WriteLog("All StoredElement entries were serialized individually and saved to file at " + DateTime.Now, Log.VerbosityLevels.High);
         }
 
-        public static void WriteSingleStoredElementToFile(string filename, StoredOsmElement md) //, bool open = false, bool close = false
+        public static void WriteSingleStoredElementToFile(string filename, StoredOsmElement md)
         {
             if (md != null) //null can be returned from the functions that convert OSM entries to StoredElement
             {
