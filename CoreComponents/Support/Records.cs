@@ -9,6 +9,5 @@
 
     public record RelationMemberData(long Id, string name, string type);
 
-    //V4 types. WayGeometry and ElementTags get serialized somewhere.
     public record StoredOsmElementForJson(long id, string name, long sourceItemID, int sourceItemType, string elementGeometry, string WayTags, bool IsGameElement);
 }

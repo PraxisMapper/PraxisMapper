@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static CoreComponents.DbTables;
 
 namespace CoreComponents
 {
@@ -13,6 +14,7 @@ namespace CoreComponents
         public static List<long> ProcessFileCoreV4(OsmStreamSource source, bool saveToFile = false, string filename = "")
         {
             // Here, source has already been configured or filtered as needed.
+            Log.WriteLog("Starting to process elements from PBF file at " + DateTime.Now);
             List<long> processedRelations = new List<long>(); //return this, so the parent function knows what to look for in a full-pass.
             HashSet<long> waysToSkip = new HashSet<long>();
 
@@ -29,6 +31,7 @@ namespace CoreComponents
             long totalItems = 0;
             DateTime startedProcess = DateTime.Now;
             TimeSpan difference = DateTime.Now - DateTime.Now;
+            List<StoredOsmElement> elements = new List<StoredOsmElement>(1000);
 
             Log.WriteLog("Loading relation data into RAM...");
             foreach (var r in relations) //This is where the first memory peak hits as it loads everything into memory
@@ -48,18 +51,19 @@ namespace CoreComponents
                     {
                         continue;
                     }
-
-                    if (saveToFile)
-                        GeometrySupport.WriteSingleStoredElementToFile(filename, convertedRelation);
-                    else
-                        db.StoredOsmElements.Add(convertedRelation);
-
+                    elements.Add(convertedRelation);
                     totalItems++;
                     relationCounter++;
-                    if (relationCounter > 100)
+                    if (relationCounter > 1000)
                     {
+                        if (saveToFile)
+                            GeometrySupport.WriteStoredElementListToFile(filename, ref elements);
+                        else
+                            db.StoredOsmElements.AddRange(elements);
+
                         ReportProgress(startedProcess, totalRelations, totalCounter, "Relations");
                         relationCounter = 0;
+                        elements.Clear();
                     }
 
                     foreach (var w in ((OsmSharp.Complete.CompleteRelation)r).Members)
@@ -73,7 +77,12 @@ namespace CoreComponents
                     Log.WriteLog("Error Processing Relation " + r.Id + ": " + ex.Message);
                 }
             }
-            Log.WriteLog("Relations loaded at " + DateTime.Now);
+            if (saveToFile)
+                GeometrySupport.WriteStoredElementListToFile(filename, ref elements);
+            else
+                db.StoredOsmElements.AddRange(elements);
+            elements.Clear();
+            Log.WriteLog("Relations saved to file at " + DateTime.Now + ". Processing Ways...");
 
             var ways = source
             .ToComplete()
@@ -102,15 +111,18 @@ namespace CoreComponents
                     if (item == null)
                         continue;
 
-                    if (saveToFile)
-                        GeometrySupport.WriteSingleStoredElementToFile(filename, item);
-                    else
-                        db.StoredOsmElements.Add(item);
+                    elements.Add(item);
 
-                    if (wayCounter > 10000)
+                    if (wayCounter > 100000)
                     {
+                        if (saveToFile)
+                            GeometrySupport.WriteStoredElementListToFile(filename, ref elements);
+                        else
+                            db.StoredOsmElements.AddRange(elements);
+
                         ReportProgress(startedProcess, totalWays, totalCounter, "Ways");
                         wayCounter = 0;
+                        elements.Clear();
                     }
                 }
                 catch (Exception ex)
@@ -121,8 +133,13 @@ namespace CoreComponents
                         Log.WriteLog("Error Processing Way " + w.Id + ": " + ex.Message);
                 }
             }
+            if (saveToFile)
+                GeometrySupport.WriteStoredElementListToFile(filename, ref elements);
+            else
+                db.StoredOsmElements.AddRange(elements);
+            elements.Clear();
 
-            Log.WriteLog("Ways loaded at " + DateTime.Now);
+            Log.WriteLog("Ways loaded at " + DateTime.Now + ". Loading nodes...");
 
             var points = source.AsParallel()
             .ToComplete() //unnecessary for nodes, but needed for the converter function.
@@ -149,13 +166,16 @@ namespace CoreComponents
                     if (item == null)
                         continue;
 
-                    if (saveToFile)
-                        GeometrySupport.WriteSingleStoredElementToFile(filename, item);
-                    else
-                        db.StoredOsmElements.Add(item);
+                    elements.Add(item);
 
-                    if (nodeCounter > 1000)
+                    if (nodeCounter > 10000)
                     {
+                        if (saveToFile)
+                            GeometrySupport.WriteStoredElementListToFile(filename, ref elements);
+                        else
+                            db.StoredOsmElements.AddRange(elements);
+                        elements.Clear();
+
                         ReportProgress(startedProcess, totalnodes, totalCounter, "Nodes");
                         nodeCounter = 0;
                     }
@@ -168,7 +188,13 @@ namespace CoreComponents
                         Log.WriteLog("Error Processing Node  " + p.Id + ": " + ex.Message);
                 }
             }
+            if (saveToFile)
+                GeometrySupport.WriteStoredElementListToFile(filename, ref elements);
+            else
+                db.StoredOsmElements.AddRange(elements);
+            elements.Clear();
 
+            Log.WriteLog("Processing completed at " + DateTime.Now);
             if (!saveToFile)
             {
                 Log.WriteLog("Saving " + totalItems + " entries to the database.....");
@@ -180,7 +206,6 @@ namespace CoreComponents
             }
 
             return processedRelations;
-
         }
 
         public static void ReportProgress(DateTime startedProcess, double totalItems, double itemsProcessed, string itemName)
