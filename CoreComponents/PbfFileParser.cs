@@ -15,189 +15,32 @@ namespace CoreComponents
         {
             // Here, source has already been configured or filtered as needed.
             Log.WriteLog("Starting to process elements from PBF file at " + DateTime.Now);
-            List<long> processedRelations = new List<long>(); //return this, so the parent function knows what to look for in a full-pass.
+            List<long> processedRelations = new List<long>(); //If we're being used in a multiple-pass case, we need this to know which relations still to process on the last pass.
             HashSet<long> waysToSkip = new HashSet<long>();
+            var db = new PraxisContext();
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
 
             var relations = source
             .ToComplete()
             .Where(p => p.Type == OsmGeoType.Relation);
-
-            var db = new PraxisContext();
-            db.ChangeTracker.AutoDetectChangesEnabled = false;
-
-            long relationCounter = 0;
-            double totalCounter = 0;
-            double totalRelations = 0; // relations.Count(); //This causes another pass on the file/stream. Skipping this data for now.
-            long totalItems = 0;
-            DateTime startedProcess = DateTime.Now;
-            TimeSpan difference = DateTime.Now - DateTime.Now;
-            List<StoredOsmElement> elements = new List<StoredOsmElement>(1000);
-
-            Log.WriteLog("Loading relation data into RAM...");
-            foreach (var r in relations) //This is where the first memory peak hits as it loads everything into memory
-            {
-                if (totalCounter == 0)
-                {
-                    Log.WriteLog("Data loaded.");
-                    startedProcess = DateTime.Now;
-                    difference = startedProcess - startedProcess;
-                }
-                totalCounter++;
-                try
-                {
-                    processedRelations.Add(r.Id);
-                    var convertedRelation = GeometrySupport.ConvertOsmEntryToStoredElement(r);
-                    if (convertedRelation == null)
-                    {
-                        continue;
-                    }
-                    elements.Add(convertedRelation);
-                    totalItems++;
-                    relationCounter++;
-                    if (relationCounter > 1000)
-                    {
-                        if (saveToFile)
-                            GeometrySupport.WriteStoredElementListToFile(filename, ref elements);
-                        else
-                            db.StoredOsmElements.AddRange(elements);
-
-                        ReportProgress(startedProcess, totalRelations, totalCounter, "Relations");
-                        relationCounter = 0;
-                        elements.Clear();
-                    }
-
-                    foreach (var w in ((OsmSharp.Complete.CompleteRelation)r).Members)
-                    {
-                        if (w.Role == "outer") //Inner ways might have a tag match to apply later.
-                            waysToSkip.Add(w.Member.Id);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.WriteLog("Error Processing Relation " + r.Id + ": " + ex.Message);
-                }
-            }
-            if (saveToFile)
-                GeometrySupport.WriteStoredElementListToFile(filename, ref elements);
-            else
-                db.StoredOsmElements.AddRange(elements);
-            elements.Clear();
+            processedRelations = ProcessInnerLoop(relations, "Relation", 1000, saveToFile, filename, db, waysToSkip);
             Log.WriteLog("Relations saved to file at " + DateTime.Now + ". Processing Ways...");
 
             var ways = source
             .ToComplete()
             .Where(p => p.Type == OsmGeoType.Way && !waysToSkip.Contains(p.Id)); //avoid loading skippable Ways into RAM in the first place.
-
-            double wayCounter = 0;
-            double totalWays = 0; // ways.Count(); //skipping additional pass on steam/file.
-            totalCounter = 0;
-            var fourPercentWays = totalWays / 25;
-
-            Log.WriteLog("Loading Way data into RAM...");
-            foreach (var w in ways) //Testing looks like multithreading doesn't provide any improvement here.
-            {
-                if (totalCounter == 0)
-                {
-                    Log.WriteLog("Data Loaded");
-                    startedProcess = DateTime.Now;
-                    difference = DateTime.Now - DateTime.Now;
-                }
-                totalCounter++;
-                try
-                {
-                    totalItems++;
-                    wayCounter++;
-                    var item = GeometrySupport.ConvertOsmEntryToStoredElement(w);
-                    if (item == null)
-                        continue;
-
-                    elements.Add(item);
-
-                    if (wayCounter > 100000)
-                    {
-                        if (saveToFile)
-                            GeometrySupport.WriteStoredElementListToFile(filename, ref elements);
-                        else
-                            db.StoredOsmElements.AddRange(elements);
-
-                        ReportProgress(startedProcess, totalWays, totalCounter, "Ways");
-                        wayCounter = 0;
-                        elements.Clear();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    if (w == null)
-                        Log.WriteLog("Error Processing Way : Way was null");
-                    else
-                        Log.WriteLog("Error Processing Way " + w.Id + ": " + ex.Message);
-                }
-            }
-            if (saveToFile)
-                GeometrySupport.WriteStoredElementListToFile(filename, ref elements);
-            else
-                db.StoredOsmElements.AddRange(elements);
-            elements.Clear();
-
-            Log.WriteLog("Ways loaded at " + DateTime.Now + ". Loading nodes...");
+            ProcessInnerLoop(ways, "Way", 100000, true, filename, db);
+            Log.WriteLog("Ways loaded at " + DateTime.Now);
 
             var points = source.AsParallel()
             .ToComplete() //unnecessary for nodes, but needed for the converter function.
             .Where(p => p.Type == OsmGeoType.Node && TagParser.getFilteredTags(p.Tags).Count > 0);  //Keep nodes that have tags after removing irrelevant tags.
-
-            double nodeCounter = 0;
-            double totalnodes = 0; // points.Count(); third extra pass on things skipped.
-            totalCounter = 0;
-            Log.WriteLog("Loading Node data into RAM...");
-            foreach (OsmSharp.Node p in points)
-            {
-                if (totalCounter == 0)
-                {
-                    //Log.WriteLog("Node Data Loaded"); //For nodes, it does actually stream them as it reads the file.
-                    startedProcess = DateTime.Now;
-                    difference = DateTime.Now - DateTime.Now;
-                }
-                totalCounter++;
-                try
-                {
-                    totalItems++;
-                    nodeCounter++;
-                    var item = GeometrySupport.ConvertOsmEntryToStoredElement(p);
-                    if (item == null)
-                        continue;
-
-                    elements.Add(item);
-
-                    if (nodeCounter > 10000)
-                    {
-                        if (saveToFile)
-                            GeometrySupport.WriteStoredElementListToFile(filename, ref elements);
-                        else
-                            db.StoredOsmElements.AddRange(elements);
-                        elements.Clear();
-
-                        ReportProgress(startedProcess, totalnodes, totalCounter, "Nodes");
-                        nodeCounter = 0;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    if (p == null)
-                        Log.WriteLog("Error Processing Node: Node was null");
-                    else
-                        Log.WriteLog("Error Processing Node  " + p.Id + ": " + ex.Message);
-                }
-            }
-            if (saveToFile)
-                GeometrySupport.WriteStoredElementListToFile(filename, ref elements);
-            else
-                db.StoredOsmElements.AddRange(elements);
-            elements.Clear();
-
+            ProcessInnerLoop(points, "Node", 10000, saveToFile, filename, db);
+            
             Log.WriteLog("Processing completed at " + DateTime.Now);
             if (!saveToFile)
             {
-                Log.WriteLog("Saving " + totalItems + " entries to the database.....");
+                Log.WriteLog("Saving all entries to the database.....");
                 System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                 sw.Start();
                 db.SaveChanges();
@@ -206,6 +49,73 @@ namespace CoreComponents
             }
 
             return processedRelations;
+        }
+
+        public static List<long> ProcessInnerLoop(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, string itemType, int itemsPerLoop, bool saveToFile = false, string saveFilename = "", PraxisContext db = null, HashSet<long> waysToSkip = null)
+        {
+            //We want to return both of these lists, dont we? or if we've run the whole file, we only need the waysToSkip one?
+            List<long> handledItems = new List<long>();
+            List<StoredOsmElement> elements = new List<StoredOsmElement>();
+            Log.WriteLog("Loading " + itemType + " data into RAM...");
+            long totalCounter = 0;
+            long totalItems = 0;
+            long itemCounter = 0;
+            DateTime startedProcess = DateTime.Now;
+            TimeSpan difference;
+            foreach (var r in items) //This is where the first memory peak hits as it loads everything into memory
+            {
+                if (totalCounter == 0)
+                {
+                    Log.WriteLog(itemType + " Data loaded.");
+                    startedProcess = DateTime.Now;
+                    difference = startedProcess - startedProcess;
+                }
+                totalCounter++;
+                try
+                {
+                    handledItems.Add(r.Id);
+                    var convertedItem = GeometrySupport.ConvertOsmEntryToStoredElement(r);
+                    if (convertedItem == null)
+                    {
+                        continue;
+                    }
+                    elements.Add(convertedItem);
+                    totalItems++;
+                    itemCounter++;
+                    if (itemCounter > itemsPerLoop)
+                    {
+                        if (saveToFile)
+                            GeometrySupport.WriteStoredElementListToFile(saveFilename, ref elements);
+                        else
+                            db.StoredOsmElements.AddRange(elements);
+
+                        ReportProgress(startedProcess, 0, totalCounter, itemType);
+                        itemCounter = 0;
+                        elements.Clear();
+                    }
+
+                    if (itemType == "Relation")
+                    {
+                        foreach (var w in ((OsmSharp.Complete.CompleteRelation)r).Members)
+                        {
+                            if (w.Role == "outer") //Inner ways might have a tag match to apply later.
+                                waysToSkip.Add(w.Member.Id);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.WriteLog("Error Processing " + itemType + + r.Id + ": " + ex.Message);
+                }
+            }
+            if (saveToFile)
+                GeometrySupport.WriteStoredElementListToFile(saveFilename, ref elements);
+            else
+                db.StoredOsmElements.AddRange(elements);
+            elements.Clear();
+            Log.WriteLog(itemType + " saved to file at " + DateTime.Now);
+
+            return handledItems;
         }
 
         public static void ReportProgress(DateTime startedProcess, double totalItems, double itemsProcessed, string itemName)
@@ -222,7 +132,6 @@ namespace CoreComponents
             }
             else
                 Log.WriteLog(Math.Round(entriesPerSecond) + " " + itemName + " processed per second.");
-
         }
     }
 }

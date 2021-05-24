@@ -1,19 +1,11 @@
 ﻿using CoreComponents;
 using OsmSharp;
 using OsmSharp.Streams;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Text.Json;
 using System.Threading.Tasks;
-using static CoreComponents.DbTables;
-using static CoreComponents.Singletons;
-using static CoreComponents.TagParser;
-using CoreComponents.Support;
-using NetTopologySuite.Geometries;
 
 namespace Larry
 {
@@ -21,14 +13,7 @@ namespace Larry
     {
         //Several of these files should probably be moved to CoreComponents. 
         //The save/load to external file functions should be moved too.
-
-        public static void ProcessFullFileV4(string filename)
-        {
-            var fs = System.IO.File.OpenRead(filename);
-            Log.WriteLog("Starting " + filename + " V4 data read at " + DateTime.Now);
-            var source = new PBFOsmStreamSource(fs);
-            PbfFileParser.ProcessFileCoreV4(source);
-        }
+       
 
         public static void ProcessFilePiecesV4(string filename, bool saveToFiles = false)
         {
@@ -61,7 +46,6 @@ namespace Larry
                     {
                         var degreeBox = new PBFOsmStreamSource(fs).FilterBox(west, north, east, south, true);
                         var loadedRelations = PbfFileParser.ProcessFileCoreV4(degreeBox, false);
-                        //var loadedRelations = V4Import.ProcessDegreeAreaV4(j, i, pbfFilename, saveToFiles); //This happens to be a 4-digit PlusCode, being 1 degree square.
                         foreach (var lr in loadedRelations)
                             relationsToSkip.Add(lr);
                     }
@@ -85,7 +69,7 @@ namespace Larry
                             target.RegisterSource(filtered);
                             target.Pull();
                         }
-                        Task<List<long>> process = Task.Run(() => PbfFileParser.ProcessFileCoreV4(filtered, true, tempFile)); // V4Import.ProcessDegreeAreaV4(j, i, tempFile, saveToFiles));
+                        Task<List<long>> process = Task.Run(() => PbfFileParser.ProcessFileCoreV4(filtered, true, tempFile));
                         taskStatuses.Add(process);
                     }
                 Task.WaitAll(taskStatuses.ToArray());
