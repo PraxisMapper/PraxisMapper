@@ -989,29 +989,29 @@ namespace PerformanceTestApp
         }
 
         //testing if this is better/more efficient (on the phone side) than passing strings along. Only used in TestPerf.
-        public static Cell10Info CellInfoFindPlacesInCell10(double x, double y, ref List<StoredWay> places)
-        {
-            var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell10, x + resolutionCell10));
-            var entriesHere = GetPlaces(box, places).ToList(); 
+        //public static Cell10Info CellInfoFindPlacesInCell10(double x, double y, ref List<StoredWay> places)
+        //{
+        //    var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell10, x + resolutionCell10));
+        //    var entriesHere = GetPlaces(box, places).ToList(); 
 
-            if (entriesHere.Count() == 0)
-                return null;
+        //    if (entriesHere.Count() == 0)
+        //        return null;
 
-            //string area = DetermineAreaPoint(entriesHere);
-            var area = AreaTypeInfo.PickSmallestEntry(entriesHere);
-            if (area != null)
-            {
-                string olc;
-                //if (entireCode)
-                olc = new OpenLocationCode(y, x).CodeDigits;
-                //else
-                //TODO: decide on passing in a value for the split instead of a bool so this can be reused a little more
-                //olc = new OpenLocationCode(y, x).CodeDigits.Substring(6, 4); //This takes lat, long, Coordinate takes X, Y. This line is correct.
-                // olc = new OpenLocationCode(y, x).CodeDigits.Substring(8, 2); //This takes lat, long, Coordinate takes X, Y. This line is correct.
-                return new Cell10Info(area.name, olc, area.sourceItemType); //TODO: set this up later to hold gameplay area type.
-            }
-            return null;
-        }
+        //    //string area = DetermineAreaPoint(entriesHere);
+        //    var area = AreaTypeInfo.PickSmallestEntry(entriesHere);
+        //    if (area != null)
+        //    {
+        //        string olc;
+        //        //if (entireCode)
+        //        olc = new OpenLocationCode(y, x).CodeDigits;
+        //        //else
+        //        //TODO: decide on passing in a value for the split instead of a bool so this can be reused a little more
+        //        //olc = new OpenLocationCode(y, x).CodeDigits.Substring(6, 4); //This takes lat, long, Coordinate takes X, Y. This line is correct.
+        //        // olc = new OpenLocationCode(y, x).CodeDigits.Substring(8, 2); //This takes lat, long, Coordinate takes X, Y. This line is correct.
+        //        return new Cell10Info(area.name, olc, area.sourceItemType); //TODO: set this up later to hold gameplay area type.
+        //    }
+        //    return null;
+        //}
 
         public static void TestIntersectsPreparedVsNot()
         {
@@ -1196,7 +1196,7 @@ namespace PerformanceTestApp
             //PostgreSQL will make automatic spatial indexes
             if (mode == "PostgreSQL")
             {
-                db.Database.ExecuteSqlRaw(PraxisContext.MapDataIndexPG); //PostgreSQL needs its own create-index syntax
+                //db.Database.ExecuteSqlRaw(PraxisContext.MapDataIndexPG); //PostgreSQL needs its own create-index syntax
                 db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataIndexPG);
                 db.Database.ExecuteSqlRaw(PraxisContext.MapTileIndexPG);
                 db.Database.ExecuteSqlRaw(PraxisContext.SlippyMapTileIndexPG);
@@ -1204,7 +1204,7 @@ namespace PerformanceTestApp
             }
             else
             {
-                db.Database.ExecuteSqlRaw(PraxisContext.MapDataIndex); //PostgreSQL needs its own create-index syntax
+                //db.Database.ExecuteSqlRaw(PraxisContext.MapDataIndex); //PostgreSQL needs its own create-index syntax
                 db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataIndex);
                 db.Database.ExecuteSqlRaw(PraxisContext.MapTileIndex);
                 db.Database.ExecuteSqlRaw(PraxisContext.SlippyMapTileIndex);

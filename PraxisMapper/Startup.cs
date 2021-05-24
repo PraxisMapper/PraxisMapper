@@ -14,7 +14,7 @@ namespace PraxisMapper
 {
     public class Startup
     {
-        public Startup(IConfiguration configuration, IMemoryCache cache)
+        public Startup(IConfiguration configuration) //too early for memory cache.
         {
             Configuration = configuration;
             PerformanceTracker.EnableLogging = Configuration.GetValue<bool>("enablePerformanceTracker");
@@ -24,15 +24,6 @@ namespace PraxisMapper
             //AdminController.adminPwd = Configuration.GetValue<string>("adminPwd"); This pulls it directly from the configuration object in AdminController.
 
             TagParser.Initialize(false); //set to true when debugging new style rules without resetting the database entries.
-            //Let's save some stuff to the cache.
-            var db = new PraxisContext();
-            var serverSettings = db.ServerSettings.FirstOrDefault();
-            cache.Set("ServerSettings", serverSettings);
-            var factions = db.Factions.ToList();
-            cache.Set("Factions", factions);
-            var paintTownConfigs = db.PaintTownConfigs.ToList();
-            cache.Set("PTTConfigs", paintTownConfigs);
-
         }
 
         public IConfiguration Configuration { get; }
@@ -43,7 +34,7 @@ namespace PraxisMapper
             services.AddControllers();
             services.AddMvc();
             services.AddCoreComponentServiceCollection(); //injects the DbContext and other services into this collection. (Eventually, still working on that)
-            services.AddMemoryCache();
+            services.AddMemoryCache(); //AddMvc calls this quietly, but I'm calling it explicitly here anyways.
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
