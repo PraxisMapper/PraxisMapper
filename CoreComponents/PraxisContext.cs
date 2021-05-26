@@ -25,6 +25,8 @@ namespace CoreComponents
         public DbSet<TagParserEntry> TagParserEntries { get; set; }
         public DbSet<TagParserMatchRule> TagParserMatchRules { get; set; }
 
+        public DbSet<ElementTags> ElementTags { get; set; } //This table is exposed so I can search it directly faster.
+
         //IConfiguration Config;
         public static string connectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;"; //Needs a default value.
         public static string serverMode = "SQLServer";
@@ -72,6 +74,8 @@ namespace CoreComponents
 
             model.Entity<PaintTownScoreRecord>().HasIndex(m => m.PaintTownConfigId);
             model.Entity<PaintTownScoreRecord>().HasIndex(m => m.WinningFactionID);
+
+            model.Entity<ElementTags>().HasIndex(m => m.Key);
 
             if (serverMode == "PostgreSQL")
             {

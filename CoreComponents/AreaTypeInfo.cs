@@ -47,7 +47,7 @@ namespace CoreComponents
         {
             //Which Place in this given Area is the one that should be displayed on the game/map as the name? picks the smallest one.
             var entry = PickSmallestEntry(entriesHere);
-            return entry.name + "|" + entry.sourceItemType + "|" + entry.sourceItemID;
+            return entry.name + "|" + entry.GameElementName + "|" + entry.sourceItemID + "|" + entry.sourceItemType;
         }
 
         public static StringBuilder SearchArea(ref GeoArea area, ref List<StoredOsmElement> elements, bool entireCode = false)

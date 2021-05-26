@@ -61,7 +61,7 @@ namespace CoreComponents
 
         public static GeoArea GeometryToGeoArea(Geometry g)
         {
-            GeoArea results = new GeoArea(g.Envelope.Coordinates.Min(c => c.Y), g.Envelope.Coordinates.Min(c => c.X), g.Envelope.Coordinates.Max(c => c.Y), g.Envelope.Coordinates.Max(c => c.X));
+            GeoArea results = new GeoArea(g.EnvelopeInternal.MinY, g.EnvelopeInternal.MinX, g.EnvelopeInternal.MaxY, g.EnvelopeInternal.MaxX);
             return results;
         }
     }

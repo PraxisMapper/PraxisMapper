@@ -17,6 +17,8 @@ namespace Larry
         public virtual DbSet<PlusCodesVisited> PlusCodesVisited { get; set; }
         public virtual DbSet<PlayerStats> PlayerStats { get; set; }
 
+        public virtual DbSet<ScavengerHunt> ScavengerHunts { get; set; }
+
         public StandaloneContext()
         {
         }
@@ -68,8 +70,9 @@ namespace Larry
         public long id { get; set; }
         public string PlusCode { get; set; }
         public string Name { get; set; }
-        public int areaType { get; set; }
-        public int MapDataID { get; set; } //Might need to be a long. Might be irrelevant on self-contained DB (except maybe for loading an overlay image on a maptile?)
+        public string areaType { get; set; } //the game element name
+        public long OsmElementId { get; set; } //Might need to be a long. Might be irrelevant on self-contained DB (except maybe for loading an overlay image on a maptile?)
+        public long OsmElementType { get; set; } //Could be unnecessary on the standalone DB.
     }
 
     public class Bounds //readonly for the destination app
@@ -82,7 +85,7 @@ namespace Larry
 
     }
 
-    public class PlusCodesVisited //read-write. has bool for any visit, last visit date, is used for daily/weekly checks.
+    public class PlusCodesVisited //read-write. has bool for any visit, last visit date, is used for daily/weekly checks, and PaintTheTown mode.
     {
         public int id { get; set; }
         public string PlusCode { get; set; }
@@ -101,6 +104,19 @@ namespace Larry
 
 
     }
+
+    public class ScavengerHunt
+    { 
+        public int id { get; set; }
+        //public int listId { get; set; } //Which list does this entry appear on. A 
+        public string listName { get; set; } //using name as an ID, to avoid needed a separate table thats just ids and names.
+        public string description { get; set; } //Defaults to element name on auto-generated lists. Users could make this hints or clues instead.
+        public bool playerHasVisited { get; set; } //Single player mode means I can store this inline.
+        public long OsmElementId { get; set; } //Reference to see what this thing is in the source data. Empty for user-created items.
+        public long OsmElementType { get; set; } //as above.
+
+    }
+
 
     //public class WeeklyVisited //read-write
     //{ 
