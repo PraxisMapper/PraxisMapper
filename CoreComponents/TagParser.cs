@@ -59,8 +59,11 @@ namespace CoreComponents
 
         public static TagParserEntry GetStyleForOsmWay(StoredOsmElement sw)
         {
+            //This one return the style AND fills in some info on the element for us.
+            //This is done at run-time so we can change this info with resetting the database each time we change.
             var style = GetStyleForOsmWay(sw.Tags.ToList());
             sw.GameElementName = style.name;
+            sw.IsGameElement = style.IsGameElement;
             return style;
         }
 
@@ -241,6 +244,16 @@ namespace CoreComponents
                 retVal = "";
 
             return retVal;
+        }
+
+        public static string GetWikipediaLink(StoredOsmElement element)
+        {
+            var wikiTag = element.Tags.Where(t => t.Key == "wikipedia").FirstOrDefault();
+            if (wikiTag == null)
+                return "";
+
+            string[] splitValue = wikiTag.Value.Split(":");
+            return "https://" + splitValue[0] + ".wikipedia.org/wiki/" + splitValue[1]; //TODO: check if special characters need replaced or encoded on this.
         }
     }
 }

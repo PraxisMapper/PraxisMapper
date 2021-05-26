@@ -56,6 +56,8 @@ namespace Larry
                 PraxisContext.connectionString = arg;
             }
 
+            TagParser.Initialize(true); //Do this after the DB values are parsed.
+
             //Check for settings flags first before running any commands.
             if (args.Any(a => a == "-v" || a == "-verbose"))
                 Log.Verbosity = Log.VerbosityLevels.High;
@@ -192,6 +194,9 @@ namespace Larry
             {
                 //This makes a standalone DB for a specific relation passed in as a paramter. Originally used a geoArea, now calculates that from a Relation.
                 //If you think you want an area, it's probably better to pick an admin boundary as a relation that covers the area.
+                //This will be testing with Cuyahoga County, id 350381. Note that it technically extends to the Canadian border halfway across Lake Erie, so it'll have a lot of empty blue map tiles.
+                //It uses about 100MB of maptiles, takes ~20 minutes to process maptiles for.
+                //or use id 6113131 for CWRU, a much smaller location than a county.
 
                 int relationId = args.Where(a => a.StartsWith("-createStandalone")).First().Split('|')[1].ToInt();
                 CreateStandaloneDB(relationId, false, true); //How map tiles are handled is determined by the optional parameters
@@ -269,29 +274,6 @@ namespace Larry
                 }
             }
 
-            //if (args.Any(a => a.StartsWith("-importV4")))
-            //{
-                // 4th generation of logic for importing OSM data from PBF file.
-                //V4 rules:
-                //Tags will be saved to a separate table. (this lets me update formatting rules without reimporting data).
-                //All entries  are processed into the database as geometry objects into one table.
-                //Use the built-in Feature converter in OsmSharp.Geo instead of maintaining the OSM-to-Geometry logic myself.
-                //Only nodes that match the tag rules will be imported as their own entries. Untagged nodes will be ignored.
-                //attempt to stream data to avoid memory issues. MIght need to do multiple filters on small areas (degree square? half-degree?)
-
-                //I need to avoid adding duplicate entries, and i dont want to do huge passes per entry added. 
-                //Is there an 'ignore on duplicate' command or setting in MariaDB and SQL Server? I might need to set those. CAn it be the default behavior?
-
-                //NOTE: this worked fine once. I added node processing, and then it crashed on an OOM error at 8GB? But i also had my usual system stuff running in the background, include a browser.
-                //Continue testing on bigger files to see if there's issues somewhere still. If so, might need to implement in some skip/take logic to stay within ram limit
-            //    TagParser.Initialize(true);
-            //    List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
-            //    foreach (string filename in filenames)
-            //    {
-            //        V4Import.ProcessFilePiecesV4(filename);
-            //    }
-            //}
-
             //new V4 options to piecemeal up some of the process.
             if (args.Any(a => a.StartsWith("-splitToSubPbfs")))
             {
@@ -308,7 +290,6 @@ namespace Larry
             //if (args.Any(a => a.StartsWith("-testDrawOhio")))
             //{
             //    //remove admin boundaries from the map.
-            //    TagParser.Initialize(true);
             //    var makeAdminClear = TagParser.styles.Where(s => s.name == "admin").FirstOrDefault();
             //    makeAdminClear.paint.Color = SKColors.Transparent;
 
@@ -424,71 +405,150 @@ namespace Larry
         //mostly-complete function for making files for a standalone app.
         public static void CreateStandaloneDB(long relationID, bool saveToDB = false, bool saveToFolder = true)
         {
-            //TODO: add a parmeter to determine if maptiles are saved in the DB or separately in a folder.            
-            //TODO in practice:
-            //Set up area name to be area type  if name is blank.
-            //
+            //Time to update this logic
+            //Step 1: make maptiles and store them as requested (in DB or in a folder)
+            //Step 2: calculate areas types for gameplay modes that will use that (incremental game)
+            //Step 3: Create scavenger hunt list(s) automatically off the following traits
+            //       a: Wikipedia linked entries
+            //       b: IsGameElement matching tags.
 
             var mainDb = new PraxisContext();
-            var sqliteDb = new StandaloneContext(relationID.ToString());// "placeholder";
+            var sqliteDb = new StandaloneContext(relationID.ToString());
+            sqliteDb.ChangeTracker.AutoDetectChangesEnabled = false;
             sqliteDb.Database.EnsureCreated();
+            Log.WriteLog("Standalone DB created for relation " + relationID + " at " + DateTime.Now);
 
             var fullArea = mainDb.StoredOsmElements.Where(m => m.sourceItemID == relationID && m.sourceItemType == 3).FirstOrDefault();
             if (fullArea == null)
                 return;
 
-            //Add a Cell8's worth of space to the edges of the area.
-            GeoArea buffered = new GeoArea(fullArea.elementGeometry.EnvelopeInternal.MinY, fullArea.elementGeometry.EnvelopeInternal.MinX, fullArea.elementGeometry.EnvelopeInternal.MaxY, fullArea.elementGeometry.EnvelopeInternal.MaxX);
-            //var intersectCheck = Converters.GeoAreaToPreparedPolygon(buffered);
+            GeoArea buffered = Converters.GeometryToGeoArea(fullArea.elementGeometry);
             var intersectCheck = Converters.GeoAreaToPolygon(buffered); //Cant use prepared geometry against the db directly
+            var allPlaces = mainDb.StoredOsmElements.Include(m => m.Tags).Where(md => intersectCheck.Intersects(md.elementGeometry)).ToList();
+            foreach(var a in allPlaces)
+                TagParser.GetStyleForOsmWay(a); //fill in IsGameElement and gameElementName once instead of doing that lookup every Cell10.
 
-            var allPlaces = mainDb.StoredOsmElements.Where(md => intersectCheck.Intersects(md.elementGeometry)).ToList();
+            Log.WriteLog("Loaded all intersecting geometry at " + DateTime.Now);
 
             //now we have the list of places we need to be concerned with. 
             //start drawing maptiles and sorting out data.
             var swCorner = new OpenLocationCode(intersectCheck.EnvelopeInternal.MinY, intersectCheck.EnvelopeInternal.MinX);
             var neCorner = new OpenLocationCode(intersectCheck.EnvelopeInternal.MaxY, intersectCheck.EnvelopeInternal.MaxX);
 
+            //declare how many map tiles will be drawn
+            var xTiles = buffered.LongitudeWidth / resolutionCell8;
+            var yTiles = buffered.LatitudeHeight / resolutionCell8;
+            var totalTiles = Math.Truncate(xTiles * yTiles);
+
+            Log.WriteLog("Starting processing Cell8 terrain and tiles for " + totalTiles + " Cell8 areas.");
+            long mapTileCounter = 0;
+            System.Diagnostics.Stopwatch progressTimer = new System.Diagnostics.Stopwatch();
+            progressTimer.Start();
             System.IO.Directory.CreateDirectory(relationID + "Tiles");
             //now, for every Cell8 involved, draw and name it.
-            for (var y = swCorner.Decode().SouthLatitude; y <= neCorner.Decode().NorthLatitude; y += resolutionCell8)
+            //This is tricky to run in parallel because it's not smooth increments
+            var yCoords = new List<double>();
+            var yVal = swCorner.Decode().SouthLatitude;
+            while (yVal <= neCorner.Decode().NorthLatitude)
             {
-                for (var x = swCorner.Decode().WestLongitude; x <= neCorner.Decode().EastLongitude; x += resolutionCell8)
-                {
-                    //make map tile.
-                    var plusCode = new OpenLocationCode(y, x, 10);
-                    var areaForTile = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell8, x + resolutionCell8));
-                    var acheck2 = Converters.GeoAreaToPolygon(areaForTile);
-                    var areaList = allPlaces.Where(a => a.elementGeometry.Intersects(acheck2)).Select(a => a.Clone()).ToList();
+                yCoords.Add(yVal);
+                yVal += resolutionCell8;
+            }
 
-                    System.Text.StringBuilder terrainInfo = AreaTypeInfo.SearchArea(ref areaForTile, ref areaList, true);
+            var xCoords = new List<double>();
+            var xVal = swCorner.Decode().WestLongitude;
+            while (xVal <= neCorner.Decode().EastLongitude)
+            {
+                xCoords.Add(xVal);
+                xVal += resolutionCell8;
+            }
+
+            System.Threading.ReaderWriterLockSlim dbLock = new System.Threading.ReaderWriterLockSlim();
+
+            //TODO: concurrent collections might require a lock or changing types.
+            //But running in parallel saves a lot of time in general on this.
+            Parallel.ForEach(yCoords, y => {
+                Parallel.ForEach(xCoords, x => {
+                    //make map tile.
+                    var plusCode8 = new OpenLocationCode(y, x, 10).CodeDigits.Substring(0, 8);
+                    var areaForTile = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell8, x + resolutionCell8));
+                    var acheck = Converters.GeoAreaToPolygon(areaForTile); //this is faster than using a PreparedPolygon in testing, which was unexpected.
+                    var areaList = allPlaces.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); //This one is for the maptile
+                    var gameAreas = areaList.Where(a => a.IsGameElement).ToList(); //this is for determining what area name/type to display for a cell10.
+
+                    //Create the maptile first, so if we save it to the DB we can call the lock once per loop.
+                    var info = new ImageStats(areaForTile, 80, 100); //Each pixel is a Cell11, we're drawing a Cell8.
+                    var tile = MapTiles.DrawAreaAtSizeV4(info, areaList);
+                    if (tile == null)
+                    {
+                        Log.WriteLog("Tile at " + x + "," + y + "Failed to draw!");
+                        return;
+                    }
+                    if (saveToFolder) //some apps, like my Solar2D apps, can't use the byte[] in a DB row and need files.
+                        System.IO.File.WriteAllBytes(relationID + "Tiles\\" + plusCode8 + ".pngTile", tile); //Solar2d also can't load pngs directly from an apk file in android, but the rule is extension based.
+
+                    //SearchArea didn't need any logic changes, but we do want to pass in only game areas.
+                    System.Text.StringBuilder terrainInfo = AreaTypeInfo.SearchArea(ref areaForTile, ref gameAreas, true); //The list of Cell10 areas in this Cell8
                     var splitData = terrainInfo.ToString().Split(Environment.NewLine);
+                    dbLock.EnterWriteLock();
                     foreach (var sd in splitData)
                     {
                         if (sd == "") //last result is always a blank line
                             continue;
 
-                        var subParts = sd.Split('|'); //PlusCode|Name|AreaTypeID|MapDataID
-                        sqliteDb.TerrainInfo.Add(new TerrainInfo() { Name = subParts[1], areaType = subParts[2].ToInt(), PlusCode = subParts[0], MapDataID = subParts[3].ToInt() });
+                        var subParts = sd.Split('|'); //PlusCode|Name|AreaTypeID|OsmElementId|OsmElementType
+                        sqliteDb.TerrainInfo.Add(new TerrainInfo() { Name = subParts[1], areaType = subParts[2], PlusCode = subParts[0], OsmElementId = subParts[3].ToInt(), OsmElementType = subParts[4].ToLong() });
+                        if (saveToDB) //Some apps will prefer a single self-contained database file
+                            sqliteDb.MapTiles.Add(new MapTileDB() { image = tile, layer = 1, PlusCode = plusCode8 });
                     }
+                    dbLock.ExitWriteLock();
+                    
+                    mapTileCounter++;
+                    if (progressTimer.ElapsedMilliseconds > 15000)
+                    {
+                        Log.WriteLog(mapTileCounter + " cells processed, " + Math.Round((mapTileCounter / totalTiles)* 100, 2) + "% complete");
+                        progressTimer.Restart();
+                    }
+                });
+            });
+            Log.WriteLog(mapTileCounter +  " maptiles drawn at " + DateTime.Now);
+            sqliteDb.SaveChanges(); //inserts all the TerrainInfo elements now, and maptiles if they're injected into the Sqlite file.
 
-                    //var tile = MapTiles.DrawAreaMapTileSkia(ref areaList, areaForTile, 11);
-                    var info = new ImageStats(areaForTile, 80, 100); //These are Cell11-sized. I no longer need to specifically call that out with a specific function.
-                    var tile = MapTiles.DrawAreaAtSizeV4(info, areaList);
+            //Create automatic scavenger hunt entries.
+            Dictionary<string, List<StoredOsmElement>> scavengerHunts = new Dictionary<string, List<StoredOsmElement>>();
 
-                    if (saveToDB) //Some apps will prefer a single self-contained database file
-                        sqliteDb.MapTiles.Add(new MapTileDB() { image = tile, layer = 1, PlusCode = plusCode.CodeDigits.Substring(0, 8) });
-
-                    if (saveToFolder) //some apps, like my Solar2D apps, can't use the byte[] in a DB row and need files.
-                        System.IO.File.WriteAllBytes(relationID + "Tiles\\" + plusCode.CodeDigits.Substring(0, 8) + ".pngTile", tile); //Solar2d also can't load pngs directly from an apk file in android, but the rule is extension based.
-                }
+            //fill in wiki list
+            var wikiList = allPlaces.Where(a => a.Tags.Any(t => t.Key == "wikipedia")).ToList();
+            scavengerHunts.Add("Wikipedia Places", wikiList);
+            Log.WriteLog(wikiList.Count() + " Wikipedia-linked items found for scavenger hunt.");
+            //fill in gameElement lists.
+            foreach (var gameElementTags in TagParser.styles.Where(s => s.IsGameElement))
+            {
+                var foundElements = allPlaces.Where(a => TagParser.MatchOnTags(gameElementTags, a) && !string.IsNullOrWhiteSpace(a.name)).ToList();
+                scavengerHunts.Add(gameElementTags.name, foundElements);
+                Log.WriteLog(foundElements.Count() + " " + gameElementTags.name + " items found for scavenger hunt.");
             }
+
+            foreach(var hunt in scavengerHunts)
+            {
+                foreach (var item in hunt.Value)
+                    sqliteDb.ScavengerHunts.Add(new ScavengerHunt() { listName = hunt.Key, description = item.name, OsmElementId = item.sourceItemType, OsmElementType = item.sourceItemID, playerHasVisited = false });
+            }
+            Log.WriteLog("Auto-created scavenger hunt entries at " + DateTime.Now);
             sqliteDb.SaveChanges();
 
-            //insert default entries.
+            //insert default entries for a new player.
             sqliteDb.PlayerStats.Add(new PlayerStats() { timePlayed = 0, distanceWalked = 0 });
             sqliteDb.Bounds.Add(new Bounds() { EastBound = neCorner.Decode().EastLongitude, NorthBound = neCorner.Decode().NorthLatitude, SouthBound = swCorner.Decode().SouthLatitude, WestBound = swCorner.Decode().WestLongitude });
             sqliteDb.SaveChanges();
+
+            //Copy the files as necessary to their correct location.
+            if (saveToFolder)
+                Directory.Move(relationID + "Tiles", ParserSettings.Solar2dExportFolder + "Tiles");
+
+            File.Move(relationID + ".sqlite", ParserSettings.Solar2dExportFolder + "database.sqlite");
+
+            Log.WriteLog("Standalone gameplay DB done.");
         }
 
         public static void SingleTest()

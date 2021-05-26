@@ -11,6 +11,8 @@
         public static string JsonMapDataFolder = @"D:\Projects\PraxisMapper Files\Trimmed JSON Files\";
         public static long FilesizeSplit = 400000000;
 
+        public static string Solar2dExportFolder = ""; //When using the Solar2D standalong DB game, copy the results to this folder (and rename the sqlite db file to match)
+
         //If false, round coords to 7 decimal places and simplify paths to a Cell10's width.
         //If true, use coords as-is (cast to float from double), and don't simplify path data.
         //Setting to false uses significantly less storage (945MB of MapData.json vs 596MB, 36% smaller)
