@@ -190,7 +190,7 @@ namespace Larry
                 DBCommands.RemoveDuplicates();
             }
 
-            if (args.Any(a => a.StartsWith("-createStandalone")))
+            if (args.Any(a => a.StartsWith("-createStandaloneRelation")))
             {
                 //This makes a standalone DB for a specific relation passed in as a paramter. Originally used a geoArea, now calculates that from a Relation.
                 //If you think you want an area, it's probably better to pick an admin boundary as a relation that covers the area.
@@ -198,8 +198,23 @@ namespace Larry
                 //It uses about 100MB of maptiles, takes ~20 minutes to process maptiles for.
                 //or use id 6113131 for CWRU, a much smaller location than a county.
 
-                int relationId = args.Where(a => a.StartsWith("-createStandalone")).First().Split('|')[1].ToInt();
-                CreateStandaloneDB(relationId, false, true); //How map tiles are handled is determined by the optional parameters
+                int relationId = args.Where(a => a.StartsWith("-createStandaloneRelation")).First().Split('|')[1].ToInt();
+                CreateStandaloneDB(relationId, null, false, true); //How map tiles are handled is determined by the optional parameters
+            }
+
+            if (args.Any(a => a.StartsWith("-createStandaloneBox")))
+            {
+                //This makes a standalone DB for a specific relation passed in as a paramter. Originally used a geoArea, now calculates that from a Relation.
+                //If you think you want an area, it's probably better to pick an admin boundary as a relation that covers the area.
+                //This will be testing with Cuyahoga County, id 350381. Note that it technically extends to the Canadian border halfway across Lake Erie, so it'll have a lot of empty blue map tiles.
+                //It uses about 100MB of maptiles, takes ~20 minutes to process maptiles for.
+                //or use id 6113131 for CWRU, a much smaller location than a county.
+
+                string[] bounds = args.Where(a => a.StartsWith("-createStandaloneBox")).First().Split('|');
+                GeoArea boundsArea = new GeoArea(bounds[1].ToDouble(), bounds[2].ToDouble(), bounds[3].ToDouble(), bounds[4].ToDouble());
+
+                //in order, these go south/west/north/east.
+                CreateStandaloneDB(0, boundsArea, false, true); //How map tiles are handled is determined by the optional parameters
             }
 
             if (args.Any(a => a == "-autoCreateMapTiles")) //better for letting the app decide which tiles to create than manually calling out Cell6 names.
@@ -403,7 +418,7 @@ namespace Larry
         }
 
         //mostly-complete function for making files for a standalone app.
-        public static void CreateStandaloneDB(long relationID, bool saveToDB = false, bool saveToFolder = true)
+        public static void CreateStandaloneDB(long relationID = 0, GeoArea bounds = null, bool saveToDB = false, bool saveToFolder = true)
         {
             //Time to update this logic
             //Step 1: make maptiles and store them as requested (in DB or in a folder)
@@ -411,6 +426,20 @@ namespace Larry
             //Step 3: Create scavenger hunt list(s) automatically off the following traits
             //       a: Wikipedia linked entries
             //       b: IsGameElement matching tags.
+            //NOTE 1: If both relation and bounds are provided, name it after the relation but use the bounds for processing logic.
+
+            //So, Solar2D only opens 1 DB at once, so I will want to minimize storage space here.
+            //New table: terrainData. Holds name/type for TerrainInfo. TerrainInfo now holds a Foreign Key to TerrainData
+            string name = "";
+            if (bounds != null)
+                name = Math.Truncate(bounds.SouthLatitude) + "_" + Math.Truncate(bounds.WestLongitude) + "_" + Math.Truncate(bounds.NorthLatitude) + "_" + Math.Truncate(bounds.EastLongitude) + ".sqlite";
+
+            if (relationID > 0)
+                name = relationID.ToString() + ".sqlite";
+            
+
+            if (File.Exists(name))
+                File.Delete(name);
 
             var mainDb = new PraxisContext();
             var sqliteDb = new StandaloneContext(relationID.ToString());
@@ -423,7 +452,10 @@ namespace Larry
                 return;
 
             GeoArea buffered = Converters.GeometryToGeoArea(fullArea.elementGeometry);
-            var intersectCheck = Converters.GeoAreaToPolygon(buffered); //Cant use prepared geometry against the db directly
+            //This should also be able to take a bounding box.
+            if (relationID == 350381)
+                buffered = new GeoArea(41.27401, -81.97301, 41.6763, -81.3665); //A smaller box that doesn't cross half the lake.
+            var intersectCheck = Converters.GeoAreaToPolygon(buffered);
             var allPlaces = mainDb.StoredOsmElements.Include(m => m.Tags).Where(md => intersectCheck.Intersects(md.elementGeometry)).ToList();
             foreach(var a in allPlaces)
                 TagParser.GetStyleForOsmWay(a); //fill in IsGameElement and gameElementName once instead of doing that lookup every Cell10.
@@ -465,6 +497,9 @@ namespace Larry
 
             System.Threading.ReaderWriterLockSlim dbLock = new System.Threading.ReaderWriterLockSlim();
 
+            Dictionary<long, TerrainData> terrainDatas = new Dictionary<long, TerrainData>();
+            
+
             //TODO: concurrent collections might require a lock or changing types.
             //But running in parallel saves a lot of time in general on this.
             Parallel.ForEach(yCoords, y => {
@@ -495,11 +530,19 @@ namespace Larry
                     {
                         if (sd == "") //last result is always a blank line
                             continue;
+                        var subParts = sd.Split('|'); //PlusCode|Name|AreaTypeName|OsmElementId|OsmElementType
 
-                        var subParts = sd.Split('|'); //PlusCode|Name|AreaTypeID|OsmElementId|OsmElementType
-                        sqliteDb.TerrainInfo.Add(new TerrainInfo() { Name = subParts[1], areaType = subParts[2], PlusCode = subParts[0], OsmElementId = subParts[3].ToInt(), OsmElementType = subParts[4].ToLong() });
-                        if (saveToDB) //Some apps will prefer a single self-contained database file
-                            sqliteDb.MapTiles.Add(new MapTileDB() { image = tile, layer = 1, PlusCode = plusCode8 });
+                        //save all the terrainDatas to a lookup, then insert them into the db later, manually assign IDs to the Info. cuts down size by about 30%
+                        if (terrainDatas.ContainsKey(subParts[3].ToLong()))
+                        {
+                            sqliteDb.TerrainInfo.Add(new TerrainInfo() {PlusCode = subParts[0], terrainDataId = subParts[3].ToLong()});
+                        }
+                        else
+                        {
+                            var addingTd = new TerrainData() { Name = subParts[1], areaType= subParts[2], OsmElementId = subParts[3].ToLong(), OsmElementType = subParts[4].ToLong()  };
+                            terrainDatas.Add(addingTd.OsmElementId, addingTd);
+                            sqliteDb.TerrainInfo.Add(new TerrainInfo() { PlusCode = subParts[0], terrainDataId = subParts[3].ToLong() });
+                        }
                     }
                     dbLock.ExitWriteLock();
                     
@@ -512,7 +555,12 @@ namespace Larry
                 });
             });
             Log.WriteLog(mapTileCounter +  " maptiles drawn at " + DateTime.Now);
+
+            foreach (var td in terrainDatas)
+                sqliteDb.TerrainData.Add(td.Value);
+
             sqliteDb.SaveChanges(); //inserts all the TerrainInfo elements now, and maptiles if they're injected into the Sqlite file.
+            Log.WriteLog("Terrain Data and Info saved at " + DateTime.Now);
 
             //Create automatic scavenger hunt entries.
             Dictionary<string, List<StoredOsmElement>> scavengerHunts = new Dictionary<string, List<StoredOsmElement>>();
@@ -532,13 +580,13 @@ namespace Larry
             foreach(var hunt in scavengerHunts)
             {
                 foreach (var item in hunt.Value)
-                    sqliteDb.ScavengerHunts.Add(new ScavengerHunt() { listName = hunt.Key, description = item.name, OsmElementId = item.sourceItemType, OsmElementType = item.sourceItemID, playerHasVisited = false });
+                    sqliteDb.ScavengerHunts.Add(new ScavengerHunt() { listName = hunt.Key, description = item.name, OsmElementId = item.sourceItemID, OsmElementType = item.sourceItemType, playerHasVisited = false });
             }
             Log.WriteLog("Auto-created scavenger hunt entries at " + DateTime.Now);
             sqliteDb.SaveChanges();
 
             //insert default entries for a new player.
-            sqliteDb.PlayerStats.Add(new PlayerStats() { timePlayed = 0, distanceWalked = 0 });
+            sqliteDb.PlayerStats.Add(new PlayerStats() { timePlayed = 0, distanceWalked = 0, score = 0 });
             sqliteDb.Bounds.Add(new Bounds() { EastBound = neCorner.Decode().EastLongitude, NorthBound = neCorner.Decode().NorthLatitude, SouthBound = swCorner.Decode().SouthLatitude, WestBound = swCorner.Decode().WestLongitude });
             sqliteDb.SaveChanges();
 
@@ -546,7 +594,7 @@ namespace Larry
             if (saveToFolder)
                 Directory.Move(relationID + "Tiles", ParserSettings.Solar2dExportFolder + "Tiles");
 
-            File.Move(relationID + ".sqlite", ParserSettings.Solar2dExportFolder + "database.sqlite");
+            File.Copy(relationID + ".sqlite", ParserSettings.Solar2dExportFolder + "database.sqlite");
 
             Log.WriteLog("Standalone gameplay DB done.");
         }

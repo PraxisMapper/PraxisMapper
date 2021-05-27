@@ -10,13 +10,17 @@ namespace Larry
     public partial class StandaloneContext : DbContext
     {
         public string destinationFilename = "Standalone.sqlite";
-
+        //Solar2D's SQLite library only allows for one DB to be open at once. This means my idea to have a split set of DB files will 
+        //not be the best plan for performance, since i'd have to open and close the DB connection on every query.
+        //So, I'll choose Plan B: save everything into one database, and make a copy of the DB in user-writable space on the device.
+        //This is a little redundant on space usage, but a big county is 200 MB total, split between mapTiles and the DB.
+        //Will see how much DB space is saved with the TerrainData table now.
         public virtual DbSet<MapTileDB> MapTiles { get; set; }
         public virtual DbSet<TerrainInfo> TerrainInfo { get; set; }
+        public virtual DbSet<TerrainData> TerrainData { get; set; }
         public virtual DbSet<Bounds> Bounds { get; set; }
         public virtual DbSet<PlusCodesVisited> PlusCodesVisited { get; set; }
         public virtual DbSet<PlayerStats> PlayerStats { get; set; }
-
         public virtual DbSet<ScavengerHunt> ScavengerHunts { get; set; }
 
         public StandaloneContext()
@@ -48,9 +52,12 @@ namespace Larry
             model.Entity<MapTileDB>().HasIndex(p => p.PlusCode);
 
             model.Entity<TerrainInfo>().HasIndex(p => p.PlusCode);
+            
+            model.Entity<TerrainData>().HasIndex(p => p.OsmElementId);
 
             model.Entity<PlusCodesVisited>().HasIndex(p => p.PlusCode);
 
+            model.Entity<ScavengerHunt>().HasIndex(p => p.playerHasVisited);
         }
 
     }
@@ -69,6 +76,13 @@ namespace Larry
     {
         public long id { get; set; }
         public string PlusCode { get; set; }
+        //public TerrainData terrainData { get; set; }
+        public long terrainDataId { get; set; }
+    }
+
+    public class TerrainData //read-only for the destination app. Reduces storage space on big areas.
+    {
+        public long id { get; set; }
         public string Name { get; set; }
         public string areaType { get; set; } //the game element name
         public long OsmElementId { get; set; } //Might need to be a long. Might be irrelevant on self-contained DB (except maybe for loading an overlay image on a maptile?)
@@ -90,9 +104,10 @@ namespace Larry
         public int id { get; set; }
         public string PlusCode { get; set; }
         public int visited { get; set; } //0 for false, 1 for true
-        public DateTime lastVisit { get; set; }
-        public DateTime nextDailyBonus { get; set; }
-        public DateTime nextWeeklyBonus { get; set; }
+        //Times in Lua are longs, so store that instead of a string
+        public long lastVisit { get; set; }
+        public long nextDailyBonus { get; set; }
+        public long nextWeeklyBonus { get; set; }
     }
 
     public class PlayerStats //read-write, doesn't leave the device
@@ -100,9 +115,7 @@ namespace Larry
         public int id { get; set; }
         public int timePlayed { get; set; }
         public double distanceWalked { get; set; }
-        //public double AreasVisited { get; set; } //get count() from pluscodesvisited wwhere visited = 1
-
-
+        public long score { get; set; }
     }
 
     public class ScavengerHunt
