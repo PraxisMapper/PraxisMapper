@@ -318,8 +318,8 @@ namespace CoreComponents
             //baseline image data stuff           
             SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
             SKCanvas canvas = new SKCanvas(bitmap);
-            var bgColor = SKColors.Transparent;
-            canvas.Clear(bgColor);
+            var bgColor = styles.Last().paint; //SKColors.Transparent;
+            canvas.Clear(bgColor.Color);
             canvas.Scale(1, -1, stats.imageSizeX / 2, stats.imageSizeY / 2);
             SKPaint paint = new SKPaint();
 
