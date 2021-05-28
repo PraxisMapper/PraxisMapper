@@ -118,6 +118,53 @@ namespace CoreComponents
             return handledItems;
         }
 
+        //For small files, possibly for filtered boxes on an area.
+        //Could allow for self-contained mobile games to get their DB created without setting up a db and web server.
+        public static List<StoredOsmElement> ProcessSkipDatabase(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, int itemsPerLoop)
+        {
+            List<StoredOsmElement> elements = new List<StoredOsmElement>();
+            Log.WriteLog("Loading All OSM elements into RAM...");
+            long totalCounter = 0;
+            long totalItems = 0;
+            long itemCounter = 0;
+            DateTime startedProcess = DateTime.Now;
+            TimeSpan difference;
+            foreach (var r in items) //This is where the first memory peak hits as it loads everything into memory
+            {
+                if (totalCounter == 0)
+                {
+                    Log.WriteLog("PBF Data loaded.");
+                    startedProcess = DateTime.Now;
+                    difference = startedProcess - startedProcess;
+                }
+                totalCounter++;
+                try
+                {
+                    var convertedItem = GeometrySupport.ConvertOsmEntryToStoredElement(r);
+                    if (convertedItem == null)
+                    {
+                        continue;
+                    }
+                    elements.Add(convertedItem);
+                    totalItems++;
+                    itemCounter++;
+                    if (itemCounter > itemsPerLoop)
+                    {
+                        ReportProgress(startedProcess, 0, totalCounter, "PBF elements");
+                        itemCounter = 0;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.WriteLog("Error Processing PBF element " + r.Id + ": " + ex.Message);
+                }
+            }
+            
+            Log.WriteLog("PBF entries converted and held in RAM at " + DateTime.Now);
+
+            return elements;
+        }
+
         public static void ReportProgress(DateTime startedProcess, double totalItems, double itemsProcessed, string itemName)
         {
             var difference = DateTime.Now - startedProcess;

@@ -472,10 +472,23 @@ namespace Larry
             }
             else
                 buffered = bounds;
-             
 
+
+            //TODO: set a flag to allow this to pull straight from a PBF file.
+            //Would need a variant of ProcessFileCore that returns a list of StoredOsmElements intead of writing directly to DB
+            List<StoredOsmElement> allPlaces = new List<StoredOsmElement>();
             var intersectCheck = Converters.GeoAreaToPolygon(buffered);
-            var allPlaces = mainDb.StoredOsmElements.Include(m => m.Tags).Where(md => intersectCheck.Intersects(md.elementGeometry)).ToList();
+            bool pullFromPbf = false; //Set via arg at startup? or setting file?
+            if (!pullFromPbf)
+                allPlaces = mainDb.StoredOsmElements.Include(m => m.Tags).Where(md => intersectCheck.Intersects(md.elementGeometry)).ToList();
+            else 
+            {
+                //need a file to read from.
+                //optionally a bounding box on that file.
+                //Starting to think i might want to track some generic parameters I refer to later. like -box|s|w|n|e or -point|lat|long or -singleFile|here.osm.pbf
+                //allPlaces = PbfFileParser.ProcessSkipDatabase();
+            }
+
             foreach(var a in allPlaces)
                 TagParser.GetStyleForOsmWay(a); //fill in IsGameElement and gameElementName once instead of doing that lookup every Cell10.
 
