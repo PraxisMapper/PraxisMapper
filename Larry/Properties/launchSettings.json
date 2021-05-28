@@ -2,7 +2,7 @@
   "profiles": {
     "Larry": {
       "commandName": "Project",
-      "commandLineArgs": "-Zverbose  -ZspaceSaver -ZcreateDB  -ZcleanDB -ZresetPbf -ZresetJson -ZloadPbfsToDb -ZloadPbfsToJson  -ZloadJsonToDb  -ZupdateDatabase -ZremoveDupes -ZsingleTest -createStandaloneRelation|350381 -ZcreateStandaloneRelation|6113131 -ZcreateStandaloneRelation|177915 -ZextractBigAreas -ZpopulateEmptyArea: -ZautoCreateMapTiles -ZfindServerBounds  -ZfixAreaSizes -ZtestDrawOhio -ZsplitToSubPbfs"
+      "commandLineArgs": "-Zverbose  -ZspaceSaver -ZcreateDB  -ZcleanDB -ZresetPbf -ZresetJson -ZloadPbfsToDb -ZloadPbfsToJson  -ZloadJsonToDb  -ZupdateDatabase -ZremoveDupes -ZsingleTest -createStandaloneRelation|350381 -ZcreateStandaloneRelation|6113131 -ZcreateStandaloneRelation|177915 -ZcreateStandalonePoint|41.52651|-81.46368  -ZextractBigAreas -ZpopulateEmptyArea: -ZautoCreateMapTiles -ZfindServerBounds  -ZfixAreaSizes -ZtestDrawOhio -ZsplitToSubPbfs"
     }
   }
 }

@@ -192,11 +192,11 @@ namespace Larry
 
             if (args.Any(a => a.StartsWith("-createStandaloneRelation")))
             {
-                //This makes a standalone DB for a specific relation passed in as a paramter. Originally used a geoArea, now calculates that from a Relation.
-                //If you think you want an area, it's probably better to pick an admin boundary as a relation that covers the area.
+                //This makes a standalone DB for a specific relation passed in as a paramter. 
                 //This will be testing with Cuyahoga County, id 350381. Note that it technically extends to the Canadian border halfway across Lake Erie, so it'll have a lot of empty blue map tiles.
                 //It uses about 100MB of maptiles, takes ~20 minutes to process maptiles for.
                 //or use id 6113131 for CWRU, a much smaller location than a county.
+                //A typical county might be a little too big for the Solar2D framework i set up.
 
                 int relationId = args.Where(a => a.StartsWith("-createStandaloneRelation")).First().Split('|')[1].ToInt();
                 CreateStandaloneDB(relationId, null, false, true); //How map tiles are handled is determined by the optional parameters
@@ -204,11 +204,8 @@ namespace Larry
 
             if (args.Any(a => a.StartsWith("-createStandaloneBox")))
             {
-                //This makes a standalone DB for a specific relation passed in as a paramter. Originally used a geoArea, now calculates that from a Relation.
-                //If you think you want an area, it's probably better to pick an admin boundary as a relation that covers the area.
-                //This will be testing with Cuyahoga County, id 350381. Note that it technically extends to the Canadian border halfway across Lake Erie, so it'll have a lot of empty blue map tiles.
-                //It uses about 100MB of maptiles, takes ~20 minutes to process maptiles for.
-                //or use id 6113131 for CWRU, a much smaller location than a county.
+                //This makes a standalone DB for a specific area passed in as a paramter.
+                //If you want to cover a region in a less-specific way, or the best available relation is much larger than you thought, this might be better.
 
                 string[] bounds = args.Where(a => a.StartsWith("-createStandaloneBox")).First().Split('|');
                 GeoArea boundsArea = new GeoArea(bounds[1].ToDouble(), bounds[2].ToDouble(), bounds[3].ToDouble(), bounds[4].ToDouble());
@@ -216,6 +213,20 @@ namespace Larry
                 //in order, these go south/west/north/east.
                 CreateStandaloneDB(0, boundsArea, false, true); //How map tiles are handled is determined by the optional parameters
             }
+
+            if (args.Any(a => a.StartsWith("-createStandalonePoint")))
+            {
+                //This makes a standalone DB centered on a specific point, it will grab a Cell6's area around that point.
+
+                string[] bounds = args.Where(a => a.StartsWith("-createStandalonePoint")).First().Split('|');
+
+                var resSplit = resolutionCell6 / 2;
+                GeoArea boundsArea = new GeoArea(bounds[1].ToDouble() -resSplit, bounds[2].ToDouble() - resSplit, bounds[1].ToDouble() + resSplit, bounds[2].ToDouble() + resSplit);
+
+                //in order, these go south/west/north/east.
+                CreateStandaloneDB(0, boundsArea, false, true); //How map tiles are handled is determined by the optional parameters
+            }
+
 
             if (args.Any(a => a == "-autoCreateMapTiles")) //better for letting the app decide which tiles to create than manually calling out Cell6 names.
             {
@@ -447,14 +458,22 @@ namespace Larry
             sqliteDb.Database.EnsureCreated();
             Log.WriteLog("Standalone DB created for relation " + relationID + " at " + DateTime.Now);
 
-            var fullArea = mainDb.StoredOsmElements.Where(m => m.sourceItemID == relationID && m.sourceItemType == 3).FirstOrDefault();
-            if (fullArea == null)
-                return;
+            GeoArea buffered;
+            if (relationID > 0)
+            {
+                var fullArea = mainDb.StoredOsmElements.Where(m => m.sourceItemID == relationID && m.sourceItemType == 3).FirstOrDefault();
+                if (fullArea == null)
+                    return;
 
-            GeoArea buffered = Converters.GeometryToGeoArea(fullArea.elementGeometry);
-            //This should also be able to take a bounding box.
-            if (relationID == 350381)
-                buffered = new GeoArea(41.27401, -81.97301, 41.6763, -81.3665); //A smaller box that doesn't cross half the lake.
+                buffered = Converters.GeometryToGeoArea(fullArea.elementGeometry);
+                //This should also be able to take a bounding box in addition in the future.
+                if (relationID == 350381)
+                    buffered = new GeoArea(41.27401, -81.97301, 41.6763, -81.3665); //A smaller box that doesn't cross half the lake.
+            }
+            else
+                buffered = bounds;
+             
+
             var intersectCheck = Converters.GeoAreaToPolygon(buffered);
             var allPlaces = mainDb.StoredOsmElements.Include(m => m.Tags).Where(md => intersectCheck.Intersects(md.elementGeometry)).ToList();
             foreach(var a in allPlaces)
@@ -505,8 +524,11 @@ namespace Larry
             Parallel.ForEach(yCoords, y => {
                 Parallel.ForEach(xCoords, x => {
                     //make map tile.
-                    var plusCode8 = new OpenLocationCode(y, x, 10).CodeDigits.Substring(0, 8);
-                    var areaForTile = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell8, x + resolutionCell8));
+                    var plusCode = new OpenLocationCode(y, x, 10);
+                    var plusCode8 = plusCode.CodeDigits.Substring(0, 8);
+                    var plusCodeArea = OpenLocationCode.DecodeValid(plusCode8);
+                    
+                    var areaForTile = new GeoArea(new GeoPoint(plusCodeArea.SouthLatitude, plusCodeArea.WestLongitude), new GeoPoint(plusCodeArea.NorthLatitude, plusCodeArea.EastLongitude));
                     var acheck = Converters.GeoAreaToPolygon(areaForTile); //this is faster than using a PreparedPolygon in testing, which was unexpected.
                     var areaList = allPlaces.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); //This one is for the maptile
                     var gameAreas = areaList.Where(a => a.IsGameElement).ToList(); //this is for determining what area name/type to display for a cell10.
@@ -520,7 +542,12 @@ namespace Larry
                         return;
                     }
                     if (saveToFolder) //some apps, like my Solar2D apps, can't use the byte[] in a DB row and need files.
-                        System.IO.File.WriteAllBytes(relationID + "Tiles\\" + plusCode8 + ".pngTile", tile); //Solar2d also can't load pngs directly from an apk file in android, but the rule is extension based.
+                    {
+                        //TESTING: Solar2D has a hard time loading files from big APKs. Checking to see if that's related to the number of files in a single folder
+                        //So writing tiles to sub-folders to cap files per folder to 400
+                        Directory.CreateDirectory(relationID + "Tiles\\" + plusCode8.Substring(0, 6));
+                        System.IO.File.WriteAllBytes(relationID + "Tiles\\" + plusCode8.Substring(0, 6) + "\\" + plusCode8.Substring(6,2) + ".pngTile", tile); //Solar2d also can't load pngs directly from an apk file in android, but the rule is extension based.
+                    }
 
                     //SearchArea didn't need any logic changes, but we do want to pass in only game areas.
                     System.Text.StringBuilder terrainInfo = AreaTypeInfo.SearchArea(ref areaForTile, ref gameAreas, true); //The list of Cell10 areas in this Cell8
