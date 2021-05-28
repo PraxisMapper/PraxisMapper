@@ -15,6 +15,7 @@ namespace Larry
         //The save/load to external file functions should be moved too.
        
 
+        //I remain uncertain how useful these variants on processing are. Keeping them for now as reference.
         public static void ProcessFilePiecesV4(string filename, bool saveToFiles = false)
         {
             //load data. Testing with delaware for speed again.
