@@ -92,29 +92,37 @@ namespace CoreComponents
 
         public static StoredOsmElement ConvertOsmEntryToStoredElement(OsmSharp.Complete.ICompleteOsmGeo g)
         {
-            var feature = OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(g);
-            if (feature.Count() != 1)
+            try
             {
-                Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + " didn't return expected number of features (" + feature.Count() + ")", Log.VerbosityLevels.High);
+                var feature = OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(g);
+                if (feature.Count() != 1)
+                {
+                    Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + " didn't return expected number of features (" + feature.Count() + ")", Log.VerbosityLevels.High);
+                    return null;
+                }
+                var sw = new StoredOsmElement();
+                sw.name = TagParser.GetPlaceName(g.Tags);
+                sw.sourceItemID = g.Id;
+                sw.sourceItemType = (g.Type == OsmGeoType.Relation ? 3 : g.Type == OsmGeoType.Way ? 2 : 1);
+                var geo = GeometrySupport.SimplifyArea(feature.First().Geometry);
+                if (geo == null)
+                    return null;
+                geo.SRID = 4326;//Required for SQL Server to accept data this way.
+                sw.elementGeometry = geo;
+                sw.Tags = TagParser.getFilteredTags(g.Tags);
+                if (sw.elementGeometry.GeometryType == "LinearRing" || (sw.elementGeometry.GeometryType == "LineString" && sw.elementGeometry.Coordinates.First() == sw.elementGeometry.Coordinates.Last()))
+                {
+                    //I want to update all LinearRings to Polygons, and let the style determine if they're Filled or Stroked.
+                    var poly = factory.CreatePolygon((LinearRing)sw.elementGeometry);
+                    sw.elementGeometry = poly;
+                }
+                return sw;
+            }
+            catch(Exception ex)
+            {
+                Log.WriteLog("Error: Item " + g.Id + " failed to process. " + ex.Message);
                 return null;
             }
-            var sw = new StoredOsmElement();
-            sw.name = TagParser.GetPlaceName(g.Tags);
-            sw.sourceItemID = g.Id;
-            sw.sourceItemType = (g.Type == OsmGeoType.Relation ? 3 : g.Type == OsmGeoType.Way ? 2 : 1);
-            var geo = GeometrySupport.SimplifyArea(feature.First().Geometry);
-            if (geo == null)
-                return null;
-            geo.SRID = 4326;//Required for SQL Server to accept data this way.
-            sw.elementGeometry = geo;
-            sw.Tags = TagParser.getFilteredTags(g.Tags);
-            if (sw.elementGeometry.GeometryType == "LinearRing" || (sw.elementGeometry.GeometryType == "LineString" && sw.elementGeometry.Coordinates.First() == sw.elementGeometry.Coordinates.Last()))
-            {
-                //I want to update all LinearRings to Polygons, and let the style determine if they're Filled or Stroked.
-                var poly = factory.CreatePolygon((LinearRing)sw.elementGeometry);
-                sw.elementGeometry = poly;
-            }
-            return sw;
         }
 
         public static void WriteStoredElementListToFile(string filename, ref List<StoredOsmElement> mapdata)

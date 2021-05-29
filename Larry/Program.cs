@@ -56,8 +56,6 @@ namespace Larry
                 PraxisContext.connectionString = arg;
             }
 
-            TagParser.Initialize(true); //Do this after the DB values are parsed.
-
             //Check for settings flags first before running any commands.
             if (args.Any(a => a == "-v" || a == "-verbose"))
                 Log.Verbosity = Log.VerbosityLevels.High;
@@ -94,6 +92,8 @@ namespace Larry
                 Console.WriteLine("Clearing out tables for testing.");
                 DBCommands.CleanDb();
             }
+
+            TagParser.Initialize(true); //Do this after the DB values are parsed.
 
             if (args.Any(a => a == "-findServerBounds"))
             {
@@ -137,6 +137,7 @@ namespace Larry
                     var fs = File.OpenRead(filename);
                     var osmStream = new PBFOsmStreamSource(fs);
                     PbfFileParser.ProcessFileCoreV4(osmStream);
+                    File.Move(filename, filename + "done");
                 }
             }
 
@@ -145,10 +146,15 @@ namespace Larry
                 List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
                 foreach (string filename in filenames)
                 {
+                    Log.WriteLog("Loading " + filename + " to JSON file at " + DateTime.Now);
                     string jsonFileName = ParserSettings.JsonMapDataFolder + Path.GetFileNameWithoutExtension(filename) + ".json";
-                    var fs = File.OpenRead(filename);
-                    var osmStream = new PBFOsmStreamSource(fs);
-                    PbfFileParser.ProcessFileCoreV4(osmStream, true, jsonFileName);
+                    using (var fs = File.OpenRead(filename))
+                    {
+                        var osmStream = new PBFOsmStreamSource(fs);
+                        PbfFileParser.ProcessFileCoreV4(osmStream, true, jsonFileName);
+                        osmStream.Dispose();
+                    }
+                    File.Move(filename, filename + "done");
                 }
             }
 
@@ -160,10 +166,15 @@ namespace Larry
                 long entryCounter = 0;
                 foreach (var jsonFileName in filenames)
                 {
+                    Log.WriteLog("Loading " + jsonFileName + " to database at " + DateTime.Now);
                     var fr = File.OpenRead(jsonFileName);
                     var sr = new StreamReader(fr);
                     while (!sr.EndOfStream)
                     {
+                        //TODO: split off Tasks to convert these so the StreamReader doesn't have to wait on the converter/DB for progress
+                        //But watch out for multithreading gotchas like usual.
+                        //Would be: string = sr.Readline(); task -> convertStoredElement(); lock and add to dbContext; after 10,000 lock and save changes.
+                        //await all tasks once end of stream is hit. lock and add last elements to DB
                         StoredOsmElement stored = GeometrySupport.ConvertSingleJsonStoredElement(sr.ReadLine());
                         db.StoredOsmElements.Add(stored);
                         entryCounter++;
@@ -176,7 +187,10 @@ namespace Larry
                             db.ChangeTracker.AutoDetectChangesEnabled = false;
                         }
                     }
+                    sr.Close(); sr.Dispose();
+                    fr.Close(); fr.Dispose();
                     db.SaveChanges();
+                    File.Move(jsonFileName, jsonFileName + "done");
                 }
             }
 

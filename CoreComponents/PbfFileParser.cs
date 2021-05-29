@@ -74,6 +74,7 @@ namespace CoreComponents
                 try
                 {
                     handledItems.Add(r.Id);
+                    Log.WriteLog("Converting " + itemType + " " + r.Id, Log.VerbosityLevels.High); //for when individual elements fail to convert, identify the last one we tried.
                     var convertedItem = GeometrySupport.ConvertOsmEntryToStoredElement(r);
                     if (convertedItem == null)
                     {

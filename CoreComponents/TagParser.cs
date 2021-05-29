@@ -238,8 +238,6 @@ namespace CoreComponents
             if (tagsO.Count() == 0)
                 return "";
             var retVal = tagsO.GetValue("name");
-            if (string.IsNullOrWhiteSpace(retVal))
-                retVal = tagsO.GetValue("note");
             if (retVal == null)
                 retVal = "";
 
