@@ -42,4 +42,13 @@
     <Folder Include="CustomOsmSharp\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="CustomOsmSharp\OsmSharp.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="CustomOsmSharp\OsmSharp.Geo.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
