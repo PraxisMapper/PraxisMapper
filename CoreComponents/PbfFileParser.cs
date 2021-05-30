@@ -63,6 +63,7 @@ namespace CoreComponents
             DateTime startedProcess = DateTime.Now;
             TimeSpan difference;
             foreach (var r in items) //This is where the first memory peak hits as it loads everything into memory
+            //Parallel.ForEach(items, r =>
             {
                 if (totalCounter == 0)
                 {
@@ -74,11 +75,13 @@ namespace CoreComponents
                 try
                 {
                     handledItems.Add(r.Id);
+                    //Note: Lake Superior has 4000+ members in its relation.
                     Log.WriteLog("Converting " + itemType + " " + r.Id, Log.VerbosityLevels.High); //for when individual elements fail to convert, identify the last one we tried.
-                    var convertedItem = GeometrySupport.ConvertOsmEntryToStoredElement(r);
+                    var convertedItem =  GeometrySupport.ConvertOsmEntryToStoredElement(r);
                     if (convertedItem == null)
                     {
                         continue;
+                        //return null;
                     }
                     elements.Add(convertedItem);
                     totalItems++;
@@ -106,9 +109,10 @@ namespace CoreComponents
                 }
                 catch (Exception ex)
                 {
-                    Log.WriteLog("Error Processing " + itemType + + r.Id + ": " + ex.Message);
+                    Log.WriteLog("Error Processing " + itemType + +r.Id + ": " + ex.Message);
                 }
             }
+            //);
             if (saveToFile)
                 GeometrySupport.WriteStoredElementListToFile(saveFilename, ref elements);
             else
