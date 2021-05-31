@@ -1,4 +1,5 @@
 ﻿using CoreComponents;
+using CoreComponents.Support;
 using OsmSharp;
 using OsmSharp.Streams;
 using System;
@@ -47,7 +48,7 @@ namespace Larry
                     {
                         var degreeBox = new PBFOsmStreamSource(fs).FilterBox(west, north, east, south, true);
                         var loadedRelations = PbfFileParser.ProcessFileCoreV4(degreeBox, false);
-                        foreach (var lr in loadedRelations)
+                        foreach (var lr in loadedRelations.relations)
                             relationsToSkip.Add(lr);
                     }
             }
@@ -55,7 +56,7 @@ namespace Larry
             {
                 //This is the multi-thread variant. It seems to work, though I don't know what its ceiling is on performance.
                 List<string> tempFiles = new List<string>();
-                List<Task<List<long>>> taskStatuses = new List<Task<List<long>>>();
+                List<Task<ProcessResults>> taskStatuses = new List<Task<ProcessResults>>();
                 for (var i = minWest; i < maxEast; i++)
                     for (var j = minsouth; j < maxNorth; j++)
                     {
@@ -70,13 +71,13 @@ namespace Larry
                             target.RegisterSource(filtered);
                             target.Pull();
                         }
-                        Task<List<long>> process = Task.Run(() => PbfFileParser.ProcessFileCoreV4(filtered, true, tempFile));
+                        Task<ProcessResults> process = Task.Run(() => PbfFileParser.ProcessFileCoreV4(filtered, true, tempFile));
                         taskStatuses.Add(process);
                     }
                 Task.WaitAll(taskStatuses.ToArray());
                 foreach (var t in taskStatuses)
                 {
-                    foreach (var id in t.Result)
+                    foreach (var id in t.Result.relations)
                         relationsToSkip.Add(id);
                 }
                 foreach (var tf in tempFiles)

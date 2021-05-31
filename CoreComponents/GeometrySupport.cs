@@ -92,6 +92,9 @@ namespace CoreComponents
 
         public static StoredOsmElement ConvertOsmEntryToStoredElement(OsmSharp.Complete.ICompleteOsmGeo g)
         {
+            if (g.Tags == null || g.Tags.Count() == 0)
+                return null; //For nodes, don't store every untagged node.
+
             try
             {
                 var feature = OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(g);
