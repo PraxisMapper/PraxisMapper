@@ -152,10 +152,83 @@ namespace Larry
                     {
                         var osmStream = new PBFOsmStreamSource(fs);
                         PbfFileParser.ProcessFileCoreV4(osmStream, true, jsonFileName);
+                        //PbfFileParser.ProcessFileCoreV4SkipTake(osmStream, true, jsonFileName);
                         osmStream.Dispose();
                     }
                     File.Move(filename, filename + "done");
                 }
+            }
+
+            if (args.Any(a => a == "-loadPbfsToJsonTest"))
+            {
+                List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
+                foreach (string filename in filenames)
+                {
+                    Log.WriteLog("Test Loading " + filename + " to JSON file at " + DateTime.Now);
+                    string jsonFileName = ParserSettings.JsonMapDataFolder + Path.GetFileNameWithoutExtension(filename) + ".json";
+                    using (var fs = File.OpenRead(filename))
+                    {
+                        var osmStream = new PBFOsmStreamSource(fs);
+                        PbfFileParser.ProcessEverything(osmStream, jsonFileName);
+                        //PbfFileParser.ProcessFileCoreV4SkipTake(osmStream, true, jsonFileName);
+                        osmStream.Dispose();
+                    }
+                    File.Move(filename, filename + "done");
+                }
+            }
+
+            if (args.Any(a => a == "-loadPbfsToJsonSplit9"))
+            {
+                List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
+                foreach (string filename in filenames)
+                {
+                    Log.WriteLog("Loading " + filename + " to JSON file at " + DateTime.Now);
+                    string jsonFileName = ParserSettings.JsonMapDataFolder + Path.GetFileNameWithoutExtension(filename) + ".json";
+                    var fs = File.OpenRead(filename);
+
+                    //Get bounding box
+                    var source = new PBFOsmStreamSource(fs);
+                    float north = source.Where(s => s.Type == OsmGeoType.Node).Max(s => (float)((OsmSharp.Node)s).Latitude);
+                    float south = source.Where(s => s.Type == OsmGeoType.Node).Min(s => (float)((OsmSharp.Node)s).Latitude);
+                    float west = source.Where(s => s.Type == OsmGeoType.Node).Min(s => (float)((OsmSharp.Node)s).Longitude);
+                    float east = source.Where(s => s.Type == OsmGeoType.Node).Max(s => (float)((OsmSharp.Node)s).Longitude);
+                    Log.WriteLog("Bounding box for file: " + south + "," + west + " to " + north + "," + east);
+                    source.Dispose();
+                    fs.Close(); fs.Dispose();
+
+                    var latSplit = (north - south) / 3;
+                    var lonSplit = (east - west) / 3;
+                    int boxCount = 1;
+                    List<long> processedRelations = new List<long>();
+                    List<long> processedWays = new List<long>();
+
+                    for (var x = west; x < east; x += lonSplit)
+                        for (var y = south; y < north; y += latSplit)
+                        {
+                            fs = File.OpenRead(filename);
+                            var osmStream = new PBFOsmStreamSource(fs);
+                            var filtered = osmStream.FilterBox(x, y + latSplit, x + lonSplit, y, true);
+                            var pr = PbfFileParser.ProcessFileCoreV4(osmStream, true, jsonFileName + boxCount);
+                            processedRelations.AddRange(pr.relations);
+                            processedWays.AddRange(pr.ways);
+                            osmStream.Dispose();
+                            fs.Close(); fs.Dispose();
+                            boxCount++;
+                        }
+
+                    //plus a final pass for things that were split across multiple boxes.
+                    source = new PBFOsmStreamSource(fs);
+                    var secondChance = source.ToComplete().Where(s => s.Type == OsmGeoType.Relation && !processedRelations.Contains(s.Id)); //find anything we didn't pull in yet relation-wise.
+                                                                                                                                            //PbfFileParser.ProcessFileCoreV4(secondChance, true, jsonFileName + boxCount);
+                    foreach (var sc in secondChance)
+                    {
+                        var found = GeometrySupport.ConvertOsmEntryToStoredElement(sc);
+                        if (found != null)
+                            GeometrySupport.WriteSingleStoredElementToFile(jsonFileName + boxCount, found);
+                    }
+                    File.Move(filename, filename + "done");
+                }
+
             }
 
             if (args.Any(a => a == "-loadJsonToDb"))
@@ -235,7 +308,7 @@ namespace Larry
                 string[] bounds = args.Where(a => a.StartsWith("-createStandalonePoint")).First().Split('|');
 
                 var resSplit = resolutionCell6 / 2;
-                GeoArea boundsArea = new GeoArea(bounds[1].ToDouble() -resSplit, bounds[2].ToDouble() - resSplit, bounds[1].ToDouble() + resSplit, bounds[2].ToDouble() + resSplit);
+                GeoArea boundsArea = new GeoArea(bounds[1].ToDouble() - resSplit, bounds[2].ToDouble() - resSplit, bounds[1].ToDouble() + resSplit, bounds[2].ToDouble() + resSplit);
 
                 //in order, these go south/west/north/east.
                 CreateStandaloneDB(0, boundsArea, false, true); //How map tiles are handled is determined by the optional parameters
@@ -461,7 +534,7 @@ namespace Larry
 
             if (relationID > 0)
                 name = relationID.ToString() + ".sqlite";
-            
+
 
             if (File.Exists(name))
                 File.Delete(name);
@@ -495,7 +568,7 @@ namespace Larry
             bool pullFromPbf = false; //Set via arg at startup? or setting file?
             if (!pullFromPbf)
                 allPlaces = mainDb.StoredOsmElements.Include(m => m.Tags).Where(md => intersectCheck.Intersects(md.elementGeometry)).ToList();
-            else 
+            else
             {
                 //need a file to read from.
                 //optionally a bounding box on that file.
@@ -503,7 +576,7 @@ namespace Larry
                 //allPlaces = PbfFileParser.ProcessSkipDatabase();
             }
 
-            foreach(var a in allPlaces)
+            foreach (var a in allPlaces)
                 TagParser.GetStyleForOsmWay(a); //fill in IsGameElement and gameElementName once instead of doing that lookup every Cell10.
 
             Log.WriteLog("Loaded all intersecting geometry at " + DateTime.Now);
@@ -544,17 +617,19 @@ namespace Larry
             System.Threading.ReaderWriterLockSlim dbLock = new System.Threading.ReaderWriterLockSlim();
 
             Dictionary<long, TerrainData> terrainDatas = new Dictionary<long, TerrainData>();
-            
+
 
             //TODO: concurrent collections might require a lock or changing types.
             //But running in parallel saves a lot of time in general on this.
-            Parallel.ForEach(yCoords, y => {
-                Parallel.ForEach(xCoords, x => {
+            Parallel.ForEach(yCoords, y =>
+            {
+                Parallel.ForEach(xCoords, x =>
+                {
                     //make map tile.
                     var plusCode = new OpenLocationCode(y, x, 10);
                     var plusCode8 = plusCode.CodeDigits.Substring(0, 8);
                     var plusCodeArea = OpenLocationCode.DecodeValid(plusCode8);
-                    
+
                     var areaForTile = new GeoArea(new GeoPoint(plusCodeArea.SouthLatitude, plusCodeArea.WestLongitude), new GeoPoint(plusCodeArea.NorthLatitude, plusCodeArea.EastLongitude));
                     var acheck = Converters.GeoAreaToPolygon(areaForTile); //this is faster than using a PreparedPolygon in testing, which was unexpected.
                     var areaList = allPlaces.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); //This one is for the maptile
@@ -573,7 +648,7 @@ namespace Larry
                         //TESTING: Solar2D has a hard time loading files from big APKs. Checking to see if that's related to the number of files in a single folder
                         //So writing tiles to sub-folders to cap files per folder to 400
                         Directory.CreateDirectory(relationID + "Tiles\\" + plusCode8.Substring(0, 6));
-                        System.IO.File.WriteAllBytes(relationID + "Tiles\\" + plusCode8.Substring(0, 6) + "\\" + plusCode8.Substring(6,2) + ".pngTile", tile); //Solar2d also can't load pngs directly from an apk file in android, but the rule is extension based.
+                        System.IO.File.WriteAllBytes(relationID + "Tiles\\" + plusCode8.Substring(0, 6) + "\\" + plusCode8.Substring(6, 2) + ".pngTile", tile); //Solar2d also can't load pngs directly from an apk file in android, but the rule is extension based.
                     }
 
                     //SearchArea didn't need any logic changes, but we do want to pass in only game areas.
@@ -589,26 +664,26 @@ namespace Larry
                         //save all the terrainDatas to a lookup, then insert them into the db later, manually assign IDs to the Info. cuts down size by about 30%
                         if (terrainDatas.ContainsKey(subParts[3].ToLong()))
                         {
-                            sqliteDb.TerrainInfo.Add(new TerrainInfo() {PlusCode = subParts[0], terrainDataId = subParts[3].ToLong()});
+                            sqliteDb.TerrainInfo.Add(new TerrainInfo() { PlusCode = subParts[0], terrainDataId = subParts[3].ToLong() });
                         }
                         else
                         {
-                            var addingTd = new TerrainData() { Name = subParts[1], areaType= subParts[2], OsmElementId = subParts[3].ToLong(), OsmElementType = subParts[4].ToLong()  };
+                            var addingTd = new TerrainData() { Name = subParts[1], areaType = subParts[2], OsmElementId = subParts[3].ToLong(), OsmElementType = subParts[4].ToLong() };
                             terrainDatas.Add(addingTd.OsmElementId, addingTd);
                             sqliteDb.TerrainInfo.Add(new TerrainInfo() { PlusCode = subParts[0], terrainDataId = subParts[3].ToLong() });
                         }
                     }
                     dbLock.ExitWriteLock();
-                    
+
                     mapTileCounter++;
                     if (progressTimer.ElapsedMilliseconds > 15000)
                     {
-                        Log.WriteLog(mapTileCounter + " cells processed, " + Math.Round((mapTileCounter / totalTiles)* 100, 2) + "% complete");
+                        Log.WriteLog(mapTileCounter + " cells processed, " + Math.Round((mapTileCounter / totalTiles) * 100, 2) + "% complete");
                         progressTimer.Restart();
                     }
                 });
             });
-            Log.WriteLog(mapTileCounter +  " maptiles drawn at " + DateTime.Now);
+            Log.WriteLog(mapTileCounter + " maptiles drawn at " + DateTime.Now);
 
             foreach (var td in terrainDatas)
                 sqliteDb.TerrainData.Add(td.Value);
@@ -631,7 +706,7 @@ namespace Larry
                 Log.WriteLog(foundElements.Count() + " " + gameElementTags.name + " items found for scavenger hunt.");
             }
 
-            foreach(var hunt in scavengerHunts)
+            foreach (var hunt in scavengerHunts)
             {
                 foreach (var item in hunt.Value)
                     sqliteDb.ScavengerHunts.Add(new ScavengerHunt() { listName = hunt.Key, description = item.name, OsmElementId = item.sourceItemID, OsmElementType = item.sourceItemType, playerHasVisited = false });
