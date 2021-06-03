@@ -32,7 +32,8 @@ namespace CoreComponents
 
             var ways = source
             .ToComplete()
-            .Where(p => p.Type == OsmGeoType.Way && !waysToSkip.Contains(p.Id)); //avoid loading skippable Ways into RAM in the first place.
+            .Where(p => p.Type == OsmGeoType.Way && !waysToSkip.Contains(p.Id) && TagParser.getFilteredTags(p.Tags).Count > 0); //avoid loading skippable Ways into RAM in the first place. Also don't load untagged ways, if there are any
+            //Though, adding the TagParser call might cause more RAM to be used, which is a bit of a surprise. That should use less by excluding more areas?
             processedWays = ProcessInnerLoop(ways, "Way", 100000, true, filename, db);
             Log.WriteLog("Ways loaded at " + DateTime.Now);
 

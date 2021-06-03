@@ -152,7 +152,6 @@ namespace Larry
                     {
                         var osmStream = new PBFOsmStreamSource(fs);
                         PbfFileParser.ProcessFileCoreV4(osmStream, true, jsonFileName);
-                        //PbfFileParser.ProcessFileCoreV4SkipTake(osmStream, true, jsonFileName);
                         osmStream.Dispose();
                     }
                     File.Move(filename, filename + "done");
