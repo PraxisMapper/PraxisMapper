@@ -6,6 +6,8 @@ using System.Linq;
 
 namespace PraxisMapper.Controllers
 {
+    //This is the API controller.
+    //View stuff happens in AdminView, Pulling/sending data happens here.
 
     [Route("[controller]")]
     [ApiController]

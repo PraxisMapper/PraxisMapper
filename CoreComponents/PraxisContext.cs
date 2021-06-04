@@ -27,6 +27,10 @@ namespace CoreComponents
 
         public DbSet<ElementTags> ElementTags { get; set; } //This table is exposed so I can search it directly faster.
 
+        public DbSet<ScavengerHunt> scavengerHunts { get; set; }
+        public DbSet<ScavengerHuntEntry> scavengerHuntEntries { get; set; }
+
+
         //IConfiguration Config;
         public static string connectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;"; //Needs a default value.
         public static string serverMode = "SQLServer";

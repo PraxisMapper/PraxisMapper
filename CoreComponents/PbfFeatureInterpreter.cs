@@ -33,6 +33,11 @@ using OsmSharp;
 
 namespace CoreComponents
 {
+    //This is a copy/pasted set of code from OsmSharp.
+    //I thought I was going to need to edit this to fix an infinite loop bug, but that was 
+    //actually in a different OsmSharp class, and was resolved by building their trunk code
+    //instead of using the current NuGet package. This file isn't necessary.
+
     /// <summary>
     /// The default feature interpreter.
     /// </summary>
