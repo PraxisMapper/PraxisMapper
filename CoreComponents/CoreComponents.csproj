@@ -33,8 +33,8 @@
     <PackageReference Include="OsmSharp.Geo" Version="7.0.0-pre014" />
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="6.0.0-preview.4" />
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql.NetTopologySuite" Version="6.0.0-preview.4" />
-    <PackageReference Include="SkiaSharp" Version="2.80.3-preview.40" />
-    <PackageReference Include="Z.EntityFramework.Extensions.EFCore" Version="6.0.0-preview.3.21201.2-07" />
+    <PackageReference Include="SkiaSharp" Version="2.80.3-preview.90" />
+    <PackageReference Include="Z.EntityFramework.Extensions.EFCore" Version="6.0.0-preview.3.21201.2-09" />
   </ItemGroup>
 
   <ItemGroup>
