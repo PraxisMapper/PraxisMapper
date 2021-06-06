@@ -17,18 +17,12 @@ namespace PraxisMapper.Controllers
     public class MapTileController : Controller
     {
         private readonly IConfiguration Configuration;
-        private static MemoryCache cache;
+        private static IMemoryCache cache;
 
-        public MapTileController(IConfiguration configuration)
+        public MapTileController(IConfiguration configuration, IMemoryCache memoryCacheSingleton)
         {
             Configuration = configuration;
-
-            if (cache == null && Configuration.GetValue<bool>("enableCaching") == true)
-            {
-                var options = new MemoryCacheOptions();
-                options.SizeLimit = 1024;
-                cache = new MemoryCache(options);
-            }
+            cache = memoryCacheSingleton;
         }
 
         [HttpGet]
@@ -48,11 +42,16 @@ namespace PraxisMapper.Controllers
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var db = new PraxisContext();
                 var existingResults = db.SlippyMapTiles.Where(mt => mt.Values == tileKey && mt.mode == layer).FirstOrDefault();
-                if (existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
+                bool useCache = true;
+                cache.TryGetValue("caching", out useCache);
+                if (useCache || existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
                 {
                     //Create this entry
                     var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare, MapTiles.MapTileSizeSquare);
-                    
+                    double minimumSize = info.degreesPerPixelX;
+                    if (zoom >= 16)
+                        minimumSize = 0;
+
                     var dataLoadArea = new GeoArea(info.area.SouthLatitude - ConstantValues.resolutionCell10, info.area.WestLongitude - ConstantValues.resolutionCell10, info.area.NorthLatitude + ConstantValues.resolutionCell10, info.area.EastLongitude + ConstantValues.resolutionCell10);
                     DateTime expires = DateTime.Now;
                     byte[] results = null;
@@ -60,8 +59,8 @@ namespace PraxisMapper.Controllers
                     {
                         case 1: //Base map tile
                             //add some padding so we don't clip off points at the edge of a tile
-                            var places = GetPlaces(dataLoadArea); //includeGenerated: false, filterSize: filterSize  //NOTE: in this case, we want generated areas to be their own slippy layer, so the config setting is ignored here.
-                            results = MapTiles.DrawAreaAtSizeV4(info, places, null, (zoom >= 16));
+                            var places = GetPlaces(dataLoadArea, minimumSize: minimumSize); //includeGenerated: false, filterSize: filterSize  //NOTE: in this case, we want generated areas to be their own slippy layer, so the config setting is ignored here.
+                            results = MapTiles.DrawAreaAtSizeV4(info, places, null, (zoom <= 16));
                             expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                             break;
                         case 2: //PaintTheTown overlay. 
@@ -87,8 +86,8 @@ namespace PraxisMapper.Controllers
                             break;
                         case 7: //This might be the layer that shows game areas on the map. Draw outlines of them. Means games will also have a Geometry object attached to them for indexing.
                             //7 is currently a duplicate of 1, since the testing code has been promoted to the main drawing method now.
-                            var places7 = GetPlaces(dataLoadArea);
-                            results = MapTiles.DrawAreaAtSizeV4(info, places7, null, (zoom >= 16));
+                            var places7 = GetPlaces(dataLoadArea, minimumSize: minimumSize);
+                            results = MapTiles.DrawAreaAtSizeV4(info, places7, null);
                             expires = DateTime.Now.AddHours(10);
                             break;
                         case 8: //This might be what gets called to load an actual game. The ID will be the game in question, so X and Y values could be ignored?
@@ -116,7 +115,8 @@ namespace PraxisMapper.Controllers
                         existingResults.ExpireOn = expires;
                         existingResults.tileData = results;
                     }
-                    db.SaveChanges();
+                    if (useCache)
+                        db.SaveChanges();
                     pt.Stop(tileKey + "|" + layer);
                     return File(results, "image/png");
                 }

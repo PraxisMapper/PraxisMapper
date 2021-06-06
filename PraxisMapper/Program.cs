@@ -23,6 +23,7 @@ namespace PraxisMapper
             var db = new PraxisContext();
             var serverSettings = db.ServerSettings.FirstOrDefault();
             cache.Set("ServerSettings", serverSettings);
+            cache.Set("caching", serverSettings.enableMapTileCaching); //convenience entry
             var factions = db.Factions.ToList();
             cache.Set("Factions", factions);
             var paintTownConfigs = db.PaintTownConfigs.ToList();
