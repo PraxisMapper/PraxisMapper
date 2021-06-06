@@ -308,7 +308,7 @@ namespace CoreComponents
 
             double minimumSize = 0;
             if (filterSmallAreas)
-                minimumSize = stats.degreesPerPixelX; //don't draw elements under 1 pixel in size.
+                minimumSize = stats.degreesPerPixelY; //don't draw elements under 1 pixel in size. Height 
           
             var db = new PraxisContext();
             var geo = Converters.GeoAreaToPolygon(stats.area);
