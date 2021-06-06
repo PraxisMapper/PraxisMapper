@@ -53,11 +53,11 @@ namespace PraxisMapper.Controllers
                 pt.Stop(codeString8);
                 return cachedResults;
             }
-            var box = OpenLocationCode.DecodeValid(codeString8);
+            GeoArea box = OpenLocationCode.DecodeValid(codeString8);
 
-            var places = GetPlaces(OpenLocationCode.DecodeValid(codeString8)); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")  //All the places in this 8-code
+            var places = GetPlaces(box); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")  //All the places in this 8-code
 
-            //TODO: restore the auto-generate interesting areas logic with v4
+            //TODO: restore the auto-generate interesting areas logic with v4. This will mean making areas if there's 0 IsGameElement values in the results, since it's all in 1 table now.
             //if (Configuration.GetValue<bool>("generateAreas") && !places.Any(p => p.AreaTypeId < 13 || p.AreaTypeId == 100)) //check for 100 to not make new entries in the same spot.
             //{
             //    var newAreas = CreateInterestingPlaces(codeString8);
@@ -66,20 +66,14 @@ namespace PraxisMapper.Controllers
 
             StringBuilder sb = new StringBuilder();
             sb.AppendLine(codeString8);
-            //pluscode6 //first 6 digits of this pluscode. each line below is the last 4 that have an area type.
-            //pluscode4|name|type|MapDataID  //less data transmitted, an extra string concat per entry phone-side.
+            //pluscode8 //first 6 digits of this pluscode. each line below is the last 4 that have an area type.
+            //pluscode2|name|type|MapDataID  //less data transmitted, an extra string concat per entry phone-side.
 
-            GeoArea search = new GeoArea(box);
-            sb.Append(SearchArea(ref search, ref places, (fullCode == 1)));
-
-            string results = sb.ToString();
-            var options = new MemoryCacheEntryOptions();
-            options.SetSize(1);
-            if (Configuration.GetValue<bool>("enableCaching"))
-                cache.Set(codeString8, results, options);
+            var data = SearchArea2(ref box, ref places, (fullCode == 1));
+            var results = String.Join("/r/n", data.Select(d => d.Key + "|" + d.Value.Select(v => v.Name + "|" + v.areaType + "|" + v.OsmElementId + v.OsmElementType)));
 
             pt.Stop(codeString8);
-            return results;
+            return codeString8 + Environment.NewLine + results;
         }
 
         [HttpGet]
@@ -215,7 +209,7 @@ namespace PraxisMapper.Controllers
 
             //Exact point for area? or 10cell space to find trails too?
             var places = GetPlaces(new OpenLocationCode(lat, lon).Decode()); // , includeGenerated: Configuration.GetValue<bool>("generateAreas")
-            var results = FindPlacesInCell10(lon, lat, ref places, true);
+            var results = FindPlacesInCell10V2(lon, lat, ref places, true);
         }
 
         [HttpGet]
@@ -255,11 +249,8 @@ namespace PraxisMapper.Controllers
             sb.AppendLine(pointDesc);
             //This endpoint puts the whole 10-digit plus code (without the separator) at the start of the line. I can't guarentee that any digits are shared since this isn't a grid-bound endpoint.
 
-            StringBuilder sbArray = new StringBuilder();
-            sbArray = SearchArea(ref box, ref places, true);
-            sb.Append(sbArray.ToString());
-
-            string results = sb.ToString();
+            var data = SearchArea2(ref box, ref places, true);
+            var results = String.Join("/r/n", data.Select(d => d.Key + "|" + d.Value.Select(v => v.Name + "|" + v.areaType + "|" + v.OsmElementId + v.OsmElementType)));
             pt.Stop(pointDesc + "|" + size);
             return results;
         }

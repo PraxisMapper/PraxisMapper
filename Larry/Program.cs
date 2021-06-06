@@ -20,6 +20,7 @@ using static CoreComponents.Singletons;
 using static CoreComponents.TagParser;
 using SkiaSharp;
 using Microsoft.EntityFrameworkCore;
+using static CoreComponents.StandaloneDbTables;
 
 //TODO: look into using Span<T> instead of lists? This might be worth looking at performance differences. (and/or Memory<T>, which might be a parent for Spans)
 //TODO: Ponder using https://download.bbbike.org/osm/ as a data source to get a custom extract of an area (for when users want a local-focused app, probably via a wizard GUI)
@@ -238,18 +239,22 @@ namespace Larry
                 long entryCounter = 0;
                 foreach (var jsonFileName in filenames)
                 {
+                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     Log.WriteLog("Loading " + jsonFileName + " to database at " + DateTime.Now);
                     var fr = File.OpenRead(jsonFileName);
                     var sr = new StreamReader(fr);
+                    sw.Start();
                     while (!sr.EndOfStream)
                     {
                         //TODO: split off Tasks to convert these so the StreamReader doesn't have to wait on the converter/DB for progress
+                        //SR only hits .9MB/s for this task, and these are multigigabyte files
                         //But watch out for multithreading gotchas like usual.
-                        //Would be: string = sr.Readline(); task -> convertStoredElement(); lock and add to dbContext; after 10,000 lock and save changes.
+                        //Would be: string = sr.Readline(); task -> convertStoredElement(string); lock and add to shared collection; after 10,000 entries lock then add collection to db and save changes.
                         //await all tasks once end of stream is hit. lock and add last elements to DB
                         StoredOsmElement stored = GeometrySupport.ConvertSingleJsonStoredElement(sr.ReadLine());
                         db.StoredOsmElements.Add(stored);
                         entryCounter++;
+                        
                         if (entryCounter > 10000)
                         {
                             db.SaveChanges();
@@ -257,11 +262,98 @@ namespace Larry
                             //This limits the RAM creep you'd see from adding 3 million rows at a time.
                             db = new PraxisContext();
                             db.ChangeTracker.AutoDetectChangesEnabled = false;
+                            Log.WriteLog("10,000 entries processed to DB in " + sw.Elapsed);
+                            sw.Restart();
                         }
                     }
                     sr.Close(); sr.Dispose();
                     fr.Close(); fr.Dispose();
                     db.SaveChanges();
+                    File.Move(jsonFileName, jsonFileName + "done");
+                }
+            }
+
+            //Testing a multithreaded version of this process.
+            if (args.Any(a => a == "-loadJsonToDbTasks"))
+            {
+                var db = new PraxisContext();
+                //db.ChangeTracker.AutoDetectChangesEnabled = false;
+                List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.JsonMapDataFolder, "*.json").ToList();
+                long entryCounter = 0;
+                System.Threading.ReaderWriterLockSlim fileLock = new System.Threading.ReaderWriterLockSlim();
+                foreach (var jsonFileName in filenames)
+                {
+                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                    Log.WriteLog("Loading " + jsonFileName + " to database via tasks at " + DateTime.Now);
+                    var fr = File.OpenRead(jsonFileName);
+                    var sr = new StreamReader(fr);
+                    sw.Start();
+                    //System.Collections.Concurrent.ConcurrentBag<StoredOsmElement> templist = new System.Collections.Concurrent.ConcurrentBag<StoredOsmElement>();
+                    List<StoredOsmElement> templist = new List<StoredOsmElement>();
+                    List<Task> taskList = new List<Task>();
+                    while (!sr.EndOfStream)
+                    {
+                        //TODO: split off Tasks to convert these so the StreamReader doesn't have to wait on the converter/DB for progress
+                        //SR only hits .9MB/s for this task, and these are multigigabyte files
+                        //But watch out for multithreading gotchas like usual.
+                        //Would be: string = sr.Readline(); task -> convertStoredElement(string); lock and add to shared collection; after 10,000 entries lock then add collection to db and save changes.
+                        //await all tasks once end of stream is hit. lock and add last elements to DB
+                        string entry = sr.ReadLine();
+                        var nextTask = Task.Run(() => {
+                            StoredOsmElement stored = GeometrySupport.ConvertSingleJsonStoredElement(entry);
+                            //fileLock.EnterReadLock();
+                            templist.Add(stored);
+                            //fileLock.ExitReadLock();
+                            entryCounter++;
+                            if (entryCounter > 100000)
+                            {
+                                //fileLock.EnterWriteLock();
+                                //db.StoredOsmElements.AddRange(templist);
+                                
+                                //db.SaveChanges();
+                                entryCounter = 0;
+                                //templist = new List<StoredOsmElement>();
+                                //templist.Clear();
+                                //This limits the RAM creep you'd see from adding 3 million rows at a time.
+                                //db = new PraxisContext();
+                                //db.ChangeTracker.AutoDetectChangesEnabled = false;
+                                Log.WriteLog("100,000 entries processed for loading in " + sw.Elapsed);
+                                sw.Restart();
+                                //fileLock.ExitWriteLock();
+                            }
+                        });
+                        taskList.Add(nextTask);
+                    }
+                    sr.Close(); sr.Dispose();
+                    fr.Close(); fr.Dispose();
+                    Log.WriteLog("File read to memory, waiting for tasks to complete....");
+                    
+                    Task.WaitAll(taskList.ToArray());
+                    Log.WriteLog("All elements converted in memory, loading to DB....");
+                    taskList.Clear(); taskList = null;
+
+                    //process the elements in batches. This might be where spans are a good idea?
+                    var total = templist.Count();
+                    int loopCount = 0;
+                    int loopAmount = 10;
+                    while(loopAmount * loopCount < total)
+                    {
+                        sw.Restart();
+                        db = new PraxisContext();
+                        db.ChangeTracker.AutoDetectChangesEnabled = false;
+                        var toAdd = templist.Skip(loopCount * loopAmount).Take(loopAmount);
+                        db.StoredOsmElements.AddRange(toAdd);
+                        //Console.WriteLine(toAdd.ToString());
+                        db.SaveChanges(); //TODO: something about this loop results in duplicate primary keys, but I don't immediately see what mistake I'm making with this pattern. It works in other places.
+                        Log.WriteLog(loopAmount + " entries saved to DB in " + sw.Elapsed);
+                    }
+
+                    db.StoredOsmElements.AddRange(templist);
+                    db.SaveChanges();
+                    Log.WriteLog("Final entries for "+ jsonFileName + " completed at " + DateTime.Now);
+
+                    
+                    //db.SaveChanges();
                     File.Move(jsonFileName, jsonFileName + "done");
                 }
             }
@@ -617,6 +709,8 @@ namespace Larry
 
             Dictionary<long, TerrainData> terrainDatas = new Dictionary<long, TerrainData>();
 
+            //fill in wiki list early, so we can apply it to each tile.
+            var wikiList = allPlaces.Where(a => a.Tags.Any(t => t.Key == "wikipedia")).ToList();
 
             //TODO: concurrent collections might require a lock or changing types.
             //But running in parallel saves a lot of time in general on this.
@@ -633,6 +727,7 @@ namespace Larry
                     var acheck = Converters.GeoAreaToPolygon(areaForTile); //this is faster than using a PreparedPolygon in testing, which was unexpected.
                     var areaList = allPlaces.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); //This one is for the maptile
                     var gameAreas = areaList.Where(a => a.IsGameElement).ToList(); //this is for determining what area name/type to display for a cell10.
+                    //NOTE: gameAreas might also need to include ScavengerHunt entries to ensure those process correcly.
 
                     //Create the maptile first, so if we save it to the DB we can call the lock once per loop.
                     var info = new ImageStats(areaForTile, 80, 100); //Each pixel is a Cell11, we're drawing a Cell8.
@@ -651,26 +746,20 @@ namespace Larry
                     }
 
                     //SearchArea didn't need any logic changes, but we do want to pass in only game areas.
-                    System.Text.StringBuilder terrainInfo = AreaTypeInfo.SearchArea(ref areaForTile, ref gameAreas, true); //The list of Cell10 areas in this Cell8
-                    var splitData = terrainInfo.ToString().Split(Environment.NewLine);
+                    var terrainInfo = AreaTypeInfo.SearchArea2(ref areaForTile, ref gameAreas, true); //The list of Cell10 areas in this Cell8
+                    //var splitData = terrainInfo.ToString().Split(Environment.NewLine);
                     dbLock.EnterWriteLock();
-                    foreach (var sd in splitData)
+                    foreach (var ti in terrainInfo)
                     {
-                        if (sd == "") //last result is always a blank line
-                            continue;
-                        var subParts = sd.Split('|'); //PlusCode|Name|AreaTypeName|OsmElementId|OsmElementType
+                        TerrainInfo tiInsert = new TerrainInfo() { PlusCode = ti.Key };
+                        foreach (var td in ti.Value)
+                        {
+                            if (!terrainDatas.ContainsKey(td.OsmElementId))
+                                terrainDatas.Add(td.OsmElementId, td);
 
-                        //save all the terrainDatas to a lookup, then insert them into the db later, manually assign IDs to the Info. cuts down size by about 30%
-                        if (terrainDatas.ContainsKey(subParts[3].ToLong()))
-                        {
-                            sqliteDb.TerrainInfo.Add(new TerrainInfo() { PlusCode = subParts[0], terrainDataId = subParts[3].ToLong() });
+                            tiInsert.TerrainData.Add(terrainDatas[td.OsmElementId]);
                         }
-                        else
-                        {
-                            var addingTd = new TerrainData() { Name = subParts[1], areaType = subParts[2], OsmElementId = subParts[3].ToLong(), OsmElementType = subParts[4].ToLong() };
-                            terrainDatas.Add(addingTd.OsmElementId, addingTd);
-                            sqliteDb.TerrainInfo.Add(new TerrainInfo() { PlusCode = subParts[0], terrainDataId = subParts[3].ToLong() });
-                        }
+                        sqliteDb.TerrainInfo.Add(tiInsert);
                     }
                     dbLock.ExitWriteLock();
 
@@ -693,8 +782,7 @@ namespace Larry
             //Create automatic scavenger hunt entries.
             Dictionary<string, List<StoredOsmElement>> scavengerHunts = new Dictionary<string, List<StoredOsmElement>>();
 
-            //fill in wiki list
-            var wikiList = allPlaces.Where(a => a.Tags.Any(t => t.Key == "wikipedia")).ToList();
+            
             scavengerHunts.Add("Wikipedia Places", wikiList);
             Log.WriteLog(wikiList.Count() + " Wikipedia-linked items found for scavenger hunt.");
             //fill in gameElement lists.
@@ -708,7 +796,7 @@ namespace Larry
             foreach (var hunt in scavengerHunts)
             {
                 foreach (var item in hunt.Value)
-                    sqliteDb.ScavengerHunts.Add(new ScavengerHunt() { listName = hunt.Key, description = item.name, OsmElementId = item.sourceItemID, OsmElementType = item.sourceItemType, playerHasVisited = false });
+                    sqliteDb.ScavengerHunts.Add(new ScavengerHuntStandalone() { listName = hunt.Key, description = item.name, OsmElementId = item.sourceItemID, OsmElementType = item.sourceItemType, playerHasVisited = false });
             }
             Log.WriteLog("Auto-created scavenger hunt entries at " + DateTime.Now);
             sqliteDb.SaveChanges();
