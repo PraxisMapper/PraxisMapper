@@ -52,9 +52,7 @@ namespace PraxisMapper.Controllers
                 {
                     //Create this entry
                     var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare, MapTiles.MapTileSizeSquare);
-                    var filterSize = info.area.LatitudeHeight / 128; //Height is always <= width, so use that divided by vertical resolution to get 1 pixel's size in degrees. Don't load stuff smaller than that.
-                                                              //Test: set to 128 instead of 512: don't load stuff that's not 4 pixels ~.008 degrees at zoom 8.
-
+                    
                     var dataLoadArea = new GeoArea(info.area.SouthLatitude - ConstantValues.resolutionCell10, info.area.WestLongitude - ConstantValues.resolutionCell10, info.area.NorthLatitude + ConstantValues.resolutionCell10, info.area.EastLongitude + ConstantValues.resolutionCell10);
                     DateTime expires = DateTime.Now;
                     byte[] results = null;
@@ -63,7 +61,7 @@ namespace PraxisMapper.Controllers
                         case 1: //Base map tile
                             //add some padding so we don't clip off points at the edge of a tile
                             var places = GetPlaces(dataLoadArea); //includeGenerated: false, filterSize: filterSize  //NOTE: in this case, we want generated areas to be their own slippy layer, so the config setting is ignored here.
-                            results = MapTiles.DrawAreaAtSizeV4(info, places);
+                            results = MapTiles.DrawAreaAtSizeV4(info, places, null, (zoom >= 16));
                             expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                             break;
                         case 2: //PaintTheTown overlay. 
@@ -90,7 +88,7 @@ namespace PraxisMapper.Controllers
                         case 7: //This might be the layer that shows game areas on the map. Draw outlines of them. Means games will also have a Geometry object attached to them for indexing.
                             //7 is currently a duplicate of 1, since the testing code has been promoted to the main drawing method now.
                             var places7 = GetPlaces(dataLoadArea);
-                            results = MapTiles.DrawAreaAtSizeV4(info, places7);
+                            results = MapTiles.DrawAreaAtSizeV4(info, places7, null, (zoom >= 16));
                             expires = DateTime.Now.AddHours(10);
                             break;
                         case 8: //This might be what gets called to load an actual game. The ID will be the game in question, so X and Y values could be ignored?
