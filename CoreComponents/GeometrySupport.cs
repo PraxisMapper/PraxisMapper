@@ -119,6 +119,7 @@ namespace CoreComponents
                     var poly = factory.CreatePolygon((LinearRing)sw.elementGeometry);
                     sw.elementGeometry = poly;
                 }
+                sw.AreaSize = sw.elementGeometry.Length;
                 return sw;
             }
             catch(Exception ex)
@@ -214,6 +215,7 @@ namespace CoreComponents
                 }
                 temp.elementGeometry = mp;
             }
+            temp.AreaSize = temp.elementGeometry.Length;
             return temp;
         }
     }

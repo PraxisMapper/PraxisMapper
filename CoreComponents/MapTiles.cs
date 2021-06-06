@@ -283,12 +283,8 @@ namespace CoreComponents
 
         public static byte[] DrawCell8V4(GeoArea Cell8, List<StoredOsmElement> drawnItems = null)
         {
-            //This should become the standard path as I convert parts of the app to the new system.
-            //Once it is, copy that code to this function and remove unnecesssary or redundant parts
-            //like calculating degrees per pixel.
             return DrawAreaAtSizeV4(Cell8, 80, 100,  drawnItems);
         }
-
 
         public static byte[] DrawAreaAtSizeV4(GeoArea relevantArea, int imageSizeX, int imageSizeY, List<StoredOsmElement> drawnItems = null, List<TagParserEntry> styles = null)
         {
@@ -301,7 +297,7 @@ namespace CoreComponents
         //Optional parameter allows you to pass in different stuff that the DB alone has, possibly for manual or one-off changes to styling
         //or other elements converted for maptile purposes.
         
-        public static byte[] DrawAreaAtSizeV4(ImageStats stats, List<StoredOsmElement> drawnItems = null, List<TagParserEntry> styles = null)
+        public static byte[] DrawAreaAtSizeV4(ImageStats stats, List<StoredOsmElement> drawnItems = null, List<TagParserEntry> styles = null, bool filterSmallAreas = true)
     {
             //This is the new core drawing function. Takes in an area, the items to draw, and the size of the image to draw. 
             //The drawn items get their paint pulled from the TagParser's list. If I need multiple match lists, I'll need to make a way
@@ -309,11 +305,15 @@ namespace CoreComponents
 
             if (styles == null)
                 styles = TagParser.styles;
+
+            double minimumSize = 0;
+            if (filterSmallAreas)
+                minimumSize = stats.degreesPerPixelY; //don't draw elements under 1 pixel in size. Height 
           
             var db = new PraxisContext();
             var geo = Converters.GeoAreaToPolygon(stats.area);
             if (drawnItems == null)
-                drawnItems = db.StoredOsmElements.Include(c => c.Tags).Where(w => geo.Intersects(w.elementGeometry)).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList();
+                drawnItems = db.StoredOsmElements.Include(c => c.Tags).Where(w => geo.Intersects(w.elementGeometry) && w.AreaSize >= minimumSize).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList();
 
             //baseline image data stuff           
             SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
