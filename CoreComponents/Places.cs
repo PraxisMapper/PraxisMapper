@@ -20,7 +20,7 @@ namespace CoreComponents
         //this allows it to be customized much easier, and changed on the fly without reloading data.
         //A lot of the current code will need changed to match that new logic, though. And generated areas may remain separate.
         
-        public static List<StoredOsmElement> GetPlaces(GeoArea area, List<StoredOsmElement> source = null, double filterSize = 0, List<TagParserEntry> styles = null, bool skipTags = false)
+        public static List<StoredOsmElement> GetPlaces(GeoArea area, List<StoredOsmElement> source = null, double filterSize = 0, List<TagParserEntry> styles = null, bool skipTags = false, double minimumSize = 0)
         {
 
             if (styles == null)
@@ -36,16 +36,17 @@ namespace CoreComponents
                 var location = Converters.GeoAreaToPolygon(area); //Prepared items don't work on a DB lookup.
                 var db = new CoreComponents.PraxisContext();
                 if (skipTags) //Should make the load slightly faster, when we do something like a team control check, where the data we want to look at isn't in the OSM tags.
-                    places = db.StoredOsmElements.Where(md => location.Intersects(md.elementGeometry)).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList(); // && md.AreaSize > filterSize
+                    places = db.StoredOsmElements.Where(md => location.Intersects(md.elementGeometry) && md.AreaSize >= minimumSize).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList();
                 else
-                    places = db.StoredOsmElements.Include(s => s.Tags).Where(md => location.Intersects(md.elementGeometry)).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList(); // && md.AreaSize > filterSize
-                                                                                                                                                                                                                 //if (includeGenerated)
-                                                                                                                                                                                                                 //places.AddRange(db.StoredOsmElements.Where(md => location.Intersects(md.elementGeometry)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
+                {
+                    places = db.StoredOsmElements.Include(s => s.Tags).Where(md => location.Intersects(md.elementGeometry) && md.AreaSize >= minimumSize).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList(); // && md.AreaSize > filterSize                                                                                                                                                                                                                 //places.AddRange(db.StoredOsmElements.Where(md => location.Intersects(md.elementGeometry)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }))
+                }
+                //&& md.AreaSize >= minimumSize
             }
             else
             {
                 var location = Converters.GeoAreaToPreparedPolygon(area);
-                places = source.Where(md => location.Intersects(md.elementGeometry)).Select(md => md.Clone()).ToList(); // && md.AreaSize > filterSize
+                places = source.Where(md => location.Intersects(md.elementGeometry) && md.AreaSize >= minimumSize).Select(md => md.Clone()).ToList(); // && md.AreaSize > filterSize
             }
             return places;
         }
