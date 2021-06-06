@@ -335,21 +335,21 @@ namespace Larry
                     //process the elements in batches. This might be where spans are a good idea?
                     var total = templist.Count();
                     int loopCount = 0;
-                    int loopAmount = 10;
+                    int loopAmount = 10000;
                     while(loopAmount * loopCount < total)
                     {
                         sw.Restart();
                         db = new PraxisContext();
                         db.ChangeTracker.AutoDetectChangesEnabled = false;
                         var toAdd = templist.Skip(loopCount * loopAmount).Take(loopAmount);
-                        db.StoredOsmElements.AddRange(toAdd);
-                        //Console.WriteLine(toAdd.ToString());
-                        db.SaveChanges(); //TODO: something about this loop results in duplicate primary keys, but I don't immediately see what mistake I'm making with this pattern. It works in other places.
+                        db.StoredOsmElements.AddRange(toAdd); 
+                        db.SaveChanges(); 
                         Log.WriteLog(loopAmount + " entries saved to DB in " + sw.Elapsed);
+                        loopCount += 1;
                     }
 
-                    db.StoredOsmElements.AddRange(templist);
-                    db.SaveChanges();
+                    //db.StoredOsmElements.AddRange(templist);
+                    //db.SaveChanges();
                     Log.WriteLog("Final entries for "+ jsonFileName + " completed at " + DateTime.Now);
 
                     

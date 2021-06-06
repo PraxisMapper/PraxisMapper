@@ -191,8 +191,6 @@ namespace CoreComponents
         //because the TagParser will determine it on-demand instead of storing changeable data.
         public class StoredOsmElement
         {
-
-            [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
             public long id { get; set; }
             public string name { get; set; }
             public long sourceItemID { get; set; }

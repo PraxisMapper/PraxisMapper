@@ -210,6 +210,7 @@ namespace CoreComponents
                 !t.Key.StartsWith("gnis:") &&
                 !t.Key.StartsWith("hgv:") &&
                 !t.Key.StartsWith("import_uuid") &&
+                !t.Key.StartsWith("is_in") &&
                 !t.Key.StartsWith("junction:") &&
                 !t.Key.StartsWith("maxspeed") &&
                 !t.Key.StartsWith("mtb:") &&
@@ -218,6 +219,7 @@ namespace CoreComponents
                 !t.Key.StartsWith("old_name:") &&
                 !t.Key.StartsWith("parking:") &&
                 !t.Key.StartsWith("payment:") &&
+                !t.Key.StartsWith("phone") &&
                 !t.Key.StartsWith("name:") &&
                 !t.Key.StartsWith("recycling:") &&
                 !t.Key.StartsWith("ref:") &&
@@ -228,7 +230,8 @@ namespace CoreComponents
                 !t.Key.StartsWith("telephone") &&
                 !t.Key.StartsWith("tiger:") &&
                 !t.Key.StartsWith("turn:") &&
-                !t.Key.StartsWith("was:")
+                !t.Key.StartsWith("was:") &&
+                !t.Key.StartsWith("website") 
                 )
                 .Select(t => new ElementTags() { Key = t.Key, Value = t.Value }).ToList();
         }
