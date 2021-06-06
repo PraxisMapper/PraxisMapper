@@ -63,7 +63,7 @@ namespace PraxisMapper.Controllers
                         case 1: //Base map tile
                             //add some padding so we don't clip off points at the edge of a tile
                             var places = GetPlaces(dataLoadArea); //includeGenerated: false, filterSize: filterSize  //NOTE: in this case, we want generated areas to be their own slippy layer, so the config setting is ignored here.
-                            results = MapTiles.DrawAreaAtSizeV4(info, places);
+                            results = MapTiles.DrawAreaAtSizeV4(info, places, null, (zoom >= 16));
                             expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                             break;
                         case 2: //PaintTheTown overlay. 
@@ -90,7 +90,7 @@ namespace PraxisMapper.Controllers
                         case 7: //This might be the layer that shows game areas on the map. Draw outlines of them. Means games will also have a Geometry object attached to them for indexing.
                             //7 is currently a duplicate of 1, since the testing code has been promoted to the main drawing method now.
                             var places7 = GetPlaces(dataLoadArea);
-                            results = MapTiles.DrawAreaAtSizeV4(info, places7);
+                            results = MapTiles.DrawAreaAtSizeV4(info, places7, null, (zoom >= 16));
                             expires = DateTime.Now.AddHours(10);
                             break;
                         case 8: //This might be what gets called to load an actual game. The ID will be the game in question, so X and Y values could be ignored?
