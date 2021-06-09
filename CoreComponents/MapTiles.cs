@@ -308,7 +308,7 @@ namespace CoreComponents
 
             double minimumSize = 0;
             if (filterSmallAreas)
-                minimumSize = stats.degreesPerPixelY; //don't draw elements under 1 pixel in size. Height 
+                minimumSize = stats.degreesPerPixelX; //don't draw elements under 1 pixel in size. at slippy zoom 12, this is approx. 1 pixel for a Cell10.
           
             var db = new PraxisContext();
             var geo = Converters.GeoAreaToPolygon(stats.area);
@@ -318,7 +318,7 @@ namespace CoreComponents
             //baseline image data stuff           
             SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
             SKCanvas canvas = new SKCanvas(bitmap);
-            var bgColor = styles.Last().paint; //SKColors.Transparent;
+            var bgColor = styles.Where(s => s.name == "background").FirstOrDefault().paint; //Backgound is a named style, unmatched will be the last entry and transparent.
             canvas.Clear(bgColor.Color);
             canvas.Scale(1, -1, stats.imageSizeX / 2, stats.imageSizeY / 2);
             SKPaint paint = new SKPaint();

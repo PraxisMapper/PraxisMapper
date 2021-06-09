@@ -249,20 +249,20 @@ namespace Larry
                         //TODO: split off Tasks to convert these so the StreamReader doesn't have to wait on the converter/DB for progress
                         //SR only hits .9MB/s for this task, and these are multigigabyte files
                         //But watch out for multithreading gotchas like usual.
-                        //Would be: string = sr.Readline(); task -> convertStoredElement(string); lock and add to shared collection; after 10,000 entries lock then add collection to db and save changes.
+                        //Would be: string = sr.Readline(); task -> convertStoredElement(string); lock and add to shared collection; after 100,000 entries lock then add collection to db and save changes.
                         //await all tasks once end of stream is hit. lock and add last elements to DB
                         StoredOsmElement stored = GeometrySupport.ConvertSingleJsonStoredElement(sr.ReadLine());
                         db.StoredOsmElements.Add(stored);
                         entryCounter++;
                         
-                        if (entryCounter > 10000)
+                        if (entryCounter > 100000)
                         {
                             db.SaveChanges();
                             entryCounter = 0;
                             //This limits the RAM creep you'd see from adding 3 million rows at a time.
                             db = new PraxisContext();
                             db.ChangeTracker.AutoDetectChangesEnabled = false;
-                            Log.WriteLog("10,000 entries processed to DB in " + sw.Elapsed);
+                            Log.WriteLog("100,000 entries processed to DB in " + sw.Elapsed);
                             sw.Restart();
                         }
                     }
