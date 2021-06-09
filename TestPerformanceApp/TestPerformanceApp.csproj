@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CoreComponents\CoreComponents.csproj" />
+    <ProjectReference Include="..\PmPbfReader\PmPbfReader.csproj" />
   </ItemGroup>
 
 </Project>

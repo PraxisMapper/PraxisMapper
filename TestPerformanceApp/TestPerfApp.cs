@@ -69,8 +69,9 @@ namespace PerformanceTestApp
             //TestRasterVsVectorCell10();
             //TestImageSharpVsSkiaSharp(); //imagesharp was removed for being vastly slower.
             //TestTagParser();
-            TestCropVsNoCropDraw("86HWPM");
-            TestCropVsNoCropDraw("86HW");
+            //TestCropVsNoCropDraw("86HWPM");
+            //TestCropVsNoCropDraw("86HW");
+            TestCustomPbfReader();
 
             //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
             //These cannot all be enabled in one run. You must comment/uncomment each one separately.
@@ -86,6 +87,50 @@ namespace PerformanceTestApp
 
             //TODO: consider pulling 4-cell worth of places into memory, querying against that instead of a DB lookup every time?
             //tests app performance this way instead of db performance/network latency.
+        }
+
+        private static void TestCustomPbfReader()
+        {
+            //string filename = @"C:\praxis\delaware-latest.osm.pbf";
+            string filename = @"C:\praxis\ohio-latest.osm.pbf";
+            PmPbfReader.PbfReader reader = new PmPbfReader.PbfReader();
+            reader.Open(filename);
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+            reader.IndexFileParallel();
+            sw.Stop();
+            Log.WriteLog(filename + " indexed parallel in " + sw.Elapsed);
+            sw.Restart();
+            //reader.IndexFile();
+            //sw.Stop();
+            //Log.WriteLog(filename + " indexed in " + sw.Elapsed);
+            //sw.Restart();
+            //reader.IndexFileBlocks();
+            //sw.Stop();
+            //Log.WriteLog(filename + " blocks-only indexed in " + sw.Elapsed);
+            //sw.Restart();
+            //reader.LoadWholeFile();
+            //sw.Stop();
+            //Log.WriteLog(filename + " loaded to RAM one-pass in " + sw.Elapsed);
+            //sw.Restart();
+            //reader.LoadWholeFileParallel();
+            //sw.Stop();
+            //var tempBlock = reader.GetBlock(1);
+            //var smallnodes = reader.InflateNodes(tempBlock);
+            //sw.Stop();
+            //Log.WriteLog("Block 1 inflated to SmallNodes in " + sw.Elapsed);
+            //sw.Restart();
+            //Log.WriteLog(filename + " loaded to RAM one-pass parallel in " + sw.Elapsed);
+            //reader.GetGeometryFromNextBlockSelfContained(); //This doesn't work, because blocks only hold 1 element type. I knew that but was hoping it wasnt true.
+            reader.GetGeometryFromBlock(3241);
+            sw.Stop();
+            Log.WriteLog(filename + " loaded first (relation) block to RAM in " + sw.Elapsed);
+            sw.Restart();
+            reader.GetGeometryFromBlock(3032);
+            sw.Stop();
+            Log.WriteLog(filename + " loaded next (way) block to RAM in " + sw.Elapsed);
+            sw.Restart();
+
         }
 
         //ONly used for testing.
@@ -740,7 +785,7 @@ namespace PerformanceTestApp
             //List<OsmSharp.Relation> filteredEntries2;
             var normalListTest = progress2
                 .Where(p => p.Type == OsmGeoType.Relation)
-                .Select(p => (Relation)p)
+                .Select(p => (OsmSharp.Relation)p)
             .ToList();
 
             var concurrentTest = new ConcurrentBag<OsmSharp.Relation>(normalListTest);
