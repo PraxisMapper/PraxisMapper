@@ -521,7 +521,7 @@ namespace PmPbfReader
                             break;
                         case Relation.MemberType.WAY:
                             if (!loadedWays.ContainsKey(idToFind))
-                                loadedWays.Add(idToFind, GetWay(idToFind, ref activeBlocks));
+                                loadedWays.Add(idToFind, GetWay(idToFind, ref activeBlocks, false));
                             break;
                     }
 
@@ -601,7 +601,7 @@ namespace PmPbfReader
             return r;
         }
 
-        public OsmSharp.Complete.CompleteWay GetWay(long wayId, ref ConcurrentDictionary<long, PrimitiveBlock> activeBlocks)
+        public OsmSharp.Complete.CompleteWay GetWay(long wayId, ref ConcurrentDictionary<long, PrimitiveBlock> activeBlocks, bool skipUntagged)
         {
             try
             {
@@ -621,7 +621,7 @@ namespace PmPbfReader
                 var way = wayPrimGroup.ways.Where(w => w.id == wayId).FirstOrDefault();
                 //finally have the core item
 
-                if (way.keys.Count == 0) //i cant use untagged elements
+                if (skipUntagged && way.keys.Count == 0) 
                     return null;
 
                 //more deltas 
@@ -654,6 +654,9 @@ namespace PmPbfReader
                 OsmSharp.Complete.CompleteWay finalway = new OsmSharp.Complete.CompleteWay();
                 finalway.Id = wayId;
                 finalway.Tags = new OsmSharp.Tags.TagsCollection();
+
+                //skipUntagged is false from GetRelation, so we can ignore tag data in that case as well.
+                if (skipUntagged) //If we want to skip the untagged entries, we also want to fill in tags. If we want every Way regardless, we don't need the tag values.
                 for (int i = 0; i < way.keys.Count(); i++)
                 {
                     finalway.Tags.Add(new OsmSharp.Tags.Tag(System.Text.Encoding.UTF8.GetString(wayBlock.stringtable.s[(int)way.keys[i]]), System.Text.Encoding.UTF8.GetString(wayBlock.stringtable.s[(int)way.vals[i]])));
@@ -957,7 +960,7 @@ namespace PmPbfReader
                         //foreach (var w in primgroup.ways)
                         Parallel.ForEach(primgroup.ways, w =>
                         {
-                            var way = GetWay(w.id, ref activeBlocks);
+                            var way = GetWay(w.id, ref activeBlocks, true); //here, I skip untagged geometry.
                             if (way != null)
                                 results.Add(way);
                         });
