@@ -8,44 +8,21 @@ using Ionic.Zlib;
 using System.Linq;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
-//big chunks of this copied from OsmSharp.IO.Pbf.Encoder
-using System.Linq.Expressions;
+//one function copied from OsmSharp.IO.Pbf.Encoder
 
 namespace PmPbfReader
 {
-    //I think this is now returning reasonable accurate data, though it's currently very slow compared
-    //to baseline OsmSharp. I can start the optimization pass now.
-
-    // ponder just storing nodes instead of an index for them. they're 2 doubles and a long each, if i ignore tags.
-    //versus a hash entry and 2 longs for the full index
-
-    //I thought I didnt want to do this, but i might have a little fun working this out on my own.
-    //Read through a PBF file, and only pull out the parts I actually care about
-    //That should theoretically be faster than OsmSharp's underlying reader
-    //Feature notes
-    //A) Store a list(hashmap?) of which items are stored in which block for later access (dictionary with tuples)
-    //B) only materialize values that PM is concerned with. Skip other stuff.
-    //Rough plan for feature work
-    //Open file stream
-    //read headers
-    //track entries
-    //decode entries
-    //All of which can be tested in the test perf app.
-
-    //todo check on what parts can or cant multithread. pretty sure memorystream isnt threadsafe
-    //but collections might be? might need concurrentdictionary?
-    //Also look at ReadAsync method on FileStream for tasked methods
-
-    //note 2: doing a 'if ContainsKey continue' check is much faster than just doing TryAdd for each object. 
-    //twice as fast on Delaware. Probably bigger improvements on bigger files.
-
-    //should see if indexing nodes is better by just taking lowest and highest node id per block
-    //rather than tracking every single node, then checking blocks that cover the range for a node.
+    //I think this is now returning reasonable accurate data, though it's currently slow compared
+    //to baseline OsmSharp. Ready to clean up and do a comparison check to see how much performance
+    //i lose doing things block by block.
 
     //rough usage plan:
     //Open a file - locks access
-    //IndexFileParallel - can now search the file
-    //PopulateNextBlock - create everything from the last block in the dictionary.
+    //IndexFileParallel - can now search the file. required call. Fills stuff that will persist in memory, so this is the limit on filesize now.
+    //GetGeometryFromBlock - create everything from the given block as OSMSharp.CompleteGeo. Could write that to its own file and be able to resume later.
+
+    //For the most part, I want to grab all this stuff
+    //Though i can skip untagged elements to save some time.
 
     //So far
     //Delaware stats:
@@ -73,21 +50,11 @@ namespace PmPbfReader
     //4: 0:27, 2780 / 3008 (GetRelation now uses ActiveBlocks for the relation's block) //estimates 2 hours still? 30 seconds and 253 blocks
     //5: 0:26, 2780 / 3008(no console log for relation processing)
     //6: 0:33, 2780 / 3308 (inflate nodes to smallnodes on first lookup) -might be faster to only process needed nodes on demand. How about that.
-    //7: (undid previous change)
+    //7: 0:24, 2779 / 3308 (undid previous changes, small cleanup, VS reboot)
 
     //ohio, starting at 7:
-    //7: 1:30 relations, ways 10.5 seconds.
+    //7: 1:30 relation block, way block 10.5 seconds.
     //This is approaching usable.
-
-    //when searching a block for nodes, can I use a tree search?
-    //ex: start at half, see if its higher/lower, then go halfway there, repeat 14 times and then
-    //be on or near the node index?
-    //probaby not, for the same reason i cant just use first/total for min/max. but its close.
-    //might still be faster to do the 14 step tree search and then iterate out from there than skim 8000 entries in a list.
-    //do this later, after baseline functionality exists
-
-    //which parts of GetGeometryFromLastBlock can be parallel? probably loading stuff from blocks in memory
-    //probably not reading blocks from file.
 
     //This should work with OsmSharp objects, to avoid rewriting the rest of my app.
 
@@ -102,47 +69,27 @@ namespace PmPbfReader
         FileInfo fi;
         FileStream fs;
 
-        //These might need to become 3 value tuples <OsmElementId, blockCountId, primitiveGroupId>
-
-        //Dictionary<long, Tuple<long, int>> relationFinder = new Dictionary<long, Tuple<long, int>>();
-        //Dictionary<long, Tuple<long, int>> wayFinder = new Dictionary<long, Tuple<long, int>>();
-        //Dictionary<long, Tuple<long, int>> nodeFinder = new Dictionary<long, Tuple<long, int>>();
-
         //these are osmId, <blockId, primitiveGroupID>
+        //but primGroupID is always 0, so i should switch this around to just blockID
         ConcurrentDictionary<long, Tuple<long, int>> relationFinder = new ConcurrentDictionary<long, Tuple<long, int>>();
         ConcurrentDictionary<long, Tuple<long, int>> wayFinder = new ConcurrentDictionary<long, Tuple<long, int>>();
         ConcurrentDictionary<long, Tuple<long, int>> nodeFinder = new ConcurrentDictionary<long, Tuple<long, int>>();
 
-        //this is blockId, <minNode, maxNode>. Was a mis-assumption from a wrong attempt at thing.
+        //this is blockId, <minNode, maxNode>.
         ConcurrentDictionary<long, Tuple<long, long>> nodeFinder2 = new ConcurrentDictionary<long, Tuple<long, long>>();
-
 
         Dictionary<long, long> blockPositions = new Dictionary<long, long>();
         Dictionary<long, int> blockSizes = new Dictionary<long, int>();
 
-        //For tessting purposes, not intended to be actually used as a whole memory store of a file.
+        //For testing purposes, not intended to be actually used as a whole memory store of a file.
         //Dictionary<long, PrimitiveBlock> loadedBlocks = new Dictionary<long, PrimitiveBlock>();
         ConcurrentDictionary<long, PrimitiveBlock> loadedBlocks = new ConcurrentDictionary<long, PrimitiveBlock>();
-
-        //NOTE: If i want to eat more memory directly, i could throw the blocks in a collection and access them directly
-        //Or i could fill in all the entries in a block and pull that directly, though this behavior is essentially re-writing
-        //OsmSharp as it is and all the speed and RAM issues it hits.
-        //My code here might be slower, but it should let me process significantly bigger files when it's completed.
-
-        //methods will need to be a little smarter about stuff existing in RAM.
-        //code should run now after indexing from disk. ready to test and get baseline perf info.
-
-        private RuntimeTypeModel _runtimeTypeModel;
-        private readonly Type _blockHeaderType = typeof(BlobHeader);
-        private readonly Type _blobType = typeof(Blob);
-        private readonly Type _primitiveBlockType = typeof(PrimitiveBlock);
-        private readonly Type _headerBlockType = typeof(HeaderBlock);
 
         private PrimitiveBlock _block = new PrimitiveBlock();
         private BlobHeader _header = new BlobHeader();
 
-        //long waysStartAt = 0;
-        //long relationsStartAt = 0;
+        long waysStartAt = 0;
+        long relationsStartAt = 0;
         //long blockCounter = 0;
 
         //I will use the write lock to make sure threads don't read the wrong data
@@ -151,65 +98,22 @@ namespace PmPbfReader
         //threads would change the Seek point before the ReadAsync was called.
         System.Threading.ReaderWriterLockSlim msLock = new System.Threading.ReaderWriterLockSlim();
 
-        long currentPosition = 0;
+        public long BlockCount()
+        {
+            return blockPositions.Count();
+        }
+
         public void Open(string filename)
         {
             fi = new FileInfo(filename);
             Console.WriteLine(fi.FullName + " | " + fi.Length);
             fs = File.OpenRead(filename);
-
-            _runtimeTypeModel = RuntimeTypeModel.Create();
-            _runtimeTypeModel.Add(_blockHeaderType, true);
-            _runtimeTypeModel.Add(_blobType, true);
-            _runtimeTypeModel.Add(_primitiveBlockType, true);
-            _runtimeTypeModel.Add(_headerBlockType, true);
-
         }
 
         public void Close()
         {
             fs.Close();
             fs.Dispose();
-        }
-
-        public void LoadWholeFile()
-        {
-            loadedBlocks = new ConcurrentDictionary<long, PrimitiveBlock>();
-            //as index file, but saves the decoded block in RAM
-            BlobHeader bh = new BlobHeader();
-            Blob b = new Blob();
-
-            //int outRead = 0;
-            long blockCounter = 0;
-
-            HeaderBlock hb = new HeaderBlock();
-            PrimitiveBlock pb = new PrimitiveBlock();
-
-            fs.Position = 0;
-
-            //Only one OsmHeader, at the start
-            bh = Serializer.DeserializeWithLengthPrefix<BlobHeader>(fs, PrefixStyle.Fixed32BigEndian);
-            hb = Serializer.Deserialize<HeaderBlock>(fs, length: bh.datasize); //only one of these per file    
-            Console.WriteLine(hb.source + "|" + hb.writingprogram);
-
-            //header block left out intentionally, start data blocks at 1
-            while (fs.Position != fs.Length)
-            {
-                blockCounter++;
-                bh = Serializer.DeserializeWithLengthPrefix<BlobHeader>(fs, PrefixStyle.Fixed32BigEndian);
-
-                byte[] thisblob = new byte[bh.datasize];
-                fs.Read(thisblob, 0, bh.datasize);
-                var ms1 = new MemoryStream(thisblob);
-
-                b = Serializer.Deserialize<Blob>(ms1);
-                var ms = new MemoryStream(b.zlib_data);
-                var dms = new ZlibStream(ms, CompressionMode.Decompress);
-
-                _runtimeTypeModel.Deserialize<PrimitiveBlock>(dms, pb);
-
-                loadedBlocks.TryAdd(blockCounter, pb);
-            }
         }
 
         public void LoadWholeFileParallel()
@@ -378,29 +282,20 @@ namespace PmPbfReader
 
                 byte[] thisblob = new byte[bh.datasize];
                 fs.Read(thisblob, 0, bh.datasize);
-                //var ms1 = new MemoryStream(thisblob);
-
-                //b = Serializer.Deserialize<Blob>(ms1);
-                //var ms = new MemoryStream(b.zlib_data);
-                //var dms = new ZlibStream(ms, CompressionMode.Decompress);
-
+                
                 var passedBC = blockCounter;
-                //int groupCounter = 0;
-                //_runtimeTypeModel.Deserialize<PrimitiveBlock>(dms, pb);
-
-                //System.Threading.Tasks.Parallel.ForEach(pb.primitivegroup, group =>
-                //System.Threading.Tasks.Parallel.For(0, pb.primitivegroup.Count, groupCounter =>
                 var tasked = Task.Run(() =>
                 {
-                    var pb2 = DecodeBlock(thisblob); //Serializer.Deserialize<PrimitiveBlock>(dms);
+                    var pb2 = DecodeBlock(thisblob);
                     if (pb2.primitivegroup.Count() > 1)
                         Console.WriteLine("This block has " + pb2.primitivegroup.Count() + " groups!");
 
-                    //if (waysStartAt == 0 && group.ways.Count > 0)
-                    //  waysStartAt = blockCounter;
-                    //if (relationsStartAt == 0 && group.relations.Count > 0)
-                    //  relationsStartAt = blockCounter;
-                    //var group = pb.primitivegroup[groupCounter];
+                    var group = pb2.primitivegroup[0];
+                    if (waysStartAt == 0 && group.ways.Count > 0)
+                      waysStartAt = blockCounter;
+                    if (relationsStartAt == 0 && group.relations.Count > 0)
+                        relationsStartAt = blockCounter;
+                    
 
                     foreach (var r in pb2.primitivegroup[0].relations)
                     {
@@ -536,9 +431,6 @@ namespace PmPbfReader
             loadedBlocks.TryAdd(blockId, DecodeBlock(blockBytes));
         }
 
-
-        //NOTE: I might want to keep all existing materialzed blocks in memory for the duration of one operation.
-        //That way, I don't have to pull the same block 400 times if it has
         public OsmSharp.Complete.CompleteRelation GetRelation(long relationId, ref ConcurrentDictionary<long, PrimitiveBlock> activeBlocks)
         {
             try
@@ -546,7 +438,6 @@ namespace PmPbfReader
                 //Console.WriteLine("getting relation " + relationId);
                 //Run after indexing file
                 //load only relevant blocks for this entry
-                //long relationBlockId = relationValues[relationId];
                 var relationBlockValues = relationFinder[relationId];
                 PrimitiveBlock relationBlock;
                 if (activeBlocks.ContainsKey(relationBlockValues.Item1))
@@ -561,6 +452,9 @@ namespace PmPbfReader
                 var rel = relPrimGroup.relations.Where(r => r.id == relationId).FirstOrDefault();
                 //finally have the core item
 
+                if (rel.keys.Count == 0) //I cant use untagged areas for anything.
+                    return null;
+
                 //Now get a list of block i know i need now.
                 List<long> neededBlocks = new List<long>();
 
@@ -574,7 +468,6 @@ namespace PmPbfReader
                     switch (typeToFind)
                     {
                         case Relation.MemberType.NODE:
-                            //neededBlocks.Add(Int32.Parse(FindBlockKeyForNode(idToFind).Split("-")[0]));
                             neededBlocks.Add(FindBlockKeyForNode(idToFind, ref activeBlocks));
                             break;
                         case Relation.MemberType.WAY:
@@ -593,7 +486,6 @@ namespace PmPbfReader
                     if (!activeBlocks.ContainsKey(nb))
                     {
                         activeBlocks.TryAdd(nb, GetBlock(nb));
-                        //SmallNodes.TryAdd(nb, InflateNodes(activeBlocks[nb]));
                         //Console.WriteLine("Block " + nb + " loaded to RAM");
                     }
                 }
@@ -611,10 +503,7 @@ namespace PmPbfReader
 
                 Dictionary<long, OsmSharp.Node> loadedNodes = new Dictionary<long, OsmSharp.Node>();
                 Dictionary<long, OsmSharp.Complete.CompleteWay> loadedWays = new Dictionary<long, OsmSharp.Complete.CompleteWay>();
-                //TODO: watch for infinite loops here. 
 
-                //add completed members from other functions. load each one once from memory
-                //foreach (var id in rel.memids)
                 idToFind = 0;
                 for (int i = 0; i < rel.memids.Count; i++)
                 {
@@ -633,7 +522,6 @@ namespace PmPbfReader
                     }
 
                 }
-                //}
 
                 //final pass, to make sure elements are in the correct order
                 List<OsmSharp.Complete.CompleteRelationMember> crms = new List<OsmSharp.Complete.CompleteRelationMember>();
@@ -655,8 +543,6 @@ namespace PmPbfReader
                     crms.Add(c);
                 }
                 r.Members = crms.ToArray();
-                //Console.WriteLine("Relation " + r.Id + " done with" + r.Members.Count() + " entries");
-
                 return r;
             }
             catch (Exception ex)
@@ -709,12 +595,6 @@ namespace PmPbfReader
             return r;
         }
 
-        // public OsmSharp.Complete.CompleteWay GetWay(long wayId)
-        //{
-        //  ConcurrentDictionary<long, PrimitiveBlock> placeholder = new ConcurrentDictionary<long, PrimitiveBlock>();
-        // return GetWay(wayId, ref placeholder);
-        // }
-
         public OsmSharp.Complete.CompleteWay GetWay(long wayId, ref ConcurrentDictionary<long, PrimitiveBlock> activeBlocks)
         {
             try
@@ -722,7 +602,6 @@ namespace PmPbfReader
                 //Console.WriteLine("getting way " + wayId);
                 //Run after indexing file
                 //load only relevant blocks for this entry
-                //long relationBlockId = relationValues[relationId];
                 var wayBlockValues = wayFinder[wayId];
                 PrimitiveBlock wayBlock;
                 if (activeBlocks.ContainsKey(wayBlockValues.Item1))
@@ -736,6 +615,9 @@ namespace PmPbfReader
                 var way = wayPrimGroup.ways.Where(w => w.id == wayId).FirstOrDefault();
                 //finally have the core item
 
+                if (way.keys.Count == 0) //i cant use untagged elements
+                    return null;
+
                 //more deltas 
                 long idToFind = 0;
                 List<long> neededBlocks = new List<long>();
@@ -745,15 +627,13 @@ namespace PmPbfReader
                     neededBlocks.Add(FindBlockKeyForNode(idToFind, ref activeBlocks));
                 }
 
-                neededBlocks = neededBlocks.Distinct().ToList(); //I'll also need to fill in any entries from 
-                                                                 //Dictionary<long, PrimitiveBlock> activeBlocksinner = new Dictionary<long, PrimitiveBlock>();
+                neededBlocks = neededBlocks.Distinct().ToList();
 
                 foreach (var nb in neededBlocks)
                 {
                     if (!activeBlocks.ContainsKey(nb))
                     {
                         activeBlocks.TryAdd(nb, GetBlock(nb));
-                        //SmallNodes.TryAdd(nb, InflateNodes(activeBlocks[nb]));
                     }
                 }
                 //Now I have the data needed to fill in nodes for a way
@@ -773,9 +653,6 @@ namespace PmPbfReader
                 {
                     idToFind += node;
                     var blockId = FindBlockKeyForNode(idToFind, ref activeBlocks);
-                    //if (SmallNodes.ContainsKey(blockId))
-                    //  nodeList.Add(GetNodeFromSmallNode(SmallNodes[blockId][idToFind])); 
-                    //else
                     nodeList.Add(GetNode(idToFind, ref activeBlocks, true));
                 }
                 finalway.Nodes = nodeList.ToArray();
@@ -807,24 +684,18 @@ namespace PmPbfReader
 
             return finalway;
         }
-        public OsmSharp.Node GetNodeFromSmallNode(SmallNode node)
-        {
-            return new OsmSharp.Node() { Id = node.id, Latitude = node.lat, Longitude = node.lon };
-        }
+        //public OsmSharp.Node GetNodeFromSmallNode(SmallNode node)
+        //{
+        //    return new OsmSharp.Node() { Id = node.id, Latitude = node.lat, Longitude = node.lon };
+        //}
 
         public OsmSharp.Node GetNode(long nodeId, ref ConcurrentDictionary<long, PrimitiveBlock> activeBlocks, bool skipTags = true)
         {
             //Console.WriteLine("getting node " + nodeId);
             //Run after indexing file
             //load only relevant blocks for this entry
-            //long relationBlockId = relationValues[relationId];
-            //ConcurrentDictionary<long, Dictionary<long, SmallNode>> SmallNodes = new ConcurrentDictionary<long, Dictionary<long, SmallNode>>(); //fake
             var nodeBlockValues = FindBlockKeyForNode(nodeId, ref activeBlocks);
-            //if (nodeBlockValues == null)
-            //  throw new Exception("Node not found");
-
-
-            //var keys = nodeBlockValues.Split("-");
+            
             PrimitiveBlock nodeBlock;
             if (activeBlocks.ContainsKey(nodeBlockValues))
                 nodeBlock = activeBlocks[nodeBlockValues];
@@ -832,7 +703,6 @@ namespace PmPbfReader
             {
                 nodeBlock = GetBlock(nodeBlockValues);
                 activeBlocks.TryAdd(nodeBlockValues, nodeBlock);
-                //SmallNodes.TryAdd(nodeBlockValues, InflateNodes(activeBlocks[nodeBlockValues]));
             }
             var nodePrimGroup = nodeBlock.primitivegroup[0];
 
@@ -945,7 +815,7 @@ namespace PmPbfReader
 
             foreach (var nodelist in nodeFinder2)
             {
-                //key is block id - primGroupId
+                //key is block id
                 //value is the tuple list. 1 is min, 2 is max.
                 if (nodelist.Value.Item1 > nodeId) //this node's minimum is larger than our node, skip
                     continue;
@@ -957,7 +827,7 @@ namespace PmPbfReader
                 if (!activeBlocks.ContainsKey(nodelist.Key))
                     activeBlocks.TryAdd(nodelist.Key, GetBlock(nodelist.Key));
 
-                var nodeBlock = activeBlocks[nodelist.Key]; //GetBlock(nodelist.Key);
+                var nodeBlock = activeBlocks[nodelist.Key];
 
                 long nodecounter = 0;
                 int nodeIndex = -1;
@@ -974,15 +844,8 @@ namespace PmPbfReader
 
 
             //couldnt find this node
-            //return -1;
-            throw new Exception("Node Not Found!?!?");
+            throw new Exception("Node Not Found");
 
-        }
-
-        public void IndexBlock()
-        {
-            //Do my indexing logic, but only on primGroups in the current block
-            //on the assumption that the block holds all necessary data somewhere in it.
         }
 
         public List<OsmSharp.Complete.CompleteOsmGeo> GetGeometryFromBlock(long blockId)
@@ -1060,50 +923,7 @@ namespace PmPbfReader
 
         }
 
-        public List<OsmSharp.Complete.CompleteOsmGeo> GetGeometryFromNextBlockSelfContained()
-        {
-            //This grabs the last block, populates everything in it to an OsmSharp.Complete object
-            //and returns that list. Removes the block from memory once that's done.
-            //This is the 'main' function I think i'll use to do most of the work.
-            //and doesn't do any lookups from other blocks or anything.
-            //Not certain this one will function as expected, but it very well may be what I was actually looking for.
-
-            var lastBlockID = blockPositions.Keys.Max();
-            var block = GetBlock(lastBlockID);
-
-            List<OsmSharp.Complete.CompleteOsmGeo> results = new List<OsmSharp.Complete.CompleteOsmGeo>();
-            Dictionary<long, OsmSharp.Node> nodeList = new Dictionary<long, OsmSharp.Node>();
-
-            foreach (var primgroup in block.primitivegroup)
-            {
-                if (primgroup.relations != null && primgroup.relations.Count() > 0)
-                {
-                    foreach (var r in primgroup.relations)
-                    {
-                        var relation = GetRelationFromBlock(r, block, nodeList, results);
-                        results.Add(relation);
-                    }
-                }
-                else if (primgroup.ways != null && primgroup.ways.Count() > 0)
-                {
-                    foreach (var w in primgroup.ways)
-                    {
-                        var way = GetWayFromBlock(w, block, nodeList);
-                        results.Add(way);
-                    }
-                }
-                else
-                {
-                    foreach (var n in primgroup.dense.id)
-                    {
-                        var node = GetNodeFromBlock(n, block, primgroup);
-                        nodeList.Add(n, node);
-                    }
-                }
-            }
-
-            return results;
-        }
+        
 
         public record SmallNode(long id, double lat, double lon);
 
@@ -1131,6 +951,7 @@ namespace PmPbfReader
 
         //}
 
+        //Taken from OsmSharp
         public static double DecodeLatLon(long valueOffset, long offset, long granularity)
         {
             return .000000001 * (offset + (granularity * valueOffset));
