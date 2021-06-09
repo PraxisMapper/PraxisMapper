@@ -91,8 +91,8 @@ namespace PerformanceTestApp
 
         private static void TestCustomPbfReader()
         {
-            //string filename = @"C:\praxis\delaware-latest.osm.pbf";
-            string filename = @"C:\praxis\ohio-latest.osm.pbf";
+            string filename = @"C:\praxis\delaware-latest.osm.pbf";
+            //string filename = @"C:\praxis\ohio-latest.osm.pbf";
             PmPbfReader.PbfReader reader = new PmPbfReader.PbfReader();
             reader.Open(filename);
             Stopwatch sw = new Stopwatch();
@@ -122,14 +122,23 @@ namespace PerformanceTestApp
             //sw.Restart();
             //Log.WriteLog(filename + " loaded to RAM one-pass parallel in " + sw.Elapsed);
             //reader.GetGeometryFromNextBlockSelfContained(); //This doesn't work, because blocks only hold 1 element type. I knew that but was hoping it wasnt true.
-            reader.GetGeometryFromBlock(3241);
+            reader.GetGeometryFromBlock(253);
             sw.Stop();
             Log.WriteLog(filename + " loaded first (relation) block to RAM in " + sw.Elapsed);
             sw.Restart();
-            reader.GetGeometryFromBlock(3032);
+            reader.GetGeometryFromBlock(252);
             sw.Stop();
             Log.WriteLog(filename + " loaded next (way) block to RAM in " + sw.Elapsed);
             sw.Restart();
+
+            //reference: run Larry -loadPbfsToJson and record time
+            //then run this loop
+            for (var block = reader.BlockCount() -1; block > 0; block--)
+            {
+                var x = reader.GetGeometryFromBlock(block);
+                //GeometrySupport.
+                //GeometrySupport.wr
+            }
 
         }
 
