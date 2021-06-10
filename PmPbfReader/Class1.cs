@@ -542,15 +542,15 @@ namespace PmPbfReader
                     idToFind += rel.memids[i];
                     Relation.MemberType typeToFind = rel.types[i];
                     OsmSharp.Complete.CompleteRelationMember c = new OsmSharp.Complete.CompleteRelationMember();
+                    c.Role = System.Text.Encoding.UTF8.GetString(relationBlock.stringtable.s[rel.roles_sid[i]]);
                     switch (typeToFind)
                     {
+                        //these need to be inner/outer, not Node/Way
                         case Relation.MemberType.NODE:
                             c.Member = loadedNodes[idToFind];
-                            c.Role = "Node";
                             break;
                         case Relation.MemberType.WAY:
                             c.Member = loadedWays[idToFind];
-                            c.Role = "Way";
                             break;
                     }
                     crms.Add(c);
