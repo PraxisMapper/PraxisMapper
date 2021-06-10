@@ -234,6 +234,56 @@ namespace CoreComponents
             return handledItems;
         }
 
+        public static void ProcessPMPBFResults(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, string saveFilename)
+        {
+            //This one is easy, we just dump the geo to the file.
+            //We want to return both of these lists, dont we? or if we've run the whole file, we only need the waysToSkip one?
+
+            List<long> handledItems = new List<long>();
+            List<StoredOsmElement> elements = new List<StoredOsmElement>();
+            Log.WriteLog("Converting geometry and saving to file....");
+            long totalCounter = 0;
+            long totalItems = 0;
+            long itemCounter = 0;
+            int itemsPerLoop = 4000; //halfway for a full block.
+            DateTime startedProcess = DateTime.Now;
+            TimeSpan difference;
+            foreach (var r in items) //This is where the first memory peak hits as it loads everything into memory
+            //Parallel.ForEach(items, r =>
+            {
+                var convertedItem = GeometrySupport.ConvertOsmEntryToStoredElement(r);
+
+                    if (convertedItem == null)
+                    {
+                        continue;
+                        //return null;
+                    }
+                    elements.Add(convertedItem);
+                    totalItems++;
+                    itemCounter++;
+                    //if (itemCounter > itemsPerLoop)
+                    //{
+                        //if (saveToFile)
+                            GeometrySupport.WriteStoredElementListToFile(saveFilename, ref elements);
+                        
+
+                        //ReportProgress(startedProcess, 0, totalCounter, "entries");
+//                        itemCounter = 0;
+                        //elements.Clear();
+                    //}
+                //}
+
+            }
+            //);
+            //if (saveToFile)
+                GeometrySupport.WriteStoredElementListToFile(saveFilename, ref elements);
+            //else
+            //    db.StoredOsmElements.AddRange(elements);
+            //elements.Clear();
+            Log.WriteLog("entries saved to file at " + DateTime.Now);
+
+        }
+
         public static List<long> ProcessInnerLoopParallel(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, string itemType, int itemsPerLoop, bool saveToFile = false, string saveFilename = "", PraxisContext db = null, HashSet<long> waysToSkip = null)
         {
             //We want to return both of these lists, dont we? or if we've run the whole file, we only need the waysToSkip one?

@@ -92,7 +92,8 @@ namespace PerformanceTestApp
         private static void TestCustomPbfReader()
         {
             //string filename = @"C:\praxis\delaware-latest.osm.pbf";
-            string filename = @"C:\praxis\ohio-latest.osm.pbf";
+            //string filename = @"C:\praxis\ohio-latest.osm.pbf";
+            string filename = @"D:\Projects\PraxisMapper Files\XmlToProcess\ohio-latest.osm.pbf";
             PmPbfReader.PbfReader reader = new PmPbfReader.PbfReader();
             reader.Open(filename);
             Stopwatch sw = new Stopwatch();
@@ -122,14 +123,18 @@ namespace PerformanceTestApp
             //sw.Restart();
             //Log.WriteLog(filename + " loaded to RAM one-pass parallel in " + sw.Elapsed);
             //reader.GetGeometryFromNextBlockSelfContained(); //This doesn't work, because blocks only hold 1 element type. I knew that but was hoping it wasnt true.
-            var data1 = reader.GetGeometryFromBlock(3241); //3241 for ohio, 253 for delaware
+            var data1 = reader.GetGeometryFromBlock(3239); //3241 for ohio, 253 for delaware
             sw.Stop();
             Log.WriteLog(filename + " loaded first (relation) block to RAM in " + sw.Elapsed);
+            sw.Restart();
+            CoreComponents.PbfFileParser.ProcessPMPBFResults(data1, "testFileName-block3239.json");
+            sw.Stop();
+            Log.WriteLog("wrote all results for relation block to JSON in " + sw.Elapsed);
             sw.Restart();
             var data2 = reader.GetGeometryFromBlock(3000); //3000 for ohio, 252 for delaware
             sw.Stop();
             Log.WriteLog(filename + " loaded next (way) block to RAM in " + sw.Elapsed);
-            sw.Restart();
+            sw.Restart(); 
 
             //reference: run Larry -loadPbfsToJson and record time
             //then run this loop
