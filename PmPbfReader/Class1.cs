@@ -15,6 +15,8 @@ namespace PmPbfReader
     //I think this is now returning reasonable accurate data, though it's currently slow compared
     //to baseline OsmSharp. Ready to clean up and do a comparison check to see how much performance
     //i lose doing things block by block.
+    //for Relations in Ohio (4 blocks), OsmSharp gets all the info in about 2 minutes but hits 8GB RAM
+    //Right now, same PC, Ohio on this file takes ~1:40 to do 1 relation block in 3 GB RAM. (so OsmSharp is ~3x faster for 3x the RAM?)
 
     //rough usage plan:
     //Open a file - locks access
@@ -112,6 +114,10 @@ namespace PmPbfReader
             fi = new FileInfo(filename);
             Console.WriteLine(fi.FullName + " | " + fi.Length);
             fs = File.OpenRead(filename);
+
+            //Not certain if this improves performance later or not.
+            Serializer.PrepareSerializer<PrimitiveBlock>();
+            Serializer.PrepareSerializer<Blob>();
         }
 
         public void Close()
@@ -262,21 +268,22 @@ namespace PmPbfReader
             BlobHeader bh = new BlobHeader();
             Blob b = new Blob();
 
-            //int outRead = 0;
-
             HeaderBlock hb = new HeaderBlock();
             PrimitiveBlock pb = new PrimitiveBlock();
 
             //Only one OsmHeader, at the start
             bh = Serializer.DeserializeWithLengthPrefix<BlobHeader>(fs, PrefixStyle.Fixed32BigEndian);
             hb = Serializer.Deserialize<HeaderBlock>(fs, length: bh.datasize); //only one of these per file    
-            Console.WriteLine(hb.source + "|" + hb.writingprogram);
+            //Console.WriteLine(hb.source + "|" + hb.writingprogram);
             blockPositions.Add(0, fs.Position);
             blockSizes.Add(0, bh.datasize);
 
             List<Task> waiting = new List<Task>();
 
-            //header block left out intentionally, start data blocks at 1
+            int relationCounter = 0;
+            int wayCounter = 0;
+
+            //header block is 0, start data blocks at 1
             while (fs.Position != fs.Length)
             {
                 blockCounter++;
@@ -295,10 +302,10 @@ namespace PmPbfReader
                         Console.WriteLine("This block has " + pb2.primitivegroup.Count() + " groups!");
 
                     var group = pb2.primitivegroup[0];
-                    if (waysStartAt == 0 && group.ways.Count > 0)
-                        waysStartAt = blockCounter;
-                    if (relationsStartAt == 0 && group.relations.Count > 0)
-                        relationsStartAt = blockCounter;
+                    if (group.ways.Count > 0)
+                        wayCounter++;
+                    if (group.relations.Count > 0)
+                        relationCounter++;
 
 
                     foreach (var r in pb2.primitivegroup[0].relations)
@@ -335,6 +342,7 @@ namespace PmPbfReader
                 waiting.Add(tasked);
             }
             Task.WaitAll(waiting.ToArray());
+            Console.WriteLine("Found " + blockCounter + " blocks. " + relationCounter + " relation blocks and " + wayCounter + " way blocks.");
         }
 
         public void IndexFileBlocks()
@@ -393,7 +401,6 @@ namespace PmPbfReader
             var b2 = Serializer.Deserialize<Blob>(ms2);
             var ms3 = new MemoryStream(b2.zlib_data);
             var dms2 = new ZlibStream(ms3, CompressionMode.Decompress);
-
 
             // its the _runtimeTypeModel that keeps everything in Memory from previous reads
             //and thats whats messing up my primitiveBlock count
@@ -656,7 +663,8 @@ namespace PmPbfReader
                 finalway.Tags = new OsmSharp.Tags.TagsCollection();
 
                 //skipUntagged is false from GetRelation, so we can ignore tag data in that case as well.
-                if (skipUntagged) //If we want to skip the untagged entries, we also want to fill in tags. If we want every Way regardless, we don't need the tag values.
+                //but we do want tags for when we load a block full of ways.
+                if (skipUntagged) 
                 for (int i = 0; i < way.keys.Count(); i++)
                 {
                     finalway.Tags.Add(new OsmSharp.Tags.Tag(System.Text.Encoding.UTF8.GetString(wayBlock.stringtable.s[(int)way.keys[i]]), System.Text.Encoding.UTF8.GetString(wayBlock.stringtable.s[(int)way.vals[i]])));
@@ -745,12 +753,16 @@ namespace PmPbfReader
             int index = -1;
             long latDelta = 0;
             long lonDelta = 0;
+            var dense = nodePrimGroup.dense; //this appears to save a little CPU time instead of getting the list each time?
+            var denseIds = dense.id;
+            var dLat = dense.lat;
+            var dLon = dense.lon;
             while (nodeCounter != nodeId)
             {
                 index += 1;
-                nodeCounter += nodePrimGroup.dense.id[index];
-                latDelta += nodePrimGroup.dense.lat[index];
-                lonDelta += nodePrimGroup.dense.lon[index];
+                nodeCounter += denseIds[index];
+                latDelta += dLat[index];
+                lonDelta += dLon[index];
             }
 
             OsmSharp.Node filled = new OsmSharp.Node();
@@ -760,7 +772,7 @@ namespace PmPbfReader
 
             if (!skipTags)
             {
-                var tagData = nodePrimGroup.dense.keys_vals[index];
+                var tagData = dense.keys_vals[index];
                 // foreach (var t in nodeBlock..primitivegroup[index].)
 
                 //tags are dumb and they all have to be unpacked at once. can't do this simple lookup i wanted.
@@ -768,7 +780,7 @@ namespace PmPbfReader
                 int tagIndexTracker = 0; //how many nodes worth of tags we've skipped so far.
                 while (true)
                 {
-                    if (nodePrimGroup.dense.keys_vals[tagcounter] == 0)
+                    if (dense.keys_vals[tagcounter] == 0)
                         tagIndexTracker++;
 
                     tagcounter++;
@@ -780,8 +792,8 @@ namespace PmPbfReader
 
                 while (true)
                 {
-                    int key = nodePrimGroup.dense.keys_vals[tagcounter];
-                    int value = nodePrimGroup.dense.keys_vals[tagcounter + 1];
+                    int key = dense.keys_vals[tagcounter];
+                    int value = dense.keys_vals[tagcounter + 1];
                     if (key == 0)
                         break;
                     tagcounter += 2;
@@ -804,12 +816,15 @@ namespace PmPbfReader
             long nodeCounter = 0;
             long latDelta = 0;
             long lonDelta = 0;
+            var denseIds = group.dense.id;
+            var dLat = group.dense.lat;
+            var dLon = group.dense.lon;
             while (results.Count < nodeIds.Count())
             {
                 index++;
-                nodeCounter += group.dense.id[index];
-                latDelta = group.dense.lat[index];
-                lonDelta = group.dense.lon[index];
+                nodeCounter += denseIds[index];
+                latDelta += dLat[index];
+                lonDelta += dLon[index];
 
                 if (nodeIds.Contains(nodeCounter))
                 {
@@ -833,18 +848,19 @@ namespace PmPbfReader
 
             int index = -1;
             long nodeCounter = 0;
+            var dense = group.dense;
             while (nodeCounter != nodeId)
             {
                 index++;
-                nodeCounter += group.dense.id[index];
+                nodeCounter += dense.id[index];
             }
 
-            filled.Latitude = DecodeLatLon(group.dense.lat[index], block.lat_offset, block.granularity);
-            filled.Longitude = DecodeLatLon(group.dense.lon[index], block.lon_offset, block.granularity);
+            filled.Latitude = DecodeLatLon(dense.lat[index], block.lat_offset, block.granularity);
+            filled.Longitude = DecodeLatLon(dense.lon[index], block.lon_offset, block.granularity);
 
             if (!skipTags)
             {
-                var tagData = group.dense.keys_vals[index];
+                var tagData = dense.keys_vals[index];
                 // foreach (var t in nodeBlock..primitivegroup[index].)
 
                 //tags are dumb and they all have to be unpacked at once. can't do this simple lookup i wanted.
@@ -852,7 +868,7 @@ namespace PmPbfReader
                 int tagIndexTracker = 0; //how many nodes worth of tags we've skipped so far.
                 while (true)
                 {
-                    if (group.dense.keys_vals[tagcounter] == 0)
+                    if (dense.keys_vals[tagcounter] == 0)
                         tagIndexTracker++;
 
                     tagcounter++;
@@ -864,8 +880,8 @@ namespace PmPbfReader
 
                 while (true)
                 {
-                    int key = group.dense.keys_vals[tagcounter];
-                    int value = group.dense.keys_vals[tagcounter + 1];
+                    int key = dense.keys_vals[tagcounter];
+                    int value = dense.keys_vals[tagcounter + 1];
                     if (key == 0)
                         break;
                     tagcounter += 2;
@@ -901,6 +917,7 @@ namespace PmPbfReader
 
                 var nodeBlock = activeBlocks[nodelist.Key];
                 var group = nodeBlock.primitivegroup[0];
+                var denseIds = group.dense.id;
 
                 long nodecounter = 0;
                 int nodeIndex = -1;
@@ -909,7 +926,7 @@ namespace PmPbfReader
                 while (nodeIndex < 7999) //groups can only have 8000 entries.
                 {
                     nodeIndex++;
-                    nodecounter += group.dense.id[nodeIndex];
+                    nodecounter += denseIds[nodeIndex];
                     if (nodecounter == nodeId)
                         return nodelist.Key;
                 }
@@ -939,7 +956,7 @@ namespace PmPbfReader
                 //loadedNodes is<blockId, <nodeId, SmallNode>>
                 //ConcurrentDictionary<long, Dictionary<long, SmallNode>> loadedNodes = new ConcurrentDictionary<long, Dictionary<long, SmallNode>>();
 
-                ConcurrentDictionary<long, PrimitiveBlock> activeBlocks = new ConcurrentDictionary<long, PrimitiveBlock>();
+                ConcurrentDictionary<long, PrimitiveBlock> activeBlocks = new ConcurrentDictionary<long, PrimitiveBlock>(4, (int)blockPositions.Keys.Max());
                 activeBlocks.TryAdd(blockId, block);
 
                 foreach (var primgroup in block.primitivegroup)
@@ -1029,5 +1046,7 @@ namespace PmPbfReader
         {
             return .000000001 * (offset + (granularity * valueOffset));
         }
+
+
     }
 }
