@@ -92,8 +92,8 @@ namespace PerformanceTestApp
         private static void TestCustomPbfReader()
         {
             //string filename = @"C:\praxis\delaware-latest.osm.pbf";
-            //string filename = @"C:\praxis\ohio-latest.osm.pbf";
-            string filename = @"D:\Projects\PraxisMapper Files\XmlToProcess\ohio-latest.osm.pbf";
+            string filename = @"C:\praxis\ohio-latest.osm.pbf";
+            //string filename = @"D:\Projects\PraxisMapper Files\XmlToProcess\ohio-latest.osm.pbf";
             PmPbfReader.PbfReader reader = new PmPbfReader.PbfReader();
             reader.Open(filename);
             Stopwatch sw = new Stopwatch();
@@ -123,27 +123,39 @@ namespace PerformanceTestApp
             //sw.Restart();
             //Log.WriteLog(filename + " loaded to RAM one-pass parallel in " + sw.Elapsed);
             //reader.GetGeometryFromNextBlockSelfContained(); //This doesn't work, because blocks only hold 1 element type. I knew that but was hoping it wasnt true.
-            var data1 = reader.GetGeometryFromBlock(3239); //3241 for ohio, 253 for delaware
-            sw.Stop();
-            Log.WriteLog(filename + " loaded first (relation) block to RAM in " + sw.Elapsed);
-            sw.Restart();
-            CoreComponents.PbfFileParser.ProcessPMPBFResults(data1, "testFileName-block3239.json");
-            sw.Stop();
-            Log.WriteLog("wrote all results for relation block to JSON in " + sw.Elapsed);
-            sw.Restart();
-            var data2 = reader.GetGeometryFromBlock(3000); //3000 for ohio, 252 for delaware
-            sw.Stop();
-            Log.WriteLog(filename + " loaded next (way) block to RAM in " + sw.Elapsed);
-            sw.Restart(); 
+            //var data1 = reader.GetGeometryFromBlock(3239); //3241 for ohio, 253 for delaware
+            //sw.Stop();
+            //Log.WriteLog(filename + " loaded first (relation) block to RAM in " + sw.Elapsed);
+            //sw.Restart();
+            //CoreComponents.PbfFileParser.ProcessPMPBFResults(data1, "testFileName-block3239.json");
+            ////458 of 7799 convert correctly. 
+            //sw.Stop();
+            //Log.WriteLog("wrote all results for relation block to JSON in " + sw.Elapsed);
+            //sw.Restart();
+            //var data2 = reader.GetGeometryFromBlock(3000); //3000 for ohio, 252 for delaware
+            //sw.Stop();
+            //Log.WriteLog(filename + " loaded next (way) block to RAM in " + sw.Elapsed);
+            //sw.Restart();
+
+            // var data3 = reader.GetGeometryFromBlock(2000); //3000 for ohio, 252 for delaware
+            //sw.Stop();
+            //Log.WriteLog(filename + " loaded node block to RAM in " + sw.Elapsed);
+            // sw.Restart();
 
             //reference: run Larry -loadPbfsToJson and record time
             //then run this loop
-            for (var block = reader.BlockCount() -1; block > 0; block--)
+            //Fun reminder: my tablet can't process Ohio via the normal Larry pbfToJson call. 
+            var skipCount = 400;
+            Log.WriteLog("starting Ohio Load at " + DateTime.Now);
+            for (var block = reader.BlockCount() - 1 - skipCount; block > 0; block--)
             {
                 var x = reader.GetGeometryFromBlock(block);
-                //GeometrySupport.
-                //GeometrySupport.wr
+                if (x != null)
+                    CoreComponents.PbfFileParser.ProcessPMPBFResults(x, "testFile-ohio.json");
             }
+            sw.Stop();
+            Log.WriteLog("All Ohio blocks processed in " + sw.Elapsed);
+            Log.WriteLog("process test completed at " + DateTime.Now);
 
         }
 
