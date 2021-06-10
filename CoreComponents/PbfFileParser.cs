@@ -248,6 +248,10 @@ namespace CoreComponents
             int itemsPerLoop = 4000; //halfway for a full block.
             DateTime startedProcess = DateTime.Now;
             TimeSpan difference;
+
+            if (items == null)
+                return;
+
             foreach (var r in items) //This is where the first memory peak hits as it loads everything into memory
             //Parallel.ForEach(items, r =>
             {

@@ -14,7 +14,7 @@ namespace PmPbfReader
     /// 
     /// </summary>
     [global::ProtoBuf.ProtoContract(Name = @"HeaderBlock")]
-    public partial class HeaderBlock : global::ProtoBuf.IExtensible
+    public partial class HeaderBlock //: global::ProtoBuf.IExtensible
     {
         /// <summary>
         /// 
@@ -77,16 +77,16 @@ namespace PmPbfReader
             get { return _source; }
             set { _source = value; }
         }
-        private global::ProtoBuf.IExtension extensionObject;
-        global::ProtoBuf.IExtension global::ProtoBuf.IExtensible.GetExtensionObject(bool createIfMissing)
-        { return global::ProtoBuf.Extensible.GetExtensionObject(ref extensionObject, createIfMissing); }
+        //private global::ProtoBuf.IExtension extensionObject;
+        //global::ProtoBuf.IExtension global::ProtoBuf.IExtensible.GetExtensionObject(bool createIfMissing)
+        //{ return global::ProtoBuf.Extensible.GetExtensionObject(ref extensionObject, createIfMissing); }
     }
 
     /// <summary>
     /// 
     /// </summary>
     [global::ProtoBuf.ProtoContract(Name = @"HeaderBBox")]
-    public partial class HeaderBBox : global::ProtoBuf.IExtensible
+    public partial class HeaderBBox //: global::ProtoBuf.IExtensible
     {
         /// <summary>
         /// 
@@ -133,16 +133,16 @@ namespace PmPbfReader
             get { return _bottom; }
             set { _bottom = value; }
         }
-        private global::ProtoBuf.IExtension extensionObject;
-        global::ProtoBuf.IExtension global::ProtoBuf.IExtensible.GetExtensionObject(bool createIfMissing)
-        { return global::ProtoBuf.Extensible.GetExtensionObject(ref extensionObject, createIfMissing); }
+        //private global::ProtoBuf.IExtension extensionObject;
+        //global::ProtoBuf.IExtension global::ProtoBuf.IExtensible.GetExtensionObject(bool createIfMissing)
+        //{ return global::ProtoBuf.Extensible.GetExtensionObject(ref extensionObject, createIfMissing); }
     }
 
     /// <summary>
     /// 
     /// </summary>
     [global::ProtoBuf.ProtoContract(Name = @"PrimitiveBlock")]
-    public partial class PrimitiveBlock : global::ProtoBuf.IExtensible
+    public partial class PrimitiveBlock //: global::ProtoBuf.IExtensible
     {
         /// <summary>
         /// 
@@ -217,27 +217,29 @@ namespace PmPbfReader
             get { return _date_granularity; }
             set { _date_granularity = value; }
         }
-        private global::ProtoBuf.IExtension extensionObject;
-        global::ProtoBuf.IExtension global::ProtoBuf.IExtensible.GetExtensionObject(bool createIfMissing)
-        { return global::ProtoBuf.Extensible.GetExtensionObject(ref extensionObject, createIfMissing); }
+        //private global::ProtoBuf.IExtension extensionObject;
+        //global::ProtoBuf.IExtension global::ProtoBuf.IExtensible.GetExtensionObject(bool createIfMissing)
+        //{ return global::ProtoBuf.Extensible.GetExtensionObject(ref extensionObject, createIfMissing); }
     }
 
     /// <summary>
     /// 
     /// </summary>
     [global::ProtoBuf.ProtoContract(Name = @"PrimitiveGroup")]
-    public partial class PrimitiveGroup : global::ProtoBuf.IExtensible
+    public partial class PrimitiveGroup //: global::ProtoBuf.IExtensible
     {
         /// <summary>
         /// 
         /// </summary>
         public PrimitiveGroup() { }
 
+        [ProtoBuf.ProtoIgnore]
         private readonly global::System.Collections.Generic.List<Node> _nodes = new global::System.Collections.Generic.List<Node>();
         /// <summary>
         /// 
         /// </summary>
         [global::ProtoBuf.ProtoMember(1, Name = @"nodes", DataFormat = global::ProtoBuf.DataFormat.Default)]
+        [ProtoBuf.ProtoIgnore]
         public global::System.Collections.Generic.List<Node> nodes
         {
             get { return _nodes; }
@@ -275,26 +277,28 @@ namespace PmPbfReader
             get { return _relations; }
         }
 
+        [ProtoBuf.ProtoIgnore]
         private readonly global::System.Collections.Generic.List<ChangeSet> _changesets = new global::System.Collections.Generic.List<ChangeSet>();
         /// <summary>
         /// 
         /// </summary>
         [global::ProtoBuf.ProtoMember(5, Name = @"changesets", DataFormat = global::ProtoBuf.DataFormat.Default)]
+        [ProtoBuf.ProtoIgnore]
         public global::System.Collections.Generic.List<ChangeSet> changesets
         {
             get { return _changesets; }
         }
 
-        private global::ProtoBuf.IExtension extensionObject;
-        global::ProtoBuf.IExtension global::ProtoBuf.IExtensible.GetExtensionObject(bool createIfMissing)
-        { return global::ProtoBuf.Extensible.GetExtensionObject(ref extensionObject, createIfMissing); }
+        //private global::ProtoBuf.IExtension extensionObject;
+        //global::ProtoBuf.IExtension global::ProtoBuf.IExtensible.GetExtensionObject(bool createIfMissing)
+        //{ return global::ProtoBuf.Extensible.GetExtensionObject(ref extensionObject, createIfMissing); }
     }
 
     /// <summary>
     /// 
     /// </summary>
     [global::ProtoBuf.ProtoContract(Name = @"StringTable")]
-    public partial class StringTable : global::ProtoBuf.IExtensible
+    public partial class StringTable //: global::ProtoBuf.IExtensible
     {
         /// <summary>
         /// 
@@ -311,16 +315,16 @@ namespace PmPbfReader
             get { return _s; }
         }
 
-        private global::ProtoBuf.IExtension extensionObject;
-        global::ProtoBuf.IExtension global::ProtoBuf.IExtensible.GetExtensionObject(bool createIfMissing)
-        { return global::ProtoBuf.Extensible.GetExtensionObject(ref extensionObject, createIfMissing); }
+        //private global::ProtoBuf.IExtension extensionObject;
+        //global::ProtoBuf.IExtension global::ProtoBuf.IExtensible.GetExtensionObject(bool createIfMissing)
+        //{ return global::ProtoBuf.Extensible.GetExtensionObject(ref extensionObject, createIfMissing); }
     }
 
     /// <summary>
     /// 
     /// </summary>
     [global::ProtoBuf.ProtoContract(Name = @"Info")]
-    public partial class Info : global::ProtoBuf.IExtensible
+    public partial class Info //: global::ProtoBuf.IExtensible
     {
         /// <summary>
         /// 
@@ -387,82 +391,92 @@ namespace PmPbfReader
             get { return _user_sid; }
             set { _user_sid = value; }
         }
-        private global::ProtoBuf.IExtension extensionObject;
-        global::ProtoBuf.IExtension global::ProtoBuf.IExtensible.GetExtensionObject(bool createIfMissing)
-        { return global::ProtoBuf.Extensible.GetExtensionObject(ref extensionObject, createIfMissing); }
+        //private global::ProtoBuf.IExtension extensionObject;
+        //global::ProtoBuf.IExtension global::ProtoBuf.IExtensible.GetExtensionObject(bool createIfMissing)
+        //{ return global::ProtoBuf.Extensible.GetExtensionObject(ref extensionObject, createIfMissing); }
     }
 
     /// <summary>
     /// 
     /// </summary>
     [global::ProtoBuf.ProtoContract(Name = @"DenseInfo")]
-    public partial class DenseInfo : global::ProtoBuf.IExtensible
+    public partial class DenseInfo //: global::ProtoBuf.IExtensible
     {
         /// <summary>
         /// 
         /// </summary>
         public DenseInfo() { }
 
+        [ProtoBuf.ProtoIgnore]
         private readonly global::System.Collections.Generic.List<int> _version = new global::System.Collections.Generic.List<int>();
         /// <summary>
         /// 
         /// </summary>
         [global::ProtoBuf.ProtoMember(1, Name = @"version", DataFormat = global::ProtoBuf.DataFormat.TwosComplement, Options = global::ProtoBuf.MemberSerializationOptions.Packed)]
+        [ProtoBuf.ProtoIgnore]
         public global::System.Collections.Generic.List<int> version
         {
             get { return _version; }
         }
 
+        [ProtoBuf.ProtoIgnore]
         private readonly global::System.Collections.Generic.List<long> _timestamp = new global::System.Collections.Generic.List<long>();
         /// <summary>
         /// 
         /// </summary>
         [global::ProtoBuf.ProtoMember(2, Name = @"timestamp", DataFormat = global::ProtoBuf.DataFormat.ZigZag, Options = global::ProtoBuf.MemberSerializationOptions.Packed)]
+        [ProtoBuf.ProtoIgnore]
         public global::System.Collections.Generic.List<long> timestamp
         {
             get { return _timestamp; }
         }
 
+        [ProtoBuf.ProtoIgnore]
         private readonly global::System.Collections.Generic.List<long> _changeset = new global::System.Collections.Generic.List<long>();
         /// <summary>
         /// 
         /// </summary>
         [global::ProtoBuf.ProtoMember(3, Name = @"changeset", DataFormat = global::ProtoBuf.DataFormat.ZigZag, Options = global::ProtoBuf.MemberSerializationOptions.Packed)]
+        [ProtoBuf.ProtoIgnore]
         public global::System.Collections.Generic.List<long> changeset
         {
             get { return _changeset; }
         }
 
+        [ProtoBuf.ProtoIgnore]
         private readonly global::System.Collections.Generic.List<int> _uid = new global::System.Collections.Generic.List<int>();
         /// <summary>
         /// 
         /// </summary>
         [global::ProtoBuf.ProtoMember(4, Name = @"uid", DataFormat = global::ProtoBuf.DataFormat.ZigZag, Options = global::ProtoBuf.MemberSerializationOptions.Packed)]
+        [ProtoBuf.ProtoIgnore]
         public global::System.Collections.Generic.List<int> uid
         {
             get { return _uid; }
         }
 
+        [ProtoBuf.ProtoIgnore]
         private readonly global::System.Collections.Generic.List<int> _user_sid = new global::System.Collections.Generic.List<int>();
         /// <summary>
         /// 
         /// </summary>
         [global::ProtoBuf.ProtoMember(5, Name = @"user_sid", DataFormat = global::ProtoBuf.DataFormat.ZigZag, Options = global::ProtoBuf.MemberSerializationOptions.Packed)]
+        [ProtoBuf.ProtoIgnore]
         public global::System.Collections.Generic.List<int> user_sid
         {
             get { return _user_sid; }
         }
 
-        private global::ProtoBuf.IExtension extensionObject;
-        global::ProtoBuf.IExtension global::ProtoBuf.IExtensible.GetExtensionObject(bool createIfMissing)
-        { return global::ProtoBuf.Extensible.GetExtensionObject(ref extensionObject, createIfMissing); }
+        //private global::ProtoBuf.IExtension extensionObject;
+        //global::ProtoBuf.IExtension global::ProtoBuf.IExtensible.GetExtensionObject(bool createIfMissing)
+        //{ return global::ProtoBuf.Extensible.GetExtensionObject(ref extensionObject, createIfMissing); }
     }
 
     /// <summary>
     /// 
     /// </summary>
     [global::ProtoBuf.ProtoContract(Name = @"ChangeSet")]
-    public partial class ChangeSet : global::ProtoBuf.IExtensible
+    public partial class ChangeSet //: global::ProtoBuf.IExtensible
     {
         /// <summary>
         /// 
@@ -555,16 +569,16 @@ namespace PmPbfReader
             get { return _bbox; }
             set { _bbox = value; }
         }
-        private global::ProtoBuf.IExtension extensionObject;
-        global::ProtoBuf.IExtension global::ProtoBuf.IExtensible.GetExtensionObject(bool createIfMissing)
-        { return global::ProtoBuf.Extensible.GetExtensionObject(ref extensionObject, createIfMissing); }
+        //private global::ProtoBuf.IExtension extensionObject;
+        //global::ProtoBuf.IExtension global::ProtoBuf.IExtensible.GetExtensionObject(bool createIfMissing)
+        //{ return global::ProtoBuf.Extensible.GetExtensionObject(ref extensionObject, createIfMissing); }
     }
 
     /// <summary>
     /// 
     /// </summary>
     [global::ProtoBuf.ProtoContract(Name = @"Node")]
-    public partial class Node : global::ProtoBuf.IExtensible
+    public partial class Node //: global::ProtoBuf.IExtensible
     {
         /// <summary>
         /// 
@@ -633,16 +647,16 @@ namespace PmPbfReader
             get { return _lon; }
             set { _lon = value; }
         }
-        private global::ProtoBuf.IExtension extensionObject;
-        global::ProtoBuf.IExtension global::ProtoBuf.IExtensible.GetExtensionObject(bool createIfMissing)
-        { return global::ProtoBuf.Extensible.GetExtensionObject(ref extensionObject, createIfMissing); }
+        //private global::ProtoBuf.IExtension extensionObject;
+        //global::ProtoBuf.IExtension global::ProtoBuf.IExtensible.GetExtensionObject(bool createIfMissing)
+        //{ return global::ProtoBuf.Extensible.GetExtensionObject(ref extensionObject, createIfMissing); }
     }
 
     /// <summary>
     /// 
     /// </summary>
     [global::ProtoBuf.ProtoContract(Name = @"DenseNodes")]
-    public partial class DenseNodes : global::ProtoBuf.IExtensible
+    public partial class DenseNodes //: global::ProtoBuf.IExtensible
     {
         /// <summary>
         /// 
@@ -701,16 +715,16 @@ namespace PmPbfReader
             get { return _keys_vals; }
         }
 
-        private global::ProtoBuf.IExtension extensionObject;
-        global::ProtoBuf.IExtension global::ProtoBuf.IExtensible.GetExtensionObject(bool createIfMissing)
-        { return global::ProtoBuf.Extensible.GetExtensionObject(ref extensionObject, createIfMissing); }
+        //private global::ProtoBuf.IExtension extensionObject;
+        //global::ProtoBuf.IExtension global::ProtoBuf.IExtensible.GetExtensionObject(bool createIfMissing)
+        //{ return global::ProtoBuf.Extensible.GetExtensionObject(ref extensionObject, createIfMissing); }
     }
 
     /// <summary>
     /// 
     /// </summary>
     [global::ProtoBuf.ProtoContract(Name = @"Way")]
-    public partial class Way : global::ProtoBuf.IExtensible
+    public partial class Way //: global::ProtoBuf.IExtensible
     {
         /// <summary>
         /// 
@@ -747,13 +761,14 @@ namespace PmPbfReader
             get { return _vals; }
         }
 
-
+        [ProtoBuf.ProtoIgnore]
         private Info _info = null;
         /// <summary>
         /// 
         /// </summary>
         [global::ProtoBuf.ProtoMember(4, IsRequired = false, Name = @"info", DataFormat = global::ProtoBuf.DataFormat.Default)]
         [global::System.ComponentModel.DefaultValue(null)]
+        [ProtoBuf.ProtoIgnore]
         public Info info
         {
             get { return _info; }
@@ -769,16 +784,16 @@ namespace PmPbfReader
             get { return _refs; }
         }
 
-        private global::ProtoBuf.IExtension extensionObject;
-        global::ProtoBuf.IExtension global::ProtoBuf.IExtensible.GetExtensionObject(bool createIfMissing)
-        { return global::ProtoBuf.Extensible.GetExtensionObject(ref extensionObject, createIfMissing); }
+        //private global::ProtoBuf.IExtension extensionObject;
+        //global::ProtoBuf.IExtension global::ProtoBuf.IExtensible.GetExtensionObject(bool createIfMissing)
+        //{ return global::ProtoBuf.Extensible.GetExtensionObject(ref extensionObject, createIfMissing); }
     }
 
     /// <summary>
     /// 
     /// </summary>
     [global::ProtoBuf.ProtoContract(Name = @"Relation")]
-    public partial class Relation : global::ProtoBuf.IExtensible
+    public partial class Relation //: global::ProtoBuf.IExtensible
     {
         /// <summary>
         /// 
@@ -815,13 +830,14 @@ namespace PmPbfReader
             get { return _vals; }
         }
 
-
+        [ProtoBuf.ProtoIgnore]
         private Info _info = null;
         /// <summary>
         /// 
         /// </summary>
         [global::ProtoBuf.ProtoMember(4, IsRequired = false, Name = @"info", DataFormat = global::ProtoBuf.DataFormat.Default)]
         [global::System.ComponentModel.DefaultValue(null)]
+        [ProtoBuf.ProtoIgnore]
         public Info info
         {
             get { return _info; }
@@ -883,9 +899,9 @@ namespace PmPbfReader
             RELATION = 2
         }
 
-        private global::ProtoBuf.IExtension extensionObject;
-        global::ProtoBuf.IExtension global::ProtoBuf.IExtensible.GetExtensionObject(bool createIfMissing)
-        { return global::ProtoBuf.Extensible.GetExtensionObject(ref extensionObject, createIfMissing); }
+        //private global::ProtoBuf.IExtension extensionObject;
+        //global::ProtoBuf.IExtension global::ProtoBuf.IExtensible.GetExtensionObject(bool createIfMissing)
+        //{ return global::ProtoBuf.Extensible.GetExtensionObject(ref extensionObject, createIfMissing); }
     }
 
 }
