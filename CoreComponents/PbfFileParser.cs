@@ -261,16 +261,16 @@ namespace CoreComponents
                     elements.Add(convertedItem);
                     totalItems++;
                     itemCounter++;
-                    //if (itemCounter > itemsPerLoop)
-                    //{
+                    if (itemCounter > itemsPerLoop)
+                    {
                         //if (saveToFile)
                             GeometrySupport.WriteStoredElementListToFile(saveFilename, ref elements);
                         
 
                         //ReportProgress(startedProcess, 0, totalCounter, "entries");
-//                        itemCounter = 0;
-                        //elements.Clear();
-                    //}
+                        itemCounter = 0;
+                        elements.Clear();
+                    }
                 //}
 
             }
