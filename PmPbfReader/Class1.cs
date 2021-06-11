@@ -19,6 +19,8 @@ namespace PmPbfReader
     //Right now, same PC, Ohio on this file takes ~1:40 to do 1 relation block in 3 GB RAM. (so OsmSharp is ~3x faster for 3x the RAM?)
     //TODO: keep activeBlocks in memory when possible, and dump it under memory pressure?
 
+    //I need a way to track which blocks are done, so i can resume this later for big files.
+
     //rough usage plan:
     //Open a file - locks access
     //IndexFileParallel - can now search the file. required call. Fills stuff that will persist in memory, so this is the limit on filesize now.
@@ -67,21 +69,14 @@ namespace PmPbfReader
     //holy crap, this takes 1-3 seconds per way block in Release mode.
     //the debug support is eating SO MUCH TIME on this. Amazing.
     //Doing the Ohio file on my tablet takes ~14 minutes. I think Larry does it in 9 on my tower.
+    //Tower doing this process now, end of day 6/10, release mode:  12:23:20 to 12:33:54. 10 minutes, 30 seconds.  90 extra seconds slower, (possibly) missing only 44MB of entries out of 1.2GB (96% accurate to the old version)
+    //I am extremely happy with this performance.
 
     //This should work with OsmSharp objects, to avoid rewriting the rest of my app.
 
-    //A: could write relations to file immediately once they're completed, rather than holding them in memory. (sort of. probably not the best plan for a DLL)
-    //B: Could store Ways/Nodes that have been created, and re-reference them if they're called later rather than recreating them from the source block each time.
-    //C: could do 1 pass instead of 3?
-    //D: more parallel stuff?.
-    //e: hot path says GetNode and FindBlockKeyForNode are the time consuming pieces. Inflating all nodes is a block is slower than getting each one individually
-    //e2: maybe i could get all nodes in a block at once, and process them out as I find them in the block? instead of parsing the list per node
-    //Would need to look up all node blocks first and store results in a dictionary<block, nodeid>, then pass that to a new version of GetNodes() which returns a dictionary<id, node>;
-    //F: (might be reallly good) store ways in the min-max range that i do for nodes?
-    //--would require a search per way to find which block really has it, but reduces the memory needed for that index from 
-    //--24,000 longs to 3. So, roughly 192KB of ram per block with ways
-    //--should also skip indexing relations since i dont currently support meta-relations? or I could do that and see if it helps boost converted item count
-    //G: GetWay could probably be faster or more parallel?
+    //This should now pretty much use all the CPU threads as much as possible now. The only single-threaded part is 
+    //actually writing to the destination file. I should kick that to a Task as well.
+    //And do less console logging. Once i hit the node-only blocks, it practically single-threads blocking on the console info.
     public class PbfReader
     {
         FileInfo fi;
@@ -90,26 +85,20 @@ namespace PmPbfReader
         //these are osmId, <blockId, primitiveGroupID>
         //but primGroupID is always 0, so i should switch this around to just blockID
         ConcurrentDictionary<long, Tuple<long, int>> relationFinder = new ConcurrentDictionary<long, Tuple<long, int>>();
-        ConcurrentDictionary<long, Tuple<long, int>> wayFinder = new ConcurrentDictionary<long, Tuple<long, int>>();
-        ConcurrentDictionary<long, Tuple<long, int>> nodeFinder = new ConcurrentDictionary<long, Tuple<long, int>>();
 
         //this is blockId, <minNode, maxNode>.
         ConcurrentDictionary<long, Tuple<long, long>> nodeFinder2 = new ConcurrentDictionary<long, Tuple<long, long>>();
-        ConcurrentDictionary<long, Tuple<long, long>> wayFinder2 = new ConcurrentDictionary<long, Tuple<long, long>>();
+        //blockId, maxWayId since ways are sorted in order.
+        ConcurrentDictionary<long, long> wayFinder2 = new ConcurrentDictionary<long, long>();
 
         Dictionary<long, long> blockPositions = new Dictionary<long, long>();
         Dictionary<long, int> blockSizes = new Dictionary<long, int>();
 
-        //For testing purposes, not intended to be actually used as a whole memory store of a file.
-        //Dictionary<long, PrimitiveBlock> loadedBlocks = new Dictionary<long, PrimitiveBlock>();
-        ConcurrentDictionary<long, PrimitiveBlock> loadedBlocks = new ConcurrentDictionary<long, PrimitiveBlock>();
-
         private PrimitiveBlock _block = new PrimitiveBlock();
         private BlobHeader _header = new BlobHeader();
 
-        long waysStartAt = 0;
-        long relationsStartAt = 0;
-        //long blockCounter = 0;
+        //Moving this here, so I can stop requiring it as a parameter.
+        ConcurrentDictionary<long, PrimitiveBlock> activeBlocks = new ConcurrentDictionary<long, PrimitiveBlock>();
 
         //I will use the write lock to make sure threads don't read the wrong data
         //the names will be misleading, since i dont want to use overlapping IO on these even though
@@ -139,134 +128,6 @@ namespace PmPbfReader
             fs.Dispose();
         }
 
-        public void LoadWholeFileParallel()
-        {
-            loadedBlocks = new ConcurrentDictionary<long, PrimitiveBlock>();
-            //as index file, but saves the decoded block in RAM
-            BlobHeader bh = new BlobHeader();
-            Blob b = new Blob();
-
-            //int outRead = 0;
-            long blockCounter = 0;
-
-            HeaderBlock hb = new HeaderBlock();
-            PrimitiveBlock pb = new PrimitiveBlock();
-
-            fs.Position = 0;
-
-            //Only one OsmHeader, at the start
-            bh = Serializer.DeserializeWithLengthPrefix<BlobHeader>(fs, PrefixStyle.Fixed32BigEndian);
-            hb = Serializer.Deserialize<HeaderBlock>(fs, length: bh.datasize); //only one of these per file    
-            Console.WriteLine(hb.source + "|" + hb.writingprogram);
-            Action<long, byte[]> save = (a, b) => SaveBlock(a, b);
-
-            List<Task> pendingSaves = new List<Task>();
-            //header block left out intentionally, start data blocks at 1
-            while (fs.Position != fs.Length)
-            {
-                blockCounter++;
-                bh = Serializer.DeserializeWithLengthPrefix<BlobHeader>(fs, PrefixStyle.Fixed32BigEndian);
-
-                byte[] thisblob = new byte[bh.datasize];
-                fs.Read(thisblob, 0, bh.datasize);
-
-                long valToPass = blockCounter;
-                pendingSaves.Add(System.Threading.Tasks.Task.Run(() => { save(valToPass, thisblob); }));
-            }
-            Task.WaitAll(pendingSaves.ToArray());
-        }
-
-        public void IndexFile()
-        {
-            fs.Position = 0;
-            long blockCounter = 0;
-            blockPositions = new Dictionary<long, long>();
-            blockSizes = new Dictionary<long, int>();
-            relationFinder = new ConcurrentDictionary<long, Tuple<long, int>>();
-            wayFinder = new ConcurrentDictionary<long, Tuple<long, int>>();
-            nodeFinder = new ConcurrentDictionary<long, Tuple<long, int>>();
-            nodeFinder2 = new ConcurrentDictionary<long, Tuple<long, long>>();
-
-            BlobHeader bh = new BlobHeader();
-            Blob b = new Blob();
-
-            //int outRead = 0;
-
-            HeaderBlock hb = new HeaderBlock();
-            PrimitiveBlock pb = new PrimitiveBlock();
-
-            //Only one OsmHeader, at the start
-            bh = Serializer.DeserializeWithLengthPrefix<BlobHeader>(fs, PrefixStyle.Fixed32BigEndian);
-            hb = Serializer.Deserialize<HeaderBlock>(fs, length: bh.datasize); //only one of these per file    
-            Console.WriteLine(hb.source + "|" + hb.writingprogram);
-            blockPositions.Add(0, fs.Position);
-            blockSizes.Add(0, bh.datasize);
-
-            //header block left out intentionally, start data blocks at 1
-            while (fs.Position != fs.Length)
-            {
-                blockCounter++;
-                bh = Serializer.DeserializeWithLengthPrefix<BlobHeader>(fs, PrefixStyle.Fixed32BigEndian);
-                blockPositions.Add(blockCounter, fs.Position);
-                blockSizes.Add(blockCounter, bh.datasize);
-
-                byte[] thisblob = new byte[bh.datasize];
-                fs.Read(thisblob, 0, bh.datasize);
-                var ms1 = new MemoryStream(thisblob);
-
-                b = Serializer.Deserialize<Blob>(ms1);
-                var ms = new MemoryStream(b.zlib_data);
-                var dms = new ZlibStream(ms, CompressionMode.Decompress);
-
-                int groupCounter = 0;
-                //_runtimeTypeModel.Deserialize<PrimitiveBlock>(dms, pb);
-                pb = Serializer.Deserialize<PrimitiveBlock>(dms);
-                foreach (var group in pb.primitivegroup)
-                {
-                    //if (waysStartAt == 0 && group.ways.Count > 0)
-                    //  waysStartAt = blockCounter;
-                    //if (relationsStartAt == 0 && group.relations.Count > 0)
-                    //  relationsStartAt = blockCounter;
-
-                    foreach (var r in group.relations)
-                    {
-                        relationFinder.TryAdd(r.id, new Tuple<long, int>(blockCounter, groupCounter));
-                    }
-
-                    foreach (var w in group.ways)
-                    {
-                        //if (wayFinder.ContainsKey(w.id)) continue; //duplicates and different versions are ignored
-                        wayFinder.TryAdd(w.id, new Tuple<long, int>(blockCounter, groupCounter));
-                    }
-
-                    long nodecounter = 0;
-                    long minNode = long.MaxValue;
-                    long maxNode = long.MinValue;
-                    if (group.dense != null)
-                    {
-                        foreach (var n in group.dense.id)
-                        {
-                            //While i could probably optimize this by just using the first value as min
-                            //and the sum of all values as max, its possible that there's a -X value
-                            //that goes under it, or that the last value in the list is negative.
-                            //This is the correct way to do this, though i could ponder using the shortcut idea
-                            //for experimenting.
-                            nodecounter += n;
-                            //if (nodeFinder.ContainsKey(nodecounter)) continue;
-                            //nodeFinder.TryAdd(nodecounter, new Tuple<long, int>(blockCounter, groupCounter));
-                            if (nodecounter < minNode)
-                                minNode = nodecounter;
-                            if (nodecounter > maxNode)
-                                maxNode = nodecounter;
-                        }
-                        nodeFinder2.TryAdd(blockCounter, new Tuple<long, long>(minNode, maxNode));
-
-                    }
-                    groupCounter++;
-                }
-            }
-        }
-
         public void IndexFileParallel()
         {
             fs.Position = 0;
@@ -274,10 +135,8 @@ namespace PmPbfReader
             blockPositions = new Dictionary<long, long>();
             blockSizes = new Dictionary<long, int>();
             relationFinder = new ConcurrentDictionary<long, Tuple<long, int>>();
-            wayFinder = new ConcurrentDictionary<long, Tuple<long, int>>();
-            nodeFinder = new ConcurrentDictionary<long, Tuple<long, int>>();
             nodeFinder2 = new ConcurrentDictionary<long, Tuple<long, long>>();
-            wayFinder2 = new ConcurrentDictionary<long, Tuple<long, long>>();
+            wayFinder2 = new ConcurrentDictionary<long, long>();
 
             BlobHeader bh = new BlobHeader();
             Blob b = new Blob();
@@ -286,7 +145,7 @@ namespace PmPbfReader
             PrimitiveBlock pb = new PrimitiveBlock();
 
             //Only one OsmHeader, at the start
-            bh = Serializer.DeserializeWithLengthPrefix<BlobHeader>(fs, PrefixStyle.Fixed32BigEndian);
+            Serializer.MergeWithLengthPrefix(fs, bh, PrefixStyle.Fixed32BigEndian);
             hb = Serializer.Deserialize<HeaderBlock>(fs, length: bh.datasize); //only one of these per file    
             //Console.WriteLine(hb.source + "|" + hb.writingprogram);
             blockPositions.Add(0, fs.Position);
@@ -301,7 +160,7 @@ namespace PmPbfReader
             while (fs.Position != fs.Length)
             {
                 blockCounter++;
-                bh = Serializer.DeserializeWithLengthPrefix<BlobHeader>(fs, PrefixStyle.Fixed32BigEndian);
+                Serializer.MergeWithLengthPrefix(fs, bh, PrefixStyle.Fixed32BigEndian);
                 blockPositions.Add(blockCounter, fs.Position);
                 blockSizes.Add(blockCounter, bh.datasize);
 
@@ -309,7 +168,7 @@ namespace PmPbfReader
                 fs.Read(thisblob, 0, bh.datasize);
 
                 var passedBC = blockCounter;
-                var tasked = Task.Run((Action)(() =>
+                var tasked = Task.Run(() =>
                 {
                     var pb2 = DecodeBlock(thisblob);
                     if (pb2.primitivegroup.Count() > 1)
@@ -321,7 +180,6 @@ namespace PmPbfReader
                     if (group.relations.Count > 0)
                         relationCounter++;
 
-
                     foreach (var r in pb2.primitivegroup[0].relations)
                     {
                         relationFinder.TryAdd(r.id, new Tuple<long, int>(passedBC, 0));
@@ -329,15 +187,9 @@ namespace PmPbfReader
 
                     if (pb2.primitivegroup[0].ways.Count > 0)
                     {
-                        var wMin = pb2.primitivegroup[0].ways.Min(w => w.id);
                         var wMax = pb2.primitivegroup[0].ways.Max(w => w.id);
-                        wayFinder2.TryAdd(passedBC, Tuple.Create(wMin, wMax));
+                        wayFinder2.TryAdd(passedBC, wMax);
                     }
-                    //foreach (var w in pb2.primitivegroup[0].ways)
-                    //{
-                    //if (wayFinder.ContainsKey(w.id)) continue; //duplicates and different versions are ignored
-                    // wayFinder.TryAdd(w.id, new Tuple<long, int>(passedBC, 0));
-                    //}
 
                     long nodecounter = 0;
                     long minNode = long.MaxValue;
@@ -347,8 +199,6 @@ namespace PmPbfReader
                         foreach (var n in pb2.primitivegroup[0].dense.id)
                         {
                             nodecounter += n;
-                            //if (nodeFinder.ContainsKey(nodecounter)) continue;
-                            //nodeFinder.TryAdd(nodecounter, new Tuple<long, int>(passedBC, 0));
                             if (nodecounter < minNode)
                                 minNode = nodecounter;
                             if (nodecounter > maxNode)
@@ -356,8 +206,7 @@ namespace PmPbfReader
                         }
                         nodeFinder2.TryAdd(passedBC, new Tuple<long, long>(minNode, maxNode));
                     }
-                    //groupCounter++;
-                }));
+                });
 
                 waiting.Add(tasked);
             }
@@ -372,6 +221,8 @@ namespace PmPbfReader
             //then Ways before those and node only entries last.
             //So i want to see if blocks are self-contained fully, and 
             //read relations first, then ways, then skim nodes for data.
+
+            //This should also dump the block list to a file, so it can be serialized back later to save time.
 
             fs.Position = 0;
             long blockCounter = 0;
@@ -402,10 +253,20 @@ namespace PmPbfReader
             }
         }
 
+        public PrimitiveBlock GetBlock(long blockId)
+        {
+            //If the block is in memory, return it.
+            //If not, load it and return it.
+            if (!activeBlocks.ContainsKey(blockId))
+                activeBlocks.TryAdd(blockId, GetBlockFromFile(blockId));
+
+            return activeBlocks[blockId];
+        }
+
         //NOTE: once this is done with the memory stream, it could split off the remaining work to a Task
         //as a possible small multithread optimization. Test this singlethread against the split versions
         //GetBlockBytes (singlethread) and DecodeBlock(taskable)
-        public PrimitiveBlock GetBlock(long blockId)
+        public PrimitiveBlock GetBlockFromFile(long blockId)
         {
             msLock.EnterWriteLock();
             long pos1 = blockPositions[blockId];
@@ -422,15 +283,10 @@ namespace PmPbfReader
             var ms3 = new MemoryStream(b2.zlib_data);
             var dms2 = new ZlibStream(ms3, CompressionMode.Decompress);
 
-            // its the _runtimeTypeModel that keeps everything in Memory from previous reads
-            //and thats whats messing up my primitiveBlock count
-            //var pulledBlock = new PrimitiveBlock();
-            // _runtimeTypeModel.Deserialize<PrimitiveBlock>(dms2, pulledBlock);
             var pulledBlock = Serializer.Deserialize<PrimitiveBlock>(dms2);
-            //Console.WriteLine("Block " + blockId + " loaded to RAM");
             return pulledBlock;
-
         }
+
         public byte[] GetBlockBytes(long blockId)
         {
             msLock.EnterWriteLock();
@@ -451,18 +307,11 @@ namespace PmPbfReader
             var ms3 = new MemoryStream(b2.zlib_data);
             var dms2 = new ZlibStream(ms3, CompressionMode.Decompress);
 
-            //var pulledBlock = new PrimitiveBlock();
-            //_runtimeTypeModel.Deserialize<PrimitiveBlock>(dms2, pulledBlock);
             var pulledBlock = Serializer.Deserialize<PrimitiveBlock>(dms2);
             return pulledBlock;
         }
 
-        public void SaveBlock(long blockId, byte[] blockBytes)
-        {
-            loadedBlocks.TryAdd(blockId, DecodeBlock(blockBytes));
-        }
-
-        public OsmSharp.Complete.CompleteRelation GetRelation(long relationId, ref ConcurrentDictionary<long, PrimitiveBlock> activeBlocks)
+        public OsmSharp.Complete.CompleteRelation GetRelation(long relationId)
         {
             try
             {
@@ -470,14 +319,7 @@ namespace PmPbfReader
                 //Run after indexing file
                 //load only relevant blocks for this entry
                 var relationBlockValues = relationFinder[relationId];
-                PrimitiveBlock relationBlock;
-                if (activeBlocks.ContainsKey(relationBlockValues.Item1))
-                    relationBlock = activeBlocks[relationBlockValues.Item1];
-                else
-                {
-                    relationBlock = GetBlock(relationBlockValues.Item1);
-                    activeBlocks.TryAdd(relationBlockValues.Item1, relationBlock);
-                }
+                PrimitiveBlock relationBlock = GetBlock(relationBlockValues.Item1);
 
                 var relPrimGroup = relationBlock.primitivegroup[0];
                 var rel = relPrimGroup.relations.Where(r => r.id == relationId).FirstOrDefault();
@@ -485,7 +327,6 @@ namespace PmPbfReader
 
                 //sanity check - if this relation doesn't have inner or outer role members,
                 //its not one i can process.
-                //string[] roles = new string[rel.roles_sid.Count];
                 foreach (var role in rel.roles_sid)
                 {
                     string roleType = System.Text.Encoding.UTF8.GetString(relationBlock.stringtable.s[role]);
@@ -511,7 +352,7 @@ namespace PmPbfReader
                     switch (typeToFind)
                     {
                         case Relation.MemberType.NODE:
-                            neededBlocks.Add(FindBlockKeyForNode(idToFind, ref activeBlocks));
+                            neededBlocks.Add(FindBlockKeyForNode(idToFind));
                             break;
                         case Relation.MemberType.WAY:
                             neededBlocks.Add(FindBlockKeyForWay(idToFind));
@@ -523,12 +364,11 @@ namespace PmPbfReader
                 }
 
                 neededBlocks = neededBlocks.Distinct().ToList(); //I'll also need to fill in any entries from 
-
                 foreach (var nb in neededBlocks)
                 {
                     if (!activeBlocks.ContainsKey(nb))
                     {
-                        activeBlocks.TryAdd(nb, GetBlock(nb));
+                        activeBlocks.TryAdd(nb, GetBlockFromFile(nb));
                         //Console.WriteLine("Block " + nb + " loaded to RAM");
                     }
                 }
@@ -556,11 +396,11 @@ namespace PmPbfReader
                     {
                         case Relation.MemberType.NODE:
                             if (!loadedNodes.ContainsKey(idToFind))
-                                loadedNodes.Add(idToFind, GetNode(idToFind, ref activeBlocks, true));
+                                loadedNodes.Add(idToFind, GetNode(idToFind, true));
                             break;
                         case Relation.MemberType.WAY:
                             if (!loadedWays.ContainsKey(idToFind))
-                                loadedWays.Add(idToFind, GetWay(idToFind, ref activeBlocks, false));
+                                loadedWays.Add(idToFind, GetWay(idToFind, false));
                             break;
                     }
 
@@ -597,50 +437,9 @@ namespace PmPbfReader
             }
         }
 
-        public OsmSharp.Complete.CompleteRelation GetRelationFromBlock(Relation rel, PrimitiveBlock block, Dictionary<long, OsmSharp.Node> nodeList, List<OsmSharp.Complete.CompleteOsmGeo> finishedItems)
-        {
-            //Ive got all the blocks directly referenced by this relation. But i need to do at least one more pass
-            //because Ways may or may not need new blocks too.
-            OsmSharp.Complete.CompleteRelation r = new OsmSharp.Complete.CompleteRelation();
-            r.Id = rel.id;
-            r.Tags = new OsmSharp.Tags.TagsCollection();
-
-            for (int i = 0; i < rel.keys.Count(); i++)
-            {
-                int key = (int)rel.keys[i];
-                int val = (int)rel.vals[i];
-                string keyEntry = System.Text.Encoding.UTF8.GetString(block.stringtable.s[key]);
-                string valEntry = System.Text.Encoding.UTF8.GetString(block.stringtable.s[val]);
-                r.Tags.Add(new OsmSharp.Tags.Tag(keyEntry, valEntry));
-            }
-
-            //final pass, to make sure elements are in the correct order
-            List<OsmSharp.Complete.CompleteRelationMember> crms = new List<OsmSharp.Complete.CompleteRelationMember>();
-            for (int i = 0; i < rel.memids.Count; i++)
-            {
-                long idToFind = rel.memids[i];
-                Relation.MemberType typeToFind = rel.types[i];
-                OsmSharp.Complete.CompleteRelationMember c = new OsmSharp.Complete.CompleteRelationMember();
-                switch (typeToFind)
-                {
-                    case Relation.MemberType.NODE:
-                        c.Member = nodeList[idToFind];
-                        break;
-                    case Relation.MemberType.WAY:
-                        c.Member = finishedItems.Where(f => f.Id == idToFind && f.Type == OsmSharp.OsmGeoType.Way).FirstOrDefault();
-                        break;
-                    case Relation.MemberType.RELATION:
-                        c.Member = finishedItems.Where(f => f.Id == idToFind && f.Type == OsmSharp.OsmGeoType.Relation).FirstOrDefault();
-                        break;
-                }
-                crms.Add(c);
-            }
-            r.Members = crms.ToArray();
-
-            return r;
-        }
-
-        public OsmSharp.Complete.CompleteWay GetWay(long wayId, ref ConcurrentDictionary<long, PrimitiveBlock> activeBlocks, bool skipUntagged)
+        //simple version
+        //Doesn't do some of the smart stuff to only iterate over each block once, but it's slower for doing so.
+        public OsmSharp.Complete.CompleteWay GetWaySimple(long wayId, bool skipUntagged)
         {
             try
             {
@@ -650,48 +449,45 @@ namespace PmPbfReader
                 //var wayBlockValues = wayFinder[wayId];
                 var wayBlockValues = FindBlockKeyForWay(wayId);
 
-                PrimitiveBlock wayBlock;
-                if (activeBlocks.ContainsKey(wayBlockValues))
-                    wayBlock = activeBlocks[wayBlockValues];
-                else
-                {
-                    wayBlock = GetBlock(wayBlockValues);
-                    activeBlocks.TryAdd(wayBlockValues, wayBlock);
-                }
+                PrimitiveBlock wayBlock = GetBlock(wayBlockValues);
                 var wayPrimGroup = wayBlock.primitivegroup[0];
                 var way = wayPrimGroup.ways.Where(w => w.id == wayId).FirstOrDefault();
+                if (way == null)
+                    return null; //way wasn't in the block it was supposed to be in.
                 //finally have the core item
 
                 if (skipUntagged && way.keys.Count == 0)
                     return null;
 
-                //more deltas 
-                long idToFind = 0;
-                List<long> neededBlocks = new List<long>();
+
+                //NOTES:
+                //This commented out code seemed to run a lot faster.
+                //BUT the more straight-forward setup I use generated a lot fewer errors. Almost all ways get translated in a block that way
+                //versus about half. Maybe I missed something on this logic? If I could get each block back to 1-2 seconds instead of 5 with 95+% accuracy, I'd be very happy.
+                //long idToFind = 0; //more deltas 
+                //List<long> neededBlocks = new List<long>();
                 //blockId, nodeID
-                List<Tuple<long, long>> nodesPerBlock = new List<Tuple<long, long>>();
+                //List<Tuple<long, long>> nodesPerBlock = new List<Tuple<long, long>>();
 
-                for (int i = 0; i < way.refs.Count; i++)
-                {
-                    idToFind += way.refs[i];
-                    var blockID = FindBlockKeyForNode(idToFind, ref activeBlocks);
-                    neededBlocks.Add(blockID);
-                    nodesPerBlock.Add(Tuple.Create(blockID, idToFind));
-                }
+                //for (int i = 0; i < way.refs.Count; i++)
+                //{
+                //idToFind += way.refs[i];
+                //var blockID = FindBlockKeyForNode(idToFind);
+                //neededBlocks.Add(blockID);
+                //nodesPerBlock.Add(Tuple.Create(blockID, idToFind));
+                //}
 
-                neededBlocks = neededBlocks.Distinct().ToList();
-                var nodesByBlock = nodesPerBlock.ToLookup(k => k.Item1, v => v.Item2);
+                //neededBlocks = neededBlocks.Distinct().ToList();
+                //var nodesByBlock = nodesPerBlock.ToLookup(k => k.Item1, v => v.Item2);
 
-                foreach (var nb in neededBlocks)
-                {
-                    if (!activeBlocks.ContainsKey(nb))
-                    {
-                        activeBlocks.TryAdd(nb, GetBlock(nb));
-                    }
-                }
+                //foreach (var nb in neededBlocks)
+                //{
+                //    if (!activeBlocks.ContainsKey(nb))
+                //    {
+                //        activeBlocks.TryAdd(nb, GetBlockFromFile(nb));
+                //    }
+                //}
                 //Now I have the data needed to fill in nodes for a way
-
-
                 OsmSharp.Complete.CompleteWay finalway = new OsmSharp.Complete.CompleteWay();
                 finalway.Id = wayId;
                 finalway.Tags = new OsmSharp.Tags.TagsCollection();
@@ -704,34 +500,28 @@ namespace PmPbfReader
                         finalway.Tags.Add(new OsmSharp.Tags.Tag(System.Text.Encoding.UTF8.GetString(wayBlock.stringtable.s[(int)way.keys[i]]), System.Text.Encoding.UTF8.GetString(wayBlock.stringtable.s[(int)way.vals[i]])));
                     }
 
-                //new way
+                //new plan
                 List<OsmSharp.Node> nodeList = new List<OsmSharp.Node>();
-                //<blockId, <nodeID, Node>>
-                Dictionary<long, Dictionary<long, OsmSharp.Node>> neededNodes = new Dictionary<long, Dictionary<long, OsmSharp.Node>>();
-                foreach (var block in nodesByBlock)
-                {
-                    var someNodes = GetAllNeededNodesInBlock(ref activeBlocks, block.Key, block.ToList());
-                    if (someNodes == null)
-                        throw new Exception("Couldn't load all nodes from a block");
-                    neededNodes.Add(block.Key, someNodes);
-                }
+                Dictionary<long, OsmSharp.Node> AllNodes = new Dictionary<long, OsmSharp.Node>();
+                //foreach (var block in nodesByBlock)
+                //{
+                    //var someNodes = GetAllNeededNodesInBlock(block.Key, block.ToList());
+                    //if (someNodes == null)
+                        //throw new Exception("Couldn't load all nodes from a block");
+                    //foreach (var n in someNodes)
+                        //AllNodes.Add(n.Key, n.Value);
+                //}
 
-                idToFind = 0;
+                long idToFind = 0;
                 foreach (var node in way.refs)
                 {
-                    idToFind += node;
-                    var subEntry = neededNodes.Where(n => n.Value.ContainsKey(idToFind)).First(); //This shoudl be much faster than searching all entries.
-                    nodeList.Add(subEntry.Value[idToFind]);
+                    idToFind += node; //delta coding.
+                    //blockID = FindBlockKeyForNode(idToFind);
+                    var osmnode = GetNode(idToFind);
+                    if (osmnode == null)
+                        throw new Exception("couldn't load all nodes for a way!");
+                    nodeList.Add(osmnode);
                 }
-
-                //old way
-                //idToFind = 0;
-                //foreach (var node in way.refs)
-                //{
-                //    idToFind += node;
-                //    var blockId = FindBlockKeyForNode(idToFind, ref activeBlocks);
-                //    nodeList.Add(GetNode(idToFind, ref activeBlocks, true));
-                //}
                 finalway.Nodes = nodeList.ToArray();
 
                 //Console.WriteLine("got way " + wayId);
@@ -739,38 +529,113 @@ namespace PmPbfReader
             }
             catch (Exception ex)
             {
+                Console.WriteLine("GetWay failed: " + ex.Message);
                 return null; //Failed to get way, probably because a node didn't exist in the file.
             }
         }
 
-        public OsmSharp.Complete.CompleteWay GetWayFromBlock(Way way, PrimitiveBlock block, Dictionary<long, OsmSharp.Node> currentNodes)
+        //Complex version
+        public OsmSharp.Complete.CompleteWay GetWay(long wayId, bool skipUntagged)
         {
-            OsmSharp.Complete.CompleteWay finalway = new OsmSharp.Complete.CompleteWay();
-            finalway.Id = way.id;
-            for (int i = 0; i < way.keys.Count(); i++)
+            try
             {
-                finalway.Tags.Add(new OsmSharp.Tags.Tag(System.Text.Encoding.UTF8.GetString(block.stringtable.s[(int)way.keys[i]]), System.Text.Encoding.UTF8.GetString(block.stringtable.s[(int)way.vals[i]])));
-            }
+                //Console.WriteLine("getting way " + wayId);
+                //Run after indexing file
+                //load only relevant blocks for this entry
+                //var wayBlockValues = wayFinder[wayId];
+                var wayBlockValues = FindBlockKeyForWay(wayId);
 
-            List<OsmSharp.Node> nodeList = new List<OsmSharp.Node>();
-            foreach (var node in way.refs)
+                PrimitiveBlock wayBlock = GetBlock(wayBlockValues);
+                var wayPrimGroup = wayBlock.primitivegroup[0];
+                var way = wayPrimGroup.ways.Where(w => w.id == wayId).FirstOrDefault();
+                if (way == null)
+                    return null; //way wasn't in the block it was supposed to be in.
+                //finally have the core item
+
+                if (skipUntagged && way.keys.Count == 0)
+                    return null;
+
+
+                //NOTES:
+                //This commented out code seemed to run a lot faster.
+                //BUT the more straight-forward setup I use generated a lot fewer errors. Almost all ways get translated in a block that way
+                //versus about half. Maybe I missed something on this logic? If I could get each block back to 1-2 seconds instead of 5 with 95+% accuracy, I'd be very happy.
+                long idToFind = 0; //more deltas 
+                List<long> neededBlocks = new List<long>();
+                //blockId, nodeID
+                List<Tuple<long, long>> nodesPerBlock = new List<Tuple<long, long>>();
+
+                for (int i = 0; i < way.refs.Count; i++)
+                {
+                    idToFind += way.refs[i];
+                    var blockID = FindBlockKeyForNode(idToFind);
+                    neededBlocks.Add(blockID);
+                    nodesPerBlock.Add(Tuple.Create(blockID, idToFind));
+                }
+
+                neededBlocks = neededBlocks.Distinct().ToList();
+                var nodesByBlock = nodesPerBlock.ToLookup(k => k.Item1, v => v.Item2);
+
+                //foreach (var nb in neededBlocks)
+                //{
+                //    if (!activeBlocks.ContainsKey(nb))
+                //    {
+                //        activeBlocks.TryAdd(nb, GetBlockFromFile(nb));
+                //    }
+                //}
+                //Now I have the data needed to fill in nodes for a way
+                OsmSharp.Complete.CompleteWay finalway = new OsmSharp.Complete.CompleteWay();
+                finalway.Id = wayId;
+                finalway.Tags = new OsmSharp.Tags.TagsCollection();
+
+                //skipUntagged is false from GetRelation, so we can ignore tag data in that case as well.
+                //but we do want tags for when we load a block full of ways.
+                if (skipUntagged)
+                    for (int i = 0; i < way.keys.Count(); i++)
+                    {
+                        finalway.Tags.Add(new OsmSharp.Tags.Tag(System.Text.Encoding.UTF8.GetString(wayBlock.stringtable.s[(int)way.keys[i]]), System.Text.Encoding.UTF8.GetString(wayBlock.stringtable.s[(int)way.vals[i]])));
+                    }
+
+                //new plan
+                List<OsmSharp.Node> nodeList = new List<OsmSharp.Node>();
+                Dictionary<long, OsmSharp.Node> AllNodes = new Dictionary<long, OsmSharp.Node>();
+                foreach (var block in nodesByBlock)
+                {
+                    var someNodes = GetAllNeededNodesInBlock(block.Key, block.Distinct().ToList());
+                    if (someNodes == null)
+                        throw new Exception("Couldn't load all nodes from a block");
+                    foreach (var n in someNodes)
+                        AllNodes.Add(n.Key, n.Value); 
+                }
+
+                idToFind = 0;
+                foreach (var node in way.refs)
+                {
+                    idToFind += node; //delta coding.
+                    nodeList.Add(AllNodes[idToFind]);
+                    //blockID = FindBlockKeyForNode(idToFind);
+                    //var osmnode = GetNode(idToFind);
+                    //if (osmnode == null)
+                        //throw new Exception("couldn't load all nodes for a way!");
+                    //nodeList.Add(osmnode);
+                }
+                finalway.Nodes = nodeList.ToArray();
+
+                //Console.WriteLine("got way " + wayId);
+                return finalway;
+            }
+            catch (Exception ex)
             {
-                nodeList.Add(currentNodes[node]);
+                Console.WriteLine("GetWay failed: " + ex.Message + ex.StackTrace);
+                //Console.ReadLine();
+                return null; //Failed to get way, probably because a node didn't exist in the file.
             }
-            finalway.Nodes = nodeList.ToArray();
-
-            return finalway;
         }
-        //public OsmSharp.Node GetNodeFromSmallNode(SmallNode node)
-        //{
-        //    return new OsmSharp.Node() { Id = node.id, Latitude = node.lat, Longitude = node.lon };
-        //}
 
         public List<OsmSharp.Node> GetTaggedNodesFromBlock(PrimitiveBlock block)
         {
             // try
             //{
-            //var block = GetBlock(blockId);
             List<OsmSharp.Node> taggedNodes = new List<OsmSharp.Node>(8000);
             var dense = block.primitivegroup[0].dense;
 
@@ -797,17 +662,12 @@ namespace PmPbfReader
                 ));
                 i++;
             }
-
             var decodedTags = idKeyVal.ToLookup(k => k.Item1, v => new OsmSharp.Tags.Tag(v.Item2, v.Item3));
 
-
-            //var a = 1;
             var index = -1;
             long nodeId = 0;
             long lat = 0;
             long lon = 0;
-            var tagIndex = -1;
-            var tagcounter = 0;
             foreach (var denseNode in dense.id)
             {
                 index++;
@@ -840,22 +700,37 @@ namespace PmPbfReader
             //}
         }
 
-        public OsmSharp.Node GetNode(long nodeId, ref ConcurrentDictionary<long, PrimitiveBlock> activeBlocks, bool skipTags = true)
+        public OsmSharp.Node GetNode(long nodeId, bool skipTags = true)
         {
             //Console.WriteLine("getting node " + nodeId);
             //Run after indexing file
             //load only relevant blocks for this entry
-            var nodeBlockValues = FindBlockKeyForNode(nodeId, ref activeBlocks);
+            var nodeBlockValues = FindBlockKeyForNode(nodeId);
 
-            PrimitiveBlock nodeBlock;
-            if (activeBlocks.ContainsKey(nodeBlockValues))
-                nodeBlock = activeBlocks[nodeBlockValues];
-            else
-            {
-                nodeBlock = GetBlock(nodeBlockValues);
-                activeBlocks.TryAdd(nodeBlockValues, nodeBlock);
-            }
+            PrimitiveBlock nodeBlock = GetBlock(nodeBlockValues);
             var nodePrimGroup = nodeBlock.primitivegroup[0];
+            var keyvals = nodePrimGroup.dense.keys_vals;
+
+            //sort out tags ahead of time.
+            int entryCounter = 0;
+            List<Tuple<int, string, string>> idKeyVal = new List<Tuple<int, string, string>>();
+            for (int i = 0; i < keyvals.Count; i++)
+            {
+                if (keyvals[i] == 0)
+                {
+                    entryCounter++;
+                    continue;
+                }
+                //skip to next entry.
+                idKeyVal.Add(
+                    Tuple.Create(entryCounter,
+                System.Text.Encoding.UTF8.GetString(nodeBlock.stringtable.s[keyvals[i]]),
+                System.Text.Encoding.UTF8.GetString(nodeBlock.stringtable.s[keyvals[i + 1]])
+                ));
+                i++;
+            }
+
+            var decodedTags = idKeyVal.ToLookup(k => k.Item1, v => new OsmSharp.Tags.Tag(v.Item2, v.Item3));
 
             long nodeCounter = 0;
             int index = -1;
@@ -880,44 +755,22 @@ namespace PmPbfReader
 
             if (!skipTags)
             {
-                var tagData = dense.keys_vals[index];
-                // foreach (var t in nodeBlock..primitivegroup[index].)
+                OsmSharp.Tags.TagsCollection tc = new OsmSharp.Tags.TagsCollection();
+                foreach (var t in decodedTags[index].ToList())
+                    tc.Add(t);
 
-                //tags are dumb and they all have to be unpacked at once. can't do this simple lookup i wanted.
-                int tagcounter = 0;//The first tag that will be part of this node.
-                int tagIndexTracker = 0; //how many nodes worth of tags we've skipped so far.
-                while (true)
-                {
-                    if (dense.keys_vals[tagcounter] == 0)
-                        tagIndexTracker++;
-
-                    tagcounter++;
-                    if (tagIndexTracker == index)
-                        break;
-                }
-
-                //now, start loading keys/values
-
-                while (true)
-                {
-                    int key = dense.keys_vals[tagcounter];
-                    int value = dense.keys_vals[tagcounter + 1];
-                    if (key == 0)
-                        break;
-                    tagcounter += 2;
-                    filled.Tags.Add(new OsmSharp.Tags.Tag(System.Text.Encoding.UTF8.GetString(nodeBlock.stringtable.s[key]), System.Text.Encoding.UTF8.GetString(nodeBlock.stringtable.s[value])));
-                }
+                filled.Tags = tc;
             }
             //Console.WriteLine("got node " + nodeId);
             return filled;
         }
 
-        public Dictionary<long, OsmSharp.Node> GetAllNeededNodesInBlock(ref ConcurrentDictionary<long, PrimitiveBlock> activeBlocks, long blockId, List<long> nodeIds)
+        public Dictionary<long, OsmSharp.Node> GetAllNeededNodesInBlock(long blockId, List<long> nodeIds)
         {
             //GetWay() has already ensured that activeBlocks contains the data I need, so i can skip checking it.
             Dictionary<long, OsmSharp.Node> results = new Dictionary<long, OsmSharp.Node>();
 
-            var block = activeBlocks[blockId];
+            var block = GetBlock(blockId);
             var group = block.primitivegroup[0];
 
             int index = -1;
@@ -930,6 +783,10 @@ namespace PmPbfReader
             while (results.Count < nodeIds.Count())
             {
                 index++;
+                if (index == 8000)
+                    throw new Exception("Node not found in indexed node!");
+                    //This node was't found.
+
                 nodeCounter += denseIds[index];
                 latDelta += dLat[index];
                 lonDelta += dLon[index];
@@ -940,75 +797,14 @@ namespace PmPbfReader
                     filled.Id = nodeCounter;
                     filled.Latitude = DecodeLatLon(latDelta, block.lat_offset, block.granularity);
                     filled.Longitude = DecodeLatLon(lonDelta, block.lon_offset, block.granularity);
-                    //filled.Latitude = DecodeLatLon(block.lat_offset, block.primitivegroup[0].dense.lat[index], block.granularity);
-                    //filled.Longitude = DecodeLatLon(block.lon_offset, block.primitivegroup[0].dense.lon[index], block.granularity);
                     results.Add(nodeCounter, filled);
                 }
             }
             return results;
         }
 
-        public OsmSharp.Node GetNodeFromBlock(long nodeId, PrimitiveBlock block, PrimitiveGroup group, bool skipTags = true)
+        public long FindBlockKeyForNode(long nodeId)
         {
-
-            OsmSharp.Node filled = new OsmSharp.Node();
-            filled.Id = nodeId;
-
-            int index = -1;
-            long nodeCounter = 0;
-            var dense = group.dense;
-            while (nodeCounter != nodeId)
-            {
-                index++;
-                nodeCounter += dense.id[index];
-            }
-
-            filled.Latitude = DecodeLatLon(dense.lat[index], block.lat_offset, block.granularity);
-            filled.Longitude = DecodeLatLon(dense.lon[index], block.lon_offset, block.granularity);
-
-            if (!skipTags)
-            {
-                var tagData = dense.keys_vals[index];
-                // foreach (var t in nodeBlock..primitivegroup[index].)
-
-                //tags are dumb and they all have to be unpacked at once. can't do this simple lookup i wanted.
-                int tagcounter = 0;//The first tag that will be part of this node.
-                int tagIndexTracker = 0; //how many nodes worth of tags we've skipped so far.
-                while (true)
-                {
-                    if (dense.keys_vals[tagcounter] == 0)
-                        tagIndexTracker++;
-
-                    tagcounter++;
-                    if (tagIndexTracker == index)
-                        break;
-                }
-
-                //now, start loading keys/values
-
-                while (true)
-                {
-                    int key = dense.keys_vals[tagcounter];
-                    int value = dense.keys_vals[tagcounter + 1];
-                    if (key == 0)
-                        break;
-                    tagcounter += 2;
-                    filled.Tags.Add(new OsmSharp.Tags.Tag(System.Text.Encoding.UTF8.GetString(block.stringtable.s[key]), System.Text.Encoding.UTF8.GetString(block.stringtable.s[value])));
-                }
-            }
-
-            return filled;
-        }
-
-        public long FindBlockKeyForNode(long nodeId, ref ConcurrentDictionary<long, PrimitiveBlock> activeBlocks)
-        {
-
-            //search inflated nodes first, probably faster to hash against those than to count to 8k each entry
-            //NOPE, we look there if we already know its block.
-            //foreach (var smallCheck in SmallNodes)
-            //if (smallCheck.Value.ContainsKey(nodeId))
-            //return smallCheck.Key;
-
             foreach (var nodelist in nodeFinder2)
             {
                 //key is block id
@@ -1019,11 +815,7 @@ namespace PmPbfReader
                 if (nodelist.Value.Item2 < nodeId) //this node's maximum is smaller than our node, skip
                     continue;
 
-                //This block can potentially hold the node in question.
-                if (!activeBlocks.ContainsKey(nodelist.Key))
-                    activeBlocks.TryAdd(nodelist.Key, GetBlock(nodelist.Key));
-
-                var nodeBlock = activeBlocks[nodelist.Key];
+                var nodeBlock = GetBlock(nodelist.Key);
                 var group = nodeBlock.primitivegroup[0];
                 var denseIds = group.dense.id;
 
@@ -1040,10 +832,8 @@ namespace PmPbfReader
                 }
             }
 
-
             //couldnt find this node
             throw new Exception("Node Not Found");
-
         }
 
         public long FindBlockKeyForWay(long wayId)
@@ -1052,59 +842,29 @@ namespace PmPbfReader
             //so we CAN safely just find the block where wayId >= minWay for a block.
             foreach (var waylist in wayFinder2)
             {
-                //key is block id
-                //value is the tuple list. 1 is min, 2 is max.
-
-                //block1 has ways 10-39
-                //block2 has ways 40-60
-                //i want way 50
-                // first node: max 39 < 50 skip (oh, i should check max first to be faster.)
-
-                if (waylist.Value.Item2 < wayId) //this node's maximum is smaller than our node, skip
+                //key is block id. value is the max way value in this node. We dont need to check the minimum.
+                if (waylist.Value < wayId) //this node's maximum is smaller than our node, skip
                     continue;
 
-                //Since ways are sorted, the first entry where the maximum is bigger than our node must be the correct one, and can skip the
-                //min check.
-                //if (waylist.Value.Item1 >= wayId) //this node's minimum is larger than our node, skip
-                //  continue;
-
                 return waylist.Key;
-
-                ////This block can potentially hold the node in question.
-                //if (!activeBlocks.ContainsKey(waylist.Key))
-                //    activeBlocks.TryAdd(waylist.Key, GetBlock(waylist.Key));
-
-                //var wayBlock = activeBlocks[waylist.Key];
-                //var group = wayBlock.primitivegroup[0];
-                //if (group.ways.Any(w => w.id == wayId))
-                //    return waylist.Key;
             }
 
-
-            //couldnt find this node
+            //couldnt find this way
             throw new Exception("Way Not Found");
         }
 
         public List<OsmSharp.Complete.ICompleteOsmGeo> GetGeometryFromBlock(long blockId)
         {
-            //This grabs the last block, populates everything in it to an OsmSharp.Complete object
+            //This grabs the chosen block, populates everything in it to an OsmSharp.Complete object
             //and returns that list. Removes the block from memory once that's done.
             //This is the 'main' function I think i'll use to do most of the work originally.
             //I want this to be self-contained RAM wise, so that everything this block references eventually
             //gets pulled in, and can be dropped from memory when this function ends.
             try
             {
-
-                //var lastBlockID = blockPositions.Keys.Max();
+                activeBlocks = new ConcurrentDictionary<long, PrimitiveBlock>(4, (int)blockPositions.Keys.Max()); //Clear out existing memory each block.
                 var block = GetBlock(blockId);
-
                 List<OsmSharp.Complete.ICompleteOsmGeo> results = new List<OsmSharp.Complete.ICompleteOsmGeo>();
-                List<OsmSharp.Node> nodeList = new List<OsmSharp.Node>();
-                //loadedNodes is<blockId, <nodeId, SmallNode>>
-                //ConcurrentDictionary<long, Dictionary<long, SmallNode>> loadedNodes = new ConcurrentDictionary<long, Dictionary<long, SmallNode>>();
-
-                ConcurrentDictionary<long, PrimitiveBlock> activeBlocks = new ConcurrentDictionary<long, PrimitiveBlock>(4, (int)blockPositions.Keys.Max());
-                activeBlocks.TryAdd(blockId, block);
 
                 foreach (var primgroup in block.primitivegroup)
                 {
@@ -1113,7 +873,7 @@ namespace PmPbfReader
                         //foreach (var r in primgroup.relations)
                         Parallel.ForEach(primgroup.relations, r =>
                         {
-                            var relation = GetRelation(r.id, ref activeBlocks);
+                            var relation = GetRelation(r.id);
                             if (relation != null)
                                 //continue;
                                 results.Add(relation);
@@ -1124,7 +884,7 @@ namespace PmPbfReader
                         //foreach (var w in primgroup.ways)
                         Parallel.ForEach(primgroup.ways, w =>
                         {
-                            var way = GetWay(w.id, ref activeBlocks, true); //here, I skip untagged geometry.
+                            var way = GetWay(w.id, true); //here, I skip untagged geometry.
                             if (way != null)
                                 results.Add(way);
                         });
@@ -1133,20 +893,6 @@ namespace PmPbfReader
                     {
                         var nodes = GetTaggedNodesFromBlock(block);
                         results.AddRange(nodes);
-                        //return null; //Indicates I need to do a node scan.
-                        //I need a different plan for Nodes.
-                        //They need to be skimmed for tags, then filtered to ones with relevant tags to import.
-                        //This might be a separate calls.
-
-                        //var nodes = InflateNodes(block);
-                        //loadedNodes.TryAdd(blockId, nodes);
-                        //node logic will need a different plan. nodes are OsmCompleteGeo items.
-                        //foreach (var n in primgroup.dense.id)
-                        //{
-                        //var node = GetNodeFromSmallNode(n, ref activeBlocks, false);
-                        //if (node != null)
-                        //nodeList.Add(node);
-                        //}
                     }
                 }
                 var count = (block.primitivegroup[0].relations?.Count > 0 ? block.primitivegroup[0].relations.Count :
@@ -1163,10 +909,6 @@ namespace PmPbfReader
             }
 
         }
-
-
-
-        public record SmallNode(long id, double lat, double lon);
 
         //Looks like this slows things down. Keeping for reference.
         //public Dictionary<long, SmallNode> InflateNodes(PrimitiveBlock rawBlock)

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using static CoreComponents.DbTables;
 
@@ -236,56 +237,40 @@ namespace CoreComponents
 
         public static void ProcessPMPBFResults(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, string saveFilename)
         {
-            //This one is easy, we just dump the geo to the file.
+            //This one is easy, we just dump the geodata to the file.
             //We want to return both of these lists, dont we? or if we've run the whole file, we only need the waysToSkip one?
 
             List<long> handledItems = new List<long>();
             List<StoredOsmElement> elements = new List<StoredOsmElement>();
-            Log.WriteLog("Converting geometry and saving to file....");
-            long totalCounter = 0;
-            long totalItems = 0;
-            long itemCounter = 0;
-            int itemsPerLoop = 4000; //halfway for a full block.
+            //Log.WriteLog("Converting geometry and saving to file....");
             DateTime startedProcess = DateTime.Now;
-            TimeSpan difference;
 
             if (items == null)
                 return;
 
-            foreach (var r in items) //This is where the first memory peak hits as it loads everything into memory
-            //Parallel.ForEach(items, r =>
+            Parallel.ForEach(items, r =>
             {
                 var convertedItem = GeometrySupport.ConvertOsmEntryToStoredElement(r);
 
                     if (convertedItem == null)
                     {
-                        continue;
-                        //return null;
+                        return;
                     }
                     elements.Add(convertedItem);
-                    totalItems++;
-                    itemCounter++;
-                    if (itemCounter > itemsPerLoop)
-                    {
-                        //if (saveToFile)
-                            GeometrySupport.WriteStoredElementListToFile(saveFilename, ref elements);
-                        
-
-                        //ReportProgress(startedProcess, 0, totalCounter, "entries");
-                        itemCounter = 0;
-                        elements.Clear();
-                    }
-                //}
-
-            }
-            //);
-            //if (saveToFile)
-                GeometrySupport.WriteStoredElementListToFile(saveFilename, ref elements);
-            //else
-            //    db.StoredOsmElements.AddRange(elements);
-            //elements.Clear();
-            Log.WriteLog("entries saved to file at " + DateTime.Now);
-
+            });
+            
+            List<string> results = new List<string>(elements.Count());
+            Parallel.ForEach(elements, md =>
+            {
+                if (md != null) //null can be returned from the functions that convert OSM entries to StoredElement
+                {
+                    var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement);
+                    var test = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
+                    results.Add(test);
+                }
+            });
+            System.IO.File.AppendAllLines(saveFilename, results);
+            //Log.WriteLog("entries saved to file at " + DateTime.Now);
         }
 
         public static List<long> ProcessInnerLoopParallel(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, string itemType, int itemsPerLoop, bool saveToFile = false, string saveFilename = "", PraxisContext db = null, HashSet<long> waysToSkip = null)

@@ -92,8 +92,10 @@ namespace PerformanceTestApp
         private static void TestCustomPbfReader()
         {
             //string filename = @"C:\praxis\delaware-latest.osm.pbf";
-            string filename = @"C:\praxis\ohio-latest.osm.pbf";
-            //string filename = @"D:\Projects\PraxisMapper Files\XmlToProcess\ohio-latest.osm.pbf";
+            //string filename = @"C:\praxis\ohio-latest.osm.pbf";
+            string filename = @"D:\Projects\PraxisMapper Files\XmlToProcess\ohio-latest.osm.pbf";
+            //string filename = @"D:\Projects\PraxisMapper Files\alternate source files\north-america-latest.osm.pbf"; //11GB files takes 1GB RAM and 6 minutes 6 seconds time
+            //~4GB in 90 seconds would be ~5 minutes. world is 50GB, and I'd extrapolate that to ~90 minutes and 
             PmPbfReader.PbfReader reader = new PmPbfReader.PbfReader();
             reader.Open(filename);
             Stopwatch sw = new Stopwatch();
@@ -145,13 +147,16 @@ namespace PerformanceTestApp
             //reference: run Larry -loadPbfsToJson and record time
             //then run this loop
             //Fun reminder: my tablet can't process Ohio via the normal Larry pbfToJson call. 
-            var skipCount = 400;
-            Log.WriteLog("starting Ohio Load at " + DateTime.Now);
+            //This takes ~4GB RAM and 3-6 minutes per relation block on north-america-latest. (it has 150 relation blocks, 15,132 Way blocks, 189k total)
+            //~900 minutes = 15 hours
+            var skipCount = 0;
+            Log.WriteLog("starting data Load at " + DateTime.Now);
             for (var block = reader.BlockCount() - 1 - skipCount; block > 0; block--)
             {
                 var x = reader.GetGeometryFromBlock(block);
                 if (x != null)
-                    CoreComponents.PbfFileParser.ProcessPMPBFResults(x, "testFile-ohio.json");
+                    //CoreComponents.PbfFileParser.ProcessPMPBFResults(x, "testFile-ohio.json");
+                    CoreComponents.PbfFileParser.ProcessPMPBFResults(x, @"D:\Projects\PraxisMapper Files\Trimmed JSON Files\testFile-ohio.json");
             }
             sw.Stop();
             Log.WriteLog("All Ohio blocks processed in " + sw.Elapsed);
