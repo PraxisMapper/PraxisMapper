@@ -932,5 +932,86 @@ namespace PmPbfReader
         {
             return .000000001 * (offset + (granularity * valueOffset));
         }
+
+        public void SaveBlockInfo()
+        {
+            string filename = fi.Name + ".blockinfo";
+            //now deserialize
+            string[] data = new string[blockPositions.Count()];
+            for (int i = 0; i < data.Count(); i++)
+            {
+                data[i] = i + ":" + blockPositions[i] + ":" + blockSizes[i];
+            }
+            System.IO.File.WriteAllLines(filename, data);
+
+            filename = fi.Name + ".relationIndex";
+            data = new string[relationFinder.Count()];
+            int j = 0;
+            foreach (var wf in relationFinder)
+            {
+                data[j] = wf.Key + ":" + wf.Value.Item1 + ":" + wf.Value.Item2;
+                j++;
+            }
+            System.IO.File.WriteAllLines(filename, data);
+
+            filename = fi.Name + ".wayIndex";
+            data = new string[wayFinder2.Count()];
+            j = 0;
+            foreach(var wf in wayFinder2)
+            {
+                data[j] = wf.Key + ":" + wf.Value;
+                j++;
+            }
+            System.IO.File.WriteAllLines(filename, data);
+
+            filename = fi.Name + ".nodeIndex";
+            data = new string[nodeFinder2.Count()];
+            j = 0;
+            foreach (var wf in nodeFinder2)
+            {
+                data[j] = wf.Key + ":" + wf.Value.Item1  + ":" + wf.Value.Item2;
+                j++;
+            }
+            System.IO.File.WriteAllLines(filename, data);
+        }
+
+        public void LoadBlockInfo()
+        {
+            string filename = fi.Name + ".blockinfo";
+            string[] data = System.IO.File.ReadAllLines(filename);
+            blockPositions = new Dictionary<long, long>(data.Length);
+            blockSizes = new Dictionary<long, int>(data.Length);
+
+            for (int i = 0; i < data.Count(); i++)
+            {
+                string[] subdata = data[i].Split(":");
+                blockPositions[i] = long.Parse(subdata[1]);
+                blockSizes[i] = int.Parse(subdata[2]);
+            }
+
+            filename = fi.Name + ".relationIndex";
+            data = System.IO.File.ReadAllLines(filename);
+            foreach (var line in data)
+            {
+                string[] subData2 = line.Split(":");
+                relationFinder.TryAdd(long.Parse(subData2[0]), Tuple.Create(long.Parse(subData2[1]), int.Parse(subData2[2])));
+            }
+
+            filename = fi.Name + ".wayIndex";
+            data = System.IO.File.ReadAllLines(filename);
+            foreach (var line in data)
+            {
+                string[] subData2 = line.Split(":");
+                wayFinder2.TryAdd(long.Parse(subData2[0]), long.Parse(subData2[1]));
+            }
+
+            filename = fi.Name + ".nodeIndex";
+            data = System.IO.File.ReadAllLines(filename);
+            foreach (var line in data)
+            {
+                string[] subData2 = line.Split(":");
+                nodeFinder2.TryAdd(long.Parse(subData2[0]), Tuple.Create(long.Parse(subData2[1]), long.Parse(subData2[2])));
+            }
+        }
     }
 }
