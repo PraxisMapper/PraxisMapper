@@ -152,7 +152,6 @@ namespace PmPbfReader
                 nextBlockId = FindLastCompletedBlock() - 1;
             }
 
-            long lowestDoneBlock = 999999999;
             for (var block = nextBlockId; block > 0; block--)
             {
                 long thisBlockId = block;
