@@ -161,6 +161,8 @@ namespace PmPbfReader
                         CoreComponents.PbfFileParser.ProcessPMPBFResults(geoData, System.IO.Path.GetFileNameWithoutExtension(filename) + ".json");            
                 SaveCurrentBlock(block);
             }
+
+            CleanupFiles();
         }
 
         public void IndexFileParallel()
@@ -1065,7 +1067,24 @@ namespace PmPbfReader
             string filename = fi.Name + ".progress";
             long blockID = long.Parse(System.IO.File.ReadAllText(filename));
             return blockID;
+        }
 
+        public void CleanupFiles()
+        {
+            foreach (var file in System.IO.Directory.EnumerateFiles(".", "*.blockInfo"))
+                System.IO.File.Delete(file);
+
+            foreach (var file in System.IO.Directory.EnumerateFiles(".", "*.relationIndex"))
+                System.IO.File.Delete(file);
+
+            foreach (var file in System.IO.Directory.EnumerateFiles(".", "*.nodeIndex"))
+                System.IO.File.Delete(file);
+
+            foreach (var file in System.IO.Directory.EnumerateFiles(".", "*.wayIndex"))
+                System.IO.File.Delete(file);
+
+            foreach (var file in System.IO.Directory.EnumerateFiles(".", "*.progress"))
+                System.IO.File.Delete(file);
         }
     }
 }
