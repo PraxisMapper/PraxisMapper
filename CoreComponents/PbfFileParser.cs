@@ -14,6 +14,8 @@ namespace CoreComponents
 {
     public static class PbfFileParser
     {
+
+        static System.Threading.ReaderWriterLockSlim outputLock = new System.Threading.ReaderWriterLockSlim();
         public static ProcessResults ProcessFileCoreV4(OsmStreamSource source, bool saveToFile = false, string filename = "")
         {
             //TODO: should this return a class (record) with a list of relations AND ways processed? That would let us avoid duplicates for sure.
@@ -269,7 +271,11 @@ namespace CoreComponents
                     results.Add(test);
                 }
             });
-            System.IO.File.AppendAllLines(saveFilename, results);
+            Task.Run(() => {
+                outputLock.EnterWriteLock();
+                System.IO.File.AppendAllLines(saveFilename, results);
+                outputLock.ExitWriteLock();
+                });
             //Log.WriteLog("entries saved to file at " + DateTime.Now);
         }
 

@@ -71,6 +71,7 @@ namespace PmPbfReader
     //Doing the Ohio file on my tablet takes ~14 minutes. I think Larry does it in 9 on my tower.
     //Tower doing this process now, end of day 6/10, release mode:  12:23:20 to 12:33:54. 10 minutes, 30 seconds.  90 extra seconds slower, (possibly) missing only 44MB of entries out of 1.2GB (96% accurate to the old version)
     //I am extremely happy with this performance.
+    //12:30 on surface
 
     //This should work with OsmSharp objects, to avoid rewriting the rest of my app.
 
@@ -105,6 +106,7 @@ namespace PmPbfReader
         //the docs say I could, since I'd need to Seek() to a position and then read and its possible
         //threads would change the Seek point before the ReadAsync was called.
         System.Threading.ReaderWriterLockSlim msLock = new System.Threading.ReaderWriterLockSlim();
+        
 
         public long BlockCount()
         {
@@ -339,6 +341,11 @@ namespace PmPbfReader
                 if (rel.keys.Count == 0) //I cant use untagged areas for anything.
                     return null;
 
+                //NOTE: this isn't faster if I do the same setup for Ways that i do
+                //in GetWAys for Nodes. There's much less looping/iterating on ways, since they're stored by ID
+                //instead of dense-packed. 
+                //i don't think most relations use the same way more than once, so this might be unnecessay
+
                 //Now get a list of block i know i need now.
                 List<long> neededBlocks = new List<long>();
 
@@ -557,11 +564,9 @@ namespace PmPbfReader
 
 
                 //NOTES:
-                //This commented out code seemed to run a lot faster.
-                //BUT the more straight-forward setup I use generated a lot fewer errors. Almost all ways get translated in a block that way
-                //versus about half. Maybe I missed something on this logic? If I could get each block back to 1-2 seconds instead of 5 with 95+% accuracy, I'd be very happy.
+                //This is significantly faster than doing a GetBlock per node when 1 block has mulitple entries
+                //its a little complicated but a solid performance boost. Copying this logic to GetRelation for ways.
                 long idToFind = 0; //more deltas 
-                List<long> neededBlocks = new List<long>();
                 //blockId, nodeID
                 List<Tuple<long, long>> nodesPerBlock = new List<Tuple<long, long>>();
 
@@ -569,20 +574,21 @@ namespace PmPbfReader
                 {
                     idToFind += way.refs[i];
                     var blockID = FindBlockKeyForNode(idToFind);
-                    neededBlocks.Add(blockID);
                     nodesPerBlock.Add(Tuple.Create(blockID, idToFind));
                 }
-
-                neededBlocks = neededBlocks.Distinct().ToList();
                 var nodesByBlock = nodesPerBlock.ToLookup(k => k.Item1, v => v.Item2);
 
-                //foreach (var nb in neededBlocks)
-                //{
-                //    if (!activeBlocks.ContainsKey(nb))
-                //    {
-                //        activeBlocks.TryAdd(nb, GetBlockFromFile(nb));
-                //    }
-                //}
+                List<OsmSharp.Node> nodeList = new List<OsmSharp.Node>();
+                Dictionary<long, OsmSharp.Node> AllNodes = new Dictionary<long, OsmSharp.Node>();
+                foreach (var block in nodesByBlock)
+                {
+                    var someNodes = GetAllNeededNodesInBlock(block.Key, block.Distinct().ToList());
+                    if (someNodes == null)
+                        throw new Exception("Couldn't load all nodes from a block");
+                    foreach (var n in someNodes)
+                        AllNodes.Add(n.Key, n.Value);
+                }
+
                 //Now I have the data needed to fill in nodes for a way
                 OsmSharp.Complete.CompleteWay finalway = new OsmSharp.Complete.CompleteWay();
                 finalway.Id = wayId;
@@ -596,28 +602,11 @@ namespace PmPbfReader
                         finalway.Tags.Add(new OsmSharp.Tags.Tag(System.Text.Encoding.UTF8.GetString(wayBlock.stringtable.s[(int)way.keys[i]]), System.Text.Encoding.UTF8.GetString(wayBlock.stringtable.s[(int)way.vals[i]])));
                     }
 
-                //new plan
-                List<OsmSharp.Node> nodeList = new List<OsmSharp.Node>();
-                Dictionary<long, OsmSharp.Node> AllNodes = new Dictionary<long, OsmSharp.Node>();
-                foreach (var block in nodesByBlock)
-                {
-                    var someNodes = GetAllNeededNodesInBlock(block.Key, block.Distinct().ToList());
-                    if (someNodes == null)
-                        throw new Exception("Couldn't load all nodes from a block");
-                    foreach (var n in someNodes)
-                        AllNodes.Add(n.Key, n.Value); 
-                }
-
                 idToFind = 0;
                 foreach (var node in way.refs)
                 {
                     idToFind += node; //delta coding.
                     nodeList.Add(AllNodes[idToFind]);
-                    //blockID = FindBlockKeyForNode(idToFind);
-                    //var osmnode = GetNode(idToFind);
-                    //if (osmnode == null)
-                        //throw new Exception("couldn't load all nodes for a way!");
-                    //nodeList.Add(osmnode);
                 }
                 finalway.Nodes = nodeList.ToArray();
 
@@ -631,7 +620,7 @@ namespace PmPbfReader
                 return null; //Failed to get way, probably because a node didn't exist in the file.
             }
         }
-
+        
         public List<OsmSharp.Node> GetTaggedNodesFromBlock(PrimitiveBlock block)
         {
             // try
@@ -803,6 +792,7 @@ namespace PmPbfReader
             return results;
         }
 
+        
         public long FindBlockKeyForNode(long nodeId)
         {
             foreach (var nodelist in nodeFinder2)
@@ -862,6 +852,8 @@ namespace PmPbfReader
             //gets pulled in, and can be dropped from memory when this function ends.
             try
             {
+                System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                sw.Start();
                 activeBlocks = new ConcurrentDictionary<long, PrimitiveBlock>(4, (int)blockPositions.Keys.Max()); //Clear out existing memory each block.
                 var block = GetBlock(blockId);
                 List<OsmSharp.Complete.ICompleteOsmGeo> results = new List<OsmSharp.Complete.ICompleteOsmGeo>();
@@ -899,7 +891,8 @@ namespace PmPbfReader
                     block.primitivegroup[0].ways?.Count > 0 ? block.primitivegroup[0].ways.Count :
                     block.primitivegroup[0].dense.id.Count);
 
-                Console.WriteLine("block " + blockId + ":" + results.Count() + " items out of " + count + " created without errors");
+                sw.Stop();
+                Console.WriteLine("block " + blockId + ":" + results.Count() + " items out of " + count + " created without errors in " + sw.Elapsed);
                 return results;
             }
             catch (Exception ex)
