@@ -24,7 +24,12 @@ namespace PmPbfReader
     //rough usage plan:
     //Open a file - locks access
     //IndexFileParallel - can now search the file. required call. Fills stuff that will persist in memory, so this is the limit on filesize now.
-    //GetGeometryFromBlock - create everything from the given block as OSMSharp.CompleteGeo. Could write that to its own file and be able to resume later.
+    //SaveBlockInfo if you want to use LoadBlockInfo later
+    //loop GetGeometryFromBlock from BlockCount() to 1 - create everything from the given block as OSMSharp.CompleteGeo. Could write that to its own file and be able to resume later.
+    //SaveCurrentBlock after each GetGEometrFromBlock for resuming.
+    //LoadindexData
+    //ResumeFromLastCompletedBlock
+
 
     //For the most part, I want to grab all this stuff
     //Though i can skip untagged elements to save some time.
@@ -128,6 +133,34 @@ namespace PmPbfReader
         {
             fs.Close();
             fs.Dispose();
+        }
+
+        public void ProcessFile(string filename)
+        {
+            Open(filename);
+            LoadBlockInfo();
+            long nextBlockId = 0;
+            if (relationFinder.Count == 0)
+            {
+                IndexFileParallel();
+                SaveBlockInfo();
+                nextBlockId = BlockCount() - 1;
+                SaveCurrentBlock(BlockCount());
+            }
+            else
+            {
+                nextBlockId = FindLastCompletedBlock() - 1;
+            }
+
+            long lowestDoneBlock = 999999999;
+            for (var block = nextBlockId; block > 0; block--)
+            {
+                long thisBlockId = block;
+                var geoData = GetGeometryFromBlock(thisBlockId);
+                if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
+                        CoreComponents.PbfFileParser.ProcessPMPBFResults(geoData, System.IO.Path.GetFileNameWithoutExtension(filename) + ".json");            
+                SaveCurrentBlock(block);
+            }
         }
 
         public void IndexFileParallel()
@@ -977,41 +1010,62 @@ namespace PmPbfReader
 
         public void LoadBlockInfo()
         {
-            string filename = fi.Name + ".blockinfo";
-            string[] data = System.IO.File.ReadAllLines(filename);
-            blockPositions = new Dictionary<long, long>(data.Length);
-            blockSizes = new Dictionary<long, int>(data.Length);
-
-            for (int i = 0; i < data.Count(); i++)
+            try
             {
-                string[] subdata = data[i].Split(":");
-                blockPositions[i] = long.Parse(subdata[1]);
-                blockSizes[i] = int.Parse(subdata[2]);
-            }
+                string filename = fi.Name + ".blockinfo";
+                string[] data = System.IO.File.ReadAllLines(filename);
+                blockPositions = new Dictionary<long, long>(data.Length);
+                blockSizes = new Dictionary<long, int>(data.Length);
 
-            filename = fi.Name + ".relationIndex";
-            data = System.IO.File.ReadAllLines(filename);
-            foreach (var line in data)
-            {
-                string[] subData2 = line.Split(":");
-                relationFinder.TryAdd(long.Parse(subData2[0]), Tuple.Create(long.Parse(subData2[1]), int.Parse(subData2[2])));
-            }
+                for (int i = 0; i < data.Count(); i++)
+                {
+                    string[] subdata = data[i].Split(":");
+                    blockPositions[i] = long.Parse(subdata[1]);
+                    blockSizes[i] = int.Parse(subdata[2]);
+                }
 
-            filename = fi.Name + ".wayIndex";
-            data = System.IO.File.ReadAllLines(filename);
-            foreach (var line in data)
-            {
-                string[] subData2 = line.Split(":");
-                wayFinder2.TryAdd(long.Parse(subData2[0]), long.Parse(subData2[1]));
-            }
+                filename = fi.Name + ".relationIndex";
+                data = System.IO.File.ReadAllLines(filename);
+                foreach (var line in data)
+                {
+                    string[] subData2 = line.Split(":");
+                    relationFinder.TryAdd(long.Parse(subData2[0]), Tuple.Create(long.Parse(subData2[1]), int.Parse(subData2[2])));
+                }
 
-            filename = fi.Name + ".nodeIndex";
-            data = System.IO.File.ReadAllLines(filename);
-            foreach (var line in data)
-            {
-                string[] subData2 = line.Split(":");
-                nodeFinder2.TryAdd(long.Parse(subData2[0]), Tuple.Create(long.Parse(subData2[1]), long.Parse(subData2[2])));
+                filename = fi.Name + ".wayIndex";
+                data = System.IO.File.ReadAllLines(filename);
+                foreach (var line in data)
+                {
+                    string[] subData2 = line.Split(":");
+                    wayFinder2.TryAdd(long.Parse(subData2[0]), long.Parse(subData2[1]));
+                }
+
+                filename = fi.Name + ".nodeIndex";
+                data = System.IO.File.ReadAllLines(filename);
+                foreach (var line in data)
+                {
+                    string[] subData2 = line.Split(":");
+                    nodeFinder2.TryAdd(long.Parse(subData2[0]), Tuple.Create(long.Parse(subData2[1]), long.Parse(subData2[2])));
+                }
             }
+            catch(Exception ex)
+            {
+                return;
+            }
+        }
+
+        public void SaveCurrentBlock(long blockID)
+        {
+            string filename = fi.Name + ".progress";
+            System.IO.File.WriteAllText(filename, blockID.ToString());
+        }
+
+        public long FindLastCompletedBlock()
+        {
+            string filename = fi.Name + ".progress";
+            long blockID = long.Parse(System.IO.File.ReadAllText(filename));
+            return blockID;
+
         }
     }
 }

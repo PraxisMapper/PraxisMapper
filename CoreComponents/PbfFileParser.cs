@@ -271,11 +271,11 @@ namespace CoreComponents
                     results.Add(test);
                 }
             });
-            Task.Run(() => {
-                outputLock.EnterWriteLock();
+            //Task.Run(() => {
+                //outputLock.EnterWriteLock();
                 System.IO.File.AppendAllLines(saveFilename, results);
-                outputLock.ExitWriteLock();
-                });
+                //outputLock.ExitWriteLock();
+                //});
             //Log.WriteLog("entries saved to file at " + DateTime.Now);
         }
 
