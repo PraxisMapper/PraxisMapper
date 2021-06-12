@@ -135,13 +135,12 @@ namespace Larry
                 List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
                 foreach (string filename in filenames)
                 {
-                    //var fs = File.OpenRead(filename);
-                    //var osmStream = new PBFOsmStreamSource(fs);
-                    //PbfFileParser.ProcessFileCoreV4(osmStream);
+                    Log.WriteLog("Loading " + filename + " to database  at " + DateTime.Now);
                     PbfReader r = new PbfReader();
-                    r.ProcessFile(filename);
+                    r.ProcessFile(filename, true);
 
                     File.Move(filename, filename + "done");
+                    Log.WriteLog("Finished " + filename + " load at " + DateTime.Now);
                 }
             }
 
@@ -151,13 +150,6 @@ namespace Larry
                 foreach (string filename in filenames)
                 {
                     Log.WriteLog("Loading " + filename + " to JSON file at " + DateTime.Now);
-                    //string jsonFileName = ParserSettings.JsonMapDataFolder + Path.GetFileNameWithoutExtension(filename) + ".json";
-                    //using (var fs = File.OpenRead(filename))
-                    //{
-                    //var osmStream = new PBFOsmStreamSource(fs);
-                    //PbfFileParser.ProcessFileCoreV4(osmStream, true, jsonFileName);
-                    //osmStream.Dispose();
-                    //}
                     PbfReader r = new PbfReader();
                     r.outputPath = ParserSettings.JsonMapDataFolder;
                     r.ProcessFile(filename);
