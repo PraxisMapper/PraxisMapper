@@ -29,7 +29,7 @@ namespace CoreComponents
         //this is blockId, <minNode, maxNode>.
         ConcurrentDictionary<long, Tuple<long, long>> nodeFinder2 = new ConcurrentDictionary<long, Tuple<long, long>>();
         //<blockId, maxWayId> since ways are sorted in order.
-        ConcurrentDictionary<long, long> wayFinder2 = new ConcurrentDictionary<long, long>();
+        Dictionary<long, long> wayFinder2 = new Dictionary<long, long>();
 
         Dictionary<long, long> blockPositions = new Dictionary<long, long>();
         Dictionary<long, int> blockSizes = new Dictionary<long, int>();
@@ -108,7 +108,7 @@ namespace CoreComponents
             blockSizes = new Dictionary<long, int>();
             relationFinder = new ConcurrentDictionary<long, long>();
             nodeFinder2 = new ConcurrentDictionary<long, Tuple<long, long>>();
-            wayFinder2 = new ConcurrentDictionary<long, long>();
+            wayFinder2 = new Dictionary<long, long>();
 
             BlobHeader bh = new BlobHeader();
             Blob b = new Blob();
@@ -182,6 +182,11 @@ namespace CoreComponents
                 waiting.Add(tasked);
             }
             Task.WaitAll(waiting.ToArray());
+            //my logic does require the wayIndex to be in blockID order.
+            var sortingwayFinder2 = wayFinder2.OrderBy(w => w.Key).ToList();
+            wayFinder2 = new Dictionary<long, long>();
+                foreach (var w in sortingwayFinder2)
+                wayFinder2.TryAdd(w.Key, w.Value);
             Console.WriteLine("Found " + blockCounter + " blocks. " + relationCounter + " relation blocks and " + wayCounter + " way blocks.");
         }
 
@@ -825,8 +830,8 @@ namespace CoreComponents
         public static void ProcessPMPBFResults(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, string saveFilename, bool saveToDb = false)
         {
             //This one is easy, we just dump the geodata to the file.
-            List<long> handledItems = new List<long>();
-            List<StoredOsmElement> elements = new List<StoredOsmElement>();
+            ConcurrentBag<StoredOsmElement> elements = new ConcurrentBag<StoredOsmElement>();
+            //List<StoredOsmElement> elements = new List<StoredOsmElement>();
             DateTime startedProcess = DateTime.Now;
 
             if (items == null)
@@ -838,11 +843,8 @@ namespace CoreComponents
                     return;
                 var convertedItem = GeometrySupport.ConvertOsmEntryToStoredElement(r);
 
-                if (convertedItem == null)
-                {
-                    return;
-                }
-                elements.Add(convertedItem);
+                if (convertedItem != null)
+                    elements.Add(convertedItem);
             });
 
             if (saveToDb)
