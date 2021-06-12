@@ -12,12 +12,9 @@ using System.Threading.Tasks;
 
 namespace PmPbfReader
 {
-    //I think this is now returning reasonable accurate data, though it's currently slow compared
-    //to baseline OsmSharp. Ready to clean up and do a comparison check to see how much performance
-    //i lose doing things block by block.
-    //for Relations in Ohio (4 blocks), OsmSharp gets all the info in about 2 minutes but hits 8GB RAM
-    //Right now, same PC, Ohio on this file takes ~1:40 to do 1 relation block in 3 GB RAM. (so OsmSharp is ~3x faster for 3x the RAM?)
     //TODO: keep activeBlocks in memory when possible, and dump it under memory pressure?
+    //I should do a run where I could how many times each block is loaded from disk and report that
+    //Might be interesting to see if the average block is loaded more than once.
 
     //I need a way to track which blocks are done, so i can resume this later for big files.
 
@@ -78,6 +75,11 @@ namespace PmPbfReader
     //I am extremely happy with this performance.
     //12:30 on surface
 
+    //Checking, access multiple times to the same block is infrequent (through relation and ways, the most-accesed blocks get pulled in
+    //about 20% of the time). The simple heuristic for this is to save the blocks from the previous run in memory, since
+    //when a block is accessed multiple times its usually from an adjacent block. Is it worth the effort to pick and choose what
+    //entries in activeBlocks get dropped or not dropped to avoid the disk access/serializer?
+
     //This should work with OsmSharp objects, to avoid rewriting the rest of my app.
 
     //This should now pretty much use all the CPU threads as much as possible now. The only single-threaded part is 
@@ -111,7 +113,10 @@ namespace PmPbfReader
         //the docs say I could, since I'd need to Seek() to a position and then read and its possible
         //threads would change the Seek point before the ReadAsync was called.
         System.Threading.ReaderWriterLockSlim msLock = new System.Threading.ReaderWriterLockSlim();
-        
+
+        //List<Tuple<long, long>> accessCounter = new List<Tuple<long, long>>();
+        //List<long> accessedBlocks = new List<long>();
+        Dictionary<long, bool> accessedBlocks = new Dictionary<long, bool>();
 
         public long BlockCount()
         {
@@ -156,6 +161,8 @@ namespace PmPbfReader
             {
                 long thisBlockId = block;
                 var geoData = GetGeometryFromBlock(thisBlockId);
+                //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
+                //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
                 if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
                         CoreComponents.PbfFileParser.ProcessPMPBFResults(geoData, System.IO.Path.GetFileNameWithoutExtension(filename) + ".json");            
                 SaveCurrentBlock(block);
@@ -259,7 +266,6 @@ namespace PmPbfReader
             //read relations first, then ways, then skim nodes for data.
 
             //This should also dump the block list to a file, so it can be serialized back later to save time.
-
             fs.Position = 0;
             long blockCounter = 0;
             blockPositions = new Dictionary<long, long>();
@@ -293,6 +299,7 @@ namespace PmPbfReader
         {
             //If the block is in memory, return it.
             //If not, load it and return it.
+            accessedBlocks.TryAdd(blockId, true);
             if (!activeBlocks.ContainsKey(blockId))
                 activeBlocks.TryAdd(blockId, GetBlockFromFile(blockId));
 
@@ -888,7 +895,20 @@ namespace PmPbfReader
             {
                 System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                 sw.Start();
-                activeBlocks = new ConcurrentDictionary<long, PrimitiveBlock>(4, (int)blockPositions.Keys.Max()); //Clear out existing memory each block.
+
+                //oriignal, easiest logic. Clear out ram entirely and redo it.
+                //activeBlocks = new ConcurrentDictionary<long, PrimitiveBlock>(8, (int)blockPositions.Keys.Max()); //Clear out existing memory each block.
+                
+                //Slightly more complex: only remove blocks we didn't access last call. saves some serialization effort
+                //will still remove 80% of blocks each call. Is this faster than reloading each thing?
+                foreach(var blockRead in activeBlocks)
+                {
+                    if (!accessedBlocks.ContainsKey(blockRead.Key))
+                        activeBlocks.TryRemove(blockRead);
+                }
+                accessedBlocks.Clear();
+
+                
                 var block = GetBlock(blockId);
                 List<OsmSharp.Complete.ICompleteOsmGeo> results = new List<OsmSharp.Complete.ICompleteOsmGeo>();
 
@@ -927,6 +947,9 @@ namespace PmPbfReader
 
                 sw.Stop();
                 Console.WriteLine("block " + blockId + ":" + results.Count() + " items out of " + count + " created without errors in " + sw.Elapsed);
+
+                //ListMostAccessedBlocks();
+
                 return results;
             }
             catch (Exception ex)
@@ -1085,5 +1108,12 @@ namespace PmPbfReader
             foreach (var file in System.IO.Directory.EnumerateFiles(".", "*.progress"))
                 System.IO.File.Delete(file);
         }
+
+        //public void ListMostAccessedBlocks()
+        //{
+        //    var entries = accessCounter.OrderByDescending(a => a.Item2).ToList();
+        //    foreach (var item in entries.Take(20))
+        //        Console.WriteLine("Block " + item.Item1 + " : " + item.Item2);
+        //}
     }
 }
