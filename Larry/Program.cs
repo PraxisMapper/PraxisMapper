@@ -164,71 +164,14 @@ namespace Larry
                 List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
                 foreach (string filename in filenames)
                 {
+                    
                     Log.WriteLog("Test Loading " + filename + " to JSON file at " + DateTime.Now);
-                    string jsonFileName = ParserSettings.JsonMapDataFolder + Path.GetFileNameWithoutExtension(filename) + ".json";
-                    using (var fs = File.OpenRead(filename))
-                    {
-                        var osmStream = new PBFOsmStreamSource(fs);
-                        PbfFileParser.ProcessEverything(osmStream, jsonFileName);
-                        //PbfFileParser.ProcessFileCoreV4SkipTake(osmStream, true, jsonFileName);
-                        osmStream.Dispose();
-                    }
+                    CoreComponents.PbfReader r = new PbfReader();
+                    r.outputPath = ParserSettings.JsonMapDataFolder;
+                    r.ProcessFile(filename);
                     File.Move(filename, filename + "done");
+                    Log.WriteLog("Finished loaded " + filename + " to JSON at " + DateTime.Now);
                 }
-            }
-
-            if (args.Any(a => a == "-loadPbfsToJsonSplit9"))
-            {
-                List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
-                foreach (string filename in filenames)
-                {
-                    Log.WriteLog("Loading " + filename + " to JSON file at " + DateTime.Now);
-                    string jsonFileName = ParserSettings.JsonMapDataFolder + Path.GetFileNameWithoutExtension(filename) + ".json";
-                    var fs = File.OpenRead(filename);
-
-                    //Get bounding box
-                    var source = new PBFOsmStreamSource(fs);
-                    float north = source.Where(s => s.Type == OsmGeoType.Node).Max(s => (float)((OsmSharp.Node)s).Latitude);
-                    float south = source.Where(s => s.Type == OsmGeoType.Node).Min(s => (float)((OsmSharp.Node)s).Latitude);
-                    float west = source.Where(s => s.Type == OsmGeoType.Node).Min(s => (float)((OsmSharp.Node)s).Longitude);
-                    float east = source.Where(s => s.Type == OsmGeoType.Node).Max(s => (float)((OsmSharp.Node)s).Longitude);
-                    Log.WriteLog("Bounding box for file: " + south + "," + west + " to " + north + "," + east);
-                    source.Dispose();
-                    fs.Close(); fs.Dispose();
-
-                    var latSplit = (north - south) / 3;
-                    var lonSplit = (east - west) / 3;
-                    int boxCount = 1;
-                    List<long> processedRelations = new List<long>();
-                    List<long> processedWays = new List<long>();
-
-                    for (var x = west; x < east; x += lonSplit)
-                        for (var y = south; y < north; y += latSplit)
-                        {
-                            fs = File.OpenRead(filename);
-                            var osmStream = new PBFOsmStreamSource(fs);
-                            var filtered = osmStream.FilterBox(x, y + latSplit, x + lonSplit, y, true);
-                            var pr = PbfFileParser.ProcessFileCoreV4(osmStream, true, jsonFileName + boxCount);
-                            processedRelations.AddRange(pr.relations);
-                            processedWays.AddRange(pr.ways);
-                            osmStream.Dispose();
-                            fs.Close(); fs.Dispose();
-                            boxCount++;
-                        }
-
-                    //plus a final pass for things that were split across multiple boxes.
-                    source = new PBFOsmStreamSource(fs);
-                    var secondChance = source.ToComplete().Where(s => s.Type == OsmGeoType.Relation && !processedRelations.Contains(s.Id)); //find anything we didn't pull in yet relation-wise.
-                                                                                                                                            //PbfFileParser.ProcessFileCoreV4(secondChance, true, jsonFileName + boxCount);
-                    foreach (var sc in secondChance)
-                    {
-                        var found = GeometrySupport.ConvertOsmEntryToStoredElement(sc);
-                        if (found != null)
-                            GeometrySupport.WriteSingleStoredElementToFile(jsonFileName + boxCount, found);
-                    }
-                    File.Move(filename, filename + "done");
-                }
-
             }
 
             if (args.Any(a => a == "-loadJsonToDb"))
