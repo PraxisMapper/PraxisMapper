@@ -92,8 +92,8 @@ namespace PerformanceTestApp
         private static void TestCustomPbfReader()
         {
             //string filename = @"C:\praxis\delaware-latest.osm.pbf";
-            string filename = @"C:\praxis\ohio-latest.osm.pbf";
-            //string filename = @"D:\Projects\PraxisMapper Files\XmlToProcess\ohio-latest.osm.pbf";
+            //string filename = @"C:\praxis\ohio-latest.osm.pbf";
+            string filename = @"D:\Projects\PraxisMapper Files\XmlToProcess\ohio-latest.osm.pbf";
             //string filename = @"D:\Projects\PraxisMapper Files\alternate source files\north-america-latest.osm.pbf"; //11GB files takes 1GB RAM and 6 minutes 6 seconds time
             //~4GB in 90 seconds would be ~5 minutes. world is 50GB, and I'd extrapolate that to ~90 minutes and 
             PmPbfReader.PbfReader reader = new PmPbfReader.PbfReader();
@@ -151,15 +151,15 @@ namespace PerformanceTestApp
             //~900 minutes = 15 hours
             var skipCount = 0;
             Log.WriteLog("starting data Load at " + DateTime.Now);
-            for (var block = reader.BlockCount() - 1 - skipCount; block > 0; block--)
-            {
-                var x = reader.GetGeometryFromBlock(block);
-                if (x != null) //Task this, so I can process the next block while writing these results.
-                    System.Threading.Tasks.Task.Run(() => 
-                    CoreComponents.PbfFileParser.ProcessPMPBFResults(x, "testFile-ohio.json")
-                    //CoreComponents.PbfFileParser.ProcessPMPBFResults(x, @"D:\Projects\PraxisMapper Files\Trimmed JSON Files\testFile-ohio.json");
-                    );
-        }
+        //    for (var block = reader.BlockCount() - 1 - skipCount; block > 0; block--)
+        //    {
+        //        var x = reader.GetGeometryFromBlock(block);
+        //        if (x != null) //Task this, so I can process the next block while writing these results.
+        //            System.Threading.Tasks.Task.Run(() => 
+        //            //CoreComponents.PbfFileParser.ProcessPMPBFResults(x, "testFile-ohio.json")
+        //            //ProcessPMPBFResults(x, @"D:\Projects\PraxisMapper Files\Trimmed JSON Files\testFile-ohio.json")
+        //            );
+        //}
             sw.Stop();
             Log.WriteLog("All Ohio blocks processed in " + sw.Elapsed);
             Log.WriteLog("process test completed at " + DateTime.Now);

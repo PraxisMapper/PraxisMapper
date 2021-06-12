@@ -237,49 +237,7 @@ namespace CoreComponents
             return handledItems;
         }
 
-        public static void ProcessPMPBFResults(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, string saveFilename)
-        {
-            //This one is easy, we just dump the geodata to the file.
-            //We want to return both of these lists, dont we? or if we've run the whole file, we only need the waysToSkip one?
-
-            List<long> handledItems = new List<long>();
-            List<StoredOsmElement> elements = new List<StoredOsmElement>();
-            //Log.WriteLog("Converting geometry and saving to file....");
-            DateTime startedProcess = DateTime.Now;
-
-            if (items == null)
-                return;
-
-            Parallel.ForEach(items, r =>
-            {
-                if (r == null)
-                    return; 
-                var convertedItem = GeometrySupport.ConvertOsmEntryToStoredElement(r);
-
-                    if (convertedItem == null)
-                    {
-                        return;
-                    }
-                    elements.Add(convertedItem);
-            });
-            
-            List<string> results = new List<string>(elements.Count());
-            Parallel.ForEach(elements, md =>
-            {
-                if (md != null) //null can be returned from the functions that convert OSM entries to StoredElement
-                {
-                    var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement);
-                    var test = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
-                    results.Add(test);
-                }
-            });
-            //Task.Run(() => {
-                //outputLock.EnterWriteLock();
-                System.IO.File.AppendAllLines(saveFilename, results);
-                //outputLock.ExitWriteLock();
-                //});
-            //Log.WriteLog("entries saved to file at " + DateTime.Now);
-        }
+        
 
         public static List<long> ProcessInnerLoopParallel(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, string itemType, int itemsPerLoop, bool saveToFile = false, string saveFilename = "", PraxisContext db = null, HashSet<long> waysToSkip = null)
         {
