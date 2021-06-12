@@ -69,7 +69,7 @@ namespace CoreComponents
             fs.Dispose();
         }
 
-        public void ProcessFile(string filename)
+        public void ProcessFile(string filename, bool saveToDb = false)
         {
             Open(filename);
             LoadBlockInfo();
@@ -93,7 +93,7 @@ namespace CoreComponents
                 //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
                 //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
                 if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
-                    ProcessPMPBFResults(geoData, outputPath +  System.IO.Path.GetFileNameWithoutExtension(filename) + ".json");
+                    ProcessPMPBFResults(geoData, outputPath +  System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", saveToDb);
                 SaveCurrentBlock(block);
             }
             Close();
@@ -822,7 +822,7 @@ namespace CoreComponents
                 System.IO.File.Delete(file);
         }
 
-        public static void ProcessPMPBFResults(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, string saveFilename)
+        public static void ProcessPMPBFResults(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, string saveFilename, bool saveToDb = false)
         {
             //This one is easy, we just dump the geodata to the file.
             List<long> handledItems = new List<long>();
@@ -845,17 +845,26 @@ namespace CoreComponents
                 elements.Add(convertedItem);
             });
 
-            List<string> results = new List<string>(elements.Count());
-            Parallel.ForEach(elements, md =>
+            if (saveToDb)
             {
-                if (md != null) //null can be returned from the functions that convert OSM entries to StoredElement
+                var db = new PraxisContext();
+                db.StoredOsmElements.AddRange(elements);
+                db.SaveChanges();
+            }
+            else
+            {
+                List<string> results = new List<string>(elements.Count());
+                Parallel.ForEach(elements, md =>
                 {
-                    var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement);
-                    var test = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
-                    results.Add(test);
-                }
-            });
-            System.IO.File.AppendAllLines(saveFilename, results);
+                    if (md != null) //null can be returned from the functions that convert OSM entries to StoredElement
+                {
+                        var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement);
+                        var test = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
+                        results.Add(test);
+                    }
+                });
+                System.IO.File.AppendAllLines(saveFilename, results);
+            }
         }
     }
 }

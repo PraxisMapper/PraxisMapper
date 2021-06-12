@@ -96,12 +96,12 @@ namespace PerformanceTestApp
             string filename = @"D:\Projects\PraxisMapper Files\XmlToProcess\ohio-latest.osm.pbf";
             //string filename = @"D:\Projects\PraxisMapper Files\alternate source files\north-america-latest.osm.pbf"; //11GB files takes 1GB RAM and 6 minutes 6 seconds time
             //~4GB in 90 seconds would be ~5 minutes. world is 50GB, and I'd extrapolate that to ~90 minutes and 
-            PmPbfReader.PbfReader reader = new PmPbfReader.PbfReader();
-            reader.Open(filename);
+            //PmPbfReader.PbfReader reader = new PmPbfReader.PbfReader();
+            //reader.Open(filename);
             Stopwatch sw = new Stopwatch();
-            sw.Start();
-            reader.IndexFileParallel();
-            sw.Stop();
+            //sw.Start();
+            //reader.IndexFileParallel();
+            //sw.Stop();
             Log.WriteLog(filename + " indexed parallel in " + sw.Elapsed);
             sw.Restart();
             //reader.IndexFile();
