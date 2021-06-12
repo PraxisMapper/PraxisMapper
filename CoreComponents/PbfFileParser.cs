@@ -252,6 +252,8 @@ namespace CoreComponents
 
             Parallel.ForEach(items, r =>
             {
+                if (r == null)
+                    return; 
                 var convertedItem = GeometrySupport.ConvertOsmEntryToStoredElement(r);
 
                     if (convertedItem == null)
