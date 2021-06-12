@@ -135,9 +135,12 @@ namespace Larry
                 List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
                 foreach (string filename in filenames)
                 {
-                    var fs = File.OpenRead(filename);
-                    var osmStream = new PBFOsmStreamSource(fs);
-                    PbfFileParser.ProcessFileCoreV4(osmStream);
+                    //var fs = File.OpenRead(filename);
+                    //var osmStream = new PBFOsmStreamSource(fs);
+                    //PbfFileParser.ProcessFileCoreV4(osmStream);
+                    PbfReader r = new PbfReader();
+                    r.ProcessFile(filename);
+
                     File.Move(filename, filename + "done");
                 }
             }
@@ -148,13 +151,16 @@ namespace Larry
                 foreach (string filename in filenames)
                 {
                     Log.WriteLog("Loading " + filename + " to JSON file at " + DateTime.Now);
-                    string jsonFileName = ParserSettings.JsonMapDataFolder + Path.GetFileNameWithoutExtension(filename) + ".json";
-                    using (var fs = File.OpenRead(filename))
-                    {
-                        var osmStream = new PBFOsmStreamSource(fs);
-                        PbfFileParser.ProcessFileCoreV4(osmStream, true, jsonFileName);
-                        osmStream.Dispose();
-                    }
+                    //string jsonFileName = ParserSettings.JsonMapDataFolder + Path.GetFileNameWithoutExtension(filename) + ".json";
+                    //using (var fs = File.OpenRead(filename))
+                    //{
+                    //var osmStream = new PBFOsmStreamSource(fs);
+                    //PbfFileParser.ProcessFileCoreV4(osmStream, true, jsonFileName);
+                    //osmStream.Dispose();
+                    //}
+                    PbfReader r = new PbfReader();
+                    r.outputPath = ParserSettings.JsonMapDataFolder;
+                    r.ProcessFile(filename);
                     File.Move(filename, filename + "done");
                 }
             }
@@ -387,11 +393,11 @@ namespace Larry
                     DetectMapTilesRecursive(cell2, skip);
             }
 
-            if (args.Any(a => a == "-extractBigAreas"))
-            {
-                PbfOperations.ExtractAreasFromLargeFile(ParserSettings.PbfFolder + "planet-latest.osm.pbf"); //Guarenteed to have everything. Estimates 400+ minutes per run, including loading country boundaries
+            //if (args.Any(a => a == "-extractBigAreas"))
+            //{
+                //PbfOperations.ExtractAreasFromLargeFile(ParserSettings.PbfFolder + "planet-latest.osm.pbf"); //Guarenteed to have everything. Estimates 400+ minutes per run, including loading country boundaries
                 //PbfOperations.ExtractAreasFromLargeFile(ParserSettings.PbfFolder + "north-america-latest.osm.pbf");
-            }
+            //}
 
             if (args.Any(a => a == "-fixAreaSizes"))
             {
@@ -422,16 +428,16 @@ namespace Larry
             }
 
             //new V4 options to piecemeal up some of the process.
-            if (args.Any(a => a.StartsWith("-splitToSubPbfs")))
-            {
-                //This should generally be done on large files to make sure each sub-file is complete. It won't merge results if you run it on 2 overlapping
-                //extract files.
-                Log.WriteLog("Loading large file to split now. Remember to use only the largest extract file you have for this or results will not be as expected.");
+            //if (args.Any(a => a.StartsWith("-splitToSubPbfs")))
+            //{
+            //    //This should generally be done on large files to make sure each sub-file is complete. It won't merge results if you run it on 2 overlapping
+            //    //extract files.
+            //    Log.WriteLog("Loading large file to split now. Remember to use only the largest extract file you have for this or results will not be as expected.");
 
-                var filename = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").Where(f => !f.StartsWith("split")).First(); //don't look at any existing split files.
-                Log.WriteLog("Loading " + filename + " to split. Remember to use only the largest extract file you have for this or results will not be as expected.");
-                V4Import.SplitPbfToSubfiles(filename);
-            }
+            //    var filename = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").Where(f => !f.StartsWith("split")).First(); //don't look at any existing split files.
+            //    Log.WriteLog("Loading " + filename + " to split. Remember to use only the largest extract file you have for this or results will not be as expected.");
+            //    V4Import.SplitPbfToSubfiles(filename);
+            //}
 
             //testing generic image drawing function
             //if (args.Any(a => a.StartsWith("-testDrawOhio")))
