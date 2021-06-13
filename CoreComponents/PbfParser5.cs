@@ -49,6 +49,8 @@ namespace CoreComponents
 
         Dictionary<long, bool> accessedBlocks = new Dictionary<long, bool>();
 
+        object fileLock = new object();
+
         public long BlockCount()
         {
             return blockPositions.Count();
@@ -827,7 +829,7 @@ namespace CoreComponents
                 System.IO.File.Delete(file);
         }
 
-        public static void ProcessPMPBFResults(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, string saveFilename, bool saveToDb = false)
+        public void ProcessPMPBFResults(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, string saveFilename, bool saveToDb = false)
         {
             //This one is easy, we just dump the geodata to the file.
             ConcurrentBag<StoredOsmElement> elements = new ConcurrentBag<StoredOsmElement>();
@@ -865,7 +867,13 @@ namespace CoreComponents
                         results.Add(test);
                     }
                 });
-                System.IO.File.AppendAllLines(saveFilename, results);
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    lock (fileLock)
+                    {
+                        System.IO.File.AppendAllLines(saveFilename, results);
+                    }
+                });
             }
         }
     }
