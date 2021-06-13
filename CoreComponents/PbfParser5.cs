@@ -50,7 +50,7 @@ namespace CoreComponents
         object fileLock = new object(); //Writing to json file
 
         public string outputPath = "";
-        
+
         public long BlockCount()
         {
             return blockPositions.Count();
@@ -73,6 +73,7 @@ namespace CoreComponents
 
         public void ProcessFile(string filename, bool saveToDb = false)
         {
+            ConcurrentBag<Task> writeTasks = new ConcurrentBag<Task>();
             Open(filename);
             LoadBlockInfo();
             long nextBlockId = 0;
@@ -95,9 +96,15 @@ namespace CoreComponents
                 //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
                 //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
                 if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
-                    ProcessPMPBFResults(geoData, outputPath +  System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", saveToDb);
+                {
+                    var wt = ProcessPMPBFResults(geoData, outputPath + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", saveToDb);
+                    if (wt != null)
+                        writeTasks.Add(wt);
+                }
                 SaveCurrentBlock(block);
             }
+
+            Task.WaitAll(writeTasks.ToArray());
             Close();
             CleanupFiles();
         }
@@ -110,13 +117,14 @@ namespace CoreComponents
             var block = relationFinder[areaId];
 
             var r = GetRelation(areaId);
-            var geoData = GetGeometryFromBlock(block);
+            var r2 = GeometrySupport.ConvertOsmEntryToStoredElement(r);
+            //var geoData = GetGeometryFromBlock(block);
 
-                //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
-                //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
-                if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
-                    ProcessPMPBFResults(geoData, outputPath + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", false);
-            
+            //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
+            //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
+            //if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
+                //ProcessPMPBFResults(geoData, outputPath + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", false);
+
             Close();
             CleanupFiles();
 
@@ -207,7 +215,7 @@ namespace CoreComponents
             //my logic does require the wayIndex to be in blockID order.
             var sortingwayFinder2 = wayFinder2.OrderBy(w => w.Key).ToList();
             wayFinder2 = new Dictionary<long, long>();
-                foreach (var w in sortingwayFinder2)
+            foreach (var w in sortingwayFinder2)
                 wayFinder2.TryAdd(w.Key, w.Value);
             Console.WriteLine("Found " + blockCounter + " blocks. " + relationCounter + " relation blocks and " + wayCounter + " way blocks.");
         }
@@ -264,8 +272,8 @@ namespace CoreComponents
                 fs.Read(thisblob1, 0, size1);
                 //msLock.ExitWriteLock();
             }
-                Console.WriteLine("Block " + blockId + " loaded to RAM as bytes");
-                return thisblob1;  
+            Console.WriteLine("Block " + blockId + " loaded to RAM as bytes");
+            return thisblob1;
         }
 
         private PrimitiveBlock DecodeBlock(byte[] blockBytes)
@@ -860,15 +868,16 @@ namespace CoreComponents
                 System.IO.File.Delete(file);
         }
 
-        public void ProcessPMPBFResults(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, string saveFilename, bool saveToDb = false)
+        public Task ProcessPMPBFResults(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, string saveFilename, bool saveToDb = false)
         {
             //This one is easy, we just dump the geodata to the file.
             ConcurrentBag<StoredOsmElement> elements = new ConcurrentBag<StoredOsmElement>();
             //List<StoredOsmElement> elements = new List<StoredOsmElement>();
             DateTime startedProcess = DateTime.Now;
 
+
             if (items == null)
-                return;
+                return null;
 
             Parallel.ForEach(items, r =>
             {
@@ -885,6 +894,7 @@ namespace CoreComponents
                 var db = new PraxisContext();
                 db.StoredOsmElements.AddRange(elements);
                 db.SaveChanges();
+                return null;
             }
             else
             {
@@ -892,19 +902,21 @@ namespace CoreComponents
                 Parallel.ForEach(elements, md =>
                 {
                     if (md != null) //null can be returned from the functions that convert OSM entries to StoredElement
-                {
+                    {
                         var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement);
                         var test = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
                         results.Add(test);
                     }
                 });
-                System.Threading.Tasks.Task.Run(() =>
+                var monitorTask = System.Threading.Tasks.Task.Run(() =>
                 {
                     lock (fileLock)
                     {
                         System.IO.File.AppendAllLines(saveFilename, results);
                     }
                 });
+
+                return monitorTask;
             }
         }
     }
