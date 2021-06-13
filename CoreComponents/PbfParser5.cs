@@ -15,7 +15,7 @@ namespace CoreComponents
     public class PbfReader
     {
         //The 5th generation of logic for pulling geometry out of a pbf file. This one is written specfically for PraxisMapper, and doesn't 
-        //depend on OsmSharp for reading the raw data now. It's still used for object types and the FeatureConverter.
+        //depend on OsmSharp for reading the raw data now. OsmSharp's still used for object types and the FeatureConverter. 
 
         //Primary function:
         //ProcessFile(filename) should do everything automatically and allow resuming if you stop the app.
@@ -34,23 +34,23 @@ namespace CoreComponents
         Dictionary<long, long> blockPositions = new Dictionary<long, long>();
         Dictionary<long, int> blockSizes = new Dictionary<long, int>();
 
+        ConcurrentDictionary<long, PrimitiveBlock> activeBlocks = new ConcurrentDictionary<long, PrimitiveBlock>();
+
+        Dictionary<long, bool> accessedBlocks = new Dictionary<long, bool>();
+
         private PrimitiveBlock _block = new PrimitiveBlock();
         private BlobHeader _header = new BlobHeader();
-
-        ConcurrentDictionary<long, PrimitiveBlock> activeBlocks = new ConcurrentDictionary<long, PrimitiveBlock>();
 
         //I will use the write lock to make sure threads don't read the wrong data
         //the names will be misleading, since i dont want to use overlapping IO on these even though
         //the docs say I could, since I'd need to Seek() to a position and then read and its possible
         //threads would change the Seek point before the ReadAsync was called.
-        System.Threading.ReaderWriterLockSlim msLock = new System.Threading.ReaderWriterLockSlim();
+        //System.Threading.ReaderWriterLockSlim msLock = new System.Threading.ReaderWriterLockSlim();
+        object msLock = new object(); //reading blocks from disk.
+        object fileLock = new object(); //Writing to json file
 
         public string outputPath = "";
-
-        Dictionary<long, bool> accessedBlocks = new Dictionary<long, bool>();
-
-        object fileLock = new object();
-
+        
         public long BlockCount()
         {
             return blockPositions.Count();
@@ -209,13 +209,17 @@ namespace CoreComponents
         //GetBlockBytes (singlethread) and DecodeBlock(taskable)
         private PrimitiveBlock GetBlockFromFile(long blockId)
         {
-            msLock.EnterWriteLock();
-            long pos1 = blockPositions[blockId];
-            int size1 = blockSizes[blockId];
-            fs.Seek(pos1, SeekOrigin.Begin);
-            byte[] thisblob1 = new byte[size1];
-            fs.Read(thisblob1, 0, size1);
-            msLock.ExitWriteLock();
+            byte[] thisblob1;// = new byte[1];
+            lock (msLock)
+            {
+                //msLock.EnterWriteLock();
+                long pos1 = blockPositions[blockId];
+                int size1 = blockSizes[blockId];
+                fs.Seek(pos1, SeekOrigin.Begin);
+                thisblob1 = new byte[size1];
+                fs.Read(thisblob1, 0, size1);
+                //msLock.ExitWriteLock();
+            }
 
             var ms2 = new MemoryStream(thisblob1);
             var b2 = Serializer.Deserialize<Blob>(ms2);
@@ -228,15 +232,20 @@ namespace CoreComponents
 
         private byte[] GetBlockBytes(long blockId)
         {
-            msLock.EnterWriteLock();
-            long pos1 = blockPositions[blockId];
-            int size1 = blockSizes[blockId];
-            fs.Seek(pos1, SeekOrigin.Begin);
-            byte[] thisblob1 = new byte[size1];
-            fs.Read(thisblob1, 0, size1);
-            msLock.ExitWriteLock();
-            Console.WriteLine("Block " + blockId + " loaded to RAM as bytes");
-            return thisblob1;
+
+            byte[] thisblob1;
+            lock (msLock)
+            {
+                //msLock.EnterWriteLock();
+                long pos1 = blockPositions[blockId];
+                int size1 = blockSizes[blockId];
+                fs.Seek(pos1, SeekOrigin.Begin);
+                thisblob1 = new byte[size1];
+                fs.Read(thisblob1, 0, size1);
+                //msLock.ExitWriteLock();
+            }
+                Console.WriteLine("Block " + blockId + " loaded to RAM as bytes");
+                return thisblob1;  
         }
 
         private PrimitiveBlock DecodeBlock(byte[] blockBytes)
