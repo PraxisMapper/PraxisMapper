@@ -102,6 +102,26 @@ namespace CoreComponents
             CleanupFiles();
         }
 
+        public void debugArea(string filename, long areaId)
+        {
+            Open(filename);
+            IndexFile();
+
+            var block = relationFinder[areaId];
+
+            var r = GetRelation(areaId);
+            var geoData = GetGeometryFromBlock(block);
+
+                //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
+                //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
+                if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
+                    ProcessPMPBFResults(geoData, outputPath + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", false);
+            
+            Close();
+            CleanupFiles();
+
+        }
+
         private void IndexFile()
         {
             fs.Position = 0;
@@ -272,16 +292,18 @@ namespace CoreComponents
 
                 //sanity check - if this relation doesn't have inner or outer role members,
                 //its not one i can process.
+                bool canProcess = false;
                 foreach (var role in rel.roles_sid)
                 {
                     string roleType = System.Text.Encoding.UTF8.GetString(relationBlock.stringtable.s[role]);
                     if (roleType == "inner" || roleType == "outer")
+                    {
+                        canProcess = true; //I need at least one outer, and inners require outers.
                         break;
-
-                    return null; //This relation had no useful members
+                    }
                 }
 
-                if (rel.keys.Count == 0) //I cant use untagged areas for anything in PraxisMapper.
+                if (!canProcess || rel.keys.Count == 0) //I cant use untagged areas for anything in PraxisMapper.
                     return null;
 
                 //Now get a list of block i know i need now.
