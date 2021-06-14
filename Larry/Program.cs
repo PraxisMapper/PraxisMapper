@@ -21,6 +21,7 @@ using static CoreComponents.TagParser;
 using SkiaSharp;
 using Microsoft.EntityFrameworkCore;
 using static CoreComponents.StandaloneDbTables;
+using System.Collections.Concurrent;
 
 //TODO: look into using Span<T> instead of lists? This might be worth looking at performance differences. (and/or Memory<T>, which might be a parent for Spans)
 //TODO: Ponder using https://download.bbbike.org/osm/ as a data source to get a custom extract of an area (for when users want a local-focused app, probably via a wizard GUI)
@@ -128,6 +129,14 @@ namespace Larry
             if (args.Any(a => a == "-resetJson"))
             {
                 FileCommands.ResetFiles(ParserSettings.JsonMapDataFolder);
+            }
+
+            if (args.Any(a => a == "-debugArea"))
+            {
+                var filename = ParserSettings.PbfFolder + "ohio-latest.osm.pbf";
+                var areaId = 350381;
+                PbfReader r = new PbfReader();
+                r.debugArea(filename, areaId);
             }
 
             if (args.Any(a => a == "-loadPbfsToDb"))
@@ -567,7 +576,6 @@ namespace Larry
             if (relationID > 0)
                 name = relationID.ToString() + ".sqlite";
 
-
             if (File.Exists(name))
                 File.Delete(name);
 
@@ -592,8 +600,7 @@ namespace Larry
             else
                 buffered = bounds;
 
-
-            //TODO: set a flag to allow this to pull straight from a PBF file.
+            //TODO: set a flag to allow this to pull straight from a PBF file? 
             //Would need a variant of ProcessFileCore that returns a list of StoredOsmElements intead of writing directly to DB
             List<StoredOsmElement> allPlaces = new List<StoredOsmElement>();
             var intersectCheck = Converters.GeoAreaToPolygon(buffered);
@@ -648,10 +655,10 @@ namespace Larry
 
             System.Threading.ReaderWriterLockSlim dbLock = new System.Threading.ReaderWriterLockSlim();
 
-            Dictionary<long, TerrainData> terrainDatas = new Dictionary<long, TerrainData>();
+            ConcurrentDictionary<string, TerrainDataSmall> terrainDatas = new ConcurrentDictionary<string, TerrainDataSmall>();
 
             //fill in wiki list early, so we can apply it to each tile.
-            var wikiList = allPlaces.Where(a => a.Tags.Any(t => t.Key == "wikipedia")).ToList();
+            var wikiList = allPlaces.Where(a => a.Tags.Any(t => t.Key == "wikipedia")).Select(a => a.name).Distinct().ToList();
 
             //TODO: concurrent collections might require a lock or changing types.
             //But running in parallel saves a lot of time in general on this.
@@ -667,10 +674,10 @@ namespace Larry
                     var areaForTile = new GeoArea(new GeoPoint(plusCodeArea.SouthLatitude, plusCodeArea.WestLongitude), new GeoPoint(plusCodeArea.NorthLatitude, plusCodeArea.EastLongitude));
                     var acheck = Converters.GeoAreaToPolygon(areaForTile); //this is faster than using a PreparedPolygon in testing, which was unexpected.
                     var areaList = allPlaces.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); //This one is for the maptile
-                    var gameAreas = areaList.Where(a => a.IsGameElement).ToList(); //this is for determining what area name/type to display for a cell10.
+                    var gameAreas = areaList.Where(a => a.IsGameElement).ToList(); //this is for determining what area name/type to display for a cell10. //This might always be null. PIck up here on fixing standalone mode.
                     //NOTE: gameAreas might also need to include ScavengerHunt entries to ensure those process correcly.
 
-                    //Create the maptile first, so if we save it to the DB we can call the lock once per loop.
+                    //Create the maptile first, so if we save it to the DB/a file we can call the lock once per loop.
                     var info = new ImageStats(areaForTile, 80, 100); //Each pixel is a Cell11, we're drawing a Cell8.
                     var tile = MapTiles.DrawAreaAtSizeV4(info, areaList);
                     if (tile == null)
@@ -680,29 +687,33 @@ namespace Larry
                     }
                     if (saveToFolder) //some apps, like my Solar2D apps, can't use the byte[] in a DB row and need files.
                     {
-                        //TESTING: Solar2D has a hard time loading files from big APKs. Checking to see if that's related to the number of files in a single folder
-                        //So writing tiles to sub-folders to cap files per folder to 400
+                        //This split helps (but does not alleviate) Solar2D performance.
+                        //A county-sized app will function this way, though sometimes when zoomed out it will not load all map tiles on an android device.
                         Directory.CreateDirectory(relationID + "Tiles\\" + plusCode8.Substring(0, 6));
                         System.IO.File.WriteAllBytes(relationID + "Tiles\\" + plusCode8.Substring(0, 6) + "\\" + plusCode8.Substring(6, 2) + ".pngTile", tile); //Solar2d also can't load pngs directly from an apk file in android, but the rule is extension based.
                     }
 
                     //SearchArea didn't need any logic changes, but we do want to pass in only game areas.
-                    var terrainInfo = AreaTypeInfo.SearchArea2(ref areaForTile, ref gameAreas, true); //The list of Cell10 areas in this Cell8
+                    var terrainInfo = AreaTypeInfo.SearchArea2(ref areaForTile, ref gameAreas, true); //The list of Cell10 areas in this Cell8. Can be null if a whole area has 0 IsGameElement entries
                     //var splitData = terrainInfo.ToString().Split(Environment.NewLine);
-                    dbLock.EnterWriteLock();
-                    foreach (var ti in terrainInfo)
+                    if (terrainInfo != null)
                     {
-                        TerrainInfo tiInsert = new TerrainInfo() { PlusCode = ti.Key };
+                        dbLock.EnterWriteLock();
+                        foreach (var ti in terrainInfo)
+                        {
+                            TerrainInfo tiInsert = new TerrainInfo() { PlusCode = ti.Key, TerrainData = new List<TerrainDataSmall>() };
                         foreach (var td in ti.Value)
                         {
-                            if (!terrainDatas.ContainsKey(td.OsmElementId))
-                                terrainDatas.Add(td.OsmElementId, td);
+                                string key = td.Name + "|" + td.areaType;
+                            if (!terrainDatas.ContainsKey(key))
+                                    terrainDatas.TryAdd(key, new TerrainDataSmall() { Name = td.Name, areaType = td.areaType});
 
-                            tiInsert.TerrainData.Add(terrainDatas[td.OsmElementId]);
+                                tiInsert.TerrainData.Add(terrainDatas[key]);
+                            }
+                            sqliteDb.TerrainInfo.Add(tiInsert);
                         }
-                        sqliteDb.TerrainInfo.Add(tiInsert);
+                        dbLock.ExitWriteLock();
                     }
-                    dbLock.ExitWriteLock();
 
                     mapTileCounter++;
                     if (progressTimer.ElapsedMilliseconds > 15000)
@@ -715,21 +726,25 @@ namespace Larry
             Log.WriteLog(mapTileCounter + " maptiles drawn at " + DateTime.Now);
 
             foreach (var td in terrainDatas)
-                sqliteDb.TerrainData.Add(td.Value);
+                sqliteDb.TerrainDataSmall.Add(td.Value);
 
             sqliteDb.SaveChanges(); //inserts all the TerrainInfo elements now, and maptiles if they're injected into the Sqlite file.
             Log.WriteLog("Terrain Data and Info saved at " + DateTime.Now);
 
             //Create automatic scavenger hunt entries.
-            Dictionary<string, List<StoredOsmElement>> scavengerHunts = new Dictionary<string, List<StoredOsmElement>>();
+            Dictionary<string, List<string>> scavengerHunts = new Dictionary<string, List<string>>();
 
             
+            //NOTE:
+            //If i run this by elementID, i get everything unique but several entries get duplicated becaues they're in multiple pieces.
+            //If I run this by name, the lists are much shorter but visiting one distinct location might count for all of them (This is a bigger concern with very large areas or retail establishment)
+            //So I'm going to run this by name for the player's sake. 
             scavengerHunts.Add("Wikipedia Places", wikiList);
             Log.WriteLog(wikiList.Count() + " Wikipedia-linked items found for scavenger hunt.");
             //fill in gameElement lists.
             foreach (var gameElementTags in TagParser.styles.Where(s => s.IsGameElement))
             {
-                var foundElements = allPlaces.Where(a => TagParser.MatchOnTags(gameElementTags, a) && !string.IsNullOrWhiteSpace(a.name)).ToList();
+                var foundElements = allPlaces.Where(a => TagParser.MatchOnTags(gameElementTags, a) && !string.IsNullOrWhiteSpace(a.name)).Select(a => a.name).Distinct().ToList();
                 scavengerHunts.Add(gameElementTags.name, foundElements);
                 Log.WriteLog(foundElements.Count() + " " + gameElementTags.name + " items found for scavenger hunt.");
             }
@@ -737,7 +752,7 @@ namespace Larry
             foreach (var hunt in scavengerHunts)
             {
                 foreach (var item in hunt.Value)
-                    sqliteDb.ScavengerHunts.Add(new ScavengerHuntStandalone() { listName = hunt.Key, description = item.name, OsmElementId = item.sourceItemID, OsmElementType = item.sourceItemType, playerHasVisited = false });
+                    sqliteDb.ScavengerHunts.Add(new ScavengerHuntStandalone() { listName = hunt.Key, description = item, playerHasVisited = false });
             }
             Log.WriteLog("Auto-created scavenger hunt entries at " + DateTime.Now);
             sqliteDb.SaveChanges();

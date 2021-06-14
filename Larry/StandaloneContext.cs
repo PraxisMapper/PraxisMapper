@@ -18,7 +18,7 @@ namespace Larry
         //Will see how much DB space is saved with the TerrainData table now.
         public virtual DbSet<MapTileDB> MapTiles { get; set; }
         public virtual DbSet<TerrainInfo> TerrainInfo { get; set; }
-        public virtual DbSet<TerrainData> TerrainData { get; set; }
+        public virtual DbSet<TerrainDataSmall> TerrainDataSmall { get; set; }
         public virtual DbSet<Bounds> Bounds { get; set; }
         public virtual DbSet<PlusCodesVisited> PlusCodesVisited { get; set; }
         public virtual DbSet<PlayerStats> PlayerStats { get; set; }
@@ -54,7 +54,7 @@ namespace Larry
 
             model.Entity<TerrainInfo>().HasIndex(p => p.PlusCode);
             
-            model.Entity<TerrainData>().HasIndex(p => p.OsmElementId);
+            model.Entity<TerrainDataSmall>().HasIndex(p => p.Name);
 
             model.Entity<PlusCodesVisited>().HasIndex(p => p.PlusCode);
 
@@ -62,8 +62,6 @@ namespace Larry
         }
 
     }
-
-    
 
 
     //public class WeeklyVisited //read-write
