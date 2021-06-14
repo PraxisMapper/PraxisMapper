@@ -659,6 +659,8 @@ namespace Larry
 
             //fill in wiki list early, so we can apply it to each tile.
             var wikiList = allPlaces.Where(a => a.Tags.Any(t => t.Key == "wikipedia")).Select(a => a.name).Distinct().ToList();
+            //TODO: might include cities for county-sized games. But then I have to track a city for each Cell10 in the map.
+            var cityList = allPlaces.Where(a => a.Tags.Any(t => t.Key == "admin_level" && t.Value == "8") && a.Tags.Any(t => t.Key == "boundary" && t.Value == "administrative")).Select(a => a.name).Distinct().ToList();
 
             //TODO: concurrent collections might require a lock or changing types.
             //But running in parallel saves a lot of time in general on this.
@@ -694,6 +696,7 @@ namespace Larry
                     }
 
                     //SearchArea didn't need any logic changes, but we do want to pass in only game areas.
+                    //TODO: this might not be correctly returning multiple entries, or I might not be saving them to the SQLite DB. Investigate.
                     var terrainInfo = AreaTypeInfo.SearchArea2(ref areaForTile, ref gameAreas, true); //The list of Cell10 areas in this Cell8. Can be null if a whole area has 0 IsGameElement entries
                     //var splitData = terrainInfo.ToString().Split(Environment.NewLine);
                     if (terrainInfo != null)
