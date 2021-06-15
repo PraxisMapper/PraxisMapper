@@ -657,6 +657,7 @@ namespace Larry
             {
                 var removePlace = placeInfo.Where(p => p.Name == trail.name).First();
                 placeInfo.Remove(removePlace); //dont treat this like an area.
+                sqliteDb.PlaceInfo2s.Remove(sqliteDb.PlaceInfo2s.Where(p => p.Name == trail.name).First());
 
                 //I should search the element for the cell10s it overlaps, not the Cell8s for cells with the elements.
                 GeoArea thisPath = Converters.GeometryToGeoArea(trail.elementGeometry);
