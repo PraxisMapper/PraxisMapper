@@ -18,11 +18,13 @@ namespace Larry
         //Will see how much DB space is saved with the TerrainData table now.
         public virtual DbSet<MapTileDB> MapTiles { get; set; }
         public virtual DbSet<TerrainInfo> TerrainInfo { get; set; }
-        public virtual DbSet<TerrainDataSmall> TerrainDataSmall { get; set; }
+        //public virtual DbSet<TerrainDataSmall> TerrainDataSmall { get; set; }
         public virtual DbSet<Bounds> Bounds { get; set; }
         public virtual DbSet<PlusCodesVisited> PlusCodesVisited { get; set; }
         public virtual DbSet<PlayerStats> PlayerStats { get; set; }
         public virtual DbSet<ScavengerHuntStandalone> ScavengerHunts { get; set; }
+        public virtual DbSet<PlaceInfo2> PlaceInfo2s { get; set; }
+        public virtual DbSet<PlaceIndex> PlaceIndexs { get; set; }
 
         public StandaloneContext()
         {
