@@ -19,7 +19,7 @@ namespace CoreComponents.Standalone
         public static List<PlaceInfo2> GetPlaceInfo(List<StoredOsmElement> allPlaces)
         {
             var results = new List<PlaceInfo2>();
-            foreach (var place in allPlaces.Where(p => p.IsGameElement))
+            foreach (var place in allPlaces) //.Where(p => p.IsGameElement))
             {
                 var center = place.elementGeometry.Centroid.Coordinate;
                 //The less symmetrical an area's envelope is, the less accurate this guess is. But that's the tradeoff i'm making
@@ -28,7 +28,6 @@ namespace CoreComponents.Standalone
                 var pi = new PlaceInfo2() { Name = place.name, areaType = place.GameElementName, latCenter = center.Y, lonCenter = center.X, radius = calcRadius, OsmElementId = place.sourceItemID };
                 results.Add(pi);
             }
-
 
             return results;
         }

@@ -559,6 +559,8 @@ namespace Larry
 
         public static void CreateStandaloneDB2(long relationID = 0, GeoArea bounds = null, bool saveToDB = false, bool saveToFolder = true)
         {
+            //TODO: could rename TerrainInfo to TrailInfo, terrainDataSmall to trailData
+
             //Reworking my standalone db plans to run on distances from the center of an area instead of
             //tracking every Cell10 in an area. Counties can easily be 7 million+ rows for that, which takes up 
             //500+MB of Sqlite db space. I can't really push a mobile app of that size in good conscious.
@@ -616,14 +618,25 @@ namespace Larry
             Log.WriteLog("Loaded all intersecting geometry at " + DateTime.Now);
 
             //NEW: process all the gameplay geometry to the new center/radius format
-            var placeInfo = CoreComponents.Standalone.Standalone.GetPlaceInfo(allPlaces);
+            var wikiList = allPlaces.Where(a => a.Tags.Any(t => t.Key == "wikipedia") && a.name != "").Select(a => a.name).Distinct().ToList();
+            var basePlaces = allPlaces.Where(a => a.name != "" && (a.IsGameElement || wikiList.Contains(a.name))).ToList();
+            var distinctPlaces = basePlaces.Select(p => p.name).Distinct().ToList();
+            var finalPlaceList = new List<StoredOsmElement>();
+            foreach (var dp in distinctPlaces)
+                finalPlaceList.Add(basePlaces.Where(bp => bp.name == dp).First());
+
+            //foreach (var gameElement in TagParser.styles.Where(s => s.IsGameElement))
+                //finalPlaceList.Add(new StoredOsmElement() { name = "", GameElementName = gameElement.name, elementGeometry = new Point(0, 0) });
+
+            var placeInfo = CoreComponents.Standalone.Standalone.GetPlaceInfo(finalPlaceList);
+            //Remove trails before saving this
             sqliteDb.PlaceInfo2s.AddRange(placeInfo);
             sqliteDb.SaveChanges();
             Log.WriteLog("Processed geometry at " + DateTime.Now);
-
+    
             //to save time, i need to index which areas are in which Cell6.
             //So i know which entries I can skip.
-            var indexCell6 = CoreComponents.Standalone.Standalone.IndexAreasPerCell6(buffered, allPlaces);
+            var indexCell6 = CoreComponents.Standalone.Standalone.IndexAreasPerCell6(buffered, finalPlaceList);
             foreach(var entry in indexCell6)
             {
                 foreach (var place in entry.Value)
@@ -634,13 +647,15 @@ namespace Larry
                     sqliteDb.PlaceIndexs.Add(pi);
                 }
             }
+            sqliteDb.SaveChanges();
             Log.WriteLog("Processed Cell6 index table at " + DateTime.Now);
 
             //TODO trails need processed the old way, per Cell10. I would like to not hard-code those by element name
             //but for the moment I dont have any other indicator of what should always, exclusively be done by Cells in offline mode.
-            foreach (var trail in allPlaces.Where(p => p.GameElementName == "trail"))
+            var tdSmalls = new Dictionary<string, TerrainDataSmall>();
+            foreach (var trail in finalPlaceList.Where(p => p.GameElementName == "trail"))
             {
-                var removePlace = placeInfo.Where(p => p.OsmElementId == trail.sourceItemID).First();
+                var removePlace = placeInfo.Where(p => p.Name == trail.name).First();
                 placeInfo.Remove(removePlace); //dont treat this like an area.
 
                 //I should search the element for the cell10s it overlaps, not the Cell8s for cells with the elements.
@@ -651,19 +666,19 @@ namespace Larry
                 var overlapped = AreaTypeInfo.SearchArea2(ref thisPath, ref oneEntry, true);
                 foreach (var o in overlapped)
                 {
+                    foreach(var oo in o.Value)
+                    {
+                        if (!tdSmalls.ContainsKey(oo.Name))
+                            tdSmalls.Add(oo.Name, new TerrainDataSmall() { Name = oo.Name, areaType = oo.areaType });
+                    }
                     var ti = new TerrainInfo();
                     ti.PlusCode = o.Key;
-                    ti.TerrainDataSmall = o.Value.Select(oo => new TerrainDataSmall() { Name = oo.Name, areaType = oo.areaType }).ToList();
+                    ti.TerrainDataSmall = o.Value.Select(oo => tdSmalls[oo.Name]).ToList();
                     sqliteDb.TerrainInfo.Add(ti);
                 }
             }
-            Log.WriteLog("Trails processed at " + DateTime.Now);
-
-            //now we have the list of places we need to be concerned with. 
-            System.IO.Directory.CreateDirectory(relationID + "Tiles");
-            CoreComponents.Standalone.Standalone.DrawMapTilesStandalone(relationID, buffered, allPlaces, saveToFolder);
             sqliteDb.SaveChanges();
-            Log.WriteLog("Maptiles drawn at " + DateTime.Now);
+            Log.WriteLog("Trails processed at " + DateTime.Now);
 
             //make scavenger hunts
             var sh = CoreComponents.Standalone.Standalone.GetScavengerHunts(allPlaces);
@@ -677,6 +692,12 @@ namespace Larry
             sqliteDb.PlayerStats.Add(new PlayerStats() { timePlayed = 0, distanceWalked = 0, score = 0 });
             sqliteDb.Bounds.Add(new Bounds() { EastBound = neCorner.Decode().EastLongitude, NorthBound = neCorner.Decode().NorthLatitude, SouthBound = swCorner.Decode().SouthLatitude, WestBound = swCorner.Decode().WestLongitude });
             sqliteDb.SaveChanges();
+
+            //now we have the list of places we need to be concerned with. 
+            System.IO.Directory.CreateDirectory(relationID + "Tiles");
+            CoreComponents.Standalone.Standalone.DrawMapTilesStandalone(relationID, buffered, allPlaces, saveToFolder);
+            sqliteDb.SaveChanges();
+            Log.WriteLog("Maptiles drawn at " + DateTime.Now);
 
             //Copy the files as necessary to their correct location.
             if (saveToFolder)
