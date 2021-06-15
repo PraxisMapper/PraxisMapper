@@ -171,7 +171,7 @@ namespace Larry
                 List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
                 foreach (string filename in filenames)
                 {
-                    
+
                     Log.WriteLog("Test Loading " + filename + " to JSON file at " + DateTime.Now);
                     CoreComponents.PbfReader r = new PbfReader();
                     r.outputPath = ParserSettings.JsonMapDataFolder;
@@ -204,7 +204,7 @@ namespace Larry
                         StoredOsmElement stored = GeometrySupport.ConvertSingleJsonStoredElement(sr.ReadLine());
                         db.StoredOsmElements.Add(stored);
                         entryCounter++;
-                        
+
                         if (entryCounter > 100000)
                         {
                             db.SaveChanges();
@@ -249,7 +249,8 @@ namespace Larry
                         //Would be: string = sr.Readline(); task -> convertStoredElement(string); lock and add to shared collection; after 10,000 entries lock then add collection to db and save changes.
                         //await all tasks once end of stream is hit. lock and add last elements to DB
                         string entry = sr.ReadLine();
-                        var nextTask = Task.Run(() => {
+                        var nextTask = Task.Run(() =>
+                        {
                             StoredOsmElement stored = GeometrySupport.ConvertSingleJsonStoredElement(entry);
                             //fileLock.EnterReadLock();
                             templist.Add(stored);
@@ -259,7 +260,7 @@ namespace Larry
                             {
                                 //fileLock.EnterWriteLock();
                                 //db.StoredOsmElements.AddRange(templist);
-                                
+
                                 //db.SaveChanges();
                                 entryCounter = 0;
                                 //templist = new List<StoredOsmElement>();
@@ -277,7 +278,7 @@ namespace Larry
                     sr.Close(); sr.Dispose();
                     fr.Close(); fr.Dispose();
                     Log.WriteLog("File read to memory, waiting for tasks to complete....");
-                    
+
                     Task.WaitAll(taskList.ToArray());
                     Log.WriteLog("All elements converted in memory, loading to DB....");
                     taskList.Clear(); taskList = null;
@@ -286,23 +287,23 @@ namespace Larry
                     var total = templist.Count();
                     int loopCount = 0;
                     int loopAmount = 10000;
-                    while(loopAmount * loopCount < total)
+                    while (loopAmount * loopCount < total)
                     {
                         sw.Restart();
                         db = new PraxisContext();
                         db.ChangeTracker.AutoDetectChangesEnabled = false;
                         var toAdd = templist.Skip(loopCount * loopAmount).Take(loopAmount);
-                        db.StoredOsmElements.AddRange(toAdd); 
-                        db.SaveChanges(); 
+                        db.StoredOsmElements.AddRange(toAdd);
+                        db.SaveChanges();
                         Log.WriteLog(loopAmount + " entries saved to DB in " + sw.Elapsed);
                         loopCount += 1;
                     }
 
                     //db.StoredOsmElements.AddRange(templist);
                     //db.SaveChanges();
-                    Log.WriteLog("Final entries for "+ jsonFileName + " completed at " + DateTime.Now);
+                    Log.WriteLog("Final entries for " + jsonFileName + " completed at " + DateTime.Now);
 
-                    
+
                     //db.SaveChanges();
                     File.Move(jsonFileName, jsonFileName + "done");
                 }
@@ -396,8 +397,8 @@ namespace Larry
 
             //if (args.Any(a => a == "-extractBigAreas"))
             //{
-                //PbfOperations.ExtractAreasFromLargeFile(ParserSettings.PbfFolder + "planet-latest.osm.pbf"); //Guarenteed to have everything. Estimates 400+ minutes per run, including loading country boundaries
-                //PbfOperations.ExtractAreasFromLargeFile(ParserSettings.PbfFolder + "north-america-latest.osm.pbf");
+            //PbfOperations.ExtractAreasFromLargeFile(ParserSettings.PbfFolder + "planet-latest.osm.pbf"); //Guarenteed to have everything. Estimates 400+ minutes per run, including loading country boundaries
+            //PbfOperations.ExtractAreasFromLargeFile(ParserSettings.PbfFolder + "north-america-latest.osm.pbf");
             //}
 
             if (args.Any(a => a == "-fixAreaSizes"))
@@ -653,20 +654,59 @@ namespace Larry
                 xVal += resolutionCell8;
             }
 
+            //checking for a way to make a million+ strings shorter.
+            var commonLetters = 0;
+            for (var i = 0; i <10; i++)
+            {
+                if (swCorner.CodeDigits[i] == neCorner.CodeDigits[i])
+                    commonLetters++;
+                else
+                    break;
+            }
+
+            //NOTE on mobile side, i'll have to remove Bounds.commoncodeletters on the DB lookups to find stuff.
+            string startingLetters = "";
+            if (commonLetters > 0) //Could be 0 if an area crossed a Cell2 boundary.
+            {
+                startingLetters = swCorner.CodeDigits.Substring(0, commonLetters);
+            }
+            
+
             System.Threading.ReaderWriterLockSlim dbLock = new System.Threading.ReaderWriterLockSlim();
 
             ConcurrentDictionary<string, TerrainDataSmall> terrainDatas = new ConcurrentDictionary<string, TerrainDataSmall>();
 
-            //fill in wiki list early, so we can apply it to each tile.
-            var wikiList = allPlaces.Where(a => a.Tags.Any(t => t.Key == "wikipedia")).Select(a => a.name).Distinct().ToList();
-            //TODO: might include cities for county-sized games. But then I have to track a city for each Cell10 in the map.
-            var cityList = allPlaces.Where(a => a.Tags.Any(t => t.Key == "admin_level" && t.Value == "8") && a.Tags.Any(t => t.Key == "boundary" && t.Value == "administrative")).Select(a => a.name).Distinct().ToList();
+            //fill in wiki list early, so we can apply it to each tile. Exclude admin boundaries (cities, counties, states, countries) for this
+            //since a county-sized area with cities will hit 1GB for the standalone DB on TerrainInfo alone, since each Cell10 will have a city.
+            var wikiList = allPlaces.Where(a => a.Tags.Any(t => t.Key == "wikipedia") && a.name != "" && !a.Tags.Any(t => t.Key == "admin_level")).Select(a => a.name).Distinct().ToList();
+            //TODO: might include cities for county-sized games. But then I have to track a city for each Cell10 in the map. NOPE, takes up way too much space for offline data.
+            //var cityList = allPlaces.Where(a => a.Tags.Any(t => t.Key == "admin_level" && t.Value == "8") && a.Tags.Any(t => t.Key == "boundary" && t.Value == "administrative")).Select(a => a.name).Distinct().ToList();
 
+            //This eventually slows down now because I'm inserting a ton of stuff into the DbContext, and those adds take time even with detectChanges off. 
+            //Can I bulk insert those after processing?
             //TODO: concurrent collections might require a lock or changing types.
             //But running in parallel saves a lot of time in general on this.
-            Parallel.ForEach(yCoords, y =>
+            //Parallel.ForEach(yCoords, y =>
+            ConcurrentBag<TerrainInfo> storage = new ConcurrentBag<TerrainInfo>();
+
+            //Alternate plan: insert all the TerrainData entries first, then attach those to the TerrainInfo. Need this before splitting the data into Cell8s.
+            var tdsBase = allPlaces.Where(a => a.name != "" && (a.IsGameElement || wikiList.Contains(a.name))).Select(g => new TerrainDataSmall() { Name = g.name, areaType = g.GameElementName }).Distinct().ToList();
+            //Add unnamed element entries
+            var names = tdsBase.Select(T => T.Name).Distinct();
+            var tds = new List<TerrainDataSmall>();
+            foreach (var n in names)
+                tds.Add(tdsBase.Where(t => t.Name == n).First());
+            
+            foreach (var gameElement in TagParser.styles.Where(s => s.IsGameElement))
+                tds.Add(new TerrainDataSmall() { areaType = gameElement.name, Name = "" });
+            sqliteDb.TerrainDataSmall.AddRange(tds);
+            sqliteDb.SaveChanges();           
+
+            foreach (var y in yCoords)
             {
+                var tdRef = sqliteDb.TerrainDataSmall.ToList();
                 Parallel.ForEach(xCoords, x =>
+                //foreach (var x in xCoords)
                 {
                     //make map tile.
                     var plusCode = new OpenLocationCode(y, x, 10);
@@ -678,6 +718,7 @@ namespace Larry
                     var areaList = allPlaces.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); //This one is for the maptile
                     var gameAreas = areaList.Where(a => a.IsGameElement).ToList(); //this is for determining what area name/type to display for a cell10. //This might always be null. PIck up here on fixing standalone mode.
                     //NOTE: gameAreas might also need to include ScavengerHunt entries to ensure those process correcly.
+                    gameAreas.AddRange(areaList.Where(a => wikiList.Contains(a.name)));
 
                     //Create the maptile first, so if we save it to the DB/a file we can call the lock once per loop.
                     var info = new ImageStats(areaForTile, 80, 100); //Each pixel is a Cell11, we're drawing a Cell8.
@@ -701,21 +742,24 @@ namespace Larry
                     //var splitData = terrainInfo.ToString().Split(Environment.NewLine);
                     if (terrainInfo != null)
                     {
-                        dbLock.EnterWriteLock();
+
                         foreach (var ti in terrainInfo)
                         {
-                            TerrainInfo tiInsert = new TerrainInfo() { PlusCode = ti.Key, TerrainData = new List<TerrainDataSmall>() };
-                        foreach (var td in ti.Value)
-                        {
-                                string key = td.Name + "|" + td.areaType;
-                            if (!terrainDatas.ContainsKey(key))
-                                    terrainDatas.TryAdd(key, new TerrainDataSmall() { Name = td.Name, areaType = td.areaType});
+                            TerrainInfo tiInsert = new TerrainInfo() { PlusCode = ti.Key.Substring(startingLetters.Length, 10 - startingLetters.Length), TerrainDataSmall = new List<TerrainDataSmall>() };
+                            
+                            foreach (var td in ti.Value)
+                            {
+                                //string key = td.Name + "|" + td.areaType;
+                                //if (!terrainDatas.ContainsKey(key))
+                                    //terrainDatas.TryAdd(key, new TerrainDataSmall() { Name = td.Name, areaType = td.areaType });
 
-                                tiInsert.TerrainData.Add(terrainDatas[key]);
+                                tiInsert.TerrainDataSmall.Add(tdRef.Where(t => t.Name == td.Name).First());
                             }
+                            dbLock.EnterWriteLock();
                             sqliteDb.TerrainInfo.Add(tiInsert);
+                            dbLock.ExitWriteLock();
+                            //storage.Add(tiInsert);
                         }
-                        dbLock.ExitWriteLock();
                     }
 
                     mapTileCounter++;
@@ -725,11 +769,35 @@ namespace Larry
                         progressTimer.Restart();
                     }
                 });
-            });
+                //dbLock.EnterWriteLock();
+                Log.WriteLog("Saving progress...");
+                sqliteDb.SaveChanges(); //split up the work of saving stuff.
+                sqliteDb.Dispose();
+                sqliteDb = null;
+                sqliteDb = new StandaloneContext(relationID.ToString());
+                sqliteDb.ChangeTracker.AutoDetectChangesEnabled = false;
+                //sqliteDb.BulkInsert(terrainDatas.Select(t => t.Value).ToList());
+                //sqliteDb.BulkInsert(storage);
+
+                //dbLock.ExitWriteLock();
+            }//);
+            //sqliteDb.BulkInsert(terrainDatas.Select(t => t.Value).ToList());
+            //sqliteDb.BulkInsert(storage);
+            
+            //foreach(var td in terrainDatas)
+            //{
+                //foreach (var ti in td.Value.Name)
+                    //s
+            //}
+
+
+            //sqliteDb.TerrainInfo.AddRange(storage);
+            sqliteDb.SaveChanges();
             Log.WriteLog(mapTileCounter + " maptiles drawn at " + DateTime.Now);
 
-            foreach (var td in terrainDatas)
-                sqliteDb.TerrainDataSmall.Add(td.Value);
+            //Is this part explicitly necessary if I have them properly added to the TerrainInfo part? I think its not.
+            //foreach (var td in terrainDatas)
+            //sqliteDb.TerrainDataSmall.Add(td.Value);
 
             sqliteDb.SaveChanges(); //inserts all the TerrainInfo elements now, and maptiles if they're injected into the Sqlite file.
             Log.WriteLog("Terrain Data and Info saved at " + DateTime.Now);
@@ -737,7 +805,7 @@ namespace Larry
             //Create automatic scavenger hunt entries.
             Dictionary<string, List<string>> scavengerHunts = new Dictionary<string, List<string>>();
 
-            
+
             //NOTE:
             //If i run this by elementID, i get everything unique but several entries get duplicated becaues they're in multiple pieces.
             //If I run this by name, the lists are much shorter but visiting one distinct location might count for all of them (This is a bigger concern with very large areas or retail establishment)
@@ -762,7 +830,7 @@ namespace Larry
 
             //insert default entries for a new player.
             sqliteDb.PlayerStats.Add(new PlayerStats() { timePlayed = 0, distanceWalked = 0, score = 0 });
-            sqliteDb.Bounds.Add(new Bounds() { EastBound = neCorner.Decode().EastLongitude, NorthBound = neCorner.Decode().NorthLatitude, SouthBound = swCorner.Decode().SouthLatitude, WestBound = swCorner.Decode().WestLongitude });
+            sqliteDb.Bounds.Add(new Bounds() { EastBound = neCorner.Decode().EastLongitude, NorthBound = neCorner.Decode().NorthLatitude, SouthBound = swCorner.Decode().SouthLatitude, WestBound = swCorner.Decode().WestLongitude, commonCodeLetters = startingLetters });
             sqliteDb.SaveChanges();
 
             //Copy the files as necessary to their correct location.
