@@ -23,7 +23,7 @@ namespace CoreComponents
             public long id { get; set; }
             public string PlusCode { get; set; }
             //public TerrainData terrainData { get; set; }
-            public List<TerrainDataSmall> TerrainData { get; set; }
+            public List<TerrainDataSmall> TerrainDataSmall { get; set; }
         }
 
         public class TerrainData //read-only for the destination app. Reduces storage space on big areas.
@@ -34,6 +34,11 @@ namespace CoreComponents
             //These 2 columns are used by MapDataController.LearnCell8, so they stay, even though I'm not using them in the self contained DB.
             public long OsmElementId { get; set; } //Might need to be a long. Might be irrelevant on self-contained DB (except maybe for loading an overlay image on a maptile?)
             public long OsmElementType { get; set; } //Could be unnecessary on the standalone DB.
+
+            public override string ToString()
+            {
+                return Name + ":" + areaType;
+            }
         }
 
         public class TerrainDataSmall //read-only for the destination app. As above, but only stores names/area types instead of elements.
@@ -41,6 +46,11 @@ namespace CoreComponents
             public long id { get; set; }
             public string Name { get; set; }
             public string areaType { get; set; } //the game element name
+            public List<TerrainInfo> TerrainInfo { get; set; }
+            public override string ToString()
+            {
+                return Name + ":" + areaType;
+            }
         }
 
         public class Bounds //readonly for the destination app
@@ -50,6 +60,9 @@ namespace CoreComponents
             public double SouthBound { get; set; }
             public double EastBound { get; set; }
             public double WestBound { get; set; }
+            public double length { get; set; }
+            public double height { get; set; }
+            public string commonCodeLetters { get; set; }
 
         }
 
