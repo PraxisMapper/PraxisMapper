@@ -114,9 +114,15 @@ namespace CoreComponents
             var bgColor = SKColors.Transparent;
             canvas.Clear(bgColor);
             canvas.Scale(1, -1, info.imageSizeX / 2, info.imageSizeY / 2);
-            SKPaint paint = new SKPaint();
-            paint.IsAntialias = true;
-
+            SKPaint fillpaint = new SKPaint();
+            fillpaint.IsAntialias = true;
+            fillpaint.Style = SKPaintStyle.Fill;
+            var strokePaint = new SKPaint();
+            strokePaint.Color = SKColors.Black;
+            strokePaint.TextSize = 32;
+            strokePaint.StrokeWidth = 3;
+            strokePaint.Style = SKPaintStyle.Stroke;
+            strokePaint.TextAlign = SKTextAlign.Center;
             items = TagParser.ApplyTags(items);
 
             //var placeInfo = CoreComponents.Standalone.Standalone.GetPlaceInfo(items.Where(i =>
@@ -129,16 +135,22 @@ namespace CoreComponents
             i.GameElementName == "admin"
             ).ToList());
 
+            canvas.Scale(1, -1, info.imageSizeX / 2, info.imageSizeY / 2);
             foreach (var pi in placeInfo)
             {
-                canvas.Scale(1, -1, info.imageSizeX / 2, info.imageSizeY / 2);
-                paint.Color = CoreComponents.Misc.PickStaticColorForArea(pi.Name);
+                fillpaint.Color = CoreComponents.Misc.PickStaticColorForArea(pi.Name);
                 var imgpoint = Converters.PlaceInfoToSKPoint(pi, info);
-                canvas.DrawCircle(imgpoint, (float)(pi.radius / info.degreesPerPixelX ), paint);
-                paint.Color = SKColors.Black;
-                paint.TextSize = 32;
-                canvas.Scale(1, 1, info.imageSizeX / 2, info.imageSizeY / 2);
-                canvas.DrawText(pi.Name, imgpoint, paint); //Unscale this so its not upside down.
+                canvas.DrawCircle(imgpoint, (float)(pi.radius / info.degreesPerPixelX ), fillpaint);
+                canvas.DrawCircle(imgpoint, (float)(pi.radius / info.degreesPerPixelX), strokePaint);
+                canvas.Scale(1, 1, info.imageSizeX / 2, info.imageSizeY / 2); //sometimes this works, sometimes it doesnt?
+                canvas.DrawText(pi.Name, imgpoint, strokePaint); //Unscale this so its not upside down.
+            }
+
+            canvas.Scale(1, 1, info.imageSizeX / 2, info.imageSizeY / 2);
+            foreach (var pi in placeInfo)
+            {
+                var imgpoint = Converters.PlaceInfoToSKPoint(pi, info);
+                canvas.DrawText(pi.Name, imgpoint, strokePaint); 
             }
 
             var ms = new MemoryStream();
