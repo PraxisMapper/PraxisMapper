@@ -50,16 +50,18 @@ namespace CoreComponents
             return "";
         }
 
-        public static SKColor PickStaticColorForArea(StoredOsmElement place)
+        public static SKColor PickStaticColorForArea(string areaname)
         {
-            //TODO: this is a test function, and should be treated as such. Move to Corecomponents and update to the new data storage setup.
-            //Each place should get a unique, but consistent, color. Which means we're mostly looking for a hash
             var hasher = System.Security.Cryptography.MD5.Create();
-            var value = place.name.ToByteArrayUnicode();
+            var value = areaname.ToByteArrayUnicode();
             var hash = hasher.ComputeHash(value);
 
             SKColor results = new SKColor(hash[0], hash[1], hash[2], Convert.ToByte(64)); //all have the same transparency level
             return results;
+        }
+        public static SKColor PickStaticColorForArea(StoredOsmElement place)
+        {
+            return PickStaticColorForArea(place.name);
         }
 
         public static void LoadCustomData()

@@ -25,6 +25,7 @@
         var generated = L.tileLayer(url, { id: 4, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
         var adminBounds = L.tileLayer(url, { id: 6, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
         var baseDataTEstV4 = L.tileLayer(url, { id: 7, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
+        var offlineEstimateAreas = L.tileLayer(url, { id: 12, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
 
         var baseLayers = {
             "Base Data": baseData,
@@ -34,7 +35,8 @@
             "Paint The Town": ptt,
             "Area Control": ac,
             "Server-Generated": generated,
-            "Admin Boundaries": adminBounds
+            "Admin Boundaries": adminBounds,
+            "Offline Estimates": offlineEstimateAreas
         };
 
     var mymap = L.map('mapid').setView([41.503425, -81.698995], 13);

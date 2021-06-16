@@ -107,6 +107,31 @@ namespace CoreComponents
             return results;
         }
 
+        public static byte[] DrawOfflineEstimatedAreas(ImageStats info, List<StoredOsmElement> items)
+        {
+            SKBitmap bitmap = new SKBitmap(info.imageSizeX, info.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
+            SKCanvas canvas = new SKCanvas(bitmap);
+            var bgColor = SKColors.Transparent;
+            canvas.Clear(bgColor);
+            canvas.Scale(1, -1, info.imageSizeX / 2, info.imageSizeY / 2);
+            SKPaint paint = new SKPaint();
+            paint.IsAntialias = true;
+
+            var placeInfo = CoreComponents.Standalone.Standalone.GetPlaceInfo(items);
+            foreach(var pi in placeInfo)
+            {
+                paint.Color = CoreComponents.Misc.PickStaticColorForArea(pi.Name);
+                canvas.DrawCircle(Converters.PlaceInfoToSKPoint(pi, info), (float)pi.radius, paint);
+            }
+
+            var ms = new MemoryStream();
+            var skms = new SkiaSharp.SKManagedWStream(ms);
+            bitmap.Encode(skms, SkiaSharp.SKEncodedImageFormat.Png, 100);
+            var results = ms.ToArray();
+            skms.Dispose(); ms.Close(); ms.Dispose();
+            return results;
+        }
+
         public static byte[] DrawCell8GridLines(GeoArea totalArea)
         {
             int imageSizeX = MapTileSizeSquare;
