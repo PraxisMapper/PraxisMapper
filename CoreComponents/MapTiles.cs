@@ -117,11 +117,28 @@ namespace CoreComponents
             SKPaint paint = new SKPaint();
             paint.IsAntialias = true;
 
-            var placeInfo = CoreComponents.Standalone.Standalone.GetPlaceInfo(items);
-            foreach(var pi in placeInfo)
+            items = TagParser.ApplyTags(items);
+
+            //var placeInfo = CoreComponents.Standalone.Standalone.GetPlaceInfo(items.Where(i =>
+            //i.GameElementName != "trail" &&
+            //i.GameElementName != "road" &&
+            //i.GameElementName != "background"
+            //).ToList());
+
+            var placeInfo = CoreComponents.Standalone.Standalone.GetPlaceInfo(items.Where(i =>
+            i.GameElementName == "admin"
+            ).ToList());
+
+            foreach (var pi in placeInfo)
             {
+                canvas.Scale(1, -1, info.imageSizeX / 2, info.imageSizeY / 2);
                 paint.Color = CoreComponents.Misc.PickStaticColorForArea(pi.Name);
-                canvas.DrawCircle(Converters.PlaceInfoToSKPoint(pi, info), (float)pi.radius, paint);
+                var imgpoint = Converters.PlaceInfoToSKPoint(pi, info);
+                canvas.DrawCircle(imgpoint, (float)(pi.radius / info.degreesPerPixelX ), paint);
+                paint.Color = SKColors.Black;
+                paint.TextSize = 32;
+                canvas.Scale(1, 1, info.imageSizeX / 2, info.imageSizeY / 2);
+                canvas.DrawText(pi.Name, imgpoint, paint); //Unscale this so its not upside down.
             }
 
             var ms = new MemoryStream();

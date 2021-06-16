@@ -56,7 +56,7 @@ namespace CoreComponents
             var value = areaname.ToByteArrayUnicode();
             var hash = hasher.ComputeHash(value);
 
-            SKColor results = new SKColor(hash[0], hash[1], hash[2], Convert.ToByte(64)); //all have the same transparency level
+            SKColor results = new SKColor(hash[0], hash[1], hash[2], Convert.ToByte(32)); //all have the same transparency level
             return results;
         }
         public static SKColor PickStaticColorForArea(StoredOsmElement place)

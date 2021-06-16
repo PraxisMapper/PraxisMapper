@@ -100,12 +100,14 @@ namespace PraxisMapper.Controllers
                             break;
                         case 11: //Admin bounds as a base layer. Countries only. Or states?
                             //This is another TagParser expansion case.
-                            return null;
-                            //var placesAdminStates = GetAdminBoundaries(dataLoadArea);
+                            //return null;
+                            var placesAdmin2 = GetPlaces(dataLoadArea).Where(p => p.GameElementName == "admin").ToList();  //States = GetAdminBoundaries(dataLoadArea);
+                            results = MapTiles.DrawAreaAtSizeV4(info, placesAdmin2);
+                            
                             //placesAdminStates = placesAdminStates.Where(p => p.type == "admin4").ToList();
-                            //results = MapTiles.DrawAdminBoundsMapTileSlippy(ref placesAdminStates, info.area, areaHeightDegrees, areaWidthDegrees);
+                            //results = MapTiles.DrawAdminBoundsMapTileSlippy(ref placesAdmin2, info.area, info.degreesPerPixelY, areaWidthDegrees);
                             //expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
-                            //break;
+                            break;
                         case 12: //Visual drawings of the offline app's estimated areas
                             var places8 = GetPlaces(dataLoadArea);
                             results = MapTiles.DrawOfflineEstimatedAreas(info, places8);

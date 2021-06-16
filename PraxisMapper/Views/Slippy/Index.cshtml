@@ -24,6 +24,7 @@
         var ac = L.tileLayer(url, { id: 3, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
         var generated = L.tileLayer(url, { id: 4, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
         var adminBounds = L.tileLayer(url, { id: 6, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
+        var adminBounds2 = L.tileLayer(url, { id: 11, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
         var baseDataTEstV4 = L.tileLayer(url, { id: 7, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
         var offlineEstimateAreas = L.tileLayer(url, { id: 12, tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
 
@@ -36,6 +37,7 @@
             "Area Control": ac,
             "Server-Generated": generated,
             "Admin Boundaries": adminBounds,
+            "Other Admin Boundaries": adminBounds2,
             "Offline Estimates": offlineEstimateAreas
         };
 
