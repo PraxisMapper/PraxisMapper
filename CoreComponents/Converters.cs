@@ -68,6 +68,46 @@ namespace CoreComponents
             return point;
         }
 
+        public static SkiaSharp.SKPoint[] PlaceInfoToSKPoints(CoreComponents.StandaloneDbTables.PlaceInfo2 pi, ImageStats info)
+        {
+            float heightMod = (float)pi.height / 2;
+            float widthMod = (float)pi.width / 2;
+            var points = new SkiaSharp.SKPoint[5];
+            points[0] = new SkiaSharp.SKPoint((float)(pi.lonCenter + widthMod), (float)(pi.latCenter + heightMod)); //upper right corner
+            points[1] = new SkiaSharp.SKPoint((float)(pi.lonCenter + widthMod), (float)(pi.latCenter - heightMod)); //lower right
+            points[2] = new SkiaSharp.SKPoint((float)(pi.lonCenter - widthMod), (float)(pi.latCenter - heightMod)); //lower left
+            points[3] = new SkiaSharp.SKPoint((float)(pi.lonCenter - widthMod), (float)(pi.latCenter + heightMod)); //upper left
+            points[4] = new SkiaSharp.SKPoint((float)(pi.lonCenter + widthMod), (float)(pi.latCenter + heightMod)); //upper right corner again for a closed shape.
+
+            //points is now a geometric area. Convert to image area
+            points = points.Select(p => new SkiaSharp.SKPoint((float)((p.X - info.area.WestLongitude) * (1 / info.degreesPerPixelX)), (float)((p.Y - info.area.SouthLatitude) * (1 / info.degreesPerPixelY)))).ToArray();
+
+            return points;
+        }
+
+        public static SkiaSharp.SKRect PlaceInfoToRect(CoreComponents.StandaloneDbTables.PlaceInfo2 pi, ImageStats info)
+        {
+            SkiaSharp.SKRect r = new SkiaSharp.SKRect();
+            float heightMod = (float)pi.height / 2;
+            float widthMod = (float)pi.width / 2;
+            r.Left = (float)pi.lonCenter - widthMod;
+            r.Left = (float)(r.Left - info.area.WestLongitude) * (float)(1/info.degreesPerPixelX);
+            r.Right =(float) pi.lonCenter + widthMod;
+            r.Right = (float)(r.Right - info.area.WestLongitude) * (float)(1 / info.degreesPerPixelX);
+            r.Top = (float)pi.latCenter + heightMod;
+            r.Top = (float)(r.Top - info.area.SouthLatitude) * (float)(1 / info.degreesPerPixelY);
+            r.Bottom = (float)pi.latCenter - heightMod;
+            r.Bottom = (float)(r.Bottom - info.area.SouthLatitude) * (float)(1 / info.degreesPerPixelY);
+
+
+            return r;
+        }
+
+        //I should probably figure out how to functionalize this. 
+       // public static float ConvertLatLonToSkiaCanvas()
+        //{ 
+        //}
+
         public static GeoArea GeometryToGeoArea(Geometry g)
         {
             GeoArea results = new GeoArea(g.EnvelopeInternal.MinY, g.EnvelopeInternal.MinX, g.EnvelopeInternal.MaxY, g.EnvelopeInternal.MaxX);

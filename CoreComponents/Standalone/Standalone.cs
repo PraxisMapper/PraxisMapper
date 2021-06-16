@@ -24,8 +24,16 @@ namespace CoreComponents.Standalone
                 var center = place.elementGeometry.Centroid.Coordinate;
                 //The less symmetrical an area's envelope is, the less accurate this guess is. But that's the tradeoff i'm making
                 //to get this all self-contained in the least amount of space. / 4 because (/2 for average, then /2 for radius instead of diameter)
-                var calcRadius = (place.elementGeometry.EnvelopeInternal.Width + place.elementGeometry.EnvelopeInternal.Height) / 2;
-                var pi = new PlaceInfo2() { Name = place.name, areaType = place.GameElementName, latCenter = center.Y, lonCenter = center.X, radius = calcRadius, OsmElementId = place.sourceItemID };
+                var calcRadius = (place.elementGeometry.EnvelopeInternal.Width + place.elementGeometry.EnvelopeInternal.Height) / 4;
+                var pi = new PlaceInfo2() {
+                    Name = place.name,
+                    areaType = place.GameElementName,
+                    latCenter = center.Y,
+                    lonCenter = center.X,
+                    radius = calcRadius,
+                    height = place.elementGeometry.EnvelopeInternal.Height,
+                    width = place.elementGeometry.EnvelopeInternal.Width,
+                    OsmElementId = place.sourceItemID };
                 results.Add(pi);
             }
 
