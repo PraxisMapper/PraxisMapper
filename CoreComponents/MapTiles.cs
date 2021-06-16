@@ -142,13 +142,14 @@ namespace CoreComponents
                 var rect = Converters.PlaceInfoToRect(pi, info);
                 fillpaint.Color = CoreComponents.Misc.PickStaticColorForArea(pi.Name);
                 canvas.DrawRect(rect, fillpaint);
+                canvas.DrawRect(rect, strokePaint);
             }
 
             canvas.Scale(1, -1, info.imageSizeX / 2, info.imageSizeY / 2); //inverts the inverted image again!
             foreach (var pi in placeInfo)
             {
                 var rect = Converters.PlaceInfoToRect(pi, info);
-                canvas.DrawText(pi.Name, rect.MidX, rect.MidY, strokePaint);
+                canvas.DrawText(pi.Name, rect.MidX, info.imageSizeY - rect.MidY, strokePaint);
             }
 
 
@@ -158,13 +159,12 @@ namespace CoreComponents
             //{
             //    fillpaint.Color = CoreComponents.Misc.PickStaticColorForArea(pi.Name);
             //    var imgpoint = Converters.PlaceInfoToSKPoint(pi, info);
-            //    canvas.DrawCircle(imgpoint, (float)(pi.radius / info.degreesPerPixelX ), fillpaint);
+            //    canvas.DrawCircle(imgpoint, (float)(pi.radius / info.degreesPerPixelX), fillpaint);
             //    canvas.DrawCircle(imgpoint, (float)(pi.radius / info.degreesPerPixelX), strokePaint);
-            //    canvas.Scale(1, 1, info.imageSizeX / 2, info.imageSizeY / 2); //sometimes this works, sometimes it doesnt?
             //    canvas.DrawText(pi.Name, imgpoint, strokePaint); //Unscale this so its not upside down.
             //}
 
-            //canvas.Scale(1, 1, info.imageSizeX / 2, info.imageSizeY / 2);
+            //canvas.Scale(1, -1, info.imageSizeX / 2, info.imageSizeY / 2); //inverts the inverted image again!
             //foreach (var pi in placeInfo)
             //{
             //    var imgpoint = Converters.PlaceInfoToSKPoint(pi, info);
