@@ -125,16 +125,16 @@ namespace CoreComponents
             strokePaint.TextAlign = SKTextAlign.Center;
             items = TagParser.ApplyTags(items);
 
-            var placeInfo = CoreComponents.Standalone.Standalone.GetPlaceInfo(items.Where(i =>
-            i.GameElementName != "trail" &&
-            i.GameElementName != "road" &&
-            i.GameElementName != "default" &&
-            i.GameElementName != "background"
-            ).ToList());
-
             //var placeInfo = CoreComponents.Standalone.Standalone.GetPlaceInfo(items.Where(i =>
-            //i.GameElementName == "admin"
+            //i.GameElementName != "trail" &&
+            //i.GameElementName != "road" &&
+            //i.GameElementName != "default" &&
+            //i.GameElementName != "background"
             //).ToList());
+
+            var placeInfo = CoreComponents.Standalone.Standalone.GetPlaceInfo(items.Where(i =>
+            i.GameElementName == "admin"
+            ).ToList());
 
             //this is for rectangles.
             foreach (var pi in placeInfo)
@@ -142,8 +142,13 @@ namespace CoreComponents
                 var rect = Converters.PlaceInfoToRect(pi, info);
                 fillpaint.Color = CoreComponents.Misc.PickStaticColorForArea(pi.Name);
                 canvas.DrawRect(rect, fillpaint);
-                //strokePaint.MeasureText(pi.Name, ref rect);
-                canvas.DrawText(pi.Name, rect.Left, rect.Top, strokePaint);
+            }
+
+            canvas.Scale(1, -1, info.imageSizeX / 2, info.imageSizeY / 2); //inverts the inverted image again!
+            foreach (var pi in placeInfo)
+            {
+                var rect = Converters.PlaceInfoToRect(pi, info);
+                canvas.DrawText(pi.Name, rect.MidX, rect.MidY, strokePaint);
             }
 
 
@@ -163,7 +168,7 @@ namespace CoreComponents
             //foreach (var pi in placeInfo)
             //{
             //    var imgpoint = Converters.PlaceInfoToSKPoint(pi, info);
-            //    canvas.DrawText(pi.Name, imgpoint, strokePaint); 
+            //    canvas.DrawText(pi.Name, imgpoint, strokePaint);
             //}
 
             var ms = new MemoryStream();
