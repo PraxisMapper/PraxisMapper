@@ -125,33 +125,46 @@ namespace CoreComponents
             strokePaint.TextAlign = SKTextAlign.Center;
             items = TagParser.ApplyTags(items);
 
-            //var placeInfo = CoreComponents.Standalone.Standalone.GetPlaceInfo(items.Where(i =>
-            //i.GameElementName != "trail" &&
-            //i.GameElementName != "road" &&
-            //i.GameElementName != "background"
-            //).ToList());
-
             var placeInfo = CoreComponents.Standalone.Standalone.GetPlaceInfo(items.Where(i =>
-            i.GameElementName == "admin"
+            i.GameElementName != "trail" &&
+            i.GameElementName != "road" &&
+            i.GameElementName != "default" &&
+            i.GameElementName != "background"
             ).ToList());
 
-            canvas.Scale(1, -1, info.imageSizeX / 2, info.imageSizeY / 2);
+            //var placeInfo = CoreComponents.Standalone.Standalone.GetPlaceInfo(items.Where(i =>
+            //i.GameElementName == "admin"
+            //).ToList());
+
+            //this is for rectangles.
             foreach (var pi in placeInfo)
             {
+                var rect = Converters.PlaceInfoToRect(pi, info);
                 fillpaint.Color = CoreComponents.Misc.PickStaticColorForArea(pi.Name);
-                var imgpoint = Converters.PlaceInfoToSKPoint(pi, info);
-                canvas.DrawCircle(imgpoint, (float)(pi.radius / info.degreesPerPixelX ), fillpaint);
-                canvas.DrawCircle(imgpoint, (float)(pi.radius / info.degreesPerPixelX), strokePaint);
-                canvas.Scale(1, 1, info.imageSizeX / 2, info.imageSizeY / 2); //sometimes this works, sometimes it doesnt?
-                canvas.DrawText(pi.Name, imgpoint, strokePaint); //Unscale this so its not upside down.
+                canvas.DrawRect(rect, fillpaint);
+                //strokePaint.MeasureText(pi.Name, ref rect);
+                canvas.DrawText(pi.Name, rect.Left, rect.Top, strokePaint);
             }
 
-            canvas.Scale(1, 1, info.imageSizeX / 2, info.imageSizeY / 2);
-            foreach (var pi in placeInfo)
-            {
-                var imgpoint = Converters.PlaceInfoToSKPoint(pi, info);
-                canvas.DrawText(pi.Name, imgpoint, strokePaint); 
-            }
+
+            //this was for circles
+            //canvas.Scale(1, -1, info.imageSizeX / 2, info.imageSizeY / 2);
+            //foreach (var pi in placeInfo)
+            //{
+            //    fillpaint.Color = CoreComponents.Misc.PickStaticColorForArea(pi.Name);
+            //    var imgpoint = Converters.PlaceInfoToSKPoint(pi, info);
+            //    canvas.DrawCircle(imgpoint, (float)(pi.radius / info.degreesPerPixelX ), fillpaint);
+            //    canvas.DrawCircle(imgpoint, (float)(pi.radius / info.degreesPerPixelX), strokePaint);
+            //    canvas.Scale(1, 1, info.imageSizeX / 2, info.imageSizeY / 2); //sometimes this works, sometimes it doesnt?
+            //    canvas.DrawText(pi.Name, imgpoint, strokePaint); //Unscale this so its not upside down.
+            //}
+
+            //canvas.Scale(1, 1, info.imageSizeX / 2, info.imageSizeY / 2);
+            //foreach (var pi in placeInfo)
+            //{
+            //    var imgpoint = Converters.PlaceInfoToSKPoint(pi, info);
+            //    canvas.DrawText(pi.Name, imgpoint, strokePaint); 
+            //}
 
             var ms = new MemoryStream();
             var skms = new SkiaSharp.SKManagedWStream(ms);
