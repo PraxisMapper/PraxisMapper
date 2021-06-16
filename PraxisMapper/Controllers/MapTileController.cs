@@ -106,6 +106,10 @@ namespace PraxisMapper.Controllers
                             //results = MapTiles.DrawAdminBoundsMapTileSlippy(ref placesAdminStates, info.area, areaHeightDegrees, areaWidthDegrees);
                             //expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                             //break;
+                        case 12: //Visual drawings of the offline app's estimated areas
+                            var places8 = GetPlaces(dataLoadArea);
+                            results = MapTiles.DrawOfflineEstimatedAreas(info, places8);
+                            break;
                     }
                     if (existingResults == null)
                         db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, CreatedOn = DateTime.Now, mode = layer, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });

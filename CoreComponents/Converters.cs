@@ -1,4 +1,5 @@
-﻿using Google.OpenLocationCode;
+﻿using CoreComponents.Support;
+using Google.OpenLocationCode;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Prepared;
 using System;
@@ -57,6 +58,14 @@ namespace CoreComponents
         {
             SkiaSharp.SKPoint[] points = place.Coordinates.Select(o => new SkiaSharp.SKPoint((float)((o.X - drawingArea.WestLongitude) * (1 / degreesPerPixelX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / degreesPerPixelY)))).ToArray();
             return points;
+        }
+
+        public static SkiaSharp.SKPoint PlaceInfoToSKPoint(CoreComponents.StandaloneDbTables.PlaceInfo2 pi, ImageStats imgstats)
+        {
+            SkiaSharp.SKPoint point = new SkiaSharp.SKPoint();
+            point.X = (float)((pi.lonCenter - imgstats.area.WestLongitude) * (1 / imgstats.degreesPerPixelX));
+            point.Y =(float)((pi.latCenter - imgstats.area.SouthLatitude) * (1 / imgstats.degreesPerPixelY));
+            return point;
         }
 
         public static GeoArea GeometryToGeoArea(Geometry g)
