@@ -39,7 +39,10 @@ namespace CoreComponents
 
         public static void SetPaintForTPE(TagParserEntry tpe)
         {
+
             var paint = new SKPaint();
+            //TODO: enable a style to use static-random colors.
+            
             paint.Color = SKColor.Parse(tpe.HtmlColorCode);
             if (tpe.FillOrStroke == "fill")
                 paint.Style = SKPaintStyle.StrokeAndFill;
@@ -255,6 +258,27 @@ namespace CoreComponents
 
             string[] splitValue = wikiTag.Value.Split(":");
             return "https://" + splitValue[0] + ".wikipedia.org/wiki/" + splitValue[1]; //TODO: check if special characters need replaced or encoded on this.
+        }
+
+        public static List<StoredOsmElement> ApplyTags(List<StoredOsmElement> places)
+        {
+            foreach (var p in places)
+            {
+                var style = GetStyleForOsmWay(p.Tags.ToList());
+                p.GameElementName = style.name;
+                p.IsGameElement = style.IsGameElement;
+            }
+            return places;
+        }
+
+        public static SKColor PickStaticColorForArea(string areaname)
+        {
+            var hasher = System.Security.Cryptography.MD5.Create();
+            var value = areaname.ToByteArrayUnicode();
+            var hash = hasher.ComputeHash(value);
+
+            SKColor results = new SKColor(hash[0], hash[1], hash[2], Convert.ToByte(32)); //all have the same transparency level
+            return results;
         }
     }
 }
