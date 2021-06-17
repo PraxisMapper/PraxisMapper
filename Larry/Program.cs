@@ -401,6 +401,12 @@ namespace Larry
             //PbfOperations.ExtractAreasFromLargeFile(ParserSettings.PbfFolder + "north-america-latest.osm.pbf");
             //}
 
+            if (args.Any(a => a.StartsWith("-drawOneImage:")))
+            {
+                string code = args.First(a => a.StartsWith("-drawOneImage:")).Split(":")[1];
+                System.IO.File.WriteAllBytes(code + ".png", MapTiles.DrawArea(code));
+            }
+
             if (args.Any(a => a == "-fixAreaSizes"))
             {
                 DBCommands.FixAreaSizes();
