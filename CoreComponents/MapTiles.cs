@@ -373,8 +373,8 @@ namespace CoreComponents
                     imgY = 5;
                     break;
                 case 8:
-                    imgX = 4 * 20;
-                    imgY = 5 * 20;
+                    imgX = 80;
+                    imgY = 100;
                     break;
                 case 6:
                     imgX = 4 * 20 * 20;
