@@ -15,7 +15,6 @@ namespace CoreComponents
     public static class GeometrySupport
     {
         //Shared class for functions that do work on Geometry objects.
-        //GeometryHelper is specific to Larry, and should only contain code that won't be useful outside the console app if any.
 
         private static NetTopologySuite.IO.WKTReader reader = new NetTopologySuite.IO.WKTReader() {DefaultSRID = 4326 };
         private static JsonSerializerOptions jso = new JsonSerializerOptions() { };
@@ -131,20 +130,15 @@ namespace CoreComponents
 
         public static void WriteStoredElementListToFile(string filename, ref List<StoredOsmElement> mapdata)
         {
-            //StreamWriter sw = new StreamWriter(filename);
-            //var fs = File.OpenWrite(filename);
             List<string> results = new List<string>(mapdata.Count());
             foreach (var md in mapdata)
                 if (md != null) //null can be returned from the functions that convert OSM entries to StoredElement
                 {
-                    var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement);
+                    var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated);
                     var test = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
                     results.Add(test);
-                    //sw.WriteLine(test);
                 }
             File.AppendAllLines(filename, results);
-            //sw.Close();
-            //sw.Dispose();
             Log.WriteLog("All StoredElement entries were serialized individually and saved to file at " + DateTime.Now, Log.VerbosityLevels.High);
         }
 
@@ -152,7 +146,7 @@ namespace CoreComponents
         {
             if (md != null) //null can be returned from the functions that convert OSM entries to StoredElement
             {
-                var recordVersion = new CoreComponents.Support.StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement);
+                var recordVersion = new CoreComponents.Support.StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement,md.IsUserProvided, md.IsGenerated);
                 var test = JsonSerializer.Serialize(recordVersion, typeof(CoreComponents.Support.StoredOsmElementForJson));
                 File.AppendAllText(filename, test + Environment.NewLine);
             }
@@ -184,7 +178,7 @@ namespace CoreComponents
         public static StoredOsmElement ConvertSingleJsonStoredElement(string sw)
         {
             StoredOsmElementForJson j = (StoredOsmElementForJson)JsonSerializer.Deserialize(sw, typeof(StoredOsmElementForJson), jso);
-            var temp = new StoredOsmElement() { id = j.id, name = j.name, sourceItemID = j.sourceItemID, sourceItemType = j.sourceItemType, elementGeometry = reader.Read(j.elementGeometry), IsGameElement = j.IsGameElement, Tags = new List<ElementTags>() };
+            var temp = new StoredOsmElement() { id = j.id, name = j.name, sourceItemID = j.sourceItemID, sourceItemType = j.sourceItemType, elementGeometry = reader.Read(j.elementGeometry), IsGameElement = j.IsGameElement, Tags = new List<ElementTags>(), IsGenerated = j.isGenerated, IsUserProvided = j.isUserProvided };
             if (!string.IsNullOrWhiteSpace(j.WayTags))
             {
                 var tagData = j.WayTags.Split("~");

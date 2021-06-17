@@ -63,18 +63,6 @@ namespace CoreComponents
             public string HtmlColor { get; set; } //Should be transparent, so this can be overlaid on top of the normal map tile.
         }
 
-        //public class GeneratedElement
-        //{
-        //    public long GeneratedElementId { get; set; } 
-        //    public string name { get; set; } //probably won't get a specific name by default, but games may want one here.
-
-        //    [Column(TypeName = "geography")]
-        //    [Required]
-        //    public Geometry place { get; set; } //allows any sub-type of Geometry to be used
-        //    public string type { get; set; }// not apparently used in this table, but kept for possible compatibility depending on how AreaTypeId ends up being used.
-        //    public DateTime GeneratedAt { get; set; }
-        //}
-
         public class PaintTownEntry
         {
             public long PaintTownEntryId { get; set; }
@@ -195,7 +183,7 @@ namespace CoreComponents
             public long id { get; set; }
             public string name { get; set; }
             public long sourceItemID { get; set; }
-            public int sourceItemType { get; set; } //1: node, 2: way, 3: relation, 4: Generated (non-real area)? Kinda want generated stuff to sit in its own table still.
+            public int sourceItemType { get; set; } //1: node, 2: way, 3: relation
             
             [Column(TypeName = "geography")]
             [Required]
@@ -270,7 +258,6 @@ namespace CoreComponents
             public DateTime LastChecked { get; set; }
         }
 
-
         public class Creature
         {
             //Actual info on the creatures in question.
@@ -292,7 +279,6 @@ namespace CoreComponents
             //for storing collection data server-side.
             public long id { get; set; }
         }
-
     }
 }
 
