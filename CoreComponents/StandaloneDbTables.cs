@@ -24,7 +24,7 @@ namespace CoreComponents
             public string PlusCode { get; set; } //now is a Cell6 instead of a Cell10
             //public TerrainData terrainData { get; set; }
             public List<TerrainDataSmall> TerrainDataSmall { get; set; }
-            public List<PlaceInfo2> placesHere { get; set; }
+            //public List<PlaceInfo2> placesHere { get; set; } //also not needed
 
         }
 
