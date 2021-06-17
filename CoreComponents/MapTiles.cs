@@ -397,10 +397,13 @@ namespace CoreComponents
 
             foreach (var w in drawnItems)
             {
-                var tempList = new List<ElementTags>();
-                if (w.Tags != null)
-                    tempList = w.Tags.ToList();
-                var style = CoreComponents.TagParser.GetStyleForOsmWay(w);
+                //NOTE: I now populate the necessary data in GetPlaces, so I can skip this now-redundant logic
+
+                //var tempList = new List<ElementTags>();
+                //if (w.Tags != null)
+                //    tempList = w.Tags.ToList();
+                //var style = CoreComponents.TagParser.GetStyleForOsmWay(w);
+                var style = TagParser.styles.Where(s => s.name == w.GameElementName).First();
                 paint = style.paint;
                 if (paint.Color.Alpha == 0)
                     continue; //This area is transparent, skip drawing it entirely.

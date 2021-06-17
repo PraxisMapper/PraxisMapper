@@ -49,7 +49,7 @@ namespace CoreComponents
                 places = source.Where(md => location.Intersects(md.elementGeometry) && md.AreaSize >= minimumSize).Select(md => md.Clone()).ToList(); // && md.AreaSize > filterSize
             }
 
-            TagParser.ApplyTags(places); //populates the fields we don't save to the DB
+            TagParser.ApplyTags(places); //populates the fields we don't save to the DB. Do this on every call.
             return places;
         }
 
