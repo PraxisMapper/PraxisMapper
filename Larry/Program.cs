@@ -404,7 +404,7 @@ namespace Larry
             if (args.Any(a => a.StartsWith("-drawOneImage:")))
             {
                 string code = args.First(a => a.StartsWith("-drawOneImage:")).Split(":")[1];
-                System.IO.File.WriteAllBytes(code + ".png", MapTiles.DrawArea(code));
+                System.IO.File.WriteAllBytes(code + ".png", MapTiles.DrawPlusCode(code));
             }
 
             if (args.Any(a => a == "-fixAreaSizes"))
