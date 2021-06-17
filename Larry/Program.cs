@@ -420,7 +420,7 @@ namespace Larry
                 CodeArea box6 = OpenLocationCode.DecodeValid(cell6);
                 var location6 = Converters.GeoAreaToPolygon(box6);
                 var places = db.StoredOsmElements.Where(md => md.elementGeometry.Intersects(location6)).ToList(); //TODO: filter this down to only areas with IsGameElement == true
-                var fakeplaces = db.GeneratedMapData.Where(md => md.place.Intersects(location6)).ToList();
+                var fakeplaces = places.Where(p => p.IsGenerated).ToList();
 
                 for (int x = 0; x < 20; x++)
                 {
@@ -429,7 +429,7 @@ namespace Larry
                         string cell8 = cell6 + OpenLocationCode.CodeAlphabet[x] + OpenLocationCode.CodeAlphabet[y];
                         CodeArea box = OpenLocationCode.DecodeValid(cell8);
                         var location = Converters.GeoAreaToPolygon(box);
-                        if (!places.Any(md => md.elementGeometry.Intersects(location)) && !fakeplaces.Any(md => md.place.Intersects(location)))
+                        if (!places.Any(md => md.elementGeometry.Intersects(location)) && !fakeplaces.Any(md => md.elementGeometry.Intersects(location)))
                             CreateInterestingPlaces(cell8);
                     }
                 }

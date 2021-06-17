@@ -979,7 +979,7 @@ namespace PerformanceTestApp
             {
                 //write 1000 random entries;
                 var entry = CreateInterestingPlaces("22334455", false);
-                dbPG.GeneratedMapData.AddRange(entry);
+                dbPG.StoredOsmElements.AddRange(entry);
             }
             dbPG.SaveChanges();
             sw.Stop();
