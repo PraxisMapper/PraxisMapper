@@ -93,7 +93,7 @@ namespace CoreComponents
             return places;
         }
 
-        public static List<GeneratedElement> CreateInterestingPlaces(string plusCode, bool autoSave = true)
+        public static List<StoredOsmElement> CreateInterestingPlaces(string plusCode, bool autoSave = true)
         {
             //expected to receive a Cell8
             // populate it with some interesting regions for players.
@@ -101,7 +101,7 @@ namespace CoreComponents
             CodeArea cell8 = OpenLocationCode.DecodeValid(plusCode); //Reminder: area is .0025 degrees on a Cell8
             int shapeCount = 1; // 2; //number of shapes to apply to the Cell8
             double shapeWarp = .3; //percentage a shape is allowed to have each vertexs drift by.
-            List<GeneratedElement> areasToAdd = new List<GeneratedElement>();
+            List<StoredOsmElement> areasToAdd = new List<StoredOsmElement>();
 
             for (int i = 0; i < shapeCount; i++)
             {
@@ -163,11 +163,11 @@ namespace CoreComponents
                 }
                 if (polygon != null)
                 {
-                    GeneratedElement gmd = new GeneratedElement();
+                    StoredOsmElement gmd = new StoredOsmElement();
                     gmd.name = ""; //not using this on this level. 
-                    gmd.place = polygon;
-                    gmd.type = "generated";
-                    gmd.GeneratedAt = DateTime.Now;
+                    gmd.elementGeometry = polygon;
+                    gmd.GameElementName = "generated";
+                    gmd.IsGenerated = true;
                     areasToAdd.Add(gmd); //this is the line that makes some objects occasionally not be CCW that were CCW before. Maybe its the cast to the generic Geometry item?
                 }
                 else
@@ -184,9 +184,9 @@ namespace CoreComponents
                 var db = new PraxisContext();
                 foreach (var area in areasToAdd)
                 {
-                    area.place = CCWCheck((Polygon)area.place); //fixes errors that reappeared above
+                    area.elementGeometry = CCWCheck((Polygon)area.elementGeometry); //fixes errors that reappeared above
                 }
-                db.GeneratedMapData.AddRange(areasToAdd);
+                db.StoredOsmElements.AddRange(areasToAdd);
                 db.SaveChanges();
             }
 

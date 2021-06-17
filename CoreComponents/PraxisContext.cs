@@ -12,7 +12,7 @@ namespace CoreComponents
         public DbSet<SlippyMapTile> SlippyMapTiles { get; set; }
         public DbSet<Faction> Factions { get; set; }
         public DbSet<AreaControlTeam> AreaControlTeams { get; set; } //This is TeamClaims, rename this
-        public DbSet<GeneratedElement> GeneratedMapData { get; set; }
+        //public DbSet<GeneratedElement> GeneratedMapData { get; set; }
         public DbSet<PaintTownConfig> PaintTownConfigs { get; set; }
         public DbSet<PaintTownEntry> PaintTownEntries { get; set; }
         public DbSet<PaintTownScoreRecord> PaintTownScoreRecords { get; set; }
