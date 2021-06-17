@@ -60,7 +60,7 @@ namespace PraxisMapper.Controllers
                         case 1: //Base map tile
                             //add some padding so we don't clip off points at the edge of a tile
                             var places = GetPlaces(dataLoadArea, minimumSize: minimumSize); //includeGenerated: false, filterSize: filterSize  //NOTE: in this case, we want generated areas to be their own slippy layer, so the config setting is ignored here.
-                            results = MapTiles.DrawAreaAtSizeV4(info, places, null, (zoom <= 16));
+                            results = MapTiles.DrawAreaAtSize(info, places, null, (zoom <= 16));
                             expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                             break;
                         case 2: //PaintTheTown overlay. 
@@ -73,7 +73,7 @@ namespace PraxisMapper.Controllers
                             break;
                         case 4: //GeneratedMapData areas.
                             var places2 = GetGeneratedPlaces(dataLoadArea); //NOTE: this overlay doesn't need to check the config, since it doesn't create them, just displays them as their own layer.
-                            results = MapTiles.DrawAreaAtSizeV4(info, places2);
+                            results = MapTiles.DrawAreaAtSize(info, places2);
                             expires = DateTime.Now.AddYears(10); //again, assuming these don't change unless you manually updated entries.
                             break;
                         case 5: //Custom objects (scavenger hunt). Should be points loaded up, not an overlay?
@@ -81,13 +81,13 @@ namespace PraxisMapper.Controllers
                             break;
                         case 6: //Admin boundaries. Will need to work out rules on how to color/layer these. Possibly multiple layers, 1 per level? Probably not helpful for game stuff.
                             var placesAdmin = GetPlacesByStyle("admin", dataLoadArea);
-                            results = MapTiles.DrawAreaAtSizeV4(info, placesAdmin); //MapTiles.DrawAdminBoundsMapTileSlippy(ref placesAdmin, info);
+                            results = MapTiles.DrawAreaAtSize(info, placesAdmin); //MapTiles.DrawAdminBoundsMapTileSlippy(ref placesAdmin, info);
                             expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                             break;
                         case 7: //This might be the layer that shows game areas on the map. Draw outlines of them. Means games will also have a Geometry object attached to them for indexing.
                             //7 is currently a duplicate of 1, since the testing code has been promoted to the main drawing method now.
                             var places7 = GetPlaces(dataLoadArea, minimumSize: minimumSize);
-                            results = MapTiles.DrawAreaAtSizeV4(info, places7, null);
+                            results = MapTiles.DrawAreaAtSize(info, places7, null);
                             expires = DateTime.Now.AddHours(10);
                             break;
                         case 8: //This might be what gets called to load an actual game. The ID will be the game in question, so X and Y values could be ignored?
@@ -102,7 +102,7 @@ namespace PraxisMapper.Controllers
                             break;
                         case 11: //Admin bounds as a base layer.
                             var placesAdmin2 = GetPlacesByStyle("admin", dataLoadArea); //GetPlaces(dataLoadArea).Where(p => p.GameElementName == "admin").ToList();  //States = GetAdminBoundaries(dataLoadArea);
-                            results = MapTiles.DrawAreaAtSizeV4(info, placesAdmin2);
+                            results = MapTiles.DrawAreaAtSize(info, placesAdmin2);
                             expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                             break;
                         case 12: //Visual drawings of the offline app's estimated areas

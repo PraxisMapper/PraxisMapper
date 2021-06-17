@@ -50,20 +50,6 @@ namespace CoreComponents
             return "";
         }
 
-        public static SKColor PickStaticColorForArea(string areaname)
-        {
-            var hasher = System.Security.Cryptography.MD5.Create();
-            var value = areaname.ToByteArrayUnicode();
-            var hash = hasher.ComputeHash(value);
-
-            SKColor results = new SKColor(hash[0], hash[1], hash[2], Convert.ToByte(32)); //all have the same transparency level
-            return results;
-        }
-        public static SKColor PickStaticColorForArea(StoredOsmElement place)
-        {
-            return PickStaticColorForArea(place.name);
-        }
-
         public static void LoadCustomData()
         {
             //For loading in your own fixed-place files outside of OSM. Probably most useful for dedicated area games like above.

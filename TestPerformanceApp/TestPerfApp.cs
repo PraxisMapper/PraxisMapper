@@ -1529,7 +1529,7 @@ namespace PerformanceTestApp
             //draw objects as is.
             Stopwatch sw = new Stopwatch();
             sw.Start();
-            var tile1 = MapTiles.DrawAreaAtSizeV4(info, places);
+            var tile1 = MapTiles.DrawAreaAtSize(info, places);
             sw.Stop();
             Log.WriteLog("Uncropped tile drawn in " + sw.ElapsedMilliseconds + "ms");
 
@@ -1549,7 +1549,7 @@ namespace PerformanceTestApp
             Log.WriteLog("Geometry objects cropped in " + sw.ElapsedMilliseconds + "ms");
 
             sw.Restart();
-            var tile2 = MapTiles.DrawAreaAtSizeV4(info, places);
+            var tile2 = MapTiles.DrawAreaAtSize(info, places);
             sw.Stop();
             Log.WriteLog("Cropped tile drawn in " + sw.ElapsedMilliseconds + "ms");
 

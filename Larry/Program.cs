@@ -522,7 +522,7 @@ namespace Larry
                     if (cellToCheck.Length == 8) //We don't want to do the DoPlacesExist check here, since we'll want empty tiles for empty areas at this l
                     {
                         var places = GetPlaces(area, cell6Data); //These are cloned in GetPlaces, so we aren't intersecting areas twice and breaking drawing. //, false, false, 0
-                        var tileData = MapTiles.DrawAreaAtSizeV4(info, places); //MapTiles.DrawAreaMapTileSkia(ref places, area, 11); //now Skia drawing, should be faster. Peaks around 2600/s. ImageSharp peaked at 1600/s.
+                        var tileData = MapTiles.DrawAreaAtSize(info, places); //MapTiles.DrawAreaMapTileSkia(ref places, area, 11); //now Skia drawing, should be faster. Peaks around 2600/s. ImageSharp peaked at 1600/s.
                         tilesGenerated.Add(new MapTile() { CreatedOn = DateTime.Now, mode = 1, tileData = tileData, resolutionScale = 11, PlusCode = cellToCheck });
                         Log.WriteLog("Cell " + cellToCheck + " Drawn", Log.VerbosityLevels.High);
                     }
@@ -618,8 +618,7 @@ namespace Larry
                 //allPlaces = PbfFileParser.ProcessSkipDatabase();
             }
 
-            foreach (var a in allPlaces)
-                TagParser.GetStyleForOsmWay(a); //fill in IsGameElement and gameElementName
+            TagParser.ApplyTags(allPlaces); //fill in IsGameElement and gameElementName
 
             Log.WriteLog("Loaded all intersecting geometry at " + DateTime.Now);
 
@@ -670,7 +669,7 @@ namespace Larry
                 List<StoredOsmElement> oneEntry = new List<StoredOsmElement>();
                 oneEntry.Add(trail);
 
-                var overlapped = AreaTypeInfo.SearchArea2(ref thisPath, ref oneEntry, true);
+                var overlapped = AreaTypeInfo.SearchArea(ref thisPath, ref oneEntry, true);
                 foreach (var o in overlapped)
                 {
                     foreach(var oo in o.Value)

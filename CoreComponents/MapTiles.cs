@@ -9,7 +9,6 @@ using static CoreComponents.DbTables;
 using static CoreComponents.Place;
 using static CoreComponents.Singletons;
 using SkiaSharp;
-using Microsoft.EntityFrameworkCore;
 using CoreComponents.Support;
 
 namespace CoreComponents
@@ -22,7 +21,6 @@ namespace CoreComponents
         public static byte[] DrawMPAreaControlMapTile(ImageStats info, List<StoredOsmElement> places = null)
         {
             bool drawEverything = false; //for debugging/testing
-            //var smallestFeature = (drawEverything ? 0 : degreesPerPixelX < degreesPerPixelY ? degreesPerPixelX : degreesPerPixelY);
             var smallestFeature = 0;
 
             //To make sure we don't get any seams on our maptiles (or points that don't show a full circle, we add a little extra area to the image before drawing, then crop it out at the end.
@@ -49,7 +47,7 @@ namespace CoreComponents
                     ap.Tags = new List<ElementTags>() { new ElementTags() { Key = "team", Value = "none" } };
             }
 
-            return DrawAreaAtSizeV4(info, places, TagParser.teams);
+            return DrawAreaAtSize(info, places, TagParser.teams);
         }
 
         public static byte[] DrawPaintTownSlippyTileSkia(ImageStats info, int instanceID)
@@ -123,24 +121,17 @@ namespace CoreComponents
             strokePaint.StrokeWidth = 3;
             strokePaint.Style = SKPaintStyle.Stroke;
             strokePaint.TextAlign = SKTextAlign.Center;
-            items = TagParser.ApplyTags(items);
-
-            //var placeInfo = CoreComponents.Standalone.Standalone.GetPlaceInfo(items.Where(i =>
-            //i.GameElementName != "trail" &&
-            //i.GameElementName != "road" &&
-            //i.GameElementName != "default" &&
-            //i.GameElementName != "background"
-            //).ToList());
+            //TagParser.ApplyTags(items);
 
             var placeInfo = CoreComponents.Standalone.Standalone.GetPlaceInfo(items.Where(i =>
-            i.GameElementName == "admin"
+            i.IsGameElement
             ).ToList());
 
             //this is for rectangles.
             foreach (var pi in placeInfo)
             {
                 var rect = Converters.PlaceInfoToRect(pi, info);
-                fillpaint.Color = CoreComponents.Misc.PickStaticColorForArea(pi.Name);
+                fillpaint.Color = TagParser.PickStaticColorForArea(pi.Name);
                 canvas.DrawRect(rect, fillpaint);
                 canvas.DrawRect(rect, strokePaint);
             }
@@ -151,25 +142,6 @@ namespace CoreComponents
                 var rect = Converters.PlaceInfoToRect(pi, info);
                 canvas.DrawText(pi.Name, rect.MidX, info.imageSizeY - rect.MidY, strokePaint);
             }
-
-
-            //this was for circles
-            //canvas.Scale(1, -1, info.imageSizeX / 2, info.imageSizeY / 2);
-            //foreach (var pi in placeInfo)
-            //{
-            //    fillpaint.Color = CoreComponents.Misc.PickStaticColorForArea(pi.Name);
-            //    var imgpoint = Converters.PlaceInfoToSKPoint(pi, info);
-            //    canvas.DrawCircle(imgpoint, (float)(pi.radius / info.degreesPerPixelX), fillpaint);
-            //    canvas.DrawCircle(imgpoint, (float)(pi.radius / info.degreesPerPixelX), strokePaint);
-            //    canvas.DrawText(pi.Name, imgpoint, strokePaint); //Unscale this so its not upside down.
-            //}
-
-            //canvas.Scale(1, -1, info.imageSizeX / 2, info.imageSizeY / 2); //inverts the inverted image again!
-            //foreach (var pi in placeInfo)
-            //{
-            //    var imgpoint = Converters.PlaceInfoToSKPoint(pi, info);
-            //    canvas.DrawText(pi.Name, imgpoint, strokePaint);
-            //}
 
             var ms = new MemoryStream();
             var skms = new SkiaSharp.SKManagedWStream(ms);
@@ -287,13 +259,6 @@ namespace CoreComponents
             return results;
         }
 
-        //public static byte[] DrawAdminBoundsMapTileSlippy(ref List<StoredOsmElement> allPlaces, ImageStats info)
-        //{
-        //    //The correct replacement for this is to just do the normal draw, but only feed in admin bound areas.
-        //    return null; 
-        //    //return DrawAdminBoundsMapTileSlippy(ref allPlaces, info.area, info.area.LatitudeHeight, info.area.LongitudeWidth, false);
-        //}
-
         public static void ExpireMapTiles(Geometry g, int limitModeTo = 0)
         {
             //If this would be faster as raw SQL, see function below for a template on how to write that.
@@ -334,7 +299,7 @@ namespace CoreComponents
 
             //Now, draw that path on the map.
             var places = GetPlaces(mapToDraw); //, null, false, false, degreesPerPixelX * 4 ///TODO: restore item filtering
-            var baseImage = DrawAreaAtSizeV4(info, places); //InnerDrawSkia(ref places, mapToDraw, degreesPerPixelX, degreesPerPixelY, 1024, 1024);
+            var baseImage = DrawAreaAtSize(info, places); //InnerDrawSkia(ref places, mapToDraw, degreesPerPixelX, degreesPerPixelY, 1024, 1024);
 
             SKBitmap sKBitmap = SKBitmap.Decode(baseImage);
             SKCanvas canvas = new SKCanvas(sKBitmap);
@@ -355,7 +320,7 @@ namespace CoreComponents
 
         public static byte[] DrawCell8V4(GeoArea Cell8, List<StoredOsmElement> drawnItems = null)
         {
-            return DrawAreaAtSizeV4(Cell8, 80, 100,  drawnItems);
+            return DrawAreaAtSize(Cell8, 80, 100,  drawnItems);
         }
 
         public static byte[] DrawPlusCode(string area)
@@ -391,21 +356,21 @@ namespace CoreComponents
             }
 
             ImageStats info = new ImageStats(OpenLocationCode.DecodeValid(area), imgX, imgY);
-            return DrawAreaAtSizeV4(info, null, null, (area.Length <= 6));
+            return DrawAreaAtSize(info, null, null, (area.Length <= 6));
         }
 
-        public static byte[] DrawAreaAtSizeV4(GeoArea relevantArea, int imageSizeX, int imageSizeY, List<StoredOsmElement> drawnItems = null, List<TagParserEntry> styles = null)
+        public static byte[] DrawAreaAtSize(GeoArea relevantArea, int imageSizeX, int imageSizeY, List<StoredOsmElement> drawnItems = null, List<TagParserEntry> styles = null)
         {
             //Create an Info object and use that to pass to to the main image.
             ImageStats info = new ImageStats(relevantArea, imageSizeX, imageSizeY);
-            return DrawAreaAtSizeV4(info, drawnItems, styles);
+            return DrawAreaAtSize(info, drawnItems, styles);
         }
 
         //This generic function takes the area to draw, a size to make the canvas, and then draws it all.
         //Optional parameter allows you to pass in different stuff that the DB alone has, possibly for manual or one-off changes to styling
         //or other elements converted for maptile purposes.
         
-        public static byte[] DrawAreaAtSizeV4(ImageStats stats, List<StoredOsmElement> drawnItems = null, List<TagParserEntry> styles = null, bool filterSmallAreas = true)
+        public static byte[] DrawAreaAtSize(ImageStats stats, List<StoredOsmElement> drawnItems = null, List<TagParserEntry> styles = null, bool filterSmallAreas = true)
     {
             //This is the new core drawing function. Takes in an area, the items to draw, and the size of the image to draw. 
             //The drawn items get their paint pulled from the TagParser's list. If I need multiple match lists, I'll need to make a way
@@ -434,12 +399,6 @@ namespace CoreComponents
 
             foreach (var w in drawnItems)
             {
-                //NOTE: I now populate the necessary data in GetPlaces, so I can skip this now-redundant logic
-
-                //var tempList = new List<ElementTags>();
-                //if (w.Tags != null)
-                //    tempList = w.Tags.ToList();
-                //var style = CoreComponents.TagParser.GetStyleForOsmWay(w);
                 var style = TagParser.styles.Where(s => s.name == w.GameElementName).First();
                 paint = style.paint;
                 if (paint.Color.Alpha == 0)
@@ -550,4 +509,3 @@ namespace CoreComponents
         }
     }
 }
-

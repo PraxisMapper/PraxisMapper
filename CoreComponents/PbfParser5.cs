@@ -42,10 +42,6 @@ namespace CoreComponents
         private BlobHeader _header = new BlobHeader();
 
         //I will use the write lock to make sure threads don't read the wrong data
-        //the names will be misleading, since i dont want to use overlapping IO on these even though
-        //the docs say I could, since I'd need to Seek() to a position and then read and its possible
-        //threads would change the Seek point before the ReadAsync was called.
-        //System.Threading.ReaderWriterLockSlim msLock = new System.Threading.ReaderWriterLockSlim();
         object msLock = new object(); //reading blocks from disk.
         object fileLock = new object(); //Writing to json file
 
@@ -171,8 +167,6 @@ namespace CoreComponents
                 var tasked = Task.Run(() =>
                 {
                     var pb2 = DecodeBlock(thisblob);
-                    //if (pb2.primitivegroup.Count() > 1)
-                    //Console.WriteLine("This block has " + pb2.primitivegroup.Count() + " groups!");
 
                     var group = pb2.primitivegroup[0]; //If i get a file with multiple PrimitiveGroups in a block, make this a ForEach loop instead.
                     if (group.ways.Count > 0)
@@ -237,16 +231,14 @@ namespace CoreComponents
         //GetBlockBytes (singlethread) and DecodeBlock(taskable)
         private PrimitiveBlock GetBlockFromFile(long blockId)
         {
-            byte[] thisblob1;// = new byte[1];
+            byte[] thisblob1;
             lock (msLock)
             {
-                //msLock.EnterWriteLock();
                 long pos1 = blockPositions[blockId];
                 int size1 = blockSizes[blockId];
                 fs.Seek(pos1, SeekOrigin.Begin);
                 thisblob1 = new byte[size1];
                 fs.Read(thisblob1, 0, size1);
-                //msLock.ExitWriteLock();
             }
 
             var ms2 = new MemoryStream(thisblob1);
@@ -264,13 +256,11 @@ namespace CoreComponents
             byte[] thisblob1;
             lock (msLock)
             {
-                //msLock.EnterWriteLock();
                 long pos1 = blockPositions[blockId];
                 int size1 = blockSizes[blockId];
                 fs.Seek(pos1, SeekOrigin.Begin);
                 thisblob1 = new byte[size1];
                 fs.Read(thisblob1, 0, size1);
-                //msLock.ExitWriteLock();
             }
             Console.WriteLine("Block " + blockId + " loaded to RAM as bytes");
             return thisblob1;
@@ -903,7 +893,7 @@ namespace CoreComponents
                 {
                     if (md != null) //null can be returned from the functions that convert OSM entries to StoredElement
                     {
-                        var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement);
+                        var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated);
                         var test = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
                         results.Add(test);
                     }

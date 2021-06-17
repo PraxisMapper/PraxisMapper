@@ -59,16 +59,8 @@ namespace CoreComponents
         {
             //TODO: work out how I'm going to store generated places in the new schema.
             //Generated Places are now stored in the same geometry table, with a flag.
-            return null;
-            
-            //List<MapData> places = new List<MapData>();
-            //if (source == null)
-            //{
-            //    var db = new CoreComponents.PraxisContext();
-            //    var location = Converters.GeoAreaToPolygon(area); //Prepared items don't work on a DB lookup.
-            //    places.AddRange(db.GeneratedMapData.Where(md => location.Intersects(md.place)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
-            //}
-            //return places;
+            var tempPlaces = GetPlaces(area);
+            return tempPlaces.Where(p => p.IsGenerated).ToList();
         }
 
         //Note: This should have the padding added to area before this is called, if checking for tiles that need regenerated.

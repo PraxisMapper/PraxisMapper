@@ -34,12 +34,10 @@ namespace CoreComponents
             teams = Singletons.defaultTeamColors;
             foreach (var t in teams)
                 SetPaintForTPE(t);
-
         }
 
         public static void SetPaintForTPE(TagParserEntry tpe)
         {
-
             var paint = new SKPaint();
             //TODO: enable a style to use static-random colors.
             
@@ -58,16 +56,6 @@ namespace CoreComponents
             paint.StrokeJoin = SKStrokeJoin.Round;
             paint.IsAntialias = true;
             tpe.paint = paint;
-        }
-
-        public static TagParserEntry GetStyleForOsmWay(StoredOsmElement sw)
-        {
-            //This one return the style AND fills in some info on the element for us.
-            //This is done at run-time so we can change this info with resetting the database each time we change.
-            var style = GetStyleForOsmWay(sw.Tags.ToList());
-            sw.GameElementName = style.name;
-            sw.IsGameElement = style.IsGameElement;
-            return style;
         }
 
         public static TagParserEntry GetStyleForOsmWay(List<ElementTags> tags)
@@ -181,19 +169,19 @@ namespace CoreComponents
             return false;
         }
 
-        public static void UpdateDbForStyleChange() //Unused, but potentially important if I am saving geometry formats based on the default tag results. If I'm doing that, i should stop.
-        {
-            var db = new PraxisContext();
-            foreach (var sw in db.StoredOsmElements)
-            {
-                var paintStyle = GetStyleForOsmWay(sw);
-                if (sw.elementGeometry.GeometryType == "LinearRing" && paintStyle.paint.Style == SKPaintStyle.Fill)
-                {
-                    var poly = factory.CreatePolygon((LinearRing)sw.elementGeometry);
-                    sw.elementGeometry = poly;
-                }
-            }
-        }
+        //public static void UpdateDbForStyleChange() //Unused, but potentially important if I am saving geometry formats based on the default tag results. If I'm doing that, i should stop.
+        //{
+        //    var db = new PraxisContext();
+        //    foreach (var sw in db.StoredOsmElements)
+        //    {
+        //        var paintStyle = GetStyleForOsmWay(sw);
+        //        if (sw.elementGeometry.GeometryType == "LinearRing" && paintStyle.paint.Style == SKPaintStyle.Fill)
+        //        {
+        //            var poly = factory.CreatePolygon((LinearRing)sw.elementGeometry);
+        //            sw.elementGeometry = poly;
+        //        }
+        //    }
+        //}
 
         public static List<ElementTags> getFilteredTags(TagsCollectionBase rawTags)
         {

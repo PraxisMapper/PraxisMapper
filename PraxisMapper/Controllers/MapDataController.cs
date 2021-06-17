@@ -69,7 +69,7 @@ namespace PraxisMapper.Controllers
             //pluscode8 //first 6 digits of this pluscode. each line below is the last 4 that have an area type.
             //pluscode2|name|type|MapDataID  //less data transmitted, an extra string concat per entry phone-side.
 
-            var data = SearchArea2(ref box, ref places, (fullCode == 1));
+            var data = SearchArea(ref box, ref places, (fullCode == 1));
             var results = String.Join("/r/n", data.Select(d => d.Key + "|" + d.Value.Select(v => v.Name + "|" + v.areaType + "|" + v.OsmElementId + v.OsmElementType)));
 
             pt.Stop(codeString8);
@@ -144,7 +144,7 @@ namespace PraxisMapper.Controllers
                 //requires a list of colors to use, which might vary per app
                 GeoArea TenCell = OpenLocationCode.DecodeValid(plusCode10);
                 var places = GetPlaces(TenCell); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")
-                var results = MapTiles.DrawAreaAtSizeV4(TenCell, 4, 5, places);
+                var results = MapTiles.DrawAreaAtSize(TenCell, 4, 5, places);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode10, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(TenCell) });
                 db.SaveChanges();
                 pt.Stop(plusCode10);
@@ -168,7 +168,7 @@ namespace PraxisMapper.Controllers
                 //requires a list of colors to use, which might vary per app. Defined in AreaType
                 GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
                 var allPlaces = GetPlaces(sixCell); // , null, false, Configuration.GetValue<bool>("generateAreas"), resolutionCell10
-                var results = MapTiles.DrawAreaAtSizeV4(sixCell, 1600, 2000, allPlaces);
+                var results = MapTiles.DrawAreaAtSize(sixCell, 1600, 2000, allPlaces);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode6, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(sixCell) });
                 db.SaveChanges();
                 pt.Stop(plusCode6);
@@ -209,7 +209,7 @@ namespace PraxisMapper.Controllers
 
             //Exact point for area? or 10cell space to find trails too?
             var places = GetPlaces(new OpenLocationCode(lat, lon).Decode()); // , includeGenerated: Configuration.GetValue<bool>("generateAreas")
-            var results = FindPlacesInCell10V2(lon, lat, ref places, true);
+            var results = FindPlacesInCell10(lon, lat, ref places, true);
         }
 
         [HttpGet]
@@ -249,7 +249,7 @@ namespace PraxisMapper.Controllers
             sb.AppendLine(pointDesc);
             //This endpoint puts the whole 10-digit plus code (without the separator) at the start of the line. I can't guarentee that any digits are shared since this isn't a grid-bound endpoint.
 
-            var data = SearchArea2(ref box, ref places, true);
+            var data = SearchArea(ref box, ref places, true);
             var results = String.Join("/r/n", data.Select(d => d.Key + "|" + d.Value.Select(v => v.Name + "|" + v.areaType + "|" + v.OsmElementId + v.OsmElementType)));
             pt.Stop(pointDesc + "|" + size);
             return results;

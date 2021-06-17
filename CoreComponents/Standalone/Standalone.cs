@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using static CoreComponents.DbTables;
 using static CoreComponents.StandaloneDbTables;
@@ -113,7 +112,6 @@ namespace CoreComponents.Standalone
 
             foreach (var y in yCoords)
             {
-                //var tdRef = sqliteDb.TerrainDataSmall.ToList();
                 Parallel.ForEach(xCoords, x =>
                 //foreach (var x in xCoords)
                 {
@@ -128,7 +126,7 @@ namespace CoreComponents.Standalone
 
                     //Create the maptile first, so if we save it to the DB/a file we can call the lock once per loop.
                     var info = new ImageStats(areaForTile, 80, 100); //Each pixel is a Cell11, we're drawing a Cell8. For Cell6 testing this is 1600x2000, just barely within android limits
-                    var tile = MapTiles.DrawAreaAtSizeV4(info, areaList);
+                    var tile = MapTiles.DrawAreaAtSize(info, areaList);
                     if (tile == null)
                     {
                         Log.WriteLog("Tile at " + x + "," + y + "Failed to draw!");
@@ -151,9 +149,6 @@ namespace CoreComponents.Standalone
                 });
 
             }//);
-
-
-
         }
 
         public static ConcurrentDictionary<string, List<StoredOsmElement>> IndexAreasPerCell6(GeoArea buffered, List<StoredOsmElement> allPlaces)
@@ -188,18 +183,16 @@ namespace CoreComponents.Standalone
 
             foreach (var y in yCoords)
             {
-                //var tdRef = sqliteDb.TerrainDataSmall.ToList();
                 Parallel.ForEach(xCoords, x =>
                 //foreach (var x in xCoords)
                 {
-                    //make map tile.
                     var plusCode = new OpenLocationCode(y, x, 10);
                     var plusCode6 = plusCode.CodeDigits.Substring(0, 6);
                     var plusCodeArea = OpenLocationCode.DecodeValid(plusCode6);
 
                     var areaForTile = new GeoArea(new GeoPoint(plusCodeArea.SouthLatitude, plusCodeArea.WestLongitude), new GeoPoint(plusCodeArea.NorthLatitude, plusCodeArea.EastLongitude));
                     var acheck = Converters.GeoAreaToPolygon(areaForTile); //this is faster than using a PreparedPolygon in testing, which was unexpected.
-                    var areaList = allPlaces.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); //This one is for the maptile
+                    var areaList = allPlaces.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); 
 
                     results.TryAdd(plusCode6, areaList);
                 });
