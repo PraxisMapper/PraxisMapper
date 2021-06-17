@@ -165,6 +165,9 @@ namespace CoreComponents
                         if (tags.Where(t => t.Key == entry.Key).Select(t => t.Value).FirstOrDefault() != entry.Value)
                             return false;
                         break;
+                    case "none":
+                        //never matches anything. Useful for background color or other special styles that need to exist but don't want to appear normally.
+                        return false;
                     case "default":
                         //Always matches. Can only be on one entry, which is the last entry and the default color
                         return true;

@@ -111,7 +111,7 @@ namespace CoreComponents
             public long OsmElementId { get; set; } //Might need to be a long. Might be irrelevant on self-contained DB (except maybe for loading an overlay image on a maptile?)
             public double latCenter { get; set; }
             public double lonCenter { get; set; }
-            public double radius { get; set; } //for circular estimates, which look pretty inaccurate.
+            //public double radius { get; set; } //for circular estimates, which I replaced with squares. 1 additional number, looks a lot better on the map.
             public double height { get; set; } //rectangle estimates, should be better.
             public double width { get; set; }
 
