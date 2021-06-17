@@ -287,12 +287,12 @@ namespace CoreComponents
             return results;
         }
 
-        public static byte[] DrawAdminBoundsMapTileSlippy(ref List<StoredOsmElement> allPlaces, ImageStats info)
-        {
-            //The correct replacement for this is to just do the normal draw, but only feed in admin bound areas.
-            return null; 
-            //return DrawAdminBoundsMapTileSlippy(ref allPlaces, info.area, info.area.LatitudeHeight, info.area.LongitudeWidth, false);
-        }
+        //public static byte[] DrawAdminBoundsMapTileSlippy(ref List<StoredOsmElement> allPlaces, ImageStats info)
+        //{
+        //    //The correct replacement for this is to just do the normal draw, but only feed in admin bound areas.
+        //    return null; 
+        //    //return DrawAdminBoundsMapTileSlippy(ref allPlaces, info.area, info.area.LatitudeHeight, info.area.LongitudeWidth, false);
+        //}
 
         public static void ExpireMapTiles(Geometry g, int limitModeTo = 0)
         {
@@ -358,7 +358,7 @@ namespace CoreComponents
             return DrawAreaAtSizeV4(Cell8, 80, 100,  drawnItems);
         }
 
-        public static byte[] DrawArea(string area)
+        public static byte[] DrawPlusCode(string area)
         {
             //This might be a cleaner version of my V4 function, for working with CellX sized tiles..
             //This will draw at a Cell11 resolution automatically.
@@ -421,7 +421,8 @@ namespace CoreComponents
             var db = new PraxisContext();
             var geo = Converters.GeoAreaToPolygon(stats.area);
             if (drawnItems == null)
-                drawnItems = db.StoredOsmElements.Include(c => c.Tags).Where(w => geo.Intersects(w.elementGeometry) && w.AreaSize >= minimumSize).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList();
+                drawnItems = GetPlaces(stats.area, minimumSize: minimumSize);
+                //drawnItems = db.StoredOsmElements.Include(c => c.Tags).Where(w => geo.Intersects(w.elementGeometry) && w.AreaSize >= minimumSize).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList();
 
             //baseline image data stuff           
             SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);

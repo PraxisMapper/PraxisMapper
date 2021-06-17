@@ -44,7 +44,7 @@ namespace PraxisMapper.Controllers
                 var existingResults = db.SlippyMapTiles.Where(mt => mt.Values == tileKey && mt.mode == layer).FirstOrDefault();
                 bool useCache = true;
                 cache.TryGetValue("caching", out useCache);
-                if (useCache || existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
+                if (!useCache || existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
                 {
                     //Create this entry
                     var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare, MapTiles.MapTileSizeSquare);
@@ -80,8 +80,8 @@ namespace PraxisMapper.Controllers
                             //this isnt supported yet as a game mode.
                             break;
                         case 6: //Admin boundaries. Will need to work out rules on how to color/layer these. Possibly multiple layers, 1 per level? Probably not helpful for game stuff.
-                            var placesAdmin = GetAdminBoundaries(dataLoadArea);
-                            results = MapTiles.DrawAdminBoundsMapTileSlippy(ref placesAdmin, info);
+                            var placesAdmin = GetPlacesByStyle("admin", dataLoadArea);
+                            results = MapTiles.DrawAreaAtSizeV4(info, placesAdmin); //MapTiles.DrawAdminBoundsMapTileSlippy(ref placesAdmin, info);
                             expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                             break;
                         case 7: //This might be the layer that shows game areas on the map. Draw outlines of them. Means games will also have a Geometry object attached to them for indexing.
@@ -94,23 +94,21 @@ namespace PraxisMapper.Controllers
                             break;
                         case 9: //Draw Cell8 boundaries as lines. I thought about not saving these to the DB, but i can get single-ms time on reading an existing file instead of double-digit ms recalculating them.
                             results = MapTiles.DrawCell8GridLines(info.area);
+                            expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                             break;
                         case 10: //Draw Cell10 boundaries as lines. I thought about not saving these to the DB, but i can get single-ms time on reading an existing file instead of double-digit ms recalculating them.
                             results = MapTiles.DrawCell10GridLines(info.area);
+                            expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                             break;
-                        case 11: //Admin bounds as a base layer. Countries only. Or states?
-                            //This is another TagParser expansion case.
-                            //return null;
-                            var placesAdmin2 = GetPlaces(dataLoadArea).Where(p => p.GameElementName == "admin").ToList();  //States = GetAdminBoundaries(dataLoadArea);
+                        case 11: //Admin bounds as a base layer.
+                            var placesAdmin2 = GetPlacesByStyle("admin", dataLoadArea); //GetPlaces(dataLoadArea).Where(p => p.GameElementName == "admin").ToList();  //States = GetAdminBoundaries(dataLoadArea);
                             results = MapTiles.DrawAreaAtSizeV4(info, placesAdmin2);
-                            
-                            //placesAdminStates = placesAdminStates.Where(p => p.type == "admin4").ToList();
-                            //results = MapTiles.DrawAdminBoundsMapTileSlippy(ref placesAdmin2, info.area, info.degreesPerPixelY, areaWidthDegrees);
-                            //expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
+                            expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                             break;
                         case 12: //Visual drawings of the offline app's estimated areas
                             var places8 = GetPlaces(dataLoadArea);
                             results = MapTiles.DrawOfflineEstimatedAreas(info, places8);
+                            expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                             break;
                     }
                     if (existingResults == null)

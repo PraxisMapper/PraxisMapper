@@ -36,12 +36,14 @@ namespace CoreComponents
                 var location = Converters.GeoAreaToPolygon(area); //Prepared items don't work on a DB lookup.
                 var db = new CoreComponents.PraxisContext();
                 if (skipTags) //Should make the load slightly faster, when we do something like a team control check, where the data we want to look at isn't in the OSM tags.
+                {
                     places = db.StoredOsmElements.Where(md => location.Intersects(md.elementGeometry) && md.AreaSize >= minimumSize).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList();
+                    return places; //Jump out before we do ApplyTags
+                }
                 else
                 {
-                    places = db.StoredOsmElements.Include(s => s.Tags).Where(md => location.Intersects(md.elementGeometry) && md.AreaSize >= minimumSize).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList(); // && md.AreaSize > filterSize                                                                                                                                                                                                                 //places.AddRange(db.StoredOsmElements.Where(md => location.Intersects(md.elementGeometry)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }))
+                    places = db.StoredOsmElements.Include(s => s.Tags).Where(md => location.Intersects(md.elementGeometry) && md.AreaSize >= minimumSize).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList();
                 }
-                //&& md.AreaSize >= minimumSize
             }
             else
             {
@@ -49,13 +51,14 @@ namespace CoreComponents
                 places = source.Where(md => location.Intersects(md.elementGeometry) && md.AreaSize >= minimumSize).Select(md => md.Clone()).ToList(); // && md.AreaSize > filterSize
             }
 
-            TagParser.ApplyTags(places); //populates the fields we don't save to the DB. Do this on every call.
+            TagParser.ApplyTags(places); //populates the fields we don't save to the DB. Might want to move this 
             return places;
         }
 
         public static List<StoredOsmElement> GetGeneratedPlaces(GeoArea area)
         {
             //TODO: work out how I'm going to store generated places in the new schema.
+            //Generated Places are now stored in the same geometry table, with a flag.
             return null;
             
             //List<MapData> places = new List<MapData>();
@@ -66,12 +69,6 @@ namespace CoreComponents
             //    places.AddRange(db.GeneratedMapData.Where(md => location.Intersects(md.place)).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }));
             //}
             //return places;
-        }
-
-        public static List<StoredOsmElement> GetAdminBoundaries(GeoArea area, List<StoredOsmElement> source = null)
-        {
-            //Another function that's replaced by TagParser rules.
-            return null;
         }
 
         //Note: This should have the padding added to area before this is called, if checking for tiles that need regenerated.
@@ -101,7 +98,7 @@ namespace CoreComponents
             //expected to receive a Cell8
             // populate it with some interesting regions for players.
             Random r = new Random();
-            CodeArea cell8 = OpenLocationCode.DecodeValid(plusCode); //Reminder: resolution is .0025 on a Cell8
+            CodeArea cell8 = OpenLocationCode.DecodeValid(plusCode); //Reminder: area is .0025 degrees on a Cell8
             int shapeCount = 1; // 2; //number of shapes to apply to the Cell8
             double shapeWarp = .3; //percentage a shape is allowed to have each vertexs drift by.
             List<GeneratedElement> areasToAdd = new List<GeneratedElement>();
@@ -273,11 +270,16 @@ namespace CoreComponents
 
         public static bool IsInBounds(string code, ServerSetting bounds)
         {
-            if (bounds == null) //shouldn't happen, sanity check.
-                return true; 
-
             var area = new OpenLocationCode(code);
             return IsInBounds(area, bounds);
+        }
+
+        //This is for getting all places that have a specific TagParser style/match. Admin boundaries, parks, etc.
+        public static List<StoredOsmElement> GetPlacesByStyle(string type, GeoArea area = null, List<StoredOsmElement> places = null)
+        {
+            if (places == null)
+                places = GetPlaces(area);
+            return places.Where(p => p.GameElementName == type).ToList();
         }
     }
 }
