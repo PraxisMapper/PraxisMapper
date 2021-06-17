@@ -34,6 +34,10 @@ namespace CoreComponents.Standalone
                     height = place.elementGeometry.EnvelopeInternal.Height,
                     width = place.elementGeometry.EnvelopeInternal.Width,
                     OsmElementId = place.sourceItemID };
+
+                //Make points 1 Cell10 in size, so they're detectable.
+                if (pi.height == 0) pi.height = .000125;
+                if (pi.width == 0) pi.width = .000125;
                 results.Add(pi);
             }
 
