@@ -358,6 +358,42 @@ namespace CoreComponents
             return DrawAreaAtSizeV4(Cell8, 80, 100,  drawnItems);
         }
 
+        public static byte[] DrawArea(string area)
+        {
+            //This might be a cleaner version of my V4 function, for working with CellX sized tiles..
+            //This will draw at a Cell11 resolution automatically.
+            //Split it into a few functions.
+            //then get all the area
+
+            int imgX = 0, imgY = 0;
+            switch (area.Length) //Didn't I have a function for this already?
+            {
+                case 10:
+                    imgX = 4;
+                    imgY = 5;
+                    break;
+                case 8:
+                    imgX = 4 * 20;
+                    imgY = 5 * 20;
+                    break;
+                case 6:
+                    imgX = 4 * 20 * 20;
+                    imgY = 5 * 20 * 20;
+                    break;
+                case 4:
+                    imgX = 4 * 20 * 20 * 20;
+                    imgY = 5 * 20 * 20 * 20;
+                    break;
+                default:
+                    imgX = 0;
+                    imgY = 0;
+                    break;
+            }
+
+            ImageStats info = new ImageStats(OpenLocationCode.DecodeValid(area), imgX, imgY);
+            return DrawAreaAtSizeV4(info, null, null, (area.Length <= 6));
+        }
+
         public static byte[] DrawAreaAtSizeV4(GeoArea relevantArea, int imageSizeX, int imageSizeY, List<StoredOsmElement> drawnItems = null, List<TagParserEntry> styles = null)
         {
             //Create an Info object and use that to pass to to the main image.

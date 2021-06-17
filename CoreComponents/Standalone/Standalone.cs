@@ -121,12 +121,9 @@ namespace CoreComponents.Standalone
                     var areaForTile = new GeoArea(new GeoPoint(plusCodeArea.SouthLatitude, plusCodeArea.WestLongitude), new GeoPoint(plusCodeArea.NorthLatitude, plusCodeArea.EastLongitude));
                     var acheck = Converters.GeoAreaToPolygon(areaForTile); //this is faster than using a PreparedPolygon in testing, which was unexpected.
                     var areaList = allPlaces.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); //This one is for the maptile
-                    //var gameAreas = areaList.Where(a => a.IsGameElement).ToList(); //this is for determining what area name/type to display for a cell10. //This might always be null. PIck up here on fixing standalone mode.
-                    //NOTE: gameAreas might also need to include ScavengerHunt entries to ensure those process correcly.
-                    //gameAreas.AddRange(areaList.Where(a => wikiList.Contains(a.name)));
 
                     //Create the maptile first, so if we save it to the DB/a file we can call the lock once per loop.
-                    var info = new ImageStats(areaForTile, 80, 100); //Each pixel is a Cell11, we're drawing a Cell8.
+                    var info = new ImageStats(areaForTile, 80, 100); //Each pixel is a Cell11, we're drawing a Cell8. For Cell6 testing this is 1600x2000, just barely within android limits
                     var tile = MapTiles.DrawAreaAtSizeV4(info, areaList);
                     if (tile == null)
                     {
