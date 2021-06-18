@@ -331,13 +331,7 @@ namespace CoreComponents
 
                 neededBlocks = neededBlocks.Distinct().ToList();
                 foreach (var nb in neededBlocks)
-                {
-                    if (!activeBlocks.ContainsKey(nb))
-                    {
-                        activeBlocks.TryAdd(nb, GetBlockFromFile(nb));
-                        //Console.WriteLine("Block " + nb + " loaded to RAM");
-                    }
-                }
+                    GetBlock(nb);
 
                 //Ive got all the blocks directly referenced by this relation. Those entries will load the blocks
                 //they need later
