@@ -18,10 +18,11 @@ There are a variety of other applications for making maptiles from OSM data. Use
 Interesting, for our use here, is an algorithm to dig through tags to find places that a player could want to go to.
 Interesting means that a place must be
 A-Publicly accessible. At a minimum, this is the consideration.
-B-Walkable. We do want players to go new places and interact with them in-game, but we don't want players driving around the block for points they should get by walking or exercising.
+B-Walkable. We do want players to go new places and interact with them in-game, including ones that aren't within walking distance of home, but we don't want players driving around the block for points they should get by walking or exercising.
 C-Spread out. We want the player to move and explore, and to go to new places (or at least a solid variety of nearby familiar places). The smallest interactible distance is going to be one 10Cell (~30feet).
 D-Categorically Permmissable. Larry contains the full rules for which OSM tags constitute 'interesting' and allowed. Not all areas that are possible are good for this. Primary schools are a good example of a place that could be used but is not.
-The app can generate areas, 1 per Cell8 by default, which can be used for gameplay in places where there are no interesting areas according to the game's algorithms.
+E-Exists. The app can generate areas, 1 per Cell8 by default, which can be used for gameplay in places where there are no interesting areas according to the game's algorithms. Allows rural players to have an experience without travelling to a city.
+
 
 3)The User is the Client. The person using the app is the person to think about when designing how this server and its game behave. This means:
 -No user tracking. A game is an activity for fun, not another opportunity to gather data and metrics on a user to treat them as the product for advertisers. The server, and my games built on it, will not track your location history on a server.
@@ -46,7 +47,7 @@ Security:
 The security model for PraxisMapper is extremely simple: don't save data worth stealing.
 There should be nothing saved in the database, and nothing sent or received by the webserver, that would compromise that user that isn't already available.
 Essentially: the database should only store individual data that the server itself generated (Teams, unique IDs, non-location gameplay elements and statistics). 
-Location data shouldn't be stored, and aggregating a player's behavior is questionable on how invasive it is (EX: if a user spends 80% of their time in park areas, and is a member of Team X, is that sufficient to reveal an identity?)
+Location data on players shouldn't be stored, and aggregating a player's behavior is questionable on how invasive it is (EX: if a user spends 80% of their time in park areas, and is a member of Team X, is that sufficient to reveal an identity?)
 The server doesn't track user locations over time (though, a mode intended to be hosted personally could in the future), and doesn't track changes to game-state by individuals.
 Connections should use SSL to conceal locations passed as API parameters. 
 Identification of an individual user requires additional, external data and not be manageable solely with PraxisMapper.
@@ -58,8 +59,7 @@ The short rule is: a request cannot include both a location and a unique deviceI
 
 Server/Code Terms:
 Plus Code areas will be called Cell#, with # the number of digits in the plus code, throughout the code. Use Cell8, not 8Cell.
-Places are entries in the MapData or GeneratedMapData tables. A singular thing you would want to visit or interact with.
+Places are entries in the StoredOsmElements tables. A singular thing you would want to visit or interact with.
 Areas are Plus Code cells used to find Places or map tiles. A space of predefined size. 
 Points are singular coordinate pairs that may be a reference to a Place or an Area, depending on context. A dot on a map.
 Score is a player's total credits on something. The counter in a video game that goes up when the player does things.
-
