@@ -14,8 +14,8 @@ namespace CoreComponents
 {
     public class PbfReader
     {
-        //The 5th generation of logic for pulling geometry out of a pbf file. This one is written specfically for PraxisMapper, and doesn't 
-        //depend on OsmSharp for reading the raw data now. OsmSharp's still used for object types and the FeatureConverter. 
+        //The 5th generation of logic for pulling geometry out of a pbf file. This one is written specfically for PraxisMapper, and
+        //doesn't depend on OsmSharp for reading the raw data now. OsmSharp's still used for object types and the FeatureConverter. 
 
         //Primary function:
         //ProcessFile(filename) should do everything automatically and allow resuming if you stop the app.
