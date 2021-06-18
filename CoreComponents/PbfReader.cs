@@ -127,6 +127,7 @@ namespace CoreComponents
 
         private void IndexFile()
         {
+            Log.WriteLog("Indexing file...");
             fs.Position = 0;
             long blockCounter = 0;
             blockPositions = new Dictionary<long, long>();
@@ -778,7 +779,7 @@ namespace CoreComponents
         {
             try
             {
-                string filename = fi.Name + ".blockinfo";
+                string filename = outputPath + fi.Name + ".blockinfo";
                 string[] data = System.IO.File.ReadAllLines(filename);
                 blockPositions = new Dictionary<long, long>(data.Length);
                 blockSizes = new Dictionary<long, int>(data.Length);
@@ -790,7 +791,7 @@ namespace CoreComponents
                     blockSizes[i] = int.Parse(subdata[2]);
                 }
 
-                filename = fi.Name + ".relationIndex";
+                filename = outputPath + fi.Name + ".relationIndex";
                 data = System.IO.File.ReadAllLines(filename);
                 foreach (var line in data)
                 {
@@ -798,7 +799,7 @@ namespace CoreComponents
                     relationFinder.TryAdd(long.Parse(subData2[0]), long.Parse(subData2[1]));
                 }
 
-                filename = fi.Name + ".wayIndex";
+                filename = outputPath + fi.Name + ".wayIndex";
                 data = System.IO.File.ReadAllLines(filename);
                 foreach (var line in data)
                 {
@@ -806,7 +807,7 @@ namespace CoreComponents
                     wayFinder2.TryAdd(long.Parse(subData2[0]), long.Parse(subData2[1]));
                 }
 
-                filename = fi.Name + ".nodeIndex";
+                filename = outputPath + fi.Name + ".nodeIndex";
                 data = System.IO.File.ReadAllLines(filename);
                 foreach (var line in data)
                 {
@@ -822,13 +823,13 @@ namespace CoreComponents
 
         private void SaveCurrentBlock(long blockID)
         {
-            string filename = fi.Name + ".progress";
+            string filename = outputPath + fi.Name + ".progress";
             System.IO.File.WriteAllText(filename, blockID.ToString());
         }
 
         private long FindLastCompletedBlock()
         {
-            string filename = fi.Name + ".progress";
+            string filename = outputPath + fi.Name + ".progress";
             long blockID = long.Parse(System.IO.File.ReadAllText(filename));
             return blockID;
         }
