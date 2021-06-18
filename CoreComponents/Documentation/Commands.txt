@@ -20,4 +20,3 @@ Scaffold-DbContext "ConnectionString" Microsoft.EntityFrameworkCore.SqlServer -O
 
 To view EF Core performance info, run this in the console: (-p is the process id, so start the app first)
 dotnet counters monitor Microsoft.EntityFrameworkCore -p 49496
-
