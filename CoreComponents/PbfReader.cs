@@ -35,8 +35,7 @@ namespace CoreComponents
         Dictionary<long, int> blockSizes = new Dictionary<long, int>();
 
         ConcurrentDictionary<long, PrimitiveBlock> activeBlocks = new ConcurrentDictionary<long, PrimitiveBlock>();
-
-        Dictionary<long, bool> accessedBlocks = new Dictionary<long, bool>();
+        ConcurrentDictionary<long, bool> accessedBlocks = new ConcurrentDictionary<long, bool>();
 
         private PrimitiveBlock _block = new PrimitiveBlock();
         private BlobHeader _header = new BlobHeader();
