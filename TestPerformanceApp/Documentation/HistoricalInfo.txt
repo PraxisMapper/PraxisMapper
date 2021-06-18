@@ -180,8 +180,8 @@ MS SQL: 1:19,  5585, 1756, 9322
 Maria:  1:41, 12966,  725, 6664
 PgSQL:  1:09,  6119, 1162, 6334 
 (all 3 databases were run from the same hard drive on the same PC, so there shouldn't be too much difference between these results based on underlying hardware.)
-Conclusion: MariaDB is the slowest on big bulk inserts and reading 1 random element, but seems to be the fastest on big reads as well.
-MSSQL and PostgreSQL are pretty close in performance.
+Conclusion: MariaDB is the slowest on the most common tasks, but seems to be the fastest on big reads as well.
+MSSQL and PostgreSQL are pretty close in performance. Maybe I should migrate towards PostgreSQL after all.
 
 TagParser benchmarking 5/22/21:
 perf-testing tag parser options
