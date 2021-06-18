@@ -2,11 +2,8 @@
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using static CoreComponents.ConstantValues;
-using static CoreComponents.DbTables;
-using static CoreComponents.Singletons;
 
 namespace Larry
 {
@@ -144,34 +141,6 @@ namespace Larry
                     Log.WriteLog("Error multithreading: " + ex.Message + ex.StackTrace);
                 }
             });
-        }
-
-        public static void AddMapDataToDBFromFiles() //TODO: update this to use StoredOsmElements format.
-        {
-            //This function is pretty slow. I should figure out how to speed it up. Approx. 3,000 MapData entries per second right now.
-            //Bulk inserts don't work on the geography columns.
-            //foreach (var file in System.IO.Directory.EnumerateFiles(ParserSettings.JsonMapDataFolder, "*-MapData*.json")) //excludes my LargeAreas.json file by default here.
-            //{
-            //    Console.Title = file;
-            //    Log.WriteLog("Starting MapData read from  " + file + " at " + DateTime.Now);
-            //    PraxisContext db = new PraxisContext();
-            //    db.ChangeTracker.AutoDetectChangesEnabled = false; //Allows single inserts to operate at a reasonable speed (~6000 per second). Nothing else edits this table.
-            //    List<MapData> entries = FileCommands.ReadMapDataToMemory(file);
-            //    Log.WriteLog("Processing " + entries.Count() + " ways from " + file, Log.VerbosityLevels.High);
-            //    //Trying to make this a little bit faster by using blocks of data to avoid hitting performance issues with EF internal graph stuff
-            //    for (int i = 0; i <= entries.Count() / 10000; i++)
-            //    {
-            //        var subList = entries.Skip(i * 10000).Take(10000).ToList();
-            //        db.MapData.AddRange(subList.Where(s => s.AreaTypeId != 13));
-            //        //db.AdminBounds.AddRange(subList.Where(s => s.AreaTypeId == 13).Select(s => (AdminBound)s).ToList());
-            //        db.SaveChanges();//~3seconds on dev machine per pass at 10k entries at once.
-            //        db = new PraxisContext();
-            //        Log.WriteLog("Entry pass " + i + " of " + (entries.Count() / 10000) + " completed");
-            //    }
-
-            //    Log.WriteLog("Added " + file + " to dB at " + DateTime.Now);
-            //    File.Move(file, file + "Done");
-            //}
         }
 
         public static void FixAreaSizes()

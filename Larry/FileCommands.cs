@@ -1,15 +1,6 @@
-﻿using CoreComponents;
-using CoreComponents.Support;
-using NetTopologySuite.Geometries;
-using OsmSharp;
-using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
-using static CoreComponents.DbTables;
-using static CoreComponents.Singletons;
-using static Larry.PbfOperations;
 
 namespace Larry
 {

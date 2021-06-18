@@ -1,9 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using static CoreComponents.StandaloneDbTables;
 
 namespace Larry
@@ -14,11 +9,9 @@ namespace Larry
         //Solar2D's SQLite library only allows for one DB to be open at once. This means my idea to have a split set of DB files will 
         //not be the best plan for performance, since i'd have to open and close the DB connection on every query.
         //So, I'll choose Plan B: save everything into one database, and make a copy of the DB in user-writable space on the device.
-        //This is a little redundant on space usage, but a big county is 200 MB total, split between mapTiles and the DB.
-        //Will see how much DB space is saved with the TerrainData table now.
+        //This is a little redundant on space usage, but a big county is ~2 MB for the database.
         public virtual DbSet<MapTileDB> MapTiles { get; set; }
         public virtual DbSet<TerrainInfo> TerrainInfo { get; set; }
-        //public virtual DbSet<TerrainDataSmall> TerrainDataSmall { get; set; }
         public virtual DbSet<Bounds> Bounds { get; set; }
         public virtual DbSet<PlusCodesVisited> PlusCodesVisited { get; set; }
         public virtual DbSet<PlayerStats> PlayerStats { get; set; }
@@ -64,15 +57,4 @@ namespace Larry
         }
 
     }
-
-
-    //public class WeeklyVisited //read-write
-    //{ 
-    //}
-
-    //public class DailyVisited //read-write
-    //{
-
-    //}
-
 }
