@@ -36,6 +36,7 @@ namespace CoreComponents
 
         ConcurrentDictionary<long, PrimitiveBlock> activeBlocks = new ConcurrentDictionary<long, PrimitiveBlock>();
         ConcurrentDictionary<long, bool> accessedBlocks = new ConcurrentDictionary<long, bool>();
+        
 
         private PrimitiveBlock _block = new PrimitiveBlock();
         private BlobHeader _header = new BlobHeader();
@@ -92,7 +93,7 @@ namespace CoreComponents
                 //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
                 if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
                 {
-                    var wt = ProcessPMPBFResults(geoData, outputPath + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", saveToDb);
+                    var wt = ProcessReaderResults(geoData, outputPath + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", saveToDb);
                     if (wt != null)
                         writeTasks.Add(wt);
                 }
@@ -122,7 +123,6 @@ namespace CoreComponents
 
             Close();
             CleanupFiles();
-
         }
 
         private void IndexFile()
@@ -852,13 +852,12 @@ namespace CoreComponents
                 System.IO.File.Delete(file);
         }
 
-        public Task ProcessPMPBFResults(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, string saveFilename, bool saveToDb = false)
+        public Task ProcessReaderResults(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, string saveFilename, bool saveToDb = false)
         {
             //This one is easy, we just dump the geodata to the file.
             ConcurrentBag<StoredOsmElement> elements = new ConcurrentBag<StoredOsmElement>();
             //List<StoredOsmElement> elements = new List<StoredOsmElement>();
             DateTime startedProcess = DateTime.Now;
-
 
             if (items == null)
                 return null;
@@ -882,7 +881,7 @@ namespace CoreComponents
             }
             else
             {
-                List<string> results = new List<string>(elements.Count());
+                ConcurrentBag<string> results = new ConcurrentBag<string>();
                 Parallel.ForEach(elements, md =>
                 {
                     if (md != null) //null can be returned from the functions that convert OSM entries to StoredElement
@@ -898,6 +897,7 @@ namespace CoreComponents
                     {
                         System.IO.File.AppendAllLines(saveFilename, results);
                     }
+                    Log.WriteLog("Data written to disk");
                 });
 
                 return monitorTask;

@@ -78,6 +78,7 @@ namespace PraxisMapper.Controllers
                             break;
                         case 5: //Custom objects (scavenger hunt). Should be points loaded up, not an overlay?
                             //this isnt supported yet as a game mode.
+                            //This might be an overlay, but it might also be some leaflet pins to show the name/description and area for the scavenger hunt spots.
                             break;
                         case 6: //Admin boundaries. Will need to work out rules on how to color/layer these. Possibly multiple layers, 1 per level? Probably not helpful for game stuff.
                             var placesAdmin = GetPlacesByStyle("admin", dataLoadArea);
