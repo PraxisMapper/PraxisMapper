@@ -47,7 +47,11 @@ namespace CoreComponents
 
         public string outputPath = "";
 
-        ConcurrentBag<Task> writeTasks = new ConcurrentBag<Task>();
+        ConcurrentBag<Task> writeTasks = new ConcurrentBag<Task>(); //Writing to json file, and long-running relation processing
+        ConcurrentBag<Task> relList = new ConcurrentBag<Task>(); //Individual, smaller tasks.
+        ConcurrentBag<TimeSpan> timeList = new ConcurrentBag<TimeSpan>();
+
+        //Should try and monitor everything from one master task.
 
         //for reference. These are likely to be lost if the application dies partway through processing, since these sit outside the general block-by-block plan.
         private HashSet<long> knownSlowRelations = new HashSet<long>() {
@@ -92,6 +96,7 @@ namespace CoreComponents
                 nextBlockId = FindLastCompletedBlock() - 1;
             }
 
+            ShowWaitInfo();
             for (var block = nextBlockId; block > 0; block--)
             {
                 long thisBlockId = block;
@@ -688,22 +693,22 @@ namespace CoreComponents
                     }
                     Log.WriteLog("Large relation " + elementId + " created at " + DateTime.Now);
                     var md = GeometrySupport.ConvertOsmEntryToStoredElement(relation);
-                    Log.WriteLog("Large relation " + elementId + " converted in " + DateTime.Now);
                     var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated);
                     var text = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
+                    Log.WriteLog("Large relation " + elementId + " converted at " + DateTime.Now);
                     lock (fileLock)
                     {
                         System.IO.File.AppendAllText(saveFilename, text);
                         System.IO.File.AppendAllText(saveFilename, Environment.NewLine);
                     }
                     sw.Stop();
-                    Log.WriteLog("Processed large relation " + elementId + " in " + sw.Elapsed);
+                    Log.WriteLog("Processed large relation " + elementId + " from start to finish in " + sw.Elapsed);
                 });
                 return t;
             }
             catch (Exception ex)
             {
-                Log.WriteLog("error getting single: " + ex.Message);
+                Log.WriteLog("error getting single relation: " + ex.Message);
                 return null;
             }
         }
@@ -729,16 +734,14 @@ namespace CoreComponents
 
                 var block = GetBlock(blockId);
                 ConcurrentBag<OsmSharp.Complete.ICompleteOsmGeo> results = new ConcurrentBag<OsmSharp.Complete.ICompleteOsmGeo>();
-
+                relList = new ConcurrentBag<Task>();
                 foreach (var primgroup in block.primitivegroup)
                 {
                     if (primgroup.relations != null && primgroup.relations.Count() > 0)
                     {
-                        ConcurrentBag<Task> relList = new ConcurrentBag<Task>();
-                        ShowWaitInfo(relList);
-                        foreach (var r in primgroup.relations.OrderByDescending(w => w.memids.Count())) //The biggest ones should start first, as a rough heuristic to avoiding waiting on one entry out of 8,000
+                        foreach (var r in primgroup.relations.OrderByDescending(w => w.memids.Count())) //Ordering should help consistency in runtime, though splitting off the biggest ones to their own thread is a better optimization.
                         {
-                            if (r.memids.Count() > 2500) //Semi-arbitrary size. Biggest so far noticed is 25,000 ways. Next smallest noticed is 800.
+                            if (r.memids.Count() > 1000) //Semi-arbitrary size. 2500-entry relations take at least 2 normal blocks of time to process. 1000-entry blocks take roughly as long as a normal block on their own. Biggest so far noticed is 25,000 ways
                             {
                                 Log.WriteLog("Relation " + r.id + " has " + r.memids.Count() + " entries, passing to a separate task.");
                                 writeTasks.Add(GetBigRelationSolo(r.id, outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.FullName) + ".json"));
@@ -746,21 +749,19 @@ namespace CoreComponents
                             else
                                 relList.Add(Task.Run(() => results.Add(GetRelation(r.id))));
                         }
-                        Task.WaitAll(relList.ToArray());
                     }
                     else if (primgroup.ways != null && primgroup.ways.Count() > 0)
                     {
-                        ConcurrentBag<Task> wayList = new ConcurrentBag<Task>();
-                        ShowWaitInfo(wayList);
-                        foreach (var r in primgroup.ways.OrderByDescending(w => w.refs.Count())) //The biggest ones should start first, as a rough heuristic to avoiding waiting on one entry out of 8,000
+                        foreach (var r in primgroup.ways.OrderByDescending(w => w.refs.Count())) //Ordering should help consistency in runtime, though splitting off the biggest ones to their own thread is a better optimization.
                         {
-                            wayList.Add(Task.Run(() => results.Add(GetWay(r.id, true))));
+                            relList.Add(Task.Run(() => results.Add(GetWay(r.id, true))));
                         }
-                        Task.WaitAll(wayList.ToArray());
                     }
                     else
                     {
-                        //Useful node lists are so small, they lose performance from multithreading overhead. Inline all that here and return null to skip the rest.
+                        //Useful node lists are so small, they lose performance from splitting each step into 1 task per entry.
+                        //Inline all that here as one task and return null to skip the rest.
+                        writeTasks.Add(Task.Run(() => { 
                         var nodes = GetTaggedNodesFromBlock(block);
                         var convertednodes = nodes.Select(n => GeometrySupport.ConvertOsmEntryToStoredElement(n)).ToList();
                         var classForJson = convertednodes.Where(c => c != null).Select(md => new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated)).ToList();
@@ -771,13 +772,17 @@ namespace CoreComponents
                         sw.Stop();
                         Log.WriteLog("block " + blockId + ":" + nodes.Count() + " items out of " + block.primitivegroup[0].dense.id.Count + " created in " + sw.Elapsed);
                         return null;
+                        }));
                     }
                 }
+
+                Task.WaitAll(relList.ToArray());
                 var count = (block.primitivegroup[0].relations?.Count > 0 ? block.primitivegroup[0].relations.Count :
                     block.primitivegroup[0].ways?.Count > 0 ? block.primitivegroup[0].ways.Count :
                     block.primitivegroup[0].dense.id.Count);
 
                 sw.Stop();
+                timeList.Add(sw.Elapsed);
                 Log.WriteLog("block " + blockId + ":" + results.Count() + " items out of " + count + " created in " + sw.Elapsed);
                 return results;
             }
@@ -914,18 +919,24 @@ namespace CoreComponents
                 System.IO.File.Delete(file);
         }
 
-        public void ShowWaitInfo(ConcurrentBag<Task> t)
+        public void ShowWaitInfo()
         {
             Task.Run(() =>
             {
                 while (true)
                 {
-                    if (t.Count > 0 && t.All(r => r.IsCompleted))
-                        return;
-                    int waiting = t.Where(r => !r.IsCompleted).Count();
-                    if (waiting > 0)
-                        Console.WriteLine("Waiting on " + waiting + " out of " + t.Count() + " threads.");
-                    System.Threading.Thread.Sleep(10000);
+                    Log.WriteLog("Current stats:");
+                    Log.WriteLog("Long-running/writing pending: " + writeTasks.Where(w => !w.IsCompleted).Count());
+                    Log.WriteLog("Processing tasks: " + relList.Where(r => !r.IsCompleted).Count());
+                    if (timeList.Count > 0) Log.WriteLog("Average time per block: " + timeList.Average(t => t.TotalSeconds) + " seconds");
+                    System.Threading.Thread.Sleep(60000);
+
+                    //if (t.Count > 0 && t.All(r => r.IsCompleted))
+                    //return;
+                    //int waiting = t.Where(r => !r.IsCompleted).Count();
+                    //if (waiting > 0)
+                    //Console.WriteLine("Waiting on " + waiting + " out of " + t.Count() + " threads.");
+                    //System.Threading.Thread.Sleep(10000);
                 }
             });
         }
@@ -940,14 +951,16 @@ namespace CoreComponents
             if (items == null)
                 return null;
 
-            ConcurrentBag<Task> resList = new ConcurrentBag<Task>();
-            ShowWaitInfo(resList);
+            //ConcurrentBag<Task> resList = new ConcurrentBag<Task>();
+            relList = new ConcurrentBag<Task>();
+            //ShowWaitInfo(relList);
             foreach (var r in items)
             {
                 if (r != null)
-                    resList.Add(Task.Run(() => elements.Add(GeometrySupport.ConvertOsmEntryToStoredElement(r))));
+                    relList.Add(Task.Run(() => elements.Add(GeometrySupport.ConvertOsmEntryToStoredElement(r))));
             }
-            Task.WaitAll(resList.ToArray());
+            Task.WaitAll(relList.ToArray());
+            relList = new ConcurrentBag<Task>();
 
             if (saveToDb)
             {
@@ -959,15 +972,16 @@ namespace CoreComponents
             else
             {
                 ConcurrentBag<string> results = new ConcurrentBag<string>();
-                Parallel.ForEach(elements, md =>
+                foreach(var md in elements.Where(e => e != null))
                 {
-                    if (md != null) //null can be returned from the functions that convert OSM entries to StoredElement
-                    {
+                    relList.Add(Task.Run(() => {
                         var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated);
                         var test = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
                         results.Add(test);
-                    }
-                });
+                    }));
+                }
+                Task.WaitAll(relList.ToArray());
+
                 var monitorTask = System.Threading.Tasks.Task.Run(() =>
                 {
                     lock (fileLock)
