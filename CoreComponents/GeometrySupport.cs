@@ -108,7 +108,10 @@ namespace CoreComponents
                 sw.sourceItemType = (g.Type == OsmGeoType.Relation ? 3 : g.Type == OsmGeoType.Way ? 2 : 1);
                 var geo = GeometrySupport.SimplifyArea(feature.First().Geometry);
                 if (geo == null)
+                {
+                    Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + " didn't simplify for some reason.", Log.VerbosityLevels.High);
                     return null;
+                }
                 geo.SRID = 4326;//Required for SQL Server to accept data this way.
                 sw.elementGeometry = geo;
                 sw.Tags = TagParser.getFilteredTags(g.Tags);

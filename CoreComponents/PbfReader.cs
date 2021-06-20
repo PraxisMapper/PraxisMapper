@@ -57,6 +57,7 @@ namespace CoreComponents
         private HashSet<long> knownSlowRelations = new HashSet<long>() {
             9488835, //Labrador Sea. 25,000 ways.
             9428957, //Gulf of St. Lawrence. 11,000 ways.
+            //Lake Erie is 1100 ways, takes ~56 seconds start to finish.
         };
 
         public long BlockCount()
@@ -81,41 +82,54 @@ namespace CoreComponents
 
         public void ProcessFile(string filename, bool saveToDb = false)
         {
-            Open(filename);
-            LoadBlockInfo();
-            long nextBlockId = 0;
-            if (relationFinder.Count == 0)
+            try
             {
-                IndexFile();
-                SaveBlockInfo();
-                nextBlockId = BlockCount() - 1;
-                SaveCurrentBlock(BlockCount());
-            }
-            else
-            {
-                nextBlockId = FindLastCompletedBlock() - 1;
-            }
-
-            ShowWaitInfo();
-            for (var block = nextBlockId; block > 0; block--)
-            {
-                long thisBlockId = block;
-                var geoData = GetGeometryFromBlock(thisBlockId);
-                //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
-                //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
-                if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
+                Open(filename);
+                LoadBlockInfo();
+                long nextBlockId = 0;
+                if (relationFinder.Count == 0)
                 {
-                    var wt = ProcessReaderResults(geoData, outputPath + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", saveToDb);
-                    if (wt != null)
-                        writeTasks.Add(wt);
+                    IndexFile();
+                    SaveBlockInfo();
+                    nextBlockId = BlockCount() - 1;
+                    SaveCurrentBlock(BlockCount());
                 }
-                SaveCurrentBlock(block);
-            }
+                else
+                {
+                    nextBlockId = FindLastCompletedBlock() - 1;
+                }
 
-            Log.WriteLog("Waiting on " + writeTasks.Where(w => !w.IsCompleted).Count() + " additional tasks");
-            Task.WaitAll(writeTasks.ToArray());
-            Close();
-            CleanupFiles();
+                ShowWaitInfo();
+                for (var block = nextBlockId; block > 0; block--)
+                {
+                    long thisBlockId = block;
+                    var geoData = GetGeometryFromBlock(thisBlockId);
+                    //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
+                    //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
+                    if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
+                    {
+                        var wt = ProcessReaderResults(geoData, outputPath + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", saveToDb);
+                        if (wt != null)
+                            writeTasks.Add(wt);
+                    }
+                    SaveCurrentBlock(block);
+                }
+
+                Log.WriteLog("Waiting on " + writeTasks.Where(w => !w.IsCompleted).Count() + " additional tasks");
+                Task.WaitAll(writeTasks.ToArray());
+                Close();
+                CleanupFiles();
+                Log.WriteLog("File completed at " + DateTime.Now);
+            }
+            catch(Exception ex)
+            {
+                while (ex.InnerException != null)
+                    ex = ex.InnerException;
+                Log.WriteLog("Error processing file: " + ex.Message + ex.StackTrace);
+                //if(ex.InnerException != null)
+                    //Log.WriteLog("Error processing file: " + ex.InnerException.Message + ex.InnerException.StackTrace);
+                
+            }
         }
 
         public void debugArea(string filename, long areaId)
@@ -681,7 +695,6 @@ namespace CoreComponents
             {
                 var t = Task.Run(() =>
                 {
-
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
                     Log.WriteLog("Processing large relation " + elementId + " separately at " + DateTime.Now);
@@ -693,8 +706,23 @@ namespace CoreComponents
                     }
                     Log.WriteLog("Large relation " + elementId + " created at " + DateTime.Now);
                     var md = GeometrySupport.ConvertOsmEntryToStoredElement(relation);
+                    if (md == null)
+                    {
+                        Log.WriteLog("Error: relation " + relation.Id + " failed to convert to StoredOSmElement");
+                        return;
+                    }
                     var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated);
+                    if (recordVersion == null)
+                    {
+                        Log.WriteLog("Error: relation " + relation.Id + " failed to convert to StoredOSmElementForJson");
+                        return;
+                    }
                     var text = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
+                    if (text == null)
+                    {
+                        Log.WriteLog("Error: relation " + relation.Id + " failed to convert to Json.");
+                        return;
+                    }
                     Log.WriteLog("Large relation " + elementId + " converted at " + DateTime.Now);
                     lock (fileLock)
                     {
@@ -703,6 +731,7 @@ namespace CoreComponents
                     }
                     sw.Stop();
                     Log.WriteLog("Processed large relation " + elementId + " from start to finish in " + sw.Elapsed);
+                    return;
                 });
                 return t;
             }
@@ -761,17 +790,26 @@ namespace CoreComponents
                     {
                         //Useful node lists are so small, they lose performance from splitting each step into 1 task per entry.
                         //Inline all that here as one task and return null to skip the rest.
-                        writeTasks.Add(Task.Run(() => { 
-                        var nodes = GetTaggedNodesFromBlock(block);
-                        var convertednodes = nodes.Select(n => GeometrySupport.ConvertOsmEntryToStoredElement(n)).ToList();
-                        var classForJson = convertednodes.Where(c => c != null).Select(md => new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated)).ToList();
-                        var textLines = classForJson.Select(c => JsonSerializer.Serialize(c, typeof(StoredOsmElementForJson))).ToList();
-                        lock (fileLock)
-                            System.IO.File.AppendAllLines(outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + ".json", textLines);
+                        writeTasks.Add(Task.Run(() =>
+                        {
+                            try
+                            {
+                                var nodes = GetTaggedNodesFromBlock(block);
+                                var convertednodes = nodes.Select(n => GeometrySupport.ConvertOsmEntryToStoredElement(n)).ToList();
+                                var classForJson = convertednodes.Where(c => c != null).Select(md => new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated)).ToList();
+                                var textLines = classForJson.Select(c => JsonSerializer.Serialize(c, typeof(StoredOsmElementForJson))).ToList();
+                                lock (fileLock)
+                                    System.IO.File.AppendAllLines(outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + ".json", textLines);
 
-                        sw.Stop();
-                        Log.WriteLog("block " + blockId + ":" + nodes.Count() + " items out of " + block.primitivegroup[0].dense.id.Count + " created in " + sw.Elapsed);
-                        return null;
+                                sw.Stop();
+                                Log.WriteLog("block " + blockId + ":" + nodes.Count() + " items out of " + block.primitivegroup[0].dense.id.Count + " created in " + sw.Elapsed);
+                                return;
+                            }
+                            catch(Exception ex)
+                            {
+                                Log.WriteLog("Processing node failed: " + ex.Message);
+                                return;
+                            }
                         }));
                     }
                 }
@@ -984,11 +1022,18 @@ namespace CoreComponents
 
                 var monitorTask = System.Threading.Tasks.Task.Run(() =>
                 {
-                    lock (fileLock)
+                    try
                     {
-                        System.IO.File.AppendAllLines(saveFilename, results);
+                        lock (fileLock)
+                        {
+                            System.IO.File.AppendAllLines(saveFilename, results);
+                        }
+                        Log.WriteLog("Data written to disk");
                     }
-                    Log.WriteLog("Data written to disk");
+                    catch(Exception ex)
+                    {
+                        Log.WriteLog("Error writing data to disk:" + ex.Message);
+                    }
                 });
 
                 return monitorTask;
