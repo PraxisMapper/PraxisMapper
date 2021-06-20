@@ -9,6 +9,7 @@ namespace CoreComponents
         public static VerbosityLevels Verbosity = VerbosityLevels.Normal;
         public static bool WriteToFile = false;
 
+        private static object fileLock = new object();
         public enum VerbosityLevels
         {
             Off = 1, //No calls to WriteLog pass Off as their verbosity level.
@@ -23,7 +24,9 @@ namespace CoreComponents
                 return;
 
             Console.WriteLine(message);
-            if (WriteToFile) System.IO.File.AppendAllText(filename, message + Environment.NewLine);
+            if (WriteToFile)
+                lock(fileLock) 
+                    System.IO.File.AppendAllText(filename, message + Environment.NewLine);
         }
 
     }
