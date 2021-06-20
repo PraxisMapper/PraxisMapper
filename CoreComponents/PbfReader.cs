@@ -36,7 +36,7 @@ namespace CoreComponents
 
         ConcurrentDictionary<long, PrimitiveBlock> activeBlocks = new ConcurrentDictionary<long, PrimitiveBlock>();
         ConcurrentDictionary<long, bool> accessedBlocks = new ConcurrentDictionary<long, bool>();
-        
+
 
         private PrimitiveBlock _block = new PrimitiveBlock();
         private BlobHeader _header = new BlobHeader();
@@ -46,6 +46,14 @@ namespace CoreComponents
         object fileLock = new object(); //Writing to json file
 
         public string outputPath = "";
+
+        ConcurrentBag<Task> writeTasks = new ConcurrentBag<Task>();
+
+        //for reference. These are likely to be lost if the application dies partway through processing, since these sit outside the general block-by-block plan.
+        private HashSet<long> knownSlowRelations = new HashSet<long>() {
+            9488835, //Labrador Sea. 25,000 ways.
+            9428957, //Gulf of St. Lawrence. 11,000 ways.
+        };
 
         public long BlockCount()
         {
@@ -69,7 +77,6 @@ namespace CoreComponents
 
         public void ProcessFile(string filename, bool saveToDb = false)
         {
-            ConcurrentBag<Task> writeTasks = new ConcurrentBag<Task>();
             Open(filename);
             LoadBlockInfo();
             long nextBlockId = 0;
@@ -100,6 +107,7 @@ namespace CoreComponents
                 SaveCurrentBlock(block);
             }
 
+            Log.WriteLog("Waiting on " + writeTasks.Where(w => !w.IsCompleted).Count() + " additional tasks");
             Task.WaitAll(writeTasks.ToArray());
             Close();
             CleanupFiles();
@@ -119,7 +127,7 @@ namespace CoreComponents
             //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
             //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
             //if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
-                //ProcessPMPBFResults(geoData, outputPath + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", false);
+            //ProcessPMPBFResults(geoData, outputPath + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", false);
 
             Close();
             CleanupFiles();
@@ -211,7 +219,7 @@ namespace CoreComponents
             wayFinder2 = new Dictionary<long, long>();
             foreach (var w in sortingwayFinder2)
                 wayFinder2.TryAdd(w.Key, w.Value);
-            Console.WriteLine("Found " + blockCounter + " blocks. " + relationCounter + " relation blocks and " + wayCounter + " way blocks.");
+            Log.WriteLog("Found " + blockCounter + " blocks. " + relationCounter + " relation blocks and " + wayCounter + " way blocks.");
         }
 
         private PrimitiveBlock GetBlock(long blockId)
@@ -376,7 +384,7 @@ namespace CoreComponents
             }
             catch (Exception ex)
             {
-                Console.WriteLine("relation failed:" + ex.Message);
+                Log.WriteLog("relation failed:" + ex.Message);
                 return null;
             }
         }
@@ -449,7 +457,7 @@ namespace CoreComponents
             }
             catch (Exception ex)
             {
-                Console.WriteLine("GetWay failed: " + ex.Message + ex.StackTrace);
+                Log.WriteLog("GetWay failed: " + ex.Message + ex.StackTrace);
                 return null; //Failed to get way, probably because a node didn't exist in the file.
             }
         }
@@ -661,7 +669,46 @@ namespace CoreComponents
             throw new Exception("Way Not Found");
         }
 
-        public List<OsmSharp.Complete.ICompleteOsmGeo> GetGeometryFromBlock(long blockId)
+        public Task GetBigRelationSolo(long elementId, string saveFilename)
+        {
+            //For splitting off a single, long-running element into its own whole thread.
+            try
+            {
+                var t = Task.Run(() =>
+                {
+
+                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                    sw.Start();
+                    Log.WriteLog("Processing large relation " + elementId + " separately at " + DateTime.Now);
+                    var relation = GetRelation(elementId);
+                    if (relation == null)
+                    {
+                        Log.WriteLog("Large relation " + elementId + " not suitable for processing, exiting standalone task.");
+                        return;
+                    }
+                    Log.WriteLog("Large relation " + elementId + " created at " + DateTime.Now);
+                    var md = GeometrySupport.ConvertOsmEntryToStoredElement(relation);
+                    Log.WriteLog("Large relation " + elementId + " converted in " + DateTime.Now);
+                    var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated);
+                    var text = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
+                    lock (fileLock)
+                    {
+                        System.IO.File.AppendAllText(saveFilename, text);
+                        System.IO.File.AppendAllText(saveFilename, Environment.NewLine);
+                    }
+                    sw.Stop();
+                    Log.WriteLog("Processed large relation " + elementId + " in " + sw.Elapsed);
+                });
+                return t;
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog("error getting single: " + ex.Message);
+                return null;
+            }
+        }
+
+        public ConcurrentBag<OsmSharp.Complete.ICompleteOsmGeo> GetGeometryFromBlock(long blockId)
         {
             //This grabs the chosen block, populates everything in it to an OsmSharp.Complete object and returns that list
             try
@@ -681,33 +728,49 @@ namespace CoreComponents
                 accessedBlocks.Clear();
 
                 var block = GetBlock(blockId);
-                List<OsmSharp.Complete.ICompleteOsmGeo> results = new List<OsmSharp.Complete.ICompleteOsmGeo>();
+                ConcurrentBag<OsmSharp.Complete.ICompleteOsmGeo> results = new ConcurrentBag<OsmSharp.Complete.ICompleteOsmGeo>();
 
                 foreach (var primgroup in block.primitivegroup)
                 {
                     if (primgroup.relations != null && primgroup.relations.Count() > 0)
                     {
-                        Parallel.ForEach(primgroup.relations, r =>
+                        ConcurrentBag<Task> relList = new ConcurrentBag<Task>();
+                        ShowWaitInfo(relList);
+                        foreach (var r in primgroup.relations.OrderByDescending(w => w.memids.Count())) //The biggest ones should start first, as a rough heuristic to avoiding waiting on one entry out of 8,000
                         {
-                            var relation = GetRelation(r.id);
-                            if (relation != null)
-                                //continue;
-                                results.Add(relation);
-                        });
+                            if (r.memids.Count() > 2500) //Semi-arbitrary size. Biggest so far noticed is 25,000 ways. Next smallest noticed is 800.
+                            {
+                                Log.WriteLog("Relation " + r.id + " has " + r.memids.Count() + " entries, passing to a separate task.");
+                                writeTasks.Add(GetBigRelationSolo(r.id, outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.FullName) + ".json"));
+                            }
+                            else
+                                relList.Add(Task.Run(() => results.Add(GetRelation(r.id))));
+                        }
+                        Task.WaitAll(relList.ToArray());
                     }
                     else if (primgroup.ways != null && primgroup.ways.Count() > 0)
                     {
-                        Parallel.ForEach(primgroup.ways, w =>
+                        ConcurrentBag<Task> wayList = new ConcurrentBag<Task>();
+                        ShowWaitInfo(wayList);
+                        foreach (var r in primgroup.ways.OrderByDescending(w => w.refs.Count())) //The biggest ones should start first, as a rough heuristic to avoiding waiting on one entry out of 8,000
                         {
-                            var way = GetWay(w.id, true); //here, I skip untagged geometry since I can't use that in PraxisMapper.
-                            if (way != null)
-                                results.Add(way);
-                        });
+                            wayList.Add(Task.Run(() => results.Add(GetWay(r.id, true))));
+                        }
+                        Task.WaitAll(wayList.ToArray());
                     }
                     else
                     {
+                        //Useful node lists are so small, they lose performance from multithreading overhead. Inline all that here and return null to skip the rest.
                         var nodes = GetTaggedNodesFromBlock(block);
-                        results.AddRange(nodes);
+                        var convertednodes = nodes.Select(n => GeometrySupport.ConvertOsmEntryToStoredElement(n)).ToList();
+                        var classForJson = convertednodes.Where(c => c != null).Select(md => new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated)).ToList();
+                        var textLines = classForJson.Select(c => JsonSerializer.Serialize(c, typeof(StoredOsmElementForJson))).ToList();
+                        lock (fileLock)
+                            System.IO.File.AppendAllLines(outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + ".json", textLines);
+
+                        sw.Stop();
+                        Log.WriteLog("block " + blockId + ":" + nodes.Count() + " items out of " + block.primitivegroup[0].dense.id.Count + " created in " + sw.Elapsed);
+                        return null;
                     }
                 }
                 var count = (block.primitivegroup[0].relations?.Count > 0 ? block.primitivegroup[0].relations.Count :
@@ -715,15 +778,14 @@ namespace CoreComponents
                     block.primitivegroup[0].dense.id.Count);
 
                 sw.Stop();
-                Console.WriteLine("block " + blockId + ":" + results.Count() + " items out of " + count + " created without errors in " + sw.Elapsed);
+                Log.WriteLog("block " + blockId + ":" + results.Count() + " items out of " + count + " created in " + sw.Elapsed);
                 return results;
             }
             catch (Exception ex)
             {
-                Console.WriteLine("error getting geometry: " + ex.Message);
+                Log.WriteLog("error getting geometry: " + ex.Message);
                 return null;
             }
-
         }
 
         //Taken from OsmSharp (MIT License)
@@ -852,6 +914,22 @@ namespace CoreComponents
                 System.IO.File.Delete(file);
         }
 
+        public void ShowWaitInfo(ConcurrentBag<Task> t)
+        {
+            Task.Run(() =>
+            {
+                while (true)
+                {
+                    if (t.Count > 0 && t.All(r => r.IsCompleted))
+                        return;
+                    int waiting = t.Where(r => !r.IsCompleted).Count();
+                    if (waiting > 0)
+                        Console.WriteLine("Waiting on " + waiting + " out of " + t.Count() + " threads.");
+                    System.Threading.Thread.Sleep(10000);
+                }
+            });
+        }
+
         public Task ProcessReaderResults(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, string saveFilename, bool saveToDb = false)
         {
             //This one is easy, we just dump the geodata to the file.
@@ -862,15 +940,14 @@ namespace CoreComponents
             if (items == null)
                 return null;
 
-            Parallel.ForEach(items, r =>
+            ConcurrentBag<Task> resList = new ConcurrentBag<Task>();
+            ShowWaitInfo(resList);
+            foreach (var r in items)
             {
-                if (r == null)
-                    return;
-                var convertedItem = GeometrySupport.ConvertOsmEntryToStoredElement(r);
-
-                if (convertedItem != null)
-                    elements.Add(convertedItem);
-            });
+                if (r != null)
+                    resList.Add(Task.Run(() => elements.Add(GeometrySupport.ConvertOsmEntryToStoredElement(r))));
+            }
+            Task.WaitAll(resList.ToArray());
 
             if (saveToDb)
             {
