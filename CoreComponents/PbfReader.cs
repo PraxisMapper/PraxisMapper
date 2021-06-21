@@ -1038,6 +1038,12 @@ namespace CoreComponents
                     string[] subData2 = line.Split(":");
                     nodeFinder2.TryAdd(long.Parse(subData2[0]), Tuple.Create(long.Parse(subData2[1]), long.Parse(subData2[2])));
                 }
+
+                foreach (var entry in nodeFinder2.Reverse())
+                    nodeFinder2Reverse.TryAdd(entry.Key, entry.Value);
+                //Lazy optimization: if our node is bigger than roughly the halfway point, search from the end instead of the start.           
+                var i = new Index(nodeFinder2.Count() / 2);
+                var switchPoint = nodeFinder2.ElementAt(i).Value.Item2;
             }
             catch (Exception ex)
             {
