@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using static CoreComponents.DbTables;
 using CoreComponents.Support;
 using System.Text.Json;
+using NetTopologySuite.Noding;
 
 namespace CoreComponents
 {
@@ -28,15 +29,16 @@ namespace CoreComponents
 
         //this is blockId, <minNode, maxNode>.
         ConcurrentDictionary<long, Tuple<long, long>> nodeFinder2 = new ConcurrentDictionary<long, Tuple<long, long>>();
+        ConcurrentDictionary<long, Tuple<long, long>> nodeFinder2Reverse = new ConcurrentDictionary<long, Tuple<long, long>>();
         //<blockId, maxWayId> since ways are sorted in order.
-        Dictionary<long, long> wayFinder2 = new Dictionary<long, long>();
+        Dictionary<long, long> wayFinder2 = new Dictionary<long, long>(); //This one uses up less memory, but takes longer for bigger files because it needs to iterate them like a list.
+        ConcurrentDictionary<long, long> exactWayFinder3 = new ConcurrentDictionary<long, long>(); //Stops the CPU creep but eats a lot more RAM, and currently throws some missing value errors.
 
         Dictionary<long, long> blockPositions = new Dictionary<long, long>();
         Dictionary<long, int> blockSizes = new Dictionary<long, int>();
 
         ConcurrentDictionary<long, PrimitiveBlock> activeBlocks = new ConcurrentDictionary<long, PrimitiveBlock>();
         ConcurrentDictionary<long, bool> accessedBlocks = new ConcurrentDictionary<long, bool>();
-
 
         private PrimitiveBlock _block = new PrimitiveBlock();
         private BlobHeader _header = new BlobHeader();
@@ -46,6 +48,7 @@ namespace CoreComponents
         object fileLock = new object(); //Writing to json file
 
         public string outputPath = "";
+        long nextBlockId = 0;
 
         ConcurrentBag<Task> writeTasks = new ConcurrentBag<Task>(); //Writing to json file, and long-running relation processing
         ConcurrentBag<Task> relList = new ConcurrentBag<Task>(); //Individual, smaller tasks.
@@ -57,8 +60,13 @@ namespace CoreComponents
         private HashSet<long> knownSlowRelations = new HashSet<long>() {
             9488835, //Labrador Sea. 25,000 ways.
             9428957, //Gulf of St. Lawrence. 11,000 ways.
-            //Lake Erie is 1100 ways, takes ~56 seconds start to finish.
+            4069900, //Lake Erie is 1100 ways, takes ~56 seconds start to finish.
         };
+
+
+
+        //lazy optimization: when to search a reversed list of nodes;
+        long switchPoint = 0;
 
         public long BlockCount()
         {
@@ -86,7 +94,7 @@ namespace CoreComponents
             {
                 Open(filename);
                 LoadBlockInfo();
-                long nextBlockId = 0;
+                nextBlockId = 0;
                 if (relationFinder.Count == 0)
                 {
                     IndexFile();
@@ -121,14 +129,14 @@ namespace CoreComponents
                 CleanupFiles();
                 Log.WriteLog("File completed at " + DateTime.Now);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 while (ex.InnerException != null)
                     ex = ex.InnerException;
                 Log.WriteLog("Error processing file: " + ex.Message + ex.StackTrace);
                 //if(ex.InnerException != null)
-                    //Log.WriteLog("Error processing file: " + ex.InnerException.Message + ex.InnerException.StackTrace);
-                
+                //Log.WriteLog("Error processing file: " + ex.InnerException.Message + ex.InnerException.StackTrace);
+
             }
         }
 
@@ -198,6 +206,11 @@ namespace CoreComponents
                     var group = pb2.primitivegroup[0]; //If i get a file with multiple PrimitiveGroups in a block, make this a ForEach loop instead.
                     if (group.ways.Count > 0)
                     {
+                        //foreach (var w in group.ways)
+                        //{
+                        //    exactWayFinder3.TryAdd(w.id, passedBC);
+                        //}
+
                         var wMax = group.ways.Max(w => w.id);
                         wayFinder2.TryAdd(passedBC, wMax);
                         wayCounter++;
@@ -239,6 +252,11 @@ namespace CoreComponents
             foreach (var w in sortingwayFinder2)
                 wayFinder2.TryAdd(w.Key, w.Value);
             Log.WriteLog("Found " + blockCounter + " blocks. " + relationCounter + " relation blocks and " + wayCounter + " way blocks.");
+            foreach (var entry in nodeFinder2.Reverse())
+                nodeFinder2Reverse.TryAdd(entry.Key, entry.Value);
+            //Lazy optimization: if our node is bigger than roughly the halfway point, search from the end instead of the start.           
+            var i = new Index(nodeFinder2.Count() / 2);
+            var switchPoint = nodeFinder2.ElementAt(i).Value.Item2;
         }
 
         private PrimitiveBlock GetBlock(long blockId)
@@ -246,9 +264,11 @@ namespace CoreComponents
             //Track that this entry was requested for this processing block.
             //If the block is in memory, return it.
             //If not, load it from disk and return it.
-            accessedBlocks.TryAdd(blockId, true);
             if (!activeBlocks.ContainsKey(blockId))
+            {
                 activeBlocks.TryAdd(blockId, GetBlockFromFile(blockId));
+                accessedBlocks.TryAdd(blockId, true);
+            }
 
             return activeBlocks[blockId];
         }
@@ -345,7 +365,7 @@ namespace CoreComponents
                     {
                         case Relation.MemberType.NODE:
                             //TODO: If the FeatureInterpreter doesn't use nodes from a relation, I could skip this part.
-                            neededBlocks.Add(FindBlockKeyForNode(idToFind));
+                            neededBlocks.Add(FindBlockKeyForNode(idToFind, neededBlocks));
                             break;
                         case Relation.MemberType.WAY:
                             neededBlocks.Add(FindBlockKeyForWay(idToFind));
@@ -431,11 +451,13 @@ namespace CoreComponents
                 long idToFind = 0; //more deltas 
                 //blockId, nodeID
                 List<Tuple<long, long>> nodesPerBlock = new List<Tuple<long, long>>();
-
+                List<long> distinctBlockIds = new List<long>();
                 for (int i = 0; i < way.refs.Count; i++)
                 {
                     idToFind += way.refs[i];
-                    var blockID = FindBlockKeyForNode(idToFind);
+                    var blockID = FindBlockKeyForNode(idToFind, distinctBlockIds);
+                    distinctBlockIds.Add(blockID);
+                    distinctBlockIds = distinctBlockIds.Distinct().ToList();
                     nodesPerBlock.Add(Tuple.Create(blockID, idToFind));
                 }
                 var nodesByBlock = nodesPerBlock.ToLookup(k => k.Item1, v => v.Item2);
@@ -638,34 +660,61 @@ namespace CoreComponents
             return results;
         }
 
-        private long FindBlockKeyForNode(long nodeId)
+        private long FindBlockKeyForNode(long nodeId, List<long> hints = null) //Iterative
         {
-            foreach (var nodelist in nodeFinder2)
+            //This is the most-called function in this class, and therefore the most performance-dependent.
+            //It also, as written, slows down dramatically the bigger the file gets. 
+            //As it turns out, the range of node IDs involved WON'T overlap, so i CAN b-tree search this.
+
+            //Hints is a list of blocks we're already found in the relevant way. Odds are high that
+            //any node I need to find is in the same block as another node I've found.
+            //This should save a lot of time iterating over the list when I have already found some blocks
+            //and shoudn't waste too much time if it isn't in a block already found.
+            if (hints != null)
             {
-                //key is block id
-                //value is the tuple list. 1 is min, 2 is max.
-                if (nodelist.Value.Item1 > nodeId) //this node's minimum is larger than our node, skip
-                    continue;
-
-                if (nodelist.Value.Item2 < nodeId) //this node's maximum is smaller than our node, skip
-                    continue;
-
-                var nodeBlock = GetBlock(nodelist.Key);
-                var group = nodeBlock.primitivegroup[0];
-                var denseIds = group.dense.id;
-
-                long nodecounter = 0;
-                int nodeIndex = -1;
-                //as much as i want to tree search this, the negative delta values really mess that up, since there's
-                //no guarentee nodes are sorted by id
-                while (nodeIndex < 7999) //groups can only have 8000 entries.
+                foreach (var h in hints)
                 {
-                    nodeIndex++;
-                    nodecounter += denseIds[nodeIndex];
-                    if (nodecounter == nodeId)
-                        return nodelist.Key;
+                    var entry = nodeFinder2[h];
+                    if (entry.Item1 > nodeId) //this node's minimum is larger than our node, skip
+                        continue;
+
+                    if (entry.Item2 < nodeId) //this node's maximum is smaller than our node, skip
+                        continue;
+
+                    return h;
                 }
             }
+
+            if (nodeId < switchPoint)
+                foreach (var nodelist in nodeFinder2)
+                {
+                    //key is block id
+                    //value is the tuple list. 1 is min, 2 is max.
+                    if (nodelist.Value.Item1 > nodeId) //this node's minimum is larger than our node, skip
+                        continue;
+
+                    if (nodelist.Value.Item2 < nodeId) //this node's maximum is smaller than our node, skip
+                        continue;
+
+                    //Actually, we're just gonna return the value here, since we found it, and let it error out later if that node isn't present.
+                    //This isn't much of a CPU optimization, but it lets us skip one GetBlock() call.
+                    return nodelist.Key;
+                }
+            else
+                foreach (var nodelist in nodeFinder2Reverse)
+                {
+                    //key is block id
+                    //value is the tuple list. 1 is min, 2 is max.
+                    //Reverse the check order since we're traversing the opposite direction
+                    if (nodelist.Value.Item2 < nodeId) //this node's maximum is smaller than our node, skip
+                        continue;
+                    if (nodelist.Value.Item1 > nodeId) //this node's minimum is larger than our node, skip
+                        continue;
+
+                    //Actually, we're just gonna return the value here, since we found it, and let it error out later if that node isn't present.
+                    //This isn't much of a CPU optimization, but it lets us skip one GetBlock() call.
+                    return nodelist.Key;
+                }
 
             //couldnt find this node
             throw new Exception("Node Not Found");
@@ -675,6 +724,43 @@ namespace CoreComponents
         {
             //unlike nodes, ways ARE usually sorted 
             //so we CAN safely just find the block where wayId >= minWay for a block.
+            //And we CAN do a b-tree search!
+
+            //new b-tree search. start/end/mid are indexes, not nodeIds or keys.
+            //int start = 0;
+            //int end = wayFinder2.Count();
+            //int mid = (end / 2);
+
+            //bool found = false;
+            //while (!found)
+            //{
+            //    var midValue = wayFinder2.ElementAt(mid);
+            //    if (midValue.Value < wayId)
+            //    {
+            //        end = mid;
+            //        mid = (end - start) / 2;
+            //    }
+            //    if (midValue.Value >= wayId)
+            //    {
+            //        //since we only store 1 number per block, we have to check the one before to see if this is the correct midValue or not
+            //        if (wayFinder2.ElementAt(mid - 1).Value < wayId)
+            //            return midValue.Key;
+
+            //        //This isn't the correct one
+            //        start = mid;
+            //        mid = (end - start) / 2;
+
+            //        if (start == end)
+            //            throw new Exception("Way Not Found");
+            //    }
+            //}
+
+            //return -1;
+
+            //This causes some 'key not found in the dictionary' errors that dont show up otherwise. And memory errors on bigger files.
+            //return exactWayFinder3[wayId];
+
+            //original linear search.
             foreach (var waylist in wayFinder2)
             {
                 //key is block id. value is the max way value in this node. We dont need to check the minimum.
@@ -781,10 +867,35 @@ namespace CoreComponents
                     }
                     else if (primgroup.ways != null && primgroup.ways.Count() > 0)
                     {
+                        //original multithreading logic, similar to relations.
                         foreach (var r in primgroup.ways.OrderByDescending(w => w.refs.Count())) //Ordering should help consistency in runtime, though splitting off the biggest ones to their own thread is a better optimization.
                         {
                             relList.Add(Task.Run(() => results.Add(GetWay(r.id, true))));
                         }
+
+                        //alternate, potentially faster logic, similar to nodes. But, this breaks the accessedBlocks logic that really saves RAM use, and causes some various errors.
+                        //writeTasks.Add(Task.Run(() =>
+                        //{
+                        //    try
+                        //    {
+                        //        ConcurrentBag<OsmSharp.Complete.CompleteWay> ways = new ConcurrentBag<OsmSharp.Complete.CompleteWay>();
+                        //        Parallel.ForEach(primgroup.ways, w => { ways.Add(GetWay(w.id, true)); });
+                        //        var convertednodes = ways.Select(n => GeometrySupport.ConvertOsmEntryToStoredElement(n)).ToList();
+                        //        var classForJson = convertednodes.Where(c => c != null).Select(md => new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated)).ToList();
+                        //        var textLines = classForJson.Select(c => JsonSerializer.Serialize(c, typeof(StoredOsmElementForJson))).ToList();
+                        //        lock (fileLock)
+                        //            System.IO.File.AppendAllLines(outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + ".json", textLines);
+
+                        //        sw.Stop();
+                        //        Log.WriteLog("block " + blockId + ":" + ways.Count() + " items out of " + block.primitivegroup[0].ways.Count + " created in " + sw.Elapsed);
+                        //        return;
+                        //    }
+                        //    catch (Exception ex)
+                        //    {
+                        //        Log.WriteLog("Processing node failed: " + ex.Message);
+                        //        return;
+                        //    }
+                        //}));
                     }
                     else
                     {
@@ -805,7 +916,7 @@ namespace CoreComponents
                                 Log.WriteLog("block " + blockId + ":" + nodes.Count() + " items out of " + block.primitivegroup[0].dense.id.Count + " created in " + sw.Elapsed);
                                 return;
                             }
-                            catch(Exception ex)
+                            catch (Exception ex)
                             {
                                 Log.WriteLog("Processing node failed: " + ex.Message);
                                 return;
@@ -860,6 +971,14 @@ namespace CoreComponents
             System.IO.File.WriteAllLines(filename, data);
 
             filename = outputPath + fi.Name + ".wayIndex";
+            //data = new string[exactWayFinder3.Count()];
+            //j = 0;
+            //foreach (var wf in exactWayFinder3)
+            //{
+            //    data[j] = wf.Key + ":" + wf.Value;
+            //    j++;
+            //}
+            //System.IO.File.WriteAllLines(filename, data);
             data = new string[wayFinder2.Count()];
             j = 0;
             foreach (var wf in wayFinder2)
@@ -966,7 +1085,12 @@ namespace CoreComponents
                     Log.WriteLog("Current stats:");
                     Log.WriteLog("Long-running/writing pending: " + writeTasks.Where(w => !w.IsCompleted).Count());
                     Log.WriteLog("Processing tasks: " + relList.Where(r => !r.IsCompleted).Count());
-                    if (timeList.Count > 0) Log.WriteLog("Average time per block: " + timeList.Average(t => t.TotalSeconds) + " seconds");
+                    if (timeList.Count > 0)
+                    {
+                        Log.WriteLog("Average time per block: " + timeList.Average(t => t.TotalSeconds) + " seconds");
+                        TimeSpan ts = new TimeSpan((long)timeList.Average(t => t.Ticks) * nextBlockId);
+                        Log.WriteLog("Estimated time remaining: " + ts.ToString()); //This will be high, since we start with the slowest blocks and move to the fastest ones.
+                    }
                     System.Threading.Thread.Sleep(60000);
 
                     //if (t.Count > 0 && t.All(r => r.IsCompleted))
@@ -1010,9 +1134,10 @@ namespace CoreComponents
             else
             {
                 ConcurrentBag<string> results = new ConcurrentBag<string>();
-                foreach(var md in elements.Where(e => e != null))
+                foreach (var md in elements.Where(e => e != null))
                 {
-                    relList.Add(Task.Run(() => {
+                    relList.Add(Task.Run(() =>
+                    {
                         var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated);
                         var test = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
                         results.Add(test);
@@ -1030,7 +1155,7 @@ namespace CoreComponents
                         }
                         Log.WriteLog("Data written to disk");
                     }
-                    catch(Exception ex)
+                    catch (Exception ex)
                     {
                         Log.WriteLog("Error writing data to disk:" + ex.Message);
                     }
