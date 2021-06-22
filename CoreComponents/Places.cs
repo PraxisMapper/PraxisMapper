@@ -35,6 +35,7 @@ namespace CoreComponents
             {
                 var location = Converters.GeoAreaToPolygon(area); //Prepared items don't work on a DB lookup.
                 var db = new CoreComponents.PraxisContext();
+                db.Database.SetCommandTimeout(new TimeSpan(0, 2, 0));
                 if (skipTags) //Should make the load slightly faster, when we do something like a team control check, where the data we want to look at isn't in the OSM tags.
                 {
                     places = db.StoredOsmElements.Where(md => location.Intersects(md.elementGeometry) && md.AreaSize >= minimumSize).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList();

@@ -8,7 +8,7 @@
 //-----------------------------------------------------------------------------
 
 // Generated from: fileformat.proto
-namespace CoreComponents
+namespace CoreComponents.PbfReader
 {
     /// <summary>
     /// 

@@ -8,7 +8,7 @@
 //-----------------------------------------------------------------------------
 
 // Generated from: osmformat.proto
-namespace CoreComponents
+namespace CoreComponents.PbfReader
 {
     /// <summary>
     /// 

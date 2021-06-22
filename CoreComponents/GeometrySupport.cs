@@ -18,6 +18,7 @@ namespace CoreComponents
 
         private static NetTopologySuite.IO.WKTReader reader = new NetTopologySuite.IO.WKTReader() {DefaultSRID = 4326 };
         private static JsonSerializerOptions jso = new JsonSerializerOptions() { };
+        private static PMFeatureInterpreter featureInterpreter = new PMFeatureInterpreter();
         
         public static Polygon CCWCheck(Polygon p)
         {
@@ -61,7 +62,13 @@ namespace CoreComponents
                         mp.Geometries[i] = CCWCheck((Polygon)mp.Geometries[i]);
                     }
                     if (mp.Geometries.Count(g => g == null) != 0)
-                        return null;
+                    {
+                        //return null; //Used to return null. What if we attempt to work with the data present?
+                        mp = new MultiPolygon(mp.Geometries.Where(g => g != null).Select(g => (Polygon)g).ToArray());
+                        if (mp.Geometries.Length == 0)
+                            return null;
+                        place = mp;
+                    }
                     else
                         place = mp;
                 }
@@ -84,9 +91,18 @@ namespace CoreComponents
                 }
                 if (mp.Geometries.Count(g => g == null) == 0)
                     return mp;
-                return null; //some of the outer shells aren't compatible. Should alert this to the user if possible.
+                else
+                {
+                    mp = new MultiPolygon(mp.Geometries.Where(g => g != null).Select(g => (Polygon)g).ToArray());
+                    if (mp.Geometries.Length == 0)
+                        return null;
+                    return mp;
+                }
+
             }
-            return simplerPlace;
+            return null; //some of the outer shells aren't compatible. Should alert this to the user if possible.
+            //}
+            //return simplerPlace;
         }
 
         public static StoredOsmElement ConvertOsmEntryToStoredElement(OsmSharp.Complete.ICompleteOsmGeo g)
@@ -96,7 +112,8 @@ namespace CoreComponents
 
             try
             {
-                var feature = OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(g);
+                //var feature = featureInterpreter.Interpret(g); //OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(g); //Changed while waiting for bugfixes
+                var feature = OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(g); //mainline version, while i get my version dialed in for edge cases.
                 if (feature.Count() != 1)
                 {
                     Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + " didn't return expected number of features (" + feature.Count() + ")", Log.VerbosityLevels.High);
