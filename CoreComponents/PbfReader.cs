@@ -133,9 +133,6 @@ namespace CoreComponents.PbfReader
                 while (ex.InnerException != null)
                     ex = ex.InnerException;
                 Log.WriteLog("Error processing file: " + ex.Message + ex.StackTrace);
-                //if(ex.InnerException != null)
-                //Log.WriteLog("Error processing file: " + ex.InnerException.Message + ex.InnerException.StackTrace);
-
             }
         }
 
@@ -150,14 +147,6 @@ namespace CoreComponents.PbfReader
             var r = GetRelation(areaId);
             var r2 = GeometrySupport.ConvertOsmEntryToStoredElement(r);
             GeometrySupport.WriteSingleStoredElementToFile("labradorSea.json", r2);
-            
-            //var geoData = GetGeometryFromBlock(block);
-
-            //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
-            //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
-            //if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
-            //ProcessPMPBFResults(geoData, outputPath + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", false);
-
             Close();
             CleanupFiles();
         }
@@ -732,44 +721,8 @@ namespace CoreComponents.PbfReader
         private long FindBlockKeyForWay(long wayId)
         {
             //unlike nodes, ways ARE usually sorted 
-            //so we CAN safely just find the block where wayId >= minWay for a block.
-            //And we CAN do a b-tree search!
-
-            //new b-tree search. start/end/mid are indexes, not nodeIds or keys.
-            //int start = 0;
-            //int end = wayFinder2.Count();
-            //int mid = (end / 2);
-
-            //bool found = false;
-            //while (!found)
-            //{
-            //    var midValue = wayFinder2.ElementAt(mid);
-            //    if (midValue.Value < wayId)
-            //    {
-            //        end = mid;
-            //        mid = (end - start) / 2;
-            //    }
-            //    if (midValue.Value >= wayId)
-            //    {
-            //        //since we only store 1 number per block, we have to check the one before to see if this is the correct midValue or not
-            //        if (wayFinder2.ElementAt(mid - 1).Value < wayId)
-            //            return midValue.Key;
-
-            //        //This isn't the correct one
-            //        start = mid;
-            //        mid = (end - start) / 2;
-
-            //        if (start == end)
-            //            throw new Exception("Way Not Found");
-            //    }
-            //}
-
-            //return -1;
-
-            //This causes some 'key not found in the dictionary' errors that dont show up otherwise. And memory errors on bigger files.
-            //return exactWayFinder3[wayId];
-
-            //original linear search.
+            //so we CAN safely just find the block where wayId >= minWay for a block
+            //BUT the easiest b-tree logic on a ConcurrentDictionary does more iterating to get indexes than just iterating the list would do.
             foreach (var waylist in wayFinder2)
             {
                 //key is block id. value is the max way value in this node. We dont need to check the minimum.
@@ -845,9 +798,6 @@ namespace CoreComponents.PbfReader
                 System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                 sw.Start();
 
-                //oriignal, easiest logic. Clear out ram entirely and redo it each call.
-                //activeBlocks = new ConcurrentDictionary<long, PrimitiveBlock>(8, (int)blockPositions.Keys.Max()); //Clear out existing memory each block.
-
                 //Slightly more complex: only remove blocks we didn't access last call. saves some serialization effort. Small RAM trade for 30% speed increase.
                 foreach (var blockRead in activeBlocks)
                 {
@@ -881,30 +831,6 @@ namespace CoreComponents.PbfReader
                         {
                             relList.Add(Task.Run(() => results.Add(GetWay(r.id, true))));
                         }
-
-                        //alternate, potentially faster logic, similar to nodes. But, this breaks the accessedBlocks logic that really saves RAM use, and causes some various errors.
-                        //writeTasks.Add(Task.Run(() =>
-                        //{
-                        //    try
-                        //    {
-                        //        ConcurrentBag<OsmSharp.Complete.CompleteWay> ways = new ConcurrentBag<OsmSharp.Complete.CompleteWay>();
-                        //        Parallel.ForEach(primgroup.ways, w => { ways.Add(GetWay(w.id, true)); });
-                        //        var convertednodes = ways.Select(n => GeometrySupport.ConvertOsmEntryToStoredElement(n)).ToList();
-                        //        var classForJson = convertednodes.Where(c => c != null).Select(md => new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated)).ToList();
-                        //        var textLines = classForJson.Select(c => JsonSerializer.Serialize(c, typeof(StoredOsmElementForJson))).ToList();
-                        //        lock (fileLock)
-                        //            System.IO.File.AppendAllLines(outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + ".json", textLines);
-
-                        //        sw.Stop();
-                        //        Log.WriteLog("block " + blockId + ":" + ways.Count() + " items out of " + block.primitivegroup[0].ways.Count + " created in " + sw.Elapsed);
-                        //        return;
-                        //    }
-                        //    catch (Exception ex)
-                        //    {
-                        //        Log.WriteLog("Processing node failed: " + ex.Message);
-                        //        return;
-                        //    }
-                        //}));
                     }
                     else
                     {
@@ -1042,6 +968,7 @@ namespace CoreComponents.PbfReader
 
                 foreach (var entry in nodeFinder2.Reverse())
                     nodeFinder2Reverse.TryAdd(entry.Key, entry.Value);
+                
                 //Lazy optimization: if our node is bigger than roughly the halfway point, search from the end instead of the start.           
                 var idx = new Index(nodeFinder2.Count() / 2);
                 var switchPoint = nodeFinder2.ElementAt(idx).Value.Item2;
@@ -1090,6 +1017,7 @@ namespace CoreComponents.PbfReader
                 while (true)
                 {
                     Log.WriteLog("Current stats:");
+                    Log.WriteLog("Blocks completed this run: " + timeList.Count());
                     Log.WriteLog("Long-running/writing pending: " + writeTasks.Where(w => !w.IsCompleted).Count());
                     Log.WriteLog("Processing tasks: " + relList.Where(r => !r.IsCompleted).Count());
                     if (timeList.Count > 0)
@@ -1099,13 +1027,6 @@ namespace CoreComponents.PbfReader
                         Log.WriteLog("Estimated time remaining: " + ts.ToString()); //This will be high, since we start with the slowest blocks and move to the fastest ones.
                     }
                     System.Threading.Thread.Sleep(60000);
-
-                    //if (t.Count > 0 && t.All(r => r.IsCompleted))
-                    //return;
-                    //int waiting = t.Where(r => !r.IsCompleted).Count();
-                    //if (waiting > 0)
-                    //Console.WriteLine("Waiting on " + waiting + " out of " + t.Count() + " threads.");
-                    //System.Threading.Thread.Sleep(10000);
                 }
             });
         }
@@ -1114,15 +1035,12 @@ namespace CoreComponents.PbfReader
         {
             //This one is easy, we just dump the geodata to the file.
             ConcurrentBag<StoredOsmElement> elements = new ConcurrentBag<StoredOsmElement>();
-            //List<StoredOsmElement> elements = new List<StoredOsmElement>();
             DateTime startedProcess = DateTime.Now;
 
             if (items == null)
                 return null;
 
-            //ConcurrentBag<Task> resList = new ConcurrentBag<Task>();
             relList = new ConcurrentBag<Task>();
-            //ShowWaitInfo(relList);
             foreach (var r in items)
             {
                 if (r != null)
