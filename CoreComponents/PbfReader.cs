@@ -43,7 +43,6 @@ namespace CoreComponents.PbfReader
         private PrimitiveBlock _block = new PrimitiveBlock();
         private BlobHeader _header = new BlobHeader();
 
-        //I will use the write lock to make sure threads don't read the wrong data
         object msLock = new object(); //reading blocks from disk.
         object fileLock = new object(); //Writing to json file
 
@@ -60,6 +59,7 @@ namespace CoreComponents.PbfReader
         private HashSet<long> knownSlowRelations = new HashSet<long>() {
             9488835, //Labrador Sea. 25,000 ways. Stack Overflows on converting to CompleteRelation through defaultFeatureInterpreter.
             1205151, //Lake Huron, 14,000 ways. Can Stack overflow joining rings.
+            148838, //United States. 1029 members but a very large geographic area
             9428957, //Gulf of St. Lawrence. 11,000 ways. Can finish processing, so it's somewhere between 11k and 14k that the stack overflow hits.
             4069900, //Lake Erie is 1100 ways, takes ~56 seconds start to finish.
         };
