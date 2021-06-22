@@ -19,6 +19,10 @@ namespace CoreComponents.Support
             Log.WriteLog("GC Latency Mode: " + GCSettings.LatencyMode);
             Log.WriteLog("GC Max Generation: " + GC.MaxGeneration);
 
+            int m1 = 0, m2 = 0;
+            System.Threading.ThreadPool.GetMaxThreads(out m1, out m2);
+            Log.WriteLog("System is set for " + m1 + " worker threads and " + m2 + " completion port threads.");
+
             //A thread to report RAM use.
             Task.Factory.StartNew(() => { while (true) { UpdateMaxRamUsed(); System.Threading.Thread.Sleep(15000); } });            
         }
