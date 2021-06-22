@@ -48,6 +48,7 @@ namespace CoreComponents.PbfReader
 
         public string outputPath = "";
         long nextBlockId = 0;
+        long firstWayBlock = 0;
 
         ConcurrentBag<Task> writeTasks = new ConcurrentBag<Task>(); //Writing to json file, and long-running relation processing
         ConcurrentBag<Task> relList = new ConcurrentBag<Task>(); //Individual, smaller tasks.
@@ -91,6 +92,8 @@ namespace CoreComponents.PbfReader
         {
             try
             {
+                System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                sw.Start();
                 Open(filename);
                 LoadBlockInfo();
                 nextBlockId = 0;
@@ -126,7 +129,8 @@ namespace CoreComponents.PbfReader
                 Task.WaitAll(writeTasks.ToArray());
                 Close();
                 CleanupFiles();
-                Log.WriteLog("File completed at " + DateTime.Now);
+                sw.Stop();
+                Log.WriteLog("File completed at " + DateTime.Now + ", session lasted " + sw.Elapsed);
             }
             catch (Exception ex)
             {
@@ -203,7 +207,8 @@ namespace CoreComponents.PbfReader
                         //}
 
                         var wMax = group.ways.Max(w => w.id);
-                        wayFinder2.TryAdd(passedBC, wMax);
+                        if (!wayFinder2.TryAdd(passedBC, wMax))
+                            Log.WriteLog("ERROR: failed to add block " + passedBC + " to way index");
                         wayCounter++;
                     }
                     else if (group.relations.Count > 0)
@@ -247,7 +252,9 @@ namespace CoreComponents.PbfReader
                 nodeFinder2Reverse.TryAdd(entry.Key, entry.Value);
             //Lazy optimization: if our node is bigger than roughly the halfway point, search from the end instead of the start.           
             var idx = new Index(nodeFinder2.Count() / 2);
-            var switchPoint = nodeFinder2.ElementAt(idx).Value.Item2;
+            switchPoint = nodeFinder2.ElementAt(idx).Value.Item2;
+
+            firstWayBlock = wayFinder2.First().Key;
         }
 
         private PrimitiveBlock GetBlock(long blockId)
@@ -366,9 +373,11 @@ namespace CoreComponents.PbfReader
                         case Relation.MemberType.NODE:
                             //TODO: If the FeatureInterpreter doesn't use nodes from a relation, I could skip this part.
                             nodeBlocks.Add(FindBlockKeyForNode(idToFind, nodeBlocks));
+                            nodeBlocks = nodeBlocks.Distinct().ToList();
                             break;
                         case Relation.MemberType.WAY:
-                            wayBlocks.Add(FindBlockKeyForWay(idToFind));
+                            wayBlocks.Add(FindBlockKeyForWay(idToFind, wayBlocks));
+                            wayBlocks = wayBlocks.Distinct().ToList();
                             break;
                         case Relation.MemberType.RELATION: //ignore meta-relations
                                                            //neededBlocks.Add(relationFinder[idToFind].Item1);
@@ -408,12 +417,12 @@ namespace CoreComponents.PbfReader
                     {
                         case Relation.MemberType.NODE:
                             if (!loadedNodes.ContainsKey(idToFind))
-                                loadedNodes.Add(idToFind, GetNode(idToFind, true));
+                                loadedNodes.Add(idToFind, GetNode(idToFind, true, nodeBlocks));
                             c.Member = loadedNodes[idToFind];
                             break;
                         case Relation.MemberType.WAY:
                             if (!loadedWays.ContainsKey(idToFind))
-                                loadedWays.Add(idToFind, GetWay(idToFind, false));
+                                loadedWays.Add(idToFind, GetWay(idToFind, false, wayBlocks));
                             c.Member = loadedWays[idToFind];
                             break;
                     }
@@ -429,11 +438,11 @@ namespace CoreComponents.PbfReader
             }
         }
 
-        private OsmSharp.Complete.CompleteWay GetWay(long wayId, bool skipUntagged)
+        private OsmSharp.Complete.CompleteWay GetWay(long wayId, bool skipUntagged, List<long> hints = null)
         {
             try
             {
-                var wayBlockValues = FindBlockKeyForWay(wayId);
+                var wayBlockValues = FindBlockKeyForWay(wayId, hints);
 
                 PrimitiveBlock wayBlock = GetBlock(wayBlockValues);
                 var wayPrimGroup = wayBlock.primitivegroup[0];
@@ -563,9 +572,9 @@ namespace CoreComponents.PbfReader
             return taggedNodes;
         }
 
-        private OsmSharp.Node GetNode(long nodeId, bool skipTags = true)
+        private OsmSharp.Node GetNode(long nodeId, bool skipTags = true, List<long> hints = null)
         {
-            var nodeBlockValues = FindBlockKeyForNode(nodeId);
+            var nodeBlockValues = FindBlockKeyForNode(nodeId, hints);
 
             PrimitiveBlock nodeBlock = GetBlock(nodeBlockValues);
             var nodePrimGroup = nodeBlock.primitivegroup[0];
@@ -729,6 +738,33 @@ namespace CoreComponents.PbfReader
             //unlike nodes, ways ARE usually sorted 
             //so we CAN safely just find the block where wayId >= minWay for a block
             //BUT the easiest b-tree logic on a ConcurrentDictionary does more iterating to get indexes than just iterating the list would do.
+            foreach (var waylist in wayFinder2)
+            {
+                //key is block id. value is the max way value in this node. We dont need to check the minimum.
+                if (waylist.Value < wayId) //this node's maximum is smaller than our node, skip
+                    continue;
+
+                return waylist.Key;
+            }
+
+            //couldnt find this way
+            throw new Exception("Way Not Found");
+        }
+
+        private long FindBlockKeyForWay(long wayId, List<long> hints)
+        {
+            //We cant use hints here as long as this is a single digit index. I need to track min and max to use hints.
+            //unlike nodes, ways ARE usually sorted 
+            //so we CAN safely just find the block where wayId >= minWay for a block
+            //BUT the easiest b-tree logic on a ConcurrentDictionary does more iterating to get indexes than just iterating the list would do.
+            if (hints != null)
+                foreach (var h in hints)
+                {
+                    //we can check this, but we need to look at the previous block too.
+                    if (wayFinder2[h] >= wayId && (h == firstWayBlock || wayFinder2[h - 1] < wayId))
+                        return h;
+                }
+
             foreach (var waylist in wayFinder2)
             {
                 //key is block id. value is the max way value in this node. We dont need to check the minimum.
@@ -974,10 +1010,11 @@ namespace CoreComponents.PbfReader
 
                 foreach (var entry in nodeFinder2.Reverse())
                     nodeFinder2Reverse.TryAdd(entry.Key, entry.Value);
-                
+
                 //Lazy optimization: if our node is bigger than roughly the halfway point, search from the end instead of the start.           
                 var idx = new Index(nodeFinder2.Count() / 2);
-                var switchPoint = nodeFinder2.ElementAt(idx).Value.Item2;
+                switchPoint = nodeFinder2.ElementAt(idx).Value.Item2;
+                firstWayBlock = wayFinder2.First().Key;
             }
             catch (Exception ex)
             {
@@ -1094,6 +1131,13 @@ namespace CoreComponents.PbfReader
 
                 return monitorTask;
             }
+        }
+
+        public void BenchmarkCheck()
+        {
+            //load Ohio, see how long it takes to look up all ways
+
+
         }
     }
 }
