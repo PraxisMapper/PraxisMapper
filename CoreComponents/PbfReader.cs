@@ -351,6 +351,8 @@ namespace CoreComponents.PbfReader
 
                 //Now get a list of block i know i need now.
                 List<long> neededBlocks = new List<long>();
+                List<long> wayBlocks = new List<long>();
+                List<long> nodeBlocks = new List<long>();
 
                 //memIds is delta-encoded
                 long idToFind = 0;
@@ -363,17 +365,18 @@ namespace CoreComponents.PbfReader
                     {
                         case Relation.MemberType.NODE:
                             //TODO: If the FeatureInterpreter doesn't use nodes from a relation, I could skip this part.
-                            neededBlocks.Add(FindBlockKeyForNode(idToFind, neededBlocks));
+                            nodeBlocks.Add(FindBlockKeyForNode(idToFind, nodeBlocks));
                             break;
                         case Relation.MemberType.WAY:
-                            neededBlocks.Add(FindBlockKeyForWay(idToFind));
+                            wayBlocks.Add(FindBlockKeyForWay(idToFind));
                             break;
                         case Relation.MemberType.RELATION: //ignore meta-relations
                                                            //neededBlocks.Add(relationFinder[idToFind].Item1);
                             break;
                     }
                 }
-
+                neededBlocks.AddRange(wayBlocks.Distinct());
+                neededBlocks.AddRange(nodeBlocks.Distinct());
                 neededBlocks = neededBlocks.Distinct().ToList();
                 foreach (var nb in neededBlocks)
                     GetBlock(nb);
@@ -600,6 +603,8 @@ namespace CoreComponents.PbfReader
             while (nodeCounter != nodeId)
             {
                 index += 1;
+                if (index == 8000)
+                    return null;
                 nodeCounter += denseIds[index];
                 latDelta += dLat[index];
                 lonDelta += dLon[index];
@@ -720,6 +725,7 @@ namespace CoreComponents.PbfReader
 
         private long FindBlockKeyForWay(long wayId)
         {
+            //We cant use hints here as long as this is a single digit index. I need to track min and max to use hints.
             //unlike nodes, ways ARE usually sorted 
             //so we CAN safely just find the block where wayId >= minWay for a block
             //BUT the easiest b-tree logic on a ConcurrentDictionary does more iterating to get indexes than just iterating the list would do.
