@@ -17,6 +17,7 @@ using static CoreComponents.DbTables;
 using static CoreComponents.Place;
 using static CoreComponents.Singletons;
 using static CoreComponents.StandaloneDbTables;
+using CoreComponents.PbfReader;
 
 //TODO: look into using Span<T> instead of lists? This might be worth looking at performance differences. (and/or Memory<T>, which might be a parent for Spans)
 //TODO: Ponder using https://download.bbbike.org/osm/ as a data source to get a custom extract of an area (for when users want a local-focused app, probably via a wizard GUI)
@@ -160,7 +161,7 @@ namespace Larry
                 {
 
                     Log.WriteLog("Test Loading " + filename + " to JSON file at " + DateTime.Now);
-                    CoreComponents.PbfReader r = new PbfReader();
+                    PbfReader r = new PbfReader();
                     r.outputPath = ParserSettings.JsonMapDataFolder;
                     r.ProcessFile(filename);
                     File.Move(filename, filename + "done");
