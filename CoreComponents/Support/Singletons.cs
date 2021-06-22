@@ -46,6 +46,7 @@ namespace CoreComponents
                 new TagParserMatchRule() {Key = "natural", Value = "water|strait|bay", MatchType = "or"},
                 new TagParserMatchRule() {Key = "waterway", Value ="*", MatchType="or" },
                 new TagParserMatchRule() {Key = "landuse", Value ="basin", MatchType="or" },
+                new TagParserMatchRule() {Key = "place", Value ="sea", MatchType="or" }, //stupid Labrador sea value.
             }},
             new TagParserEntry() { id = 2, name ="wetland", HtmlColorCode = "0C4026", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "natural", Value = "wetland", MatchType = "equals" }} },
             new TagParserEntry() { IsGameElement = true, id = 3, name ="park", HtmlColorCode = "00B300", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "leisure", Value = "park", MatchType = "equals" }} },

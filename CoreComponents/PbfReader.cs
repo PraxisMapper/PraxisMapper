@@ -11,7 +11,7 @@ using CoreComponents.Support;
 using System.Text.Json;
 using NetTopologySuite.Noding;
 
-namespace CoreComponents
+namespace CoreComponents.PbfReader
 {
     public class PbfReader
     {
@@ -58,12 +58,11 @@ namespace CoreComponents
 
         //for reference. These are likely to be lost if the application dies partway through processing, since these sit outside the general block-by-block plan.
         private HashSet<long> knownSlowRelations = new HashSet<long>() {
-            9488835, //Labrador Sea. 25,000 ways.
-            9428957, //Gulf of St. Lawrence. 11,000 ways.
+            9488835, //Labrador Sea. 25,000 ways. Stack Overflows on converting to CompleteRelation through defaultFeatureInterpreter.
+            1205151, //Lake Huron, 14,000 ways. Can Stack overflow joining rings.
+            9428957, //Gulf of St. Lawrence. 11,000 ways. Can finish processing, so it's somewhere between 11k and 14k that the stack overflow hits.
             4069900, //Lake Erie is 1100 ways, takes ~56 seconds start to finish.
         };
-
-
 
         //lazy optimization: when to search a reversed list of nodes;
         long switchPoint = 0;
@@ -144,11 +143,14 @@ namespace CoreComponents
         {
             Open(filename);
             IndexFile();
-
+            //LoadBlockInfo();
             var block = relationFinder[areaId];
 
+            CoreComponents.Singletons.SimplifyAreas = true; //Labrador Sea is huge. 12 MB by itself.
             var r = GetRelation(areaId);
             var r2 = GeometrySupport.ConvertOsmEntryToStoredElement(r);
+            GeometrySupport.WriteSingleStoredElementToFile("labradorSea.json", r2);
+            
             //var geoData = GetGeometryFromBlock(block);
 
             //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
@@ -255,8 +257,8 @@ namespace CoreComponents
             foreach (var entry in nodeFinder2.Reverse())
                 nodeFinder2Reverse.TryAdd(entry.Key, entry.Value);
             //Lazy optimization: if our node is bigger than roughly the halfway point, search from the end instead of the start.           
-            var i = new Index(nodeFinder2.Count() / 2);
-            var switchPoint = nodeFinder2.ElementAt(i).Value.Item2;
+            var idx = new Index(nodeFinder2.Count() / 2);
+            var switchPoint = nodeFinder2.ElementAt(idx).Value.Item2;
         }
 
         private PrimitiveBlock GetBlock(long blockId)
@@ -334,6 +336,13 @@ namespace CoreComponents
                 var relPrimGroup = relationBlock.primitivegroup[0];
                 var rel = relPrimGroup.relations.Where(r => r.id == relationId).FirstOrDefault();
                 //finally have the core item
+
+                //Sanity check - ignore the Labrador Sea until I have a way to process it.
+                if (rel.memids.Count() > 12000) //This is roughly where a stack overflow will reliably occur trying to join rings
+                {
+                    Log.WriteLog("Relation " + rel.id + " too big - ignoring to avoid a stack overflow");
+                    return null;
+                }
 
                 //sanity check - if this relation doesn't have inner or outer role members,
                 //its not one i can process.
@@ -971,14 +980,6 @@ namespace CoreComponents
             System.IO.File.WriteAllLines(filename, data);
 
             filename = outputPath + fi.Name + ".wayIndex";
-            //data = new string[exactWayFinder3.Count()];
-            //j = 0;
-            //foreach (var wf in exactWayFinder3)
-            //{
-            //    data[j] = wf.Key + ":" + wf.Value;
-            //    j++;
-            //}
-            //System.IO.File.WriteAllLines(filename, data);
             data = new string[wayFinder2.Count()];
             j = 0;
             foreach (var wf in wayFinder2)
@@ -1042,8 +1043,8 @@ namespace CoreComponents
                 foreach (var entry in nodeFinder2.Reverse())
                     nodeFinder2Reverse.TryAdd(entry.Key, entry.Value);
                 //Lazy optimization: if our node is bigger than roughly the halfway point, search from the end instead of the start.           
-                var i = new Index(nodeFinder2.Count() / 2);
-                var switchPoint = nodeFinder2.ElementAt(i).Value.Item2;
+                var idx = new Index(nodeFinder2.Count() / 2);
+                var switchPoint = nodeFinder2.ElementAt(idx).Value.Item2;
             }
             catch (Exception ex)
             {
