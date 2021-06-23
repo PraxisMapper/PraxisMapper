@@ -264,6 +264,9 @@ namespace CoreComponents
             public long id { get; set; }
             public string name { get; set; }
             public byte[] imageData { get; set; } //yes, i'm saving files in a database.
+            public string imageName { get;  set; } //Or im saving paths to files for now
+            public string type1 { get; set; }
+            public string type2 { get; set; }
 
         }
 
