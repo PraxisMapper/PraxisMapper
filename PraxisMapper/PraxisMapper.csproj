@@ -49,5 +49,9 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="CreatureImages\" />
+  </ItemGroup>
+
 
 </Project>
