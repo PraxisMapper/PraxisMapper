@@ -1043,7 +1043,7 @@ namespace CoreComponents.PbfReader
 
         private void CleanupFiles()
         {
-            foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.blockInfo"))
+            foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.blockinfo"))
                 System.IO.File.Delete(file);
 
             foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.relationIndex"))
