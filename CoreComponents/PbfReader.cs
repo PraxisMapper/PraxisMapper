@@ -262,13 +262,15 @@ namespace CoreComponents.PbfReader
             //Track that this entry was requested for this processing block.
             //If the block is in memory, return it.
             //If not, load it from disk and return it.
-            if (!activeBlocks.ContainsKey(blockId))
+            PrimitiveBlock results;
+            if (!activeBlocks.TryGetValue(blockId, out results))
             {
-                activeBlocks.TryAdd(blockId, GetBlockFromFile(blockId));
+                results = GetBlockFromFile(blockId);
+                activeBlocks.TryAdd(blockId, results);
                 accessedBlocks.TryAdd(blockId, true);
             }
 
-            return activeBlocks[blockId];
+            return results;
         }
 
         //NOTE: once this is done with the memory stream, it could split off the remaining work to a Task
@@ -476,7 +478,7 @@ namespace CoreComponents.PbfReader
                 Dictionary<long, OsmSharp.Node> AllNodes = new Dictionary<long, OsmSharp.Node>();
                 foreach (var block in nodesByBlock)
                 {
-                    var someNodes = GetAllNeededNodesInBlock(block.Key, block.Distinct().ToList());
+                    var someNodes = GetAllNeededNodesInBlock(block.Key, block.Distinct().OrderBy(b => b).ToArray());
                     if (someNodes == null)
                         return null; //throw new Exception("Couldn't load all nodes from a block");
                     foreach (var n in someNodes)
@@ -635,9 +637,10 @@ namespace CoreComponents.PbfReader
             return filled;
         }
 
-        private Dictionary<long, OsmSharp.Node> GetAllNeededNodesInBlock(long blockId, List<long> nodeIds)
+        private Dictionary<long, OsmSharp.Node> GetAllNeededNodesInBlock(long blockId, long[] nodeIds)
         {
-            Dictionary<long, OsmSharp.Node> results = new Dictionary<long, OsmSharp.Node>();
+            Dictionary<long, OsmSharp.Node> results = new Dictionary<long, OsmSharp.Node>(nodeIds.Length);
+            int arrayIndex = 0;
 
             var block = GetBlock(blockId);
             var group = block.primitivegroup[0];
@@ -649,7 +652,7 @@ namespace CoreComponents.PbfReader
             var denseIds = group.dense.id;
             var dLat = group.dense.lat;
             var dLon = group.dense.lon;
-            while (results.Count < nodeIds.Count())
+            while (results.Count < nodeIds.Length)
             {
                 index++;
                 if (index == 8000)
@@ -660,13 +663,14 @@ namespace CoreComponents.PbfReader
                 latDelta += dLat[index];
                 lonDelta += dLon[index];
 
-                if (nodeIds.Contains(nodeCounter))
+                if (nodeIds[arrayIndex] == nodeCounter)
                 {
                     OsmSharp.Node filled = new OsmSharp.Node();
                     filled.Id = nodeCounter;
                     filled.Latitude = DecodeLatLon(latDelta, block.lat_offset, block.granularity);
                     filled.Longitude = DecodeLatLon(lonDelta, block.lon_offset, block.granularity);
                     results.Add(nodeCounter, filled);
+                    arrayIndex++;
                 }
             }
             return results;
@@ -868,7 +872,7 @@ namespace CoreComponents.PbfReader
                     }
                     else if (primgroup.ways != null && primgroup.ways.Count() > 0)
                     {
-                        //original multithreading logic, similar to relations.
+                        //original multithreading logic, similar to relations. Attermpting to do this like nodes is much, much slower and eats tons of RAM
                         foreach (var r in primgroup.ways.OrderByDescending(w => w.refs.Count())) //Ordering should help consistency in runtime, though splitting off the biggest ones to their own thread is a better optimization.
                         {
                             relList.Add(Task.Run(() => results.Add(GetWay(r.id, true))));
@@ -909,6 +913,7 @@ namespace CoreComponents.PbfReader
 
                 sw.Stop();
                 timeList.Add(sw.Elapsed);
+                if (results != null && results.Count() != 0)
                 Log.WriteLog("block " + blockId + ":" + results.Count() + " items out of " + count + " created in " + sw.Elapsed);
                 return results;
             }
@@ -1008,6 +1013,7 @@ namespace CoreComponents.PbfReader
                     nodeFinder2.TryAdd(long.Parse(subData2[0]), Tuple.Create(long.Parse(subData2[1]), long.Parse(subData2[2])));
                 }
 
+                //I never use NodeFinder2 with the key, its always iterated over. It should be a list or a sorted concurrent entry
                 foreach (var entry in nodeFinder2.Reverse())
                     nodeFinder2Reverse.TryAdd(entry.Key, entry.Value);
 
@@ -1080,7 +1086,7 @@ namespace CoreComponents.PbfReader
             ConcurrentBag<StoredOsmElement> elements = new ConcurrentBag<StoredOsmElement>();
             DateTime startedProcess = DateTime.Now;
 
-            if (items == null)
+            if (items == null || items.Count() == 0)
                 return null;
 
             relList = new ConcurrentBag<Task>();
