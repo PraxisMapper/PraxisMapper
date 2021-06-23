@@ -144,5 +144,49 @@ namespace CoreComponents
                 new TagParserMatchRule() {Key = "*", Value = "*", MatchType = "default"},
             }},
         };
+
+        //Short counter by type. Ideally would like 4+ of each type, whatever types may end up being.
+        //Using the type data from the original source for now.
+        //Short rules:
+        //Normal: any otherwise untagged area
+        //water: around water areas.
+        //ghost: graveyards.
+        //Grass: parks.
+
+        //grass 2
+        //normal 1
+        //flying 1
+        //water 3
+        //poison 2
+        //electric 1
+        //dark 2
+        //bug 2
+        //ghost 1
+        //fairy 2
+        //Fire 1
+        //ground 1
+
+        public static List<Creature> defaultCreatures = new List<Creature>() { 
+            new Creature() { name ="Acafia", type1 ="Grass", type2 = "", imageName ="CreatureImages/acafia.png" },
+            new Creature() { name ="Acceleret", type1 ="Normal", type2 = "Flying", imageName ="CreatureImages/acceleret.png" },
+            new Creature() { name ="Aeolagio", type1 ="Water", type2 = "Poison", imageName ="CreatureImages/aeolagio.png" },
+            new Creature() { name ="Bandibat", type1 ="Electric", type2 = "Dark", imageName ="CreatureImages/bandibat.png" },
+            new Creature() { name ="Belamrine", type1 ="Bug", type2 = "Water", imageName ="CreatureImages/belmarine.png" },
+            new Creature() { name ="Bojina", type1 ="Ghost", type2 = "", imageName ="CreatureImages/bojina.png" },
+            new Creature() { name ="Caslot", type1 ="Dark", type2 = "Fairy", imageName ="CreatureImages/caslot.png" },
+            new Creature() { name ="Cindigre", type1 ="Fire", type2 = "", imageName ="CreatureImages/cindigre.png" },
+            new Creature() { name ="Curlsa", type1 ="Fairy", type2 = "", imageName ="CreatureImages/curlsa.png" },
+            new Creature() { name ="Decicorn", type1 ="Poison", type2 = "", imageName ="CreatureImages/decicorn.png" },
+            new Creature() { name ="Dauvespa", type1 ="Bug", type2 = "Ground", imageName ="CreatureImages/dauvespa.png" },
+            new Creature() { name ="Drakella", type1 ="Water", type2 = "Grass", imageName ="CreatureImages/drakella.png" },
+            new Creature() { name ="", type1 ="", type2 = "", imageName ="CreatureImages/.png" },
+            new Creature() { name ="", type1 ="", type2 = "", imageName ="CreatureImages/.png" },
+            new Creature() { name ="", type1 ="", type2 = "", imageName ="CreatureImages/.png" },
+            new Creature() { name ="", type1 ="", type2 = "", imageName ="CreatureImages/.png" },
+            new Creature() { name ="", type1 ="", type2 = "", imageName ="CreatureImages/.png" },
+            new Creature() { name ="", type1 ="", type2 = "", imageName ="CreatureImages/.png" },
+            new Creature() { name ="", type1 ="", type2 = "", imageName ="CreatureImages/.png" },
+            new Creature() { name ="", type1 ="", type2 = "", imageName ="CreatureImages/.png" },
+        };
     }
 }
