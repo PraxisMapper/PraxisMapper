@@ -68,6 +68,8 @@ namespace CoreComponents.PbfReader
         //lazy optimization: when to search a reversed list of nodes;
         long switchPoint = 0;
 
+        public bool displayStatus = true;
+
         public long BlockCount()
         {
             return blockPositions.Count();
@@ -109,7 +111,9 @@ namespace CoreComponents.PbfReader
                     nextBlockId = FindLastCompletedBlock() - 1;
                 }
 
-                ShowWaitInfo();
+                if (displayStatus)
+                    ShowWaitInfo();
+
                 for (var block = nextBlockId; block > 0; block--)
                 {
                     long thisBlockId = block;
