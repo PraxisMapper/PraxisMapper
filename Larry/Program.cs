@@ -18,6 +18,7 @@ using static CoreComponents.Place;
 using static CoreComponents.Singletons;
 using static CoreComponents.StandaloneDbTables;
 using CoreComponents.PbfReader;
+using System.Text.Json;
 
 //TODO: look into using Span<T> instead of lists? This might be worth looking at performance differences. (and/or Memory<T>, which might be a parent for Spans)
 //TODO: Ponder using https://download.bbbike.org/osm/ as a data source to get a custom extract of an area (for when users want a local-focused app, probably via a wizard GUI)
@@ -167,6 +168,30 @@ namespace Larry
                     File.Move(filename, filename + "done");
                     Log.WriteLog("Finished loaded " + filename + " to JSON at " + DateTime.Now);
                 }
+            }
+
+            if (args.Any(a => a == "-convertJsonToSql"))
+            {
+
+                //test code
+                var db = new PraxisContext();
+                var entries = db.StoredOsmElements.Take(100).ToList();
+                //var recordVersion = entries.Select(md =>  new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated)).ToList();
+                //var test = recordVersion.Select(rv => JsonSerializer.Serialize(rv, typeof(StoredOsmElementForJson))).ToList();
+                SqlExporter.DumpToSql(entries, "testfile.sql");
+
+
+                //flip a JSON file to a SQL file and try and run it directly on the DB.
+                //var db = new PraxisContext();
+                //db.ChangeTracker.AutoDetectChangesEnabled = false;
+                //List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.JsonMapDataFolder, "*.json").ToList();
+                //long entryCounter = 0;
+                //foreach (var jsonFileName in filenames)
+                //{
+
+                //    SqlExporter.DumpToSql();
+                //}
+
             }
 
             if (args.Any(a => a == "-loadJsonToDb"))
@@ -417,7 +442,7 @@ namespace Larry
         {
             List<string> cellsFound = new List<string>();
             List<MapTile> tilesGenerated = new List<MapTile>(400); //Might need to be a ConcurrentBag or something similar?
-                                                                   
+
             if (parentCell.Length == 4)
             {
                 var checkProgress = new PraxisContext();
@@ -454,7 +479,7 @@ namespace Larry
                     if (cellToCheck.Length == 8) //We don't want to do the DoPlacesExist check here, since we'll want empty tiles for empty areas at this l
                     {
                         var places = GetPlaces(area, cell6Data); //These are cloned in GetPlaces, so we aren't intersecting areas twice and breaking drawing. //, false, false, 0
-                        var tileData = MapTiles.DrawAreaAtSize(info, places); 
+                        var tileData = MapTiles.DrawAreaAtSize(info, places);
                         tilesGenerated.Add(new MapTile() { CreatedOn = DateTime.Now, mode = 1, tileData = tileData, resolutionScale = 11, PlusCode = cellToCheck });
                         Log.WriteLog("Cell " + cellToCheck + " Drawn", Log.VerbosityLevels.High);
                     }

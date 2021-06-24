@@ -46,6 +46,11 @@ namespace CoreComponents
             return null; //not CCW either way? Happen occasionally for some reason, and it will fail to write to a SQL Server DB. I think its related to lines crossing over each other multiple times?
         }
 
+        public static Geometry GeometryFromWKT(string elementGeometry)
+        {
+            return reader.Read(elementGeometry);
+        }
+
         public static Geometry SimplifyArea(Geometry place)
         {
             if (!SimplifyAreas)

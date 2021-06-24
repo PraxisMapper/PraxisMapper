@@ -114,5 +114,10 @@ namespace CoreComponents
         {
             return Encoding.ASCII.GetBytes(s);
         }
+
+        public static string ToByteString(this byte[] b)
+        {
+            return BitConverter.ToString(b).Replace("-", "");
+        }
     }
 }
