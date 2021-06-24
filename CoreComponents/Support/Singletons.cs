@@ -153,19 +153,27 @@ namespace CoreComponents
         //ghost: graveyards.
         //Grass: parks.
 
-        //grass 2
-        //normal 1
+        //grass 3
+        //normal 3
         //flying 1
-        //water 3
+        //water 5
         //poison 2
         //electric 1
-        //dark 2
-        //bug 2
-        //ghost 1
-        //fairy 2
-        //Fire 1
-        //ground 1
+        //dark 3
+        //bug 5
+        //ghost 2
+        //fairy 4
+        //Fire 3
+        //ground 2
+        //psychic 3
+        //rock 2
+        //dragon 1
+        //ice 1
+        //fighting 1
 
+
+
+        //26 total entries for Hypothesis/example usage.
         public static List<Creature> defaultCreatures = new List<Creature>() { 
             new Creature() { name ="Acafia", type1 ="Grass", type2 = "", imageName ="CreatureImages/acafia.png" },
             new Creature() { name ="Acceleret", type1 ="Normal", type2 = "Flying", imageName ="CreatureImages/acceleret.png" },
@@ -179,14 +187,21 @@ namespace CoreComponents
             new Creature() { name ="Decicorn", type1 ="Poison", type2 = "", imageName ="CreatureImages/decicorn.png" },
             new Creature() { name ="Dauvespa", type1 ="Bug", type2 = "Ground", imageName ="CreatureImages/dauvespa.png" },
             new Creature() { name ="Drakella", type1 ="Water", type2 = "Grass", imageName ="CreatureImages/drakella.png" },
-            new Creature() { name ="", type1 ="", type2 = "", imageName ="CreatureImages/.png" },
-            new Creature() { name ="", type1 ="", type2 = "", imageName ="CreatureImages/.png" },
-            new Creature() { name ="", type1 ="", type2 = "", imageName ="CreatureImages/.png" },
-            new Creature() { name ="", type1 ="", type2 = "", imageName ="CreatureImages/.png" },
-            new Creature() { name ="", type1 ="", type2 = "", imageName ="CreatureImages/.png" },
-            new Creature() { name ="", type1 ="", type2 = "", imageName ="CreatureImages/.png" },
-            new Creature() { name ="", type1 ="", type2 = "", imageName ="CreatureImages/.png" },
-            new Creature() { name ="", type1 ="", type2 = "", imageName ="CreatureImages/.png" },
+            new Creature() { name ="Eidograph", type1 ="Ghost", type2 = "Psychic", imageName ="CreatureImages/eidograph.png" },
+            new Creature() { name ="Encanoto", type1 ="Psychic", type2 = "", imageName ="CreatureImages/encanoto.png" },
+            new Creature() { name ="Faintrick", type1 ="Normal", type2 = "", imageName ="CreatureImages/faintrick.png" },
+            new Creature() { name ="Galavena", type1 ="Rock", type2 = "Psychic", imageName ="CreatureImages/galavena.png" },
+            new Creature() { name ="Vanitarch", type1 ="Bug", type2 = "Fairy", imageName ="CreatureImages/vanitarch.png" },
+            new Creature() { name ="Grotuille", type1 ="Water", type2 = "Rock", imageName ="CreatureImages/grotuille.png" },
+            new Creature() { name ="Gumbwaal", type1 ="Normal", type2 = "", imageName ="CreatureImages/gumbwaal.png" },
+            new Creature() { name ="Mandragoon", type1 ="Grass", type2 = "Dragon", imageName ="CreatureImages/mandragoon.png" },
+            new Creature() { name ="Ibazel", type1 ="Dark", type2 = "", imageName ="CreatureImages/ibazel.png" },
+            new Creature() { name ="Makappa", type1 ="Ice", type2 = "Fire", imageName ="CreatureImages/makappa.png" },
+            new Creature() { name ="Pyrobin", type1 ="Fire", type2 = "Fairy", imageName ="CreatureImages/pyrobin.png" },
+            new Creature() { name ="Rocklantis", type1 ="Water", type2 = "Fighting", imageName ="CreatureImages/rocklantis.png" },
+            new Creature() { name ="Strixlan", type1 ="Dark", type2 = "Flying", imageName ="CreatureImages/strixlan.png" },
+            new Creature() { name ="Tinimer", type1 ="Bug", type2 = "", imageName ="CreatureImages/tinimer.png" },
+            new Creature() { name ="Vaquerado", type1 ="Bug", type2 = "Ground", imageName ="CreatureImages/vaquerado.png" },
         };
     }
 }
