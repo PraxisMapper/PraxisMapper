@@ -1076,8 +1076,8 @@ namespace CoreComponents.PbfReader
                     if (timeList.Count > 0)
                     {
                         Log.WriteLog("Average time per block: " + timeList.Average(t => t.TotalSeconds) + " seconds");
-                        TimeSpan ts = new TimeSpan((long)timeList.Average(t => t.Ticks) * nextBlockId);
-                        Log.WriteLog("Estimated time remaining: " + ts.ToString()); //This will be high, since we start with the slowest blocks and move to the fastest ones.
+                        //TimeSpan ts = new TimeSpan((long)timeList.Average(t => t.Ticks) * nextBlockId);
+                        //Log.WriteLog("Estimated time remaining: " + ts.ToString()); //This will be high, since we start with the slowest blocks and move to the fastest ones.
                     }
                     System.Threading.Thread.Sleep(60000);
                 }
