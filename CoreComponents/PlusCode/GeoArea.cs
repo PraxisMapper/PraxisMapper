@@ -21,7 +21,7 @@ namespace Google.OpenLocationCode
         /// <exception cref="ArgumentException">If min is greater than or equal to max.</exception>
         public GeoArea(GeoPoint min, GeoPoint max)
         {
-            if (min.Latitude >= max.Latitude || min.Longitude >= max.Longitude)
+            if (min.Latitude > max.Latitude || min.Longitude > max.Longitude)
             {
                 throw new ArgumentException("min must be less than max");
             }
