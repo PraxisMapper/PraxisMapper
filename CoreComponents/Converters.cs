@@ -110,8 +110,15 @@ namespace CoreComponents
 
         public static GeoArea GeometryToGeoArea(Geometry g)
         {
-            GeoArea results = new GeoArea(g.EnvelopeInternal.MinY, g.EnvelopeInternal.MinX, g.EnvelopeInternal.MaxY, g.EnvelopeInternal.MaxX);
-            return results;
+            try
+            {
+                GeoArea results = new GeoArea(g.EnvelopeInternal.MinY, g.EnvelopeInternal.MinX, g.EnvelopeInternal.MaxY, g.EnvelopeInternal.MaxX);
+                return results;
+            }
+            catch (Exception ex)
+            {
+                return null;
+            }
         }
     }
 }

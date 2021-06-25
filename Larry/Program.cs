@@ -571,10 +571,10 @@ namespace Larry
 
             Log.WriteLog("Loaded all intersecting geometry at " + DateTime.Now);
 
-            //NEW: process all the gameplay geometry to the new center/radius format
+            //NEW: process all the gameplay geometry to the new square format
             var wikiList = allPlaces.Where(a => a.Tags.Any(t => t.Key == "wikipedia") && a.name != "").Select(a => a.name).Distinct().ToList();
-            var basePlaces = allPlaces.Where(a => a.name != "" && (a.IsGameElement || wikiList.Contains(a.name))).ToList();
-            var distinctPlaces = basePlaces.Select(p => p.name).Distinct().ToList();
+            var basePlaces = allPlaces.Where(a => a.name != "").ToList();// && (a.IsGameElement || wikiList.Contains(a.name))).ToList();
+            var distinctPlaces = basePlaces.Select(p => p.name).Distinct().ToList();//This distinct might be causing things in multiple pieces to only detect one of them, not all of them?
             var finalPlaceList = new List<StoredOsmElement>();
             foreach (var dp in distinctPlaces)
                 finalPlaceList.Add(basePlaces.Where(bp => bp.name == dp).First());
@@ -604,14 +604,14 @@ namespace Larry
             //TODO trails need processed the old way, per Cell10. I would like to not hard-code those by element name
             //but for the moment I dont have any other indicator of what should always, exclusively be done by Cells in offline mode.
             var tdSmalls = new Dictionary<string, TerrainDataSmall>();
-            foreach (var trail in finalPlaceList.Where(p => p.GameElementName == "trail"))
+            foreach (var trail in finalPlaceList.Where(p => p.GameElementName == "trail" || p.GameElementName == "road"))
             {
                 var removePlace = placeInfo.Where(p => p.Name == trail.name).First();
                 placeInfo.Remove(removePlace); //dont treat this like an area.
                 sqliteDb.PlaceInfo2s.Remove(sqliteDb.PlaceInfo2s.Where(p => p.Name == trail.name).First());
 
                 //I should search the element for the cell10s it overlaps, not the Cell8s for cells with the elements.
-                GeoArea thisPath = Converters.GeometryToGeoArea(trail.elementGeometry);
+                GeoArea thisPath = Converters.GeometryToGeoArea(trail.elementGeometry); //can result in min less than max?
                 List<StoredOsmElement> oneEntry = new List<StoredOsmElement>();
                 oneEntry.Add(trail);
 
