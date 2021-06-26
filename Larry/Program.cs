@@ -574,12 +574,12 @@ namespace Larry
             //NEW: process all the gameplay geometry to the new square format
             var wikiList = allPlaces.Where(a => a.Tags.Any(t => t.Key == "wikipedia") && a.name != "").Select(a => a.name).Distinct().ToList();
             var basePlaces = allPlaces.Where(a => a.name != "").ToList();// && (a.IsGameElement || wikiList.Contains(a.name))).ToList();
-            var distinctPlaces = basePlaces.Select(p => p.name).Distinct().ToList();//This distinct might be causing things in multiple pieces to only detect one of them, not all of them?
-            var finalPlaceList = new List<StoredOsmElement>();
-            foreach (var dp in distinctPlaces)
-                finalPlaceList.Add(basePlaces.Where(bp => bp.name == dp).First());
+            var distinctNames = basePlaces.Select(p => p.name).Distinct().ToList();//This distinct might be causing things in multiple pieces to only detect one of them, not all of them?
+            //var finalPlaceList = new List<StoredOsmElement>();
+            //foreach (var dp in distinctNames)
+                //finalPlaceList.Add(basePlaces.Where(bp => bp.name == dp).First());
 
-            var placeInfo = CoreComponents.Standalone.Standalone.GetPlaceInfo(finalPlaceList);
+            var placeInfo = CoreComponents.Standalone.Standalone.GetPlaceInfo(basePlaces);
             //Remove trails later.
             sqliteDb.PlaceInfo2s.AddRange(placeInfo);
             sqliteDb.SaveChanges();
@@ -587,7 +587,7 @@ namespace Larry
 
             //to save time, i need to index which areas are in which Cell6.
             //So i know which entries I can skip.
-            var indexCell6 = CoreComponents.Standalone.Standalone.IndexAreasPerCell6(buffered, finalPlaceList);
+            var indexCell6 = CoreComponents.Standalone.Standalone.IndexAreasPerCell6(buffered, basePlaces);
             foreach (var entry in indexCell6)
             {
                 foreach (var place in entry.Value)
@@ -604,11 +604,14 @@ namespace Larry
             //TODO trails need processed the old way, per Cell10. I would like to not hard-code those by element name
             //but for the moment I dont have any other indicator of what should always, exclusively be done by Cells in offline mode.
             var tdSmalls = new Dictionary<string, TerrainDataSmall>();
-            foreach (var trail in finalPlaceList.Where(p => p.GameElementName == "trail" || p.GameElementName == "road"))
+            foreach (var trail in basePlaces.Where(p => p.GameElementName == "trail" || p.GameElementName == "road"))
             {
-                var removePlace = placeInfo.Where(p => p.Name == trail.name).First();
-                placeInfo.Remove(removePlace); //dont treat this like an area.
-                sqliteDb.PlaceInfo2s.Remove(sqliteDb.PlaceInfo2s.Where(p => p.Name == trail.name).First());
+                var removePlaceList = placeInfo.Where(p => p.Name == trail.name).ToList();
+                foreach(var r in removePlaceList)
+                    placeInfo.Remove(r); //dont treat this like an area.
+                var pis = sqliteDb.PlaceInfo2s.Where(p => p.Name == trail.name).ToList();
+                foreach(var p in pis)
+                    sqliteDb.PlaceInfo2s.Remove(p);
 
                 //I should search the element for the cell10s it overlaps, not the Cell8s for cells with the elements.
                 GeoArea thisPath = Converters.GeometryToGeoArea(trail.elementGeometry); //can result in min less than max?
