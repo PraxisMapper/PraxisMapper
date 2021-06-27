@@ -42,6 +42,7 @@
   <ItemGroup>
     <Folder Include="Interfaces\" />
     <Folder Include="CustomOsmSharp\" />
+    <Folder Include="MapPatterns\" />
   </ItemGroup>
 
   <ItemGroup>
