@@ -10,6 +10,7 @@ using static CoreComponents.Place;
 using static CoreComponents.Singletons;
 using SkiaSharp;
 using CoreComponents.Support;
+using OsmSharp.API;
 
 namespace CoreComponents
 {
@@ -60,7 +61,7 @@ namespace CoreComponents
 
             //These may or may not be the same, even if the map tile is smaller than 1 Cell8.
             var firstCell8 = new OpenLocationCode(info.area.SouthLatitude, info.area.WestLongitude).CodeDigits.Substring(0, 8);
-            var lastCell8 = new OpenLocationCode(info.area.NorthLatitude,info.area.EastLongitude).CodeDigits.Substring(0, 8);
+            var lastCell8 = new OpenLocationCode(info.area.NorthLatitude, info.area.EastLongitude).CodeDigits.Substring(0, 8);
             if (firstCell8 != lastCell8)
             {
                 //quick hack to make sure we process enough data.
@@ -320,7 +321,7 @@ namespace CoreComponents
 
         public static byte[] DrawCell8V4(GeoArea Cell8, List<StoredOsmElement> drawnItems = null)
         {
-            return DrawAreaAtSize(Cell8, 80, 100,  drawnItems);
+            return DrawAreaAtSize(Cell8, 80, 100, drawnItems);
         }
 
         public static byte[] DrawPlusCode(string area)
@@ -369,9 +370,9 @@ namespace CoreComponents
         //This generic function takes the area to draw, a size to make the canvas, and then draws it all.
         //Optional parameter allows you to pass in different stuff that the DB alone has, possibly for manual or one-off changes to styling
         //or other elements converted for maptile purposes.
-        
+
         public static byte[] DrawAreaAtSize(ImageStats stats, List<StoredOsmElement> drawnItems = null, List<TagParserEntry> styles = null, bool filterSmallAreas = true)
-    {
+        {
             //This is the new core drawing function. Takes in an area, the items to draw, and the size of the image to draw. 
             //The drawn items get their paint pulled from the TagParser's list. If I need multiple match lists, I'll need to make a way
             //to pick which list of tagparser rules to use.
@@ -382,12 +383,12 @@ namespace CoreComponents
             double minimumSize = 0;
             if (filterSmallAreas)
                 minimumSize = stats.degreesPerPixelX; //don't draw elements under 1 pixel in size. at slippy zoom 12, this is approx. 1 pixel for a Cell10.
-          
+
             var db = new PraxisContext();
             var geo = Converters.GeoAreaToPolygon(stats.area);
             if (drawnItems == null)
                 drawnItems = GetPlaces(stats.area, minimumSize: minimumSize);
-                //drawnItems = db.StoredOsmElements.Include(c => c.Tags).Where(w => geo.Intersects(w.elementGeometry) && w.AreaSize >= minimumSize).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList();
+            //drawnItems = db.StoredOsmElements.Include(c => c.Tags).Where(w => geo.Intersects(w.elementGeometry) && w.AreaSize >= minimumSize).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList();
 
             //baseline image data stuff           
             SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
@@ -403,6 +404,13 @@ namespace CoreComponents
                 paint = style.paint;
                 if (paint.Color.Alpha == 0)
                     continue; //This area is transparent, skip drawing it entirely.
+
+                //For a pattern, I think i'm going to have to make a new Canavs
+                //of the size of the area being draw, (possibly cropping that to just the visible piece)
+                //fill it with the pattern in question I want to use piece by piece,
+                //then crop all of that to the shape of the area, draw it, then draw that bitmap on top of the tile, like how I have to handle inner ways.
+                //On the upside, that's only for poly or multipoly areas.
+
 
                 var path = new SKPath();
                 switch (w.elementGeometry.GeometryType)
@@ -485,6 +493,8 @@ namespace CoreComponents
             return results;
         }
 
+        //Possible optimization: Cap image size to polygon size inside cropped area for parent image. 
+        //Would need more math to apply to correct location.
         public static SKBitmap DrawPolygon(Polygon polygon, SKPaint paint, ImageStats stats)
         {
             //In order to do this the most correct, i have to draw the outer ring, then erase all the innner rings.
@@ -493,7 +503,32 @@ namespace CoreComponents
             SKCanvas canvas = new SKCanvas(bitmap);
             var bgColor = SKColors.Transparent;
             canvas.Clear(bgColor);
-            canvas.Scale(1, 1, stats.imageSizeX / 2, stats.imageSizeY / 2); 
+            canvas.Scale(1, 1, stats.imageSizeX / 2, stats.imageSizeY / 2);
+            var path = new SKPath();
+            path.AddPoly(Converters.PolygonToSKPoints(polygon.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+            canvas.DrawPath(path, paint);
+
+            foreach (var hole in polygon.InteriorRings)
+            {
+                path = new SKPath();
+                path.AddPoly(Converters.PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                canvas.DrawPath(path, eraser);
+            }
+
+            return bitmap;
+        }
+
+        public static SKBitmap DrawFilledPolygon(Polygon polygon, SKPaint paint, ImageStats stats, byte[] fillbitmap)
+        {
+            //Convert bitmap to SkBitmap
+            SKBitmap fillPattern = SKBitmap.Decode(fillbitmap);
+            //In order to do this the most correct, i have to draw the outer ring, then erase all the innner rings.
+            //THEN draw that image overtop the original.
+            SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
+            SKCanvas canvas = new SKCanvas(bitmap);
+            var bgColor = SKColors.Transparent;
+            canvas.Clear(bgColor);
+            canvas.Scale(1, 1, stats.imageSizeX / 2, stats.imageSizeY / 2);
             var path = new SKPath();
             path.AddPoly(Converters.PolygonToSKPoints(polygon.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
             canvas.DrawPath(path, paint);

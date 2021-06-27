@@ -19,6 +19,7 @@ using static CoreComponents.Singletons;
 using static CoreComponents.StandaloneDbTables;
 using CoreComponents.PbfReader;
 using System.Text.Json;
+using Pomelo.EntityFrameworkCore.MySql.Query.Internal;
 
 //TODO: look into using Span<T> instead of lists? This might be worth looking at performance differences. (and/or Memory<T>, which might be a parent for Spans)
 //TODO: Ponder using https://download.bbbike.org/osm/ as a data source to get a custom extract of an area (for when users want a local-focused app, probably via a wizard GUI)
@@ -571,9 +572,22 @@ namespace Larry
 
             Log.WriteLog("Loaded all intersecting geometry at " + DateTime.Now);
 
+            string minCode = new OpenLocationCode(buffered.SouthLatitude, buffered.WestLongitude).CodeDigits;
+            string maxCode = new OpenLocationCode(buffered.NorthLatitude, buffered.EastLongitude).CodeDigits;
+            int removableLetters = 0;
+            for (int i = 0; i < 10; i++)
+            {
+                if (minCode[i] == maxCode[i])
+                    removableLetters++;
+                else
+                    i += 10;
+            }
+            string commonStart = minCode.Substring(0, removableLetters);
+
             //NEW: process all the gameplay geometry to the new square format
             var wikiList = allPlaces.Where(a => a.Tags.Any(t => t.Key == "wikipedia") && a.name != "").Select(a => a.name).Distinct().ToList();
-            var basePlaces = allPlaces.Where(a => a.name != "").ToList();// && (a.IsGameElement || wikiList.Contains(a.name))).ToList();
+            //Leaving this nearly wide open, since it's not the main driver of DB size.
+            var basePlaces = allPlaces.Where(a => a.name != "" || a.GameElementName != "unmatched").ToList(); //.Where(a => a.name != "").ToList();// && (a.IsGameElement || wikiList.Contains(a.name))).ToList();
             var distinctNames = basePlaces.Select(p => p.name).Distinct().ToList();//This distinct might be causing things in multiple pieces to only detect one of them, not all of them?
             //var finalPlaceList = new List<StoredOsmElement>();
             //foreach (var dp in distinctNames)
@@ -581,40 +595,71 @@ namespace Larry
 
             var placeInfo = CoreComponents.Standalone.Standalone.GetPlaceInfo(basePlaces);
             //Remove trails later.
+            //SHORTCUT: for roads that are a straight-enough line (under 1 Cell10 in width or height)
+            //just treat them as being 1 Cell10 in that axis, and skip tracking them by each Cell10 they cover.
+            HashSet<long> skipEntries = new HashSet<long>();
+            foreach (var pi in placeInfo.Where(p => p.areaType == "road" || p.areaType == "trail"))
+            {
+                //If a road is nearly a straight line, treat it as though it was 1 cell10 wide, and don't index its coverage per-cell later.
+                if (pi.height <= ConstantValues.resolutionCell10 && pi.width >= ConstantValues.resolutionCell10)
+                { pi.height = ConstantValues.resolutionCell10; skipEntries.Add(pi.OsmElementId); }
+                else if (pi.height >= ConstantValues.resolutionCell10 && pi.width <= ConstantValues.resolutionCell10)
+                { pi.width = ConstantValues.resolutionCell10; skipEntries.Add(pi.OsmElementId); }    
+            }
+
             sqliteDb.PlaceInfo2s.AddRange(placeInfo);
             sqliteDb.SaveChanges();
             Log.WriteLog("Processed geometry at " + DateTime.Now);
+            var placeDictionary = placeInfo.ToDictionary(k => k.OsmElementId, v => v);
 
             //to save time, i need to index which areas are in which Cell6.
-            //So i know which entries I can skip.
+            //So i know which entries I can skip when running.
             var indexCell6 = CoreComponents.Standalone.Standalone.IndexAreasPerCell6(buffered, basePlaces);
-            foreach (var entry in indexCell6)
-            {
-                foreach (var place in entry.Value)
-                {
-                    PlaceIndex pi = new PlaceIndex();
-                    pi.PlusCode = entry.Key;
-                    pi.placeInfoId = placeInfo.Where(info => info.Name == place.name).First().id;
-                    sqliteDb.PlaceIndexs.Add(pi);
-                }
-            }
+            var indexes = indexCell6.SelectMany(i => i.Value.Select(v => new PlaceIndex() { PlusCode = i.Key, placeInfoId = placeDictionary[v.sourceItemID].id})).ToList();
+            sqliteDb.PlaceIndexs.AddRange(indexes);
+            
+            //original code, above should also work 
+            //foreach (var entry in indexCell6)
+            //{
+            //    foreach (var place in entry.Value)
+            //    {
+            //        PlaceIndex pi = new PlaceIndex();
+            //        pi.PlusCode = entry.Key;
+            //        pi.placeInfoId = placeInfo.Where(info => info.Name == place.name).First().id;
+            //        sqliteDb.PlaceIndexs.Add(pi);
+            //    }
+            //}
             sqliteDb.SaveChanges();
-            Log.WriteLog("Processed Cell6 index table at " + DateTime.Now);
+            Log.WriteLog("Processed Cell6 index table at " + DateTime.Now);            
 
-            //TODO trails need processed the old way, per Cell10. I would like to not hard-code those by element name
-            //but for the moment I dont have any other indicator of what should always, exclusively be done by Cells in offline mode.
-            var tdSmalls = new Dictionary<string, TerrainDataSmall>();
-            foreach (var trail in basePlaces.Where(p => p.GameElementName == "trail" || p.GameElementName == "road"))
+            //trails need processed the old way, per Cell10, when they're not simply a straight-line.
+            //Roads too.
+            var tdSmalls = new Dictionary<string, TerrainDataSmall>(); //Possible issue: a trail and a road with the same name would only show up as whichever one got in the DB first.
+            var toRemove = new List<PlaceInfo2>();
+            foreach (var trail in basePlaces.Where(p => (p.GameElementName == "trail" || p.GameElementName == "road"))) //TODO: add rivers here?
             {
-                var removePlaceList = placeInfo.Where(p => p.Name == trail.name).ToList();
-                foreach(var r in removePlaceList)
-                    placeInfo.Remove(r); //dont treat this like an area.
-                var pis = sqliteDb.PlaceInfo2s.Where(p => p.Name == trail.name).ToList();
-                foreach(var p in pis)
-                    sqliteDb.PlaceInfo2s.Remove(p);
+                if (skipEntries.Contains(trail.sourceItemID))
+                    continue; //Don't per-cell index this one, we shifted it's envelope to handle it instead.
+
+                if (trail.name == "")
+                    continue; //So sorry, but there's too damn many roads without names inflating DB size without being useful as-is.
+
+                //var pis = placeInfo.Where(p => p.OsmElementId == trail.sourceItemID).ToList();
+                var p = placeDictionary[trail.sourceItemID];
+                toRemove.Add(p);
+                //foreach (var p in pis)
+
+
+                //var removePlaceList = placeInfo.Where(p => p.Name == trail.name).ToList();
+                //foreach(var r in removePlaceList)
+                //placeInfo.Remove(r); //dont treat this like an area.
+                //var pis = sqliteDb.PlaceInfo2s.Where(p => p.OsmElementId == trail.sourceItemID).ToList();
+                //foreach (var p in pis)
+                //toRemove.Add(p);
+                //sqliteDb.PlaceInfo2s.Remove(p);
 
                 //I should search the element for the cell10s it overlaps, not the Cell8s for cells with the elements.
-                GeoArea thisPath = Converters.GeometryToGeoArea(trail.elementGeometry); //can result in min less than max?
+                GeoArea thisPath = Converters.GeometryToGeoArea(trail.elementGeometry);
                 List<StoredOsmElement> oneEntry = new List<StoredOsmElement>();
                 oneEntry.Add(trail);
 
@@ -623,17 +668,25 @@ namespace Larry
                 {
                     foreach (var oo in o.Value)
                     {
-                        if (!tdSmalls.ContainsKey(oo.Name))
-                            tdSmalls.Add(oo.Name, new TerrainDataSmall() { Name = oo.Name, areaType = oo.areaType });
+                        //if (!tdSmalls.ContainsKey(oo.Name))
+                            tdSmalls.TryAdd(oo.Name, new TerrainDataSmall() { Name = oo.Name, areaType = oo.areaType });
                     }
                     var ti = new TerrainInfo();
-                    ti.PlusCode = o.Key;
+                    ti.PlusCode = o.Key.Substring(removableLetters, 10 - removableLetters);
                     ti.TerrainDataSmall = o.Value.Select(oo => tdSmalls[oo.Name]).ToList();
                     sqliteDb.TerrainInfo.Add(ti);
                 }
+                sqliteDb.SaveChanges();
             }
+            
+            foreach (var r in toRemove.Distinct())
+                sqliteDb.PlaceInfo2s.Remove(r);
             sqliteDb.SaveChanges();
             Log.WriteLog("Trails processed at " + DateTime.Now);
+
+            //Remember to find the common first X characters in all terrainInfo entries
+            //so i can save that to the bounds entry and cut it out of each row in TerrainInfo
+            //TODO
 
             //make scavenger hunts
             var sh = CoreComponents.Standalone.Standalone.GetScavengerHunts(allPlaces);
@@ -645,7 +698,7 @@ namespace Larry
             var neCorner = new OpenLocationCode(intersectCheck.EnvelopeInternal.MaxY, intersectCheck.EnvelopeInternal.MaxX);
             //insert default entries for a new player.
             sqliteDb.PlayerStats.Add(new PlayerStats() { timePlayed = 0, distanceWalked = 0, score = 0 });
-            sqliteDb.Bounds.Add(new Bounds() { EastBound = neCorner.Decode().EastLongitude, NorthBound = neCorner.Decode().NorthLatitude, SouthBound = swCorner.Decode().SouthLatitude, WestBound = swCorner.Decode().WestLongitude });
+            sqliteDb.Bounds.Add(new Bounds() { EastBound = neCorner.Decode().EastLongitude, NorthBound = neCorner.Decode().NorthLatitude, SouthBound = swCorner.Decode().SouthLatitude, WestBound = swCorner.Decode().WestLongitude, commonCodeLetters = commonStart });
             sqliteDb.SaveChanges();
 
             //now we have the list of places we need to be concerned with. 
