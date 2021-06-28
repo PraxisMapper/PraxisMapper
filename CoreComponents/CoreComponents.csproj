@@ -11,6 +11,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="MapPatterns\Landuse-cemetery.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="MapPatterns\Landuse-cemetery.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="DotNetZip" Version="1.15.0" />
     <PackageReference Include="EFCore.BulkExtensions" Version="5.2.4" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="6.0.0-preview.5.21301.9" />
@@ -42,7 +52,6 @@
   <ItemGroup>
     <Folder Include="Interfaces\" />
     <Folder Include="CustomOsmSharp\" />
-    <Folder Include="MapPatterns\" />
   </ItemGroup>
 
   <ItemGroup>
