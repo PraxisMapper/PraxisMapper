@@ -53,6 +53,14 @@ namespace CoreComponents
                 paint.PathEffect = SKPathEffect.CreateDash(linesAndGaps, 0);
                 paint.StrokeCap = SKStrokeCap.Butt;
             }
+            if (!string.IsNullOrEmpty(tpe.fileName))
+            {
+                byte[] fileData = System.IO.File.ReadAllBytes(tpe.fileName);
+                SKBitmap fillPattern = SKBitmap.Decode(fileData);
+                SKShader tiling = SKShader.CreateBitmap(fillPattern, SKShaderTileMode.Repeat, SKShaderTileMode.Repeat);
+                paint.Shader = tiling;
+            }
+
             paint.StrokeJoin = SKStrokeJoin.Round;
             paint.IsAntialias = true;
             tpe.paint = paint;
