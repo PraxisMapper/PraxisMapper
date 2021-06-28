@@ -473,8 +473,7 @@ namespace CoreComponents
                         //If this type has an icon, use it. Otherwise draw a circle in that type's color.
                         if (!string.IsNullOrEmpty(style.fileName))
                         {
-                            byte[] iconFile = System.IO.File.ReadAllBytes(style.fileName); //TODO: cache these for performance in TagParser.Initialize()
-                            SKBitmap icon = SKBitmap.Decode(iconFile);
+                            SKBitmap icon = TagParser.cachedBitmaps[style.fileName];
                             canvas.DrawBitmap(icon, convertedPoint[0]);
                         }
                         else

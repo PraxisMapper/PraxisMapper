@@ -16,7 +16,7 @@ namespace CoreComponents
         public static List<TagParserEntry> teams; //For doing Area Control tiles.
         public static TagParserEntry defaultStyle; //background color must be last if I want un-matched areas to be hidden, its own color if i want areas with no ways at all to show up.
         public static TagParserEntry defaultTeam; //background color must be last if I want un-matched areas to be hidden, its own color if i want areas with no ways at all to show up.
-
+        public static Dictionary<string, SKBitmap> cachedBitmaps; //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
         public static void Initialize(bool onlyDefaults = false)
         {
             //Load TPE entries from DB for app.
@@ -57,7 +57,8 @@ namespace CoreComponents
             {
                 byte[] fileData = System.IO.File.ReadAllBytes(tpe.fileName);
                 SKBitmap fillPattern = SKBitmap.Decode(fileData);
-                SKShader tiling = SKShader.CreateBitmap(fillPattern, SKShaderTileMode.Repeat, SKShaderTileMode.Repeat);
+                cachedBitmaps.TryAdd(tpe.fileName, fillPattern); //For icons.
+                SKShader tiling = SKShader.CreateBitmap(fillPattern, SKShaderTileMode.Repeat, SKShaderTileMode.Repeat); //For fill patterns.
                 paint.Shader = tiling;
             }
 
