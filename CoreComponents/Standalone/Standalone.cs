@@ -112,6 +112,11 @@ namespace CoreComponents.Standalone
 
             foreach (var y in yCoords)
             {
+                //Make a collision box for just this row of Cell8s, and send the loop below just the list of things that might be relevant.
+                GeoArea thisRow = new GeoArea(y, xCoords.First(), y + ConstantValues.resolutionCell8, xCoords.Last());
+                var row = Converters.GeoAreaToPolygon(thisRow); 
+                var rowList = allPlaces.Where(a => row.Intersects(a.elementGeometry)).ToList();
+
                 Parallel.ForEach(xCoords, x =>
                 //foreach (var x in xCoords)
                 {
@@ -122,7 +127,7 @@ namespace CoreComponents.Standalone
 
                     var areaForTile = new GeoArea(new GeoPoint(plusCodeArea.SouthLatitude, plusCodeArea.WestLongitude), new GeoPoint(plusCodeArea.NorthLatitude, plusCodeArea.EastLongitude));
                     var acheck = Converters.GeoAreaToPolygon(areaForTile); //this is faster than using a PreparedPolygon in testing, which was unexpected.
-                    var areaList = allPlaces.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); //This one is for the maptile
+                    var areaList = rowList.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); //This one is for the maptile
 
                     //Create the maptile first, so if we save it to the DB/a file we can call the lock once per loop.
                     var info = new ImageStats(areaForTile, 80, 100); //Each pixel is a Cell11, we're drawing a Cell8. For Cell6 testing this is 1600x2000, just barely within android limits
