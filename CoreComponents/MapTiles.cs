@@ -11,6 +11,7 @@ using static CoreComponents.Singletons;
 using SkiaSharp;
 using CoreComponents.Support;
 using OsmSharp.API;
+using System.Xml.Schema;
 
 namespace CoreComponents
 {
@@ -405,13 +406,6 @@ namespace CoreComponents
                 if (paint.Color.Alpha == 0)
                     continue; //This area is transparent, skip drawing it entirely.
 
-                //For a pattern, I think i'm going to have to make a new Canavs
-                //of the size of the area being draw, (possibly cropping that to just the visible piece)
-                //fill it with the pattern in question I want to use piece by piece,
-                //then crop all of that to the shape of the area, draw it, then draw that bitmap on top of the tile, like how I have to handle inner ways.
-                //On the upside, that's only for poly or multipoly areas.
-
-
                 var path = new SKPath();
                 switch (w.elementGeometry.GeometryType)
                 {
@@ -475,9 +469,19 @@ namespace CoreComponents
                         }
                         break;
                     case "Point":
-                        var circleRadius = (float)(ConstantValues.resolutionCell10 / stats.degreesPerPixelX / 2); //I want points to be drawn as 1 Cell10 in diameter.
                         var convertedPoint = Converters.PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
-                        canvas.DrawCircle(convertedPoint[0], circleRadius, paint);
+                        //If this type has an icon, use it. Otherwise draw a circle in that type's color.
+                        if (!string.IsNullOrEmpty(style.fileName))
+                        {
+                            byte[] iconFile = System.IO.File.ReadAllBytes(style.fileName); //TODO: cache these for performance in TagParser.Initialize()
+                            SKBitmap icon = SKBitmap.Decode(iconFile);
+                            canvas.DrawBitmap(icon, convertedPoint[0]);
+                        }
+                        else
+                        {
+                            var circleRadius = (float)(ConstantValues.resolutionCell10 / stats.degreesPerPixelX / 2); //I want points to be drawn as 1 Cell10 in diameter.
+                            canvas.DrawCircle(convertedPoint[0], circleRadius, paint);
+                        }
                         break;
                     default:
                         Log.WriteLog("Unknown geometry type found, not drawn. Element " + w.id);
