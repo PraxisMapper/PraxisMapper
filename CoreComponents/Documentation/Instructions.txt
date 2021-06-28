@@ -32,6 +32,9 @@ for a two-step process that makes later work faster.
 
 Functions to replace entries in-line exist, but currently expect you to have used loadPbfsToJson.
 
+When changing or adding pattern files for areas, you must save the pattern you want upside-down (mirrored vertically) in order for it to draw correctly in PraxisMapper.
+
+
 Server-side, assuming you want an AWS node running Windows Server.:
 Set AWS Security rules to only allow RDP from a narrow range (single IP if possible, /24 block for ISP if not.)
 deploy API app to its own folder, make sure IIS is pointing at folder with .exe and .dll files. Turn off Managed Code. 

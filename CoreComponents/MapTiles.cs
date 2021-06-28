@@ -475,7 +475,7 @@ namespace CoreComponents
                         }
                         break;
                     case "Point":
-                        var circleRadius = (float)(.000125 / stats.degreesPerPixelX / 2); //I want points to be drawn as 1 Cell10 in diameter.
+                        var circleRadius = (float)(ConstantValues.resolutionCell10 / stats.degreesPerPixelX / 2); //I want points to be drawn as 1 Cell10 in diameter.
                         var convertedPoint = Converters.PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                         canvas.DrawCircle(convertedPoint[0], circleRadius, paint);
                         break;
@@ -497,31 +497,6 @@ namespace CoreComponents
         //Would need more math to apply to correct location.
         public static SKBitmap DrawPolygon(Polygon polygon, SKPaint paint, ImageStats stats)
         {
-            //In order to do this the most correct, i have to draw the outer ring, then erase all the innner rings.
-            //THEN draw that image overtop the original.
-            SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
-            SKCanvas canvas = new SKCanvas(bitmap);
-            var bgColor = SKColors.Transparent;
-            canvas.Clear(bgColor);
-            canvas.Scale(1, 1, stats.imageSizeX / 2, stats.imageSizeY / 2);
-            var path = new SKPath();
-            path.AddPoly(Converters.PolygonToSKPoints(polygon.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-            canvas.DrawPath(path, paint);
-
-            foreach (var hole in polygon.InteriorRings)
-            {
-                path = new SKPath();
-                path.AddPoly(Converters.PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                canvas.DrawPath(path, eraser);
-            }
-
-            return bitmap;
-        }
-
-        public static SKBitmap DrawFilledPolygon(Polygon polygon, SKPaint paint, ImageStats stats, byte[] fillbitmap)
-        {
-            //Convert bitmap to SkBitmap
-            SKBitmap fillPattern = SKBitmap.Decode(fillbitmap);
             //In order to do this the most correct, i have to draw the outer ring, then erase all the innner rings.
             //THEN draw that image overtop the original.
             SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
