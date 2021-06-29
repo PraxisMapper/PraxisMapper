@@ -584,14 +584,10 @@ namespace Larry
             }
             string commonStart = minCode.Substring(0, removableLetters);
 
-            //NEW: process all the gameplay geometry to the new square format
             var wikiList = allPlaces.Where(a => a.Tags.Any(t => t.Key == "wikipedia") && a.name != "").Select(a => a.name).Distinct().ToList();
             //Leaving this nearly wide open, since it's not the main driver of DB size.
             var basePlaces = allPlaces.Where(a => a.name != "" || a.GameElementName != "unmatched").ToList(); //.Where(a => a.name != "").ToList();// && (a.IsGameElement || wikiList.Contains(a.name))).ToList();
             var distinctNames = basePlaces.Select(p => p.name).Distinct().ToList();//This distinct might be causing things in multiple pieces to only detect one of them, not all of them?
-            //var finalPlaceList = new List<StoredOsmElement>();
-            //foreach (var dp in distinctNames)
-                //finalPlaceList.Add(basePlaces.Where(bp => bp.name == dp).First());
 
             var placeInfo = CoreComponents.Standalone.Standalone.GetPlaceInfo(basePlaces);
             //Remove trails later.
@@ -618,17 +614,6 @@ namespace Larry
             var indexes = indexCell6.SelectMany(i => i.Value.Select(v => new PlaceIndex() { PlusCode = i.Key, placeInfoId = placeDictionary[v.sourceItemID].id})).ToList();
             sqliteDb.PlaceIndexs.AddRange(indexes);
             
-            //original code, above should also work 
-            //foreach (var entry in indexCell6)
-            //{
-            //    foreach (var place in entry.Value)
-            //    {
-            //        PlaceIndex pi = new PlaceIndex();
-            //        pi.PlusCode = entry.Key;
-            //        pi.placeInfoId = placeInfo.Where(info => info.Name == place.name).First().id;
-            //        sqliteDb.PlaceIndexs.Add(pi);
-            //    }
-            //}
             sqliteDb.SaveChanges();
             Log.WriteLog("Processed Cell6 index table at " + DateTime.Now);            
 
@@ -647,16 +632,6 @@ namespace Larry
                 //var pis = placeInfo.Where(p => p.OsmElementId == trail.sourceItemID).ToList();
                 var p = placeDictionary[trail.sourceItemID];
                 toRemove.Add(p);
-                //foreach (var p in pis)
-
-
-                //var removePlaceList = placeInfo.Where(p => p.Name == trail.name).ToList();
-                //foreach(var r in removePlaceList)
-                //placeInfo.Remove(r); //dont treat this like an area.
-                //var pis = sqliteDb.PlaceInfo2s.Where(p => p.OsmElementId == trail.sourceItemID).ToList();
-                //foreach (var p in pis)
-                //toRemove.Add(p);
-                //sqliteDb.PlaceInfo2s.Remove(p);
 
                 //I should search the element for the cell10s it overlaps, not the Cell8s for cells with the elements.
                 GeoArea thisPath = Converters.GeometryToGeoArea(trail.elementGeometry);
@@ -668,8 +643,7 @@ namespace Larry
                 {
                     foreach (var oo in o.Value)
                     {
-                        //if (!tdSmalls.ContainsKey(oo.Name))
-                            tdSmalls.TryAdd(oo.Name, new TerrainDataSmall() { Name = oo.Name, areaType = oo.areaType });
+                        tdSmalls.TryAdd(oo.Name, new TerrainDataSmall() { Name = oo.Name, areaType = oo.areaType });
                     }
                     var ti = new TerrainInfo();
                     ti.PlusCode = o.Key.Substring(removableLetters, 10 - removableLetters);
@@ -683,10 +657,6 @@ namespace Larry
                 sqliteDb.PlaceInfo2s.Remove(r);
             sqliteDb.SaveChanges();
             Log.WriteLog("Trails processed at " + DateTime.Now);
-
-            //Remember to find the common first X characters in all terrainInfo entries
-            //so i can save that to the bounds entry and cut it out of each row in TerrainInfo
-            //TODO
 
             //make scavenger hunts
             var sh = CoreComponents.Standalone.Standalone.GetScavengerHunts(allPlaces);
@@ -743,82 +713,5 @@ namespace Larry
             var wc = new WebClient();
             wc.DownloadFile("http://download.geofabrik.de/" + topLevel + "/" + subLevel1 + "/" + subLevel2 + "-latest.osm.pbf", destinationFolder + subLevel2 + "-latest.osm.pbf");
         }
-
-        /* For reference: the tags Pokemon Go appears to be using. I don't need all of these. I have a few it doesn't, as well.
-         * POkemon Go is using these as map tiles, not just content. This is not primarily a maptile app.
-    KIND_BASIN
-    KIND_CANAL
-    KIND_CEMETERY - Have
-    KIND_CINEMA
-    KIND_COLLEGE - Have
-    KIND_COMMERCIAL
-    KIND_COMMON
-    KIND_DAM
-    KIND_DITCH
-    KIND_DOCK
-    KIND_DRAIN
-    KIND_FARM
-    KIND_FARMLAND
-    KIND_FARMYARD
-    KIND_FOOTWAY -Have
-    KIND_FOREST
-    KIND_GARDEN
-    KIND_GLACIER
-    KIND_GOLF_COURSE
-    KIND_GRASS
-    KIND_HIGHWAY -have
-    KIND_HOSPITAL
-    KIND_HOTEL
-    KIND_INDUSTRIAL
-    KIND_LAKE -have, as water
-    KIND_LAND
-    KIND_LIBRARY
-    KIND_MAJOR_ROAD - have
-    KIND_MEADOW
-    KIND_MINOR_ROAD - have
-    KIND_NATURE_RESERVE - Have
-    KIND_OCEAN - have, as water
-    KIND_PARK - Have
-    KIND_PARKING - have
-    KIND_PATH - have, as trail
-    KIND_PEDESTRIAN
-    KIND_PITCH
-    KIND_PLACE_OF_WORSHIP
-    KIND_PLAYA
-    KIND_PLAYGROUND
-    KIND_QUARRY
-    KIND_RAILWAY
-    KIND_RECREATION_AREA
-    KIND_RESERVOIR
-    KIND_RETAIL - Have
-    KIND_RIVER - have, as water
-    KIND_RIVERBANK - have, as water
-    KIND_RUNWAY
-    KIND_SCHOOL
-    KIND_SPORTS_CENTER
-    KIND_STADIUM
-    KIND_STREAM - have, as water
-    KIND_TAXIWAY
-    KIND_THEATRE
-    KIND_UNIVERSITY - Have
-    KIND_URBAN_AREA
-    KIND_WATER - Have
-    KIND_WETLAND - Have
-    KIND_WOOD
-         */
-
-        /*
-         * and for reference, the Google Maps Playable Locations valid types (Interaction points, not terrain types?)
-         *  education
-            entertainment
-            finance
-            food_and_drink
-            outdoor_recreation
-            retail
-            tourism
-            transit
-            transportation_infrastructure
-            wellness
-         */
     }
 }
