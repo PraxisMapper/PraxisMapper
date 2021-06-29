@@ -1,7 +1,9 @@
 ﻿using CoreComponents;
+using CoreComponents.Support;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PraxisMapper.Classes;
+using System;
 using System.Linq;
 
 namespace PraxisMapper.Controllers
@@ -48,5 +50,21 @@ namespace PraxisMapper.Controllers
             pt.Stop();
         }
 
+        [Route("/[controller]/GetMapTileInfo/[zoom]/[x]/[y]")]
+        public ActionResult GetMapTileInfo(int x, int y, int zoom) //This should have a view.
+        {
+            //Draw the map tile, with extra info to send over.
+            ImageStats istats = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare, MapTiles.MapTileSizeSquare);
+
+            System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+            sw.Start();
+            var tile = MapTiles.DrawAreaAtSize(istats);
+            sw.Stop();
+
+            ViewBag.timeToDraw = sw.Elapsed.ToString();
+            ViewBag.imageString = "data:image/png;base64," + Convert.ToBase64String(tile);
+
+            return View();
+        }
     }
 }
