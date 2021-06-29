@@ -67,5 +67,31 @@ namespace PraxisMapper.Controllers
 
             return View();
         }
+
+        [Route("/[controller]/GetAreaInfo/{sourceElementId}/{sourceElementType}")]
+        public ActionResult GetAreaInfo(long sourceElementId, int sourceElementType)
+        {
+            var db = new PraxisContext();
+            var area = db.StoredOsmElements.Where(e => e.sourceItemID == sourceElementId && e.sourceItemType == sourceElementType).FirstOrDefault();
+            if (area == null)
+                return View();
+
+            TagParser.ApplyTags(new System.Collections.Generic.List<DbTables.StoredOsmElement>() { area });
+            ViewBag.areaname = area.name;
+            ViewBag.type = area.GameElementName;
+            ViewBag.isGenerated = area.IsGenerated;
+            ViewBag.isUserProvided = area.IsUserProvided;
+
+            ImageStats istats = new ImageStats(Converters.GeometryToGeoArea(area.elementGeometry.Envelope), 500, 500);
+            System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+            sw.Start();
+            var tile = MapTiles.DrawAreaAtSize(istats);
+            sw.Stop();
+
+            ViewBag.imageString = "data:image/png;base64," + Convert.ToBase64String(tile);
+            ViewBag.timeToDraw = sw.Elapsed;
+
+            return View();
+        }
     }
 }

@@ -1,0 +1,19 @@
+﻿@*
+    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
+*@
+@{
+}
+
+Area Info:
+<br />
+<br />
+
+Name: @ViewBag.areaname <br />
+Gameplay Area Type: @ViewBag.type <br />
+Is Generated?: @ViewBag.isGenerated <br />
+Is User Provided?: @ViewBag.isUserProvided<br />
+
+
+Rendering time: @ViewBag.timeToDraw
+<br />
+<img src="@ViewBag.imageString" />
