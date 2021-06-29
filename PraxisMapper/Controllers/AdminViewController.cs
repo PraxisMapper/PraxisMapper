@@ -50,7 +50,7 @@ namespace PraxisMapper.Controllers
             pt.Stop();
         }
 
-        [Route("/[controller]/GetMapTileInfo/[zoom]/[x]/[y]")]
+        [Route("/[controller]/GetMapTileInfo/{zoom}/{x}/{y}")]
         public ActionResult GetMapTileInfo(int x, int y, int zoom) //This should have a view.
         {
             //Draw the map tile, with extra info to send over.
@@ -61,6 +61,7 @@ namespace PraxisMapper.Controllers
             var tile = MapTiles.DrawAreaAtSize(istats);
             sw.Stop();
 
+            ViewBag.placeCount = CoreComponents.Place.GetPlaces(istats.area).Count();
             ViewBag.timeToDraw = sw.Elapsed.ToString();
             ViewBag.imageString = "data:image/png;base64," + Convert.ToBase64String(tile);
 
