@@ -72,7 +72,7 @@ namespace PraxisMapper.Controllers
         public ActionResult GetAreaInfo(long sourceElementId, int sourceElementType)
         {
             var db = new PraxisContext();
-            var area = db.StoredOsmElements.Where(e => e.sourceItemID == sourceElementId && e.sourceItemType == sourceElementType).FirstOrDefault();
+            var area = db.StoredOsmElements.Include(e => e.Tags).Where(e => e.sourceItemID == sourceElementId && e.sourceItemType == sourceElementType).FirstOrDefault();
             if (area == null)
                 return View();
 
@@ -82,7 +82,12 @@ namespace PraxisMapper.Controllers
             ViewBag.isGenerated = area.IsGenerated;
             ViewBag.isUserProvided = area.IsUserProvided;
 
-            ImageStats istats = new ImageStats(Converters.GeometryToGeoArea(area.elementGeometry.Envelope), 500, 500);
+            var geoarea = Converters.GeometryToGeoArea(area.elementGeometry.Envelope);
+            geoarea = new Google.OpenLocationCode.GeoArea(geoarea.SouthLatitude - ConstantValues.resolutionCell10, 
+                geoarea.WestLongitude - ConstantValues.resolutionCell10,
+                geoarea.NorthLatitude + ConstantValues.resolutionCell10, 
+                geoarea.EastLongitude + ConstantValues.resolutionCell10); //add some padding to the edges.
+            ImageStats istats = new ImageStats(geoarea, (int)(geoarea.LongitudeWidth / ConstantValues.resolutionCell11Lon), (int)(geoarea.LatitudeHeight / ConstantValues.resolutionCell11Lat));
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
             sw.Start();
             var tile = MapTiles.DrawAreaAtSize(istats);
