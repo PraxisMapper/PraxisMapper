@@ -115,18 +115,18 @@ namespace CoreComponents
                     if (isArea && coordinates.Count > 1 &&
                         !coordinates[0].Equals2D(coordinates[coordinates.Count - 1]))
                     { // not an area, first and last coordinate do not match.
-                        Logger.Log("DefaultFeatureInterpreter", TraceEventType.Warning, "{0} is supposed to be an area but first and last coordinates do not match.",
-                            osmObject.ToInvariantString());
+                        //Logger.Log("DefaultFeatureInterpreter", TraceEventType.Warning, "{0} is supposed to be an area but first and last coordinates do not match.",
+                          //  osmObject.ToInvariantString());
                     }
                     else if (!isArea && coordinates.Count < 2)
                     { // not a linestring, needs at least two coordinates.
-                        Logger.Log("DefaultFeatureInterpreter", TraceEventType.Warning, "{0} is supposed to be a linestring but has less than two coordinates.",
-                            osmObject.ToInvariantString());
+                        //Logger.Log("DefaultFeatureInterpreter", TraceEventType.Warning, "{0} is supposed to be a linestring but has less than two coordinates.",
+                          //  osmObject.ToInvariantString());
                     }
                     else if (isArea && coordinates.Count < 4)
                     {// not a linearring, needs at least four coordinates, with first and last identical.
-                        Logger.Log("DefaultFeatureInterpreter", TraceEventType.Warning, "{0} is supposed to be a linearring but has less than four coordinates.",
-                            osmObject.ToInvariantString());
+                       // Logger.Log("DefaultFeatureInterpreter", TraceEventType.Warning, "{0} is supposed to be a linearring but has less than four coordinates.",
+                         //   osmObject.ToInvariantString());
                     }
                     else
                     {
@@ -157,7 +157,7 @@ namespace CoreComponents
                     { // there is a type in this relation.
                         if (typeValue == "multipolygon" || typeValue == "linearring")
                         { // this relation is a multipolygon.
-                            var feature = this.InterpretMultipolygonRelation(relation);
+                            var feature = this.InterpretMultipolygonRelationNoRecursion(relation);
                             if (feature != null)
                             { // add the geometry.
                                 collection.Add(feature);
@@ -165,7 +165,7 @@ namespace CoreComponents
                         }
                         else if (typeValue == "boundary" && tags.Contains("boundary", "administrative"))
                         { // this relation is a boundary.
-                            var feature = this.InterpretMultipolygonRelation(relation);
+                            var feature = this.InterpretMultipolygonRelationNoRecursion(relation);
                             if (feature != null)
                             { // add the geometry.
                                 collection.Add(feature);

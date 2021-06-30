@@ -117,8 +117,8 @@ namespace CoreComponents
 
             try
             {
-                //var feature = featureInterpreter.Interpret(g); //OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(g); //Changed while waiting for bugfixes
-                var feature = OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(g); //mainline version, while i get my version dialed in for edge cases.
+                var feature = featureInterpreter.Interpret(g); //OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(g); //Changed while waiting for bugfixes
+                //var feature = OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(g); //mainline version, while i get my version dialed in for edge cases.
                 if (feature.Count() != 1)
                 {
                     Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + " didn't return expected number of features (" + feature.Count() + ")", Log.VerbosityLevels.High);
