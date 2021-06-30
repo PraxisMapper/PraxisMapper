@@ -377,12 +377,13 @@ namespace CoreComponents.PbfReader
                 var rel = relPrimGroup.relations.Where(r => r.id == relationId).FirstOrDefault();
                 //finally have the core item
 
+                //Should not be relevant with my custom feature interpreter logic.
                 //Sanity check - ignore the Labrador Sea until I have a way to process it.
-                if (rel.memids.Count() > 12000) //This is roughly where a stack overflow will reliably occur trying to join rings
-                {
-                    Log.WriteLog("Relation " + rel.id + " too big - ignoring to avoid a stack overflow");
-                    return null;
-                }
+                //if (rel.memids.Count() > 12000) //This is roughly where a stack overflow will reliably occur trying to join rings
+                //{
+                    //Log.WriteLog("Relation " + rel.id + " too big - ignoring to avoid a stack overflow");
+                    //return null;
+                //}
 
                 //sanity check - if this relation doesn't have inner or outer role members,
                 //its not one i can process.

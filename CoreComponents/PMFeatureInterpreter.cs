@@ -618,26 +618,26 @@ namespace CoreComponents
                         outers.Add(member.Member as CompleteWay);
                         break;
                     default:
-                        Log.WriteLog("Member" + member.Member.Id + " was't assigned a role!");
+                        //Log.WriteLog("Member" + member.Member.Id + " was't assigned a role!");
                         break;
                 }
             }
 
-            foreach(var o in outers)
-            {
-                bool hasFirstMatch = false, hasLastMatch = false;
-                var firstNode = o.Nodes.First();
-                var lastNode = o.Nodes.Last();
-                if (outers.Any(oo => oo.Id != o.Id && (oo.Nodes.First().Id == firstNode.Id || oo.Nodes.Last().Id == firstNode.Id)))
-                    hasFirstMatch = true;
-                if (outers.Any(oo => oo.Id != o.Id && (oo.Nodes.First().Id == lastNode.Id || oo.Nodes.Last().Id == lastNode.Id)))
-                    hasLastMatch = true;
+            //foreach(var o in outers)
+            //{
+            //    bool hasFirstMatch = false, hasLastMatch = false;
+            //    var firstNode = o.Nodes.First();
+            //    var lastNode = o.Nodes.Last();
+            //    if (outers.Any(oo => oo.Id != o.Id && (oo.Nodes.First().Id == firstNode.Id || oo.Nodes.Last().Id == firstNode.Id)))
+            //        hasFirstMatch = true;
+            //    if (outers.Any(oo => oo.Id != o.Id && (oo.Nodes.First().Id == lastNode.Id || oo.Nodes.Last().Id == lastNode.Id)))
+            //        hasLastMatch = true;
 
-                if (!hasFirstMatch && !hasLastMatch)
-                    Log.WriteLog("Entry " + o.Id + " has no matches despite being marked Outer!");
-                else if (!hasLastMatch || !hasFirstMatch)
-                    Log.WriteLog("Entry " + o.Id + " has one match, but not part of a closed loop!");
-            }
+            //    if (!hasFirstMatch && !hasLastMatch)
+            //        Log.WriteLog("Entry " + o.Id + " has no matches despite being marked Outer!");
+            //    else if (!hasLastMatch || !hasFirstMatch)
+            //        Log.WriteLog("Entry " + o.Id + " has one match, but not part of a closed loop!");
+            //}
 
 
             var geometry = BuildGeometry(outers, inners);
@@ -654,9 +654,9 @@ namespace CoreComponents
         {
             //takes shapelist as ref, returns a polygon, leaves any other entries in shapelist to be called again.
             //NOTE/TODO: if this is a relation of lines that aren't a polygon (EX: a very long hiking trail), this should probably return the combined linestring?
-            //TODO: if the lines are too small, should I return a Point instead?
 
-            List<Coordinate> possiblePolygon = new List<Coordinate>();
+            List<Node> currentShape = new List<Node>();
+            //List<Coordinate> possiblePolygon = new List<Coordinate>();
             var firstShape = shapeList.FirstOrDefault();
             if (firstShape == null)
             {
@@ -669,56 +669,67 @@ namespace CoreComponents
             shapeList.Remove(firstShape);
             var nextStartnode = firstShape.Nodes.Last();
             var closedShape = false;
-            var isError = false;
-            possiblePolygon.AddRange(firstShape.Nodes.Select(n => new Coordinate((float)n.Longitude, (float)n.Latitude)).ToList());
+            //var isError = false;
+            //possiblePolygon.AddRange(firstShape.Nodes.Select(n => new Coordinate((float)n.Longitude, (float)n.Latitude)).ToList());
+            currentShape.AddRange(firstShape.Nodes);
             while (closedShape == false)
             {
-                var allPossibleLines = shapeList.Where(s => s.Nodes.First().Id == nextStartnode.Id).ToList();
-                if (allPossibleLines.Count > 1)
-                {
-                    Log.WriteLog("Shape has multiple possible lines to follow, might not process correctly.", Log.VerbosityLevels.High);
-                }
-                var lineToAdd = allPossibleLines.FirstOrDefault();
+                //var allPossibleLines = shapeList.Where(s => s.Nodes.First().Id == nextStartnode.Id).ToList();
+                //if (allPossibleLines.Count > 1)
+                //{
+                //    Log.WriteLog("Shape has multiple possible lines to follow, might not process correctly.", Log.VerbosityLevels.High);
+                //}
+                var lineToAdd = shapeList.FirstOrDefault(s => s.Nodes.First().Id == nextStartnode.Id); //allPossibleLines.FirstOrDefault();
                 if (lineToAdd == null)
                 {
                     //check other direction
-                    var allPossibleLinesReverse = shapeList.Where(s => s.Nodes.Last().Id == nextStartnode.Id).ToList();
-                    if (allPossibleLinesReverse.Count > 1)
-                    {
-                        Log.WriteLog("Way has multiple possible lines to follow, might not process correctly (Reversed Order).");
-                    }
-                    lineToAdd = allPossibleLinesReverse.FirstOrDefault();
+                    //allPossibleLines = shapeList.Where(s => s.Nodes.Last().Id == nextStartnode.Id).ToList();
+                    //if (allPossibleLines.Count > 1)
+                    //{
+                    //    Log.WriteLog("Way has multiple possible lines to follow, might not process correctly (Reversed Order).");
+                    //}
+                    lineToAdd = shapeList.FirstOrDefault(s => s.Nodes.Last().Id == nextStartnode.Id); //allPossibleLines.FirstOrDefault();
                     if (lineToAdd == null)
                     {
-                        if (shapeList.Count() > 0 )
-                        //If all lines are joined and none remain, this might just be a relation of lines. Return a combined element
-                        Log.WriteLog("shape doesn't seem to have properly connecting lines, can't process as polygon.", Log.VerbosityLevels.High);
-                        //closedShape = true; //rename this to something better for breaking the loop
-                        isError = true; //rename this to something like IsPolygon
+                        return null;
+                        //if (shapeList.Count() > 0)
+                        //{
+                            //If all lines are joined and none remain, this might just be a relation of lines. Return a combined element
+                           // Log.WriteLog("shape doesn't seem to have properly connecting lines, can't process as polygon.", Log.VerbosityLevels.High);
+                            //return null;
+                            //closedShape = true; //rename this to something better for breaking the loop
+                            //isError = true; //rename this to something like IsPolygon
+                        //}
                     }
                     else
                         lineToAdd.Nodes = lineToAdd.Nodes.Reverse().ToArray(); //This way was drawn backwards relative to the original way.
                 }
-                if (!isError)
-                {
-                    possiblePolygon.AddRange(lineToAdd.Nodes.Skip(1).Select(n => new Coordinate((float)n.Longitude, (float)n.Latitude)).ToList());
+                //if (!isError)
+                //{
+                //possiblePolygon.AddRange(lineToAdd.Nodes.Skip(1).Select(n => new Coordinate((float)n.Longitude, (float)n.Latitude)).ToList());
+                currentShape.AddRange(lineToAdd.Nodes.Skip(1));
                     nextStartnode = lineToAdd.Nodes.Last();
                     shapeList.Remove(lineToAdd);
 
                     if (nextStartnode.Id == originalStartPoint.Id)
                         closedShape = true;
-                }
+                    if (shapeList.Count == 0 && !closedShape)
+                        return null;
+                        //isError = true;
+                //}
             }
-            if (isError)
-                return null;
+            //if (isError)
+              //  return null;
 
-            if (possiblePolygon.Count <= 3)
+            //if (possiblePolygon.Count <= 3)
+            if (currentShape.Count <= 3)
             {
                 Log.WriteLog("Didn't find enough points to turn into a polygon. Probably an error.", Log.VerbosityLevels.High);
                 return null;
             }
 
-            var poly = factory.CreatePolygon(possiblePolygon.ToArray());
+            //var poly = factory.CreatePolygon(possiblePolygon.ToArray());
+            var poly = factory.CreatePolygon(currentShape.Select(s => new Coordinate((float)s.Longitude, (float)s.Latitude)).ToArray());
             poly = GeometrySupport.CCWCheck(poly);
             if (poly == null)
             {
