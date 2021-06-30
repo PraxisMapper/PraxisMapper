@@ -32,6 +32,8 @@ using System.Collections.Generic;
 using System.Linq;
 using OsmSharp.Geo;
 using OsmSharp;
+using ProtoBuf.Serializers;
+using static CoreComponents.Singletons;
 
 namespace CoreComponents
 {
@@ -271,7 +273,7 @@ namespace CoreComponents
             {
                 Log.WriteLog($"Ring assignment failed: invalid multipolygon relation [{relation.Id}] detected!");
                 //Logging.Logger.Log("DefaultFeatureInterpreter", TraceEventType.Error,
-                    //$"Ring assignment failed: invalid multipolygon relation [{relation.Id}] detected!");
+                //$"Ring assignment failed: invalid multipolygon relation [{relation.Id}] detected!");
             }
             // group the rings and create a multipolygon.
             var geometry = this.GroupRings(rings);
@@ -320,7 +322,7 @@ namespace CoreComponents
                         {
                             Log.WriteLog("Invalid multipolygon relation: an 'inner' ring was detected without an 'outer'.");
                             //Logging.Logger.Log("DefaultFeatureInterpreter", TraceEventType.Error,
-                                //"Invalid multipolygon relation: an 'inner' ring was detected without an 'outer'.");
+                            //"Invalid multipolygon relation: an 'inner' ring was detected without an 'outer'.");
                         }
                         outerIdx = idx;
                         outer = rings[idx].Value;
@@ -400,7 +402,7 @@ namespace CoreComponents
         /// </summary>
         private bool AssignRings(List<KeyValuePair<bool, CompleteWay>> ways, out List<KeyValuePair<bool, LinearRing>> rings)
         {
-            return this.AssignRingsNonrecursive(ways, new bool[ways.Count], out rings);
+            return this.AssignRings(ways, new bool[ways.Count], out rings);
         }
 
         /// <summary>
@@ -432,29 +434,56 @@ namespace CoreComponents
             return !assigned;
         }
 
-        private bool AssignRingsNonrecursive(List<KeyValuePair<bool, CompleteWay>> ways, bool[] assignedFlags, out List<KeyValuePair<bool, LinearRing>> rings)
+        private static List<Polygon> BuildRings(List<CompleteWay> ways)
         {
-            rings = new List<KeyValuePair<bool, LinearRing>>();
-            var assigned = false;
-            for (var i = 0; i < ways.Count; i++)
+            //This is where I look at points to try and combine these.
+            var closedWays = new List<CompleteWay>();
+            closedWays = ways.Where(w => w.Nodes.First() == w.Nodes.Last()).ToList();
+            var polys = new List<Polygon>();
+
+            foreach (var c in closedWays)
             {
-                if (!assignedFlags[i])
-                {
-                    assigned = true;
-                    LinearRing ring;
-                    if (this.AssignRing(ways, i, assignedFlags, out ring))
-                    { // assigning the ring successed.
-                        //List<KeyValuePair<bool, LinearRing>> otherRings;
-                        //if (this.AssignRings(ways, assignedFlags, out rings)) //This recursive stack eventually fails on the Labrador Sea, 25,000 ways.
-                        //{ // assigning the rings succeeded.
-                            //rings = otherRings;
-                            rings.Add(new KeyValuePair<bool, LinearRing>(ways[i].Key, ring));
-                            //return true;
-                        //}
-                    }
-                }
+                ways.Remove(c);
+                polys.Add(factory.CreatePolygon(Converters.CompleteWayToCoordArray(c)));
             }
-            return rings.Count > 0;
+            
+            while (ways.Count() > 0)
+            {
+                var a = GetShapeFromLines(ref ways);
+                if (a != null)
+                    polys.Add(a);
+            }
+
+            return polys;
+        }
+
+        //This should return a list of rings? Or the completed geometry?
+        private Geometry BuildGeometry(List<CompleteWay> outerways, List<CompleteWay> innerways)
+        {
+            var outerRings = new List<Polygon>();
+            var innerRings = new List<Polygon>();
+
+            //Build outer rings first
+            outerRings = BuildRings(outerways);
+            if (outerRings == null || outerRings.Count == 0)
+                return null;
+           
+            innerRings = BuildRings(innerways);
+
+            Geometry outer = null;
+            Geometry inner = null;
+            if (outerRings.Count() == 1)
+                outer = outerRings.First();
+            else
+                outer = factory.CreateMultiPolygon(outerRings.ToArray());
+
+            if (innerRings.Count() > 0)
+            {
+                inner = factory.CreateMultiPolygon(innerRings.ToArray());
+                outer = outer.Difference(inner);
+            }
+
+            return outer;
         }
 
         /// <summary>
@@ -559,6 +588,119 @@ namespace CoreComponents
             attr.Add("id", osmObject.Id);
 
             return attr;
+        }
+
+        //These functions are new and PraxisMapper specific, but currently use older classes that need updated to OsmSharp ones.
+        //Meant to get results without being recursive, to avoid stack overflows the way that AssignRings
+        //above can on very large ways.
+
+        private Feature InterpretMultipolygonRelationNoRecursion(CompleteRelation relation)
+        {
+            Feature feature = null;
+            if (relation.Members == null)
+            { // the relation has no members.
+                return null;
+            }
+
+            // build lists of outer and inner ways.
+            var inners = new List<CompleteWay>();
+            var outers = new List<CompleteWay>();
+
+            foreach (var member in relation.Members)
+            {
+                switch (member.Role)
+                {
+                    case "inner" when member.Member is CompleteWay:
+                        inners.Add(member.Member as CompleteWay);
+                        break;
+                    case "outer" when member.Member is CompleteWay:
+                        outers.Add(member.Member as CompleteWay);
+                        break;
+                }
+            }
+
+            var geometry = BuildGeometry(outers, inners);
+
+            if (geometry != null)
+            {
+                feature = new Feature(geometry, TagsAndIdToAttributes(relation));
+            }
+            return feature;
+
+        }
+        
+        private static Polygon GetShapeFromLines(ref List<CompleteWay> shapeList)
+        {
+            //takes shapelist as ref, returns a polygon, leaves any other entries in shapelist to be called again.
+            //NOTE/TODO: if this is a relation of lines that aren't a polygon (EX: a very long hiking trail), this should probably return the combined linestring?
+            //TODO: if the lines are too small, should I return a Point instead?
+
+            List<Coordinate> possiblePolygon = new List<Coordinate>();
+            var firstShape = shapeList.FirstOrDefault();
+            if (firstShape == null)
+            {
+                Log.WriteLog("shapelist has 0 ways in shapelist?", Log.VerbosityLevels.High);
+                return null;
+            }
+            shapeList.Remove(firstShape);
+            var nextStartnode = firstShape.Nodes.Last();
+            var closedShape = false;
+            var isError = false;
+            possiblePolygon.AddRange(firstShape.Nodes.Where(n => n.Id != nextStartnode.Id).Select(n => new Coordinate((float)n.Longitude, (float)n.Latitude)).ToList());
+            while (closedShape == false)
+            {
+                var allPossibleLines = shapeList.Where(s => s.Nodes.First().Id == nextStartnode.Id).ToList();
+                if (allPossibleLines.Count > 1)
+                {
+                    Log.WriteLog("Shape has multiple possible lines to follow, might not process correctly.", Log.VerbosityLevels.High);
+                }
+                var lineToAdd = shapeList.Where(s => s.Nodes.First().Id == nextStartnode.Id && s.Nodes.First().Id != s.Nodes.Last().Id).FirstOrDefault();
+                if (lineToAdd == null)
+                {
+                    //check other direction
+                    var allPossibleLinesReverse = shapeList.Where(s => s.Nodes.Last().Id == nextStartnode.Id).ToList();
+                    if (allPossibleLinesReverse.Count > 1)
+                    {
+                        Log.WriteLog("Way has multiple possible lines to follow, might not process correctly (Reversed Order).");
+                    }
+                    lineToAdd = shapeList.Where(s => s.Nodes.Last().Id == nextStartnode.Id && s.Nodes.First().Id != s.Nodes.Last().Id).FirstOrDefault();
+                    if (lineToAdd == null)
+                    {
+                        //If all lines are joined and none remain, this might just be a relation of lines. Return a combined element
+                        Log.WriteLog("shape doesn't seem to have properly connecting lines, can't process as polygon.", Log.VerbosityLevels.High);
+                        closedShape = true; //rename this to something better for breaking the loop
+                        isError = true; //rename this to something like IsPolygon
+                    }
+                    else
+                        lineToAdd.Nodes.Reverse();
+                }
+                if (!isError)
+                {
+                    possiblePolygon.AddRange(lineToAdd.Nodes.Where(n => n.Id != nextStartnode.Id).Select(n => new Coordinate((float)n.Longitude, (float)n.Latitude)).ToList());
+                    nextStartnode = lineToAdd.Nodes.Last();
+                    shapeList.Remove(lineToAdd);
+
+                    if (possiblePolygon.First().Equals(possiblePolygon.Last()))
+                        closedShape = true;
+                }
+            }
+            if (isError)
+                return null;
+
+            if (possiblePolygon.Count <= 3)
+            {
+                Log.WriteLog("Didn't find enough points to turn into a polygon. Probably an error.", Log.VerbosityLevels.High);
+                return null;
+            }
+
+            var poly = factory.CreatePolygon(possiblePolygon.ToArray());
+            poly = GeometrySupport.CCWCheck(poly);
+            if (poly == null)
+            {
+                Log.WriteLog("Found a shape that isn't CCW either way. Error.", Log.VerbosityLevels.High);
+                return null;
+            }
+            return poly;
         }
     }
 }
