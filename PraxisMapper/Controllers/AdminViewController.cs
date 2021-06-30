@@ -95,6 +95,14 @@ namespace PraxisMapper.Controllers
 
             ViewBag.imageString = "data:image/png;base64," + Convert.ToBase64String(tile);
             ViewBag.timeToDraw = sw.Elapsed;
+            var places = CoreComponents.Place.GetPlaces(istats.area);
+            ViewBag.placeCount = places.Count();
+            var grouped = places.GroupBy(p => p.GameElementName);
+            string areasByType = "";
+            foreach (var g in grouped)
+                areasByType += g.Key + g.Count() + "<br />";
+
+            ViewBag.areasByType = areasByType;
 
             return View();
         }
