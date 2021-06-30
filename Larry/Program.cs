@@ -97,7 +97,7 @@ namespace Larry
                 //Check on a specific thing. Not an end-user command.
                 //Current task: Identify issue with relation
                 //SingleTest();
-                new PbfReader().debugPerfTest(@"C:\praxis\ohio-latest.osm.pbf");
+                new PbfReader().debugPerfTest(ParserSettings.PbfFolder + "ohio-latest.osm.pbf");
             }
 
             if (args.Any(a => a.StartsWith("-getPbf:")))
