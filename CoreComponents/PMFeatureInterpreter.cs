@@ -34,6 +34,7 @@ using OsmSharp.Geo;
 using OsmSharp;
 using ProtoBuf.Serializers;
 using static CoreComponents.Singletons;
+using System.Reflection.Metadata.Ecma335;
 
 namespace CoreComponents
 {
@@ -616,8 +617,28 @@ namespace CoreComponents
                     case "outer" when member.Member is CompleteWay:
                         outers.Add(member.Member as CompleteWay);
                         break;
+                    default:
+                        Log.WriteLog("Member" + member.Member.Id + " was't assigned a role!");
+                        break;
                 }
             }
+
+            foreach(var o in outers)
+            {
+                bool hasFirstMatch = false, hasLastMatch = false;
+                var firstNode = o.Nodes.First();
+                var lastNode = o.Nodes.Last();
+                if (outers.Any(oo => oo.Id != o.Id && (oo.Nodes.First().Id == firstNode.Id || oo.Nodes.Last().Id == firstNode.Id)))
+                    hasFirstMatch = true;
+                if (outers.Any(oo => oo.Id != o.Id && (oo.Nodes.First().Id == lastNode.Id || oo.Nodes.Last().Id == lastNode.Id)))
+                    hasLastMatch = true;
+
+                if (!hasFirstMatch && !hasLastMatch)
+                    Log.WriteLog("Entry " + o.Id + " has no matches despite being marked Outer!");
+                else if (!hasLastMatch || !hasFirstMatch)
+                    Log.WriteLog("Entry " + o.Id + " has one match, but not part of a closed loop!");
+            }
+
 
             var geometry = BuildGeometry(outers, inners);
 
@@ -642,11 +663,14 @@ namespace CoreComponents
                 Log.WriteLog("shapelist has 0 ways in shapelist?", Log.VerbosityLevels.High);
                 return null;
             }
+            
+            Node originalStartPoint = firstShape.Nodes.First();
+
             shapeList.Remove(firstShape);
             var nextStartnode = firstShape.Nodes.Last();
             var closedShape = false;
             var isError = false;
-            possiblePolygon.AddRange(firstShape.Nodes.Where(n => n.Id != nextStartnode.Id).Select(n => new Coordinate((float)n.Longitude, (float)n.Latitude)).ToList());
+            possiblePolygon.AddRange(firstShape.Nodes.Select(n => new Coordinate((float)n.Longitude, (float)n.Latitude)).ToList());
             while (closedShape == false)
             {
                 var allPossibleLines = shapeList.Where(s => s.Nodes.First().Id == nextStartnode.Id).ToList();
@@ -654,7 +678,7 @@ namespace CoreComponents
                 {
                     Log.WriteLog("Shape has multiple possible lines to follow, might not process correctly.", Log.VerbosityLevels.High);
                 }
-                var lineToAdd = shapeList.Where(s => s.Nodes.First().Id == nextStartnode.Id && s.Nodes.First().Id != s.Nodes.Last().Id).FirstOrDefault();
+                var lineToAdd = allPossibleLines.FirstOrDefault();
                 if (lineToAdd == null)
                 {
                     //check other direction
@@ -663,24 +687,25 @@ namespace CoreComponents
                     {
                         Log.WriteLog("Way has multiple possible lines to follow, might not process correctly (Reversed Order).");
                     }
-                    lineToAdd = shapeList.Where(s => s.Nodes.Last().Id == nextStartnode.Id && s.Nodes.First().Id != s.Nodes.Last().Id).FirstOrDefault();
+                    lineToAdd = allPossibleLinesReverse.FirstOrDefault();
                     if (lineToAdd == null)
                     {
+                        if (shapeList.Count() > 0 )
                         //If all lines are joined and none remain, this might just be a relation of lines. Return a combined element
                         Log.WriteLog("shape doesn't seem to have properly connecting lines, can't process as polygon.", Log.VerbosityLevels.High);
-                        closedShape = true; //rename this to something better for breaking the loop
+                        //closedShape = true; //rename this to something better for breaking the loop
                         isError = true; //rename this to something like IsPolygon
                     }
                     else
-                        lineToAdd.Nodes.Reverse();
+                        lineToAdd.Nodes = lineToAdd.Nodes.Reverse().ToArray(); //This way was drawn backwards relative to the original way.
                 }
                 if (!isError)
                 {
-                    possiblePolygon.AddRange(lineToAdd.Nodes.Where(n => n.Id != nextStartnode.Id).Select(n => new Coordinate((float)n.Longitude, (float)n.Latitude)).ToList());
+                    possiblePolygon.AddRange(lineToAdd.Nodes.Skip(1).Select(n => new Coordinate((float)n.Longitude, (float)n.Latitude)).ToList());
                     nextStartnode = lineToAdd.Nodes.Last();
                     shapeList.Remove(lineToAdd);
 
-                    if (possiblePolygon.First().Equals(possiblePolygon.Last()))
+                    if (nextStartnode.Id == originalStartPoint.Id)
                         closedShape = true;
                 }
             }

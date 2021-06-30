@@ -187,7 +187,7 @@ namespace CoreComponents.PbfReader
                     runB = sw.Elapsed;
                     Log.WriteLog("Default interpreter ran in " + runB);
                     Log.WriteLog("Change from using custom interpreter: " + (runB - runA));
-
+                    var a = 1;
                 }
                 catch(Exception ex)
                 {
