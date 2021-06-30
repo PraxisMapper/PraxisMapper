@@ -10,6 +10,8 @@ using static CoreComponents.DbTables;
 using CoreComponents.Support;
 using System.Text.Json;
 using NetTopologySuite.Noding;
+using OsmSharp.Complete;
+using System.ComponentModel.DataAnnotations;
 
 namespace CoreComponents.PbfReader
 {
@@ -62,7 +64,7 @@ namespace CoreComponents.PbfReader
             1205151, //Lake Huron, 14,000 ways. Can Stack overflow joining rings.
             148838, //United States. 1029 members but a very large geographic area
             9428957, //Gulf of St. Lawrence. 11,000 ways. Can finish processing, so it's somewhere between 11k and 14k that the stack overflow hits.
-            4069900, //Lake Erie is 1100 ways, takes ~56 seconds start to finish.
+            4039900, //Lake Erie is 1100 ways, takes ~56 seconds start to finish.
         };
 
         //lazy optimization: when to search a reversed list of nodes;
@@ -157,6 +159,42 @@ namespace CoreComponents.PbfReader
             GeometrySupport.WriteSingleStoredElementToFile("labradorSea.json", r2);
             Close();
             CleanupFiles();
+        }
+
+        public void debugPerfTest(string filename)
+        {
+            //testing feature interprester variances.
+            Open(filename);
+            IndexFile();
+            var featureInterpreter = new PMFeatureInterpreter();
+            var allRelations = new List<CompleteRelation>();
+            foreach (var r in relationFinder)
+            {
+                try
+                {
+                    var g = GetRelation(4039900);  //(r.Key);
+                    TimeSpan runA, runB;
+
+                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                    sw.Start();
+                    var featureA = featureInterpreter.Interpret(g); //OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(g); //Changed while waiting for bugfixes
+                    sw.Stop();
+                    runA = sw.Elapsed;
+                    Log.WriteLog("Customized interpreter ran in " + runA);
+                    sw.Restart();
+                    var featureB = OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(g); //mainline version, while i get my version dialed in for edge cases.
+                    sw.Stop();
+                    runB = sw.Elapsed;
+                    Log.WriteLog("Default interpreter ran in " + runB);
+                    Log.WriteLog("Change from using custom interpreter: " + (runB - runA));
+
+                }
+                catch(Exception ex)
+                {
+                    //do nothing
+                }
+            }
+
         }
 
         private void IndexFile()
@@ -377,9 +415,9 @@ namespace CoreComponents.PbfReader
                     switch (typeToFind)
                     {
                         case Relation.MemberType.NODE:
-                            //TODO: If the FeatureInterpreter doesn't use nodes from a relation, I could skip this part.
-                            nodeBlocks.Add(FindBlockKeyForNode(idToFind, nodeBlocks));
-                            nodeBlocks = nodeBlocks.Distinct().ToList();
+                            //The FeatureInterpreter doesn't use nodes from a relation
+                            //nodeBlocks.Add(FindBlockKeyForNode(idToFind, nodeBlocks));
+                            //nodeBlocks = nodeBlocks.Distinct().ToList();
                             break;
                         case Relation.MemberType.WAY:
                             wayBlocks.Add(FindBlockKeyForWay(idToFind, wayBlocks));
@@ -391,7 +429,7 @@ namespace CoreComponents.PbfReader
                     }
                 }
                 neededBlocks.AddRange(wayBlocks.Distinct());
-                neededBlocks.AddRange(nodeBlocks.Distinct());
+                //neededBlocks.AddRange(nodeBlocks.Distinct());
                 neededBlocks = neededBlocks.Distinct().ToList();
                 foreach (var nb in neededBlocks)
                     GetBlock(nb);
@@ -409,7 +447,7 @@ namespace CoreComponents.PbfReader
 
                 //This makes sure we only load each element once. If a relation references an element more than once (it shouldnt)
                 //this saves us from re-creating the same entry.
-                Dictionary<long, OsmSharp.Node> loadedNodes = new Dictionary<long, OsmSharp.Node>();
+                //Dictionary<long, OsmSharp.Node> loadedNodes = new Dictionary<long, OsmSharp.Node>();
                 Dictionary<long, OsmSharp.Complete.CompleteWay> loadedWays = new Dictionary<long, OsmSharp.Complete.CompleteWay>();
                 List<OsmSharp.Complete.CompleteRelationMember> crms = new List<OsmSharp.Complete.CompleteRelationMember>();
                 idToFind = 0;
@@ -422,9 +460,9 @@ namespace CoreComponents.PbfReader
                     switch (typeToFind)
                     {
                         case Relation.MemberType.NODE:
-                            if (!loadedNodes.ContainsKey(idToFind))
-                                loadedNodes.Add(idToFind, GetNode(idToFind, true, nodeBlocks));
-                            c.Member = loadedNodes[idToFind];
+                            //if (!loadedNodes.ContainsKey(idToFind))
+                                //loadedNodes.Add(idToFind, GetNode(idToFind, true, nodeBlocks));
+                            //c.Member = loadedNodes[idToFind];
                             break;
                         case Relation.MemberType.WAY:
                             if (!loadedWays.ContainsKey(idToFind))
@@ -803,7 +841,7 @@ namespace CoreComponents.PbfReader
                         return;
                     }
                     Log.WriteLog("Large relation " + elementId + " created at " + DateTime.Now);
-                    var md = GeometrySupport.ConvertOsmEntryToStoredElement(relation);
+                    var md = GeometrySupport.ConvertOsmEntryToStoredElement(relation); 
                     if (md == null)
                     {
                         Log.WriteLog("Error: relation " + relation.Id + " failed to convert to StoredOSmElement");
