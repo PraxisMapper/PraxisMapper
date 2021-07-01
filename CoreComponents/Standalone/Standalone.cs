@@ -113,7 +113,8 @@ namespace CoreComponents.Standalone
             foreach (var y in yCoords)
             {
                 //Make a collision box for just this row of Cell8s, and send the loop below just the list of things that might be relevant.
-                GeoArea thisRow = new GeoArea(y, xCoords.First(), y + ConstantValues.resolutionCell8, xCoords.Last());
+                //Add a little buffer space so all elements are loaded and drawn without needing to loop through the entire area.
+                GeoArea thisRow = new GeoArea(y - ConstantValues.resolutionCell10, xCoords.First() - ConstantValues.resolutionCell10, y + ConstantValues.resolutionCell8 + ConstantValues.resolutionCell10, xCoords.Last() + resolutionCell10);
                 var row = Converters.GeoAreaToPolygon(thisRow); 
                 var rowList = allPlaces.Where(a => row.Intersects(a.elementGeometry)).ToList();
 
