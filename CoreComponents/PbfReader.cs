@@ -507,7 +507,7 @@ namespace CoreComponents.PbfReader
 
                 PrimitiveBlock wayBlock = GetBlock(wayBlockValues);
                 var wayPrimGroup = wayBlock.primitivegroup[0];
-                var way = wayPrimGroup.ways.Where(w => w.id == wayId).FirstOrDefault();
+                var way = wayPrimGroup.ways.FirstOrDefault(w => w.id == wayId);
                 if (way == null)
                     return null; //way wasn't in the block it was supposed to be in.
                 //finally have the core item
@@ -738,7 +738,6 @@ namespace CoreComponents.PbfReader
         private long FindBlockKeyForNode(long nodeId, List<long> hints = null) //Iterative
         {
             //This is the most-called function in this class, and therefore the most performance-dependent.
-            //It also, as written, slows down dramatically the bigger the file gets. 
             //As it turns out, the range of node IDs involved WON'T overlap, so i CAN b-tree search this.
 
             //Hints is a list of blocks we're already found in the relevant way. Odds are high that
@@ -950,10 +949,11 @@ namespace CoreComponents.PbfReader
                     }
                     else if (primgroup.ways != null && primgroup.ways.Count() > 0)
                     {
+                        List<long> hint = new List<long>() { blockId };
                         //original multithreading logic, similar to relations. Attermpting to do this like nodes is much, much slower and eats tons of RAM
-                        foreach (var r in primgroup.ways.OrderByDescending(w => w.refs.Count())) //Ordering should help consistency in runtime, though splitting off the biggest ones to their own thread is a better optimization.
+                        foreach (var r in primgroup.ways.OrderByDescending(w => w.refs.Count())) //Ordering should help consistency in runtime, though it offers little other benefit.
                         {
-                            relList.Add(Task.Run(() => results.Add(GetWay(r.id, true))));
+                            relList.Add(Task.Run(() => results.Add(GetWay(r.id, true, hint))));
                         }
                     }
                     else
@@ -986,7 +986,7 @@ namespace CoreComponents.PbfReader
 
                 Task.WaitAll(relList.ToArray());
 
-                //Move this logic here to free up RAM by removing blocks once we're done reading data from the hard drive. Should result in fewer errors at the ProcessReaderResults step.
+                //Moved this logic here to free up RAM by removing blocks once we're done reading data from the hard drive. Should result in fewer errors at the ProcessReaderResults step.
                 //Slightly more complex: only remove blocks we didn't access last call. saves some serialization effort. Small RAM trade for 30% speed increase.
                 foreach (var blockRead in activeBlocks)
                 {
