@@ -31,9 +31,13 @@ namespace CoreComponents.PbfReader
 
         //this is blockId, <minNode, maxNode>.
         ConcurrentDictionary<long, Tuple<long, long>> nodeFinder2 = new ConcurrentDictionary<long, Tuple<long, long>>();
-        ConcurrentDictionary<long, Tuple<long, long>> nodeFinder2Reverse = new ConcurrentDictionary<long, Tuple<long, long>>();
+        //ConcurrentDictionary<long, Tuple<long, long>> nodeFinder2Reverse = new ConcurrentDictionary<long, Tuple<long, long>>();
+        //blockId, minNode, maxNode.
+        List<Tuple<long, long, long>> nodeFinderList = new List<Tuple<long, long, long>>();
         //<blockId, maxWayId> since ways are sorted in order.
         Dictionary<long, long> wayFinder2 = new Dictionary<long, long>(); //This one uses up less memory, but takes longer for bigger files because it needs to iterate them like a list.
+        List<Tuple<long, long>> wayFinderList = new List<Tuple<long, long>>();
+        //Dictionary<long, long> wayFinder2 = new Dictionary<long, long>(); //This one uses up less memory, but takes longer for bigger files because it needs to iterate them like a list.
         ConcurrentDictionary<long, long> exactWayFinder3 = new ConcurrentDictionary<long, long>(); //Stops the CPU creep but eats a lot more RAM, and currently throws some missing value errors.
 
         Dictionary<long, long> blockPositions = new Dictionary<long, long>();
@@ -289,10 +293,16 @@ namespace CoreComponents.PbfReader
             var sortingwayFinder2 = wayFinder2.OrderBy(w => w.Key).ToList();
             wayFinder2 = new Dictionary<long, long>();
             foreach (var w in sortingwayFinder2)
+            {
                 wayFinder2.TryAdd(w.Key, w.Value);
+                wayFinderList.Add(Tuple.Create(w.Key, w.Value));
+            }
             Log.WriteLog("Found " + blockCounter + " blocks. " + relationCounter + " relation blocks and " + wayCounter + " way blocks.");
             foreach (var entry in nodeFinder2.Reverse())
-                nodeFinder2Reverse.TryAdd(entry.Key, entry.Value);
+            { 
+                //nodeFinder2Reverse.TryAdd(entry.Key, entry.Value);
+                nodeFinderList.Add(Tuple.Create(entry.Key, entry.Value.Item1, entry.Value.Item2));
+            }
             //Lazy optimization: if our node is bigger than roughly the halfway point, search from the end instead of the start.           
             var idx = new Index(nodeFinder2.Count() / 2);
             switchPoint = nodeFinder2.ElementAt(idx).Value.Item2;
@@ -750,36 +760,53 @@ namespace CoreComponents.PbfReader
                 }
             }
 
-            if (nodeId < switchPoint)
-                foreach (var nodelist in nodeFinder2)
-                {
-                    //key is block id
-                    //value is the tuple list. 1 is min, 2 is max.
-                    if (nodelist.Value.Item1 > nodeId) //this node's minimum is larger than our node, skip
-                        continue;
 
-                    if (nodelist.Value.Item2 < nodeId) //this node's maximum is smaller than our node, skip
-                        continue;
+            foreach (var nodelist in nodeFinderList)
+            {
+                //key is block id
+                //value is the tuple list. 1 is min, 2 is max.
+                if (nodelist.Item2 > nodeId) //this node's minimum is larger than our node, skip
+                    continue;
 
-                    //Actually, we're just gonna return the value here, since we found it, and let it error out later if that node isn't present.
-                    //This isn't much of a CPU optimization, but it lets us skip one GetBlock() call.
-                    return nodelist.Key;
-                }
-            else
-                foreach (var nodelist in nodeFinder2Reverse)
-                {
-                    //key is block id
-                    //value is the tuple list. 1 is min, 2 is max.
-                    //Reverse the check order since we're traversing the opposite direction
-                    if (nodelist.Value.Item2 < nodeId) //this node's maximum is smaller than our node, skip
-                        continue;
-                    if (nodelist.Value.Item1 > nodeId) //this node's minimum is larger than our node, skip
-                        continue;
+                if (nodelist.Item3 < nodeId) //this node's maximum is smaller than our node, skip
+                    continue;
 
-                    //Actually, we're just gonna return the value here, since we found it, and let it error out later if that node isn't present.
-                    //This isn't much of a CPU optimization, but it lets us skip one GetBlock() call.
-                    return nodelist.Key;
-                }
+                //Actually, we're just gonna return the value here, since we found it, and let it error out later if that node isn't present.
+                //This isn't much of a CPU optimization, but it lets us skip one GetBlock() call.
+                return nodelist.Item1;
+            }
+
+            //This might not have helped as much as I though having a switch, just iterating less because they're often closer to the end than the start?
+            //if (nodeId < switchPoint)
+            //    foreach (var nodelist in nodeFinder2)
+            //    {
+            //        //key is block id
+            //        //value is the tuple list. 1 is min, 2 is max.
+            //        if (nodelist.Value.Item1 > nodeId) //this node's minimum is larger than our node, skip
+            //            continue;
+
+            //        if (nodelist.Value.Item2 < nodeId) //this node's maximum is smaller than our node, skip
+            //            continue;
+
+            //        //Actually, we're just gonna return the value here, since we found it, and let it error out later if that node isn't present.
+            //        //This isn't much of a CPU optimization, but it lets us skip one GetBlock() call.
+            //        return nodelist.Key;
+            //    }
+            //else
+            //    foreach (var nodelist in nodeFinder2Reverse)
+            //    {
+            //        //key is block id
+            //        //value is the tuple list. 1 is min, 2 is max.
+            //        //Reverse the check order since we're traversing the opposite direction
+            //        if (nodelist.Value.Item2 < nodeId) //this node's maximum is smaller than our node, skip
+            //            continue;
+            //        if (nodelist.Value.Item1 > nodeId) //this node's minimum is larger than our node, skip
+            //            continue;
+
+            //        //Actually, we're just gonna return the value here, since we found it, and let it error out later if that node isn't present.
+            //        //This isn't much of a CPU optimization, but it lets us skip one GetBlock() call.
+            //        return nodelist.Key;
+            //    }
 
             //couldnt find this node
             throw new Exception("Node Not Found");
@@ -818,13 +845,13 @@ namespace CoreComponents.PbfReader
                         return h;
                 }
 
-            foreach (var waylist in wayFinder2)
+            foreach (var waylist in wayFinderList)
             {
                 //key is block id. value is the max way value in this node. We dont need to check the minimum.
-                if (waylist.Value < wayId) //this node's maximum is smaller than our node, skip
+                if (waylist.Item2 < wayId) //this node's maximum is smaller than our node, skip
                     continue;
 
-                return waylist.Key;
+                return waylist.Item1;
             }
 
             //couldnt find this way
@@ -1065,6 +1092,7 @@ namespace CoreComponents.PbfReader
                 {
                     string[] subData2 = line.Split(":");
                     wayFinder2.TryAdd(long.Parse(subData2[0]), long.Parse(subData2[1]));
+                    wayFinderList.Add(Tuple.Create(long.Parse(subData2[0]), long.Parse(subData2[1])));
                 }
 
                 filename = outputPath + fi.Name + ".nodeIndex";
@@ -1077,8 +1105,9 @@ namespace CoreComponents.PbfReader
 
                 //I never use NodeFinder2 with the key, its always iterated over. It should be a list or a sorted concurrent entry
                 foreach (var entry in nodeFinder2.Reverse())
-                    nodeFinder2Reverse.TryAdd(entry.Key, entry.Value);
-
+                    nodeFinderList.Add(Tuple.Create(entry.Key, entry.Value.Item1, entry.Value.Item2));
+                //nodeFinder2Reverse.TryAdd(entry.Key, entry.Value);
+               
                 //Lazy optimization: if our node is bigger than roughly the halfway point, search from the end instead of the start.           
                 var idx = new Index(nodeFinder2.Count() / 2);
                 switchPoint = nodeFinder2.ElementAt(idx).Value.Item2;
