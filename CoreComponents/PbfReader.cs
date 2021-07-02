@@ -128,7 +128,7 @@ namespace CoreComponents.PbfReader
                         if (wt != null)
                             writeTasks.Add(wt);
                     }
-                    SaveCurrentBlock(block);
+                    SaveCurrentBlock(block);                        
                 }
 
                 Log.WriteLog("Waiting on " + writeTasks.Where(w => !w.IsCompleted).Count() + " additional tasks");
@@ -172,7 +172,7 @@ namespace CoreComponents.PbfReader
             {
                 try
                 {
-                    var g = GetRelation(4039900);  //(r.Key);
+                    var g = GetRelation(9428957);  //(r.Key);
                     TimeSpan runA, runB;
 
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
@@ -181,6 +181,7 @@ namespace CoreComponents.PbfReader
                     sw.Stop();
                     runA = sw.Elapsed;
                     Log.WriteLog("Customized interpreter ran in " + runA);
+                    var check2 = GeometrySupport.SimplifyArea(featureA.First().Geometry);
                     sw.Restart();
                     var featureB = OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(g); //mainline version, while i get my version dialed in for edge cases.
                     sw.Stop();
@@ -404,7 +405,7 @@ namespace CoreComponents.PbfReader
                 //Now get a list of block i know i need now.
                 List<long> neededBlocks = new List<long>();
                 List<long> wayBlocks = new List<long>();
-                List<long> nodeBlocks = new List<long>();
+                //List<long> nodeBlocks = new List<long>();
 
                 //memIds is delta-encoded
                 long idToFind = 0;
@@ -474,6 +475,11 @@ namespace CoreComponents.PbfReader
                     crms.Add(c);
                 }
                 r.Members = crms.ToArray();
+
+                //Some memory cleanup slightly early, in an attempt to free up RAM faster.
+                loadedWays.Clear();
+                loadedWays = null;
+                rel = null;
                 return r;
             }
             catch (Exception ex)
@@ -887,31 +893,33 @@ namespace CoreComponents.PbfReader
                 System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                 sw.Start();
 
-                //Slightly more complex: only remove blocks we didn't access last call. saves some serialization effort. Small RAM trade for 30% speed increase.
-                foreach (var blockRead in activeBlocks)
-                {
-                    if (!accessedBlocks.ContainsKey(blockRead.Key))
-                        activeBlocks.TryRemove(blockRead);
-                }
-                accessedBlocks.Clear();
-
                 var block = GetBlock(blockId);
                 ConcurrentBag<OsmSharp.Complete.ICompleteOsmGeo> results = new ConcurrentBag<OsmSharp.Complete.ICompleteOsmGeo>();
+                //Attempting to clear up some memory slightly faster, but this should be redundant.
+                relList.Clear();
+                relList = null;
                 relList = new ConcurrentBag<Task>();
                 foreach (var primgroup in block.primitivegroup)
                 {
                     if (primgroup.relations != null && primgroup.relations.Count() > 0)
                     {
-                        foreach (var r in primgroup.relations.OrderByDescending(w => w.memids.Count())) //Ordering should help consistency in runtime, though splitting off the biggest ones to their own thread is a better optimization.
+                        //Some relation blocks can hit 22GB of RAM on their own. Dividing relation blocks into 4 pieces to help minimize that.
+                        var splitcount = primgroup.relations.Count() / 4;
+                        for (int i = 0; i < 5; i++) //5 means we won't miss any, just in case splitcount leaves us with 3 remainder entries.
                         {
-                            if (r.memids.Count() > 1000) //Semi-arbitrary size. 2500-entry relations take at least 2 normal blocks of time to process. 1000-entry blocks take roughly as long as a normal block on their own. Biggest so far noticed is 25,000 ways
-                            {
-                                Log.WriteLog("Relation " + r.id + " has " + r.memids.Count() + " entries, passing to a separate task.");
-                                writeTasks.Add(GetBigRelationSolo(r.id, outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.FullName) + ".json"));
-                            }
-                            else
+                            var toProcess = primgroup.relations.Skip(splitcount * i).Take(splitcount).ToList();
+                            foreach(var r in toProcess)
                                 relList.Add(Task.Run(() => results.Add(GetRelation(r.id))));
+
+                            Task.WaitAll(relList.ToArray());
+                            activeBlocks.Clear(); //Dump them all out of RAM, see how this affects performance. At most a block gets read 3 times more than it would have before.
                         }
+
+                        //original code
+                        //foreach (var r in primgroup.relations.OrderByDescending(w => w.memids.Count())) //Ordering should help consistency in runtime, though splitting off the biggest ones to their own thread is a better optimization.
+                        //{
+                        //    relList.Add(Task.Run(() => results.Add(GetRelation(r.id))));
+                        //}
                     }
                     else if (primgroup.ways != null && primgroup.ways.Count() > 0)
                     {
@@ -950,6 +958,17 @@ namespace CoreComponents.PbfReader
                 }
 
                 Task.WaitAll(relList.ToArray());
+
+                //Move this logic here to free up RAM by removing blocks once we're done reading data from the hard drive. Should result in fewer errors at the ProcessReaderResults step.
+                //Slightly more complex: only remove blocks we didn't access last call. saves some serialization effort. Small RAM trade for 30% speed increase.
+                foreach (var blockRead in activeBlocks)
+                {
+                    if (!accessedBlocks.ContainsKey(blockRead.Key))
+                        activeBlocks.TryRemove(blockRead);
+
+                }
+                accessedBlocks.Clear();
+
                 var count = (block.primitivegroup[0].relations?.Count > 0 ? block.primitivegroup[0].relations.Count :
                     block.primitivegroup[0].ways?.Count > 0 ? block.primitivegroup[0].ways.Count :
                     block.primitivegroup[0].dense.id.Count);
