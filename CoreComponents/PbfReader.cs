@@ -811,24 +811,24 @@ namespace CoreComponents.PbfReader
             throw new Exception("Node Not Found");
         }
 
-        private long FindBlockKeyForWay(long wayId)
-        {
-            //We cant use hints here as long as this is a single digit index. I need to track min and max to use hints.
-            //unlike nodes, ways ARE usually sorted 
-            //so we CAN safely just find the block where wayId >= minWay for a block
-            //BUT the easiest b-tree logic on a ConcurrentDictionary does more iterating to get indexes than just iterating the list would do.
-            foreach (var waylist in wayFinder2)
-            {
-                //key is block id. value is the max way value in this node. We dont need to check the minimum.
-                if (waylist.Value < wayId) //this node's maximum is smaller than our node, skip
-                    continue;
+        //private long FindBlockKeyForWay(long wayId)
+        //{
+        //    //We cant use hints here as long as this is a single digit index. I need to track min and max to use hints.
+        //    //unlike nodes, ways ARE usually sorted 
+        //    //so we CAN safely just find the block where wayId >= minWay for a block
+        //    //BUT the easiest b-tree logic on a ConcurrentDictionary does more iterating to get indexes than just iterating the list would do.
+        //    foreach (var waylist in wayFinder2)
+        //    {
+        //        //key is block id. value is the max way value in this node. We dont need to check the minimum.
+        //        if (waylist.Value < wayId) //this node's maximum is smaller than our node, skip
+        //            continue;
 
-                return waylist.Key;
-            }
+        //        return waylist.Key;
+        //    }
 
-            //couldnt find this way
-            throw new Exception("Way Not Found");
-        }
+        //    //couldnt find this way
+        //    throw new Exception("Way Not Found");
+        //}
 
         private long FindBlockKeyForWay(long wayId, List<long> hints)
         {
