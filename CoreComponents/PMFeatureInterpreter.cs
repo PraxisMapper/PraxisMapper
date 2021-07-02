@@ -458,7 +458,6 @@ namespace CoreComponents
             return polys;
         }
 
-        //This should return a list of rings? Or the completed geometry?
         private Geometry BuildGeometry(List<CompleteWay> outerways, List<CompleteWay> innerways)
         {
             var outerRings = new List<Polygon>();
@@ -586,7 +585,7 @@ namespace CoreComponents
         private static AttributesTable TagsAndIdToAttributes(ICompleteOsmGeo osmObject)
         {
             var attr = osmObject.Tags.ToAttributeTable();
-            attr.Add("id", osmObject.Id);
+            //attr.Add("id", osmObject.Id);
 
             return attr;
         }
