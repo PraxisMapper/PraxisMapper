@@ -124,6 +124,8 @@ namespace CoreComponents.PbfReader
 
                 for (var block = nextBlockId; block > 0; block--)
                 {
+                    System.Diagnostics.Stopwatch swBlock = new System.Diagnostics.Stopwatch(); //Includes both GetGeometry and ProcessResults time, but writing to disk is done in a thread independent of this.
+                    swBlock.Start();
                     long thisBlockId = block;
                     var geoData = GetGeometryFromBlock(thisBlockId);
                     //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
@@ -135,6 +137,9 @@ namespace CoreComponents.PbfReader
                             writeTasks.Add(wt);
                     }
                     SaveCurrentBlock(block);
+                    swBlock.Stop();
+                    timeList.Add(swBlock.Elapsed);
+                    Log.WriteLog("Block " + block + " processed in " + sw.Elapsed);
                 }
 
                 Log.WriteLog("Waiting on " + writeTasks.Where(w => !w.IsCompleted).Count() + " additional tasks");
@@ -909,9 +914,6 @@ namespace CoreComponents.PbfReader
             //This grabs the chosen block, populates everything in it to an OsmSharp.Complete object and returns that list
             try
             {
-                System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-                sw.Start();
-
                 var block = GetBlock(blockId);
                 ConcurrentBag<OsmSharp.Complete.ICompleteOsmGeo> results = new ConcurrentBag<OsmSharp.Complete.ICompleteOsmGeo>();
                 //Attempting to clear up some memory slightly faster, but this should be redundant.
@@ -964,8 +966,7 @@ namespace CoreComponents.PbfReader
                                 lock (fileLock)
                                     System.IO.File.AppendAllLines(outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + ".json", textLines);
 
-                                sw.Stop();
-                                Log.WriteLog("block " + blockId + ":" + nodes.Count() + " items out of " + block.primitivegroup[0].dense.id.Count + " created in " + sw.Elapsed);
+                                //Log.WriteLog("block " + blockId + ":" + nodes.Count() + " items out of " + block.primitivegroup[0].dense.id.Count + " created in " + sw.Elapsed);
                                 return;
                             }
                             catch (Exception ex)
@@ -993,10 +994,6 @@ namespace CoreComponents.PbfReader
                     block.primitivegroup[0].ways?.Count > 0 ? block.primitivegroup[0].ways.Count :
                     block.primitivegroup[0].dense.id.Count);
 
-                sw.Stop();
-                timeList.Add(sw.Elapsed);
-                if (results != null && results.Count() != 0)
-                    Log.WriteLog("block " + blockId + ":" + results.Count() + " items out of " + count + " created in " + sw.Elapsed);
                 return results;
             }
             catch (Exception ex)
