@@ -36,7 +36,7 @@ namespace CoreComponents.PbfReader
         List<Tuple<long, long, long>> nodeFinderList = new List<Tuple<long, long, long>>();
         List<Tuple<long, long, long>> nodeFinderListReverse = new List<Tuple<long, long, long>>();
         //<blockId, maxWayId> since ways are sorted in order.
-        Dictionary<long, long> wayFinder2 = new Dictionary<long, long>(); //This one uses up less memory, but takes longer for bigger files because it needs to iterate them like a list.
+        ConcurrentDictionary<long, long> LoadingWayFinder2 = new ConcurrentDictionary<long, long>();// Concurrent needed because loading is threaded.
         List<Tuple<long, long>> wayFinderList = new List<Tuple<long, long>>();
         List<Tuple<long, long>> wayFinderListReverse = new List<Tuple<long, long>>();
 
@@ -213,7 +213,7 @@ namespace CoreComponents.PbfReader
             blockSizes = new Dictionary<long, int>();
             relationFinder = new ConcurrentDictionary<long, long>();
             nodeFinder2 = new ConcurrentDictionary<long, Tuple<long, long>>();
-            wayFinder2 = new Dictionary<long, long>();
+            LoadingWayFinder2 = new ConcurrentDictionary<long, long>();
 
             BlobHeader bh = new BlobHeader();
             Blob b = new Blob();
@@ -256,7 +256,7 @@ namespace CoreComponents.PbfReader
                         //}
 
                         var wMax = group.ways.Max(w => w.id);
-                        if (!wayFinder2.TryAdd(passedBC, wMax))
+                        if (!LoadingWayFinder2.TryAdd(passedBC, wMax))
                             Log.WriteLog("ERROR: failed to add block " + passedBC + " to way index");
                         wayCounter++;
                     }
@@ -292,11 +292,9 @@ namespace CoreComponents.PbfReader
             }
             Task.WaitAll(waiting.ToArray());
             //my logic does require the wayIndex to be in blockID order.
-            var sortingwayFinder2 = wayFinder2.OrderBy(w => w.Key).ToList();
-            wayFinder2 = new Dictionary<long, long>();
-            foreach (var w in sortingwayFinder2)
+            foreach (var w in LoadingWayFinder2.OrderBy(w => w.Key))
             {
-                wayFinder2.TryAdd(w.Key, w.Value);
+                //OrderedWayFinderD.TryAdd(w.Key, w.Value);
                 wayFinderList.Add(Tuple.Create(w.Key, w.Value));
                 wayFinderListReverse.Add(Tuple.Create(w.Key, w.Value));
             }
@@ -317,7 +315,7 @@ namespace CoreComponents.PbfReader
             idx = new Index(wayFinderList.Count() / 2);
             switchPointWayId = wayFinderList.ElementAt(idx).Item2;
 
-            firstWayBlock = wayFinder2.First().Key;
+            firstWayBlock = LoadingWayFinder2.Keys.Min();
         }
 
         private PrimitiveBlock GetBlock(long blockId)
@@ -769,7 +767,7 @@ namespace CoreComponents.PbfReader
                 }
             }
 
-            if (nodeId < switchPointNodeId)
+            if (nodeId < switchPointNodeId) //return nodeFinderList.First(n => n.Item2 > nodeId && n.Item3 < nodeId).Item1; //does this test line break on extract files? or are no nodes legit missing?
                 foreach (var nodelist in nodeFinderList)
                 {
                     //key is block id
@@ -825,7 +823,7 @@ namespace CoreComponents.PbfReader
                 foreach (var h in hints)
                 {
                     //we can check this, but we need to look at the previous block too.
-                    if (wayFinder2[h] >= wayId && (h == firstWayBlock || wayFinder2[h - 1] < wayId))
+                    if (LoadingWayFinder2[h] >= wayId && (h == firstWayBlock || LoadingWayFinder2[h - 1] < wayId))
                         return h;
                 }
 
@@ -1037,11 +1035,11 @@ namespace CoreComponents.PbfReader
             System.IO.File.WriteAllLines(filename, data);
 
             filename = outputPath + fi.Name + ".wayIndex";
-            data = new string[wayFinder2.Count()];
+            data = new string[wayFinderList.Count()];
             j = 0;
-            foreach (var wf in wayFinder2)
+            foreach (var wf in wayFinderList)
             {
-                data[j] = wf.Key + ":" + wf.Value;
+                data[j] = wf.Item1 + ":" + wf.Item2;
                 j++;
             }
             System.IO.File.WriteAllLines(filename, data);
@@ -1086,7 +1084,7 @@ namespace CoreComponents.PbfReader
                 foreach (var line in data)
                 {
                     string[] subData2 = line.Split(":");
-                    wayFinder2.TryAdd(long.Parse(subData2[0]), long.Parse(subData2[1]));
+                    LoadingWayFinder2.TryAdd(long.Parse(subData2[0]), long.Parse(subData2[1]));
                     wayFinderList.Add(Tuple.Create(long.Parse(subData2[0]), long.Parse(subData2[1])));
                     wayFinderListReverse.Add(Tuple.Create(long.Parse(subData2[0]), long.Parse(subData2[1])));
                 }
@@ -1115,7 +1113,7 @@ namespace CoreComponents.PbfReader
                 idx = new Index(wayFinderList.Count() / 2);
                 switchPointWayId = wayFinderList.ElementAt(idx).Item2;
 
-                firstWayBlock = wayFinder2.First().Key;
+                firstWayBlock = LoadingWayFinder2.Keys.Min();
             }
             catch (Exception ex)
             {
