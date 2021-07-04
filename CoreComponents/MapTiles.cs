@@ -401,7 +401,7 @@ namespace CoreComponents
 
             foreach (var w in drawnItems)
             {
-                var style = TagParser.styles.Where(s => s.name == w.GameElementName).First();
+                var style = styles.Where(s => s.name == w.GameElementName).First();
                 paint = style.paint;
                 if (paint.Color.Alpha == 0)
                     continue; //This area is transparent, skip drawing it entirely.
