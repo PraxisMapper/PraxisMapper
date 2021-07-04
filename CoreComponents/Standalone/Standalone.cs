@@ -113,8 +113,8 @@ namespace CoreComponents.Standalone
             foreach (var y in yCoords)
             {
                 //Make a collision box for just this row of Cell8s, and send the loop below just the list of things that might be relevant.
-                //Add a little buffer space so all elements are loaded and drawn without needing to loop through the entire area.
-                GeoArea thisRow = new GeoArea(y - ConstantValues.resolutionCell10, xCoords.First() - ConstantValues.resolutionCell10, y + ConstantValues.resolutionCell8 + ConstantValues.resolutionCell10, xCoords.Last() + resolutionCell10);
+                //Add a Cell8 buffer space so all elements are loaded and drawn without needing to loop through the entire area.
+                GeoArea thisRow = new GeoArea(y - ConstantValues.resolutionCell8, xCoords.First() - ConstantValues.resolutionCell8, y + ConstantValues.resolutionCell8 + ConstantValues.resolutionCell8, xCoords.Last() + resolutionCell8);
                 var row = Converters.GeoAreaToPolygon(thisRow); 
                 var rowList = allPlaces.Where(a => row.Intersects(a.elementGeometry)).ToList();
 
@@ -147,18 +147,20 @@ namespace CoreComponents.Standalone
                     }
 
                     mapTileCounter++;
-                    if (progressTimer.ElapsedMilliseconds > 15000)
-                    {
-                        Log.WriteLog(mapTileCounter + " tiles processed, " + Math.Round((mapTileCounter / totalTiles) * 100, 2) + "% complete");
-                        progressTimer.Restart();
-                    }
+                    //if (progressTimer.ElapsedMilliseconds > 15000)
+                    //{
+                        
+                    //    progressTimer.Restart();
+                    //}
                 });
+                Log.WriteLog(mapTileCounter + " tiles processed, " + Math.Round((mapTileCounter / totalTiles) * 100, 2) + "% complete");
 
             }//);
         }
 
         public static ConcurrentDictionary<string, List<StoredOsmElement>> IndexAreasPerCell6(GeoArea buffered, List<StoredOsmElement> allPlaces)
         {
+            //NOTE: this could use the same optimization I applied to drawing map tiles
             var intersectCheck = Converters.GeoAreaToPolygon(buffered);
             //start drawing maptiles and sorting out data.
             var swCorner = new OpenLocationCode(intersectCheck.EnvelopeInternal.MinY, intersectCheck.EnvelopeInternal.MinX);
@@ -189,6 +191,12 @@ namespace CoreComponents.Standalone
 
             foreach (var y in yCoords)
             {
+                //Make a collision box for just this row of Cell8s, and send the loop below just the list of things that might be relevant.
+                //Add a Cell8 buffer space so all elements are loaded and drawn without needing to loop through the entire area.
+                GeoArea thisRow = new GeoArea(y - ConstantValues.resolutionCell8, xCoords.First() - ConstantValues.resolutionCell8, y + ConstantValues.resolutionCell8 + ConstantValues.resolutionCell8, xCoords.Last() + resolutionCell8);
+                var row = Converters.GeoAreaToPolygon(thisRow);
+                var rowList = allPlaces.Where(a => row.Intersects(a.elementGeometry)).ToList();
+
                 Parallel.ForEach(xCoords, x =>
                 //foreach (var x in xCoords)
                 {
@@ -198,7 +206,7 @@ namespace CoreComponents.Standalone
 
                     var areaForTile = new GeoArea(new GeoPoint(plusCodeArea.SouthLatitude, plusCodeArea.WestLongitude), new GeoPoint(plusCodeArea.NorthLatitude, plusCodeArea.EastLongitude));
                     var acheck = Converters.GeoAreaToPolygon(areaForTile); //this is faster than using a PreparedPolygon in testing, which was unexpected.
-                    var areaList = allPlaces.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); 
+                    var areaList = rowList.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); 
 
                     results.TryAdd(plusCode6, areaList);
                 });
