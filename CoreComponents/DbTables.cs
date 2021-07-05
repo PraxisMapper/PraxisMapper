@@ -207,7 +207,10 @@ namespace CoreComponents
                 return (StoredOsmElement)this.MemberwiseClone();
             }
         }
-                
+         
+        //TODO: at some point i should investigate if its worth having a unique KeyValuePair table, and joining that to 
+        //StoredOsmElement entries in this table instead. Would mean a join on sourceID/Type instead of the PK.
+        //Needs some planning to rework things around that, and saves a little DB space. Is it faster for the ap to process?
         public class ElementTags
         {
             public long id { get; set; }
