@@ -91,13 +91,13 @@ namespace CoreComponents
         public static string GeneratedMapDataValidTriggerMSSQL = "CREATE TRIGGER dbo.GenereatedMapDataMakeValid ON dbo.GeneratedMapData AFTER INSERT AS BEGIN UPDATE dbo.GeneratedMapData SET place = place.MakeValid() WHERE GeneratedMapDataId in (SELECT GeneratedMapDataId from inserted) END";
 
         //An index that I don't think EFCore can create correctly automatically.
-        public static string GeneratedMapDataIndex = "CREATE SPATIAL INDEX GeneratedMapDataSpatialIndex ON GeneratedMapData(place)";
+        //public static string GeneratedMapDataIndex = "CREATE SPATIAL INDEX GeneratedMapDataSpatialIndex ON GeneratedMapData(place)";
         public static string MapTileIndex = "CREATE SPATIAL INDEX MapTileSpatialIndex ON MapTiles(areaCovered)";
         public static string SlippyMapTileIndex = "CREATE SPATIAL INDEX SlippyMapTileSpatialIndex ON SlippyMapTiles(areaCovered)";
         public static string StoredElementsIndex = "CREATE SPATIAL INDEX StoredOsmElementsIndex ON StoredOsmElements(elementGeometry)";
 
         //PostgreSQL uses its own CREATE INDEX syntax
-        public static string GeneratedMapDataIndexPG = "CREATE INDEX generatedmapdata_geom_idx ON public.\"GeneratedMapData\" USING GIST(place)";
+        //public static string GeneratedMapDataIndexPG = "CREATE INDEX generatedmapdata_geom_idx ON public.\"GeneratedMapData\" USING GIST(place)";
         public static string MapTileIndexPG = "CREATE INDEX maptiles_geom_idx ON public.\"MapTiles\" USING GIST(\"areaCovered\")";
         public static string SlippyMapTileIndexPG = "CREATE INDEX slippmayptiles_geom_idx ON public.\"SlippyMapTiles\" USING GIST(\"areaCovered\")";
         public static string StoredElementsIndexPG = "CREATE INDEX storedOsmElements_geom_idx ON public.\"StoredOsmElements\" USING GIST(\"elementGeometry\")";

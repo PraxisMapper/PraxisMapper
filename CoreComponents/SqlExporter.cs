@@ -1,6 +1,7 @@
 ﻿using CoreComponents.Support;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions;
+using MySqlConnector;
 using NetTopologySuite.Geometries;
 using Npgsql;
 using System;
@@ -24,7 +25,36 @@ namespace CoreComponents
         //see: https://dev.mysql.com/doc/refman/8.0/en/gis-data-formats.html
         //This might be why my first attemp was failing.
 
-        //Attempt 2: insert the row first, then insert the WKB directly to the column? MariaDB syntax.
+        //alt 4: another attempt at MySqlBulkLoader in a function? Still have to solve tag issue. TAgs need to be a second file.
+        //MySqlBulkLoader bulk = new MySqlBulkLoader(); 
+
+        //Attempt 3: use LOAD DATA INFILE 
+        //This needs to remember to save in Tags somehow.
+        public static void LoadDataInfileTest(List<StoredOsmElement> items)
+        {
+            //Write to tab delimited file first, following schema.
+            string[] outputData = new string[items.Count()];
+
+            for (int i = 0; i < items.Count(); i++)
+                outputData[i] = items[i].name + "\t" + items[i].sourceItemID + "\t" + items[i].sourceItemType + "\t" + items[i].elementGeometry.AsText(); // + "\t" + (items[i].IsGameElement ? 1 :0) + "\t" + items[i].AreaSize + "\t" + (items[i].IsGenerated ? 1 : 0) + "\t" + items[i].IsUserProvided ? 1 : 0) //Commented section is not going to apply to osm data.
+            //var output = System.IO.File.("loadData.pm");
+
+            //TODO: enable LOCAL command so this could be done to a remote server.
+            //TODO: determine path programatically
+            //D:\MariaDbData\praxis\
+
+            System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+            var tempFile = @"D:\MariaDbData\praxis\loadData.pm";  //System.IO.Path.GetTempFileName();
+            var mariaPath = tempFile.Replace("\\", "\\\\");
+            System.IO.File.WriteAllLines(tempFile, outputData);
+            var db = new PraxisContext();
+            db.Database.ExecuteSqlRaw("LOAD DATA LOCAL INFILE '" + mariaPath + "' INTO TABLE StoredOsmElements fields terminated by '\t' (name, sourceItemID, sourceItemType, @elementGeometry) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
+            sw.Stop();
+            Console.WriteLine("LOAD DATA command ran in " + sw.Elapsed);
+            System.IO.File.Delete(tempFile);
+        }
+
+        //Attempt 2: insert the row first, then insert the WKB directly to the column? MariaDB syntax. Is better for single inserts, isn't better than doing batches in EFCore.
         public static void InsertGeomFastTest(StoredOsmElement item)
         {
             var db = new PraxisContext();
