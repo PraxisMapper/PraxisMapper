@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
@@ -118,6 +119,18 @@ namespace CoreComponents
         public static string ToByteString(this byte[] b)
         {
             return BitConverter.ToString(b).Replace("-", "");
+        }
+
+        public static IEnumerable<DbTables.StoredOsmElement>[] SplitListToMultiple(this IEnumerable<DbTables.StoredOsmElement> mainlist, int splitIntoCount)
+        {
+            List<DbTables.StoredOsmElement>[] results = new List<DbTables.StoredOsmElement>[splitIntoCount];
+            int splitCount = 0;
+            foreach(var i in mainlist)
+            {
+                results[splitCount % splitCount].Add(i);
+                splitCount++;
+            }
+            return results;
         }
     }
 }
