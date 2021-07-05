@@ -124,10 +124,13 @@ namespace CoreComponents
         public static IEnumerable<DbTables.StoredOsmElement>[] SplitListToMultiple(this IEnumerable<DbTables.StoredOsmElement> mainlist, int splitIntoCount)
         {
             List<DbTables.StoredOsmElement>[] results = new List<DbTables.StoredOsmElement>[splitIntoCount];
+            for (int i = 0; i < splitIntoCount; i++)
+                results[i] = new List<DbTables.StoredOsmElement>();
+
             int splitCount = 0;
             foreach(var i in mainlist)
             {
-                results[splitCount % splitCount].Add(i);
+                results[splitCount % splitIntoCount].Add(i);
                 splitCount++;
             }
             return results;
