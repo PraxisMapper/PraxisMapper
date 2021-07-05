@@ -134,7 +134,7 @@ namespace CoreComponents
 
         public class ServerSetting
         {
-            public int ServerSettingId { get; set; } //just for a primary key
+            public int id { get; set; } //just for a primary key
             public double NorthBound { get; set; }
             public double EastBound { get; set; }
             public double SouthBound { get; set; }

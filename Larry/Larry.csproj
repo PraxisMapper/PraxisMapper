@@ -17,10 +17,10 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer.NetTopologySuite" Version="6.0.0-preview.5.21301.9" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="6.0.0-preview.5.21301.5" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="6.0.0-preview.5.21301.5" />
-    <PackageReference Include="NetTopologySuite" Version="2.2.0" />
+    <PackageReference Include="NetTopologySuite" Version="2.3.0" />
     <PackageReference Include="OsmSharp" Version="7.0.0-pre014" />
     <PackageReference Include="OsmSharp.Geo" Version="7.0.0-pre014" />
-    <PackageReference Include="Z.EntityFramework.Extensions.EFCore" Version="6.0.0-preview.3.21201.2-11" />
+    <PackageReference Include="Z.EntityFramework.Extensions.EFCore" Version="6.0.0-preview.3.21201.2-12" />
   </ItemGroup>
 
   <ItemGroup>

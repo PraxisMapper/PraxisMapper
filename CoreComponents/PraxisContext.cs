@@ -116,14 +116,14 @@ namespace CoreComponents
             //PostgreSQL will make automatic spatial indexes
             if (serverMode == "PostgreSQL")
             {
-                db.Database.ExecuteSqlRaw(GeneratedMapDataIndexPG);
+                //db.Database.ExecuteSqlRaw(GeneratedMapDataIndexPG);
                 db.Database.ExecuteSqlRaw(MapTileIndexPG);
                 db.Database.ExecuteSqlRaw(SlippyMapTileIndexPG);
                 db.Database.ExecuteSqlRaw(StoredElementsIndexPG);
             }
             else //SQL Server and MariaDB share the same syntax here
             {
-                db.Database.ExecuteSqlRaw(GeneratedMapDataIndex);
+                //db.Database.ExecuteSqlRaw(GeneratedMapDataIndex);
                 db.Database.ExecuteSqlRaw(MapTileIndex);
                 db.Database.ExecuteSqlRaw(SlippyMapTileIndex);
                 db.Database.ExecuteSqlRaw(StoredElementsIndex);
@@ -165,7 +165,7 @@ namespace CoreComponents
         public static void InsertDefaultServerConfig()
         {
             var db = new PraxisContext();
-            db.ServerSettings.Add(new ServerSetting() { NorthBound = 90, SouthBound = -90, EastBound = 180, WestBound = -180, SlippyMapTileSizeSquare = 512 });
+            db.ServerSettings.Add(new ServerSetting() {id =1, NorthBound = 90, SouthBound = -90, EastBound = 180, WestBound = -180, SlippyMapTileSizeSquare = 512 });
             db.SaveChanges();
         }
 
@@ -204,12 +204,16 @@ namespace CoreComponents
             nextSaturday.AddSeconds(-nextSaturday.Second);
 
             var tomorrow = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day).AddDays(1);
-            db.PaintTownConfigs.Add(new PaintTownConfig() { Name = "All-Time", Cell10LockoutTimer = 300, DurationHours = -1, NextReset = nextSaturday });
-            db.PaintTownConfigs.Add(new PaintTownConfig() { Name = "Weekly", Cell10LockoutTimer = 300, DurationHours = 168, NextReset = nextSaturday });
+            db.PaintTownConfigs.Add(new PaintTownConfig() {PaintTownConfigId =1,  Name = "All-Time", Cell10LockoutTimer = 300, DurationHours = -1, NextReset = nextSaturday });
+            db.PaintTownConfigs.Add(new PaintTownConfig() {PaintTownConfigId =2, Name = "Weekly", Cell10LockoutTimer = 300, DurationHours = 168, NextReset = nextSaturday });
 
             //PaintTheTown requires dummy entries in the playerData table, or it doesn't know which factions exist. It's faster to do this once here than to check on every call to playerData
+            int pdId = 1;
             foreach (var faction in Singletons.defaultFaction)
-                db.PlayerData.Add(new PlayerData() { deviceID = "dummy" + faction.FactionId, FactionId = faction.FactionId });
+            {
+                db.PlayerData.Add(new PlayerData() {PlayerDataID = pdId, deviceID = "dummy" + faction.FactionId, FactionId = faction.FactionId });
+                pdId++;
+            }
             db.SaveChanges();
         }
     }
