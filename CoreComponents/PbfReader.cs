@@ -98,7 +98,7 @@ namespace CoreComponents.PbfReader
             fs.Dispose();
         }
 
-        public void ProcessFile(string filename, bool saveToDb = false)
+        public void ProcessFile(string filename, bool saveToDb = false, bool onlyTagMatchedEntries = false)
         {
             try
             {
@@ -132,7 +132,7 @@ namespace CoreComponents.PbfReader
                     //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
                     if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
                     {
-                        var wt = ProcessReaderResults(geoData, outputPath + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", saveToDb);
+                        var wt = ProcessReaderResults(geoData, outputPath + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", saveToDb, onlyTagMatchedEntries);
                         if (wt != null)
                             writeTasks.Add(wt);
                     }
@@ -1170,7 +1170,7 @@ namespace CoreComponents.PbfReader
             });
         }
 
-        public Task ProcessReaderResults(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, string saveFilename, bool saveToDb = false)
+        public Task ProcessReaderResults(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, string saveFilename, bool saveToDb = false, bool onlyTagMatchedElements = false)
         {
             //This one is easy, we just dump the geodata to the file.
             ConcurrentBag<StoredOsmElement> elements = new ConcurrentBag<StoredOsmElement>();
@@ -1188,9 +1188,13 @@ namespace CoreComponents.PbfReader
             Task.WaitAll(relList.ToArray());
             relList = new ConcurrentBag<Task>();
 
+            if (onlyTagMatchedElements)
+                elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => TagParser.GetStyleForOsmWay(e.Tags.ToList()) != TagParser.styles.Last()));
+
             if (saveToDb)
             {
                 var db = new PraxisContext();
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
                 db.StoredOsmElements.AddRange(elements);
                 db.SaveChanges();
                 return null;

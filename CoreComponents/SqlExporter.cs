@@ -30,13 +30,22 @@ namespace CoreComponents
 
         //Attempt 3: use LOAD DATA INFILE 
         //This needs to remember to save in Tags somehow.
+
         public static void LoadDataInfileTest(List<StoredOsmElement> items)
         {
             //Write to tab delimited file first, following schema.
             string[] outputData = new string[items.Count()];
+            List<string> outputTags = new List<string>();
 
             for (int i = 0; i < items.Count(); i++)
+            {
                 outputData[i] = items[i].name + "\t" + items[i].sourceItemID + "\t" + items[i].sourceItemType + "\t" + items[i].elementGeometry.AsText(); // + "\t" + (items[i].IsGameElement ? 1 :0) + "\t" + items[i].AreaSize + "\t" + (items[i].IsGenerated ? 1 : 0) + "\t" + items[i].IsUserProvided ? 1 : 0) //Commented section is not going to apply to osm data.
+                foreach(var t in items[i].Tags)
+                {
+                    outputTags.Add(t.storedOsmElement.id + "\t" + t.Key + "\t" + t.Value);
+                }
+            }
+
             //var output = System.IO.File.("loadData.pm");
 
             //TODO: enable LOCAL command so this could be done to a remote server.
@@ -45,10 +54,14 @@ namespace CoreComponents
 
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
             var tempFile = @"D:\MariaDbData\praxis\loadData.pm";  //System.IO.Path.GetTempFileName();
+            var tempTags = @"D:\MariaDbData\praxis\loadTags.pm";  //System.IO.Path.GetTempFileName();
             var mariaPath = tempFile.Replace("\\", "\\\\");
+            var mariaPathTags = tempTags.Replace("\\", "\\\\");
             System.IO.File.WriteAllLines(tempFile, outputData);
+            System.IO.File.WriteAllLines(tempTags, outputTags.ToArray());
             var db = new PraxisContext();
             db.Database.ExecuteSqlRaw("LOAD DATA LOCAL INFILE '" + mariaPath + "' INTO TABLE StoredOsmElements fields terminated by '\t' (name, sourceItemID, sourceItemType, @elementGeometry) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
+            db.Database.ExecuteSqlRaw("LOAD DATA LOCAL INFILE '" + mariaPathTags + "' INTO TABLE ElementTags fields terminated by '\t' (storedOsmElementId, key, value)");
             sw.Stop();
             Console.WriteLine("LOAD DATA command ran in " + sw.Elapsed);
             System.IO.File.Delete(tempFile);
