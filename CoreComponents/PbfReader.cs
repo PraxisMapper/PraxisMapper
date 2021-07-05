@@ -140,7 +140,7 @@ namespace CoreComponents.PbfReader
                     SaveCurrentBlock(block);
                     swBlock.Stop();
                     timeList.Add(swBlock.Elapsed);
-                    Log.WriteLog("Block " + block + " processed in " + sw.Elapsed);
+                    Log.WriteLog("Block " + block + " processed in " + swBlock.Elapsed);
                 }
 
                 Log.WriteLog("Waiting on " + writeTasks.Where(w => !w.IsCompleted).Count() + " additional tasks");
@@ -1214,7 +1214,7 @@ namespace CoreComponents.PbfReader
             relList = new ConcurrentBag<Task>();
 
             if (onlyTagMatchedElements)
-                elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => TagParser.GetStyleForOsmWay(e.Tags.ToList()) != TagParser.styles.Last()));
+                elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => e != null && TagParser.GetStyleForOsmWay(e.Tags.ToList()).name != TagParser.styles.Last().name));
 
             if (saveToDb)
             {
