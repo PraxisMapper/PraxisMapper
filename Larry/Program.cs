@@ -96,8 +96,8 @@ namespace Larry
             {
                 //Check on a specific thing. Not an end-user command.
                 //Current task: Identify issue with relation
-                //SingleTest();
-                new PbfReader().debugPerfTest(ParserSettings.PbfFolder + "ohio-latest.osm.pbf");
+                SingleTest();
+                //new PbfReader().debugPerfTest(ParserSettings.PbfFolder + "north-america-latest.osm.pbf");
             }
 
             if (args.Any(a => a.StartsWith("-getPbf:")))
@@ -157,21 +157,6 @@ namespace Larry
                 }
             }
 
-            if (args.Any(a => a == "-loadPbfsToJsonTest"))
-            {
-                List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
-                foreach (string filename in filenames)
-                {
-
-                    Log.WriteLog("Test Loading " + filename + " to JSON file at " + DateTime.Now);
-                    PbfReader r = new PbfReader();
-                    r.outputPath = ParserSettings.JsonMapDataFolder;
-                    r.ProcessFile(filename);
-                    File.Move(filename, filename + "done");
-                    Log.WriteLog("Finished loaded " + filename + " to JSON at " + DateTime.Now);
-                }
-            }
-
             if (args.Any(a => a == "-convertJsonToSql"))
             {
 
@@ -208,34 +193,70 @@ namespace Larry
                     Log.WriteLog("Loading " + jsonFileName + " to database at " + DateTime.Now);
                     var fr = File.OpenRead(jsonFileName);
                     var sr = new StreamReader(fr);
+                    List<StoredOsmElement> pendingData = new List<StoredOsmElement>();
                     sw.Start();
                     while (!sr.EndOfStream)
                     {
-                        //NOTE: the slow part here is inserting into the DB. 
-                        //TODO: split off Tasks to convert these so the StreamReader doesn't have to wait on the converter/DB for progress
-                        //SR only hits .9MB/s for this task, and these are multigigabyte files,
-                        //But watch out for multithreading gotchas like usual.
-                        //Would be: string = sr.Readline(); task -> convertStoredElement(string); lock and add to shared collection; after 100,000 entries lock then add collection to db and save changes.
-                        //await all tasks once end of stream is hit. lock and add last elements to DB
-                        StoredOsmElement stored = GeometrySupport.ConvertSingleJsonStoredElement(sr.ReadLine());
-                        db.StoredOsmElements.Add(stored);
+                        //NOTE: the slowest part of getting a server going now is inserting into the DB. 
+                        //SR only hits .9MB/s for this task, and these can be multigigabyte files,
+                        //The fastest way I've found so far to reliably speed this up is to run 4 Tasks of 2500 entries to save at once, 
+                        //which takes about half the time of doing 10k at once in one thread.
+                        string entry = sr.ReadLine();
+                        StoredOsmElement stored = GeometrySupport.ConvertSingleJsonStoredElement(entry); 
+                        if (stored != null) 
+                            pendingData.Add(stored);
+                        //parsingTasks.Add(Task.Run(() => { StoredOsmElement stored = GeometrySupport.ConvertSingleJsonStoredElement(entry); if (stored != null)pendingData.Add(stored); }));
+                        //db.StoredOsmElements.Add(stored);
+
+
                         entryCounter++;
 
-                        if (entryCounter > 100000)
+                        if (entryCounter > 10000)
                         {
-                            Log.WriteLog("Started saving 100k entries after " + sw.Elapsed); //~11 seconds to get here of processing.
-                            db.SaveChanges();
+                            //4 tasks should take about half the time as one here from previous tests.
+                            List<StoredOsmElement>[] splitLists = new List<StoredOsmElement>[4] { new List<StoredOsmElement>(), new List<StoredOsmElement>(), new List<StoredOsmElement>(), new List<StoredOsmElement>() };
+                            for (int i = 0; i < pendingData.Count(); i++)
+                                splitLists[i % 4].Add(pendingData[i]);
+                            List<Task> lt = new List<Task>();
+                            foreach (var list in splitLists)
+                                lt.Add(Task.Run(() => { var db = new PraxisContext(); db.ChangeTracker.AutoDetectChangesEnabled = false; db.StoredOsmElements.AddRange(list); db.SaveChanges(); }));
+                            Task.WaitAll(lt.ToArray());
+                            //Task.WaitAll(parsingTasks.ToArray());
+                            //var loadList = pendingData;
+
+                            //if (savingTasks.Where(t => !t.IsCompleted).Count() >= 5)
+                            //{
+                            //    Log.WriteLog("Waiting for database to catch up...");
+                            //    Task.WaitAll(savingTasks.ToArray());
+                            //    savingTasks = new List<Task>();
+                            //}
+
+                            //savingTasks.Add(Task.Run(() =>{
+                            //Log.WriteLog("Started saving 10k entries after " + sw.Elapsed); //~11 seconds to get here of processing @100k
+                            //    db = new PraxisContext();
+                            //    db.ChangeTracker.AutoDetectChangesEnabled = false;
+                            //    db.StoredOsmElements.AddRange(pendingData);
+                            //    db.SaveChanges();
+                                Log.WriteLog("Save done in " + sw.Elapsed);
+                            sw.Restart();
+
+                            //}));
+
+                            pendingData = new List<StoredOsmElement>();
+                            //parsingTasks = new List<Task>();
+                            
+                            //db.SaveChanges();
                             entryCounter = 0;
                             //This limits the RAM creep you'd see from adding 3 million rows at a time.
-                            db = new PraxisContext();
-                            db.ChangeTracker.AutoDetectChangesEnabled = false;
-                            Log.WriteLog("100,000 entries processed to DB in " + sw.Elapsed);
-                            sw.Restart();
+                            //db = new PraxisContext();
+                            //db.ChangeTracker.AutoDetectChangesEnabled = false;
+                            //Log.WriteLog("10,000 entries processed to DB in " + sw.Elapsed);
+                            //sw.Restart();
                         }
                     }
                     sr.Close(); sr.Dispose();
                     fr.Close(); fr.Dispose();
-                    db.SaveChanges();
+                    //db.SaveChanges();
                     File.Move(jsonFileName, jsonFileName + "done");
                 }
             }
@@ -634,21 +655,24 @@ namespace Larry
                 var p = placeDictionary[trail.sourceItemID];
                 toRemove.Add(p);
 
+                //This looks correct, but the phone has largely been ignoring these results. Is it wrong here or the mobile side?
                 //I should search the element for the cell10s it overlaps, not the Cell8s for cells with the elements.
                 GeoArea thisPath = Converters.GeometryToGeoArea(trail.elementGeometry);
                 List<StoredOsmElement> oneEntry = new List<StoredOsmElement>();
                 oneEntry.Add(trail);
 
                 var overlapped = AreaTypeInfo.SearchArea(ref thisPath, ref oneEntry, true);
+                if (overlapped.Count() > 0)
+                {
+                    tdSmalls.TryAdd(trail.name, new TerrainDataSmall() { Name = trail.name, areaType = trail.GameElementName });
+                }
                 foreach (var o in overlapped)
                 {
-                    foreach (var oo in o.Value)
-                    {
-                        tdSmalls.TryAdd(oo.Name, new TerrainDataSmall() { Name = oo.Name, areaType = oo.areaType });
-                    }
+                    
                     var ti = new TerrainInfo();
                     ti.PlusCode = o.Key.Substring(removableLetters, 10 - removableLetters);
-                    ti.TerrainDataSmall = o.Value.Select(oo => tdSmalls[oo.Name]).ToList();
+                    ti.TerrainDataSmall = new List<TerrainDataSmall>();
+                    ti.TerrainDataSmall.Add(tdSmalls[trail.name]);
                     sqliteDb.TerrainInfo.Add(ti);
                 }
                 sqliteDb.SaveChanges();
@@ -689,19 +713,96 @@ namespace Larry
 
         public static void SingleTest()
         {
+            //new single test: comparing insert speed of big elements.
+            //doing 1:1 inserts: speed is trivially off in either direction randomly, usually faster on RawSqlWKB side (EX: .017 seconds faster)
+            //1k entities:
+            //1k raw:
+            //10k entities: 11 seconds
+            //10k raw: 36 seconds (entities have major gain from batch processing)
+            //10k inserts WITH THREADING? : threading borks up max connections.
+            //1k inserts split across 4 tasks: takes 1 second.
+            //10k inserts split across 4 tasks: takes 6.5 seconds (would expect 10 or 11 from earlier test, so this scales good!)
+            //So far: looks like tasking off smaller sets will get me data inserted faster.
+            var filename = ParserSettings.JsonMapDataFolder + "asia-latest.osm.json";
+            var lines = File.ReadLines(filename);
+
+            var db = new PraxisContext();
+
+            List<StoredOsmElement> popList = new List<StoredOsmElement>();
+            System.Diagnostics.Stopwatch entities = new System.Diagnostics.Stopwatch();
+            System.Diagnostics.Stopwatch rawAsByte = new System.Diagnostics.Stopwatch();
+
+            foreach (var l in lines.Take(10000))
+            {
+                var entry = GeometrySupport.ConvertSingleJsonStoredElement(l);
+                popList.Add(entry);
+
+                //entities.Restart();
+                //db = new PraxisContext(); //Moved here because it's also part of InsertGeomFastTest
+                //db.StoredOsmElements.Add(entry);
+                //db.SaveChanges();
+                //entities.Stop();
+
+                //rawAsByte.Restart();
+                //SqlExporter.InsertGeomFastTest(entry);
+                //rawAsByte.Stop();
+
+                //var perfDiff = entities.Elapsed - rawAsByte.Elapsed; //Positive means raw is faster, negative means entities are faster.
+                //Console.WriteLine("Entities " + entities.Elapsed + " vs RawSql " + rawAsByte.Elapsed + " Diff: " + perfDiff + " on " + entry.elementGeometry.NumPoints + "-point item.");
+            }
+
+            //Part 2: batch inserts
+            entities.Restart();
+            db = new PraxisContext(); //Moved here because it's also part of InsertGeomFastTest
+            db.StoredOsmElements.AddRange(popList);
+            db.SaveChanges();
+            entities.Stop();
+            Console.WriteLine("Entity 1k batch inserts: " + entities.Elapsed);
+            Console.WriteLine("Starting raw insert loop");
+
+            rawAsByte.Restart();
+            foreach (var p in popList)
+                SqlExporter.InsertGeomFastTest(p);
+            rawAsByte.Stop();
+            Console.WriteLine("RawSql 1k sequential inserts: " + rawAsByte.Elapsed);
+
+            //part 3: thread fast inserts? Nope, hits max connections and errors out.
+            //part 3 for real: Split list into 4, run 4 tasks for each sub-list.
+            System.Diagnostics.Stopwatch outer = new System.Diagnostics.Stopwatch();
+            System.Diagnostics.Stopwatch inner = new System.Diagnostics.Stopwatch();
+            outer.Start();
+            List<StoredOsmElement>[] splitLists = new List<StoredOsmElement>[4] { new List<StoredOsmElement>(), new List<StoredOsmElement>(), new List<StoredOsmElement>(), new List<StoredOsmElement>() };
+            for (int i = 0; i < popList.Count(); i++)
+                splitLists[i % 4].Add(popList[i]);
+            List<Task> lt = new List<Task>();
+            inner.Start();
+            foreach (var list in splitLists)
+                lt.Add(Task.Run(() => { var db = new PraxisContext(); db.AddRange(list); db.SaveChanges(); }));
+            Task.WaitAll(lt.ToArray());
+            inner.Stop();
+            outer.Stop();
+
+            Console.WriteLine("Whole threaded setup ran in " + outer.Elapsed);
+            Console.WriteLine("DB-only operations ran in " + inner.Elapsed);
+
+
+
+
+
+            //original
             //trying to find one relation to fix.
-            string filename = ParserSettings.PbfFolder + "ohio-latest.osm.pbf";
-            long oneId = 6113131;
+            //string filename = ParserSettings.PbfFolder + "ohio-latest.osm.pbf";
+            //long oneId = 6113131;
 
-            FileStream fs = new FileStream(filename, FileMode.Open);
-            var source = new PBFOsmStreamSource(fs);
-            var relation = source.ToComplete().Where(s => s.Type == OsmGeoType.Relation && s.Id == oneId).Select(s => (OsmSharp.Complete.CompleteRelation)s).FirstOrDefault();
-            var converted = GeometrySupport.ConvertOsmEntryToStoredElement(relation);
-            StoredOsmElement sw = new StoredOsmElement();
-            Log.WriteLog("Relevant data pulled from file and converted at" + DateTime.Now);
+            //FileStream fs = new FileStream(filename, FileMode.Open);
+            //var source = new PBFOsmStreamSource(fs);
+            //var relation = source.ToComplete().Where(s => s.Type == OsmGeoType.Relation && s.Id == oneId).Select(s => (OsmSharp.Complete.CompleteRelation)s).FirstOrDefault();
+            //var converted = GeometrySupport.ConvertOsmEntryToStoredElement(relation);
+            //StoredOsmElement sw = new StoredOsmElement();
+            //Log.WriteLog("Relevant data pulled from file and converted at" + DateTime.Now);
 
-            string destFileName = System.IO.Path.GetFileNameWithoutExtension(filename);
-            GeometrySupport.WriteSingleStoredElementToFile(ParserSettings.JsonMapDataFolder + destFileName + "-MapData-Test.json", converted);
+            //string destFileName = System.IO.Path.GetFileNameWithoutExtension(filename);
+            //GeometrySupport.WriteSingleStoredElementToFile(ParserSettings.JsonMapDataFolder + destFileName + "-MapData-Test.json", converted);
         }
 
         public static void DownloadPbfFile(string topLevel, string subLevel1, string subLevel2, string destinationFolder)
