@@ -1279,7 +1279,7 @@ namespace PerformanceTestApp
             if (mode == "PostgreSQL")
             {
                 //db.Database.ExecuteSqlRaw(PraxisContext.MapDataIndexPG); //PostgreSQL needs its own create-index syntax
-                db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataIndexPG);
+                //db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataIndexPG);
                 db.Database.ExecuteSqlRaw(PraxisContext.MapTileIndexPG);
                 db.Database.ExecuteSqlRaw(PraxisContext.SlippyMapTileIndexPG);
                 db.Database.ExecuteSqlRaw(PraxisContext.StoredElementsIndexPG);
@@ -1287,7 +1287,7 @@ namespace PerformanceTestApp
             else
             {
                 //db.Database.ExecuteSqlRaw(PraxisContext.MapDataIndex); //PostgreSQL needs its own create-index syntax
-                db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataIndex);
+                //db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataIndex);
                 db.Database.ExecuteSqlRaw(PraxisContext.MapTileIndex);
                 db.Database.ExecuteSqlRaw(PraxisContext.SlippyMapTileIndex);
                 db.Database.ExecuteSqlRaw(PraxisContext.StoredElementsIndex);

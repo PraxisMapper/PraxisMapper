@@ -214,9 +214,7 @@ namespace Larry
                         if (entryCounter > 10000)
                         {
                             //4 tasks should take about half the time as one here from previous tests.
-                            List<StoredOsmElement>[] splitLists = new List<StoredOsmElement>[4] { new List<StoredOsmElement>(), new List<StoredOsmElement>(), new List<StoredOsmElement>(), new List<StoredOsmElement>() };
-                            for (int i = 0; i < pendingData.Count(); i++)
-                                splitLists[i % 4].Add(pendingData[i]);
+                            List<StoredOsmElement>[] splitLists = pendingData.SplitListToMultiple(4);
                             List<Task> lt = new List<Task>();
                             foreach (var list in splitLists)
                                 lt.Add(Task.Run(() => { var db = new PraxisContext(); db.ChangeTracker.AutoDetectChangesEnabled = false; db.StoredOsmElements.AddRange(list); db.SaveChanges(); }));
@@ -771,9 +769,7 @@ namespace Larry
             System.Diagnostics.Stopwatch outer = new System.Diagnostics.Stopwatch();
             System.Diagnostics.Stopwatch inner = new System.Diagnostics.Stopwatch();
             outer.Start();
-            List<StoredOsmElement>[] splitLists = new List<StoredOsmElement>[4] { new List<StoredOsmElement>(), new List<StoredOsmElement>(), new List<StoredOsmElement>(), new List<StoredOsmElement>() };
-            for (int i = 0; i < popList.Count(); i++)
-                splitLists[i % 4].Add(popList[i]);
+            List<StoredOsmElement>[] splitLists = popList.SplitListToMultiple(4);
             List<Task> lt = new List<Task>();
             inner.Start();
             foreach (var list in splitLists)
