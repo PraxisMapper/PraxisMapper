@@ -19,15 +19,18 @@
         //and keeps areas very close to the same for Cell10 gameplay purposes but maptiless look worse.
         public static bool UseHighAccuracy = true;
 
+        //Determines if I want to pull in ALL areas from a PBF or ONLY ones that TagParser has a match for.
+        public static bool OnlyTaggedAreas = true;
+
         //public static string DbMode = "SQLServer";
         //public static string DbConnectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;";
 
         public static string DbMode = "MariaDB";
-        public static string DbConnectionString = "server=localhost;database=praxis;user=root;password=asdf;";
+        public static string DbConnectionString = "server=localhost;database=praxis;user=root;password=asdf;AllowLoadLocalInfile=true;"; //SslMode=VerifyCA; required for load local as well.
 
         //public static string DbMode = "PostgreSQL";
         //public static string DbConnectionString = "server=localhost;database=praxis;user=root;password=asdf;";
 
-        
+
     }
 }

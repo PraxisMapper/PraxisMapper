@@ -1,11 +1,8 @@
 ﻿using CoreComponents;
 using CoreComponents.Support;
 using Google.OpenLocationCode;
-using Microsoft.EntityFrameworkCore;
 using NetTopologySuite;
 using NetTopologySuite.Geometries;
-using OsmSharp;
-using OsmSharp.Streams;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -18,8 +15,7 @@ using static CoreComponents.Place;
 using static CoreComponents.Singletons;
 using static CoreComponents.StandaloneDbTables;
 using CoreComponents.PbfReader;
-using System.Text.Json;
-using Pomelo.EntityFrameworkCore.MySql.Query.Internal;
+
 
 //TODO: look into using Span<T> instead of lists? This might be worth looking at performance differences. (and/or Memory<T>, which might be a parent for Spans)
 //TODO: Ponder using https://download.bbbike.org/osm/ as a data source to get a custom extract of an area (for when users want a local-focused app, probably via a wizard GUI)
@@ -137,7 +133,7 @@ namespace Larry
                 {
                     Log.WriteLog("Loading " + filename + " to database  at " + DateTime.Now);
                     PbfReader r = new PbfReader();
-                    r.ProcessFile(filename, true);
+                    r.ProcessFile(filename, true, ParserSettings.OnlyTaggedAreas);
 
                     File.Move(filename, filename + "done");
                     Log.WriteLog("Finished " + filename + " load at " + DateTime.Now);
@@ -152,7 +148,7 @@ namespace Larry
                     Log.WriteLog("Loading " + filename + " to JSON file at " + DateTime.Now);
                     PbfReader r = new PbfReader();
                     r.outputPath = ParserSettings.JsonMapDataFolder;
-                    r.ProcessFile(filename);
+                    r.ProcessFile(filename, false, ParserSettings.OnlyTaggedAreas);
                     File.Move(filename, filename + "done");
                 }
             }
@@ -184,6 +180,9 @@ namespace Larry
             if (args.Any(a => a == "-loadJsonToDb"))
             {
                 var db = new PraxisContext();
+                //Drop area index on storedosmelements? won't recreate within command timeout time.
+                //db.Database.ExecuteSqlRaw("DROP INDEX StoredOsmElementsIndex ON StoredOsmElements");
+
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
                 List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.JsonMapDataFolder, "*.json").ToList();
                 long entryCounter = 0;
@@ -198,12 +197,12 @@ namespace Larry
                     while (!sr.EndOfStream)
                     {
                         //NOTE: the slowest part of getting a server going now is inserting into the DB. 
-                        //SR only hits .9MB/s for this task, and these can be multigigabyte files,
+                        //SR only hits 1.5MB/s (was .9 on NET 5) for this task, and these can be multigigabyte files,
                         //The fastest way I've found so far to reliably speed this up is to run 4 Tasks of 2500 entries to save at once, 
                         //which takes about half the time of doing 10k at once in one thread.
                         string entry = sr.ReadLine();
-                        StoredOsmElement stored = GeometrySupport.ConvertSingleJsonStoredElement(entry); 
-                        if (stored != null) 
+                        StoredOsmElement stored = GeometrySupport.ConvertSingleJsonStoredElement(entry);
+                        if (stored != null)
                             pendingData.Add(stored);
                         //parsingTasks.Add(Task.Run(() => { StoredOsmElement stored = GeometrySupport.ConvertSingleJsonStoredElement(entry); if (stored != null)pendingData.Add(stored); }));
                         //db.StoredOsmElements.Add(stored);
@@ -219,129 +218,28 @@ namespace Larry
                             foreach (var list in splitLists)
                                 lt.Add(Task.Run(() => { var db = new PraxisContext(); db.ChangeTracker.AutoDetectChangesEnabled = false; db.StoredOsmElements.AddRange(list); db.SaveChanges(); }));
                             Task.WaitAll(lt.ToArray());
-                            //Task.WaitAll(parsingTasks.ToArray());
-                            //var loadList = pendingData;
-
-                            //if (savingTasks.Where(t => !t.IsCompleted).Count() >= 5)
-                            //{
-                            //    Log.WriteLog("Waiting for database to catch up...");
-                            //    Task.WaitAll(savingTasks.ToArray());
-                            //    savingTasks = new List<Task>();
-                            //}
-
-                            //savingTasks.Add(Task.Run(() =>{
-                            //Log.WriteLog("Started saving 10k entries after " + sw.Elapsed); //~11 seconds to get here of processing @100k
-                            //    db = new PraxisContext();
-                            //    db.ChangeTracker.AutoDetectChangesEnabled = false;
-                            //    db.StoredOsmElements.AddRange(pendingData);
-                            //    db.SaveChanges();
-                                Log.WriteLog("Save done in " + sw.Elapsed);
+                            Log.WriteLog("Save done in " + sw.Elapsed);
                             sw.Restart();
 
                             //}));
 
                             pendingData = new List<StoredOsmElement>();
-                            //parsingTasks = new List<Task>();
-                            
-                            //db.SaveChanges();
                             entryCounter = 0;
-                            //This limits the RAM creep you'd see from adding 3 million rows at a time.
-                            //db = new PraxisContext();
-                            //db.ChangeTracker.AutoDetectChangesEnabled = false;
-                            //Log.WriteLog("10,000 entries processed to DB in " + sw.Elapsed);
-                            //sw.Restart();
                         }
-                    }
-                    sr.Close(); sr.Dispose();
-                    fr.Close(); fr.Dispose();
-                    //db.SaveChanges();
-                    File.Move(jsonFileName, jsonFileName + "done");
-                }
-            }
 
-            //Testing a multithreaded version of this process.
-            if (args.Any(a => a == "-loadJsonToDbTasks"))
-            {
-                var db = new PraxisContext();
-                //db.ChangeTracker.AutoDetectChangesEnabled = false;
-                List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.JsonMapDataFolder, "*.json").ToList();
-                long entryCounter = 0;
-                System.Threading.ReaderWriterLockSlim fileLock = new System.Threading.ReaderWriterLockSlim();
-                foreach (var jsonFileName in filenames)
-                {
-                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-                    Log.WriteLog("Loading " + jsonFileName + " to database via tasks at " + DateTime.Now);
-                    var fr = File.OpenRead(jsonFileName);
-                    var sr = new StreamReader(fr);
-                    sw.Start();
-                    //System.Collections.Concurrent.ConcurrentBag<StoredOsmElement> templist = new System.Collections.Concurrent.ConcurrentBag<StoredOsmElement>();
-                    List<StoredOsmElement> templist = new List<StoredOsmElement>();
-                    List<Task> taskList = new List<Task>();
-                    while (!sr.EndOfStream)
-                    {
-                        //TODO: split off Tasks to convert these so the StreamReader doesn't have to wait on the converter/DB for progress
-                        //SR only hits .9MB/s for this task, and these are multigigabyte files
-                        //But watch out for multithreading gotchas like usual.
-                        //Would be: string = sr.Readline(); task -> convertStoredElement(string); lock and add to shared collection; after 10,000 entries lock then add collection to db and save changes.
-                        //await all tasks once end of stream is hit. lock and add last elements to DB
-                        string entry = sr.ReadLine();
-                        var nextTask = Task.Run(() =>
-                        {
-                            StoredOsmElement stored = GeometrySupport.ConvertSingleJsonStoredElement(entry);
-                            //fileLock.EnterReadLock();
-                            templist.Add(stored);
-                            //fileLock.ExitReadLock();
-                            entryCounter++;
-                            if (entryCounter > 100000)
-                            {
-                                //fileLock.EnterWriteLock();
-                                //db.StoredOsmElements.AddRange(templist);
-
-                                //db.SaveChanges();
-                                entryCounter = 0;
-                                //templist = new List<StoredOsmElement>();
-                                //templist.Clear();
-                                //This limits the RAM creep you'd see from adding 3 million rows at a time.
-                                //db = new PraxisContext();
-                                //db.ChangeTracker.AutoDetectChangesEnabled = false;
-                                Log.WriteLog("100,000 entries processed for loading in " + sw.Elapsed);
-                                sw.Restart();
-                                //fileLock.ExitWriteLock();
-                            }
-                        });
-                        taskList.Add(nextTask);
-                    }
-                    sr.Close(); sr.Dispose();
-                    fr.Close(); fr.Dispose();
-                    Log.WriteLog("File read to memory, waiting for tasks to complete....");
-
-                    Task.WaitAll(taskList.ToArray());
-                    Log.WriteLog("All elements converted in memory, loading to DB....");
-                    taskList.Clear(); taskList = null;
-
-                    //process the elements in batches. This might be where spans are a good idea?
-                    var total = templist.Count();
-                    int loopCount = 0;
-                    int loopAmount = 10000;
-                    while (loopAmount * loopCount < total)
-                    {
+                        var splitLists2 = pendingData.SplitListToMultiple(4);
+                        List<Task> lt2 = new List<Task>();
+                        foreach (var list in splitLists2)
+                            lt2.Add(Task.Run(() => { var db = new PraxisContext(); db.ChangeTracker.AutoDetectChangesEnabled = false; db.StoredOsmElements.AddRange(list); db.SaveChanges(); }));
+                        Task.WaitAll(lt2.ToArray());
+                        Log.WriteLog("Final save done in " + sw.Elapsed);
                         sw.Restart();
-                        db = new PraxisContext();
-                        db.ChangeTracker.AutoDetectChangesEnabled = false;
-                        var toAdd = templist.Skip(loopCount * loopAmount).Take(loopAmount);
-                        db.StoredOsmElements.AddRange(toAdd);
-                        db.SaveChanges();
-                        Log.WriteLog(loopAmount + " entries saved to DB in " + sw.Elapsed);
-                        loopCount += 1;
+                        sr.Close(); sr.Dispose();
+                        fr.Close(); fr.Dispose();
+                        //db.SaveChanges();
+                        //db.Database.ExecuteSqlRaw(PraxisContext.StoredElementsIndex);
+                        File.Move(jsonFileName, jsonFileName + "done");
                     }
-
-                    //db.StoredOsmElements.AddRange(templist);
-                    //db.SaveChanges();
-                    Log.WriteLog("Final entries for " + jsonFileName + " completed at " + DateTime.Now);
-
-
-                    //db.SaveChanges();
-                    File.Move(jsonFileName, jsonFileName + "done");
                 }
             }
 
@@ -620,7 +518,7 @@ namespace Larry
                 if (pi.height <= ConstantValues.resolutionCell10 && pi.width >= ConstantValues.resolutionCell10)
                 { pi.height = ConstantValues.resolutionCell10; skipEntries.Add(pi.OsmElementId); }
                 else if (pi.height >= ConstantValues.resolutionCell10 && pi.width <= ConstantValues.resolutionCell10)
-                { pi.width = ConstantValues.resolutionCell10; skipEntries.Add(pi.OsmElementId); }    
+                { pi.width = ConstantValues.resolutionCell10; skipEntries.Add(pi.OsmElementId); }
             }
 
             sqliteDb.PlaceInfo2s.AddRange(placeInfo);
@@ -631,11 +529,11 @@ namespace Larry
             //to save time, i need to index which areas are in which Cell6.
             //So i know which entries I can skip when running.
             var indexCell6 = CoreComponents.Standalone.Standalone.IndexAreasPerCell6(buffered, basePlaces);
-            var indexes = indexCell6.SelectMany(i => i.Value.Select(v => new PlaceIndex() { PlusCode = i.Key, placeInfoId = placeDictionary[v.sourceItemID].id})).ToList();
+            var indexes = indexCell6.SelectMany(i => i.Value.Select(v => new PlaceIndex() { PlusCode = i.Key, placeInfoId = placeDictionary[v.sourceItemID].id })).ToList();
             sqliteDb.PlaceIndexs.AddRange(indexes);
-            
+
             sqliteDb.SaveChanges();
-            Log.WriteLog("Processed Cell6 index table at " + DateTime.Now);            
+            Log.WriteLog("Processed Cell6 index table at " + DateTime.Now);
 
             //trails need processed the old way, per Cell10, when they're not simply a straight-line.
             //Roads too.
@@ -666,7 +564,7 @@ namespace Larry
                 }
                 foreach (var o in overlapped)
                 {
-                    
+
                     var ti = new TerrainInfo();
                     ti.PlusCode = o.Key.Substring(removableLetters, 10 - removableLetters);
                     ti.TerrainDataSmall = new List<TerrainDataSmall>();
@@ -675,7 +573,7 @@ namespace Larry
                 }
                 sqliteDb.SaveChanges();
             }
-            
+
             foreach (var r in toRemove.Distinct())
                 sqliteDb.PlaceInfo2s.Remove(r);
             sqliteDb.SaveChanges();
@@ -720,6 +618,7 @@ namespace Larry
             //10k inserts WITH THREADING? : threading borks up max connections.
             //1k inserts split across 4 tasks: takes 1 second.
             //10k inserts split across 4 tasks: takes 6.5 seconds (would expect 10 or 11 from earlier test, so this scales good!)
+            //10k LOAD INFILE : 13 seconds, but ALL of that was writing the file. it becomes a background task and runs outside of my app otherwise.
             //So far: looks like tasking off smaller sets will get me data inserted faster.
             var filename = ParserSettings.JsonMapDataFolder + "asia-latest.osm.json";
             var lines = File.ReadLines(filename);
@@ -748,6 +647,12 @@ namespace Larry
                 //var perfDiff = entities.Elapsed - rawAsByte.Elapsed; //Positive means raw is faster, negative means entities are faster.
                 //Console.WriteLine("Entities " + entities.Elapsed + " vs RawSql " + rawAsByte.Elapsed + " Diff: " + perfDiff + " on " + entry.elementGeometry.NumPoints + "-point item.");
             }
+
+            //now testing LOAD DATA INFILE
+            rawAsByte.Restart();
+            SqlExporter.LoadDataInfileTest(popList);
+            rawAsByte.Stop();
+            Console.WriteLine("1k LOAD DATA INFILE results: " + rawAsByte.Elapsed);
 
             //Part 2: batch inserts
             entities.Restart();
