@@ -12,6 +12,7 @@ using System.Text.Json;
 using NetTopologySuite.Noding;
 using OsmSharp.Complete;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace CoreComponents.PbfReader
 {
@@ -127,7 +128,7 @@ namespace CoreComponents.PbfReader
                     System.Diagnostics.Stopwatch swBlock = new System.Diagnostics.Stopwatch(); //Includes both GetGeometry and ProcessResults time, but writing to disk is done in a thread independent of this.
                     swBlock.Start();
                     long thisBlockId = block;
-                    var geoData = GetGeometryFromBlock(thisBlockId);
+                    var geoData = GetGeometryFromBlock(thisBlockId, onlyTagMatchedEntries);
                     //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
                     //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
                     if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
@@ -390,7 +391,7 @@ namespace CoreComponents.PbfReader
             return pulledBlock;
         }
 
-        private OsmSharp.Complete.CompleteRelation GetRelation(long relationId)
+        private OsmSharp.Complete.CompleteRelation GetRelation(long relationId, bool ignoreUnmatched = false)
         {
             try
             {
@@ -424,6 +425,24 @@ namespace CoreComponents.PbfReader
 
                 if (!canProcess || rel.keys.Count == 0) //I cant use untagged areas for anything in PraxisMapper.
                     return null;
+
+                //If I only want elements that show up in the map, and exclude areas I don't currently match,
+                //I have to knows my tags BEFORE doing the rest of the processing.
+                OsmSharp.Complete.CompleteRelation r = new OsmSharp.Complete.CompleteRelation();
+                r.Id = relationId;
+                r.Tags = new OsmSharp.Tags.TagsCollection();
+
+                for (int i = 0; i < rel.keys.Count(); i++)
+                {
+                    r.Tags.Add(new OsmSharp.Tags.Tag(System.Text.Encoding.UTF8.GetString(relationBlock.stringtable.s[(int)rel.keys[i]]), System.Text.Encoding.UTF8.GetString(relationBlock.stringtable.s[(int)rel.vals[i]])));
+                }
+
+                if (ignoreUnmatched)
+                {
+                    var tpe = TagParser.GetStyleForOsmWay(r.Tags);
+                    if (tpe.name == TagParser.defaultStyle.name)
+                        return null; //This is 'unmatched', skip processing this entry.
+                }
 
                 //Now get a list of block i know i need now.
                 List<long> neededBlocks = new List<long>();
@@ -459,16 +478,7 @@ namespace CoreComponents.PbfReader
                 foreach (var nb in neededBlocks)
                     GetBlock(nb);
 
-                //Ive got all the blocks directly referenced by this relation. Those entries will load the blocks
-                //they need later
-                OsmSharp.Complete.CompleteRelation r = new OsmSharp.Complete.CompleteRelation();
-                r.Id = relationId;
-                r.Tags = new OsmSharp.Tags.TagsCollection();
 
-                for (int i = 0; i < rel.keys.Count(); i++)
-                {
-                    r.Tags.Add(new OsmSharp.Tags.Tag(System.Text.Encoding.UTF8.GetString(relationBlock.stringtable.s[(int)rel.keys[i]]), System.Text.Encoding.UTF8.GetString(relationBlock.stringtable.s[(int)rel.vals[i]])));
-                }
 
                 //This makes sure we only load each element once. If a relation references an element more than once (it shouldnt)
                 //this saves us from re-creating the same entry.
@@ -512,7 +522,7 @@ namespace CoreComponents.PbfReader
             }
         }
 
-        private OsmSharp.Complete.CompleteWay GetWay(long wayId, bool skipUntagged, List<long> hints = null)
+        private OsmSharp.Complete.CompleteWay GetWay(long wayId, bool skipUntagged, List<long> hints = null, bool ignoreUnmatched = false)
         {
             try
             {
@@ -527,6 +537,26 @@ namespace CoreComponents.PbfReader
 
                 if (skipUntagged && way.keys.Count == 0)
                     return null;
+
+                //Now I have the data needed to fill in nodes for a way
+                OsmSharp.Complete.CompleteWay finalway = new OsmSharp.Complete.CompleteWay();
+                finalway.Id = wayId;
+                finalway.Tags = new OsmSharp.Tags.TagsCollection();
+
+                //skipUntagged is false from GetRelation, so we can ignore tag data in that case.
+                //but we do want tags for when we load a block full of ways. SkipUntagged means we need to read tags to know what we didn't skip.
+                if (skipUntagged)
+                    for (int i = 0; i < way.keys.Count(); i++)
+                    {
+                        finalway.Tags.Add(new OsmSharp.Tags.Tag(System.Text.Encoding.UTF8.GetString(wayBlock.stringtable.s[(int)way.keys[i]]), System.Text.Encoding.UTF8.GetString(wayBlock.stringtable.s[(int)way.vals[i]])));
+                    }
+
+                if (ignoreUnmatched)
+                {
+                    if (TagParser.GetStyleForOsmWay(finalway.Tags).name == TagParser.defaultStyle.name)
+                        return null; //don't process this one, we said not to load entries that aren't already in our style list.
+                }
+
 
                 //NOTES:
                 //This gets all the entries we want from each node, then loads those all in 1 pass per referenced block.
@@ -557,18 +587,6 @@ namespace CoreComponents.PbfReader
                         AllNodes.Add(n.Key, n.Value);
                 }
 
-                //Now I have the data needed to fill in nodes for a way
-                OsmSharp.Complete.CompleteWay finalway = new OsmSharp.Complete.CompleteWay();
-                finalway.Id = wayId;
-                finalway.Tags = new OsmSharp.Tags.TagsCollection();
-
-                //skipUntagged is false from GetRelation, so we can ignore tag data in that case.
-                //but we do want tags for when we load a block full of ways. SkipUntagged means we need to read tags to know what we didn't skip.
-                if (skipUntagged)
-                    for (int i = 0; i < way.keys.Count(); i++)
-                    {
-                        finalway.Tags.Add(new OsmSharp.Tags.Tag(System.Text.Encoding.UTF8.GetString(wayBlock.stringtable.s[(int)way.keys[i]]), System.Text.Encoding.UTF8.GetString(wayBlock.stringtable.s[(int)way.vals[i]])));
-                    }
 
                 idToFind = 0;
                 foreach (var node in way.refs)
@@ -587,7 +605,7 @@ namespace CoreComponents.PbfReader
             }
         }
 
-        private List<OsmSharp.Node> GetTaggedNodesFromBlock(PrimitiveBlock block)
+        private List<OsmSharp.Node> GetTaggedNodesFromBlock(PrimitiveBlock block, bool ignoreUnmatched = false)
         {
             List<OsmSharp.Node> taggedNodes = new List<OsmSharp.Node>(8000);
             var dense = block.primitivegroup[0].dense;
@@ -635,12 +653,19 @@ namespace CoreComponents.PbfReader
                 foreach (var t in decodedTags[index].ToList())
                     tc.Add(t);
 
+                if (ignoreUnmatched)
+                {
+                    if (TagParser.GetStyleForOsmWay(tc) == TagParser.defaultStyle)
+                        continue;
+                }
+
                 OsmSharp.Node n = new OsmSharp.Node();
                 n.Id = nodeId;
                 n.Latitude = DecodeLatLon(lat, block.lat_offset, block.granularity);
                 n.Longitude = DecodeLatLon(lon, block.lon_offset, block.granularity);
                 n.Tags = tc;
                 taggedNodes.Add(n);
+
             }
 
             return taggedNodes;
@@ -909,7 +934,7 @@ namespace CoreComponents.PbfReader
             }
         }
 
-        public ConcurrentBag<OsmSharp.Complete.ICompleteOsmGeo> GetGeometryFromBlock(long blockId)
+        public ConcurrentBag<OsmSharp.Complete.ICompleteOsmGeo> GetGeometryFromBlock(long blockId, bool onlyTagMatchedEntries = false)
         {
             //This grabs the chosen block, populates everything in it to an OsmSharp.Complete object and returns that list
             try
@@ -930,7 +955,7 @@ namespace CoreComponents.PbfReader
                         {
                             var toProcess = primgroup.relations.Skip(splitcount * i).Take(splitcount).ToList();
                             foreach (var r in toProcess)
-                                relList.Add(Task.Run(() => results.Add(GetRelation(r.id))));
+                                relList.Add(Task.Run(() => results.Add(GetRelation(r.id, onlyTagMatchedEntries))));
 
                             Task.WaitAll(relList.ToArray());
                             activeBlocks.Clear(); //Dump them all out of RAM, see how this affects performance. At most a block gets read 3 times more than it would have before.
@@ -948,7 +973,7 @@ namespace CoreComponents.PbfReader
                         //original multithreading logic, similar to relations. Attermpting to do this like nodes is much, much slower and eats tons of RAM
                         foreach (var r in primgroup.ways.OrderByDescending(w => w.refs.Count())) //Ordering should help consistency in runtime, though it offers little other benefit.
                         {
-                            relList.Add(Task.Run(() => results.Add(GetWay(r.id, true, hint))));
+                            relList.Add(Task.Run(() => results.Add(GetWay(r.id, true, hint, onlyTagMatchedEntries))));
                         }
                     }
                     else
@@ -959,7 +984,7 @@ namespace CoreComponents.PbfReader
                         {
                             try
                             {
-                                var nodes = GetTaggedNodesFromBlock(block);
+                                var nodes = GetTaggedNodesFromBlock(block, onlyTagMatchedEntries);
                                 var convertednodes = nodes.Select(n => GeometrySupport.ConvertOsmEntryToStoredElement(n)).ToList();
                                 var classForJson = convertednodes.Where(c => c != null).Select(md => new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated)).ToList();
                                 var textLines = classForJson.Select(c => JsonSerializer.Serialize(c, typeof(StoredOsmElementForJson))).ToList();
@@ -1193,10 +1218,16 @@ namespace CoreComponents.PbfReader
 
             if (saveToDb)
             {
-                var db = new PraxisContext();
-                db.ChangeTracker.AutoDetectChangesEnabled = false;
-                db.StoredOsmElements.AddRange(elements);
-                db.SaveChanges();
+                var splits = elements.AsEnumerable().SplitListToMultiple(4);
+                List<Task> lt = new List<Task>();
+                foreach (var list in splits)
+                    lt.Add(Task.Run(() => { var db = new PraxisContext(); db.ChangeTracker.AutoDetectChangesEnabled = false; db.StoredOsmElements.AddRange(list); db.SaveChanges(); }));
+                Task.WaitAll(lt.ToArray());
+
+                //var db = new PraxisContext();
+                //db.ChangeTracker.AutoDetectChangesEnabled = false;
+                //db.StoredOsmElements.AddRange(elements);
+                //db.SaveChanges();
                 return null;
             }
             else
