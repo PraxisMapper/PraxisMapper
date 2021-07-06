@@ -159,8 +159,6 @@ namespace Larry
                 //test code
                 var db = new PraxisContext();
                 var entries = db.StoredOsmElements.Take(100).ToList();
-                //var recordVersion = entries.Select(md =>  new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated)).ToList();
-                //var test = recordVersion.Select(rv => JsonSerializer.Serialize(rv, typeof(StoredOsmElementForJson))).ToList();
                 SqlExporter.DumpToSql(entries, "testfile.sql");
 
 
@@ -180,9 +178,6 @@ namespace Larry
             if (args.Any(a => a == "-loadJsonToDb"))
             {
                 var db = new PraxisContext();
-                //Drop area index on storedosmelements? won't recreate within command timeout time.
-                //db.Database.ExecuteSqlRaw("DROP INDEX StoredOsmElementsIndex ON StoredOsmElements");
-
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
                 List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.JsonMapDataFolder, "*.json").ToList();
                 long entryCounter = 0;
@@ -204,15 +199,11 @@ namespace Larry
                         StoredOsmElement stored = GeometrySupport.ConvertSingleJsonStoredElement(entry);
                         if (stored != null)
                             pendingData.Add(stored);
-                        //parsingTasks.Add(Task.Run(() => { StoredOsmElement stored = GeometrySupport.ConvertSingleJsonStoredElement(entry); if (stored != null)pendingData.Add(stored); }));
-                        //db.StoredOsmElements.Add(stored);
-
 
                         entryCounter++;
 
                         if (entryCounter > 10000)
                         {
-                            //4 tasks should take about half the time as one here from previous tests.
                             var splitLists = pendingData.SplitListToMultiple(4);
                             List<Task> lt = new List<Task>();
                             foreach (var list in splitLists)
@@ -220,8 +211,6 @@ namespace Larry
                             Task.WaitAll(lt.ToArray());
                             Log.WriteLog("Save done in " + sw.Elapsed);
                             sw.Restart();
-
-                            //}));
 
                             pendingData = new List<StoredOsmElement>();
                             entryCounter = 0;
@@ -236,13 +225,10 @@ namespace Larry
                         sw.Restart();
                         sr.Close(); sr.Dispose();
                         fr.Close(); fr.Dispose();
-                        //db.SaveChanges();
-                        //db.Database.ExecuteSqlRaw(PraxisContext.StoredElementsIndex);
                         File.Move(jsonFileName, jsonFileName + "done");
                     }
                 }
             }
-
 
             if (args.Any(a => a == "-updateDatabase"))
             {
@@ -357,7 +343,6 @@ namespace Larry
                 }
             }
         }
-
 
         public static void DetectMapTilesRecursive(string parentCell, bool skipExisting) //This was off slightly at one point, but I didn't document how much or why. Should be correct now.
         {
@@ -553,8 +538,6 @@ namespace Larry
                 var p = placeDictionary[trail.sourceItemID];
                 toRemove.Add(p);
 
-                //This looks correct, but the phone has largely been ignoring these results. Is it wrong here or the mobile side?
-                //I should search the element for the cell10s it overlaps, not the Cell8s for cells with the elements.
                 GeoArea thisPath = Converters.GeometryToGeoArea(trail.elementGeometry);
                 List<StoredOsmElement> oneEntry = new List<StoredOsmElement>();
                 oneEntry.Add(trail);
@@ -566,7 +549,6 @@ namespace Larry
                 }
                 foreach (var o in overlapped)
                 {
-
                     var ti = new TerrainInfo();
                     ti.PlusCode = o.Key.Substring(removableLetters, 10 - removableLetters);
                     ti.TerrainDataSmall = new List<TerrainDataSmall>();
