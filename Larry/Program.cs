@@ -243,6 +243,7 @@ namespace Larry
                 }
             }
 
+
             if (args.Any(a => a == "-updateDatabase"))
             {
                 DBCommands.UpdateExistingEntries();
@@ -357,6 +358,7 @@ namespace Larry
             }
         }
 
+
         public static void DetectMapTilesRecursive(string parentCell, bool skipExisting) //This was off slightly at one point, but I didn't document how much or why. Should be correct now.
         {
             List<string> cellsFound = new List<string>();
@@ -388,17 +390,17 @@ namespace Larry
             //This is fairly well optimized, and I suspect there's not much more I can do here to get this to go faster.
             //using 2 parallel loops is faster than 1 or 0. Having MariaDB on the same box is what pegs the CPU, not this double-parallel loop.
             System.Threading.Tasks.Parallel.For(0, 20, (pos1) =>
-            //for (int pos1 = 0; pos1 < 20; pos1++)
+                //for (int pos1 = 0; pos1 < 20; pos1++)
                 System.Threading.Tasks.Parallel.For(0, 20, (pos2) =>
                 //for (int pos2 = 0; pos2 < 20; pos2++)
                 {
                     string cellToCheck = parentCell + OpenLocationCode.CodeAlphabet[pos1].ToString() + OpenLocationCode.CodeAlphabet[pos2].ToString();
                     var area = new OpenLocationCode(cellToCheck).Decode();
                     ImageStats info = new ImageStats(area, 80, 100); //values for Cell8 sized area with Cell11 resolution.
-                    if (cellToCheck.Length == 8) //We don't want to do the DoPlacesExist check here, since we'll want empty tiles for empty areas at this l
-                    {
+                            if (cellToCheck.Length == 8) //We don't want to do the DoPlacesExist check here, since we'll want empty tiles for empty areas at this l
+                            {
                         var places = GetPlaces(area, cell6Data); //These are cloned in GetPlaces, so we aren't intersecting areas twice and breaking drawing. //, false, false, 0
-                        var tileData = MapTiles.DrawAreaAtSize(info, places);
+                                var tileData = MapTiles.DrawAreaAtSize(info, places);
                         tilesGenerated.Add(new MapTile() { CreatedOn = DateTime.Now, mode = 1, tileData = tileData, resolutionScale = 11, PlusCode = cellToCheck });
                         Log.WriteLog("Cell " + cellToCheck + " Drawn", Log.VerbosityLevels.High);
                     }
