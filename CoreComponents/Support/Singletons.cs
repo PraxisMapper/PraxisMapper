@@ -58,7 +58,7 @@ namespace CoreComponents
                 new TagParserMatchRule() {Key = "natural", Value = "beach", MatchType = "or" },
                 new TagParserMatchRule() {Key = "leisure", Value="beach_resort", MatchType="or"}
             } },
-            new TagParserEntry() { IsGameElement = true, id = 5, name ="university", HtmlColorCode = "F5F0DB", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "amenity", Value = "university|college", MatchType = "any" }} },
+            new TagParserEntry() { IsGameElement = true, id = 5, name ="university", HtmlColorCode = "FFFFE5", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "amenity", Value = "university|college", MatchType = "any" }} },
             new TagParserEntry() { IsGameElement = true, id = 6, name ="natureReserve", HtmlColorCode = "124504", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "leisure", Value = "nature_reserve", MatchType = "equals" }} },
             new TagParserEntry() {IsGameElement = true, id = 7, name ="cemetery", HtmlColorCode = "AACBAF",FillOrStroke = "fill", LineWidth=1, fileName="MapPatterns\\Landuse-cemetery.png", LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() { new TagParserMatchRule() { Key = "landuse", Value = "cemetery", MatchType = "or" }, new TagParserMatchRule() {Key="amenity", Value="grave_yard", MatchType="or" } } },
             new TagParserEntry() { id = 8, name ="retail", HtmlColorCode = "FFD6D1",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() { 
@@ -123,6 +123,9 @@ namespace CoreComponents
             //Transparents: Explicitly things that don't help when drawn in one color.
             new TagParserEntry() { id = 25, name ="donotdraw", HtmlColorCode = "00000000",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() {
                 new TagParserMatchRule() { Key = "place", Value = "locality|islet", MatchType = "any" },
+            }},
+            new TagParserEntry() { id = 25, name ="greyFill", HtmlColorCode = "AAAAAA",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() {
+                new TagParserMatchRule() { Key = "man_made", Value = "breakwater", MatchType = "any" },
             }},
 
             //NOTE: hiding elements of a given type is done by drawing those elements in a transparent color
