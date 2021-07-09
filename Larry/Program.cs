@@ -178,15 +178,15 @@ namespace Larry
 
             if (args.Any(a => a == "-loadJsonToDbInfile"))
             {
-                //These currently must be in the MariaDB folder to load, so we need to copy them in.
                 System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-                var tempFile = @"D:\MariaDbData\praxis\loadData.pm";  //System.IO.Path.GetTempFileName();
-                var tempTags = @"D:\MariaDbData\praxis\loadTags.pm";  //System.IO.Path.GetTempFileName();
+                sw.Start();
+                var tempFile = @"D:\Projects\PraxisMapper Files\Trimmed JSON Files\loadData.pm";  //System.IO.Path.GetTempFileName();
+                var tempTags = @"D:\Projects\PraxisMapper Files\Trimmed JSON Files\loadTags.pm";  //System.IO.Path.GetTempFileName();
                 var mariaPath = tempFile.Replace("\\", "\\\\");
                 var mariaPathTags = tempTags.Replace("\\", "\\\\");
                 var db = new PraxisContext();
                 db.Database.SetCommandTimeout((int)TimeSpan.FromMinutes(30).TotalSeconds);
-                //db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' INTO TABLE StoredOsmElements fields terminated by '\t' (name, sourceItemID, sourceItemType, @elementGeometry) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
+                db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' INTO TABLE StoredOsmElements fields terminated by '\t' (name, sourceItemID, sourceItemType, @elementGeometry) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
                 db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPathTags + "' INTO TABLE ElementTags fields terminated by '\t' (SourceItemId, SourceItemType, `key`, `value`)");
                 sw.Stop();
                 Console.WriteLine("LOAD DATA command ran in " + sw.Elapsed); //35 minutes is the current
