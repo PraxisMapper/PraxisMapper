@@ -128,7 +128,7 @@ namespace CoreComponents.PbfReader
                     System.Diagnostics.Stopwatch swBlock = new System.Diagnostics.Stopwatch(); //Includes both GetGeometry and ProcessResults time, but writing to disk is done in a thread independent of this.
                     swBlock.Start();
                     long thisBlockId = block;
-                    var geoData = GetGeometryFromBlock(thisBlockId, onlyTagMatchedEntries);
+                    var geoData = GetGeometryFromBlock(thisBlockId, onlyTagMatchedEntries, saveForInfileLoad);
                     //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
                     //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
                     if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
@@ -946,7 +946,7 @@ namespace CoreComponents.PbfReader
             }
         }
 
-        public ConcurrentBag<OsmSharp.Complete.ICompleteOsmGeo> GetGeometryFromBlock(long blockId, bool onlyTagMatchedEntries = false)
+        public ConcurrentBag<OsmSharp.Complete.ICompleteOsmGeo> GetGeometryFromBlock(long blockId, bool onlyTagMatchedEntries = false, bool infileProcess = false)
         {
             //This grabs the chosen block, populates everything in it to an OsmSharp.Complete object and returns that list
             try
@@ -998,10 +998,23 @@ namespace CoreComponents.PbfReader
                             {
                                 var nodes = GetTaggedNodesFromBlock(block, onlyTagMatchedEntries);
                                 var convertednodes = nodes.Select(n => GeometrySupport.ConvertOsmEntryToStoredElement(n)).ToList();
-                                var classForJson = convertednodes.Where(c => c != null).Select(md => new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated)).ToList();
-                                var textLines = classForJson.Select(c => JsonSerializer.Serialize(c, typeof(StoredOsmElementForJson))).ToList();
-                                lock (fileLock)
-                                    System.IO.File.AppendAllLines(outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + ".json", textLines);
+                                if (infileProcess)
+                                {
+                                    var infileNodes = convertednodes.Where(c => c != null).Select(md => md.name + "\t" + md.sourceItemID + "\t" + md.sourceItemType + "\t" + md.elementGeometry.AsText()).ToList();
+                                    var infileTags = convertednodes.Where(c => c != null).SelectMany(md => md.Tags.Select(t => md.sourceItemID + "\t" + md.sourceItemType + "\t" + t.Key + "\t" + t.Value.Replace("\r", "").Replace("\n", ""))).ToList();
+                                    lock (fileLock)
+                                    {
+                                        System.IO.File.AppendAllLines(outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + ".json.geomInfile", infileNodes);
+                                        System.IO.File.AppendAllLines(outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + ".json.tagsInfile", infileTags);
+                                    }
+                                }
+                                else
+                                {
+                                    var classForJson = convertednodes.Where(c => c != null).Select(md => new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated)).ToList();
+                                    var textLines = classForJson.Select(c => JsonSerializer.Serialize(c, typeof(StoredOsmElementForJson))).ToList();
+                                    lock (fileLock)
+                                        System.IO.File.AppendAllLines(outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + ".json", textLines);
+                                }
 
                                 //Log.WriteLog("block " + blockId + ":" + nodes.Count() + " items out of " + block.primitivegroup[0].dense.id.Count + " created in " + sw.Elapsed);
                                 return;
