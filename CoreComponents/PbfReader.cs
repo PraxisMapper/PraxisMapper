@@ -352,11 +352,9 @@ namespace CoreComponents.PbfReader
             return results;
         }
 
-        //NOTE: once this is done with the memory stream, it could split off the remaining work to a Task
-        //as a possible small multithread optimization. Test this singlethread against the split versions
-        //GetBlockBytes (singlethread) and DecodeBlock(taskable)
         private PrimitiveBlock GetBlockFromFile(long blockId)
         {
+            //TODO: this could check if we've already unzipped this block to its own file, and if so read from that. Otherwise, load and unzip the block, then save that to an unzipped file for later.
             byte[] thisblob1;
             lock (msLock)
             {
@@ -1000,7 +998,7 @@ namespace CoreComponents.PbfReader
                                 var convertednodes = nodes.Select(n => GeometrySupport.ConvertOsmEntryToStoredElement(n)).ToList();
                                 if (infileProcess)
                                 {
-                                    var infileNodes = convertednodes.Where(c => c != null).Select(md => md.name + "\t" + md.sourceItemID + "\t" + md.sourceItemType + "\t" + md.elementGeometry.AsText()).ToList();
+                                    var infileNodes = convertednodes.Where(c => c != null).Select(md => md.name + "\t" + md.sourceItemID + "\t" + md.sourceItemType + "\t" + md.elementGeometry.AsText() + "\t0.000125").ToList();
                                     var infileTags = convertednodes.Where(c => c != null).SelectMany(md => md.Tags.Select(t => md.sourceItemID + "\t" + md.sourceItemType + "\t" + t.Key + "\t" + t.Value.Replace("\r", "").Replace("\n", ""))).ToList();
                                     lock (fileLock)
                                     {
@@ -1320,7 +1318,7 @@ namespace CoreComponents.PbfReader
                 {
                     //Write to tab delimited file first, following schema.
 
-                    georesults.Add(md.name + "\t" + md.sourceItemID + "\t" + md.sourceItemType + "\t" + md.elementGeometry.AsText());
+                    georesults.Add(md.name + "\t" + md.sourceItemID + "\t" + md.sourceItemType + "\t" + md.elementGeometry.AsText() + "\t" + md.elementGeometry.Length);
                     foreach (var t in md.Tags)
                     {
                         tagresults.Add(md.sourceItemID + "\t" + md.sourceItemType + "\t" + t.Key + "\t" + t.Value.Replace("\r", "").Replace("\n", "")); //Might also need to sanitize / and ' ?

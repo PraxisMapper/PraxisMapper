@@ -16,6 +16,7 @@ using static CoreComponents.Singletons;
 using static CoreComponents.StandaloneDbTables;
 using CoreComponents.PbfReader;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ValueGeneration.Internal;
 
 
 //TODO: look into using Span<T> instead of lists? This might be worth looking at performance differences. (and/or Memory<T>, which might be a parent for Spans)
@@ -31,6 +32,8 @@ namespace Larry
             var memMon = new MemoryMonitor();
             PraxisContext.connectionString = ParserSettings.DbConnectionString;
             PraxisContext.serverMode = ParserSettings.DbMode;
+
+            Log.WriteLog("Larry started at " + DateTime.Now);
 
             if (args.Count() == 0)
             {
@@ -176,22 +179,49 @@ namespace Larry
 
             }
 
-            if (args.Any(a => a == "-loadJsonToDbInfile"))
+            if (args.Any(a => a == "-loadJsonToDbInfile")) //May be MariaDB only.
             {
-                System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-                sw.Start();
-                var tempFile = @"D:\Projects\PraxisMapper Files\Trimmed JSON Files\loadData.pm";  //System.IO.Path.GetTempFileName();
-                var tempTags = @"D:\Projects\PraxisMapper Files\Trimmed JSON Files\loadTags.pm";  //System.IO.Path.GetTempFileName();
-                var mariaPath = tempFile.Replace("\\", "\\\\");
-                var mariaPathTags = tempTags.Replace("\\", "\\\\");
                 var db = new PraxisContext();
-                db.Database.SetCommandTimeout((int)TimeSpan.FromMinutes(30).TotalSeconds);
-                db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' INTO TABLE StoredOsmElements fields terminated by '\t' (name, sourceItemID, sourceItemType, @elementGeometry) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
-                db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPathTags + "' INTO TABLE ElementTags fields terminated by '\t' (SourceItemId, SourceItemType, `key`, `value`)");
-                sw.Stop();
-                Console.WriteLine("LOAD DATA command ran in " + sw.Elapsed); //35 minutes is the current
-                System.IO.File.Delete(tempFile);
+                db.Database.SetCommandTimeout(Int32.MaxValue);
+                //Might want to set this up to disable keys, do all the file imports, then enable keys
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
+                List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.JsonMapDataFolder, "*.geomInfile").ToList();
+                foreach (var jsonFileName in filenames)
+                {
+                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                    sw.Start();
+                    //var tempFile = @"D:\Projects\PraxisMapper Files\Trimmed JSON Files\loadData.pm";  //System.IO.Path.GetTempFileName();
+                    //var tempTags = @"D:\Projects\PraxisMapper Files\Trimmed JSON Files\loadTags.pm";  //System.IO.Path.GetTempFileName();
+                    var mariaPath = jsonFileName.Replace("\\", "\\\\");
+                    //var mariaPathTags = tempTags.Replace("\\", "\\\\");
+                    //var db = new PraxisContext();
+                    
+                    db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' INTO TABLE StoredOsmElements fields terminated by '\t' lines terminated by '\r\n' (name, sourceItemID, sourceItemType, @elementGeometry, AreaSize) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
+                    //db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPathTags + "' INTO TABLE ElementTags fields terminated by '\t' (SourceItemId, SourceItemType, `key`, `value`)");
+                    sw.Stop();
+                    Console.WriteLine("Geometry loaded from " + jsonFileName + " in " + sw.Elapsed);
+                    System.IO.File.Move(jsonFileName, jsonFileName + "done");
+                    //System.IO.File.Move(tempTags, tempTags + "done");
+                }
 
+                filenames = System.IO.Directory.EnumerateFiles(ParserSettings.JsonMapDataFolder, "*.tagsInfile").ToList();
+                foreach (var jsonFileName in filenames)
+                {
+                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                    sw.Start();
+                    //var tempFile = @"D:\Projects\PraxisMapper Files\Trimmed JSON Files\loadData.pm";  //System.IO.Path.GetTempFileName();
+                    //var tempTags = @"D:\Projects\PraxisMapper Files\Trimmed JSON Files\loadTags.pm";  //System.IO.Path.GetTempFileName();
+                    var mariaPath = jsonFileName.Replace("\\", "\\\\");
+                    //var mariaPathTags = tempTags.Replace("\\", "\\\\");
+                    //var db = new PraxisContext();
+                    //NOTE TODO mariadb expects lines to end with \n by default. This means windows line endings will leave a \r at the end of every Value. Maybe end this with a number to quietly avoid cross-platform issues on that? numbers should parse automatically and ignore the \r
+                    //db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' INTO TABLE StoredOsmElements fields terminated by '\t' (name, sourceItemID, sourceItemType, @elementGeometry, AreaSize) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
+                    db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' INTO TABLE ElementTags fields terminated by '\t' lines terminated by '\r\n' (SourceItemId, SourceItemType, `key`, `value`)");
+                    sw.Stop();
+                    Console.WriteLine("Tags loaded from " + jsonFileName + " in " + sw.Elapsed);
+                    System.IO.File.Move(jsonFileName, jsonFileName + "done");
+                    //System.IO.File.Move(tempTags, tempTags + "done");
+                }
             }
 
             if (args.Any(a => a == "-loadJsonToDb"))
