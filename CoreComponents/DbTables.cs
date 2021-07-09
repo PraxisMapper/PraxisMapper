@@ -214,6 +214,8 @@ namespace CoreComponents
         public class ElementTags
         {
             public long id { get; set; }
+            public long SourceItemId { get; set; } //Needed to attach tags later. OR FKey this to StoredOsmElement.SourceItemId
+            public int SourceItemType { get; set; } //Needed to attach tags later. 3 = relation, 2 = way, 1 = node.
             public StoredOsmElement storedOsmElement { get; set; }
             public string Key { get; set; }
             public string Value { get; set; }

@@ -99,7 +99,7 @@ namespace CoreComponents.PbfReader
             fs.Dispose();
         }
 
-        public void ProcessFile(string filename, bool saveToDb = false, bool onlyTagMatchedEntries = false)
+        public void ProcessFile(string filename, bool saveToDb = false, bool onlyTagMatchedEntries = false, bool saveForInfileLoad = false)
         {
             try
             {
@@ -133,9 +133,21 @@ namespace CoreComponents.PbfReader
                     //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
                     if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
                     {
-                        var wt = ProcessReaderResults(geoData, outputPath + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", saveToDb, onlyTagMatchedEntries);
-                        if (wt != null)
-                            writeTasks.Add(wt);
+                        if (saveForInfileLoad)
+                        {
+                            //TEST CODE:
+                            //Process the results in 2 file, 1 for geometry data, 1 for tags.
+                            //This should import much, much faster into MariaDB this way.
+                            var wt = ProcessReaderResultsForInFile(geoData, outputPath + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", saveToDb, onlyTagMatchedEntries);
+                            if (wt != null)
+                                writeTasks.Add(wt);
+                        }
+                        else
+                        {
+                            var wt = ProcessReaderResults(geoData, outputPath + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", saveToDb, onlyTagMatchedEntries);
+                            if (wt != null)
+                                writeTasks.Add(wt);
+                        }
                     }
                     SaveCurrentBlock(block);
                     swBlock.Stop();
@@ -1264,10 +1276,64 @@ namespace CoreComponents.PbfReader
             }
         }
 
-        public void BenchmarkCheck()
+        public Task ProcessReaderResultsForInFile(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, string saveFilename, bool saveToDb = false, bool onlyTagMatchedElements = false)
         {
-            //load Ohio, see how long it takes to look up all ways
+            //This one is easy, we just dump the geodata to one file, and tags to another.
+            ConcurrentBag<StoredOsmElement> elements = new ConcurrentBag<StoredOsmElement>();
+            ConcurrentBag<Tuple<string>> tags = new ConcurrentBag<Tuple<string>>();
 
+            DateTime startedProcess = DateTime.Now;
+
+            if (items == null || items.Count() == 0)
+                return null;
+
+            relList = new ConcurrentBag<Task>();
+            foreach (var r in items)
+            {
+                if (r != null)
+                    relList.Add(Task.Run(() => elements.Add(GeometrySupport.ConvertOsmEntryToStoredElement(r))));
+            }
+            Task.WaitAll(relList.ToArray());
+            relList = new ConcurrentBag<Task>();
+
+            if (onlyTagMatchedElements)
+                elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => e != null && TagParser.GetStyleForOsmWay(e.Tags.ToList()).name != TagParser.styles.Last().name));
+
+            ConcurrentBag<string> georesults = new ConcurrentBag<string>();
+            ConcurrentBag<string> tagresults = new ConcurrentBag<string>();
+            foreach (var md in elements.Where(e => e != null))
+            {
+                relList.Add(Task.Run(() =>
+                {
+                    //Write to tab delimited file first, following schema.
+
+                    georesults.Add(md.name + "\t" + md.sourceItemID + "\t" + md.sourceItemType + "\t" + md.elementGeometry.AsText());
+                    foreach (var t in md.Tags)
+                    {
+                        tagresults.Add(md.sourceItemID + "\t" + md.sourceItemType + "\t" + t.Key + "\t" + t.Value.Replace("\r", "").Replace("\n", "")); //Might also need to sanitize / and ' ?
+                    }
+                }));
+            }
+            Task.WaitAll(relList.ToArray());
+
+            var monitorTask = System.Threading.Tasks.Task.Run(() =>
+            {
+                try
+                {
+                    lock (fileLock)
+                    {
+                        System.IO.File.AppendAllLines(saveFilename + ".geomInfile", georesults);
+                        System.IO.File.AppendAllLines(saveFilename + ".tagsInfile", tagresults);
+                    }
+                    Log.WriteLog("Data written to disk");
+                }
+                catch (Exception ex)
+                {
+                    Log.WriteLog("Error writing data to disk:" + ex.Message);
+                }
+            });
+
+            return monitorTask;
 
         }
     }
