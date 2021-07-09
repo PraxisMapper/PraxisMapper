@@ -185,7 +185,6 @@ namespace CoreComponents
             public string name { get; set; }
             public long sourceItemID { get; set; }
             public int sourceItemType { get; set; } //1: node, 2: way, 3: relation
-            
             [Column(TypeName = "geography")]
             [Required]
             public Geometry elementGeometry { get; set; }
@@ -196,7 +195,6 @@ namespace CoreComponents
             public double AreaSize { get; set; } //For sorting purposes.
             public bool IsGenerated { get; set; } //Was auto-generated for spaces devoid of IsGameElement areas to interact with. assumed IsGameElement is true. SourceItemId will be set to some magic value plus an increment.
             public bool IsUserProvided { get; set; } //A user created/uploaded this area. SourceItemId will be set to some magic value plus an increment.
-
             public override string ToString()
             {
                 return (sourceItemType == 3 ? "Relation " : sourceItemType == 2 ? "Way " : "Node ") +  sourceItemID.ToString() + ":" + name;
@@ -214,8 +212,8 @@ namespace CoreComponents
         public class ElementTags
         {
             public long id { get; set; }
-            public long SourceItemId { get; set; } //Needed to attach tags later. OR FKey this to StoredOsmElement.SourceItemId
-            public int SourceItemType { get; set; } //Needed to attach tags later. 3 = relation, 2 = way, 1 = node.
+            public long StoredOsmElementsourceItemId { get; set; } //Needed to attach tags later. OR FKey this to StoredOsmElement.SourceItemId
+            public int StoredOsmElementsourceItemType { get; set; } //Needed to attach tags later. 3 = relation, 2 = way, 1 = node.
             public StoredOsmElement storedOsmElement { get; set; }
             public string Key { get; set; }
             public string Value { get; set; }
