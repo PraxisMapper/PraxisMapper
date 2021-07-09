@@ -354,7 +354,6 @@ namespace CoreComponents.PbfReader
 
         private PrimitiveBlock GetBlockFromFile(long blockId)
         {
-            //TODO: this could check if we've already unzipped this block to its own file, and if so read from that. Otherwise, load and unzip the block, then save that to an unzipped file for later.
             byte[] thisblob1;
             lock (msLock)
             {
@@ -369,7 +368,6 @@ namespace CoreComponents.PbfReader
             var b2 = Serializer.Deserialize<Blob>(ms2);
             var ms3 = new MemoryStream(b2.zlib_data);
             var dms2 = new ZlibStream(ms3, CompressionMode.Decompress);
-
             var pulledBlock = Serializer.Deserialize<PrimitiveBlock>(dms2);
             return pulledBlock;
         }
