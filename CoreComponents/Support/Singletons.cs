@@ -124,7 +124,7 @@ namespace CoreComponents
             new TagParserEntry() { id = 25, name ="donotdraw", HtmlColorCode = "00000000",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() {
                 new TagParserMatchRule() { Key = "place", Value = "locality|islet", MatchType = "any" },
             }},
-            new TagParserEntry() { id = 25, name ="greyFill", HtmlColorCode = "AAAAAA",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() {
+            new TagParserEntry() { id = 26, name ="greyFill", HtmlColorCode = "AAAAAA",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() {
                 new TagParserMatchRule() { Key = "man_made", Value = "breakwater", MatchType = "any" },
             }},
 
