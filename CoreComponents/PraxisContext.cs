@@ -58,6 +58,7 @@ namespace CoreComponents
             model.Entity<StoredOsmElement>().HasIndex(m => m.AreaSize); //Enables server-side sorting on biggest-to-smallest draw order.
             model.Entity<StoredOsmElement>().HasIndex(m => m.sourceItemID);
             model.Entity<StoredOsmElement>().HasIndex(m => m.sourceItemType);
+            model.Entity<StoredOsmElement>().HasMany(m => m.Tags).WithOne(m => m.storedOsmElement).HasForeignKey(m => new { m.StoredOsmElementsourceItemId, m.StoredOsmElementsourceItemType }).HasPrincipalKey(m => new { m.sourceItemID, m.sourceItemType });
 
             model.Entity<MapTile>().HasIndex(m => m.PlusCode);
             model.Entity<MapTile>().Property(m => m.PlusCode).HasMaxLength(12);
