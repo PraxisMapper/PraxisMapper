@@ -20,7 +20,7 @@
         public static bool UseHighAccuracy = true;
 
         //Determines if I want to pull in ALL areas from a PBF or ONLY ones that TagParser has a match for.
-        public static bool OnlyTaggedAreas = true;
+        public static bool OnlyTaggedAreas = false;
 
         //public static string DbMode = "SQLServer";
         //public static string DbConnectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;";
