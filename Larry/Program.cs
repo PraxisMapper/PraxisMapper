@@ -187,7 +187,7 @@ namespace Larry
                 var db = new PraxisContext();
                 db.Database.SetCommandTimeout((int)TimeSpan.FromMinutes(30).TotalSeconds);
                 //db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' INTO TABLE StoredOsmElements fields terminated by '\t' (name, sourceItemID, sourceItemType, @elementGeometry) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
-                db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPathTags + "' INTO TABLE ElementTags fields terminated by '\t' (SourceItemId, SourceItemType, 'key', 'value')");
+                db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPathTags + "' INTO TABLE ElementTags fields terminated by '\t' (SourceItemId, SourceItemType, `key`, `value`)");
                 sw.Stop();
                 Console.WriteLine("LOAD DATA command ran in " + sw.Elapsed); //35 minutes is the current
                 System.IO.File.Delete(tempFile);
