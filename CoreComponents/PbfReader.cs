@@ -13,6 +13,8 @@ using NetTopologySuite.Noding;
 using OsmSharp.Complete;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using System.Text;
+using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
 
 namespace CoreComponents.PbfReader
 {
@@ -53,6 +55,8 @@ namespace CoreComponents.PbfReader
 
         object msLock = new object(); //reading blocks from disk.
         object fileLock = new object(); //Writing to json file
+        object geomFileLock = new object(); //Writing to mariadb LOAD DATA INFILE for StoredOsmElement
+        object tagsFileLock = new object(); //Writing to mariadb LOAD DATA INFILE for ElementTags
 
         public string outputPath = "";
         long nextBlockId = 0;
@@ -996,13 +1000,27 @@ namespace CoreComponents.PbfReader
                                 var convertednodes = nodes.Select(n => GeometrySupport.ConvertOsmEntryToStoredElement(n)).ToList();
                                 if (infileProcess)
                                 {
-                                    var infileNodes = convertednodes.Where(c => c != null).Select(md => md.name + "\t" + md.sourceItemID + "\t" + md.sourceItemType + "\t" + md.elementGeometry.AsText() + "\t0.000125").ToList();
-                                    var infileTags = convertednodes.Where(c => c != null).SelectMany(md => md.Tags.Select(t => md.sourceItemID + "\t" + md.sourceItemType + "\t" + t.Key + "\t" + t.Value.Replace("\r", "").Replace("\n", ""))).ToList();
-                                    lock (fileLock)
+                                    StringBuilder geomSB = new StringBuilder();
+                                    StringBuilder tagsSB = new StringBuilder();
+                                    foreach(var md in convertednodes)
                                     {
-                                        System.IO.File.AppendAllLines(outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + ".json.geomInfile", infileNodes);
-                                        System.IO.File.AppendAllLines(outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + ".json.tagsInfile", infileTags);
+                                        if (md != null)
+                                        {
+                                            geomSB.Append(md.name).Append("\t").Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(md.elementGeometry.AsText()).Append("\t0.000125\r\n");
+                                            foreach (var t in md.Tags)
+                                            {
+                                                tagsSB.Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(t.Key).Append("\t").Append(t.Value.Replace("\r", "").Replace("\n", "")).Append("\r\n"); //ensure line endings are consistent.
+                                            }
+                                        }
                                     }
+
+                                    //var infileNodes = convertednodes.Where(c => c != null).Select(md => md.name + "\t" + md.sourceItemID + "\t" + md.sourceItemType + "\t" + md.elementGeometry.AsText() + "\t0.000125").ToList();
+                                    //var infileTags = convertednodes.Where(c => c != null).SelectMany(md => md.Tags.Select(t => md.sourceItemID + "\t" + md.sourceItemType + "\t" + t.Key + "\t" + t.Value.Replace("\r", "").Replace("\n", ""))).ToList();
+                                    lock (geomFileLock)
+                                        System.IO.File.AppendAllText(outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + ".json.geomInfile", geomSB.ToString());
+                                    lock(tagsFileLock)
+                                        System.IO.File.AppendAllText(outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + ".json.tagsInfile", tagsSB.ToString());
+                                    
                                 }
                                 else
                                 {
@@ -1329,11 +1347,10 @@ namespace CoreComponents.PbfReader
             {
                 try
                 {
-                    lock (fileLock)
-                    {
+                    lock (geomFileLock)
                         System.IO.File.AppendAllLines(saveFilename + ".geomInfile", georesults);
+                    lock(tagsFileLock)
                         System.IO.File.AppendAllLines(saveFilename + ".tagsInfile", tagresults);
-                    }
                     Log.WriteLog("Data written to disk");
                 }
                 catch (Exception ex)
