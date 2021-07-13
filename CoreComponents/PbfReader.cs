@@ -61,7 +61,8 @@ namespace CoreComponents.PbfReader
         public string outputPath = "";
         long nextBlockId = 0;
         long firstWayBlock = 0;
-        int startBtreeIndex = 0;
+        int startNodeBtreeIndex = 0;
+        int startWayBtreeIndex = 0;
 
         ConcurrentBag<Task> writeTasks = new ConcurrentBag<Task>(); //Writing to json file, and long-running relation processing
         ConcurrentBag<Task> relList = new ConcurrentBag<Task>(); //Individual, smaller tasks.
@@ -330,7 +331,8 @@ namespace CoreComponents.PbfReader
             switchPointWayId = wayFinderList.ElementAt(idx).Item2;
 
             firstWayBlock = LoadingWayFinder2.Keys.Min();
-            startBtreeIndex = nodeFinderList.Count() / 2;
+            startNodeBtreeIndex = nodeFinderList.Count() / 2;
+            startWayBtreeIndex = wayFinderList.Count() / 2;
         }
 
         private PrimitiveBlock GetBlock(long blockId)
@@ -801,7 +803,7 @@ namespace CoreComponents.PbfReader
             int totalBlocks = nodeFinderList.Count();
             int min = 0;
             int max = totalBlocks;
-            int current = startBtreeIndex;
+            int current = startNodeBtreeIndex;
 
             while(min != max)
             {
@@ -855,29 +857,43 @@ namespace CoreComponents.PbfReader
             throw new Exception("Node Not Found");
         }
 
-        //private long FindBlockKeyForWay(long wayId)
-        //{
-        //    //We cant use hints here as long as this is a single digit index. I need to track min and max to use hints.
-        //    //unlike nodes, ways ARE usually sorted 
-        //    //so we CAN safely just find the block where wayId >= minWay for a block
-        //    //BUT the easiest b-tree logic on a ConcurrentDictionary does more iterating to get indexes than just iterating the list would do.
-        //    foreach (var waylist in wayFinder2)
-        //    {
-        //        //key is block id. value is the max way value in this node. We dont need to check the minimum.
-        //        if (waylist.Value < wayId) //this node's maximum is smaller than our node, skip
-        //            continue;
-
-        //        return waylist.Key;
-        //    }
-
-        //    //couldnt find this way
-        //    throw new Exception("Way Not Found");
-        //}
-
-        private long FindBlockKeyForWay(long wayId, List<long> hints)
+        private long FindBlockKeyForWay(long wayId, List<long> hints) //BTree
         {
-            //We cant use hints here as long as this is a single digit index. I need to track min and max to use hints.
-            //unlike nodes, ways ARE usually sorted 
+            if (hints != null)
+                foreach (var h in hints)
+                {
+                    //we can check this, but we need to look at the previous block too.
+                    if (LoadingWayFinder2[h] >= wayId && (h == firstWayBlock || LoadingWayFinder2[h - 1] < wayId))
+                        return h;
+                }
+
+            int min = 0;
+            int max = wayFinderList.Count();
+            int current = startWayBtreeIndex;
+            while (min != max)
+            {
+                var check = wayFinderList[current];
+                if (check.Item2 < wayId) //This max is below our way, shift up
+                {
+                    min = current;
+                }
+                else if (check.Item2 >= wayId) //this max is over our way, check previous block if this one is correct OR shift down if not
+                {
+                    if (current == 0 || wayFinderList[current - 1].Item2 < wayId) //our way is below current max, above previous max, this is the block we want
+                       return check.Item1;
+                    else
+                        max = current;
+                }
+
+                current = (min + max) / 2;
+            }
+
+            //couldnt find this way
+            throw new Exception("Way Not Found");
+        }
+
+        private long FindBlockKeyForWayIterative(long wayId, List<long> hints) //Iterative
+        {
             //so we CAN safely just find the block where wayId >= minWay for a block
             //BUT the easiest b-tree logic on a ConcurrentDictionary does more iterating to get indexes than just iterating the list would do.
             if (hints != null)
@@ -1001,7 +1017,6 @@ namespace CoreComponents.PbfReader
                     else if (primgroup.ways != null && primgroup.ways.Count() > 0)
                     {
                         List<long> hint = new List<long>() { blockId };
-                        //original multithreading logic, similar to relations. Attermpting to do this like nodes is much, much slower and eats tons of RAM
                         foreach (var r in primgroup.ways.OrderByDescending(w => w.refs.Count())) //Ordering should help consistency in runtime, though it offers little other benefit.
                         {
                             relList.Add(Task.Run(() => results.Add(GetWay(r.id, true, hint, onlyTagMatchedEntries))));
@@ -1032,14 +1047,10 @@ namespace CoreComponents.PbfReader
                                             }
                                         }
                                     }
-
-                                    //var infileNodes = convertednodes.Where(c => c != null).Select(md => md.name + "\t" + md.sourceItemID + "\t" + md.sourceItemType + "\t" + md.elementGeometry.AsText() + "\t0.000125").ToList();
-                                    //var infileTags = convertednodes.Where(c => c != null).SelectMany(md => md.Tags.Select(t => md.sourceItemID + "\t" + md.sourceItemType + "\t" + t.Key + "\t" + t.Value.Replace("\r", "").Replace("\n", ""))).ToList();
                                     lock (geomFileLock)
                                         System.IO.File.AppendAllText(outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + ".json.geomInfile", geomSB.ToString());
                                     lock(tagsFileLock)
                                         System.IO.File.AppendAllText(outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + ".json.tagsInfile", tagsSB.ToString());
-                                    
                                 }
                                 else
                                 {
@@ -1048,8 +1059,6 @@ namespace CoreComponents.PbfReader
                                     lock (fileLock)
                                         System.IO.File.AppendAllLines(outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + ".json", textLines);
                                 }
-
-                                //Log.WriteLog("block " + blockId + ":" + nodes.Count() + " items out of " + block.primitivegroup[0].dense.id.Count + " created in " + sw.Elapsed);
                                 return;
                             }
                             catch (Exception ex)
@@ -1194,8 +1203,8 @@ namespace CoreComponents.PbfReader
                 switchPointWayId = wayFinderList.ElementAt(idx).Item2;
 
                 firstWayBlock = LoadingWayFinder2.Keys.Min();
-
-                startBtreeIndex = nodeFinderList.Count() / 2;
+                startNodeBtreeIndex = nodeFinderList.Count() / 2;
+                startWayBtreeIndex = wayFinderList.Count() / 2;
             }
             catch (Exception ex)
             {
@@ -1247,8 +1256,6 @@ namespace CoreComponents.PbfReader
                     if (timeList.Count > 0)
                     {
                         Log.WriteLog("Average time per block: " + timeList.Average(t => t.TotalSeconds) + " seconds");
-                        //TimeSpan ts = new TimeSpan((long)timeList.Average(t => t.Ticks) * nextBlockId);
-                        //Log.WriteLog("Estimated time remaining: " + ts.ToString()); //This will be high, since we start with the slowest blocks and move to the fastest ones.
                     }
                     System.Threading.Thread.Sleep(60000);
                 }
@@ -1284,10 +1291,6 @@ namespace CoreComponents.PbfReader
                     lt.Add(Task.Run(() => { var db = new PraxisContext(); db.ChangeTracker.AutoDetectChangesEnabled = false; db.StoredOsmElements.AddRange(list); db.SaveChanges(); }));
                 Task.WaitAll(lt.ToArray());
 
-                //var db = new PraxisContext();
-                //db.ChangeTracker.AutoDetectChangesEnabled = false;
-                //db.StoredOsmElements.AddRange(elements);
-                //db.SaveChanges();
                 return null;
             }
             else
@@ -1309,9 +1312,8 @@ namespace CoreComponents.PbfReader
                     try
                     {
                         lock (fileLock)
-                        {
                             System.IO.File.AppendAllLines(saveFilename, results);
-                        }
+
                         Log.WriteLog("Data written to disk");
                     }
                     catch (Exception ex)
@@ -1353,8 +1355,6 @@ namespace CoreComponents.PbfReader
             {
                 relList.Add(Task.Run(() =>
                 {
-                    //Write to tab delimited file first, following schema.
-
                     georesults.Add(md.name + "\t" + md.sourceItemID + "\t" + md.sourceItemType + "\t" + md.elementGeometry.AsText() + "\t" + md.elementGeometry.Length);
                     foreach (var t in md.Tags)
                     {
@@ -1381,7 +1381,6 @@ namespace CoreComponents.PbfReader
             });
 
             return monitorTask;
-
         }
     }
 }
