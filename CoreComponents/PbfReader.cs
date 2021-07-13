@@ -15,13 +15,15 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using System.Text;
 using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
+using System.Net.Http.Json;
 
 namespace CoreComponents.PbfReader
 {
     public class PbfReader
     {
         //The 5th generation of logic for pulling geometry out of a pbf file. This one is written specfically for PraxisMapper, and
-        //doesn't depend on OsmSharp for reading the raw data now. OsmSharp's still used for object types and the FeatureConverter. 
+        //doesn't depend on OsmSharp for reading the raw data now. OsmSharp's still used for object types now that there's our own
+        //FeatureInterpreter instead of theirs. 
 
         //Primary function:
         //ProcessFile(filename) should do everything automatically and allow resuming if you stop the app.
@@ -34,7 +36,6 @@ namespace CoreComponents.PbfReader
 
         //this is blockId, <minNode, maxNode>.
         ConcurrentDictionary<long, Tuple<long, long>> nodeFinder2 = new ConcurrentDictionary<long, Tuple<long, long>>();
-        //ConcurrentDictionary<long, Tuple<long, long>> nodeFinder2Reverse = new ConcurrentDictionary<long, Tuple<long, long>>();
         //blockId, minNode, maxNode.
         List<Tuple<long, long, long>> nodeFinderList = new List<Tuple<long, long, long>>();
         List<Tuple<long, long, long>> nodeFinderListReverse = new List<Tuple<long, long, long>>();
@@ -42,7 +43,6 @@ namespace CoreComponents.PbfReader
         ConcurrentDictionary<long, long> LoadingWayFinder2 = new ConcurrentDictionary<long, long>();// Concurrent needed because loading is threaded.
         List<Tuple<long, long>> wayFinderList = new List<Tuple<long, long>>();
         List<Tuple<long, long>> wayFinderListReverse = new List<Tuple<long, long>>();
-
 
         Dictionary<long, long> blockPositions = new Dictionary<long, long>();
         Dictionary<long, int> blockSizes = new Dictionary<long, int>();
@@ -61,21 +61,20 @@ namespace CoreComponents.PbfReader
         public string outputPath = "";
         long nextBlockId = 0;
         long firstWayBlock = 0;
+        int startBtreeIndex = 0;
 
         ConcurrentBag<Task> writeTasks = new ConcurrentBag<Task>(); //Writing to json file, and long-running relation processing
         ConcurrentBag<Task> relList = new ConcurrentBag<Task>(); //Individual, smaller tasks.
-        ConcurrentBag<TimeSpan> timeList = new ConcurrentBag<TimeSpan>();
-
-        //Should try and monitor everything from one master task.
+        ConcurrentBag<TimeSpan> timeList = new ConcurrentBag<TimeSpan>(); //how long each block took to process.
 
         //for reference. These are likely to be lost if the application dies partway through processing, since these sit outside the general block-by-block plan.
-        private HashSet<long> knownSlowRelations = new HashSet<long>() {
-            9488835, //Labrador Sea. 25,000 ways. Stack Overflows on converting to CompleteRelation through defaultFeatureInterpreter.
-            1205151, //Lake Huron, 14,000 ways. Can Stack overflow joining rings.
-            148838, //United States. 1029 members but a very large geographic area
-            9428957, //Gulf of St. Lawrence. 11,000 ways. Can finish processing, so it's somewhere between 11k and 14k that the stack overflow hits.
-            4039900, //Lake Erie is 1100 ways, takes ~56 seconds start to finish.
-        };
+        //private HashSet<long> knownSlowRelations = new HashSet<long>() {
+        //    9488835, //Labrador Sea. 25,000 ways. Stack Overflows on converting to CompleteRelation through defaultFeatureInterpreter.
+        //    1205151, //Lake Huron, 14,000 ways. Can Stack overflow joining rings.
+        //    148838, //United States. 1029 members but a very large geographic area
+        //    9428957, //Gulf of St. Lawrence. 11,000 ways. Can finish processing, so it's somewhere between 11k and 14k that the stack overflow hits.
+        //    4039900, //Lake Erie is 1100 ways, takes ~56 seconds start to finish.
+        //};
 
         //lazy optimization: when to search a reversed list of nodes;
         long switchPointNodeId = 0;
@@ -139,9 +138,8 @@ namespace CoreComponents.PbfReader
                     {
                         if (saveForInfileLoad)
                         {
-                            //TEST CODE:
+                            //This path is MariaDB specific, but allows populating the database much, much faster.
                             //Process the results in 2 file, 1 for geometry data, 1 for tags.
-                            //This should import much, much faster into MariaDB this way.
                             var wt = ProcessReaderResultsForInFile(geoData, outputPath + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", saveToDb, onlyTagMatchedEntries);
                             if (wt != null)
                                 writeTasks.Add(wt);
@@ -205,7 +203,7 @@ namespace CoreComponents.PbfReader
 
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
-                    var featureA = featureInterpreter.Interpret(g); //OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(g); //Changed while waiting for bugfixes
+                    var featureA = featureInterpreter.Interpret(g);
                     sw.Stop();
                     runA = sw.Elapsed;
                     Log.WriteLog("Customized interpreter ran in " + runA);
@@ -272,11 +270,6 @@ namespace CoreComponents.PbfReader
                     var group = pb2.primitivegroup[0]; //If i get a file with multiple PrimitiveGroups in a block, make this a ForEach loop instead.
                     if (group.ways.Count > 0)
                     {
-                        //foreach (var w in group.ways)
-                        //{
-                        //    exactWayFinder3.TryAdd(w.id, passedBC);
-                        //}
-
                         var wMax = group.ways.Max(w => w.id);
                         if (!LoadingWayFinder2.TryAdd(passedBC, wMax))
                             Log.WriteLog("ERROR: failed to add block " + passedBC + " to way index");
@@ -313,23 +306,22 @@ namespace CoreComponents.PbfReader
                 waiting.Add(tasked);
             }
             Task.WaitAll(waiting.ToArray());
-            //my logic does require the wayIndex to be in blockID order.
+            //this logic does require the wayIndex to be in blockID order, which they usually are.
             foreach (var w in LoadingWayFinder2.OrderBy(w => w.Key))
             {
-                //OrderedWayFinderD.TryAdd(w.Key, w.Value);
                 wayFinderList.Add(Tuple.Create(w.Key, w.Value));
                 wayFinderListReverse.Add(Tuple.Create(w.Key, w.Value));
             }
             Log.WriteLog("Found " + blockCounter + " blocks. " + relationCounter + " relation blocks and " + wayCounter + " way blocks.");
             foreach (var entry in nodeFinder2)
             {
-                //nodeFinder2Reverse.TryAdd(entry.Key, entry.Value);
                 nodeFinderList.Add(Tuple.Create(entry.Key, entry.Value.Item1, entry.Value.Item2));
                 nodeFinderListReverse.Add(Tuple.Create(entry.Key, entry.Value.Item1, entry.Value.Item2));
             }
 
             wayFinderListReverse.Reverse();
             nodeFinderListReverse.Reverse();
+            
             //Lazy optimization: if our node is bigger than roughly the halfway point, search from the end instead of the start.           
             var idx = new Index(nodeFinder2.Count() / 2);
             switchPointNodeId = nodeFinder2.ElementAt(idx).Value.Item2;
@@ -338,6 +330,7 @@ namespace CoreComponents.PbfReader
             switchPointWayId = wayFinderList.ElementAt(idx).Item2;
 
             firstWayBlock = LoadingWayFinder2.Keys.Min();
+            startBtreeIndex = nodeFinderList.Count() / 2;
         }
 
         private PrimitiveBlock GetBlock(long blockId)
@@ -412,15 +405,6 @@ namespace CoreComponents.PbfReader
 
                 var relPrimGroup = relationBlock.primitivegroup[0];
                 var rel = relPrimGroup.relations.FirstOrDefault(r => r.id == relationId);
-                //finally have the core item
-
-                //Should not be relevant with my custom feature interpreter logic.
-                //Sanity check - ignore the Labrador Sea until I have a way to process it.
-                //if (rel.memids.Count() > 12000) //This is roughly where a stack overflow will reliably occur trying to join rings
-                //{
-                //Log.WriteLog("Relation " + rel.id + " too big - ignoring to avoid a stack overflow");
-                //return null;
-                //}
 
                 //sanity check - if this relation doesn't have inner or outer role members,
                 //its not one i can process.
@@ -459,7 +443,6 @@ namespace CoreComponents.PbfReader
                 //Now get a list of block i know i need now.
                 List<long> neededBlocks = new List<long>();
                 List<long> wayBlocks = new List<long>();
-                //List<long> nodeBlocks = new List<long>();
 
                 //memIds is delta-encoded
                 long idToFind = 0;
@@ -472,8 +455,6 @@ namespace CoreComponents.PbfReader
                     {
                         case Relation.MemberType.NODE:
                             //The FeatureInterpreter doesn't use nodes from a relation
-                            //nodeBlocks.Add(FindBlockKeyForNode(idToFind, nodeBlocks));
-                            //nodeBlocks = nodeBlocks.Distinct().ToList();
                             break;
                         case Relation.MemberType.WAY:
                             wayBlocks.Add(FindBlockKeyForWay(idToFind, wayBlocks));
@@ -485,16 +466,13 @@ namespace CoreComponents.PbfReader
                     }
                 }
                 neededBlocks.AddRange(wayBlocks.Distinct());
-                //neededBlocks.AddRange(nodeBlocks.Distinct());
                 neededBlocks = neededBlocks.Distinct().ToList();
                 foreach (var nb in neededBlocks)
                     GetBlock(nb);
 
 
-
                 //This makes sure we only load each element once. If a relation references an element more than once (it shouldnt)
                 //this saves us from re-creating the same entry.
-                //Dictionary<long, OsmSharp.Node> loadedNodes = new Dictionary<long, OsmSharp.Node>();
                 Dictionary<long, OsmSharp.Complete.CompleteWay> loadedWays = new Dictionary<long, OsmSharp.Complete.CompleteWay>();
                 List<OsmSharp.Complete.CompleteRelationMember> crms = new List<OsmSharp.Complete.CompleteRelationMember>();
                 idToFind = 0;
@@ -507,9 +485,6 @@ namespace CoreComponents.PbfReader
                     switch (typeToFind)
                     {
                         case Relation.MemberType.NODE:
-                            //if (!loadedNodes.ContainsKey(idToFind))
-                            //loadedNodes.Add(idToFind, GetNode(idToFind, true, nodeBlocks));
-                            //c.Member = loadedNodes[idToFind];
                             break;
                         case Relation.MemberType.WAY:
                             if (!loadedWays.ContainsKey(idToFind))
@@ -598,7 +573,6 @@ namespace CoreComponents.PbfReader
                     foreach (var n in someNodes)
                         AllNodes.Add(n.Key, n.Value);
                 }
-
 
                 idToFind = 0;
                 foreach (var node in way.refs)
@@ -785,10 +759,70 @@ namespace CoreComponents.PbfReader
             return results;
         }
 
-        private long FindBlockKeyForNode(long nodeId, List<long> hints = null) //Iterative
+        private bool NodeHasKey(long key, Tuple<long, long, long> value)
+        {
+            //key is block id
+            //value is the tuple list. 2 is min, 3 is max.
+            if (value.Item2 > key) //this node's minimum is larger than our node, skip
+                return false;
+
+            if (value.Item3 < key) //this node's maximum is smaller than our node, skip
+                return false;
+            return true;
+        }
+
+        private bool NodeHasKey(long key, Tuple<long, long> value)
+        {
+            //key is block id
+            //value is the tuple list. 1 is min, 2 is max.
+            if (value.Item1 > key) //this node's minimum is larger than our node, skip
+                return false;
+
+            if (value.Item2 < key) //this node's maximum is smaller than our node, skip
+                return false;
+            return true;
+        }
+
+        private long FindBlockKeyForNode(long nodeId, List<long> hints = null) //BTree
+        {
+            //Dont bother searching if we have likely candidates, just check those.
+            if (hints != null)
+            {
+                foreach (var h in hints)
+                {
+                    var entry = nodeFinder2[h];
+                    if (NodeHasKey(nodeId, entry))
+                        return h;
+                }
+            }
+
+            //ways will hit a couple thousand blocks, nodes hit hundred of thousands of blocks.
+            //This might help performance on ways, but will be much more noticeable on nodes.
+            int totalBlocks = nodeFinderList.Count();
+            int min = 0;
+            int max = totalBlocks;
+            int current = startBtreeIndex;
+
+            while(min != max)
+            {
+                var check = nodeFinderList[current];
+                if (check.Item2 > nodeId) //this node's minimum is larger than our node, shift up
+                    max = current;
+                else if (check.Item3 < nodeId) //this node's maximum is smaller than our node, shift down.
+                    min = current;
+                else
+                    return check.Item1;
+                
+                current = (min + max) / 2;
+            }
+            throw new Exception("Node Not Found");
+        }
+
+        private long FindBlockKeyForNodeIterative(long nodeId, List<long> hints = null) //Iterative
         {
             //This is the most-called function in this class, and therefore the most performance-dependent.
-            //As it turns out, the range of node IDs involved WON'T overlap, so i CAN b-tree search this.
+            //As it turns out, the range of node IDs involved WON'T overlap, so I could b-tree search this,
+            //if these were arrays and not collections. ON a dictionary, its much much slower.
 
             //Hints is a list of blocks we're already found in the relevant way. Odds are high that
             //any node I need to find is in the same block as another node I've found.
@@ -799,37 +833,22 @@ namespace CoreComponents.PbfReader
                 foreach (var h in hints)
                 {
                     var entry = nodeFinder2[h];
-                    if (entry.Item1 > nodeId) //this node's minimum is larger than our node, skip
-                        continue;
-
-                    if (entry.Item2 < nodeId) //this node's maximum is smaller than our node, skip
-                        continue;
-
-                    return h;
+                    if (NodeHasKey(nodeId, entry))
+                        return h;
                 }
             }
 
-            if (nodeId < switchPointNodeId) //return nodeFinderList.First(n => n.Item2 > nodeId && n.Item3 < nodeId).Item1; //does this test line break on extract files? or are no nodes legit missing?
+            if (nodeId < switchPointNodeId) 
                 foreach (var nodelist in nodeFinderList)
                 {
-                    //key is block id
-                    //value is the tuple list. 1 is min, 2 is max.
-                    if (nodelist.Item2 > nodeId) //this node's minimum is larger than our node, skip
-                        continue;
-
-                    if (nodelist.Item3 < nodeId) //this node's maximum is smaller than our node, skip
-                        continue;
-                    return nodelist.Item1;
+                    if (NodeHasKey(nodeId, nodelist))
+                        return nodelist.Item1;
                 }
             else
                 foreach (var nodelist in nodeFinderListReverse)
                 {
-                    if (nodelist.Item2 > nodeId) //this node's minimum is larger than our node, skip
-                        continue;
-
-                    if (nodelist.Item3 < nodeId) //this node's maximum is smaller than our node, skip
-                        continue;
-                    return nodelist.Item1;
+                    if (NodeHasKey(nodeId, nodelist))
+                        return nodelist.Item1;
                 }
 
             //couldnt find this node
@@ -1175,6 +1194,8 @@ namespace CoreComponents.PbfReader
                 switchPointWayId = wayFinderList.ElementAt(idx).Item2;
 
                 firstWayBlock = LoadingWayFinder2.Keys.Min();
+
+                startBtreeIndex = nodeFinderList.Count() / 2;
             }
             catch (Exception ex)
             {
