@@ -28,6 +28,8 @@ namespace CoreComponents.PbfReader
         //Primary function:
         //ProcessFile(filename) should do everything automatically and allow resuming if you stop the app.
 
+        //TODO: eliminiate reverse way lists, unnecessary with BTree search. same for the mid-node check.
+
         FileInfo fi;
         FileStream fs;
 
@@ -788,7 +790,7 @@ namespace CoreComponents.PbfReader
         private long FindBlockKeyForNode(long nodeId, List<long> hints = null) //BTree
         {
             //Dont bother searching if we have likely candidates, just check those.
-            if (hints != null)
+            if (hints != null && hints.Count() < 20) //20 is more checks than a b-tree would be for a million blocks.
             {
                 foreach (var h in hints)
                 {
@@ -859,7 +861,7 @@ namespace CoreComponents.PbfReader
 
         private long FindBlockKeyForWay(long wayId, List<long> hints) //BTree
         {
-            if (hints != null)
+            if (hints != null && hints.Count() < 20) //20 is more checks than a b-tree would be for a million blocks.
                 foreach (var h in hints)
                 {
                     //we can check this, but we need to look at the previous block too.
