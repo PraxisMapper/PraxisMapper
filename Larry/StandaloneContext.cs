@@ -18,6 +18,7 @@ namespace Larry
         public virtual DbSet<ScavengerHuntStandalone> ScavengerHunts { get; set; }
         public virtual DbSet<PlaceInfo2> PlaceInfo2s { get; set; }
         public virtual DbSet<PlaceIndex> PlaceIndexs { get; set; }
+        public virtual DbSet<IdleStats> IdleStats { get; set; }
 
         public StandaloneContext()
         {

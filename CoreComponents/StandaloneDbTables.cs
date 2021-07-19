@@ -120,5 +120,23 @@ namespace CoreComponents
             public long placeInfoId { get; set; } //doing this manually for some reason.
 
         }
+
+        public class IdleStats
+        {
+            //Only 1 row, with the values as columns
+            public long emptySpacePerSecond { get; set; }
+            public long emptySpaceTotal { get; set; }
+            public long parkSpacePerSecond { get; set; }
+            public long parkSpaceTotal { get; set; }
+            public long graveyardSpacePerSecond { get; set; }
+            public long graveyardSpaceTotal { get; set; }
+            public long touristSpacePerSecond { get; set; }
+            public long touristSpaceTotal { get; set; }
+            public long natureReserveSpacePerSecond { get; set; }
+            public long natureReserveSpaceTotal { get; set; }
+            public long trailSpacePerSecond { get; set; }
+            public long trailSpaceTotal { get; set; }
+        }
+
     }
 }
