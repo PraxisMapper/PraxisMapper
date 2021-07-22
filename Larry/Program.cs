@@ -623,6 +623,7 @@ namespace Larry
             //insert default entries for a new player.
             sqliteDb.PlayerStats.Add(new PlayerStats() { timePlayed = 0, distanceWalked = 0, score = 0 });
             sqliteDb.Bounds.Add(new Bounds() { EastBound = neCorner.Decode().EastLongitude, NorthBound = neCorner.Decode().NorthLatitude, SouthBound = swCorner.Decode().SouthLatitude, WestBound = swCorner.Decode().WestLongitude, commonCodeLetters = commonStart });
+            sqliteDb.IdleStats.Add(new IdleStats() { emptySpacePerSecond =0, emptySpaceTotal=0, graveyardSpacePerSecond=0, graveyardSpaceTotal=0, natureReserveSpacePerSecond=0, natureReserveSpaceTotal=0, parkSpacePerSecond=0, parkSpaceTotal=0, touristSpacePerSecond=0, touristSpaceTotal=0, trailSpacePerSecond=0, trailSpaceTotal=0 });
             sqliteDb.SaveChanges();
 
             //now we have the list of places we need to be concerned with. 
