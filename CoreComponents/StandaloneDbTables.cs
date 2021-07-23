@@ -48,7 +48,7 @@ namespace CoreComponents
             }
         }
 
-        public class Bounds //readonly for the destination app
+        public class Bounds //readonly for the destination app. Should be a common 'settings' or baseline data table.
         {
             public int id { get; set; }
             public double NorthBound { get; set; }
@@ -58,6 +58,9 @@ namespace CoreComponents
             public double length { get; set; }
             public double height { get; set; }
             public string commonCodeLetters { get; set; }
+            public long LastPlayedOn { get; set; } //for idle game offline gains.
+            public long StartedCurrentIdleRun { get; set; }
+            public long BestIdleCompletionTime { get; set; } //your best idle game completion time.
 
         }
 
