@@ -23,6 +23,14 @@ using Microsoft.EntityFrameworkCore.ValueGeneration.Internal;
 //TODO: Ponder using https://download.bbbike.org/osm/ as a data source to get a custom extract of an area (for when users want a local-focused app, probably via a wizard GUI)
 //OR could use an additional input for filterbox.
 
+//TODO: next project target: get a county-sized area running on a self-contained server as cheap as possbile
+//Test bed: relation 1245077 (New Castle County, Delaware, USA) pop 500k.
+// sub-steps:
+// Pull source area out of OSM file, determine bounding box
+// Pull all elements that overlap bounding box from source file.
+// save those elements to db
+// pre-generate all game map tiles (Cell8 tiles at Cell11 res) to DB.
+//test micro server has NET 6 and MariaDb installed (though MariaDB may need setup still)
 namespace Larry
 {
     class Program
@@ -277,6 +285,15 @@ namespace Larry
                     fr.Close(); fr.Dispose();
                     File.Move(jsonFileName, jsonFileName + "done");
                 }
+            }
+
+            if (args.Any(a => a.StartsWith("-loadOneArea:"))) //-loadOneArea:filename:relationId
+            {
+                var subargs = args.First(a => a.StartsWith("-loadOneArea:")).Split(":");
+                Console.WriteLine("Loading relation " + subargs[2] + " from file " + ParserSettings.PbfFolder + subargs[1]);
+                var r = new PbfReader();
+                r.outputPath = ParserSettings.JsonMapDataFolder;
+                r.GetOneAreaFromFile(ParserSettings.PbfFolder + subargs[1], Int64.Parse(subargs[2]));
             }
 
             if (args.Any(a => a == "-updateDatabase"))

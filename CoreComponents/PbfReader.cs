@@ -16,6 +16,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using System.Text;
 using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
 using System.Net.Http.Json;
+using NetTopologySuite.Geometries;
 
 namespace CoreComponents.PbfReader
 {
@@ -49,6 +50,9 @@ namespace CoreComponents.PbfReader
         Dictionary<long, long> blockPositions = new Dictionary<long, long>();
         Dictionary<long, int> blockSizes = new Dictionary<long, int>();
 
+        Envelope bounds = null; //If not null, reject elements not within it
+        Dictionary<long, bool> validWays = null; //if not null, only process relations where all way members are on this list.
+
         ConcurrentDictionary<long, PrimitiveBlock> activeBlocks = new ConcurrentDictionary<long, PrimitiveBlock>();
         ConcurrentDictionary<long, bool> accessedBlocks = new ConcurrentDictionary<long, bool>();
 
@@ -63,6 +67,7 @@ namespace CoreComponents.PbfReader
         public string outputPath = "";
         long nextBlockId = 0;
         long firstWayBlock = 0;
+        long firstRelationBlock = 0;
         int startNodeBtreeIndex = 0;
         int startWayBtreeIndex = 0;
 
@@ -166,6 +171,74 @@ namespace CoreComponents.PbfReader
                 CleanupFiles();
                 sw.Stop();
                 Log.WriteLog("File completed at " + DateTime.Now + ", session lasted " + sw.Elapsed);
+            }
+            catch (Exception ex)
+            {
+                while (ex.InnerException != null)
+                    ex = ex.InnerException;
+                Log.WriteLog("Error processing file: " + ex.Message + ex.StackTrace);
+            }
+        }
+
+        public void GetOneAreaFromFile(string filename, long relationId)
+        {
+            //Get a bounding box from a single relation, then pull all entries in it from the file to the DB.
+            try
+            {
+                System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                sw.Start();
+                Open(filename);
+                LoadBlockInfo();
+                nextBlockId = 0;
+                IndexFile();
+                SaveBlockInfo();
+                nextBlockId = BlockCount() - 1;
+                SaveCurrentBlock(BlockCount());
+
+                //if (displayStatus)
+                //ShowWaitInfo();
+
+                //Get the source relation first
+                //var sourceBlock = relationFinder[relationId];
+                var relation = GetRelation(relationId);
+                var NTSrelation = GeometrySupport.ConvertOsmEntryToStoredElement(relation);
+                bounds = NTSrelation.elementGeometry.EnvelopeInternal;
+
+                //due to the bounding box, we need to process ways first.
+                //remove ways from the index that aren't within bounds, which will kick out relations automatically.
+
+                validWays = new Dictionary<long, bool>();
+                for(var block = firstWayBlock; block < firstRelationBlock;  block++)
+                {
+                    //Handle ways first.
+                    var geoData = GetGeometryFromBlock(block, true, false).Where(g => g != null).ToList();
+                    foreach (var g in geoData)
+                        validWays.Add(g.Id, true);
+                    
+                    ProcessReaderResults(geoData, "nooutputfile", true, true);
+                }
+                Console.WriteLine("Ways processed, checking relations....");
+
+                //Now do relations, but make sure they only process if all ways are in validWays.
+                for(var block = nextBlockId; block > firstWayBlock + wayFinderList.Count() - 1; block--)
+                {
+                    var geoData = GetGeometryFromBlock(block, true, false).Where(g => g != null).ToList();
+                    ProcessReaderResults(geoData, "nooutputfile", true, true);
+                }
+
+                Console.WriteLine("Relations processed, checking nodes...");
+
+                //finally, do nodes within bounds,.
+                for (var block = 1; block < firstWayBlock; block++)
+                {
+                    var geoData = GetGeometryFromBlock(block, true, false).Where(g => g != null).ToList();
+                    ProcessReaderResults(geoData, "nooutputfile", true, true);
+                }
+
+                Close();
+                CleanupFiles();
+                sw.Stop();
+                Log.WriteLog("Area imported to DB at " + DateTime.Now + ", session lasted " + sw.Elapsed);
             }
             catch (Exception ex)
             {
@@ -324,7 +397,7 @@ namespace CoreComponents.PbfReader
 
             wayFinderListReverse.Reverse();
             nodeFinderListReverse.Reverse();
-            
+
             //Lazy optimization: if our node is bigger than roughly the halfway point, search from the end instead of the start.           
             var idx = new Index(nodeFinder2.Count() / 2);
             switchPointNodeId = nodeFinder2.ElementAt(idx).Value.Item2;
@@ -333,10 +406,11 @@ namespace CoreComponents.PbfReader
             switchPointWayId = wayFinderList.ElementAt(idx).Item2;
 
             firstWayBlock = LoadingWayFinder2.Keys.Min();
+            firstRelationBlock = blockCounter - relationCounter;
             startNodeBtreeIndex = nodeFinderList.Count() / 2;
             startWayBtreeIndex = wayFinderList.Count() / 2;
         }
-
+        
         private PrimitiveBlock GetBlock(long blockId)
         {
             //Track that this entry was requested for this processing block.
@@ -448,6 +522,8 @@ namespace CoreComponents.PbfReader
                 List<long> neededBlocks = new List<long>();
                 List<long> wayBlocks = new List<long>();
 
+                bool limitToBounds = (validWays != null); //If limited in scope, this list is what we'll refer to.
+
                 //memIds is delta-encoded
                 long idToFind = 0;
                 for (int i = 0; i < rel.memids.Count; i++)
@@ -461,6 +537,9 @@ namespace CoreComponents.PbfReader
                             //The FeatureInterpreter doesn't use nodes from a relation
                             break;
                         case Relation.MemberType.WAY:
+                            if (limitToBounds)
+                                if (!validWays.ContainsKey(idToFind))
+                                     return null; //skip as soon as possible if we;re limited to ways within bounds.
                             wayBlocks.Add(FindBlockKeyForWay(idToFind, wayBlocks));
                             wayBlocks = wayBlocks.Distinct().ToList();
                             break;
@@ -584,8 +663,28 @@ namespace CoreComponents.PbfReader
                     idToFind += node; //delta coding.
                     nodeList.Add(AllNodes[idToFind]);
                 }
-                finalway.Nodes = nodeList.ToArray();
 
+                //If we are doing bounds-checking, make sure this way has something in-bounds
+                //Any 1 node in-bounds is sufficient to justify loading the item for maptiles.
+                //This is here because I am pretty sure iterating on the list after populating
+                ////is faster than iterating on the dictionary before filing the list.
+                if (bounds != null)
+                {
+                    if (AllNodes.Any(n => n.Value.Latitude >= bounds.MinY 
+                        && n.Value.Latitude <= bounds.MaxY 
+                        && n.Value.Longitude >= bounds.MinX 
+                        && n.Value.Longitude <= bounds.MaxX))
+                    {
+                        //the good path
+                    }
+                    else
+                    {
+                        //Ideally, we would remove this from indexes, but we don't store individual items.
+                        //Instead, the 'load one relation' path will track which one succeeded, and white-list relations.
+                        return null;
+                    }
+                }
+                finalway.Nodes = nodeList.ToArray();
                 return finalway;
             }
             catch (Exception ex)
@@ -713,6 +812,13 @@ namespace CoreComponents.PbfReader
             filled.Latitude = DecodeLatLon(latDelta, nodeBlock.lat_offset, nodeBlock.granularity);
             filled.Longitude = DecodeLatLon(lonDelta, nodeBlock.lon_offset, nodeBlock.granularity);
 
+            //if bounds checking, drop nodes that aren't needed.
+            if (bounds != null)
+            {
+                if (filled.Latitude < bounds.MinY || filled.Latitude > bounds.MaxY || filled.Longitude < bounds.MinX || filled.Longitude > bounds.MaxX)
+                    return null;
+            }
+
             if (!skipTags)
             {
                 OsmSharp.Tags.TagsCollection tc = new OsmSharp.Tags.TagsCollection();
@@ -807,7 +913,7 @@ namespace CoreComponents.PbfReader
             int max = totalBlocks;
             int current = startNodeBtreeIndex;
 
-            while(min != max)
+            while (min != max)
             {
                 var check = nodeFinderList[current];
                 if (check.Item2 > nodeId) //this node's minimum is larger than our node, shift up
@@ -816,7 +922,7 @@ namespace CoreComponents.PbfReader
                     min = current;
                 else
                     return check.Item1;
-                
+
                 current = (min + max) / 2;
             }
             throw new Exception("Node Not Found");
@@ -842,7 +948,7 @@ namespace CoreComponents.PbfReader
                 }
             }
 
-            if (nodeId < switchPointNodeId) 
+            if (nodeId < switchPointNodeId)
                 foreach (var nodelist in nodeFinderList)
                 {
                     if (NodeHasKey(nodeId, nodelist))
@@ -882,7 +988,7 @@ namespace CoreComponents.PbfReader
                 else if (check.Item2 >= wayId) //this max is over our way, check previous block if this one is correct OR shift down if not
                 {
                     if (current == 0 || wayFinderList[current - 1].Item2 < wayId) //our way is below current max, above previous max, this is the block we want
-                       return check.Item1;
+                        return check.Item1;
                     else
                         max = current;
                 }
@@ -1038,7 +1144,7 @@ namespace CoreComponents.PbfReader
                                 {
                                     StringBuilder geomSB = new StringBuilder();
                                     StringBuilder tagsSB = new StringBuilder();
-                                    foreach(var md in convertednodes)
+                                    foreach (var md in convertednodes)
                                     {
                                         if (md != null)
                                         {
@@ -1051,7 +1157,7 @@ namespace CoreComponents.PbfReader
                                     }
                                     lock (geomFileLock)
                                         System.IO.File.AppendAllText(outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + ".json.geomInfile", geomSB.ToString());
-                                    lock(tagsFileLock)
+                                    lock (tagsFileLock)
                                         System.IO.File.AppendAllText(outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + ".json.tagsInfile", tagsSB.ToString());
                                 }
                                 else
@@ -1372,7 +1478,7 @@ namespace CoreComponents.PbfReader
                 {
                     lock (geomFileLock)
                         System.IO.File.AppendAllLines(saveFilename + ".geomInfile", georesults);
-                    lock(tagsFileLock)
+                    lock (tagsFileLock)
                         System.IO.File.AppendAllLines(saveFilename + ".tagsInfile", tagresults);
                     Log.WriteLog("Data written to disk");
                 }
