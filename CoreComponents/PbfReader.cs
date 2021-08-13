@@ -180,7 +180,7 @@ namespace CoreComponents.PbfReader
             }
         }
 
-        public void GetOneAreaFromFile(string filename, long relationId)
+        public Envelope GetOneAreaFromFile(string filename, long relationId)
         {
             //Get a bounding box from a single relation, then pull all entries in it from the file to the DB.
             try
@@ -195,35 +195,32 @@ namespace CoreComponents.PbfReader
                 nextBlockId = BlockCount() - 1;
                 SaveCurrentBlock(BlockCount());
 
-                //if (displayStatus)
-                //ShowWaitInfo();
-
                 //Get the source relation first
-                //var sourceBlock = relationFinder[relationId];
                 var relation = GetRelation(relationId);
                 var NTSrelation = GeometrySupport.ConvertOsmEntryToStoredElement(relation);
                 bounds = NTSrelation.elementGeometry.EnvelopeInternal;
 
                 //due to the bounding box, we need to process ways first.
                 //remove ways from the index that aren't within bounds, which will kick out relations automatically.
-
                 validWays = new Dictionary<long, bool>();
                 for(var block = firstWayBlock; block < firstRelationBlock;  block++)
                 {
+                    Log.WriteLog("Way Block " + block);
                     //Handle ways first.
-                    var geoData = GetGeometryFromBlock(block, true, false).Where(g => g != null).ToList();
+                    var geoData = GetGeometryFromBlock(block, false, false).Where(g => g != null).ToList();
                     foreach (var g in geoData)
                         validWays.Add(g.Id, true);
                     
-                    ProcessReaderResults(geoData, "nooutputfile", true, true);
+                    ProcessReaderResults(geoData, "nooutputfile", true, false);
                 }
                 Console.WriteLine("Ways processed, checking relations....");
 
                 //Now do relations, but make sure they only process if all ways are in validWays.
                 for(var block = nextBlockId; block > firstWayBlock + wayFinderList.Count() - 1; block--)
                 {
-                    var geoData = GetGeometryFromBlock(block, true, false).Where(g => g != null).ToList();
-                    ProcessReaderResults(geoData, "nooutputfile", true, true);
+                    Log.WriteLog("Relation Block " + block);
+                    var geoData = GetGeometryFromBlock(block, false, false).Where(g => g != null).ToList();
+                    ProcessReaderResults(geoData, "nooutputfile", true, false);
                 }
 
                 Console.WriteLine("Relations processed, checking nodes...");
@@ -231,20 +228,24 @@ namespace CoreComponents.PbfReader
                 //finally, do nodes within bounds,.
                 for (var block = 1; block < firstWayBlock; block++)
                 {
-                    var geoData = GetGeometryFromBlock(block, true, false).Where(g => g != null).ToList();
-                    ProcessReaderResults(geoData, "nooutputfile", true, true);
+                    Log.WriteLog("Node block " + block);
+                    var geoData = GetGeometryFromBlock(block, false, false).Where(g => g != null).ToList();
+                    ProcessReaderResults(geoData, "nooutputfile", true, false);
                 }
 
                 Close();
                 CleanupFiles();
                 sw.Stop();
                 Log.WriteLog("Area imported to DB at " + DateTime.Now + ", session lasted " + sw.Elapsed);
+                Log.WriteLog("Waiting for threaded tasks to finish.");
+                return bounds;
             }
             catch (Exception ex)
             {
                 while (ex.InnerException != null)
                     ex = ex.InnerException;
                 Log.WriteLog("Error processing file: " + ex.Message + ex.StackTrace);
+                return null;
             }
         }
 
@@ -406,7 +407,7 @@ namespace CoreComponents.PbfReader
             switchPointWayId = wayFinderList.ElementAt(idx).Item2;
 
             firstWayBlock = LoadingWayFinder2.Keys.Min();
-            firstRelationBlock = blockCounter - relationCounter;
+            firstRelationBlock = blockCounter - relationCounter + 1;
             startNodeBtreeIndex = nodeFinderList.Count() / 2;
             startWayBtreeIndex = wayFinderList.Count() / 2;
         }
@@ -523,6 +524,7 @@ namespace CoreComponents.PbfReader
                 List<long> wayBlocks = new List<long>();
 
                 bool limitToBounds = (validWays != null); //If limited in scope, this list is what we'll refer to.
+                bool hasMemberInBounds = false;
 
                 //memIds is delta-encoded
                 long idToFind = 0;
@@ -538,8 +540,8 @@ namespace CoreComponents.PbfReader
                             break;
                         case Relation.MemberType.WAY:
                             if (limitToBounds)
-                                if (!validWays.ContainsKey(idToFind))
-                                     return null; //skip as soon as possible if we;re limited to ways within bounds.
+                                if (validWays.ContainsKey(idToFind))
+                                    hasMemberInBounds = true; //We only need one member in-bounds to justify drawing the relation.
                             wayBlocks.Add(FindBlockKeyForWay(idToFind, wayBlocks));
                             wayBlocks = wayBlocks.Distinct().ToList();
                             break;
@@ -548,6 +550,10 @@ namespace CoreComponents.PbfReader
                             break;
                     }
                 }
+
+                if (limitToBounds && !hasMemberInBounds)
+                    return null; 
+
                 neededBlocks.AddRange(wayBlocks.Distinct());
                 neededBlocks = neededBlocks.Distinct().ToList();
                 foreach (var nb in neededBlocks)
@@ -571,7 +577,7 @@ namespace CoreComponents.PbfReader
                             break;
                         case Relation.MemberType.WAY:
                             if (!loadedWays.ContainsKey(idToFind))
-                                loadedWays.Add(idToFind, GetWay(idToFind, false, wayBlocks));
+                                loadedWays.Add(idToFind, GetWay(idToFind, false, wayBlocks, false, true)); //Force load these, even if it's out of bounds. 
                             c.Member = loadedWays[idToFind];
                             break;
                     }
@@ -592,7 +598,7 @@ namespace CoreComponents.PbfReader
             }
         }
 
-        private OsmSharp.Complete.CompleteWay GetWay(long wayId, bool skipUntagged, List<long> hints = null, bool ignoreUnmatched = false)
+        private OsmSharp.Complete.CompleteWay GetWay(long wayId, bool skipUntagged, List<long> hints = null, bool ignoreUnmatched = false, bool skipBoundsCheck = false)
         {
             try
             {
@@ -668,7 +674,7 @@ namespace CoreComponents.PbfReader
                 //Any 1 node in-bounds is sufficient to justify loading the item for maptiles.
                 //This is here because I am pretty sure iterating on the list after populating
                 ////is faster than iterating on the dictionary before filing the list.
-                if (bounds != null)
+                if (bounds != null && !skipBoundsCheck)
                 {
                     if (AllNodes.Any(n => n.Value.Latitude >= bounds.MinY 
                         && n.Value.Latitude <= bounds.MaxY 
@@ -1383,13 +1389,13 @@ namespace CoreComponents.PbfReader
             foreach (var r in items)
             {
                 if (r != null)
-                    relList.Add(Task.Run(() => elements.Add(GeometrySupport.ConvertOsmEntryToStoredElement(r))));
+                    relList.Add(Task.Run(() => { var e = GeometrySupport.ConvertOsmEntryToStoredElement(r); if (e != null) elements.Add(e); }));
             }
             Task.WaitAll(relList.ToArray());
             relList = new ConcurrentBag<Task>();
 
             if (onlyTagMatchedElements)
-                elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => e != null && TagParser.GetStyleForOsmWay(e.Tags.ToList()).name != TagParser.styles.Last().name));
+                elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => TagParser.GetStyleForOsmWay(e.Tags.ToList()).name != TagParser.styles.Last().name));
 
             if (saveToDb)
             {

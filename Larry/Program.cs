@@ -287,6 +287,7 @@ namespace Larry
                 }
             }
 
+            //TODO: add maptile creation to this call, rename it to something like 'makeServerFor:'
             if (args.Any(a => a.StartsWith("-loadOneArea:"))) //-loadOneArea:filename:relationId
             {
                 var subargs = args.First(a => a.StartsWith("-loadOneArea:")).Split(":");
