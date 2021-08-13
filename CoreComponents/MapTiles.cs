@@ -12,6 +12,7 @@ using SkiaSharp;
 using CoreComponents.Support;
 using OsmSharp.API;
 using System.Xml.Schema;
+using System.Collections.Concurrent;
 
 namespace CoreComponents
 {
@@ -519,6 +520,135 @@ namespace CoreComponents
             }
 
             return bitmap;
+        }
+
+        public static void PregenMapTilesForArea(GeoArea buffered)
+        {
+            //There is a very similar function for this in Standalone.cs, but this one writes back to the main DB.
+            var db = new PraxisContext();
+            var intersectCheck = Converters.GeoAreaToPolygon(buffered);
+            //start drawing maptiles and sorting out data.
+            var swCorner = new OpenLocationCode(intersectCheck.EnvelopeInternal.MinY, intersectCheck.EnvelopeInternal.MinX);
+            var neCorner = new OpenLocationCode(intersectCheck.EnvelopeInternal.MaxY, intersectCheck.EnvelopeInternal.MaxX);
+
+            //declare how many map tiles will be drawn
+            var xTiles = buffered.LongitudeWidth / resolutionCell8;
+            var yTiles = buffered.LatitudeHeight / resolutionCell8;
+            var totalTiles = Math.Truncate(xTiles * yTiles);
+
+            Log.WriteLog("Starting processing maptiles for " + totalTiles + " Cell8 areas.");
+            long mapTileCounter = 0;
+            System.Diagnostics.Stopwatch progressTimer = new System.Diagnostics.Stopwatch();
+            progressTimer.Start();
+
+            //now, for every Cell8 involved, draw and name it.
+            //This is tricky to run in parallel because it's not smooth increments
+            var yCoords = new List<double>();
+            var yVal = swCorner.Decode().SouthLatitude;
+            while (yVal <= neCorner.Decode().NorthLatitude)
+            {
+                yCoords.Add(yVal);
+                yVal += resolutionCell8;
+            }
+
+            var xCoords = new List<double>();
+            var xVal = swCorner.Decode().WestLongitude;
+            while (xVal <= neCorner.Decode().EastLongitude)
+            {
+                xCoords.Add(xVal);
+                xVal += resolutionCell8;
+            }
+
+            foreach (var y in yCoords)
+            {
+                //Make a collision box for just this row of Cell8s, and send the loop below just the list of things that might be relevant.
+                //Add a Cell8 buffer space so all elements are loaded and drawn without needing to loop through the entire area.
+                GeoArea thisRow = new GeoArea(y - ConstantValues.resolutionCell8, xCoords.First() - ConstantValues.resolutionCell8, y + ConstantValues.resolutionCell8 + ConstantValues.resolutionCell8, xCoords.Last() + resolutionCell8);
+                var row = Converters.GeoAreaToPolygon(thisRow);
+                var rowList = GetPlaces(thisRow);
+                var tilesToSave = new ConcurrentBag<MapTile>();
+
+                Parallel.ForEach(xCoords, x =>
+                //foreach (var x in xCoords)
+                {
+                    //make map tile.
+                    var plusCode = new OpenLocationCode(y, x, 10);
+                    var plusCode8 = plusCode.CodeDigits.Substring(0, 8);
+                    var plusCodeArea = OpenLocationCode.DecodeValid(plusCode8);
+
+                    var areaForTile = new GeoArea(new GeoPoint(plusCodeArea.SouthLatitude, plusCodeArea.WestLongitude), new GeoPoint(plusCodeArea.NorthLatitude, plusCodeArea.EastLongitude));
+                    var acheck = Converters.GeoAreaToPolygon(areaForTile); //this is faster than using a PreparedPolygon in testing, which was unexpected.
+                    var areaList = rowList.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); //This one is for the maptile
+
+                    //Create the maptile first, so if we save it to the DB/a file we can call the lock once per loop.
+                    var info = new ImageStats(areaForTile, 80, 100); //Each pixel is a Cell11, we're drawing a Cell8. For Cell6 testing this is 1600x2000, just barely within android limits
+                    var tile = MapTiles.DrawAreaAtSize(info, areaList);
+                    tilesToSave.Add(new MapTile() { tileData = tile, PlusCode = plusCode.Code, CreatedOn = DateTime.Now, ExpireOn = DateTime.Now.AddDays(365 * 10), areaCovered = Converters.GeoAreaToPolygon(plusCodeArea), resolutionScale = 11, mode = 1 });
+
+                    mapTileCounter++;
+                });
+                db.MapTiles.AddRange(tilesToSave);
+                db.SaveChanges();
+                Log.WriteLog(mapTileCounter + " tiles processed, " + Math.Round((mapTileCounter / totalTiles) * 100, 2) + "% complete");
+
+            }//);
+        }
+
+        //not yet tested.
+        public static void PregenSlippyMapTilesForArea(GeoArea buffered, int zoomLevel)
+        {
+            //There is a very similar function for this in Standalone.cs, but this one writes back to the main DB.
+            var db = new PraxisContext();
+            var intersectCheck = Converters.GeoAreaToPolygon(buffered);
+
+            //start drawing maptiles and sorting out data.
+            var swCornerLon = Converters.GetSlippyXFromLon(intersectCheck.EnvelopeInternal.MinX, zoomLevel);
+            var neCornerLon = Converters.GetSlippyXFromLon(intersectCheck.EnvelopeInternal.MaxX, zoomLevel);
+            var swCornerLat = Converters.GetSlippyYFromLat(intersectCheck.EnvelopeInternal.MinY, zoomLevel);
+            var neCornerLat = Converters.GetSlippyYFromLat(intersectCheck.EnvelopeInternal.MaxY, zoomLevel);
+
+            //declare how many map tiles will be drawn
+            var xTiles = neCornerLon - swCornerLon;
+            var yTiles = neCornerLat - swCornerLat;
+            var totalTiles = xTiles * yTiles;
+            
+            Log.WriteLog("Starting processing " + totalTiles + " maptiles for zoom level " + zoomLevel);
+            long mapTileCounter = 0;
+            System.Diagnostics.Stopwatch progressTimer = new System.Diagnostics.Stopwatch();
+            progressTimer.Start();
+
+            //foreach (var y in yCoords)
+            for(var y = swCornerLat; y < neCornerLat; y++)
+            {
+                //Make a collision box for just this row of Cell8s, and send the loop below just the list of things that might be relevant.
+                //Add a Cell8 buffer space so all elements are loaded and drawn without needing to loop through the entire area.
+                GeoArea thisRow = new GeoArea(Converters.SlippyYToLat(y, zoomLevel) - ConstantValues.resolutionCell8,
+                    Converters.SlippyXToLon(swCornerLon, zoomLevel) - ConstantValues.resolutionCell8,
+                    Converters.SlippyYToLat(y+1, zoomLevel) + ConstantValues.resolutionCell8,
+                    Converters.SlippyXToLon(neCornerLon, zoomLevel) + resolutionCell8);
+                var row = Converters.GeoAreaToPolygon(thisRow);
+                var rowList = GetPlaces(thisRow);
+                var tilesToSave = new ConcurrentBag<SlippyMapTile>();
+
+                Parallel.For(swCornerLon, neCornerLon +1, (x) =>
+                //Parallel.ForEach(xCoords, x =>
+                //foreach (var x in xCoords)
+                {
+                    //make map tile.
+                    var info = new ImageStats(zoomLevel, x, y, MapTileSizeSquare, MapTileSizeSquare);
+                    var acheck = Converters.GeoAreaToPolygon(info.area); //this is faster than using a PreparedPolygon in testing, which was unexpected.
+                    var areaList = rowList.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); //This one is for the maptile
+                    
+                    var tile = MapTiles.DrawAreaAtSize(info, areaList);
+                    tilesToSave.Add(new SlippyMapTile() { tileData = tile, Values = x + "|" + y + "|" + zoomLevel, CreatedOn = DateTime.Now, ExpireOn = DateTime.Now.AddDays(365 * 10), areaCovered = Converters.GeoAreaToPolygon(info.area), mode = 1 });
+
+                    mapTileCounter++;
+                });
+                db.SlippyMapTiles.AddRange(tilesToSave);
+                db.SaveChanges();
+                Log.WriteLog(mapTileCounter + " tiles processed, " + ((mapTileCounter / totalTiles) * 100) + "% complete");
+
+            }//);
         }
     }
 }

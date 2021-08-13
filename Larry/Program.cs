@@ -288,13 +288,20 @@ namespace Larry
             }
 
             //TODO: add maptile creation to this call, rename it to something like 'makeServerFor:'
+            //time note: takes about 2 minutes for new castle county in delaware.
             if (args.Any(a => a.StartsWith("-loadOneArea:"))) //-loadOneArea:filename:relationId
             {
+                //TODO: call createDB here if this is a single command to populate up a web server from scratch.
                 var subargs = args.First(a => a.StartsWith("-loadOneArea:")).Split(":");
                 Console.WriteLine("Loading relation " + subargs[2] + " from file " + ParserSettings.PbfFolder + subargs[1]);
                 var r = new PbfReader();
                 r.outputPath = ParserSettings.JsonMapDataFolder;
-                r.GetOneAreaFromFile(ParserSettings.PbfFolder + subargs[1], Int64.Parse(subargs[2]));
+                var env = r.GetOneAreaFromFile(ParserSettings.PbfFolder + subargs[1], Int64.Parse(subargs[2]));
+
+                Log.WriteLog("Beginning game maptile draw for relation " + subargs[2]);
+                GeoArea drawRegion = new GeoArea(env.MinY, env.MinX, env.MaxY, env.MaxX);
+                MapTiles.PregenMapTilesForArea(drawRegion);
+                Log.WriteLog("Game maptiles completed");
             }
 
             if (args.Any(a => a == "-updateDatabase"))
