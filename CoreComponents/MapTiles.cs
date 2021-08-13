@@ -608,8 +608,8 @@ namespace CoreComponents
             var neCornerLat = Converters.GetSlippyYFromLat(intersectCheck.EnvelopeInternal.MaxY, zoomLevel);
 
             //declare how many map tiles will be drawn
-            var xTiles = neCornerLon - swCornerLon;
-            var yTiles = neCornerLat - swCornerLat;
+            var xTiles = neCornerLon - swCornerLon + 1;
+            var yTiles = swCornerLat - neCornerLat + 1;
             var totalTiles = xTiles * yTiles;
             
             Log.WriteLog("Starting processing " + totalTiles + " maptiles for zoom level " + zoomLevel);
@@ -618,13 +618,13 @@ namespace CoreComponents
             progressTimer.Start();
 
             //foreach (var y in yCoords)
-            for(var y = swCornerLat; y < neCornerLat; y++)
+            for(var y = neCornerLat; y <= swCornerLat; y++)
             {
                 //Make a collision box for just this row of Cell8s, and send the loop below just the list of things that might be relevant.
                 //Add a Cell8 buffer space so all elements are loaded and drawn without needing to loop through the entire area.
-                GeoArea thisRow = new GeoArea(Converters.SlippyYToLat(y, zoomLevel) - ConstantValues.resolutionCell8,
+                GeoArea thisRow = new GeoArea(Converters.SlippyYToLat(y+1, zoomLevel) - ConstantValues.resolutionCell8,
                     Converters.SlippyXToLon(swCornerLon, zoomLevel) - ConstantValues.resolutionCell8,
-                    Converters.SlippyYToLat(y+1, zoomLevel) + ConstantValues.resolutionCell8,
+                    Converters.SlippyYToLat(y, zoomLevel) + ConstantValues.resolutionCell8,
                     Converters.SlippyXToLon(neCornerLon, zoomLevel) + resolutionCell8);
                 var row = Converters.GeoAreaToPolygon(thisRow);
                 var rowList = GetPlaces(thisRow);
@@ -646,7 +646,7 @@ namespace CoreComponents
                 });
                 db.SlippyMapTiles.AddRange(tilesToSave);
                 db.SaveChanges();
-                Log.WriteLog(mapTileCounter + " tiles processed, " + ((mapTileCounter / totalTiles) * 100) + "% complete");
+                Log.WriteLog(mapTileCounter + " tiles processed, " + Math.Round(((mapTileCounter / (double)totalTiles * 100)), 2) + "% complete");
 
             }//);
         }
