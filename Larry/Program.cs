@@ -301,6 +301,13 @@ namespace Larry
                 Log.WriteLog("Beginning game maptile draw for relation " + subargs[2]);
                 GeoArea drawRegion = new GeoArea(env.MinY, env.MinX, env.MaxY, env.MaxX);
                 MapTiles.PregenMapTilesForArea(drawRegion);
+                MapTiles.PregenSlippyMapTilesForArea(drawRegion, 8);
+                MapTiles.PregenSlippyMapTilesForArea(drawRegion, 10);
+                MapTiles.PregenSlippyMapTilesForArea(drawRegion, 12);
+                MapTiles.PregenSlippyMapTilesForArea(drawRegion, 14);
+                MapTiles.PregenSlippyMapTilesForArea(drawRegion, 16);
+                MapTiles.PregenSlippyMapTilesForArea(drawRegion, 18); 
+                //zoom 20 can get generated on the server on-demand.
                 Log.WriteLog("Game maptiles completed");
             }
 
