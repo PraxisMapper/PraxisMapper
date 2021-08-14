@@ -594,7 +594,6 @@ namespace CoreComponents
             }//);
         }
 
-        //not yet tested.
         public static void PregenSlippyMapTilesForArea(GeoArea buffered, int zoomLevel)
         {
             //There is a very similar function for this in Standalone.cs, but this one writes back to the main DB.

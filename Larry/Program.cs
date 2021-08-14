@@ -287,8 +287,7 @@ namespace Larry
                 }
             }
 
-            //TODO: add maptile creation to this call, rename it to something like 'makeServerFor:'
-            //time note: takes about 2 minutes for new castle county in delaware.
+            //TODO: rename it to something like 'makeServerFor:'
             if (args.Any(a => a.StartsWith("-loadOneArea:"))) //-loadOneArea:filename:relationId
             {
                 //TODO: call createDB here if this is a single command to populate up a web server from scratch.
