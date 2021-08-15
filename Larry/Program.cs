@@ -23,14 +23,6 @@ using Microsoft.EntityFrameworkCore.ValueGeneration.Internal;
 //TODO: Ponder using https://download.bbbike.org/osm/ as a data source to get a custom extract of an area (for when users want a local-focused app, probably via a wizard GUI)
 //OR could use an additional input for filterbox.
 
-//TODO: next project target: get a county-sized area running on a self-contained server as cheap as possbile
-//Test bed: relation 1245077 (New Castle County, Delaware, USA) pop 500k.
-// sub-steps:
-// Pull source area out of OSM file, determine bounding box
-// Pull all elements that overlap bounding box from source file.
-// save those elements to db
-// pre-generate all game map tiles (Cell8 tiles at Cell11 res) to DB.
-//test micro server has NET 6 and MariaDb installed (though MariaDB may need setup still)
 namespace Larry
 {
     class Program

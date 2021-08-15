@@ -407,6 +407,10 @@ namespace CoreComponents
                 if (paint.Color.Alpha == 0)
                     continue; //This area is transparent, skip drawing it entirely.
 
+                //TODO: uncomment this once paint types have values assigned.                
+                //if (stats.degreesPerPixelX > style.maxDrawRes || stats.degreesPerPixelX < style.minDrawRes)
+                    //continue; //This area isn't drawn at this scale.
+
                 var path = new SKPath();
                 switch (w.elementGeometry.GeometryType)
                 {
