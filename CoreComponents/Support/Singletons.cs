@@ -40,9 +40,14 @@ namespace CoreComponents
         //or: as long as one of the rules with or is true, accept this entry as a match. each Or entry should be treated as its own 'any' for parsing purposes.
         //not: this rule must be FALSE for the style to be applied.
         //default: always true.
+        //New Layer Rules:
+        //default content: 3
+        
         public static List<TagParserEntry> defaultTagParserEntries = new List<TagParserEntry>()
         {
-            new TagParserEntry() { id = 1, name ="water", HtmlColorCode = "0000B3", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", TagParserMatchRules = new List<TagParserMatchRule>() {
+            new TagParserEntry() { id = 1, name ="water", 
+                paintOperations = new List<TagParserPaint>() { new TagParserPaint() { HtmlColorCode = "0000B3", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 3 } }, 
+                TagParserMatchRules = new List<TagParserMatchRule>() {
                 new TagParserMatchRule() {Key = "natural", Value = "water|strait|bay", MatchType = "or"},
                 new TagParserMatchRule() {Key = "waterway", Value ="*", MatchType="or" },
                 new TagParserMatchRule() {Key = "landuse", Value ="basin", MatchType="or" },

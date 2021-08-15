@@ -121,6 +121,9 @@ namespace CoreComponents
             public int Priority { get; set; } //order tags should be matched in. EX: Retail should be matched before Building, since its more specific and useful. But usually smallest/shortest path goes last and biggest/longest goes first
             public bool IsGameElement { get; set; } // This tag should be used when asking for game areas, not just map tiles. Would let me use a single table for both again.
             public string fileName { get; set; } //A path to an image file that will be used as a repeating pattern. Null for solid colors.
+            public ICollection<TagParserPaint> paintOperations { get; set; }
+            public double minDrawRes { get; set; } //skip drawing this item if  resPerPixelX is below this value. (what doesn't draw zoomed in on OSM? name text?
+            public double maxDrawRes {  get; set; } //skip drawing this item if resPerPixelX is above this value. (EX: tertiary roads don't draw at distant zooms but primary roads do)
         }
 
         public class TagParserMatchRule
@@ -131,6 +134,23 @@ namespace CoreComponents
             public string Value { get; set; } //the right side of the key:value tag
             public string MatchType { get; set; } //Any, all, contains, not.
         }
+
+        public class TagParserPaint
+        {
+            //For enabling layering of drawn elements
+            public long id { get; set; }
+            //Layer note: it's still pretty possible that a lot of elements all get drawn on one layer, and only a few use multiple layers, like the outlined roads.
+            public int layerId { get; set; } //All paint operations should be done on their own layer, then all merged together? smaller ID are on top, bigger IDs on bottom. Layer 1 hides 2 hides 3 etc.
+            //The below are copied from the original object.These get used to create the SKPaint object once at startup, then that paint object is used from then on.
+            public string HtmlColorCode { get; set; }
+            public string FillOrStroke { get; set; }
+            public float LineWidth { get; set; } //Todo ponder: should this be pixels, or degrees? or scale based on degreesperpixelx?
+            public string LinePattern { get; set; } //solid, dashed, other varieties? //If blank, solid line. If not, split string into float[] on |
+            [NotMapped]
+            public SKPaint paint { get; set; } //Fill in on app start.
+
+        }
+
 
         public class ServerSetting
         {

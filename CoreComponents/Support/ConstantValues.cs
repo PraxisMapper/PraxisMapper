@@ -14,5 +14,18 @@
         public const double resolutionCell2 = 20; //the size of a 2-digit PlusCode, in degrees. Approx 2200km ^2
 
         public const double squareCell10Area = resolutionCell10 * resolutionCell10; //for area-control calculations.
+
+        //Slippy map tile zoom levels to degrees per pixel at 512x512 (double numbers for 256x256)
+        //TODO: fill in odd levels too by dividing larger number in half?
+        //TODO: calculate this in ImageStats by dividing the width of a tile (in degrees) by the number of pixels in the image? Or keep these as static reference?
+        public const double zoom4DegPerPixelX =  0.0439453125;
+        public const double zoom6DegPerPixelX =  0.010986328125;
+        public const double zoom8DegPerPixelX =  0.00274658203125;
+        public const double zoom10DegPerPixelX = 0.0006866455078125;
+        public const double zoom12DegPerPixelX = 0.000171661376953125;
+        public const double zoom14DegPerPixelX = 0.00004291534423828125;
+        public const double zoom16DegPerPixelX = 0.000010728836059570312;
+        public const double zoom18DegPerPixelX = 0.000002682209014892578;
+        public const double zoom20DegPerPixelX = 0.0000006705522537231445;
     }
 }
