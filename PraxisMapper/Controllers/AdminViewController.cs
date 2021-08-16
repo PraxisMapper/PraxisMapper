@@ -88,6 +88,12 @@ namespace PraxisMapper.Controllers
                 geoarea.NorthLatitude + ConstantValues.resolutionCell10, 
                 geoarea.EastLongitude + ConstantValues.resolutionCell10); //add some padding to the edges.
             ImageStats istats = new ImageStats(geoarea, (int)(geoarea.LongitudeWidth / ConstantValues.resolutionCell11Lon), (int)(geoarea.LatitudeHeight / ConstantValues.resolutionCell11Lat));
+            //sanity check: we don't want to draw stuff that won't fit in memory, so check for size and cap it if needed
+            if (istats.imageSizeX * istats.imageSizeY > 8000000)
+            {
+                var ratio = geoarea.LongitudeWidth / geoarea.LatitudeHeight;
+                istats = new ImageStats(geoarea, (int)(2000 * ratio), (int)(2000 * ratio));
+            }
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
             sw.Start();
             var tile = MapTiles.DrawAreaAtSize(istats);

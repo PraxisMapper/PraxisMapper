@@ -55,6 +55,7 @@ namespace Larry
             model.Entity<PlusCodesVisited>().HasIndex(p => p.PlusCode);
 
             model.Entity<ScavengerHuntStandalone>().HasIndex(p => p.playerHasVisited);
+            model.Entity<ScavengerHuntStandalone>().HasIndex(p => p.description);
         }
 
     }
