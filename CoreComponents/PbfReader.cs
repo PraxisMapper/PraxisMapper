@@ -1,22 +1,14 @@
-﻿using System;
-using System.IO;
-using System.Collections.Generic;
-using ProtoBuf;
+﻿using ProtoBuf;
 using Ionic.Zlib;
-using System.Linq;
 using System.Collections.Concurrent;
-using System.Threading.Tasks;
 using static CoreComponents.DbTables;
 using CoreComponents.Support;
 using System.Text.Json;
-using NetTopologySuite.Noding;
 using OsmSharp.Complete;
-using System.ComponentModel.DataAnnotations;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using System.Text;
 using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
-using System.Net.Http.Json;
 using NetTopologySuite.Geometries;
+using NetTopologySuite.Geometries.Prepared;
 
 namespace CoreComponents.PbfReader
 {
@@ -29,8 +21,6 @@ namespace CoreComponents.PbfReader
         //Primary function:
         //ProcessFile(filename) should do everything automatically and allow resuming if you stop the app.
 
-        //TODO: eliminiate reverse way lists, unnecessary with BTree search. same for the mid-node check.
-
         FileInfo fi;
         FileStream fs;
 
@@ -41,20 +31,17 @@ namespace CoreComponents.PbfReader
         ConcurrentDictionary<long, Tuple<long, long>> nodeFinder2 = new ConcurrentDictionary<long, Tuple<long, long>>();
         //blockId, minNode, maxNode.
         List<Tuple<long, long, long>> nodeFinderList = new List<Tuple<long, long, long>>();
-        List<Tuple<long, long, long>> nodeFinderListReverse = new List<Tuple<long, long, long>>();
         //<blockId, maxWayId> since ways are sorted in order.
-        ConcurrentDictionary<long, long> LoadingWayFinder2 = new ConcurrentDictionary<long, long>();// Concurrent needed because loading is threaded.
+        ConcurrentDictionary<long, long> wayFinder = new ConcurrentDictionary<long, long>();// Concurrent needed because loading is threaded.
         List<Tuple<long, long>> wayFinderList = new List<Tuple<long, long>>();
-        List<Tuple<long, long>> wayFinderListReverse = new List<Tuple<long, long>>();
         int nodeFinderTotal = 0;
+        int wayFinderTotal = 0;
 
         Dictionary<long, long> blockPositions = new Dictionary<long, long>();
         Dictionary<long, int> blockSizes = new Dictionary<long, int>();
 
         Envelope bounds = null; //If not null, reject elements not within it
-        //ConcurrentDictionary<long, bool> validWays = null; //if not null, only process relations where all way members are on this list. //Too picky
-        Geometry boundsEntry = null; //use for precise detection of what to include.
-
+        IPreparedGeometry boundsEntry = null; //use for precise detection of what to include.
 
         ConcurrentDictionary<long, PrimitiveBlock> activeBlocks = new ConcurrentDictionary<long, PrimitiveBlock>();
         ConcurrentDictionary<long, bool> accessedBlocks = new ConcurrentDictionary<long, bool>();
@@ -73,6 +60,8 @@ namespace CoreComponents.PbfReader
         long firstRelationBlock = 0;
         int startNodeBtreeIndex = 0;
         int startWayBtreeIndex = 0;
+        int wayHintsMax = 20;
+        int nodeHintsMax = 20;
 
         ConcurrentBag<Task> writeTasks = new ConcurrentBag<Task>(); //Writing to json file, and long-running relation processing
         ConcurrentBag<Task> relList = new ConcurrentBag<Task>(); //Individual, smaller tasks.
@@ -86,10 +75,6 @@ namespace CoreComponents.PbfReader
         //    9428957, //Gulf of St. Lawrence. 11,000 ways. Can finish processing, so it's somewhere between 11k and 14k that the stack overflow hits.
         //    4039900, //Lake Erie is 1100 ways, takes ~56 seconds start to finish.
         //};
-
-        //lazy optimization: when to search a reversed list of nodes;
-        long switchPointNodeId = 0;
-        long switchPointWayId = 0;
 
         public bool displayStatus = true;
 
@@ -202,39 +187,22 @@ namespace CoreComponents.PbfReader
                 var relation = GetRelation(relationId);
                 var NTSrelation = GeometrySupport.ConvertOsmEntryToStoredElement(relation);
                 bounds = NTSrelation.elementGeometry.EnvelopeInternal;
-                boundsEntry = NTSrelation.elementGeometry;
-                //TODO: no longer need to use this order when checking against boundsEntry, can run last block to first.
-
+                var pgf = new PreparedGeometryFactory();
+                boundsEntry = pgf.Create(NTSrelation.elementGeometry);
+                
                 //The boundsEntry will be used when checking geometry, and things that intersect will be processed and the rest excluded.                
-                for (var block = firstWayBlock; block < firstRelationBlock; block++)
+                for(var block = nextBlockId; block >= 1; block--)
                 {
-                    Log.WriteLog("Way Block " + block);
-                    //Handle ways first.
-                    var geoData = GetGeometryFromBlock(block, false, false).Where(g => g != null).ToList();
-
-
-                    ProcessReaderResults(geoData, "nooutputfile", true, false);
-                }
-                Console.WriteLine("Ways processed, checking relations....");
-
-                //Now do relations, but make sure they only process if all ways are in validWays.
-                for(var block = nextBlockId; block >= firstRelationBlock; block--)
-                {
-                    Log.WriteLog("Relation Block " + block);
+                    if (block >= firstRelationBlock)
+                        Log.WriteLog("Relation Block " + block);
+                    else if (block >= firstWayBlock)
+                        Log.WriteLog("Way Block " + block);
+                    else
+                        Log.WriteLog("Node Block " + block);
                     var geoData = GetGeometryFromBlock(block, false, false).Where(g => g != null).ToList();
                     ProcessReaderResults(geoData, "nooutputfile", true, false);
                 }
-
-                Console.WriteLine("Relations processed, checking nodes...");
-
-                //finally, do nodes within bounds,.
-                for (var block = 1; block < firstWayBlock; block++)
-                {
-                    Log.WriteLog("Node block " + block);
-                    var geoData = GetGeometryFromBlock(block, false, false).Where(g => g != null).ToList();
-                    ProcessReaderResults(geoData, "nooutputfile", true, false);
-                }
-
+                Task.WaitAll(writeTasks.ToArray());
                 Close();
                 CleanupFiles();
                 sw.Stop();
@@ -277,7 +245,7 @@ namespace CoreComponents.PbfReader
             {
                 try
                 {
-                    var g = GetRelation(9428957);  //(r.Key);
+                    var g = GetRelation(9428957);  //(r.Key); //gulf of st laurence
                     TimeSpan runA, runB;
 
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
@@ -312,7 +280,7 @@ namespace CoreComponents.PbfReader
             blockSizes = new Dictionary<long, int>();
             relationFinder = new ConcurrentDictionary<long, long>();
             nodeFinder2 = new ConcurrentDictionary<long, Tuple<long, long>>();
-            LoadingWayFinder2 = new ConcurrentDictionary<long, long>();
+            wayFinder = new ConcurrentDictionary<long, long>();
 
             BlobHeader bh = new BlobHeader();
             Blob b = new Blob();
@@ -350,7 +318,7 @@ namespace CoreComponents.PbfReader
                     if (group.ways.Count > 0)
                     {
                         var wMax = group.ways.Max(w => w.id);
-                        if (!LoadingWayFinder2.TryAdd(passedBC, wMax))
+                        if (!wayFinder.TryAdd(passedBC, wMax))
                             Log.WriteLog("ERROR: failed to add block " + passedBC + " to way index");
                         wayCounter++;
                     }
@@ -386,33 +354,16 @@ namespace CoreComponents.PbfReader
             }
             Task.WaitAll(waiting.ToArray());
             //this logic does require the wayIndex to be in blockID order, which they usually are.
-            foreach (var w in LoadingWayFinder2.OrderBy(w => w.Key))
+            foreach (var w in wayFinder.OrderBy(w => w.Key))
             {
                 wayFinderList.Add(Tuple.Create(w.Key, w.Value));
-                wayFinderListReverse.Add(Tuple.Create(w.Key, w.Value));
             }
             Log.WriteLog("Found " + blockCounter + " blocks. " + relationCounter + " relation blocks and " + wayCounter + " way blocks.");
             foreach (var entry in nodeFinder2)
             {
                 nodeFinderList.Add(Tuple.Create(entry.Key, entry.Value.Item1, entry.Value.Item2));
-                nodeFinderListReverse.Add(Tuple.Create(entry.Key, entry.Value.Item1, entry.Value.Item2));
             }
-
-            wayFinderListReverse.Reverse();
-            nodeFinderListReverse.Reverse();
-
-            //Lazy optimization: if our node is bigger than roughly the halfway point, search from the end instead of the start.           
-            var idx = new Index(nodeFinder2.Count() / 2);
-            switchPointNodeId = nodeFinder2.ElementAt(idx).Value.Item2;
-
-            idx = new Index(wayFinderList.Count() / 2);
-            switchPointWayId = wayFinderList.ElementAt(idx).Item2;
-
-            nodeFinderTotal = nodeFinderList.Count();
-            firstWayBlock = LoadingWayFinder2.Keys.Min();
-            firstRelationBlock = blockCounter - relationCounter + 1;
-            startNodeBtreeIndex = nodeFinderTotal / 2;
-            startWayBtreeIndex = wayFinderList.Count() / 2;
+            SetOptimizationValues();
         }
         
         private PrimitiveBlock GetBlock(long blockId)
@@ -451,21 +402,21 @@ namespace CoreComponents.PbfReader
             return pulledBlock;
         }
 
-        private byte[] GetBlockBytes(long blockId)
-        {
+        //private byte[] GetBlockBytes(long blockId)
+        //{
 
-            byte[] thisblob1;
-            lock (msLock)
-            {
-                long pos1 = blockPositions[blockId];
-                int size1 = blockSizes[blockId];
-                fs.Seek(pos1, SeekOrigin.Begin);
-                thisblob1 = new byte[size1];
-                fs.Read(thisblob1, 0, size1);
-            }
-            Console.WriteLine("Block " + blockId + " loaded to RAM as bytes");
-            return thisblob1;
-        }
+        //    byte[] thisblob1;
+        //    lock (msLock)
+        //    {
+        //        long pos1 = blockPositions[blockId];
+        //        int size1 = blockSizes[blockId];
+        //        fs.Seek(pos1, SeekOrigin.Begin);
+        //        thisblob1 = new byte[size1];
+        //        fs.Read(thisblob1, 0, size1);
+        //    }
+        //    Console.WriteLine("Block " + blockId + " loaded to RAM as bytes");
+        //    return thisblob1;
+        //}
 
         private PrimitiveBlock DecodeBlock(byte[] blockBytes)
         {
@@ -523,7 +474,6 @@ namespace CoreComponents.PbfReader
                 }
 
                 //Now get a list of block i know i need now.
-                List<long> neededBlocks = new List<long>();
                 List<long> wayBlocks = new List<long>();
 
                 //memIds is delta-encoded
@@ -548,12 +498,6 @@ namespace CoreComponents.PbfReader
                     }
                 }
 
-                neededBlocks.AddRange(wayBlocks.Distinct());
-                neededBlocks = neededBlocks.Distinct().ToList();
-                //TODO: is this step necessary? GetWay will pull the block into RAM if it needs it, and it could be removed from memory between now and then.
-                foreach (var nb in neededBlocks)
-                    GetBlock(nb);
-
                 //This makes sure we only load each element once. If a relation references an element more than once (it shouldnt)
                 //this saves us from re-creating the same entry.
                 Dictionary<long, OsmSharp.Complete.CompleteWay> loadedWays = new Dictionary<long, OsmSharp.Complete.CompleteWay>();
@@ -571,7 +515,7 @@ namespace CoreComponents.PbfReader
                             break;
                         case Relation.MemberType.WAY:
                             if (!loadedWays.ContainsKey(idToFind))
-                                loadedWays.Add(idToFind, GetWay(idToFind, false, wayBlocks, false, true)); //Force load these, even if it's out of bounds. 
+                                loadedWays.Add(idToFind, GetWay(idToFind, false, wayBlocks, false));
                             c.Member = loadedWays[idToFind];
                             break;
                     }
@@ -592,7 +536,7 @@ namespace CoreComponents.PbfReader
             }
         }
 
-        private OsmSharp.Complete.CompleteWay GetWay(long wayId, bool skipUntagged, List<long> hints = null, bool ignoreUnmatched = false, bool skipBoundsCheck = false)
+        private OsmSharp.Complete.CompleteWay GetWay(long wayId, bool skipUntagged, List<long> hints = null, bool ignoreUnmatched = false)
         {
             try
             {
@@ -664,26 +608,6 @@ namespace CoreComponents.PbfReader
                     nodeList.Add(AllNodes[idToFind]);
                 }
 
-                //If we are doing bounds-checking, make sure this way has something in-bounds
-                //Any 1 node in-bounds is sufficient to justify loading the item for maptiles.
-                //This is here because I am pretty sure iterating on the list after populating
-                ////is faster than iterating on the dictionary before filing the list.
-                if (bounds != null && !skipBoundsCheck)
-                {
-                    if (AllNodes.Any(n => n.Value.Latitude >= bounds.MinY 
-                        && n.Value.Latitude <= bounds.MaxY 
-                        && n.Value.Longitude >= bounds.MinX 
-                        && n.Value.Longitude <= bounds.MaxX))
-                    {
-                        //the good path
-                    }
-                    else
-                    {
-                        //Ideally, we would remove this from indexes, but we don't store individual items.
-                        //Instead, the 'load one relation' path will track which one succeeded, and white-list relations.
-                        return null;
-                    }
-                }
                 finalway.Nodes = nodeList.ToArray();
                 return finalway;
             }
@@ -754,81 +678,80 @@ namespace CoreComponents.PbfReader
                 n.Longitude = DecodeLatLon(lon, block.lon_offset, block.granularity);
                 n.Tags = tc;
                 taggedNodes.Add(n);
-
             }
 
             return taggedNodes;
         }
 
-        private OsmSharp.Node GetNode(long nodeId, bool skipTags = true, List<long> hints = null)
-        {
-            var nodeBlockValues = FindBlockKeyForNode(nodeId, hints);
+        //private OsmSharp.Node GetNode(long nodeId, bool skipTags = true, List<long> hints = null)
+        //{
+        //    var nodeBlockValues = FindBlockKeyForNode(nodeId, hints);
 
-            PrimitiveBlock nodeBlock = GetBlock(nodeBlockValues);
-            var nodePrimGroup = nodeBlock.primitivegroup[0];
-            var keyvals = nodePrimGroup.dense.keys_vals;
+        //    PrimitiveBlock nodeBlock = GetBlock(nodeBlockValues);
+        //    var nodePrimGroup = nodeBlock.primitivegroup[0];
+        //    var keyvals = nodePrimGroup.dense.keys_vals;
 
-            //sort out tags ahead of time.
-            int entryCounter = 0;
-            List<Tuple<int, string, string>> idKeyVal = new List<Tuple<int, string, string>>();
-            for (int i = 0; i < keyvals.Count; i++)
-            {
-                if (keyvals[i] == 0)
-                {
-                    entryCounter++;
-                    continue;
-                }
-                //skip to next entry.
-                idKeyVal.Add(
-                    Tuple.Create(entryCounter,
-                System.Text.Encoding.UTF8.GetString(nodeBlock.stringtable.s[keyvals[i]]),
-                System.Text.Encoding.UTF8.GetString(nodeBlock.stringtable.s[keyvals[i + 1]])
-                ));
-                i++;
-            }
+        //    //sort out tags ahead of time.
+        //    int entryCounter = 0;
+        //    List<Tuple<int, string, string>> idKeyVal = new List<Tuple<int, string, string>>();
+        //    for (int i = 0; i < keyvals.Count; i++)
+        //    {
+        //        if (keyvals[i] == 0)
+        //        {
+        //            entryCounter++;
+        //            continue;
+        //        }
+        //        //skip to next entry.
+        //        idKeyVal.Add(
+        //            Tuple.Create(entryCounter,
+        //        System.Text.Encoding.UTF8.GetString(nodeBlock.stringtable.s[keyvals[i]]),
+        //        System.Text.Encoding.UTF8.GetString(nodeBlock.stringtable.s[keyvals[i + 1]])
+        //        ));
+        //        i++;
+        //    }
 
-            var decodedTags = idKeyVal.ToLookup(k => k.Item1, v => new OsmSharp.Tags.Tag(v.Item2, v.Item3));
+        //    var decodedTags = idKeyVal.ToLookup(k => k.Item1, v => new OsmSharp.Tags.Tag(v.Item2, v.Item3));
 
-            long nodeCounter = 0;
-            int index = -1;
-            long latDelta = 0;
-            long lonDelta = 0;
-            var dense = nodePrimGroup.dense; //this appears to save a little CPU time instead of getting the list each time?
-            var denseIds = dense.id;
-            var dLat = dense.lat;
-            var dLon = dense.lon;
-            while (nodeCounter != nodeId)
-            {
-                index += 1;
-                if (index == 8000)
-                    return null;
-                nodeCounter += denseIds[index];
-                latDelta += dLat[index];
-                lonDelta += dLon[index];
-            }
+        //    long nodeCounter = 0;
+        //    int index = -1;
+        //    long latDelta = 0;
+        //    long lonDelta = 0;
+        //    var dense = nodePrimGroup.dense; //this appears to save a little CPU time instead of getting the list each time
+        //    var denseIds = dense.id;
+        //    var dLat = dense.lat;
+        //    var dLon = dense.lon;
+        //    while (nodeCounter != nodeId)
+        //    {
+        //        index += 1;
+        //        if (index == 8000)
+        //            return null;
+        //        nodeCounter += denseIds[index];
+        //        latDelta += dLat[index];
+        //        lonDelta += dLon[index];
+        //    }
 
-            OsmSharp.Node filled = new OsmSharp.Node();
-            filled.Id = nodeId;
-            filled.Latitude = DecodeLatLon(latDelta, nodeBlock.lat_offset, nodeBlock.granularity);
-            filled.Longitude = DecodeLatLon(lonDelta, nodeBlock.lon_offset, nodeBlock.granularity);
+        //    OsmSharp.Node filled = new OsmSharp.Node();
+        //    filled.Id = nodeId;
+        //    filled.Latitude = DecodeLatLon(latDelta, nodeBlock.lat_offset, nodeBlock.granularity);
+        //    filled.Longitude = DecodeLatLon(lonDelta, nodeBlock.lon_offset, nodeBlock.granularity);
 
-            //if bounds checking, drop nodes that aren't needed.
-            if (bounds != null)
-            {
-                if (filled.Latitude < bounds.MinY || filled.Latitude > bounds.MaxY || filled.Longitude < bounds.MinX || filled.Longitude > bounds.MaxX)
-                    return null;
-            }
+        //    //if bounds checking, drop nodes that aren't needed.
+        //    if (bounds != null)
+        //    {
+        //        if (filled.Latitude < bounds.MinY || filled.Latitude > bounds.MaxY || filled.Longitude < bounds.MinX || filled.Longitude > bounds.MaxX)
+        //            return null;
+        //    }
 
-            if (!skipTags)
-            {
-                OsmSharp.Tags.TagsCollection tc = new OsmSharp.Tags.TagsCollection();
-                foreach (var t in decodedTags[index].ToList())
-                    tc.Add(t);
+        //    if (!skipTags)
+        //    {
+        //        OsmSharp.Tags.TagsCollection tc = new OsmSharp.Tags.TagsCollection();
+        //        foreach (var t in decodedTags[index].ToList())
+        //            tc.Add(t);
 
-                filled.Tags = tc;
-            }
-            return filled;
-        }
+        //        filled.Tags = tc;
+        //    }
+        //    return filled;
+        //}
 
         private Dictionary<long, OsmSharp.Node> GetAllNeededNodesInBlock(long blockId, long[] nodeIds)
         {
@@ -869,18 +792,6 @@ namespace CoreComponents.PbfReader
             return results;
         }
 
-        private bool NodeHasKey(long key, Tuple<long, long, long> value)
-        {
-            //key is block id
-            //value is the tuple list. 2 is min, 3 is max.
-            if (value.Item2 > key) //this node's minimum is larger than our node, skip
-                return false;
-
-            if (value.Item3 < key) //this node's maximum is smaller than our node, skip
-                return false;
-            return true;
-        }
-
         private bool NodeHasKey(long key, Tuple<long, long> value)
         {
             //key is block id
@@ -895,8 +806,14 @@ namespace CoreComponents.PbfReader
 
         private long FindBlockKeyForNode(long nodeId, List<long> hints = null) //BTree
         {
-            //Dont bother searching if we have likely candidates, just check those.
-            if (hints != null && hints.Count() < 20) //20 is more checks than a b-tree would be for a million blocks.
+            //This is the most-called function in this class, and therefore the most performance-dependent.
+            //As it turns out, the range of node IDs involved WON'T overlap, so I can b-tree search this
+
+            //Hints is a list of blocks we're already found in the relevant way. Odds are high that
+            //any node I need to find is in the same block as another node I've found.
+            //This should save a lot of time searching the list when I have already found some blocks
+            //and shoudn't waste too much time if it isn't in a block already found.
+            if (hints != null && hints.Count() < nodeHintsMax) //skip hints if the BTree search is fewer checks.
             {
                 foreach (var h in hints)
                 {
@@ -927,55 +844,18 @@ namespace CoreComponents.PbfReader
             throw new Exception("Node Not Found");
         }
 
-        private long FindBlockKeyForNodeIterative(long nodeId, List<long> hints = null) //Iterative
-        {
-            //This is the most-called function in this class, and therefore the most performance-dependent.
-            //As it turns out, the range of node IDs involved WON'T overlap, so I could b-tree search this,
-            //if these were arrays and not collections. ON a dictionary, its much much slower.
-
-            //Hints is a list of blocks we're already found in the relevant way. Odds are high that
-            //any node I need to find is in the same block as another node I've found.
-            //This should save a lot of time iterating over the list when I have already found some blocks
-            //and shoudn't waste too much time if it isn't in a block already found.
-            if (hints != null)
-            {
-                foreach (var h in hints)
-                {
-                    var entry = nodeFinder2[h];
-                    if (NodeHasKey(nodeId, entry))
-                        return h;
-                }
-            }
-
-            if (nodeId < switchPointNodeId)
-                foreach (var nodelist in nodeFinderList)
-                {
-                    if (NodeHasKey(nodeId, nodelist))
-                        return nodelist.Item1;
-                }
-            else
-                foreach (var nodelist in nodeFinderListReverse)
-                {
-                    if (NodeHasKey(nodeId, nodelist))
-                        return nodelist.Item1;
-                }
-
-            //couldnt find this node
-            throw new Exception("Node Not Found");
-        }
-
         private long FindBlockKeyForWay(long wayId, List<long> hints) //BTree
         {
-            if (hints != null && hints.Count() < 20) //20 is more checks than a b-tree would be for a million blocks.
+            if (hints != null && hints.Count() < wayHintsMax) //skip hints if the BTree search is fewer checks.
                 foreach (var h in hints)
                 {
                     //we can check this, but we need to look at the previous block too.
-                    if (LoadingWayFinder2[h] >= wayId && (h == firstWayBlock || LoadingWayFinder2[h - 1] < wayId))
+                    if (wayFinder[h] >= wayId && (h == firstWayBlock || wayFinder[h - 1] < wayId))
                         return h;
                 }
 
             int min = 0;
-            int max = wayFinderList.Count();
+            int max = wayFinderTotal;
             int current = startWayBtreeIndex;
             while (min != max)
             {
@@ -994,41 +874,6 @@ namespace CoreComponents.PbfReader
 
                 current = (min + max) / 2;
             }
-
-            //couldnt find this way
-            throw new Exception("Way Not Found");
-        }
-
-        private long FindBlockKeyForWayIterative(long wayId, List<long> hints) //Iterative
-        {
-            //so we CAN safely just find the block where wayId >= minWay for a block
-            //BUT the easiest b-tree logic on a ConcurrentDictionary does more iterating to get indexes than just iterating the list would do.
-            if (hints != null)
-                foreach (var h in hints)
-                {
-                    //we can check this, but we need to look at the previous block too.
-                    if (LoadingWayFinder2[h] >= wayId && (h == firstWayBlock || LoadingWayFinder2[h - 1] < wayId))
-                        return h;
-                }
-
-            if (wayId < switchPointWayId)
-                foreach (var waylist in wayFinderList)
-                {
-                    //key is block id. value is the max way value in this node. We dont need to check the minimum.
-                    if (waylist.Item2 < wayId) //this node's maximum is smaller than our node, skip
-                        continue;
-
-                    return waylist.Item1;
-                }
-            else
-                foreach (var waylist in wayFinderList)
-                {
-                    //key is block id. value is the max way value in this node. We dont need to check the minimum.
-                    if (waylist.Item2 < wayId) //this node's maximum is smaller than our node, skip
-                        continue;
-
-                    return waylist.Item1;
-                }
 
             //couldnt find this way
             throw new Exception("Way Not Found");
@@ -1114,12 +959,6 @@ namespace CoreComponents.PbfReader
                             Task.WaitAll(relList.ToArray());
                             activeBlocks.Clear(); //Dump them all out of RAM, see how this affects performance. At most a block gets read 3 times more than it would have before.
                         }
-
-                        //original code
-                        //foreach (var r in primgroup.relations.OrderByDescending(w => w.memids.Count())) //Ordering should help consistency in runtime, though splitting off the biggest ones to their own thread is a better optimization.
-                        //{
-                        //    relList.Add(Task.Run(() => results.Add(GetRelation(r.id))));
-                        //}
                     }
                     else if (primgroup.ways != null && primgroup.ways.Count() > 0)
                     {
@@ -1193,12 +1032,6 @@ namespace CoreComponents.PbfReader
                     block.primitivegroup[0].ways?.Count > 0 ? block.primitivegroup[0].ways.Count :
                     block.primitivegroup[0].dense.id.Count);
 
-                if (results.Any(r => r != null && r.Id == 3954790))
-                {
-                    int a = 1;
-                    Console.WriteLine("BOO!");
-                }
-
                 return results;
             }
             catch (Exception ex)
@@ -1237,7 +1070,7 @@ namespace CoreComponents.PbfReader
             System.IO.File.WriteAllLines(filename, data);
 
             filename = outputPath + fi.Name + ".wayIndex";
-            data = new string[wayFinderList.Count()];
+            data = new string[wayFinderTotal];
             j = 0;
             foreach (var wf in wayFinderList)
             {
@@ -1286,9 +1119,8 @@ namespace CoreComponents.PbfReader
                 foreach (var line in data)
                 {
                     string[] subData2 = line.Split(":");
-                    LoadingWayFinder2.TryAdd(long.Parse(subData2[0]), long.Parse(subData2[1]));
+                    wayFinder.TryAdd(long.Parse(subData2[0]), long.Parse(subData2[1]));
                     wayFinderList.Add(Tuple.Create(long.Parse(subData2[0]), long.Parse(subData2[1])));
-                    wayFinderListReverse.Add(Tuple.Create(long.Parse(subData2[0]), long.Parse(subData2[1])));
                 }
 
                 filename = outputPath + fi.Name + ".nodeIndex";
@@ -1303,27 +1135,26 @@ namespace CoreComponents.PbfReader
                 foreach (var entry in nodeFinder2)
                 {
                     nodeFinderList.Add(Tuple.Create(entry.Key, entry.Value.Item1, entry.Value.Item2));
-                    nodeFinderListReverse.Add(Tuple.Create(entry.Key, entry.Value.Item1, entry.Value.Item2));
                 }
+                SetOptimizationValues();
 
-                wayFinderListReverse.Reverse();
-                nodeFinderListReverse.Reverse();
-
-                //short optimization: if our node is bigger than roughly the halfway point, search the reversed list instead.
-                var idx = new Index(nodeFinder2.Count() / 2);
-                switchPointNodeId = nodeFinder2.ElementAt(idx).Value.Item2;
-                idx = new Index(wayFinderList.Count() / 2);
-                switchPointWayId = wayFinderList.ElementAt(idx).Item2;
-
-                nodeFinderTotal = nodeFinderList.Count();
-                firstWayBlock = LoadingWayFinder2.Keys.Min();
-                startNodeBtreeIndex = nodeFinderTotal / 2;
-                startWayBtreeIndex = wayFinderList.Count() / 2;
             }
             catch (Exception ex)
             {
                 return;
             }
+        }
+
+        private void SetOptimizationValues()
+        {
+            nodeFinderTotal = nodeFinderList.Count();
+            wayFinderTotal = wayFinderList.Count();
+            firstWayBlock = wayFinder.Keys.Min();
+            firstRelationBlock = relationFinder.Values.Min();
+            startNodeBtreeIndex = nodeFinderTotal / 2;
+            startWayBtreeIndex = wayFinderTotal / 2;
+            nodeHintsMax = (int)Math.Log2(nodeFinderTotal);
+            wayHintsMax = (int)Math.Log2(wayFinderTotal);
         }
 
         private void SaveCurrentBlock(long blockID)
@@ -1398,7 +1229,7 @@ namespace CoreComponents.PbfReader
                 elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => TagParser.GetStyleForOsmWay(e.Tags.ToList()).name != TagParser.styles.Last().name));
 
             if (boundsEntry != null)
-                elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => e.elementGeometry.Intersects(boundsEntry)));
+               elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => boundsEntry.Intersects(e.elementGeometry)));
 
             if (saveToDb)
             {
