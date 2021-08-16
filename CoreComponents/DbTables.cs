@@ -146,6 +146,7 @@ namespace CoreComponents
             public string FillOrStroke { get; set; }
             public float LineWidth { get; set; } //Todo ponder: should this be pixels, or degrees? or scale based on degreesperpixelx?
             public string LinePattern { get; set; } //solid, dashed, other varieties? //If blank, solid line. If not, split string into float[] on |
+            public string fileName { get; set; } //A path to an image file that will be used as a repeating pattern. Null for solid colors.
             [NotMapped]
             public SKPaint paint { get; set; } //Fill in on app start.
 

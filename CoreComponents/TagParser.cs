@@ -21,22 +21,24 @@ namespace CoreComponents
         {
             //Load TPE entries from DB for app.
             var db = new PraxisContext();
-            styles = db.TagParserEntries.Include(t => t.TagParserMatchRules).ToList();
+            styles = db.TagParserEntries.Include(t => t.TagParserMatchRules).Include(t => t.paintOperations).ToList();
             if (onlyDefaults || styles == null || styles.Count() == 0)
                 styles = Singletons.defaultTagParserEntries;
 
             foreach (var s in styles)
-                SetPaintForTPE(s);
+                foreach(var p in s.paintOperations)
+                    SetPaintForTPP(p);
 
             defaultStyle = styles.Last();
 
             //TODO: load team data from DB. Either its own table set or add a parameter to the main TagParserEntries table to indicate its purpose.
             teams = Singletons.defaultTeamColors;
             foreach (var t in teams)
-                SetPaintForTPE(t);
+                foreach (var p in t.paintOperations)
+                    SetPaintForTPP(p);
         }
 
-        public static void SetPaintForTPE(TagParserEntry tpe)
+        public static void SetPaintForTPP(TagParserPaint tpe)
         {
             var paint = new SKPaint();
             //TODO: enable a style to use static-random colors.
