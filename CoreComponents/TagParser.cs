@@ -10,6 +10,11 @@ using static CoreComponents.Singletons;
 
 namespace CoreComponents
 {
+    //NOTE:
+    //per https://lists.openstreetmap.org/pipermail/talk/2008-February/023419.html
+    // Mapnik uses at least 5 layers internally for its tiles. (roughly, in top to bottom order)
+    //Labels (text), Fill, Features, Area, HillShading.
+    //I would need better area-vs-feature detection (OSMSharp has this,and I think I included that in my code)
     public static class TagParser
     {
         public static List<TagParserEntry> styles; //For drawing maptiles
