@@ -46,12 +46,15 @@ namespace CoreComponents.PbfReader
         ConcurrentDictionary<long, long> LoadingWayFinder2 = new ConcurrentDictionary<long, long>();// Concurrent needed because loading is threaded.
         List<Tuple<long, long>> wayFinderList = new List<Tuple<long, long>>();
         List<Tuple<long, long>> wayFinderListReverse = new List<Tuple<long, long>>();
+        int nodeFinderTotal = 0;
 
         Dictionary<long, long> blockPositions = new Dictionary<long, long>();
         Dictionary<long, int> blockSizes = new Dictionary<long, int>();
 
         Envelope bounds = null; //If not null, reject elements not within it
-        Dictionary<long, bool> validWays = null; //if not null, only process relations where all way members are on this list.
+        //ConcurrentDictionary<long, bool> validWays = null; //if not null, only process relations where all way members are on this list. //Too picky
+        Geometry boundsEntry = null; //use for precise detection of what to include.
+
 
         ConcurrentDictionary<long, PrimitiveBlock> activeBlocks = new ConcurrentDictionary<long, PrimitiveBlock>();
         ConcurrentDictionary<long, bool> accessedBlocks = new ConcurrentDictionary<long, bool>();
@@ -199,24 +202,23 @@ namespace CoreComponents.PbfReader
                 var relation = GetRelation(relationId);
                 var NTSrelation = GeometrySupport.ConvertOsmEntryToStoredElement(relation);
                 bounds = NTSrelation.elementGeometry.EnvelopeInternal;
+                boundsEntry = NTSrelation.elementGeometry;
+                //TODO: no longer need to use this order when checking against boundsEntry, can run last block to first.
 
-                //due to the bounding box, we need to process ways first.
-                //remove ways from the index that aren't within bounds, which will kick out relations automatically.
-                validWays = new Dictionary<long, bool>();
-                for(var block = firstWayBlock; block < firstRelationBlock;  block++)
+                //The boundsEntry will be used when checking geometry, and things that intersect will be processed and the rest excluded.                
+                for (var block = firstWayBlock; block < firstRelationBlock; block++)
                 {
                     Log.WriteLog("Way Block " + block);
                     //Handle ways first.
                     var geoData = GetGeometryFromBlock(block, false, false).Where(g => g != null).ToList();
-                    foreach (var g in geoData)
-                        validWays.Add(g.Id, true);
-                    
+
+
                     ProcessReaderResults(geoData, "nooutputfile", true, false);
                 }
                 Console.WriteLine("Ways processed, checking relations....");
 
                 //Now do relations, but make sure they only process if all ways are in validWays.
-                for(var block = nextBlockId; block > firstWayBlock + wayFinderList.Count() - 1; block--)
+                for(var block = nextBlockId; block >= firstRelationBlock; block--)
                 {
                     Log.WriteLog("Relation Block " + block);
                     var geoData = GetGeometryFromBlock(block, false, false).Where(g => g != null).ToList();
@@ -406,9 +408,10 @@ namespace CoreComponents.PbfReader
             idx = new Index(wayFinderList.Count() / 2);
             switchPointWayId = wayFinderList.ElementAt(idx).Item2;
 
+            nodeFinderTotal = nodeFinderList.Count();
             firstWayBlock = LoadingWayFinder2.Keys.Min();
             firstRelationBlock = blockCounter - relationCounter + 1;
-            startNodeBtreeIndex = nodeFinderList.Count() / 2;
+            startNodeBtreeIndex = nodeFinderTotal / 2;
             startWayBtreeIndex = wayFinderList.Count() / 2;
         }
         
@@ -523,9 +526,6 @@ namespace CoreComponents.PbfReader
                 List<long> neededBlocks = new List<long>();
                 List<long> wayBlocks = new List<long>();
 
-                bool limitToBounds = (validWays != null); //If limited in scope, this list is what we'll refer to.
-                bool hasMemberInBounds = false;
-
                 //memIds is delta-encoded
                 long idToFind = 0;
                 for (int i = 0; i < rel.memids.Count; i++)
@@ -539,9 +539,6 @@ namespace CoreComponents.PbfReader
                             //The FeatureInterpreter doesn't use nodes from a relation
                             break;
                         case Relation.MemberType.WAY:
-                            if (limitToBounds)
-                                if (validWays.ContainsKey(idToFind))
-                                    hasMemberInBounds = true; //We only need one member in-bounds to justify drawing the relation.
                             wayBlocks.Add(FindBlockKeyForWay(idToFind, wayBlocks));
                             wayBlocks = wayBlocks.Distinct().ToList();
                             break;
@@ -551,14 +548,11 @@ namespace CoreComponents.PbfReader
                     }
                 }
 
-                if (limitToBounds && !hasMemberInBounds)
-                    return null; 
-
                 neededBlocks.AddRange(wayBlocks.Distinct());
                 neededBlocks = neededBlocks.Distinct().ToList();
+                //TODO: is this step necessary? GetWay will pull the block into RAM if it needs it, and it could be removed from memory between now and then.
                 foreach (var nb in neededBlocks)
                     GetBlock(nb);
-
 
                 //This makes sure we only load each element once. If a relation references an element more than once (it shouldnt)
                 //this saves us from re-creating the same entry.
@@ -914,9 +908,8 @@ namespace CoreComponents.PbfReader
 
             //ways will hit a couple thousand blocks, nodes hit hundred of thousands of blocks.
             //This might help performance on ways, but will be much more noticeable on nodes.
-            int totalBlocks = nodeFinderList.Count();
             int min = 0;
-            int max = totalBlocks;
+            int max = nodeFinderTotal;
             int current = startNodeBtreeIndex;
 
             while (min != max)
@@ -1200,6 +1193,12 @@ namespace CoreComponents.PbfReader
                     block.primitivegroup[0].ways?.Count > 0 ? block.primitivegroup[0].ways.Count :
                     block.primitivegroup[0].dense.id.Count);
 
+                if (results.Any(r => r != null && r.Id == 3954790))
+                {
+                    int a = 1;
+                    Console.WriteLine("BOO!");
+                }
+
                 return results;
             }
             catch (Exception ex)
@@ -1316,8 +1315,9 @@ namespace CoreComponents.PbfReader
                 idx = new Index(wayFinderList.Count() / 2);
                 switchPointWayId = wayFinderList.ElementAt(idx).Item2;
 
+                nodeFinderTotal = nodeFinderList.Count();
                 firstWayBlock = LoadingWayFinder2.Keys.Min();
-                startNodeBtreeIndex = nodeFinderList.Count() / 2;
+                startNodeBtreeIndex = nodeFinderTotal / 2;
                 startWayBtreeIndex = wayFinderList.Count() / 2;
             }
             catch (Exception ex)
@@ -1396,6 +1396,9 @@ namespace CoreComponents.PbfReader
 
             if (onlyTagMatchedElements)
                 elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => TagParser.GetStyleForOsmWay(e.Tags.ToList()).name != TagParser.styles.Last().name));
+
+            if (boundsEntry != null)
+                elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => e.elementGeometry.Intersects(boundsEntry)));
 
             if (saveToDb)
             {
