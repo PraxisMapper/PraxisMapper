@@ -23,6 +23,7 @@ namespace CoreComponents
         public DbSet<StoredOsmElement> StoredOsmElements { get; set; }
         public DbSet<TagParserEntry> TagParserEntries { get; set; }
         public DbSet<TagParserMatchRule> TagParserMatchRules { get; set; }
+        public DbSet<TagParserPaint> TagParserPaints { get; set; }
 
         public DbSet<ElementTags> ElementTags { get; set; } //This table is exposed so I can search it directly faster.
 
