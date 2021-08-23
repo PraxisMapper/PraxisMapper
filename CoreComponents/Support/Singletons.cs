@@ -49,7 +49,7 @@ namespace CoreComponents
         {
             new TagParserEntry() { id = 1, name ="water", 
                 paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "0000B3", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 10 }
+                    new TagParserPaint() { HtmlColorCode = "aad3df", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 10 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() {Key = "natural", Value = "water|strait|bay", MatchType = "or"},
@@ -157,21 +157,21 @@ namespace CoreComponents
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>()
             {
-                new TagParserMatchRule() { Key = "highway", Value = "motorway|trunk|primary|secondary|tertiary|unclassified|residential|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|service|road", MatchType = "any" },
+                new TagParserMatchRule() { Key = "highway", Value = "tertiary|unclassified|residential|tertiary_link|service|road", MatchType = "any" },
                 new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
                 new TagParserMatchRule() { Key="area", Value="yes", MatchType="equals"}
             }},
-            new TagParserEntry() { id = 16, name ="road", 
-                paintOperations = new List<TagParserPaint>() { //TODO: split road into mulitple rules, and give different paint patterns.
-                    new TagParserPaint() { HtmlColorCode = "0D0D0D", FillOrStroke = "stroke", LineWidth=1, LinePattern= "solid", layerId = 10 }
-                },
-                TagParserMatchRules = new List<TagParserMatchRule>(){
-                    new TagParserMatchRule() { Key = "highway", Value = "motorway|trunk|primary|secondary|tertiary|unclassified|residential|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|service|road", MatchType = "any" },
-                    new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"}
-                }},
+            //new TagParserEntry() { id = 16, name ="road", 
+            //    paintOperations = new List<TagParserPaint>() { //TODO: split road into mulitple rules, and give different paint patterns.
+            //        new TagParserPaint() { HtmlColorCode = "0D0D0D", FillOrStroke = "stroke", LineWidth=1, LinePattern= "solid", layerId = 10 }
+            //    },
+            //    TagParserMatchRules = new List<TagParserMatchRule>(){
+            //        new TagParserMatchRule() { Key = "highway", Value = "tertiary|unclassified|residential|tertiary_link|service|road", MatchType = "any" },
+            //        new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"}
+            //    }},
             new TagParserEntry() { id = 17, name ="parking", 
                 paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "0D0D0D", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 10 }
+                    new TagParserPaint() { HtmlColorCode = "EEEEEE", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 10 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() { 
                     new TagParserMatchRule() { Key = "amenity", Value = "parking", MatchType = "equals" }} },
@@ -246,6 +246,97 @@ namespace CoreComponents
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "man_made", Value = "breakwater", MatchType = "any" },
             }},
+
+            //Roads of varying sizes and colors to match OSM colors
+            new TagParserEntry() { id = 27, name ="motorwayFilled",
+                paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "e892a2", FillOrStroke = "fill", LineWidth=5, LinePattern= "solid", layerId = 8},
+                    new TagParserPaint() { HtmlColorCode = "dc2a67", FillOrStroke = "fill", LineWidth=9, LinePattern= "solid", layerId = 9}
+                },
+                TagParserMatchRules = new List<TagParserMatchRule>()
+            {
+                new TagParserMatchRule() { Key = "highway", Value = "motorway|trunk|motorway_link|trunk_link", MatchType = "any" },
+                new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
+                new TagParserMatchRule() { Key="area", Value="yes", MatchType="equals"}
+            }},
+            //Roads of varying sizes and colors to match OSM colors
+            new TagParserEntry() { id = 28, name ="motorway",
+                paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "e892a2", FillOrStroke = "fill", LineWidth=5, LinePattern= "solid", layerId = 8},
+                    new TagParserPaint() { HtmlColorCode = "dc2a67", FillOrStroke = "fill", LineWidth=9, LinePattern= "solid", layerId = 9}
+                },
+                TagParserMatchRules = new List<TagParserMatchRule>()
+            {
+                new TagParserMatchRule() { Key = "highway", Value = "motorway|trunk|motorway_link|trunk_link", MatchType = "any" },
+                new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
+            }},
+            new TagParserEntry() { id = 29, name ="primaryFilled",
+                paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "fcd6a4", FillOrStroke = "fill", LineWidth=4, LinePattern= "solid", layerId = 8},
+                    new TagParserPaint() { HtmlColorCode = "a06b00", FillOrStroke = "fill", LineWidth=7, LinePattern= "solid", layerId = 9}
+                },
+                TagParserMatchRules = new List<TagParserMatchRule>()
+            {
+                new TagParserMatchRule() { Key = "highway", Value = "primary|primary_link", MatchType = "any" },
+                new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
+                new TagParserMatchRule() { Key="area", Value="yes", MatchType="equals"}
+            }},
+            //Roads of varying sizes and colors to match OSM colors
+            new TagParserEntry() { id = 30, name ="primary",
+                paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "fcd6a4", FillOrStroke = "fill", LineWidth=4, LinePattern= "solid", layerId = 8},
+                    new TagParserPaint() { HtmlColorCode = "a06b00", FillOrStroke = "fill", LineWidth=7, LinePattern= "solid", layerId = 9}
+                },
+                TagParserMatchRules = new List<TagParserMatchRule>()
+            {
+                new TagParserMatchRule() { Key = "highway", Value = "primary|primary_link", MatchType = "any" },
+                new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
+            }},
+            new TagParserEntry() { id = 31, name ="secondaryFilled",
+                paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "f7fabf", FillOrStroke = "fill", LineWidth=3, LinePattern= "solid", layerId = 8},
+                    new TagParserPaint() { HtmlColorCode = "707d05", FillOrStroke = "fill", LineWidth=5, LinePattern= "solid", layerId = 9}
+                },
+                TagParserMatchRules = new List<TagParserMatchRule>()
+            {
+                new TagParserMatchRule() { Key = "highway", Value = "secondary|secondary_link", MatchType = "any" },
+                new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
+                new TagParserMatchRule() { Key="area", Value="yes", MatchType="equals"}
+            }},
+            //Roads of varying sizes and colors to match OSM colors
+            new TagParserEntry() { id = 32, name ="secondary",
+                paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "f7fabf", FillOrStroke = "fill", LineWidth=3, LinePattern= "solid", layerId = 8},
+                    new TagParserPaint() { HtmlColorCode = "707d05", FillOrStroke = "fill", LineWidth=5, LinePattern= "solid", layerId = 9}
+                },
+                TagParserMatchRules = new List<TagParserMatchRule>()
+            {
+                new TagParserMatchRule() { Key = "highway", Value = "secondary|secondary_link", MatchType = "any" },
+                new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
+            }},
+            new TagParserEntry() { id = 31, name ="tertiaryFilled",
+                paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "ffffff", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 8},
+                    new TagParserPaint() { HtmlColorCode = "8f8f8f", FillOrStroke = "fill", LineWidth=3, LinePattern= "solid", layerId = 9}
+                },
+                TagParserMatchRules = new List<TagParserMatchRule>()
+            {
+                new TagParserMatchRule() { Key = "highway", Value = "tertiary|unclassified|residential|tertiary_link|service|road", MatchType = "any" },
+                new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
+                new TagParserMatchRule() { Key="area", Value="yes", MatchType="equals"}
+            }},
+            //Roads of varying sizes and colors to match OSM colors
+            new TagParserEntry() { id = 32, name ="tertiary",
+                paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "ffffff", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 8},
+                    new TagParserPaint() { HtmlColorCode = "8f8f8f", FillOrStroke = "fill", LineWidth=3, LinePattern= "solid", layerId = 9}
+                },
+                TagParserMatchRules = new List<TagParserMatchRule>()
+            {
+                new TagParserMatchRule() { Key = "highway", Value = "tertiary|unclassified|residential|tertiary_link|service|road", MatchType = "any" },
+                new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
+            }},
+
 
             //NOTE: hiding elements of a given type is done by drawing those elements in a transparent color
             //My default set wants to draw things that haven't yet been identified, so I can see what needs improvement or matched by a rule.
