@@ -149,6 +149,8 @@ namespace CoreComponents
             public string fileName { get; set; } //A path to an image file that will be used as a repeating pattern. Null for solid colors.
             [NotMapped]
             public SKPaint paint { get; set; } //Fill in on app start.
+            public double minDrawRes { get; set; } = 0;//skip drawing this item if  resPerPixelX is below this value. (what doesn't draw zoomed in on OSM? name text?
+            public double maxDrawRes { get; set; } = 4; //skip drawing this item if resPerPixelX is above this value. (EX: tertiary roads don't draw at distant zooms
 
         }
 

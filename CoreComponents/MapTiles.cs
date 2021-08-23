@@ -390,7 +390,6 @@ namespace CoreComponents
             var geo = Converters.GeoAreaToPolygon(stats.area);
             if (drawnItems == null)
                 drawnItems = GetPlaces(stats.area, minimumSize: minimumSize);
-            //drawnItems = db.StoredOsmElements.Include(c => c.Tags).Where(w => geo.Intersects(w.elementGeometry) && w.AreaSize >= minimumSize).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList();
 
             //baseline image data stuff           
             SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
@@ -400,11 +399,8 @@ namespace CoreComponents
             canvas.Scale(1, -1, stats.imageSizeX / 2, stats.imageSizeY / 2);
             SKPaint paint = new SKPaint();
 
-            //var paintStyles = drawnItems.Select(d => styles[d.GameElementName]);
-            //var paintOps = paintStyles.SelectMany(p => p.paintOperations).OrderByDescending(o => o.layerId).ToList();
             //I guess what I want here is a list of an object with an elementGeometry object for the shape, and a paintOp attached to it
             var pass1 = drawnItems.Select(d => new { d.AreaSize, d.elementGeometry, paintOp = styles[d.GameElementName].paintOperations });
-            //I might need a fixed class here to store this stuff.
             var pass2 = new List<CompletePaintOp>();
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
@@ -413,13 +409,12 @@ namespace CoreComponents
 
             foreach (var w in pass2.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))
             {
-                //TODO: additional loop per paintOperation? or make the list and then iterate over it?
                 paint = w.paintOp.paint;
                 if (paint.Color.Alpha == 0)
                     continue; //This area is transparent, skip drawing it entirely.
 
                 //TODO: uncomment this once paint types have values assigned.                
-                if (stats.degreesPerPixelX > style.maxDrawRes || stats.degreesPerPixelX < style.minDrawRes)
+                if (stats.degreesPerPixelX > w.paintOp.maxDrawRes || stats.degreesPerPixelX < w.paintOp.minDrawRes)
                     continue; //This area isn't drawn at this scale.
 
                 var path = new SKPath();
@@ -608,6 +603,9 @@ namespace CoreComponents
                 Log.WriteLog(mapTileCounter + " tiles processed, " + Math.Round((mapTileCounter / totalTiles) * 100, 2) + "% complete");
 
             }//);
+            progressTimer.Stop();
+            Log.WriteLog("Area map tiles drawn in " + progressTimer.Elapsed.ToString());
+
         }
 
         public static void PregenSlippyMapTilesForArea(GeoArea buffered, int zoomLevel)
@@ -664,6 +662,8 @@ namespace CoreComponents
                 Log.WriteLog(mapTileCounter + " tiles processed, " + Math.Round(((mapTileCounter / (double)totalTiles * 100)), 2) + "% complete");
 
             }//);
+            progressTimer.Stop();
+            Log.WriteLog("Zoom " + zoomLevel + " map tiles drawn in " + progressTimer.Elapsed.ToString());
         }
     }
 }
