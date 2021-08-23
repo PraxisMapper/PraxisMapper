@@ -508,6 +508,145 @@ namespace CoreComponents
             return results;
         }
 
+        public static string DrawAreaAtSizeSVG(ImageStats stats, List<StoredOsmElement> drawnItems = null, Dictionary<string, TagParserEntry> styles = null, bool filterSmallAreas = true)
+        {
+            //This is the new core drawing function. Takes in an area, the items to draw, and the size of the image to draw. 
+            //The drawn items get their paint pulled from the TagParser's list. If I need multiple match lists, I'll need to make a way
+            //to pick which list of tagparser rules to use.
+
+            if (styles == null)
+                styles = TagParser.stylesByName;
+
+            double minimumSize = 0;
+            if (filterSmallAreas)
+                minimumSize = stats.degreesPerPixelX; //don't draw elements under 1 pixel in size. at slippy zoom 12, this is approx. 1 pixel for a Cell10.
+
+            var db = new PraxisContext();
+            var geo = Converters.GeoAreaToPolygon(stats.area);
+            if (drawnItems == null)
+                drawnItems = GetPlaces(stats.area, minimumSize: minimumSize);
+
+            //baseline image data stuff           
+            //SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
+            var bounds = new SKRect(0, stats.imageSizeY, stats.imageSizeX, 0);
+            MemoryStream s = new MemoryStream();
+            SKCanvas canvas = SKSvgCanvas.Create(bounds, s);
+            //SKCanvas canvas = new SKCanvas(bitmap);
+            var bgColor = styles["background"].paintOperations.FirstOrDefault().paint; //Backgound is a named style, unmatched will be the last entry and transparent.
+            canvas.Clear(bgColor.Color);
+            canvas.Scale(1, -1, stats.imageSizeX / 2, stats.imageSizeY / 2);
+            SKPaint paint = new SKPaint();
+
+            //I guess what I want here is a list of an object with an elementGeometry object for the shape, and a paintOp attached to it
+            var pass1 = drawnItems.Select(d => new { d.AreaSize, d.elementGeometry, paintOp = styles[d.GameElementName].paintOperations });
+            var pass2 = new List<CompletePaintOp>();
+            foreach (var op in pass1)
+                foreach (var po in op.paintOp)
+                    pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po));
+
+
+            foreach (var w in pass2.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))
+            {
+                paint = w.paintOp.paint;
+                if (paint.Color.Alpha == 0)
+                    continue; //This area is transparent, skip drawing it entirely.
+
+                //TODO: uncomment this once paint types have values assigned.                
+                if (stats.degreesPerPixelX > w.paintOp.maxDrawRes || stats.degreesPerPixelX < w.paintOp.minDrawRes)
+                    continue; //This area isn't drawn at this scale.
+
+                var path = new SKPath();
+                switch (w.elementGeometry.GeometryType)
+                {
+                    //Polygons without holes are super easy and fast: draw the path.
+                    //Polygons with holes require their own bitmap to be drawn correctly and then overlaid onto the canvas.
+                    //I want to use paths to fix things for performance reasons, but I have to use Bitmaps because paths apply their blend mode to
+                    //ALL elements already drawn, not just the last one.
+                    case "Polygon":
+                        var p = w.elementGeometry as Polygon;
+                        
+                            path.AddPoly(Converters.PolygonToSKPoints(p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                            canvas.DrawPath(path, paint);
+
+                        foreach (var hole in p.InteriorRings)
+                        {
+                            path = new SKPath();
+                            path.AddPoly(Converters.PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                            canvas.DrawPath(path, eraser);
+                        }
+
+                        break;
+                    case "MultiPolygon":
+                        foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries)
+                        {
+                            var p2p = p2 as Polygon;
+                            
+                                path.AddPoly(Converters.PolygonToSKPoints(p2p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                                canvas.DrawPath(path, paint);
+
+                            foreach (var hole in p2p.InteriorRings)
+                            {
+                                path = new SKPath();
+                                path.AddPoly(Converters.PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                                canvas.DrawPath(path, eraser);
+                            }
+
+                        }
+                        break;
+                    case "LineString":
+                        var firstPoint = w.elementGeometry.Coordinates.First();
+                        var lastPoint = w.elementGeometry.Coordinates.Last();
+                        var points = Converters.PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                        if (firstPoint.Equals(lastPoint))
+                        {
+                            //This is a closed shape. Check to see if it's supposed to be filled in.
+                            if (paint.Style == SKPaintStyle.Fill)
+                            {
+                                path.AddPoly(points);
+                                canvas.DrawPath(path, paint);
+                                continue;
+                            }
+                        }
+                        for (var line = 0; line < points.Length - 1; line++)
+                            canvas.DrawLine(points[line], points[line + 1], paint);
+                        break;
+                    case "MultiLineString":
+                        foreach (var p3 in ((MultiLineString)w.elementGeometry).Geometries)
+                        {
+                            //TODO: might want to see if I need to move the LineString logic here, or if multiline string are never filled areas.
+                            var points2 = Converters.PolygonToSKPoints(p3, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                            for (var line = 0; line < points2.Length - 1; line++)
+                                canvas.DrawLine(points2[line], points2[line + 1], paint);
+                        }
+                        break;
+                    case "Point":
+                        var convertedPoint = Converters.PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                        //If this type has an icon, use it. Otherwise draw a circle in that type's color.
+                        if (!string.IsNullOrEmpty(w.paintOp.fileName))
+                        {
+                            SKBitmap icon = TagParser.cachedBitmaps[w.paintOp.fileName];
+                            canvas.DrawBitmap(icon, convertedPoint[0]);
+                        }
+                        else
+                        {
+                            var circleRadius = (float)(ConstantValues.resolutionCell10 / stats.degreesPerPixelX / 2); //I want points to be drawn as 1 Cell10 in diameter.
+                            canvas.DrawCircle(convertedPoint[0], circleRadius, paint);
+                        }
+                        break;
+                    default:
+                        Log.WriteLog("Unknown geometry type found, not drawn.");
+                        break;
+                }
+            }
+
+            //var skms = new SKManagedWStream(ms);
+            s.Position = 0;
+            var svgData = new StreamReader(s).ReadToEnd();
+            //var results = ms.ToArray();
+            //skms.Dispose(); ms.Close(); ms.Dispose();
+            return svgData;
+        }
+
         //Possible optimization: Cap image size to polygon size inside cropped area for parent image. 
         //Would need more math to apply to correct location.
         public static SKBitmap DrawPolygon(Polygon polygon, SKPaint paint, ImageStats stats)
