@@ -122,8 +122,8 @@ namespace CoreComponents
             public bool IsGameElement { get; set; } // This tag should be used when asking for game areas, not just map tiles. Would let me use a single table for both again.
             public string fileName { get; set; } //A path to an image file that will be used as a repeating pattern. Null for solid colors.
             public ICollection<TagParserPaint> paintOperations { get; set; }
-            public double minDrawRes { get; set; } //skip drawing this item if  resPerPixelX is below this value. (what doesn't draw zoomed in on OSM? name text?
-            public double maxDrawRes {  get; set; } //skip drawing this item if resPerPixelX is above this value. (EX: tertiary roads don't draw at distant zooms but primary roads do)
+            public double minDrawRes { get; set; } = 0;//skip drawing this item if  resPerPixelX is below this value. (what doesn't draw zoomed in on OSM? name text?
+            public double maxDrawRes { get; set; } = 4; //skip drawing this item if resPerPixelX is above this value. (EX: tertiary roads don't draw at distant zooms but primary roads do)
         }
 
         public class TagParserMatchRule

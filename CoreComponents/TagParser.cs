@@ -22,6 +22,9 @@ namespace CoreComponents
         public static TagParserEntry defaultStyle; //background color must be last if I want un-matched areas to be hidden, its own color if i want areas with no ways at all to show up.
         public static TagParserEntry defaultTeam; //background color must be last if I want un-matched areas to be hidden, its own color if i want areas with no ways at all to show up.
         public static Dictionary<string, SKBitmap> cachedBitmaps = new Dictionary<string, SKBitmap>(); //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
+
+        public static Dictionary<string, TagParserEntry> stylesByName; //Faster lookup for style.
+        public static Dictionary<string, TagParserEntry> teamsByName; //Faster lookup for style.
         public static void Initialize(bool onlyDefaults = false)
         {
             //Load TPE entries from DB for app.
@@ -35,12 +38,15 @@ namespace CoreComponents
                     SetPaintForTPP(p);
 
             defaultStyle = styles.Last();
+            stylesByName = styles.ToDictionary(k => k.name, v => v);
 
             //TODO: load team data from DB. Either its own table set or add a parameter to the main TagParserEntries table to indicate its purpose.
             teams = Singletons.defaultTeamColors;
             foreach (var t in teams)
                 foreach (var p in t.paintOperations)
                     SetPaintForTPP(p);
+
+            teamsByName = teams.ToDictionary(k => k.name, v => v);
         }
 
         public static void SetPaintForTPP(TagParserPaint tpe)

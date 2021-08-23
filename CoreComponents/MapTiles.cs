@@ -50,7 +50,7 @@ namespace CoreComponents
                     ap.Tags = new List<ElementTags>() { new ElementTags() { Key = "team", Value = "none" } };
             }
 
-            return DrawAreaAtSize(info, places, TagParser.teams);
+            return DrawAreaAtSize(info, places, TagParser.teamsByName);
         }
 
         public static byte[] DrawPaintTownSlippyTileSkia(ImageStats info, int instanceID)
@@ -362,7 +362,7 @@ namespace CoreComponents
             return DrawAreaAtSize(info, null, null, (area.Length <= 6));
         }
 
-        public static byte[] DrawAreaAtSize(GeoArea relevantArea, int imageSizeX, int imageSizeY, List<StoredOsmElement> drawnItems = null, List<TagParserEntry> styles = null)
+        public static byte[] DrawAreaAtSize(GeoArea relevantArea, int imageSizeX, int imageSizeY, List<StoredOsmElement> drawnItems = null, Dictionary<string, TagParserEntry> styles = null)
         {
             //Create an Info object and use that to pass to to the main image.
             ImageStats info = new ImageStats(relevantArea, imageSizeX, imageSizeY);
@@ -373,14 +373,14 @@ namespace CoreComponents
         //Optional parameter allows you to pass in different stuff that the DB alone has, possibly for manual or one-off changes to styling
         //or other elements converted for maptile purposes.
 
-        public static byte[] DrawAreaAtSize(ImageStats stats, List<StoredOsmElement> drawnItems = null, List<TagParserEntry> styles = null, bool filterSmallAreas = true)
+        public static byte[] DrawAreaAtSize(ImageStats stats, List<StoredOsmElement> drawnItems = null, Dictionary<string, TagParserEntry> styles = null, bool filterSmallAreas = true)
         {
             //This is the new core drawing function. Takes in an area, the items to draw, and the size of the image to draw. 
             //The drawn items get their paint pulled from the TagParser's list. If I need multiple match lists, I'll need to make a way
             //to pick which list of tagparser rules to use.
 
             if (styles == null)
-                styles = TagParser.styles;
+                styles = TagParser.stylesByName;
 
             double minimumSize = 0;
             if (filterSmallAreas)
@@ -395,25 +395,32 @@ namespace CoreComponents
             //baseline image data stuff           
             SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
             SKCanvas canvas = new SKCanvas(bitmap);
-            var bgColor = styles.Where(s => s.name == "background").FirstOrDefault().paintOperations.FirstOrDefault().paint; //Backgound is a named style, unmatched will be the last entry and transparent.
+            var bgColor = styles["background"].paintOperations.FirstOrDefault().paint; //Backgound is a named style, unmatched will be the last entry and transparent.
             canvas.Clear(bgColor.Color);
             canvas.Scale(1, -1, stats.imageSizeX / 2, stats.imageSizeY / 2);
             SKPaint paint = new SKPaint();
 
-            foreach (var w in drawnItems)
-            {
-                //TODO: additional loop per paintOperation?
-                var style = styles.Where(s => s.name == w.GameElementName).First();
-                foreach(var po in style.paintOperations)
-                { 
+            //var paintStyles = drawnItems.Select(d => styles[d.GameElementName]);
+            //var paintOps = paintStyles.SelectMany(p => p.paintOperations).OrderByDescending(o => o.layerId).ToList();
+            //I guess what I want here is a list of an object with an elementGeometry object for the shape, and a paintOp attached to it
+            var pass1 = drawnItems.Select(d => new { d.AreaSize, d.elementGeometry, paintOp = styles[d.GameElementName].paintOperations });
+            //I might need a fixed class here to store this stuff.
+            var pass2 = new List<CompletePaintOp>();
+            foreach (var op in pass1)
+                foreach (var po in op.paintOp)
+                    pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po));
 
-                paint = po.paint;
+
+            foreach (var w in pass2.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))
+            {
+                //TODO: additional loop per paintOperation? or make the list and then iterate over it?
+                paint = w.paintOp.paint;
                 if (paint.Color.Alpha == 0)
                     continue; //This area is transparent, skip drawing it entirely.
 
                 //TODO: uncomment this once paint types have values assigned.                
-                //if (stats.degreesPerPixelX > style.maxDrawRes || stats.degreesPerPixelX < style.minDrawRes)
-                    //continue; //This area isn't drawn at this scale.
+                if (stats.degreesPerPixelX > style.maxDrawRes || stats.degreesPerPixelX < style.minDrawRes)
+                    continue; //This area isn't drawn at this scale.
 
                 var path = new SKPath();
                     switch (w.elementGeometry.GeometryType)
@@ -480,9 +487,9 @@ namespace CoreComponents
                         case "Point":
                             var convertedPoint = Converters.PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                             //If this type has an icon, use it. Otherwise draw a circle in that type's color.
-                            if (!string.IsNullOrEmpty(style.fileName))
+                            if (!string.IsNullOrEmpty(w.paintOp.fileName))
                             {
-                                SKBitmap icon = TagParser.cachedBitmaps[style.fileName];
+                                SKBitmap icon = TagParser.cachedBitmaps[w.paintOp.fileName];
                                 canvas.DrawBitmap(icon, convertedPoint[0]);
                             }
                             else
@@ -492,11 +499,11 @@ namespace CoreComponents
                             }
                             break;
                         default:
-                            Log.WriteLog("Unknown geometry type found, not drawn. Element " + w.id);
+                            Log.WriteLog("Unknown geometry type found, not drawn.");
                             break;
                     }
                 }
-            }
+            //}
 
             var ms = new MemoryStream();
             var skms = new SKManagedWStream(ms);

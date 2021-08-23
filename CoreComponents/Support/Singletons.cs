@@ -65,7 +65,7 @@ namespace CoreComponents
                  TagParserMatchRules = new List<TagParserMatchRule>() {
                      new TagParserMatchRule() { Key = "natural", Value = "wetland", MatchType = "equals" }
                  }},
-            new TagParserEntry() { IsGameElement = true, id = 3, 
+            new TagParserEntry() { IsGameElement = true, id = 3, name ="park",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "C8FACC", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 10 }
                 },
@@ -256,7 +256,7 @@ namespace CoreComponents
                 TagParserMatchRules = new List<TagParserMatchRule>() { 
                     new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "none" }} },
 
-            new TagParserEntry() { id = 1000, name ="unmatched", 
+            new TagParserEntry() { id = 10000, name ="unmatched", 
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 10 }
                 },
