@@ -21,8 +21,8 @@
         public const double zoom4DegPerPixelX =  0.0439453125;
         public const double zoom6DegPerPixelX =  0.010986328125;
         public const double zoom8DegPerPixelX =  0.00274658203125;
-        public const double zoom10DegPerPixelX = 0.0006866455078125;
-        public const double zoom12DegPerPixelX = 0.000171661376953125;
+        public const float zoom10DegPerPixelX = 0.0006866455078125F;
+        public const float zoom12DegPerPixelX = 0.000171661376953125F;
         public const double zoom14DegPerPixelX = 0.00004291534423828125;
         public const double zoom16DegPerPixelX = 0.000010728836059570312;
         public const double zoom18DegPerPixelX = 0.000002682209014892578;
