@@ -99,10 +99,12 @@ namespace PraxisMapper.Controllers
             }
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
             sw.Start();
+            //var tileSvg = MapTiles.DrawAreaAtSizeSVG(istats);
             var tile = MapTiles.DrawAreaAtSize(istats);
             sw.Stop();
 
             ViewBag.imageString = "data:image/png;base64," + Convert.ToBase64String(tile);
+            //ViewBag.imageString = tileSvg;
             ViewBag.timeToDraw = sw.Elapsed;
             var places = CoreComponents.Place.GetPlaces(istats.area);
             ViewBag.placeCount = places.Count();
