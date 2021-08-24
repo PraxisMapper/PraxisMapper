@@ -47,6 +47,10 @@ namespace CoreComponents
                     SetPaintForTPP(p);
 
             teamsByName = teams.ToDictionary(k => k.name, v => v);
+
+            var dbSettings = db.ServerSettings.FirstOrDefault();
+            if (dbSettings != null)
+                MapTiles.MapTileSizeSquare = dbSettings.SlippyMapTileSizeSquare;
         }
 
         public static void SetPaintForTPP(TagParserPaint tpe)
