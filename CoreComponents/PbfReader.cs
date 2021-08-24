@@ -677,7 +677,10 @@ namespace CoreComponents.PbfReader
                 n.Latitude = DecodeLatLon(lat, block.lat_offset, block.granularity);
                 n.Longitude = DecodeLatLon(lon, block.lon_offset, block.granularity);
                 n.Tags = tc;
-                taggedNodes.Add(n);
+
+                //if bounds checking, drop nodes that aren't needed.
+                if (bounds == null || (n.Latitude >= bounds.MinY && n.Latitude <= bounds.MaxY && n.Longitude >= bounds.MinX && n.Longitude <= bounds.MaxX))
+                    taggedNodes.Add(n);
             }
 
             return taggedNodes;
@@ -971,15 +974,20 @@ namespace CoreComponents.PbfReader
                     else
                     {
                         //Useful node lists are so small, they lose performance from splitting each step into 1 task per entry.
-                        //Inline all that here as one task and return null to skip the rest.
-                        writeTasks.Add(Task.Run(() =>
+                        //Inline all that here as one task and return null to skip the rest. But this doesn't work if I'm writing to a DB.
+                        //TODO: add path again for writing data to a normal JSON export and not a mariadb infile.
+                        //writeTasks.Add(Task.Run(() =>
+                        relList.Add(Task.Run(() =>
                         {
                             try
                             {
                                 var nodes = GetTaggedNodesFromBlock(block, onlyTagMatchedEntries);
-                                var convertednodes = nodes.Select(n => GeometrySupport.ConvertOsmEntryToStoredElement(n)).ToList();
+                                foreach (var n in nodes)
+                                    results.Add(n);
+
                                 if (infileProcess)
                                 {
+                                    var convertednodes = nodes.Select(n => GeometrySupport.ConvertOsmEntryToStoredElement(n)).ToList();
                                     StringBuilder geomSB = new StringBuilder();
                                     StringBuilder tagsSB = new StringBuilder();
                                     foreach (var md in convertednodes)
