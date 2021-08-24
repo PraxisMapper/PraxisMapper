@@ -403,16 +403,13 @@ namespace CoreComponents
             canvas.Scale(1, -1, stats.imageSizeX / 2, stats.imageSizeY / 2);
             SKPaint paint = new SKPaint();
 
-            //I guess what I want here is a list of an object with an elementGeometry object for the shape, and a paintOp attached to it
+            //What I want here is a list of an object with an elementGeometry object for the shape, and a paintOp attached to it
             var pass1 = drawnItems.Where(d => d.elementGeometry.Area == 0 || d.elementGeometry.Area >= minimumSize || d.elementGeometry.Length >= minSizeSquared).Select(d => new { d.AreaSize, d.elementGeometry, paintOp = styles[d.GameElementName].paintOperations });
             var pass2 = new List<CompletePaintOp>();
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
                     if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
                         pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po));
-
-            var smallestArea = pass1.Min(p => p.elementGeometry.Area);
-            var smallestLength = pass1.Min(p => p.elementGeometry.Length);
 
             foreach (var w in pass2.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))
             {
