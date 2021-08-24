@@ -936,7 +936,7 @@ namespace CoreComponents.PbfReader
             }
         }
 
-        public ConcurrentBag<OsmSharp.Complete.ICompleteOsmGeo> GetGeometryFromBlock(long blockId, bool onlyTagMatchedEntries = false, bool infileProcess = false)
+        public ConcurrentBag<OsmSharp.Complete.ICompleteOsmGeo> GetGeometryFromBlock(long blockId, bool onlyTagMatchedEntries = false, bool infileProcess = false, bool exportNodesToJson = false)
         {
             //This grabs the chosen block, populates everything in it to an OsmSharp.Complete object and returns that list
             try
@@ -1006,8 +1006,9 @@ namespace CoreComponents.PbfReader
                                     lock (tagsFileLock)
                                         System.IO.File.AppendAllText(outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + ".json.tagsInfile", tagsSB.ToString());
                                 }
-                                else
+                                else if (exportNodesToJson)
                                 {
+                                    var convertednodes = nodes.Select(n => GeometrySupport.ConvertOsmEntryToStoredElement(n)).ToList();
                                     var classForJson = convertednodes.Where(c => c != null).Select(md => new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated)).ToList();
                                     var textLines = classForJson.Select(c => JsonSerializer.Serialize(c, typeof(StoredOsmElementForJson))).ToList();
                                     lock (fileLock)
