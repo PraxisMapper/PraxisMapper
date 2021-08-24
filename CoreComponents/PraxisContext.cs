@@ -57,6 +57,7 @@ namespace CoreComponents
             model.Entity<PlayerData>().HasIndex(p => p.deviceID); //for updating data
 
             model.Entity<StoredOsmElement>().HasIndex(m => m.AreaSize); //Enables server-side sorting on biggest-to-smallest draw order.
+            //model.Entity<StoredOsmElement>().HasIndex(m => m.LineLength); //Enables server-side sorting on biggest-to-smallest draw order.
             model.Entity<StoredOsmElement>().HasIndex(m => m.sourceItemID);
             model.Entity<StoredOsmElement>().HasIndex(m => m.sourceItemType);
             model.Entity<StoredOsmElement>().HasMany(m => m.Tags).WithOne(m => m.storedOsmElement).HasForeignKey(m => new { m.SourceItemId, m.SourceItemType }).HasPrincipalKey(m => new { m.sourceItemID, m.sourceItemType });

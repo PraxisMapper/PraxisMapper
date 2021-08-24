@@ -47,7 +47,7 @@ namespace PraxisMapper.Controllers
                 {
                     //Create this entry
                     var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare, MapTiles.MapTileSizeSquare);
-                    double minimumSize = info.degreesPerPixelX;
+                    double minimumSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
                     if (zoom >= 16)
                         minimumSize = 0;
 
@@ -58,8 +58,8 @@ namespace PraxisMapper.Controllers
                     {
                         case 1: //Base map tile
                             //add some padding so we don't clip off points at the edge of a tile
-                            var places = GetPlaces(dataLoadArea, minimumSize: minimumSize); //includeGenerated: false, filterSize: filterSize  //NOTE: in this case, we want generated areas to be their own slippy layer, so the config setting is ignored here.
-                            results = MapTiles.DrawAreaAtSize(info, places, null, (zoom <= 16));
+                            var places = GetPlaces(dataLoadArea, filterSize: minimumSize); //includeGenerated: false, filterSize: filterSize  //NOTE: in this case, we want generated areas to be their own slippy layer, so the config setting is ignored here.
+                            results = MapTiles.DrawAreaAtSize(info, places, null, true);
                             expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                             break;
                         case 2: //PaintTheTown overlay. 
@@ -86,7 +86,7 @@ namespace PraxisMapper.Controllers
                             break;
                         case 7: //This might be the layer that shows game areas on the map. Draw outlines of them. Means games will also have a Geometry object attached to them for indexing.
                             //7 is currently a duplicate of 1, since the testing code has been promoted to the main drawing method now.
-                            var places7 = GetPlaces(dataLoadArea, minimumSize: minimumSize);
+                            var places7 = GetPlaces(dataLoadArea, filterSize: minimumSize);
                             results = MapTiles.DrawAreaAtSize(info, places7, null);
                             expires = DateTime.Now.AddHours(10);
                             break;
@@ -186,7 +186,7 @@ namespace PraxisMapper.Controllers
                     {
                         case 1: //Base map tile
                             //add some padding so we don't clip off points at the edge of a tile
-                            var places = GetPlaces(dataLoadArea, minimumSize: minimumSize); //includeGenerated: false, filterSize: filterSize  //NOTE: in this case, we want generated areas to be their own slippy layer, so the config setting is ignored here.
+                            var places = GetPlaces(dataLoadArea, filterSize: minimumSize); //includeGenerated: false, filterSize: filterSize  //NOTE: in this case, we want generated areas to be their own slippy layer, so the config setting is ignored here.
                             results = MapTiles.DrawAreaAtSize(info, places);
                             expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                             break;
@@ -214,7 +214,7 @@ namespace PraxisMapper.Controllers
                             break;
                         case 7: //This might be the layer that shows game areas on the map. Draw outlines of them. Means games will also have a Geometry object attached to them for indexing.
                             //7 is currently a duplicate of 1, since the testing code has been promoted to the main drawing method now.
-                            var places7 = GetPlaces(dataLoadArea, minimumSize: minimumSize);
+                            var places7 = GetPlaces(dataLoadArea, filterSize: minimumSize);
                             results = MapTiles.DrawAreaAtSize(info, places7, null);
                             expires = DateTime.Now.AddHours(10);
                             break;

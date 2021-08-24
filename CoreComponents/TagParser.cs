@@ -53,7 +53,9 @@ namespace CoreComponents
         {
             var paint = new SKPaint();
             //TODO: enable a style to use static-random colors.
-            
+
+            paint.StrokeJoin = SKStrokeJoin.Round;
+            paint.IsAntialias = true;
             paint.Color = SKColor.Parse(tpe.HtmlColorCode);
             if (tpe.FillOrStroke == "fill")
                 paint.Style = SKPaintStyle.StrokeAndFill;
@@ -74,9 +76,6 @@ namespace CoreComponents
                 SKShader tiling = SKShader.CreateBitmap(fillPattern, SKShaderTileMode.Repeat, SKShaderTileMode.Repeat); //For fill patterns.
                 paint.Shader = tiling;
             }
-
-            paint.StrokeJoin = SKStrokeJoin.Round;
-            paint.IsAntialias = true;
             tpe.paint = paint;
         }
 
