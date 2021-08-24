@@ -383,13 +383,17 @@ namespace CoreComponents
                 styles = TagParser.stylesByName;
 
             double minimumSize = 0;
+            double minSizeSquared = 0;
             if (filterSmallAreas)
-                minimumSize = stats.degreesPerPixelX; //don't draw elements under 1 pixel in size. at slippy zoom 12, this is approx. 1 pixel for a Cell10.
+            { 
+                minimumSize = stats.degreesPerPixelX * 8; //don't draw elements under 16 pixel in perimeter. at slippy zoom 12, this is approx. 4x4 pixel for a Cell10.
+                minSizeSquared = minimumSize * minimumSize;
+            }
 
             var db = new PraxisContext();
             var geo = Converters.GeoAreaToPolygon(stats.area);
             if (drawnItems == null)
-                drawnItems = GetPlaces(stats.area, minimumSize: minimumSize);
+                drawnItems = GetPlaces(stats.area, filterSize: minimumSize);
 
             //baseline image data stuff           
             SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
@@ -400,12 +404,15 @@ namespace CoreComponents
             SKPaint paint = new SKPaint();
 
             //I guess what I want here is a list of an object with an elementGeometry object for the shape, and a paintOp attached to it
-            var pass1 = drawnItems.Select(d => new { d.AreaSize, d.elementGeometry, paintOp = styles[d.GameElementName].paintOperations });
+            var pass1 = drawnItems.Where(d => d.elementGeometry.Area == 0 || d.elementGeometry.Area >= minimumSize || d.elementGeometry.Length >= minSizeSquared).Select(d => new { d.AreaSize, d.elementGeometry, paintOp = styles[d.GameElementName].paintOperations });
             var pass2 = new List<CompletePaintOp>();
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
-                    pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po));
+                    if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
+                        pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po));
 
+            var smallestArea = pass1.Min(p => p.elementGeometry.Area);
+            var smallestLength = pass1.Min(p => p.elementGeometry.Length);
 
             foreach (var w in pass2.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))
             {
@@ -413,9 +420,6 @@ namespace CoreComponents
                 if (paint.Color.Alpha == 0)
                     continue; //This area is transparent, skip drawing it entirely.
 
-                //TODO: uncomment this once paint types have values assigned.                
-                if (stats.degreesPerPixelX > w.paintOp.maxDrawRes || stats.degreesPerPixelX < w.paintOp.minDrawRes)
-                    continue; //This area isn't drawn at this scale.
 
                 var path = new SKPath();
                     switch (w.elementGeometry.GeometryType)
@@ -524,7 +528,7 @@ namespace CoreComponents
             var db = new PraxisContext();
             var geo = Converters.GeoAreaToPolygon(stats.area);
             if (drawnItems == null)
-                drawnItems = GetPlaces(stats.area, minimumSize: minimumSize);
+                drawnItems = GetPlaces(stats.area, filterSize: minimumSize);
 
             //baseline image data stuff           
             //SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);

@@ -81,9 +81,9 @@ namespace CoreComponents
             //var sridByteString = "0000" + BitConverter.GetBytes(item.elementGeometry.SRID).ToByteString(); //Might need some padding to hit 4 bytes.
             //string rawSql = "UPDATE StoredOsmElements SET elementGeometry = _binary 0x" + sridByteString + geoStored.ToBinary().ToByteString() + " WHERE id = " + item.id;
             //string rawSql = "UPDATE StoredOsmElements SET elementGeometry = ST_GeomFromWKB('" + geoStored.ToBinary().ToByteString() + "', " + item.elementGeometry.SRID + ") WHERE id = " + item.id; //Might be better than the FromText conversion automatically occurring?
-            string rawSql = "INSERT INTO StoredOsmElements(name, sourceItemId, sourceItemType, elementGeometry, isGameElement, AreaSize, IsGenerated, IsUserProvided) VALUES ('"
+            string rawSql = "INSERT INTO StoredOsmElements(name, sourceItemId, sourceItemType, elementGeometry, isGameElement, AreaSize, LineLength, IsGenerated, IsUserProvided) VALUES ('"
                 + item.name.Replace("'", "''") + "', " + item.sourceItemID + "," + item.sourceItemType + ", ST_GeomFromWKB(X'" + geoStored.ToBinary().ToByteString() + "', " + geoStored.SRID + "), " + item.IsGameElement + "," 
-                + geoStored.Area + "," + item.IsGenerated + "," + item.IsUserProvided + ")";
+                + geoStored.Area + "," + geoStored.Length + ", " + item.IsGenerated + "," + item.IsUserProvided + ")";
             db.Database.ExecuteSqlRaw(rawSql);
         }
 

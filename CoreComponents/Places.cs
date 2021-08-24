@@ -20,13 +20,13 @@ namespace CoreComponents
         //this allows it to be customized much easier, and changed on the fly without reloading data.
         //A lot of the current code will need changed to match that new logic, though. And generated areas may remain separate.
         
-        public static List<StoredOsmElement> GetPlaces(GeoArea area, List<StoredOsmElement> source = null, double filterSize = 0, List<TagParserEntry> styles = null, bool skipTags = false, double minimumSize = 0)
+        public static List<StoredOsmElement> GetPlaces(GeoArea area, List<StoredOsmElement> source = null, double filterSize = 0, List<TagParserEntry> styles = null, bool skipTags = false)
         {
 
             if (styles == null)
                 styles = TagParser.styles;
             //parameters i will need to restore later.
-            bool includeGenerated = false;
+            //bool includeGenerated = false;
 
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
             //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
@@ -38,18 +38,18 @@ namespace CoreComponents
                 db.Database.SetCommandTimeout(new TimeSpan(0, 2, 0));
                 if (skipTags) //Should make the load slightly faster, when we do something like a team control check, where the data we want to look at isn't in the OSM tags.
                 {
-                    places = db.StoredOsmElements.Where(md => location.Intersects(md.elementGeometry) && md.AreaSize >= minimumSize).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList();
+                    places = db.StoredOsmElements.Where(md => location.Intersects(md.elementGeometry) && (md.AreaSize >= filterSize || md.AreaSize == 0)).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList();
                     return places; //Jump out before we do ApplyTags
                 }
                 else
                 {
-                    places = db.StoredOsmElements.Include(s => s.Tags).Where(md => location.Intersects(md.elementGeometry) && md.AreaSize >= minimumSize).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList();
+                    places = db.StoredOsmElements.Include(s => s.Tags).Where(md => location.Intersects(md.elementGeometry) && (md.AreaSize >= filterSize || md.AreaSize == 0)).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList();
                 }
             }
             else
             {
                 var location = Converters.GeoAreaToPreparedPolygon(area);
-                places = source.Where(md => location.Intersects(md.elementGeometry) && md.AreaSize >= minimumSize).Select(md => md.Clone()).ToList(); // && md.AreaSize > filterSize
+                places = source.Where(md => location.Intersects(md.elementGeometry) && (md.AreaSize >= filterSize || md.AreaSize == 0)).Select(md => md.Clone()).ToList(); // && md.AreaSize > filterSize
             }
 
             TagParser.ApplyTags(places); //populates the fields we don't save to the DB. Might want to move this 
