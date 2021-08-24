@@ -975,7 +975,6 @@ namespace CoreComponents.PbfReader
                     {
                         //Useful node lists are so small, they lose performance from splitting each step into 1 task per entry.
                         //Inline all that here as one task and return null to skip the rest. But this doesn't work if I'm writing to a DB.
-                        //TODO: add path again for writing data to a normal JSON export and not a mariadb infile.
                         //writeTasks.Add(Task.Run(() =>
                         relList.Add(Task.Run(() =>
                         {
