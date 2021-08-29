@@ -18,7 +18,7 @@ namespace CoreComponents
 {
     public static class MapTiles
     {
-        public static int MapTileSizeSquare = 512; //Default value, updated by PraxisMapper at startup.
+        public static int MapTileSizeSquare = 512; //Default value, updated by PraxisMapper at startup. COvers Slippy tiles, not gameplay tiles.
         static SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
 
         public static byte[] DrawMPAreaControlMapTile(ImageStats info, List<StoredOsmElement> places = null)
@@ -321,10 +321,10 @@ namespace CoreComponents
             return results;
         }
 
-        public static byte[] DrawCell8V4(GeoArea Cell8, List<StoredOsmElement> drawnItems = null)
-        {
-            return DrawAreaAtSize(Cell8, 80, 100, drawnItems);
-        }
+        //public static byte[] DrawCell8V4(GeoArea Cell8, List<StoredOsmElement> drawnItems = null)
+        //{
+            //return DrawAreaAtSize(Cell8, 80, 100, drawnItems);
+        //}
 
         public static byte[] DrawPlusCode(string area, bool doubleRes = false)
         {

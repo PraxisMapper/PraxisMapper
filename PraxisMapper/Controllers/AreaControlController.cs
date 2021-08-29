@@ -113,8 +113,8 @@ namespace PraxisMapper.Controllers
             if (baseMapTile == null) //These don't expire, they should be cleared out on data change, or should I check expiration anyways?
             {
                 //Create this map tile.
-                places = GetPlaces(pluscode); //, includeGenerated: Configuration.GetValue<bool>("generateAreas") //TODO restore generated area logic.
-                var tile = MapTiles.DrawCell8V4(pluscode, places); 
+                //places = GetPlaces(pluscode); //, includeGenerated: Configuration.GetValue<bool>("generateAreas") //TODO restore generated area logic.
+                var tile = MapTiles.DrawPlusCode(Cell8, true); 
                 baseMapTile = new MapTile() { CreatedOn = DateTime.Now, mode = 1, PlusCode = Cell8, resolutionScale = 11, tileData = tile, areaCovered = Converters.GeoAreaToPolygon(pluscode) };
                 db.MapTiles.Add(baseMapTile);
                 db.SaveChanges();
