@@ -326,7 +326,7 @@ namespace CoreComponents
             return DrawAreaAtSize(Cell8, 80, 100, drawnItems);
         }
 
-        public static byte[] DrawPlusCode(string area)
+        public static byte[] DrawPlusCode(string area, bool doubleRes = false)
         {
             //This might be a cleaner version of my V4 function, for working with CellX sized tiles..
             //This will draw at a Cell11 resolution automatically.
@@ -348,7 +348,7 @@ namespace CoreComponents
                     imgX = 4 * 20 * 20;
                     imgY = 5 * 20 * 20;
                     break;
-                case 4:
+                case 4: //This tends to break Skiasharp because of layering bitmaps to draw polygons with holes.
                     imgX = 4 * 20 * 20 * 20;
                     imgY = 5 * 20 * 20 * 20;
                     break;
@@ -358,15 +358,21 @@ namespace CoreComponents
                     break;
             }
 
+            if (doubleRes)
+            {
+                imgX *= 2;
+                imgY *= 2;
+            }    
+
             ImageStats info = new ImageStats(OpenLocationCode.DecodeValid(area), imgX, imgY);
-            return DrawAreaAtSize(info, null, null, (area.Length <= 6));
+            return DrawAreaAtSize(info, null, null, false);
         }
 
         public static byte[] DrawAreaAtSize(GeoArea relevantArea, int imageSizeX, int imageSizeY, List<StoredOsmElement> drawnItems = null, Dictionary<string, TagParserEntry> styles = null)
         {
             //Create an Info object and use that to pass to to the main image.
             ImageStats info = new ImageStats(relevantArea, imageSizeX, imageSizeY);
-            return DrawAreaAtSize(info, drawnItems, styles);
+            return DrawAreaAtSize(info, drawnItems, styles, false); //This is a gameplay tile, and we want all items in it. ~Zoom 15.2
         }
 
         //This generic function takes the area to draw, a size to make the canvas, and then draws it all.
@@ -496,7 +502,8 @@ namespace CoreComponents
                             {
                                 var circleRadius = (float)(ConstantValues.resolutionCell10 / stats.degreesPerPixelX / 2); //I want points to be drawn as 1 Cell10 in diameter.
                                 canvas.DrawCircle(convertedPoint[0], circleRadius, paint);
-                            }
+                                canvas.DrawCircle(convertedPoint[0], circleRadius, styles["outline"].paintOperations.First().paint); //TODO: this forces an outline style to be present in the list or this crashes.
+                        }
                             break;
                         default:
                             Log.WriteLog("Unknown geometry type found, not drawn.");

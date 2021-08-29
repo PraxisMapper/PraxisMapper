@@ -48,7 +48,7 @@ namespace PraxisMapper.Controllers
                     //Create this entry
                     var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare, MapTiles.MapTileSizeSquare);
                     double minimumSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
-                    if (zoom >= 16)
+                    if (zoom >= 16) //Gameplay areas are ~15.
                         minimumSize = 0;
 
                     var dataLoadArea = new GeoArea(info.area.SouthLatitude - ConstantValues.resolutionCell10, info.area.WestLongitude - ConstantValues.resolutionCell10, info.area.NorthLatitude + ConstantValues.resolutionCell10, info.area.EastLongitude + ConstantValues.resolutionCell10);
