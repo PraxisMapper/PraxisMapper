@@ -390,10 +390,15 @@ namespace CoreComponents
                 minSizeSquared = minimumSize * minimumSize;
             }
 
+            //Single points are excluded separately so that small areas or lines can still be drawn when points aren't.
+            bool includePoints = true;
+            if (stats.degreesPerPixelX > ConstantValues.zoom14DegPerPixelX)
+                includePoints = false;
+
             var db = new PraxisContext();
             var geo = Converters.GeoAreaToPolygon(stats.area);
             if (drawnItems == null)
-                drawnItems = GetPlaces(stats.area, filterSize: minimumSize);
+                drawnItems = GetPlaces(stats.area, filterSize: minimumSize, includePoints: includePoints);
 
             //baseline image data stuff           
             SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
@@ -404,7 +409,7 @@ namespace CoreComponents
             SKPaint paint = new SKPaint();
 
             //What I want here is a list of an object with an elementGeometry object for the shape, and a paintOp attached to it
-            var pass1 = drawnItems.Where(d => d.elementGeometry.Area == 0 || d.elementGeometry.Area >= minimumSize || d.elementGeometry.Length >= minSizeSquared).Select(d => new { d.AreaSize, d.elementGeometry, paintOp = styles[d.GameElementName].paintOperations });
+            var pass1 = drawnItems.Select(d => new { d.AreaSize, d.elementGeometry, paintOp = styles[d.GameElementName].paintOperations });
             var pass2 = new List<CompletePaintOp>();
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
@@ -416,7 +421,6 @@ namespace CoreComponents
                 paint = w.paintOp.paint;
                 if (paint.Color.Alpha == 0)
                     continue; //This area is transparent, skip drawing it entirely.
-
 
                 var path = new SKPath();
                     switch (w.elementGeometry.GeometryType)
