@@ -116,8 +116,8 @@ namespace PraxisMapper.Controllers
                 //Create this entry
                 //requires a list of colors to use, which might vary per app
                 GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
-                var places = GetPlaces(eightCell); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")
-                var results = MapTiles.DrawCell8V4(eightCell, places);
+                //var places = GetPlaces(eightCell); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")
+                var results = MapTiles.DrawPlusCode(plusCode8, true);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(eightCell) });
                 db.SaveChanges();
                 pt.Stop(plusCode8);
@@ -143,8 +143,8 @@ namespace PraxisMapper.Controllers
                 //Create this entry
                 //requires a list of colors to use, which might vary per app
                 GeoArea TenCell = OpenLocationCode.DecodeValid(plusCode10);
-                var places = GetPlaces(TenCell); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")
-                var results = MapTiles.DrawAreaAtSize(TenCell, 4, 5, places);
+                //var places = GetPlaces(TenCell); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")
+                var results = MapTiles.DrawPlusCode(plusCode10, true); //MapTiles.DrawAreaAtSize(TenCell, 4, 5, places);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode10, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(TenCell) });
                 db.SaveChanges();
                 pt.Stop(plusCode10);
@@ -167,8 +167,8 @@ namespace PraxisMapper.Controllers
             {
                 //requires a list of colors to use, which might vary per app. Defined in AreaType
                 GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
-                var allPlaces = GetPlaces(sixCell); // , null, false, Configuration.GetValue<bool>("generateAreas"), resolutionCell10
-                var results = MapTiles.DrawAreaAtSize(sixCell, 1600, 2000, allPlaces);
+                //var allPlaces = GetPlaces(sixCell); // , null, false, Configuration.GetValue<bool>("generateAreas"), resolutionCell10
+                var results = MapTiles.DrawPlusCode(plusCode6, true); // MapTiles.DrawAreaAtSize(sixCell, 1600, 2000, allPlaces);
                 db.MapTiles.Add(new MapTile() { PlusCode = plusCode6, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(sixCell) });
                 db.SaveChanges();
                 pt.Stop(plusCode6);
