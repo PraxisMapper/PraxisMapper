@@ -387,7 +387,16 @@ namespace CoreComponents
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() {Key = "team", Value = "blue", MatchType = "equals"},
             }},
-            new TagParserEntry() { id = 1, name ="Unclaimed", 
+
+            //Special purpose drawing element
+            new TagParserEntry() { id = 9998, name ="outline",
+                paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "000000", FillOrStroke = "stroke", LineWidth=.5f, LinePattern= "solid", layerId = 100 }
+                },
+                TagParserMatchRules = new List<TagParserMatchRule>() {
+                    new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "none" }} },
+            //background is a mandatory style entry name, but its transparent here..
+            new TagParserEntry() { id = 1, name ="background", 
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },

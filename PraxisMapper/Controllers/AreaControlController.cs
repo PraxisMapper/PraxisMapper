@@ -3,11 +3,7 @@ using CoreComponents.Support;
 using Google.OpenLocationCode;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Configuration;
 using PraxisMapper.Classes;
-using System;
-using System.IO;
-using System.Linq;
 using static CoreComponents.ConstantValues;
 using static CoreComponents.DbTables;
 using static CoreComponents.Place;
@@ -52,24 +48,24 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet] //TODO technically this is a post.
-        [Route("/[controller]/claimArea/{MapDataId}/{factionId}")]
-        [Route("/Gameplay/claimArea/{MapDataId}/{factionId}")]
-        public bool ClaimArea(long MapDataId, int factionId)
+        [Route("/[controller]/claimArea/{storedOsmElementId}/{factionId}")]
+        [Route("/Gameplay/claimArea/{storedOsmElementId}/{factionId}")]
+        public bool ClaimArea(long storedOsmElementId, int factionId)
         {
             PraxisContext db = new PraxisContext();
-            var mapData = db.StoredOsmElements.Where(md => md.id == MapDataId).FirstOrDefault();
-            var teamClaim = db.AreaControlTeams.Where(a => a.StoredElementId == MapDataId).FirstOrDefault();
+            var mapData = db.StoredOsmElements.Where(md => md.id == storedOsmElementId).FirstOrDefault();
+            var teamClaim = db.TeamClaims.Where(a => a.StoredElementId == storedOsmElementId).FirstOrDefault();
             if (teamClaim == null)
             {
                 teamClaim = new DbTables.AreaControlTeam();
-                db.AreaControlTeams.Add(teamClaim);
+                db.TeamClaims.Add(teamClaim);
                 if (mapData == null)
                 {
                     //TODO: restore this feature.
                     //mapData = db.GeneratedMapData.Where(md => md.GeneratedMapDataId == MapDataId - 100000000).Select(m => new MapData() { MapDataId = MapDataId, place = m.place }).FirstOrDefault();
                     //teamClaim.IsGeneratedArea = true;
                 }
-                teamClaim.StoredElementId = MapDataId;
+                teamClaim.StoredElementId = storedOsmElementId;
                 teamClaim.points = GetScoreForSinglePlace(mapData.elementGeometry);
             }
             teamClaim.FactionId = factionId;
@@ -77,8 +73,8 @@ namespace PraxisMapper.Controllers
             db.SaveChanges();
             //Tuple<long, int> shortcut = new Tuple<long, int>(MapDataId, factionId); //tell the application later not to hit the DB on every tile for this entry.
             //ExpireAreaControlMapTilesCell8(mapData); //If this works correctly, i can set a much longer default expiration value on AreaControl tiles than 1 minute I currently use.
-            MapTiles.ExpireMapTiles(mapData.elementGeometry, 2);
-            MapTiles.ExpireSlippyMapTiles(mapData.elementGeometry, 2);
+            MapTiles.ExpireMapTiles(mapData.elementGeometry, storedOsmElementId, 2);
+            MapTiles.ExpireSlippyMapTiles(mapData.elementGeometry, storedOsmElementId, 2);
             
             return true;
         }
@@ -101,16 +97,16 @@ namespace PraxisMapper.Controllers
         //This code technically works on any Cell size, I haven't yet functionalized it correctly yet.
         [HttpGet]
         [Route("/[controller]/DrawFactionModeCell8HighRes/{Cell8}")]
-        [Route("/Gameplay/DrawFactionModeCell8HighRes/{Cell8}")]
-        public FileContentResult DrawFactionModeCell8HighRes(string Cell8)
+        [Route("/[controller]/DrawFactionModeCell8/{Cell8}")]
+        public FileContentResult DrawFactionModeCell8(string Cell8)
         {
-            PerformanceTracker pt = new PerformanceTracker("DrawFactionModeCell8HighRes");
+            PerformanceTracker pt = new PerformanceTracker("DrawFactionModeCell8");
             //We will try to minimize rework done.
             var db = new PraxisContext();
             var baseMapTile = db.MapTiles.Where(mt => mt.PlusCode == Cell8 && mt.resolutionScale == 11 && mt.mode == 1).FirstOrDefault();
             System.Collections.Generic.List<StoredOsmElement> places = null;
             GeoArea pluscode = OpenLocationCode.DecodeValid(Cell8);
-            if (baseMapTile == null) //These don't expire, they should be cleared out on data change, or should I check expiration anyways?
+            if (baseMapTile == null || baseMapTile.ExpireOn < DateTime.Now) //Expiration is how we know we have to redraw this tile.
             {
                 //Create this map tile.
                 //places = GetPlaces(pluscode); //, includeGenerated: Configuration.GetValue<bool>("generateAreas") //TODO restore generated area logic.
@@ -139,18 +135,19 @@ namespace PraxisMapper.Controllers
                 else //update the existing entry.
                 {
                     factionColorTile.tileData = results;
-                    factionColorTile.ExpireOn = DateTime.Now.AddMinutes(1);
+                    factionColorTile.ExpireOn = DateTime.Now.AddMinutes(1); //TODO: only expire tiles when an area is claimed.
                     factionColorTile.CreatedOn = DateTime.Now;
                 }
                 db.SaveChanges();
             }
 
             //Some image items setup.
-            //hard-coded, the size of a Cell8 with res11 is 80x100
+            //hard-coded, the size of a Cell8 with res11 is 160x200 when doubled.
             //TODO: functionalize layering tiles?
-            SkiaSharp.SKBitmap bitmap = new SkiaSharp.SKBitmap(80, 100, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul);
+            SkiaSharp.SKBitmap bitmap = new SkiaSharp.SKBitmap(160, 200, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul);
             SkiaSharp.SKCanvas canvas = new SkiaSharp.SKCanvas(bitmap);
             SkiaSharp.SKPaint paint = new SkiaSharp.SKPaint();
+            canvas.Scale(1, 1, 80, 100);
             paint.IsAntialias = true;
 
             var baseBmp = SkiaSharp.SKBitmap.Decode(baseMapTile.tileData);
@@ -206,7 +203,7 @@ namespace PraxisMapper.Controllers
             //Return the area name (or type if unnamed), the team that owns it, and its point cost (pipe-separated)
             PerformanceTracker pt = new PerformanceTracker("AreaOwners");
             var db = new PraxisContext();
-            var owner = db.AreaControlTeams.Where(a => a.StoredElementId == mapDataId).FirstOrDefault();
+            var owner = db.TeamClaims.Where(a => a.StoredElementId == mapDataId).FirstOrDefault();
             var mapData = db.StoredOsmElements.Where(m => m.id == mapDataId).FirstOrDefault();
             //if (mapData == null && (Configuration.GetValue<bool>("generateAreas") == true)) //TODO restore this feature.
                 //mapData = db.GeneratedMapData.Where(m => m.GeneratedMapDataId == mapDataId - 100000000).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }).FirstOrDefault();
@@ -238,7 +235,7 @@ namespace PraxisMapper.Controllers
             PerformanceTracker pt = new PerformanceTracker("FactionScores");
             var db = new PraxisContext();
             var teamNames = db.Factions.ToLookup(k => k.FactionId, v => v.Name);
-            var scores = db.AreaControlTeams.GroupBy(a => a.FactionId).Select(a => new { team = a.Key, score = a.Sum(aa => aa.points), teamName = teamNames[a.Key] }).ToList();
+            var scores = db.TeamClaims.GroupBy(a => a.FactionId).Select(a => new { team = a.Key, score = a.Sum(aa => aa.points), teamName = teamNames[a.Key] }).ToList();
 
             var results = string.Join(Environment.NewLine, scores.Select(s => s.team + "|" + s.teamName + "|" + s.score));
             pt.Stop();
