@@ -1261,7 +1261,7 @@ namespace PerformanceTestApp
             sw.Stop();
             Log.WriteLog("loaded 1 random tile via index in : " + sw.Elapsed);
             sw.Restart();
-            MapTiles.ExpireSlippyMapTiles(randomTileArea);
+            MapTiles.ExpireSlippyMapTiles(randomTileArea, 1);
             sw.Stop();
             Log.WriteLog("Expired 1 random map tile in:" + sw.Elapsed);
 

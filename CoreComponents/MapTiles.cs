@@ -13,6 +13,7 @@ using CoreComponents.Support;
 using OsmSharp.API;
 using System.Xml.Schema;
 using System.Collections.Concurrent;
+using Microsoft.EntityFrameworkCore;
 
 namespace CoreComponents
 {
@@ -34,7 +35,7 @@ namespace CoreComponents
             if (places == null)
                 places = GetPlaces(loadDataArea, skipTags: true); //, null, false, true, smallestFeature //Includes generated here with the final True parameter.
             List<long> placeIDs = places.Select(a => a.sourceItemID).ToList();
-            Dictionary<long, long> teamClaims = db.AreaControlTeams.Where(act => placeIDs.Contains(act.StoredElementId)).ToDictionary(k => k.StoredElementId, v => v.FactionId);
+            Dictionary<long, long> teamClaims = db.TeamClaims.Where(act => placeIDs.Contains(act.StoredElementId)).ToDictionary(k => k.StoredElementId, v => v.FactionId);
             Dictionary<long, string> teamNames = db.Factions.ToDictionary(k => k.FactionId, v => v.Name);
             places = places
                 .Where(a => teamClaims.ContainsKey(a.sourceItemID)) //Only draw elements claimed by a team.
@@ -262,27 +263,33 @@ namespace CoreComponents
             return results;
         }
 
-        public static void ExpireMapTiles(Geometry g, int limitModeTo = 0)
+        public static void ExpireMapTiles(Geometry g, long elementId, int limitModeTo = 0)
         {
             //If this would be faster as raw SQL, see function below for a template on how to write that.
+            //TODO: test this logic, should be faster but 
             var db = new PraxisContext();
-            var mapTiles = db.MapTiles.Where(m => m.areaCovered.Intersects(g) && (limitModeTo == 0 || m.mode == limitModeTo)).ToList(); //TODO: can I select only the ExpiresOn value and have that save back correctly?
-            foreach (var mt in mapTiles)
-                mt.ExpireOn = DateTime.Now;
+            //MariaDB SQL, should be functional
+            string SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (mode = " + limitModeTo + " OR " + limitModeTo + " = 0) AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM StoredOsmElements WHERE id = " + elementId + "))";
+            db.Database.ExecuteSqlRaw(SQL);
+            //var mapTiles = db.MapTiles.Where(m => m.areaCovered.Intersects(g) && (limitModeTo == 0 || m.mode == limitModeTo)).ToList(); //TODO: can I select only the ExpiresOn value and have that save back correctly?
+            //foreach (var mt in mapTiles)
+                //mt.ExpireOn = DateTime.Now;
 
-            db.SaveChanges();
+            //db.SaveChanges();
         }
 
-        public static void ExpireSlippyMapTiles(Geometry g, int limitModeTo = 0)
+        public static void ExpireSlippyMapTiles(Geometry g, long elementId, int limitModeTo = 0)
         {
             //Might this be better off as raw SQL? If I expire, say, an entire state, that could be a lot of map tiles to pull into RAM just for a date to change.
             //var raw = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE ST_INTERSECTS(areaCovered, ST_GeomFromText(" + g.AsText() + "))";
             var db = new PraxisContext();
-            var mapTiles = db.SlippyMapTiles.Where(m => m.areaCovered.Intersects(g) && (limitModeTo == 0 || m.mode == limitModeTo)).ToList(); //TODO: can I select only the ExpiresOn value and have that save back correctly?
-            foreach (var mt in mapTiles)
-                mt.ExpireOn = DateTime.Now;
+            string SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (mode = " + limitModeTo + " OR " + limitModeTo + " = 0) AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM StoredOsmElements WHERE id = " + elementId + "))";
+            db.Database.ExecuteSqlRaw(SQL);
+            //var mapTiles = db.SlippyMapTiles.Where(m => m.areaCovered.Intersects(g) && (limitModeTo == 0 || m.mode == limitModeTo)).ToList(); //TODO: can I select only the ExpiresOn value and have that save back correctly?
+            //foreach (var mt in mapTiles)
+            //mt.ExpireOn = DateTime.Now;
 
-            db.SaveChanges();
+            //db.SaveChanges();
         }
 
         public static byte[] DrawUserPath(string pointListAsString)
