@@ -23,8 +23,14 @@ namespace CoreComponents
         public static TagParserEntry defaultTeam; //background color must be last if I want un-matched areas to be hidden, its own color if i want areas with no ways at all to show up.
         public static Dictionary<string, SKBitmap> cachedBitmaps = new Dictionary<string, SKBitmap>(); //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
 
-        public static Dictionary<string, TagParserEntry> stylesByName; //Faster lookup for style.
-        public static Dictionary<string, TagParserEntry> teamsByName; //Faster lookup for style.
+        //TODO: in order to make this class more usable for a generic case, I need to add another property to TagParserEntries, a group name of some sort,
+        //and load all entries from the DB and group by that name. This would let a user make multiple style groups for multiple tile types.
+        //then I need to get styles from their key out of a dictionary
+
+        public static Dictionary<string, Dictionary<string, TagParserEntry>> allStyleGroups = new Dictionary<string, Dictionary<string, TagParserEntry>>();
+
+        //public static Dictionary<string, TagParserEntry> stylesByName; //Faster lookup for style.
+        //public static Dictionary<string, TagParserEntry> teamsByName; //Faster lookup for style.
         public static void Initialize(bool onlyDefaults = false)
         {
             //Load TPE entries from DB for app.
@@ -37,16 +43,11 @@ namespace CoreComponents
                 foreach(var p in s.paintOperations)
                     SetPaintForTPP(p);
 
-            defaultStyle = styles.Last();
-            stylesByName = styles.ToDictionary(k => k.name, v => v);
+            var groups = styles.GroupBy(s => s.styleSet);
+            foreach (var g in groups)
+                allStyleGroups.Add(g.Key, g.Select(gg => gg).OrderBy(gg => gg.MatchOrder).ToDictionary(k => k.name, v => v));
 
-            //TODO: load team data from DB. Either its own table set or add a parameter to the main TagParserEntries table to indicate its purpose.
-            teams = Singletons.defaultTeamColors;
-            foreach (var t in teams)
-                foreach (var p in t.paintOperations)
-                    SetPaintForTPP(p);
-
-            teamsByName = teams.ToDictionary(k => k.name, v => v);
+            defaultStyle = styles.Last(); //TODO: find rule to identify, or hard-code this? I might force-add the mandatory entries if they're missing.
 
             var dbSettings = db.ServerSettings.FirstOrDefault();
             if (dbSettings != null)
@@ -83,8 +84,21 @@ namespace CoreComponents
             tpe.paint = paint;
         }
 
+        public static TagParserEntry GetStyleForOsmWay(ICollection<ElementTags> tags)
+        {
+            if (tags == null || tags.Count() == 0)
+                return defaultStyle;
+
+            foreach (var drawingRules in styles)
+            {
+                if (MatchOnTags(drawingRules, tags))
+                    return drawingRules;
+            }
+
+            return defaultStyle;
+        }
         public static TagParserEntry GetStyleForOsmWay(List<ElementTags> tags)
-    {
+        {
             if (tags == null || tags.Count() == 0)
                 return defaultStyle;
             
@@ -124,9 +138,14 @@ namespace CoreComponents
         {
             return MatchOnTags(tpe, sw.Tags.ToList());
         }
-        
-        public static bool MatchOnTags(TagParserEntry tpe, List<ElementTags> tags)
+
+        public static bool MatchOnTags(TagParserEntry tpe, ICollection<ElementTags> tags)
         {
+        
+
+
+        //public static bool MatchOnTags(TagParserEntry tpe, List<ElementTags> tags)
+        //{
             //Changing this to return as soon as any entry fails makes it run about twice as fast.
             bool OrMatched = false;
             int orRuleCount = 0;
@@ -193,20 +212,6 @@ namespace CoreComponents
 
             return false;
         }
-
-        //public static void UpdateDbForStyleChange() //Unused, but potentially important if I am saving geometry formats based on the default tag results. If I'm doing that, i should stop.
-        //{
-        //    var db = new PraxisContext();
-        //    foreach (var sw in db.StoredOsmElements)
-        //    {
-        //        var paintStyle = GetStyleForOsmWay(sw);
-        //        if (sw.elementGeometry.GeometryType == "LinearRing" && paintStyle.paint.Style == SKPaintStyle.Fill)
-        //        {
-        //            var poly = factory.CreatePolygon((LinearRing)sw.elementGeometry);
-        //            sw.elementGeometry = poly;
-        //        }
-        //    }
-        //}
 
         public static List<ElementTags> getFilteredTags(TagsCollectionBase rawTags)
         {

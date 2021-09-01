@@ -30,6 +30,9 @@ namespace CoreComponents
         public DbSet<ScavengerHunt> scavengerHunts { get; set; }
         public DbSet<ScavengerHuntEntry> scavengerHuntEntries { get; set; }
 
+        public DbSet<CustomDataOsmElement> customDataOsmElements { get; set; }
+        public DbSet<CustomDataPlusCode> CustomDataPlusCodes { get; set; }
+
 
         //IConfiguration Config;
         public static string connectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;"; //Needs a default value.
@@ -54,7 +57,8 @@ namespace CoreComponents
         protected override void OnModelCreating(ModelBuilder model)
         {
             //Create indexes here.
-            model.Entity<PlayerData>().HasIndex(p => p.deviceID); //for updating data
+            model.Entity<PlayerData>().HasIndex(p => p.deviceID);
+            model.Entity<PlayerData>().HasIndex(p => p.dataKey); 
 
             model.Entity<StoredOsmElement>().HasIndex(m => m.AreaSize); //Enables server-side sorting on biggest-to-smallest draw order.
             //model.Entity<StoredOsmElement>().HasIndex(m => m.LineLength); //Enables server-side sorting on biggest-to-smallest draw order.
@@ -83,6 +87,13 @@ namespace CoreComponents
 
             model.Entity<ElementTags>().HasIndex(m => m.Key);
             model.Entity<ElementTags>().HasOne(m => m.storedOsmElement).WithMany(m => m.Tags).HasForeignKey(m => new { m.SourceItemId, m.SourceItemType }).HasPrincipalKey(m => new { m.sourceItemID, m.sourceItemType });
+
+            model.Entity<CustomDataOsmElement>().HasIndex(m => m.dataKey);
+            model.Entity<CustomDataOsmElement>().HasIndex(m => m.storedOsmElementId);
+
+            model.Entity<CustomDataPlusCode>().HasIndex(m => m.dataKey);
+            model.Entity<CustomDataPlusCode>().HasIndex(m => m.PlusCode);
+            model.Entity<CustomDataPlusCode>().HasIndex(m => m.geoAreaIndex);
 
             if (serverMode == "PostgreSQL")
             {
@@ -212,11 +223,9 @@ namespace CoreComponents
             db.PaintTownConfigs.Add(new PaintTownConfig() {PaintTownConfigId =2, Name = "Weekly", Cell10LockoutTimer = 300, DurationHours = 168, NextReset = nextSaturday });
 
             //PaintTheTown requires dummy entries in the playerData table, or it doesn't know which factions exist. It's faster to do this once here than to check on every call to playerData
-            int pdId = 1;
             foreach (var faction in Singletons.defaultFaction)
             {
-                db.PlayerData.Add(new PlayerData() {PlayerDataID = pdId, deviceID = "dummy" + faction.FactionId, FactionId = faction.FactionId });
-                pdId++;
+                GenericData.SetPlayerData("dummy", "FactionId", faction.FactionId.ToString());
             }
             db.SaveChanges();
         }

@@ -13,8 +13,9 @@ namespace CoreComponents
         {
             public int PlayerDataID { get; set; }
             public string deviceID { get; set; }
-            public string DisplayName { get; set; }
-            public long FactionId { get; set; }
+            public string dataKey { get; set; }
+            public string dataValue { get; set;}
+            public DateTime? expiration { get; set; }
         }
 
         public class PerformanceInfo
@@ -110,17 +111,10 @@ namespace CoreComponents
             //Tag pairs are Key:Value per OSM data.
             public long id { get; set; }
             public string name { get; set; }
-            public int typeID { get; set; }
+            public string styleSet { get; set; }
+            public int MatchOrder { get; set; }
             public ICollection<TagParserMatchRule> TagParserMatchRules { get; set; }
-            public string HtmlColorCode { get; set; }
-            public string FillOrStroke { get; set; }
-            public float LineWidth { get; set; }
-            public string LinePattern { get; set; } //solid, dashed, other varieties? //If blank, solid line. If not, split string into float[] on |
-            [NotMapped]
-            public SKPaint paint { get; set; } //Fill in on app start.
-            public int Priority { get; set; } //order tags should be matched in. EX: Retail should be matched before Building, since its more specific and useful. But usually smallest/shortest path goes last and biggest/longest goes first
             public bool IsGameElement { get; set; } // This tag should be used when asking for game areas, not just map tiles. Would let me use a single table for both again.
-            public string fileName { get; set; } //A path to an image file that will be used as a repeating pattern. Null for solid colors.
             public ICollection<TagParserPaint> paintOperations { get; set; }
             public double minDrawRes { get; set; } = 0;//skip drawing this item if  resPerPixelX is below this value. (what doesn't draw zoomed in on OSM? name text?
             public double maxDrawRes { get; set; } = 4; //skip drawing this item if resPerPixelX is above this value. (EX: tertiary roads don't draw at distant zooms but primary roads do)
@@ -305,10 +299,25 @@ namespace CoreComponents
             public long id { get; set; }
         }
 
-        public class PlayerCollections
+        public class CustomDataPlusCode
         {
-            //for storing collection data server-side.
+            //for storing collection data server-side per plus-code
             public long id { get; set; }
+            public string PlusCode { get; set; } //can be any valid pluscode length 2-11
+            public string dataKey { get; set; }
+            public string dataValue { get; set; }
+            public DateTime? expiration { get; set; } //optional.
+            public Geometry geoAreaIndex { get; set; } //PlusCode listed as a geometry object for index/search purposes.
+        }
+
+        public class CustomDataOsmElement
+        {
+            //for storing collection data server-side per existing map area. Join on that table to get geometry area.
+            public long id { get; set; }
+            public long storedOsmElementId { get; set; }
+            public string dataKey { get; set; }
+            public string dataValue { get; set; }
+            public DateTime? expiration { get; set; } //optional.
         }
     }
 }

@@ -9,6 +9,8 @@ namespace PraxisMapper.Controllers
     [ApiController]
     public class PlayerContentController : Controller
     {
+        //TODO: replace this with GenericData calls from the appropriate games as proper demonstration of how to do this.
+        //This controller will be removed in the future then. Finally.
 
         //A future concept
         //Have endpoints designed to handle things the player can edit on the map, for other players to interact with.
@@ -31,32 +33,28 @@ namespace PraxisMapper.Controllers
                 Classes.PerformanceTracker pt = new Classes.PerformanceTracker("AssignTeam");
 
                 var db = new PraxisContext();
-                var player = db.PlayerData.Where(p => p.deviceID == deviceID).FirstOrDefault();
-                if (player == null)
-                {
-                    player = new DbTables.PlayerData();
-                    player.deviceID = deviceID;
-                    player.DisplayName = "";
-                    player.FactionId = 0;
-                    db.PlayerData.Add(player);
-                }
+                var player = GenericData.GetPlayerData(deviceID, "DisplayName");
+                var player2 = GenericData.GetPlayerData(deviceID, "FactionId");
+                
                 var factions = db.Factions.ToList();
-                if (factions.Any(f => f.FactionId == player.FactionId))
+                if (factions.Any(f => f.FactionId.ToString() == player2))
                 {
                     pt.Stop();
-                    return player.FactionId;
+                    return player2.ToLong();
                 }
 
                 var smallestTeam = db.PlayerData
-                    .GroupBy(ta => ta.FactionId)
-                    .Select(ta => new { team = ta.Key, members = ta.Count() })
+                    .Where(p => p.dataKey == "FactionId")
+                    .GroupBy(ta => ta.dataValue)
+                    .Select(ta => new { team = ta.Key.ToLong(), members = ta.Count() })
                     .OrderBy(ta => ta.members)
                     .First().team;
 
                 if (smallestTeam == null || smallestTeam == 0)
                     smallestTeam = factions.First().FactionId;
 
-                player.FactionId = smallestTeam;
+                //player.FactionId = smallestTeam;
+                GenericData.SetPlayerData(deviceID, "FactionId", smallestTeam.ToString());
                 db.SaveChanges();
                 pt.Stop(deviceID + "|" + smallestTeam);
                 return smallestTeam;
@@ -74,12 +72,13 @@ namespace PraxisMapper.Controllers
         {
             //An alternative config option, to let players pick teams and have it stored on the server. Provided for testing and alternative play models.
             Classes.PerformanceTracker pt = new Classes.PerformanceTracker("AssignTeam");
-            var db = new PraxisContext();
-            var player = db.PlayerData.Where(p => p.deviceID == deviceID).FirstOrDefault();
+            GenericData.SetPlayerData(deviceID, "FactionId", factionID.ToString());
+            //var db = new PraxisContext();
+            //var player = db.PlayerData.Where(p => p.deviceID == deviceID).FirstOrDefault();
             //var teamEntry = GetTeamAssignment(deviceID, instanceID);
             //db.Attach(teamEntry);
-            player.FactionId = factionID;
-            db.SaveChanges();
+            //player.FactionId = factionID;
+            //db.SaveChanges();
 
             pt.Stop(deviceID + "|" + factionID);
             return factionID;
