@@ -1234,7 +1234,7 @@ namespace CoreComponents.PbfReader
             relList = new ConcurrentBag<Task>();
 
             if (onlyTagMatchedElements)
-                elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => TagParser.GetStyleForOsmWay(e.Tags.ToList()).name != TagParser.styles.Last().name));
+                elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => TagParser.GetStyleForOsmWay(e.Tags).name != TagParser.defaultStyle.name));
 
             if (boundsEntry != null)
                elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => boundsEntry.Intersects(e.elementGeometry)));
@@ -1303,7 +1303,7 @@ namespace CoreComponents.PbfReader
             relList = new ConcurrentBag<Task>();
 
             if (onlyTagMatchedElements)
-                elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => e != null && TagParser.GetStyleForOsmWay(e.Tags.ToList()).name != TagParser.styles.Last().name));
+                elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => e != null && TagParser.GetStyleForOsmWay(e.Tags).name != TagParser.defaultStyle.name));
 
             ConcurrentBag<string> georesults = new ConcurrentBag<string>();
             ConcurrentBag<string> tagresults = new ConcurrentBag<string>();

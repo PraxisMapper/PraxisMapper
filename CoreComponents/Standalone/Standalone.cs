@@ -45,6 +45,7 @@ namespace CoreComponents.Standalone
 
         public static List<ScavengerHuntStandalone> GetScavengerHunts(List<StoredOsmElement> allPlaces)
         {
+            //TODO: This is going to need updated for the new TagParser rules. testing at the minimum
             var results = new List<ScavengerHuntStandalone>();
             var wikiList = allPlaces.Where(a => a.Tags.Any(t => t.Key == "wikipedia") && a.name != "").Select(a => a.name).Distinct().ToList();
             //Create automatic scavenger hunt entries.
@@ -57,11 +58,11 @@ namespace CoreComponents.Standalone
             scavengerHunts.Add("Wikipedia Places", wikiList);
             Log.WriteLog(wikiList.Count() + " Wikipedia-linked items found for scavenger hunt.");
             //fill in gameElement lists.
-            foreach (var gameElementTags in TagParser.styles.Where(s => s.IsGameElement))
+            foreach (var gameElementTags in TagParser.allStyleGroups.First().Value.Where(s => s.Value.IsGameElement))
             {
-                var foundElements = allPlaces.Where(a => TagParser.MatchOnTags(gameElementTags, a) && !string.IsNullOrWhiteSpace(a.name)).Select(a => a.name).Distinct().ToList();
-                scavengerHunts.Add(gameElementTags.name, foundElements);
-                Log.WriteLog(foundElements.Count() + " " + gameElementTags.name + " items found for scavenger hunt.");
+                var foundElements = allPlaces.Where(a => TagParser.MatchOnTags(gameElementTags.Value, a) && !string.IsNullOrWhiteSpace(a.name)).Select(a => a.name).Distinct().ToList();
+                scavengerHunts.Add(gameElementTags.Value.name, foundElements);
+                Log.WriteLog(foundElements.Count() + " " + gameElementTags.Value.name + " items found for scavenger hunt.");
             }
 
             foreach (var hunt in scavengerHunts)

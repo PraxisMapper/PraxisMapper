@@ -1428,7 +1428,7 @@ namespace PerformanceTestApp
             Stopwatch sw = new Stopwatch();
             sw.Start();
             for (var i = 0; i < 1000; i++)
-                foreach (var style in TagParser.styles)
+                foreach (var style in TagParser.allStyleGroups.First().Value)
                     TagParser.GetStyleForOsmWay(emptyList);
                     //TagParser.MatchOnTags(style, emptyList);
             sw.Stop();
@@ -1447,7 +1447,7 @@ namespace PerformanceTestApp
 
             sw.Restart();
             for (var i = 0; i < 1000; i++)
-                foreach (var style in TagParser.styles)
+                foreach (var style in TagParser.allStyleGroups.First().Value)
                     TagParser.GetStyleForOsmWay(defaultSingle);
                     //TagParser.MatchOnTags(style, defaultSingle);
             sw.Stop();
@@ -1474,7 +1474,7 @@ namespace PerformanceTestApp
 
             sw.Restart();
             for (var i = 0; i < 1000; i++)
-                foreach (var style in TagParser.styles)
+                foreach (var style in TagParser.allStyleGroups.First().Value)
                     TagParser.GetStyleForOsmWay(biglist);
                     //TagParser.MatchOnTags(style, defaultSingle);
             sw.Stop();
@@ -1485,7 +1485,7 @@ namespace PerformanceTestApp
 
             sw.Restart();
             for (var i = 0; i < 1000; i++)
-                foreach (var style in TagParser.styles)
+                foreach (var style in TagParser.allStyleGroups.First().Value)
                     TagParser.GetStyleForOsmWay(biglist);
             //TagParser.MatchOnTags(style, defaultSingle);
             sw.Stop();
@@ -1498,7 +1498,7 @@ namespace PerformanceTestApp
 
             sw.Restart();
             for (var i = 0; i < 1000; i++)
-                foreach (var style in TagParser.styles)
+                foreach (var style in TagParser.allStyleGroups.First().Value)
                     TagParser.GetStyleForOsmWay(biglist);
             //TagParser.MatchOnTags(style, defaultSingle);
             sw.Stop();

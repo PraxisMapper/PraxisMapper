@@ -103,11 +103,6 @@ namespace CoreComponents
             return r;
         }
 
-        //I should probably figure out how to functionalize this. 
-       // public static float ConvertLatLonToSkiaCanvas()
-        //{ 
-        //}
-
         public static GeoArea GeometryToGeoArea(Geometry g)
         {
             try
@@ -141,5 +136,18 @@ namespace CoreComponents
             double n = Math.PI - 2.0 * Math.PI * y / (double)(1 << z);
             return 180.0 / Math.PI * Math.Atan(0.5 * (Math.Exp(n) - Math.Exp(-n)));
         }
+
+        //Incomplete, slippy tiles require some compromises for this to work
+        //public static void GetSlippyTileForPoint(GeoArea buffered, int zoomLevel)
+        //{
+        //    var intersectCheck = Converters.GeoAreaToPolygon(buffered);
+
+        //    //start drawing maptiles and sorting out data.
+        //    var swCornerLon = Converters.GetSlippyXFromLon(intersectCheck.EnvelopeInternal.MinX, zoomLevel);
+        //    var neCornerLon = Converters.GetSlippyXFromLon(intersectCheck.EnvelopeInternal.MaxX, zoomLevel);
+        //    var swCornerLat = Converters.GetSlippyYFromLat(intersectCheck.EnvelopeInternal.MinY, zoomLevel);
+        //    var neCornerLat = Converters.GetSlippyYFromLat(intersectCheck.EnvelopeInternal.MaxY, zoomLevel);
+
+        //}
     }
 }

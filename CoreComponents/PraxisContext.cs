@@ -89,7 +89,7 @@ namespace CoreComponents
             model.Entity<ElementTags>().HasOne(m => m.storedOsmElement).WithMany(m => m.Tags).HasForeignKey(m => new { m.SourceItemId, m.SourceItemType }).HasPrincipalKey(m => new { m.sourceItemID, m.sourceItemType });
 
             model.Entity<CustomDataOsmElement>().HasIndex(m => m.dataKey);
-            model.Entity<CustomDataOsmElement>().HasIndex(m => m.storedOsmElementId);
+            model.Entity<CustomDataOsmElement>().HasIndex(m => m.StoredOsmElementId);
 
             model.Entity<CustomDataPlusCode>().HasIndex(m => m.dataKey);
             model.Entity<CustomDataPlusCode>().HasIndex(m => m.PlusCode);

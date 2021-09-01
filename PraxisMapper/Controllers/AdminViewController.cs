@@ -76,7 +76,7 @@ namespace PraxisMapper.Controllers
             if (area == null)
                 return View();
 
-            TagParser.ApplyTags(new System.Collections.Generic.List<DbTables.StoredOsmElement>() { area });
+            TagParser.ApplyTags(new System.Collections.Generic.List<DbTables.StoredOsmElement>() { area }, "mapTiles");
             ViewBag.areaname = area.name;
             ViewBag.type = area.GameElementName;
             ViewBag.isGenerated = area.IsGenerated;

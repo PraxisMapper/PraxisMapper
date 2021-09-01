@@ -17,25 +17,16 @@ namespace CoreComponents
     //I would need better area-vs-feature detection (OSMSharp has this,and I think I included that in my code)
     public static class TagParser
     {
-        public static List<TagParserEntry> styles; //For drawing maptiles
-        public static List<TagParserEntry> teams; //For doing Area Control tiles.
         public static TagParserEntry defaultStyle; //background color must be last if I want un-matched areas to be hidden, its own color if i want areas with no ways at all to show up.
-        public static TagParserEntry defaultTeam; //background color must be last if I want un-matched areas to be hidden, its own color if i want areas with no ways at all to show up.
         public static Dictionary<string, SKBitmap> cachedBitmaps = new Dictionary<string, SKBitmap>(); //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
-
-        //TODO: in order to make this class more usable for a generic case, I need to add another property to TagParserEntries, a group name of some sort,
-        //and load all entries from the DB and group by that name. This would let a user make multiple style groups for multiple tile types.
-        //then I need to get styles from their key out of a dictionary
-
         public static Dictionary<string, Dictionary<string, TagParserEntry>> allStyleGroups = new Dictionary<string, Dictionary<string, TagParserEntry>>();
 
-        //public static Dictionary<string, TagParserEntry> stylesByName; //Faster lookup for style.
-        //public static Dictionary<string, TagParserEntry> teamsByName; //Faster lookup for style.
         public static void Initialize(bool onlyDefaults = false)
         {
             //Load TPE entries from DB for app.
             var db = new PraxisContext();
-            styles = db.TagParserEntries.Include(t => t.TagParserMatchRules).Include(t => t.paintOperations).ToList();
+
+            var styles = db.TagParserEntries.Include(t => t.TagParserMatchRules).Include(t => t.paintOperations).ToList();
             if (onlyDefaults || styles == null || styles.Count() == 0)
                 styles = Singletons.defaultTagParserEntries;
 
@@ -47,7 +38,18 @@ namespace CoreComponents
             foreach (var g in groups)
                 allStyleGroups.Add(g.Key, g.Select(gg => gg).OrderBy(gg => gg.MatchOrder).ToDictionary(k => k.name, v => v));
 
-            defaultStyle = styles.Last(); //TODO: find rule to identify, or hard-code this? I might force-add the mandatory entries if they're missing.
+            //Default style should be transparent, matches anything (assumed other styles were checked first)
+            defaultStyle = new TagParserEntry()
+            {
+                MatchOrder = 10000,
+                name = "unmatched",
+                styleSet = "mapTiles",
+                paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
+                },
+                TagParserMatchRules = new List<TagParserMatchRule>() {
+                    new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "default" }}
+            };
 
             var dbSettings = db.ServerSettings.FirstOrDefault();
             if (dbSettings != null)
@@ -84,37 +86,38 @@ namespace CoreComponents
             tpe.paint = paint;
         }
 
-        public static TagParserEntry GetStyleForOsmWay(ICollection<ElementTags> tags)
+        public static TagParserEntry GetStyleForOsmWay(ICollection<ElementTags> tags, string styleSet = "mapTiles")
         {
             if (tags == null || tags.Count() == 0)
                 return defaultStyle;
 
-            foreach (var drawingRules in styles)
+            foreach (var drawingRules in allStyleGroups[styleSet])
             {
-                if (MatchOnTags(drawingRules, tags))
-                    return drawingRules;
+                if (MatchOnTags(drawingRules.Value, tags))
+                    return drawingRules.Value;
             }
 
             return defaultStyle;
         }
-        public static TagParserEntry GetStyleForOsmWay(List<ElementTags> tags)
-        {
-            if (tags == null || tags.Count() == 0)
-                return defaultStyle;
+        //The ICollection<> version should handle everything, and nothing should need to cast from ICollection to List again.
+        //public static TagParserEntry GetStyleForOsmWay(List<ElementTags> tags, string styleSet = "mapTiles")
+        //{
+        //    if (tags == null || tags.Count() == 0)
+        //        return defaultStyle;
             
-            foreach (var drawingRules in styles)
-            {
-                if (MatchOnTags(drawingRules, tags))
-                    return drawingRules;
-            }
+        //    foreach (var drawingRules in allStyleGroups[styleSet])
+        //    {
+        //        if (MatchOnTags(drawingRules.Value, tags))
+        //            return drawingRules.Value;
+        //    }
             
-            return defaultStyle;
-        }
+        //    return defaultStyle;
+        //}
 
         public static TagParserEntry GetStyleForOsmWay(TagsCollectionBase tags)
         {
-            var tempTags = tags.Select(t => new ElementTags() { Key = t.Key, Value = t.Value }).ToList();
-            return GetStyleForOsmWay(tempTags);
+            //var tempTags = tags.Select(t => new ElementTags() { Key = t.Key, Value = t.Value }).ToList();
+            return GetStyleForOsmWay(tags);
         }
 
         public static string GetAreaType(TagsCollectionBase tags)
@@ -122,30 +125,25 @@ namespace CoreComponents
             var tempTags = tags.Select(t => new ElementTags() { Key = t.Key, Value = t.Value }).ToList();
             return GetAreaType(tempTags);
         }
-        public static string GetAreaType(List<ElementTags> tags)
+        public static string GetAreaType(List<ElementTags> tags, string styleSet = "mapTiles")
         {
             if (tags == null || tags.Count() == 0)
                 return defaultStyle.name;
 
-            foreach (var drawingRules in styles)
-                if (MatchOnTags(drawingRules, tags))
-                    return drawingRules.name;
+            foreach (var drawingRules in allStyleGroups[styleSet])
+                if (MatchOnTags(drawingRules.Value, tags))
+                    return drawingRules.Value.name;
 
             return defaultStyle.name;
         }
 
         public static bool MatchOnTags(TagParserEntry tpe, StoredOsmElement sw)
         {
-            return MatchOnTags(tpe, sw.Tags.ToList());
+            return MatchOnTags(tpe, sw.Tags);
         }
 
         public static bool MatchOnTags(TagParserEntry tpe, ICollection<ElementTags> tags)
         {
-        
-
-
-        //public static bool MatchOnTags(TagParserEntry tpe, List<ElementTags> tags)
-        //{
             //Changing this to return as soon as any entry fails makes it run about twice as fast.
             bool OrMatched = false;
             int orRuleCount = 0;
@@ -281,11 +279,11 @@ namespace CoreComponents
             return "https://" + splitValue[0] + ".wikipedia.org/wiki/" + splitValue[1]; //TODO: check if special characters need replaced or encoded on this.
         }
 
-        public static List<StoredOsmElement> ApplyTags(List<StoredOsmElement> places)
+        public static List<StoredOsmElement> ApplyTags(List<StoredOsmElement> places, string styleSet)
         {
             foreach (var p in places)
             {
-                var style = GetStyleForOsmWay(p.Tags.ToList());
+                var style = GetStyleForOsmWay(p.Tags, styleSet);
                 p.GameElementName = style.name;
                 p.IsGameElement = style.IsGameElement;
             }
