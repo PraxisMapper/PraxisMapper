@@ -1,4 +1,6 @@
 ﻿//Taken wholesale from OsmSharp and modified for PraxisMapper to fix bugs while waiting for updates.
+//Specifically, the NoRecursion functions were done for Praxismapper to get around stack limits when
+//parsing Ways of very large (11k+) nodes.
 //This file remains distributed under the original license:
 // The MIT License (MIT)
 

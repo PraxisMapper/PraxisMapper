@@ -51,7 +51,7 @@ namespace CoreComponents
                     ap.Tags = new List<ElementTags>() { new ElementTags() { Key = "team", Value = "none" } };
             }
 
-            return DrawAreaAtSize(info, places, TagParser.teamsByName);
+            return DrawAreaAtSize(info, places, TagParser.allStyleGroups["teamColor"]);
         }
 
         public static byte[] DrawPaintTownSlippyTileSkia(ImageStats info, int instanceID)
@@ -393,7 +393,7 @@ namespace CoreComponents
             //to pick which list of tagparser rules to use.
 
             if (styles == null)
-                styles = TagParser.stylesByName;
+                styles = TagParser.allStyleGroups.First().Value;
 
             double minimumSize = 0;
             double minSizeSquared = 0;
@@ -534,7 +534,7 @@ namespace CoreComponents
             //to pick which list of tagparser rules to use.
 
             if (styles == null)
-                styles = TagParser.stylesByName;
+                styles = TagParser.allStyleGroups.First().Value;
 
             double minimumSize = 0;
             if (filterSmallAreas)

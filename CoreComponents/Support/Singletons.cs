@@ -47,7 +47,7 @@ namespace CoreComponents
         //Or perhaps I set the size in pixels at a given zoom level, and then multiply the size by a scale factor? Some entries might need to opt-out of scaling (like admin boundaries)
         public static List<TagParserEntry> defaultTagParserEntries = new List<TagParserEntry>()
         {
-            new TagParserEntry() { id = 1, name ="water",
+            new TagParserEntry() { MatchOrder = 1, name ="water", styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "aad3df", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
@@ -58,14 +58,14 @@ namespace CoreComponents
                     new TagParserMatchRule() {Key = "leisure", Value ="swimming_pool", MatchType="or" },
                     new TagParserMatchRule() {Key = "place", Value ="sea", MatchType="or" }, //stupid Labrador sea value.
                 }},
-            new TagParserEntry() { id = 2, name ="wetland",
+            new TagParserEntry() { MatchOrder = 2, name ="wetland", styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "0C4026", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
                  TagParserMatchRules = new List<TagParserMatchRule>() {
                      new TagParserMatchRule() { Key = "natural", Value = "wetland", MatchType = "equals" }
                  }},
-            new TagParserEntry() { IsGameElement = true, id = 3, name ="park",
+            new TagParserEntry() { IsGameElement = true, MatchOrder = 3, name ="park", styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "C8FACC", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
@@ -73,7 +73,7 @@ namespace CoreComponents
                     new TagParserMatchRule() { Key = "leisure", Value = "park", MatchType = "or" },
                     new TagParserMatchRule() { Key = "leisure", Value = "playground", MatchType = "or" },
             }},
-            new TagParserEntry() { IsGameElement = true, id = 4, name ="beach",
+            new TagParserEntry() { IsGameElement = true, MatchOrder = 4, name ="beach", styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "F5E9C6", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
@@ -81,26 +81,29 @@ namespace CoreComponents
                     new TagParserMatchRule() {Key = "natural", Value = "beach", MatchType = "or" },
                     new TagParserMatchRule() {Key = "leisure", Value="beach_resort", MatchType="or"}
             } },
-            new TagParserEntry() { IsGameElement = true, id = 5, name ="university",
+            new TagParserEntry() { IsGameElement = true, MatchOrder = 5, name ="university", styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "FFFFE5", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "amenity", Value = "university|college", MatchType = "any" }} },
-            new TagParserEntry() { IsGameElement = true, id = 6, name ="natureReserve",
+                    new TagParserMatchRule() { Key = "amenity", Value = "university|college", MatchType = "any" }} 
+            },
+            new TagParserEntry() { IsGameElement = true, MatchOrder = 6, name ="natureReserve", styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "124504", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "leisure", Value = "nature_reserve", MatchType = "equals" }} },
-            new TagParserEntry() {IsGameElement = true, id = 7, name ="cemetery",
+                    new TagParserMatchRule() { Key = "leisure", Value = "nature_reserve", MatchType = "equals" }} 
+            },
+            new TagParserEntry() {IsGameElement = true, MatchOrder = 7, name ="cemetery", styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "AACBAF", FillOrStroke = "fill", fileName="MapPatterns\\Landuse-cemetery.png", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "landuse", Value = "cemetery", MatchType = "or" },
-                    new TagParserMatchRule() {Key="amenity", Value="grave_yard", MatchType="or" } } },
-            new TagParserEntry() { id = 8, name ="retail",
+                    new TagParserMatchRule() {Key="amenity", Value="grave_yard", MatchType="or" } } 
+            },
+            new TagParserEntry() { MatchOrder = 8, name ="retail", styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "FFD6D1", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
@@ -109,19 +112,21 @@ namespace CoreComponents
                     new TagParserMatchRule() {Key="building", Value="retail", MatchType="or" },
                     new TagParserMatchRule() {Key="shop", Value="*", MatchType="or" }
             }},
-            new TagParserEntry() { IsGameElement = true, id = 9, name ="tourism",
+            new TagParserEntry() { IsGameElement = true, MatchOrder = 9, name ="tourism", styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "660033", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "tourism", Value = "*", MatchType = "equals" }} },
-            new TagParserEntry() { IsGameElement = true, id = 10, name ="historical", HtmlColorCode = "B3B3B3",FillOrStroke = "fill", LineWidth=1, LinePattern= "solid",
+                    new TagParserMatchRule() { Key = "tourism", Value = "*", MatchType = "equals" }} 
+            },
+            new TagParserEntry() { IsGameElement = true, MatchOrder = 10, name ="historical", styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "B3B3B3", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "historic", Value = "*", MatchType = "equals" }} },
-            new TagParserEntry() { id = 11, name ="trailFilled",
+                    new TagParserMatchRule() { Key = "historic", Value = "*", MatchType = "equals" }} 
+            },
+            new TagParserEntry() { MatchOrder = 11, name ="trailFilled", styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "F0E68C", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
@@ -130,7 +135,7 @@ namespace CoreComponents
                     new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
                     new TagParserMatchRule() { Key="area", Value="yes", MatchType="equals"}
             }},
-            new TagParserEntry() { IsGameElement = true, id = 12, name ="trail", maxDrawRes = ConstantValues.zoom14DegPerPixelX,
+            new TagParserEntry() { IsGameElement = true, MatchOrder = 12, name ="trail", maxDrawRes = ConstantValues.zoom14DegPerPixelX, styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "F0E68C", FillOrStroke = "stroke", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
@@ -139,20 +144,20 @@ namespace CoreComponents
                     new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"}
             }},
             //Making admin transparent again.
-            new TagParserEntry() { id = 13, name ="admin",  minDrawRes = ConstantValues.zoom12DegPerPixelX,
+            new TagParserEntry() { MatchOrder = 13, name ="admin",  minDrawRes = ConstantValues.zoom12DegPerPixelX, styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=2, LinePattern= "10|5", layerId = 70 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" }} },
-            new TagParserEntry() { id = 14, name ="building",
+            new TagParserEntry() { MatchOrder = 14, name ="building", styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "d9d0c9", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 },
                     new TagParserPaint() { HtmlColorCode = "B8A89C", FillOrStroke = "stroke", LineWidth=1, LinePattern= "solid", layerId = 99 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "building", Value = "*", MatchType = "equals" }} },
-            //new TagParserEntry() { id = 15, name ="roadFilled", 
+            //new TagParserEntry() { MatchOrder = 15, name ="roadFilled",  styleSet = "mapTiles",
             //    paintOperations = new List<TagParserPaint>() {
             //        new TagParserPaint() { HtmlColorCode = "0D0D0D", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
             //    },
@@ -162,7 +167,7 @@ namespace CoreComponents
             //    new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
             //    new TagParserMatchRule() { Key="area", Value="yes", MatchType="equals"}
             //}},
-            //new TagParserEntry() { id = 16, name ="road", 
+            //new TagParserEntry() { MatchOrder = 16, name ="road",  styleSet = "mapTiles",
             //    paintOperations = new List<TagParserPaint>() { //TODO: split road into mulitple rules, and give different paint patterns.
             //        new TagParserPaint() { HtmlColorCode = "0D0D0D", FillOrStroke = "stroke", LineWidth=1, LinePattern= "solid", layerId = 100 }
             //    },
@@ -170,7 +175,7 @@ namespace CoreComponents
             //        new TagParserMatchRule() { Key = "highway", Value = "tertiary|unclassified|residential|tertiary_link|service|road", MatchType = "any" },
             //        new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"}
             //    }},
-            new TagParserEntry() { id = 17, name ="parking", minDrawRes = ConstantValues.zoom12DegPerPixelX,
+            new TagParserEntry() { MatchOrder = 17, name ="parking", minDrawRes = ConstantValues.zoom12DegPerPixelX, styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "EEEEEE", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
@@ -178,7 +183,7 @@ namespace CoreComponents
                     new TagParserMatchRule() { Key = "amenity", Value = "parking", MatchType = "equals" }} },
 
             //New generic entries for mapping by color
-            new TagParserEntry() { id = 18, name ="greenspace", 
+            new TagParserEntry() { MatchOrder = 18, name ="greenspace",  styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "C8FACC", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
@@ -187,7 +192,7 @@ namespace CoreComponents
                     new TagParserMatchRule() { Key = "natural", Value = "scrub|heath|grassland", MatchType = "or" },
                     new TagParserMatchRule() { Key = "leisure", Value = "garden", MatchType = "or" },
             }},
-            new TagParserEntry() { id = 19, name ="alsobeach", 
+            new TagParserEntry() { MatchOrder = 19, name ="alsobeach",  styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "D7B526", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
@@ -195,7 +200,7 @@ namespace CoreComponents
                     new TagParserMatchRule() { Key = "natural", Value = "sand|shingle|dune|scree", MatchType = "or" },
                     new TagParserMatchRule() { Key = "surface", Value = "sand", MatchType = "or" }
             }},
-            new TagParserEntry() { id = 20, name ="darkgreenspace", 
+            new TagParserEntry() { MatchOrder = 20, name ="darkgreenspace",  styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "ADD19E", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
@@ -203,21 +208,21 @@ namespace CoreComponents
                     new TagParserMatchRule() { Key = "natural", Value = "wood", MatchType = "or" },
                     new TagParserMatchRule() { Key = "landuse", Value = "forest|orchard", MatchType = "or" },
             }},
-            new TagParserEntry() { id = 21, name ="otherspots", 
+            new TagParserEntry() { MatchOrder = 21, name ="otherspots",  styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "EB63EB", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "landuse", Value = "industrial|commerical", MatchType = "any" },
             }},
-            new TagParserEntry() { id = 22, name ="residential", 
+            new TagParserEntry() { MatchOrder = 22, name ="residential",  styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "009933", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "landuse", Value = "residential", MatchType = "equals" },
             }},
-            new TagParserEntry() { id = 23, name ="sidewalk",
+            new TagParserEntry() { MatchOrder = 23, name ="sidewalk", styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "C0C0C0", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
@@ -225,7 +230,7 @@ namespace CoreComponents
                     new TagParserMatchRule() { Key = "highway", Value = "pedestrian", MatchType = "equals" },
             }},
             //Transparent: we don't usually want to draw census boundaries
-            new TagParserEntry() { id = 24, name ="censusbounds", 
+            new TagParserEntry() { MatchOrder = 24, name ="censusbounds",  styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
@@ -233,14 +238,14 @@ namespace CoreComponents
                     new TagParserMatchRule() { Key = "boundary", Value = "census", MatchType = "equals" },
             }},
             //Transparents: Explicitly things that don't help when drawn in one color.
-            new TagParserEntry() { id = 25, name ="donotdraw", 
+            new TagParserEntry() { MatchOrder = 25, name ="donotdraw",  styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "place", Value = "locality|islet", MatchType = "any" },
             }},
-            new TagParserEntry() { id = 26, name ="greyFill", 
+            new TagParserEntry() { MatchOrder = 26, name ="greyFill",  styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "AAAAAA", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
@@ -249,7 +254,7 @@ namespace CoreComponents
             }},
 
             //Roads of varying sizes and colors to match OSM colors
-            new TagParserEntry() { id = 27, name ="motorwayFilled",
+            new TagParserEntry() { MatchOrder = 27, name ="motorwayFilled", styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "e892a2", FillOrStroke = "fill", LineWidth=5, LinePattern= "solid", layerId = 92},
                     new TagParserPaint() { HtmlColorCode = "dc2a67", FillOrStroke = "fill", LineWidth=9, LinePattern= "solid", layerId = 93}
@@ -261,7 +266,7 @@ namespace CoreComponents
                 new TagParserMatchRule() { Key="area", Value="yes", MatchType="equals"}
             }},
             //Roads of varying sizes and colors to match OSM colors
-            new TagParserEntry() { id = 28, name ="motorway",
+            new TagParserEntry() { MatchOrder = 28, name ="motorway", styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "e892a2", FillOrStroke = "fill", LineWidth=5, LinePattern= "solid", layerId = 92},
                     new TagParserPaint() { HtmlColorCode = "dc2a67", FillOrStroke = "fill", LineWidth=9, LinePattern= "solid", layerId = 93}
@@ -271,7 +276,7 @@ namespace CoreComponents
                 new TagParserMatchRule() { Key = "highway", Value = "motorway|trunk|motorway_link|trunk_link", MatchType = "any" },
                 new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
             }},
-            new TagParserEntry() { id = 29, name ="primaryFilled",
+            new TagParserEntry() { MatchOrder = 29, name ="primaryFilled", styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "fcd6a4", FillOrStroke = "fill", LineWidth=4, LinePattern= "solid", layerId = 94, maxDrawRes = ConstantValues.zoom6DegPerPixelX /2},
                     new TagParserPaint() { HtmlColorCode = "a06b00", FillOrStroke = "fill", LineWidth=7, LinePattern= "solid", layerId = 95, maxDrawRes = ConstantValues.zoom6DegPerPixelX /2}
@@ -283,7 +288,7 @@ namespace CoreComponents
                 new TagParserMatchRule() { Key="area", Value="yes", MatchType="equals"}
             }},
             //Roads of varying sizes and colors to match OSM colors
-            new TagParserEntry() { id = 30, name ="primary",
+            new TagParserEntry() { MatchOrder = 30, name ="primary", styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "fcd6a4", FillOrStroke = "fill", LineWidth=4, LinePattern= "solid", layerId = 94, maxDrawRes = ConstantValues.zoom6DegPerPixelX /2 },
                     new TagParserPaint() { HtmlColorCode = "a06b00", FillOrStroke = "fill", LineWidth=7, LinePattern= "solid", layerId = 95, maxDrawRes = ConstantValues.zoom6DegPerPixelX /2}
@@ -293,7 +298,7 @@ namespace CoreComponents
                 new TagParserMatchRule() { Key = "highway", Value = "primary|primary_link", MatchType = "any" },
                 new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
             }},
-            new TagParserEntry() { id = 31, name ="secondaryFilled", 
+            new TagParserEntry() { MatchOrder = 31, name ="secondaryFilled",  styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "f7fabf", FillOrStroke = "fill", LineWidth=3, LinePattern= "solid", layerId = 96, maxDrawRes = ConstantValues.zoom8DegPerPixelX,},
                     new TagParserPaint() { HtmlColorCode = "707d05", FillOrStroke = "fill", LineWidth=5, LinePattern= "solid", layerId = 97, maxDrawRes = ConstantValues.zoom8DegPerPixelX,}
@@ -305,7 +310,7 @@ namespace CoreComponents
                 new TagParserMatchRule() { Key="area", Value="yes", MatchType="equals"}
             }},
             //Roads of varying sizes and colors to match OSM colors
-            new TagParserEntry() { id = 32, name ="secondary", 
+            new TagParserEntry() { MatchOrder = 32, name ="secondary",  styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "f7fabf", FillOrStroke = "fill", LineWidth=3, LinePattern= "solid", layerId = 96, maxDrawRes = ConstantValues.zoom8DegPerPixelX,},
                     new TagParserPaint() { HtmlColorCode = "707d05", FillOrStroke = "fill", LineWidth=5, LinePattern= "solid", layerId = 97, maxDrawRes = ConstantValues.zoom8DegPerPixelX,}
@@ -315,7 +320,7 @@ namespace CoreComponents
                 new TagParserMatchRule() { Key = "highway", Value = "secondary|secondary_link", MatchType = "any" },
                 new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
             }},
-            new TagParserEntry() { id = 33, name ="tertiaryFilled",
+            new TagParserEntry() { MatchOrder = 33, name ="tertiaryFilled", styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "ffffff", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 98, maxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                     new TagParserPaint() { HtmlColorCode = "8f8f8f", FillOrStroke = "fill", LineWidth=3, LinePattern= "solid", layerId = 99, maxDrawRes = ConstantValues.zoom10DegPerPixelX / 2}
@@ -327,7 +332,7 @@ namespace CoreComponents
                 new TagParserMatchRule() { Key="area", Value="yes", MatchType="equals"}
             }},
             //Roads of varying sizes and colors to match OSM colors
-            new TagParserEntry() { id = 34, name ="tertiary", maxDrawRes = (float)ConstantValues.zoom8DegPerPixelX / 2,
+            new TagParserEntry() { MatchOrder = 34, name ="tertiary", maxDrawRes = (float)ConstantValues.zoom8DegPerPixelX / 2, styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "ffffff", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 98, maxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                     new TagParserPaint() { HtmlColorCode = "8f8f8f", FillOrStroke = "fill", LineWidth=3, LinePattern= "solid", layerId = 99, maxDrawRes = ConstantValues.zoom10DegPerPixelX / 2}
@@ -339,7 +344,7 @@ namespace CoreComponents
             }},
 
             //Special purpose drawing element
-            new TagParserEntry() { id = 9998, name ="outline",
+            new TagParserEntry() { MatchOrder = 9998, name ="outline", styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "000000", FillOrStroke = "stroke", LineWidth=.5f, LinePattern= "solid", layerId = 100 }
                 },
@@ -348,39 +353,37 @@ namespace CoreComponents
 
             //NOTE: hiding elements of a given type is done by drawing those elements in a transparent color
             //My default set wants to draw things that haven't yet been identified, so I can see what needs improvement or matched by a rule.
-            new TagParserEntry() { id = 9999, name ="background", 
+            new TagParserEntry() { MatchOrder = 9999, name ="background",  styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "F2EFE9", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() { 
                     new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "none" }} },
 
-            new TagParserEntry() { id = 10000, name ="unmatched", 
+            new TagParserEntry() { MatchOrder = 10000, name ="unmatched",  styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() { 
-                    new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "default" }} }
-        };
-
-        //Note: the last entry on this must be transparent, or else team-color maptiles will shade non-claimed areas with a background color.
-        public static List<TagParserEntry> defaultTeamColors = new List<TagParserEntry>()
-        {
-            new TagParserEntry() { id = 1, name ="Red Team", 
+                    new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "default" }} 
+            },
+        
+            //Team Colors now part of the same default list.
+            new TagParserEntry() { MatchOrder = 1, name ="Red Team",  styleSet = "teamColor",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "FF0000", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() {Key = "team", Value = "red", MatchType = "equals"},
             }},
-            new TagParserEntry() { id = 2, name ="Green Team", 
+            new TagParserEntry() { MatchOrder = 2, name ="Green Team",   styleSet = "teamColor",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "00FF00", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() {Key = "team", Value = "green", MatchType = "equals"},
             }},
-            new TagParserEntry() { id = 3, name ="Blue Team",
+            new TagParserEntry() { MatchOrder = 3, name ="Blue Team",  styleSet = "teamColor",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "0000FF", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
@@ -389,14 +392,14 @@ namespace CoreComponents
             }},
 
             //Special purpose drawing element
-            new TagParserEntry() { id = 9998, name ="outline",
+            new TagParserEntry() { MatchOrder = 9998, name ="outline",  styleSet = "teamColor",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "000000", FillOrStroke = "stroke", LineWidth=.5f, LinePattern= "solid", layerId = 100 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "none" }} },
             //background is a mandatory style entry name, but its transparent here..
-            new TagParserEntry() { id = 1, name ="background", 
+            new TagParserEntry() { MatchOrder = 1, name ="background",  styleSet = "teamColor",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },

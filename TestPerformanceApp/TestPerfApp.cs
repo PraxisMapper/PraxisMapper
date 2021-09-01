@@ -1393,7 +1393,7 @@ namespace PerformanceTestApp
 
             //PaintTheTown requires dummy entries in the playerData table, or it doesn't know which factions exist. It's faster to do this once here than to check on every call to playerData
             foreach (var faction in Singletons.defaultFaction)
-                db.PlayerData.Add(new PlayerData() { deviceID = "dummy" + faction.FactionId, FactionId = faction.FactionId });
+                GenericData.SetPlayerData("dummy", "FactionId", faction.FactionId.ToString());
             db.SaveChanges();
         }
 
