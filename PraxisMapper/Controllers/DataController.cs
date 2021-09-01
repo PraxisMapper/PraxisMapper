@@ -1,6 +1,7 @@
 ﻿using CoreComponents;
 using Google.OpenLocationCode;
 using Microsoft.AspNetCore.Mvc;
+using System.Text;
 using static CoreComponents.DbTables;
 
 namespace PraxisMapper.Controllers
@@ -40,6 +41,32 @@ namespace PraxisMapper.Controllers
         public string GetElementData(long elementId, string key)
         {
             return GenericData.GetElementData(elementId, key);
+        }
+
+        [HttpGet]
+        [Route("/[controller]/GetAllDataInPlusCode/{plusCode}")]
+        public string GetAllDataInPlusCode(string plusCode)
+        {
+            var data = GenericData.GetAllDataInPlusCode(plusCode);
+            StringBuilder sb = new StringBuilder();
+            foreach (var d in data)
+                sb.Append(d.plusCode).Append("|").Append(d.key).Append("|").AppendLine(d.value);
+
+            return sb.ToString();
+        }
+
+        [HttpGet]
+        [Route("/[controller]/GetAllDataInOsmElement/{elementId}/{elementType}")]
+        public string GetAllDataInOsmElement(long elementId, int elementType)
+        {
+            var db = new PraxisContext();
+
+            var data = GenericData.GetAllDataInPlace(elementId, elementType);
+            StringBuilder sb = new StringBuilder();
+            foreach (var d in data)
+                sb.Append(d.elementId).Append("|").Append(d.key).Append("|").AppendLine(d.value);
+
+            return sb.ToString();
         }
 
         [HttpGet]

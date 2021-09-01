@@ -20,11 +20,8 @@ namespace CoreComponents
         //this allows it to be customized much easier, and changed on the fly without reloading data.
         //A lot of the current code will need changed to match that new logic, though. And generated areas may remain separate.
         
-        public static List<StoredOsmElement> GetPlaces(GeoArea area, List<StoredOsmElement> source = null, double filterSize = 0, List<TagParserEntry> styles = null, bool skipTags = false, bool includePoints = true)
+        public static List<StoredOsmElement> GetPlaces(GeoArea area, List<StoredOsmElement> source = null, double filterSize = 0, string styleSet = "mapTiles", bool skipTags = false, bool includePoints = true)
         {
-
-            if (styles == null)
-                styles = TagParser.styles;
             //parameters i will need to restore later.
             //bool includeGenerated = false;
 
@@ -52,7 +49,7 @@ namespace CoreComponents
                 places = source.Where(md => location.Intersects(md.elementGeometry) && md.AreaSize >= filterSize && (includePoints || md.sourceItemType != 1)).Select(md => md.Clone()).ToList(); // && md.AreaSize > filterSize
             }
 
-            TagParser.ApplyTags(places); //populates the fields we don't save to the DB. Might want to move this 
+            TagParser.ApplyTags(places, styleSet); //populates the fields we don't save to the DB. Might want to move this 
             return places;
         }
 

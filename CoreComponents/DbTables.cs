@@ -314,7 +314,8 @@ namespace CoreComponents
         {
             //for storing collection data server-side per existing map area. Join on that table to get geometry area.
             public long id { get; set; }
-            public long storedOsmElementId { get; set; }
+            public long StoredOsmElementId { get; set; } //might not be necessary?
+            public StoredOsmElement storedOsmElement { get; set; }
             public string dataKey { get; set; }
             public string dataValue { get; set; }
             public DateTime? expiration { get; set; } //optional.

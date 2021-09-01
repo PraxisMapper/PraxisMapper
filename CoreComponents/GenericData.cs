@@ -1,4 +1,5 @@
-﻿using Google.OpenLocationCode;
+﻿using CoreComponents.Support;
+using Google.OpenLocationCode;
 
 namespace CoreComponents
 {
@@ -37,12 +38,12 @@ namespace CoreComponents
         {
             var db = new PraxisContext();
             //An upsert command would be great here, but I dont think the entities do that.
-            var row = db.customDataOsmElements.Where(p => p.storedOsmElementId == elementId && p.dataKey == key).FirstOrDefault();
+            var row = db.customDataOsmElements.Where(p => p.StoredOsmElementId == elementId && p.dataKey == key).FirstOrDefault();
             if (row == null)
             {
                 row = new DbTables.CustomDataOsmElement();
                 row.dataKey = key;
-                row.storedOsmElementId = elementId;
+                row.StoredOsmElementId = elementId;
             }
             if(expiration != null)
                 row.expiration = expiration;
@@ -53,7 +54,7 @@ namespace CoreComponents
         public static string GetElementData(long elementId, string key)
         {
             var db = new PraxisContext();
-            var row = db.customDataOsmElements.Where(p => p.storedOsmElementId == elementId && p.dataKey == key).FirstOrDefault();
+            var row = db.customDataOsmElements.Where(p => p.StoredOsmElementId == elementId && p.dataKey == key).FirstOrDefault();
             if (row == null || row.expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
                 return "";
             return row.dataValue;
@@ -84,5 +85,40 @@ namespace CoreComponents
             row.dataValue = value;
             return db.SaveChanges() == 1;
         }
+
+        //NOTE: i thought about having both functions return both tables's worth of data merged, but I think
+        //for performance reasons it'll be better to keep them separate and allow the actual game to do 
+        //the merging logic in those cases. Most data sets will be one or the other.
+        public static List<CustomDataResult> GetAllDataInPlusCode(string plusCode)
+        {
+            var db = new PraxisContext();
+            var plusCodeArea = OpenLocationCode.DecodeValid(plusCode);
+            var plusCodePoly = Converters.GeoAreaToPolygon(plusCodeArea);
+            var plusCodeData = db.CustomDataPlusCodes.Where(d => plusCodePoly.Intersects(d.geoAreaIndex)).Select(d => new CustomDataResult(d.PlusCode, d.dataKey, d.dataValue)).ToList();
+
+            return plusCodeData;
+        }
+
+        public static List<CustomDataAreaResult> GetAllDataInArea(GeoArea area)
+        {
+            var db = new PraxisContext();
+            var poly = Converters.GeoAreaToPolygon(area);
+            //TODO: remember join syntax for entities that work on the DB and not the in-memory version.
+            var data = db.customDataOsmElements.Where(d => poly.Intersects(d.storedOsmElement.elementGeometry)).Select(d => new CustomDataAreaResult(d.StoredOsmElementId, d.dataKey, d.dataValue)).ToList();
+
+            return data;
+        }
+
+        public static List<CustomDataAreaResult> GetAllDataInPlace(long elementId, int elementType)
+        {
+            var db = new PraxisContext();
+            //TODO: remember join syntax for entities that work on the DB and not the in-memory version.
+            var place = db.StoredOsmElements.Where(s => s.id == elementId && s.sourceItemType == elementType).First();
+            var data = db.customDataOsmElements.Where(d => place.elementGeometry.Intersects(d.storedOsmElement.elementGeometry)).Select(d => new CustomDataAreaResult(d.StoredOsmElementId, d.dataKey, d.dataValue)).ToList();
+
+            return data;
+        }
+
+
     }
 }
