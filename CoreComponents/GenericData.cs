@@ -89,12 +89,21 @@ namespace CoreComponents
         //NOTE: i thought about having both functions return both tables's worth of data merged, but I think
         //for performance reasons it'll be better to keep them separate and allow the actual game to do 
         //the merging logic in those cases. Most data sets will be one or the other.
-        public static List<CustomDataResult> GetAllDataInPlusCode(string plusCode)
+        public static List<CustomDataResult> GetAllDataInPlusCode(string plusCode) //TODO: add optional key filter
         {
             var db = new PraxisContext();
             var plusCodeArea = OpenLocationCode.DecodeValid(plusCode);
             var plusCodePoly = Converters.GeoAreaToPolygon(plusCodeArea);
             var plusCodeData = db.CustomDataPlusCodes.Where(d => plusCodePoly.Intersects(d.geoAreaIndex)).Select(d => new CustomDataResult(d.PlusCode, d.dataKey, d.dataValue)).ToList();
+
+            return plusCodeData;
+        }
+
+        public static List<CustomDataResult> GetAllPlusCodeDataInArea(GeoArea area) //TODO: add optional key filter
+        {
+            var db = new PraxisContext();
+            var poly = Converters.GeoAreaToPolygon(area);
+            var plusCodeData = db.CustomDataPlusCodes.Where(d => poly.Intersects(d.geoAreaIndex)).Select(d => new CustomDataResult(d.PlusCode, d.dataKey, d.dataValue)).ToList();
 
             return plusCodeData;
         }

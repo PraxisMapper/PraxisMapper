@@ -145,6 +145,8 @@ namespace CoreComponents
             public SKPaint paint { get; set; } //Fill in on app start.
             public double minDrawRes { get; set; } = 0;//skip drawing this item if  resPerPixelX is below this value. (what doesn't draw zoomed in on OSM? name text?
             public double maxDrawRes { get; set; } = 4; //skip drawing this item if resPerPixelX is above this value. (EX: tertiary roads don't draw at distant zooms
+            public bool randomize { get; set; } //if true, assign a random color at draw-time.
+            public bool fromTag { get; set; } //if set, read the string for the color value at draw-time.
 
         }
 

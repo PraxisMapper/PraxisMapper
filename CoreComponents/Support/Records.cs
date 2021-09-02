@@ -12,7 +12,7 @@ namespace CoreComponents.Support
 
     public record StoredOsmElementForJson(long id, string name, long sourceItemID, int sourceItemType, string elementGeometry, string WayTags, bool IsGameElement, bool isUserProvided, bool isGenerated);
 
-    public record CompletePaintOp(Geometry elementGeometry, double areaSize, TagParserPaint paintOp);
+    public record CompletePaintOp(Geometry elementGeometry, double areaSize, TagParserPaint paintOp, string tagValue);
 
     public record CustomDataResult(string plusCode, string key, string value);
     public record CustomDataAreaResult(long elementId, string key, string value);
