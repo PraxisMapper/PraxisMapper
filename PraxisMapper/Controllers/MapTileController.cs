@@ -47,15 +47,18 @@ namespace PraxisMapper.Controllers
                 {
                     //Create this entry
                     var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare, MapTiles.MapTileSizeSquare);
-                    double minimumSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
-                    if (zoom >= 16) //Gameplay areas are ~15.
-                        minimumSize = 0;
+                    info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
+                    if (zoom >= 15) //Gameplay areas are ~15.
+                       info.filterSize = 0;
 
                     var dataLoadArea = new GeoArea(info.area.SouthLatitude - ConstantValues.resolutionCell10, info.area.WestLongitude - ConstantValues.resolutionCell10, info.area.NorthLatitude + ConstantValues.resolutionCell10, info.area.EastLongitude + ConstantValues.resolutionCell10);
                     DateTime expires = DateTime.Now;
                     byte[] results = null;
-                    var places = GetPlaces(dataLoadArea, filterSize: minimumSize); //includeGenerated: false, filterSize: filterSize  //NOTE: in this case, we want generated areas to be their own slippy layer, so the config setting is ignored here.
-                    results = MapTiles.DrawAreaAtSize(info, places, TagParser.allStyleGroups[styleSet], true);
+                    //var places = GetPlaces(dataLoadArea, filterSize: info.filterSize); //includeGenerated: false, filterSize: filterSize  //NOTE: in this case, we want generated areas to be their own slippy layer, so the config setting is ignored here.
+                    //results = MapTiles.DrawAreaAtSize(info, places, styleSet, true);
+                    var places = GetPlacesForTile(info, null, styleSet);
+                    var paintOps = MapTiles.GetPaintOpsForStoredElements(places, styleSet, info);
+                    results = MapTiles.DrawAreaAtSize(info, paintOps, TagParser.GetStyleBgColor(styleSet));
                     expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                     if (existingResults == null)
                         db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, CreatedOn = DateTime.Now, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
@@ -144,5 +147,102 @@ namespace PraxisMapper.Controllers
                 return null;
             }
         }
+
+        [HttpGet]
+        [Route("/[controller]/DrawPlusCodeCustomData/{code}/{styleSet}/{dataKey}")]
+        public FileContentResult DrawPlusCodeCustomData(string code, string styleSet, string dataKey)
+        {
+            try
+            {
+                PerformanceTracker pt = new PerformanceTracker("DrawPlusCodeCustomData");
+                code = code.ToUpper();
+                string tileKey = code + "|" + styleSet + "|" + dataKey;
+                var db = new PraxisContext();
+                var existingResults = db.MapTiles.Where(mt => mt.PlusCode == code && mt.styleSet == styleSet).FirstOrDefault();
+                bool useCache = true;
+                cache.TryGetValue("caching", out useCache);
+                if (!useCache || existingResults == null || existingResults.MapTileId == null || existingResults.ExpireOn < DateTime.Now)
+                {
+                    //Create this entry
+                    var area = OpenLocationCode.DecodeValid(code);
+                    var poly = Converters.GeoAreaToPolygon(area);
+                    int imgX = 0, imgY = 0;
+                    MapTiles.GetPlusCodeImagePixelSize(code, out imgX, out imgY, true);
+                    ImageStats stats = new ImageStats(area, imgX, imgY);
+                    var paintOps = MapTiles.GetPaintOpsForCustomDataPlusCodes(poly, dataKey, styleSet, stats);
+                    var results = MapTiles.DrawAreaAtSize(stats, paintOps, TagParser.GetStyleBgColor(styleSet));
+                    var expires = DateTime.Now.AddYears(10); //Assuming tile expiration occurs only when needed.
+                    var dataLoadArea = OpenLocationCode.DecodeValid(code);
+                    if (existingResults == null)
+                        db.MapTiles.Add(new MapTile() { PlusCode = code, CreatedOn = DateTime.Now, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
+                    else
+                    {
+                        existingResults.CreatedOn = DateTime.Now;
+                        existingResults.ExpireOn = expires;
+                        existingResults.tileData = results;
+                    }
+                    db.SaveChanges();
+                    pt.Stop(code + "|" + styleSet);
+                    return File(results, "image/png");
+                }
+
+                pt.Stop(code + "|" + styleSet);
+                return File(existingResults.tileData, "image/png");
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex);
+                return null;
+            }
+        }
+
+        [HttpGet]
+        [Route("/[controller]/DrawPlusCodeCustomElements/{code}/{styleSet}/{dataKey}")]
+        public FileContentResult DrawPlusCodeCustomElements(string code, string styleSet, string dataKey)
+        {
+            try
+            {
+                PerformanceTracker pt = new PerformanceTracker("DrawPlusCodeCustomElements");
+                code = code.ToUpper();
+                string tileKey = code + "|" + styleSet + "|" + dataKey;
+                var db = new PraxisContext();
+                var existingResults = db.MapTiles.Where(mt => mt.PlusCode == code && mt.styleSet == styleSet).FirstOrDefault();
+                bool useCache = true;
+                cache.TryGetValue("caching", out useCache);
+                if (!useCache || existingResults == null || existingResults.MapTileId == null || existingResults.ExpireOn < DateTime.Now)
+                {
+                    //Create this entry
+                    var area = OpenLocationCode.DecodeValid(code);
+                    var poly = Converters.GeoAreaToPolygon(area);
+                    int imgX = 0, imgY = 0;
+                    MapTiles.GetPlusCodeImagePixelSize(code, out imgX, out imgY, true);
+                    ImageStats stats = new ImageStats(area, imgX, imgY);
+                    var paintOps = MapTiles.GetPaintOpsForCustomDataElements(poly, dataKey, styleSet, stats);
+                    var results = MapTiles.DrawAreaAtSize(stats, paintOps, TagParser.GetStyleBgColor(styleSet));
+                    var expires = DateTime.Now.AddYears(10); //Assuming tile expiration occurs only when needed.
+                    var dataLoadArea = OpenLocationCode.DecodeValid(code);
+                    if (existingResults == null)
+                        db.MapTiles.Add(new MapTile() { PlusCode = code, CreatedOn = DateTime.Now, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
+                    else
+                    {
+                        existingResults.CreatedOn = DateTime.Now;
+                        existingResults.ExpireOn = expires;
+                        existingResults.tileData = results;
+                    }
+                    db.SaveChanges();
+                    pt.Stop(code + "|" + styleSet);
+                    return File(results, "image/png");
+                }
+
+                pt.Stop(code + "|" + styleSet);
+                return File(existingResults.tileData, "image/png");
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex);
+                return null;
+            }
+        }
+
     }
 }

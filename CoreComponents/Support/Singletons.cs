@@ -369,23 +369,26 @@ namespace CoreComponents
             },
         
             //Team Colors now part of the same default list.
-            new TagParserEntry() { MatchOrder = 1, name ="Red Team",  styleSet = "teamColor",
+            new TagParserEntry() { MatchOrder = 1, name ="red",  styleSet = "teamColor",
                 paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "FF0000", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
+                    new TagParserPaint() { HtmlColorCode = "88FF0000", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 99 },
+                    new TagParserPaint() { HtmlColorCode = "FF0000", FillOrStroke = "stroke", LineWidth=2, LinePattern= "solid", layerId = 100 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() {Key = "team", Value = "red", MatchType = "equals"},
             }},
-            new TagParserEntry() { MatchOrder = 2, name ="Green Team",   styleSet = "teamColor",
+            new TagParserEntry() { MatchOrder = 2, name ="green",   styleSet = "teamColor",
                 paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00FF00", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
+                    new TagParserPaint() { HtmlColorCode = "8800FF00", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 99 },
+                    new TagParserPaint() { HtmlColorCode = "00FF00", FillOrStroke = "stroke", LineWidth=2, LinePattern= "solid", layerId = 100 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() {Key = "team", Value = "green", MatchType = "equals"},
             }},
-            new TagParserEntry() { MatchOrder = 3, name ="Blue Team",  styleSet = "teamColor",
+            new TagParserEntry() { MatchOrder = 3, name ="blue",  styleSet = "teamColor",
                 paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "0000FF", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
+                    new TagParserPaint() { HtmlColorCode = "880000FF", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 99 },
+                    new TagParserPaint() { HtmlColorCode = "0000FF", FillOrStroke = "stroke", LineWidth=2, LinePattern= "solid", layerId = 100 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() {Key = "team", Value = "blue", MatchType = "equals"},

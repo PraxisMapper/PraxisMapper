@@ -1,4 +1,5 @@
-﻿using Google.OpenLocationCode;
+﻿using CoreComponents.Support;
+using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
 using System;
@@ -51,6 +52,11 @@ namespace CoreComponents
 
             TagParser.ApplyTags(places, styleSet); //populates the fields we don't save to the DB. Might want to move this 
             return places;
+        }
+
+        public static List<StoredOsmElement> GetPlacesForTile(ImageStats stats, List<StoredOsmElement> source = null, string styleSet = "mapTiles", bool skipTags = false)
+        {
+            return GetPlaces(stats.area, source, stats.filterSize, styleSet, skipTags, stats.drawPoints);
         }
 
         public static List<StoredOsmElement> GetGeneratedPlaces(GeoArea area)
