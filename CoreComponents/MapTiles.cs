@@ -21,6 +21,7 @@ namespace CoreComponents
     {
         public static int MapTileSizeSquare = 512; //Default value, updated by PraxisMapper at startup. COvers Slippy tiles, not gameplay tiles.
         static SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
+        static Random r = new Random();
 
         //public static byte[] DrawMPAreaControlMapTile(ImageStats info, List<StoredOsmElement> places = null)
         //{
@@ -77,8 +78,8 @@ namespace CoreComponents
                 for (var y = 0; y < Cell8High; y++)
                 {
                     var thisCell = new OpenLocationCode(info.area.SouthLatitude + (resolutionCell8 * x), info.area.WestLongitude + (resolutionCell8 * y)).CodeDigits.Substring(0, 8);
-                    var thisData = PaintTown.LearnCell8(instanceID, thisCell);
-                    allData.AddRange(thisData);
+                    //var thisData = PaintTown.LearnCell8(instanceID, thisCell);
+                    //allData.AddRange(thisData);
                 }
 
             //Some image items setup.
@@ -552,6 +553,12 @@ namespace CoreComponents
                 if (paint.Color.Alpha == 0)
                     continue; //This area is transparent, skip drawing it entirely.
 
+                if (w.paintOp.randomize)
+                    paint.Color = new SKColor((byte)r.Next(0, 255), (byte)r.Next(0, 255), (byte)r.Next(0, 255), 99);
+
+                if (w.paintOp.fromTag)
+                    paint.Color = SKColor.Parse(w.tagValue);
+
                 var path = new SKPath();
                 switch (w.elementGeometry.GeometryType)
                 {
@@ -655,7 +662,7 @@ namespace CoreComponents
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
                     if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
-                        pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po));
+                        pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po, ""));
 
             return pass2;
         }
@@ -666,12 +673,12 @@ namespace CoreComponents
             var db = new PraxisContext();
             var elements = db.customDataOsmElements.Where(d => d.dataKey == dataKey && area.Intersects(d.storedOsmElement.elementGeometry)).ToList();
             var styles = TagParser.allStyleGroups[styleSet];
-            var pass1 = elements.Select(d => new { d.storedOsmElement.AreaSize, d.storedOsmElement.elementGeometry, paintOp = styles[d.dataValue].paintOperations });
+            var pass1 = elements.Select(d => new { d.storedOsmElement.AreaSize, d.storedOsmElement.elementGeometry, paintOp = styles[d.dataValue].paintOperations, d.dataValue });
             var pass2 = new List<CompletePaintOp>();
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
                     if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
-                        pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po));
+                        pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po, op.dataValue));
 
             return pass2;
         }
@@ -681,12 +688,12 @@ namespace CoreComponents
             var db = new PraxisContext();
             var elements = db.CustomDataPlusCodes.Where(d => d.dataKey == dataKey && area.Intersects(d.geoAreaIndex)).ToList();
             var styles = TagParser.allStyleGroups[styleSet];
-            var pass1 = elements.Select(d => new { d.geoAreaIndex.Area, d.geoAreaIndex, paintOp = styles[d.dataValue].paintOperations });
+            var pass1 = elements.Select(d => new { d.geoAreaIndex.Area, d.geoAreaIndex, paintOp = styles[d.dataValue].paintOperations, d.dataValue});
             var pass2 = new List<CompletePaintOp>();
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
                     if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
-                        pass2.Add(new CompletePaintOp(op.geoAreaIndex, op.Area, po));
+                        pass2.Add(new CompletePaintOp(op.geoAreaIndex, op.Area, po, op.dataValue));
 
             return pass2;
         }
@@ -725,7 +732,7 @@ namespace CoreComponents
             var pass2 = new List<CompletePaintOp>();
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
-                    pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po));
+                    pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po, ""));
 
 
             foreach (var w in pass2.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))

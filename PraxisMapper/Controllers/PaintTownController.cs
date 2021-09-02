@@ -1,7 +1,11 @@
 ﻿using CoreComponents;
+using CoreComponents.Support;
+using Google.OpenLocationCode;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
+using PraxisMapper.Classes;
+using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,44 +19,18 @@ namespace PraxisMapper.Controllers
     {
         private readonly IConfiguration Configuration;
         private IMemoryCache cache; //Using this cache to pass around some values instead of making them DB lookups each time.
-        public static bool isResetting = false;
-        //PaintTown is a simplified version of AreaControl.
-        //1) It operates on a per-Cell basis instead of a per-StoredOsmElement entry basis.
-        //2) The 'earn points to spend points' part is removed in favor of auto-claiming areas you walk into. (A lockout timer is applied to stop 2 people from constantly flipping one area ever half-second)
-        //3) No direct interaction with the device is required. Game needs to be open, thats all.
-        //The leaderboards for PaintTown reset regularly (weekly), and could be set to reset very quickly and restart (3 minutes of gameplay, 1 paused for reset). 
-        //Default config is a weekly run Sat-Fri, with a 300 second  (5 minute) lockout on cells.
-        //TODO: allow pre-configured teams for specific events? this is difficult if I don't want to track users on the server, since this would have to be by deviceID
-        //TODO: allow an option to let you choose to join a team. Yes, i wanted to avoid this. Yes, there's still good cases for it.
-
+        //Re-purposing this mode
+        //This is no longer a competitive game mode. This is a simpler demo of PraxisMapper's capabilities.
+        //New logic: When a player walks into a cell for the first time that day, set that cell's color to a random value.(enforced client side)
+        //No resets or expirations, no teams.
         public PaintTownController(IConfiguration configuration, IMemoryCache cacheSingleton)
         {
             try
             {
-                if (isResetting)
-                    return;
-
                 Classes.PerformanceTracker pt = new Classes.PerformanceTracker("PaintTownConstructor");
                 var db = new PraxisContext();
                 Configuration = configuration;
                 cache = cacheSingleton; //Fallback code on actual functions if this is null for some reason.
-
-                if (cache != null)
-                {
-                    //reset check.
-                    List<PaintTownConfig> cachedConfigs = null;
-                    if (cache.TryGetValue("PTTConfigs", out cachedConfigs))
-                        foreach (var t in cachedConfigs)
-                            CheckForReset(t);
-                }
-                else
-                {
-                    var instances = db.PaintTownConfigs.ToList();
-                    foreach (var i in instances)
-                        //if (i.Repeating) //Don't check this on non-repeating instances.
-                            CheckForReset(i); //Do this on every call so we don't have to have an external app handle these, and we don't miss one.
-                }
-                pt.Stop();
             }
             catch (Exception ex)
             {
@@ -61,16 +39,16 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        [Route("/[controller]/LearnCell8/{instanceID}/{Cell8}")]
-        public string LearnCell8(int instanceID, string Cell8)
+        [Route("/[controller]/LearnCell8/{Cell8}")]
+        public string LearnCell8(string Cell8)
         {
             try
             {
                 Classes.PerformanceTracker pt = new Classes.PerformanceTracker("LearnCell8PaintTown");
-                var cellData = PaintTown.LearnCell8(instanceID, Cell8);
+                var cellData = GenericData.GetAllDataInPlusCode(Cell8);
                 string results = "";
-                foreach (var cell in cellData)
-                    results += cell.Cell10 + "=" + cell.FactionId + "|";
+                foreach (var cell in cellData.Where(c => c.key == "color"))
+                    results += cell.plusCode + "=" + cell.value + "|";
                 pt.Stop();
                 return results;
             }
@@ -82,285 +60,95 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        [Route("/[controller]/LearnCell8Recent/{instanceID}/{Cell8}")]
-        public string LearnCell8Recent(int instanceID, string Cell8)
-        {
-            try
-            {
-                Classes.PerformanceTracker pt = new Classes.PerformanceTracker("LearnCell8PaintTownRecent");
-                var cellData = PaintTown.LearnCell8(instanceID, Cell8, true);
-                string results = "";
-                foreach (var cell in cellData)
-                    results += cell.Cell10 + "=" + cell.FactionId + "|";
-
-                pt.Stop();
-                return results;
-            }
-            catch (Exception ex)
-            {
-                Classes.ErrorLogger.LogError(ex);
-                return "";
-            }
-        }
-
-        [HttpGet]
-        [Route("/[controller]/ClaimCell10/{factionId}/{Cell10}")]
-        public int ClaimCell10(int factionId, string Cell10)
+        [Route("/[controller]/ClaimCell10/{Cell10}")]
+        public void ClaimCell10(string Cell10)
         {
             try
             {
                 Classes.PerformanceTracker pt = new Classes.PerformanceTracker("ClaimCell10PaintTown");
-                //Mark this cell10 as belonging to this faction, update the lockout timer.
                 var db = new PraxisContext();
-                //run all the instances at once.
-                List<long> factions = null;
+
                 ServerSetting settings = null;
-                List<PaintTownConfig> configs = null;
                 if (cache != null)
                 {
-                    factions = (List<long>)cache.Get("Factions");
                     settings = (ServerSetting)cache.Get("ServerSettings");
-                    configs = (List<PaintTownConfig>)cache.Get("PTTConfigs");
                 }
                 else
                 {
-                    factions = db.Factions.Select(f => f.FactionId).ToList();
                     settings = db.ServerSettings.FirstOrDefault();
-                    configs = db.PaintTownConfigs.ToList();
                 }
-
-                if (!factions.Any(f => f == factionId))
-                {
-                    pt.Stop("NoFaction:" + factionId);
-                    return 0; //We got a claim for an invalid team, don't save anything.
-                } 
 
                 if (!Place.IsInBounds(Cell10, settings))
                 {
                     pt.Stop("OOB:" + Cell10);
-                    return 0;
                 }
-                int claimed = 0;
-
-                //User will get a point if any of the configs get flipped from this claim.
-                foreach (var config in configs.Where(t => t.Repeating || (t.StartTime < DateTime.Now && t.NextReset > DateTime.Now)).ToList())
-                {
-                    var entry = db.PaintTownEntries.Where(t => t.PaintTownConfigId == config.PaintTownConfigId && t.Cell10 == Cell10).FirstOrDefault();
-                    if (entry == null)
-                    {
-                        entry = new DbTables.PaintTownEntry() { Cell10 = Cell10, PaintTownConfigId = config.PaintTownConfigId, Cell8 = Cell10.Substring(0, 8), CanFlipFactionAt = DateTime.Now.AddSeconds(-1) };
-                        db.PaintTownEntries.Add(entry);
-                    }
-                    if (DateTime.Now > entry.CanFlipFactionAt)
-                    {
-                        if (entry.FactionId != factionId)
-                        {
-                            claimed = 1;
-                            entry.FactionId = factionId;
-                            entry.ClaimedAt = DateTime.Now;
-                        }
-                        entry.CanFlipFactionAt = DateTime.Now.AddSeconds(config.Cell10LockoutTimer);
-                    }
-                }
+                Random r = new Random();
+                SKColor color = new SKColor((byte)r.Next(0, 255), (byte)r.Next(0, 255), (byte)r.Next(0, 255), 66);
+                GenericData.SetPlusCodeData(Cell10, "color", color.ToString());
 
                 db.SaveChanges();
-                pt.Stop(Cell10 + claimed);
-                return claimed;
+                pt.Stop(Cell10);
             }
             catch (Exception ex)
             {
                 Classes.ErrorLogger.LogError(ex);
-                return 0;
             }
         }
 
         [HttpGet]
-        [Route("/[controller]/Scoreboard/{instanceID}")]
-        public string Scoreboard(int instanceID)
+        //[Route("/[controller]/DrawSlippyTile/{x}/{y}/{zoom}/{layer}")] //old, not slippy map conventions
+        [Route("/[controller]/DrawSlippyTile/{zoom}/{x}/{y}.png")] //slippy map conventions.
+        public FileContentResult DrawPaintTownSlippyTile(int x, int y, int zoom, string styleSet)
         {
-            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("ScoreboardPaintTown");
-            //which faction has the most cell10s?
-            //also, report time, primarily for recordkeeping 
-            var db = new PraxisContext();
-            List<Faction> factions = null;
-            List<PaintTownConfig> configs = null;
-            if (cache != null)
+            try
             {
-                factions = (List<Faction>)cache.Get("Factions");
-                configs = (List<PaintTownConfig>)cache.Get("PTTConfigs");
-            }
-            else
-            {
-                factions = db.Factions.ToList();
-                configs = db.PaintTownConfigs.ToList();
-            }
-            var teams = factions.ToLookup(k => k.FactionId, v => v.Name);
-            var data = db.PaintTownEntries.Where(t => t.PaintTownConfigId == instanceID).GroupBy(g => g.FactionId).Select(t => new { instanceID = instanceID, team = t.Key, score = t.Count() }).OrderByDescending(t => t.score).ToList();
-            var modeName = configs.Where(t => t.PaintTownConfigId == instanceID).FirstOrDefault().Name;
-            string results = modeName + "#" + DateTime.Now + "|";
-            foreach (var d in data)
-            {
-                results += teams[d.team].FirstOrDefault() + "=" + d.score + "|";
-            }
-            pt.Stop(instanceID.ToString());
-            return results;
-        }
-
-        [HttpGet]
-        [Route("/[controller]/PastScoreboards")]
-        public static string PastScoreboards()
-        {
-            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("PastScoreboards");
-            var db = new PraxisContext();
-            var results = db.PaintTownScoreRecords.OrderByDescending(t => t.RecordedAt).ToList();
-            //Scoreboard already uses # and | as separators, we will use \n now.
-            var parsedResults = String.Join("\n", results);
-            pt.Stop();
-            return parsedResults;
-        }
-
-        [HttpGet]
-        [Route("/[controller]/ModeTime/{instanceID}")]
-        public TimeSpan ModeTime(int instanceID)
-        {
-            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("ModeTime");
-            //how much time remains in the current session. Might be 3 minute rounds, might be week long rounds.
-            DateTime time = new DateTime();
-            if (cache != null)
-            {
-                var configs = (List<PaintTownConfig>)cache.Get("PTTConfigs");
-                time = configs.Where(t => t.PaintTownConfigId == instanceID).Select(t => t.NextReset).FirstOrDefault();
-            }
-            else
-            {
+                PerformanceTracker pt = new PerformanceTracker("DrawPaintTownSlippyTile");
+                string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var db = new PraxisContext();
-                time = db.PaintTownConfigs.Where(t => t.PaintTownConfigId == instanceID).Select(t => t.NextReset).FirstOrDefault();
-            }
-            
-            pt.Stop(instanceID.ToString());
-            return DateTime.Now - time;
-        }
-
-        public void ResetGame(int instanceID, bool manaulReset = false, DateTime? nextEndTime = null)
-        {
-            //It's possible that this function might be best served being an external console app.
-            //Doing the best I can here to set it up to make that unnecessary, but it may not be enough.
-            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("ResetGame");
-            if (isResetting)
-                return;
-
-            isResetting = true;
-            var db = new PraxisContext();
-            PaintTownConfig twConfig = new PaintTownConfig();
-            if (cache != null)
-            {
-                List<PaintTownConfig> cachedConfigs = new List<PaintTownConfig>();
-                if (cache.TryGetValue("PTTConfigs", out cachedConfigs))
+                var existingResults = db.SlippyMapTiles.Where(mt => mt.Values == tileKey && mt.styleSet == "paintTown").FirstOrDefault();
+                bool useCache = true;
+                cache.TryGetValue("caching", out useCache);
+                if (!useCache || existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
                 {
-                    twConfig = cachedConfigs.Where(c => c.PaintTownConfigId == instanceID).FirstOrDefault();
-                    db.Attach<PaintTownConfig>(twConfig);
+                    //Create this entry
+                    var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare, MapTiles.MapTileSizeSquare);
+                    info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
+                    if (zoom >= 15) //Gameplay areas are ~15.
+                        info.filterSize = 0;
+
+                    var dataLoadArea = new GeoArea(info.area.SouthLatitude - ConstantValues.resolutionCell10, info.area.WestLongitude - ConstantValues.resolutionCell10, info.area.NorthLatitude + ConstantValues.resolutionCell10, info.area.EastLongitude + ConstantValues.resolutionCell10);
+                    DateTime expires = DateTime.Now;
+                    byte[] results = null;
+                    //var places = GetPlaces(dataLoadArea, filterSize: info.filterSize); //includeGenerated: false, filterSize: filterSize  //NOTE: in this case, we want generated areas to be their own slippy layer, so the config setting is ignored here.
+                    //results = MapTiles.DrawAreaAtSize(info, places, styleSet, true);
+                    //var places = GetPlacesForTile(info, null, styleSet);
+                    //var data = GenericData.GetAllPlusCodeDataInArea(info.area);
+                    var paintOps = MapTiles.GetPaintOpsForCustomDataPlusCodes(Converters.GeoAreaToPolygon(info.area), "color", "paintTown", info);
+         
+                    results = MapTiles.DrawAreaAtSize(info, paintOps, TagParser.GetStyleBgColor(styleSet));
+                    expires = DateTime.Now.AddMinutes(5); //Assuming you are going to manually update/clear tiles when you reload base data
+                    if (existingResults == null)
+                        db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, CreatedOn = DateTime.Now, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
+                    else
+                    {
+                        existingResults.CreatedOn = DateTime.Now;
+                        existingResults.ExpireOn = expires;
+                        existingResults.tileData = results;
+                    }
+                    if (useCache)
+                        db.SaveChanges();
+                    pt.Stop(tileKey + "|" + styleSet);
+                    return File(results, "image/png");
                 }
+
+                pt.Stop(tileKey + "|" + styleSet);
+                return File(existingResults.tileData, "image/png");
             }
-            else
+            catch (Exception ex)
             {
-                twConfig = db.PaintTownConfigs.Where(t => t.PaintTownConfigId == instanceID).FirstOrDefault();
+                ErrorLogger.LogError(ex);
+                return null;
             }
-            var nextTime = twConfig.NextReset.AddHours(twConfig.DurationHours);
-            if (manaulReset && nextEndTime.HasValue) //Manual reset expire at the usual time, so they're shorter, not longer, than a regular loop.
-                nextTime = nextEndTime.Value;
-            twConfig.NextReset = nextTime;
-            db.PaintTownEntries.RemoveRange(db.PaintTownEntries.Where(tw => tw.PaintTownConfigId == instanceID));
-
-            //record score results.
-            var score = new DbTables.PaintTownScoreRecord();
-            score.Results = Scoreboard(instanceID);
-            score.RecordedAt = DateTime.Now;
-            score.PaintTownConfigId = instanceID;
-            db.PaintTownScoreRecords.Add(score);
-            db.SaveChanges();
-            isResetting = false;
-            pt.Stop(instanceID.ToString());
-        }
-
-        [HttpGet]
-        [Route("/[controller]/GetEndDate/{instanceID}")]
-        public string GetEndDate(int instanceID)
-        {
-            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("GetEndDate");
-            PaintTownConfig twConfig = new PaintTownConfig();
-            string results;
-            if (cache != null)
-            {
-                List<PaintTownConfig> cachedConfigs = new List<PaintTownConfig>();
-                if (cache.TryGetValue("PTTConfigs", out cachedConfigs))
-                {
-                    twConfig = cachedConfigs.Where(c => c.PaintTownConfigId == instanceID).FirstOrDefault();
-                    results = twConfig.NextReset.ToString();
-                    pt.Stop();
-                    return results;
-                }
-            }
-
-            var db = new PraxisContext();
-            twConfig = db.PaintTownConfigs.Where(t => t.PaintTownConfigId == instanceID).FirstOrDefault();
-            results = twConfig.NextReset.ToString();
-            pt.Stop();
-            return results;
-        }
-
-        public void CheckForReset(PaintTownConfig twConfig)
-        {
-            if (isResetting)
-                return;
-
-            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("CheckForReset");
-
-            if (twConfig.DurationHours == -1) //This is a permanent instance.
-                return;
-
-            if (DateTime.Now > twConfig.NextReset)
-                ResetGame(twConfig.PaintTownConfigId);
-
-            pt.Stop();
-        }
-
-        [HttpGet]
-        [Route("/[controller]/GetInstances/")]
-        public string GetInstances()
-        {
-            Classes.PerformanceTracker pt = new Classes.PerformanceTracker("GetInstances");
-            var db = new PraxisContext();
-            string results = "";
-            if (cache != null)
-            {
-                List<PaintTownConfig> cachedConfigs = new List<PaintTownConfig>();
-                results = GetInstanceInfo(cachedConfigs);
-                pt.Stop();
-                return results;
-            }
-
-            var instances = db.PaintTownConfigs.ToList();
-            results = GetInstanceInfo(instances);
-            pt.Stop();
-            return results;
-        }
-
-        private string GetInstanceInfo(List<PaintTownConfig> instances)
-        {
-            string results = "";
-            foreach (var i in instances)
-                results += i.PaintTownConfigId + "|" + i.NextReset.ToString() + "|" + i.Name + Environment.NewLine;
-            
-            return results;
-        }
-
-        [HttpGet]
-        [Route("/[controller]/ManualReset/{instanceID}")]
-        public string ManualReset(int instanceID)
-        {
-            //TODO: should be an admin command and require the password.
-            ResetGame(instanceID, true);
-            return "OK";
         }
     }
 }

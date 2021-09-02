@@ -402,9 +402,18 @@ namespace CoreComponents
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "none" }} },
             //background is a mandatory style entry name, but its transparent here..
-            new TagParserEntry() { MatchOrder = 1, name ="background",  styleSet = "teamColor",
+            new TagParserEntry() { MatchOrder = 10000, name ="background",  styleSet = "teamColor",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
+                },
+                TagParserMatchRules = new List<TagParserMatchRule>() {
+                    new TagParserMatchRule() {Key = "*", Value = "*", MatchType = "default"},
+            }},
+
+            //Paint the Town special style.
+            new TagParserEntry() { MatchOrder = 1, name ="tag",  styleSet = "paintTown",
+                paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100, fromTag=true }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() {Key = "*", Value = "*", MatchType = "default"},
