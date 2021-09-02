@@ -96,27 +96,27 @@ namespace PraxisMapper.Controllers
 
         //This code technically works on any Cell size, I haven't yet functionalized it correctly yet.
         [HttpGet]
-        [Route("/[controller]/DrawFactionModeCell8HighRes/{Cell8}")]
-        [Route("/[controller]/DrawFactionModeCell8/{Cell8}")]
-        public FileContentResult DrawFactionModeCell8(string Cell8)
+        [Route("/[controller]/DrawFactionModeCell8HighRes/{Cell8}/{styleSet}")]
+        [Route("/[controller]/DrawFactionModeCell8/{Cell8}/{styleSet}")]
+        public FileContentResult DrawFactionModeCell8(string Cell8, string styleSet)
         {
             PerformanceTracker pt = new PerformanceTracker("DrawFactionModeCell8");
             //We will try to minimize rework done.
             var db = new PraxisContext();
-            var baseMapTile = db.MapTiles.Where(mt => mt.PlusCode == Cell8 && mt.resolutionScale == 11 && mt.mode == 1).FirstOrDefault();
+            var baseMapTile = db.MapTiles.Where(mt => mt.PlusCode == Cell8 && mt.resolutionScale == 11 && mt.styleSet == styleSet).FirstOrDefault();
             System.Collections.Generic.List<StoredOsmElement> places = null;
             GeoArea pluscode = OpenLocationCode.DecodeValid(Cell8);
             if (baseMapTile == null || baseMapTile.ExpireOn < DateTime.Now) //Expiration is how we know we have to redraw this tile.
             {
                 //Create this map tile.
                 //places = GetPlaces(pluscode); //, includeGenerated: Configuration.GetValue<bool>("generateAreas") //TODO restore generated area logic.
-                var tile = MapTiles.DrawPlusCode(Cell8, true); 
-                baseMapTile = new MapTile() { CreatedOn = DateTime.Now, mode = 1, PlusCode = Cell8, resolutionScale = 11, tileData = tile, areaCovered = Converters.GeoAreaToPolygon(pluscode) };
+                var tile = MapTiles.DrawPlusCode(Cell8, "mapTiles", true);
+                baseMapTile = new MapTile() { CreatedOn = DateTime.Now, styleSet = styleSet, PlusCode = Cell8, resolutionScale = 11, tileData = tile, areaCovered = Converters.GeoAreaToPolygon(pluscode) };
                 db.MapTiles.Add(baseMapTile);
                 db.SaveChanges();
             }
 
-            var factionColorTile = db.MapTiles.Where(mt => mt.PlusCode == Cell8 && mt.resolutionScale == 11 && mt.mode == 2).FirstOrDefault();
+            var factionColorTile = db.MapTiles.Where(mt => mt.PlusCode == styleSet && mt.resolutionScale == 11 && mt.styleSet == "teamColor").FirstOrDefault();
             if (factionColorTile == null || factionColorTile.MapTileId == null || factionColorTile.ExpireOn < DateTime.Now)
             {
                 //Draw this entry
@@ -129,7 +129,7 @@ namespace PraxisMapper.Controllers
                 var results = MapTiles.DrawMPAreaControlMapTile(info, places);
                 if (factionColorTile == null) //create a new entry
                 {
-                    factionColorTile = new MapTile() { PlusCode = Cell8, CreatedOn = DateTime.Now, mode = 2, resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(CellEightArea) };
+                    factionColorTile = new MapTile() { PlusCode = Cell8, CreatedOn = DateTime.Now, styleSet = "teamColor", resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(CellEightArea) };
                     db.MapTiles.Add(factionColorTile);
                 }
                 else //update the existing entry.
