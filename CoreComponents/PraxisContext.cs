@@ -71,7 +71,7 @@ namespace CoreComponents
             model.Entity<MapTile>().HasIndex(m => m.styleSet);
 
             model.Entity<SlippyMapTile>().HasIndex(m => m.Values);
-            model.Entity<SlippyMapTile>().HasIndex(m => m.mode);
+            model.Entity<SlippyMapTile>().HasIndex(m => m.styleSet);
 
             model.Entity<AreaControlTeam>().HasIndex(m => m.StoredElementId);
             model.Entity<AreaControlTeam>().HasIndex(m => m.FactionId);
