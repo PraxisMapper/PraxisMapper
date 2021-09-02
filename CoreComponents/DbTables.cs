@@ -39,7 +39,7 @@ namespace CoreComponents
             public string PlusCode { get; set; } //MapTiles are drawn for Cell8 or Cell10 areas.
             public byte[] tileData { get; set; } //png binary data.
             public int resolutionScale { get; set; } //10 or 11, depending on the Cell size 1 pixel is. Usually 11
-            public int mode { get; set; } //is this for general use, multiplayer area control. 1 = 'baseline map', 2 = 'Multiplayer Area Control' overlay.
+            public string styleSet { get; set; } //Which styleSet this maptile was drawn with. Allows for multiple layers and arbitrary types.
             public DateTime CreatedOn { get; set; } //Timestamp for when a map tile was generated
             public DateTime ExpireOn { get; set; } //assume that a tile needs regenerated if passed this timestamp. Possibly cleared out via SQL script.
             [Column(TypeName = "geography")]

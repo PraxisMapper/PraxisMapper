@@ -333,7 +333,7 @@ namespace CoreComponents
             //return DrawAreaAtSize(Cell8, 80, 100, drawnItems);
         //}
 
-        public static byte[] DrawPlusCode(string area, bool doubleRes = false)
+        public static byte[] DrawPlusCode(string area, string styleSet = "mapTiles", bool doubleRes = false)
         {
             //This might be a cleaner version of my V4 function, for working with CellX sized tiles..
             //This will draw at a Cell11 resolution automatically.
@@ -750,9 +750,10 @@ namespace CoreComponents
                     var areaList = rowList.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); //This one is for the maptile
 
                     //Create the maptile first, so if we save it to the DB/a file we can call the lock once per loop.
+                    //NOTE: this should use DrawPlusCode instead and double the res.
                     var info = new ImageStats(areaForTile, 80, 100); //Each pixel is a Cell11, we're drawing a Cell8. For Cell6 testing this is 1600x2000, just barely within android limits
                     var tile = MapTiles.DrawAreaAtSize(info, areaList);
-                    tilesToSave.Add(new MapTile() { tileData = tile, PlusCode = plusCode.Code, CreatedOn = DateTime.Now, ExpireOn = DateTime.Now.AddDays(365 * 10), areaCovered = Converters.GeoAreaToPolygon(plusCodeArea), resolutionScale = 11, mode = 1 });
+                    tilesToSave.Add(new MapTile() { tileData = tile, PlusCode = plusCode.Code, CreatedOn = DateTime.Now, ExpireOn = DateTime.Now.AddDays(365 * 10), areaCovered = Converters.GeoAreaToPolygon(plusCodeArea), resolutionScale = 11, styleSet = "mapTiles" });
 
                     mapTileCounter++;
                 });

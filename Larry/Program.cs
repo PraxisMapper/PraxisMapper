@@ -385,7 +385,7 @@ namespace Larry
             if (args.Any(a => a.StartsWith("-drawOneImage:")))
             {
                 string code = args.First(a => a.StartsWith("-drawOneImage:")).Split(":")[1];
-                System.IO.File.WriteAllBytes(code + ".png", MapTiles.DrawPlusCode(code, true));
+                System.IO.File.WriteAllBytes(code + ".png", MapTiles.DrawPlusCode(code, "mapTiles", true));
             }
 
             if (args.Any(a => a == "-fixAreaSizes"))
@@ -458,7 +458,7 @@ namespace Larry
                     {
                         var places = GetPlaces(area, cell6Data); //These are cloned in GetPlaces, so we aren't intersecting areas twice and breaking drawing. //, false, false, 0
                         var tileData = MapTiles.DrawAreaAtSize(info, places);
-                        tilesGenerated.Add(new MapTile() { CreatedOn = DateTime.Now, mode = 1, tileData = tileData, resolutionScale = 11, PlusCode = cellToCheck });
+                        tilesGenerated.Add(new MapTile() { CreatedOn = DateTime.Now, styleSet = "mapTiles", tileData = tileData, resolutionScale = 11, PlusCode = cellToCheck });
                         Log.WriteLog("Cell " + cellToCheck + " Drawn", Log.VerbosityLevels.High);
                     }
                     else

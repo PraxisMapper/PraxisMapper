@@ -68,7 +68,7 @@ namespace CoreComponents
 
             model.Entity<MapTile>().HasIndex(m => m.PlusCode);
             model.Entity<MapTile>().Property(m => m.PlusCode).HasMaxLength(12);
-            model.Entity<MapTile>().HasIndex(m => m.mode);
+            model.Entity<MapTile>().HasIndex(m => m.styleSet);
 
             model.Entity<SlippyMapTile>().HasIndex(m => m.Values);
             model.Entity<SlippyMapTile>().HasIndex(m => m.mode);

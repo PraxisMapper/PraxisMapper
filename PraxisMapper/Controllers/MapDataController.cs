@@ -40,21 +40,21 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/LearnCell8/{plusCode8}")]
-        public string LearnCell8(string plusCode8, int fullCode = 0) //The primary function used by the original intended game mode.
+        [Route("/[controller]/LearnCell/{plusCode}")]
+        public string LearnCell(string plusCode, int fullCode = 0) //The primary function used by the original intended game mode.
         {
-            //This is a web request, so we should remove parallel calls.
+            //TODO: this is pretty hard coded to only work for Cell8s. I will have to work on it and the functions farther down the chain to make this work for any size pluscode.
             //fullcode = 1 is probably a little faster on the device, but 0 currently matches the app and im testing on the cloud server, so 0 this stays for now.
             //Send over the plus code to look up.
-            PerformanceTracker pt = new PerformanceTracker("LearnCell8");
-            var codeString8 = plusCode8;
+            PerformanceTracker pt = new PerformanceTracker("LearnCell");
+            var codeString = plusCode;
             string cachedResults = "";
-            if (Configuration.GetValue<bool>("enableCaching") && cache.TryGetValue(codeString8, out cachedResults))
+            if (Configuration.GetValue<bool>("enableCaching") && cache.TryGetValue(codeString, out cachedResults))
             {
-                pt.Stop(codeString8);
+                pt.Stop(codeString);
                 return cachedResults;
             }
-            GeoArea box = OpenLocationCode.DecodeValid(codeString8);
-
+            GeoArea box = OpenLocationCode.DecodeValid(codeString);
             var places = GetPlaces(box); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")  //All the places in this 8-code
 
             //TODO: restore the auto-generate interesting areas logic with v4. This will mean making areas if there's 0 IsGameElement values in the results, since it's all in 1 table now.
@@ -65,15 +65,15 @@ namespace PraxisMapper.Controllers
             //}
 
             StringBuilder sb = new StringBuilder();
-            sb.AppendLine(codeString8);
+            sb.AppendLine(codeString);
             //pluscode8 //first 6 digits of this pluscode. each line below is the last 4 that have an area type.
             //pluscode2|name|type|MapDataID  //less data transmitted, an extra string concat per entry phone-side.
 
             var data = SearchArea(ref box, ref places, (fullCode == 1));
             var results = String.Join("/r/n", data.Select(d => d.Key + "|" + d.Value.Select(v => v.Name + "|" + v.areaType + "|" + v.OsmElementId + v.OsmElementType)));
 
-            pt.Stop(codeString8);
-            return codeString8 + Environment.NewLine + results;
+            pt.Stop(codeString);
+            return codeString + Environment.NewLine + results;
         }
 
         [HttpGet]
@@ -100,25 +100,29 @@ namespace PraxisMapper.Controllers
         {
             var codeRequested = new OpenLocationCode(lat, lon);
             var Cell8 = codeRequested.CodeDigits.Substring(0, 8);
-            return LearnCell8(Cell8, 1);
+            return LearnCell(Cell8, 1);
         }
 
         [HttpGet]
+        [Route("/[controller]/DrawCell8Highres/{plusCode8}/{styleSet}")]
         [Route("/[controller]/DrawCell8Highres/{plusCode8}")]
-        public FileContentResult DrawCell8Highres(string plusCode8)
+        [Route("/[controller]/DrawCell/{plusCode8}/{styleSet}")]
+        [Route("/[controller]/DrawCell/{plusCode8}")]
+        public FileContentResult DrawCell(string plusCode8, string styleSet = "mapTiles")
         {
-            PerformanceTracker pt = new PerformanceTracker("DrawCell8Highres");
+            //NOTE: this will work for all PlusCode sized passed in. Default to anticipating 8s as the default.
+            PerformanceTracker pt = new PerformanceTracker("DrawCell");
             //Load terrain data for an 8cell, turn it into a bitmap
             var db = new PraxisContext();
-            var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode8 && mt.resolutionScale == 11 && mt.mode == 1).FirstOrDefault();
+            var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode8 && mt.resolutionScale == 11 && mt.styleSet == styleSet).FirstOrDefault();
             if (existingResults == null || existingResults.MapTileId == null)
             {
                 //Create this entry
                 //requires a list of colors to use, which might vary per app
                 GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
                 //var places = GetPlaces(eightCell); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")
-                var results = MapTiles.DrawPlusCode(plusCode8, true);
-                db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(eightCell) });
+                var results = MapTiles.DrawPlusCode(plusCode8, styleSet, true);
+                db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, CreatedOn = DateTime.Now, styleSet = styleSet, resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(eightCell) });
                 db.SaveChanges();
                 pt.Stop(plusCode8);
                 return File(results, "image/png");
@@ -128,75 +132,7 @@ namespace PraxisMapper.Controllers
             return File(existingResults.tileData, "image/png");
         }
 
-        [HttpGet]
-        [Route("/[controller]/DrawCell10Highres/{plusCode10}")]
-        public FileContentResult DrawCell10Highres(string plusCode10)
-        {
-            PerformanceTracker pt = new PerformanceTracker("DrawCell10Highres");
-            //Load terrain data for a cell10, turn it into a bitmap
-            //Lots of small tiles is usually harder on the system a few bigger cells, so this is mostly a demo function.
 
-            var db = new PraxisContext();
-            var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode10 && mt.resolutionScale == 11 && mt.mode == 1).FirstOrDefault();
-            if (existingResults == null || existingResults.MapTileId == null)
-            {
-                //Create this entry
-                //requires a list of colors to use, which might vary per app
-                GeoArea TenCell = OpenLocationCode.DecodeValid(plusCode10);
-                //var places = GetPlaces(TenCell); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")
-                var results = MapTiles.DrawPlusCode(plusCode10, true); //MapTiles.DrawAreaAtSize(TenCell, 4, 5, places);
-                db.MapTiles.Add(new MapTile() { PlusCode = plusCode10, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(TenCell) });
-                db.SaveChanges();
-                pt.Stop(plusCode10);
-                return File(results, "image/png");
-            }
-
-            pt.Stop(plusCode10);
-            return File(existingResults.tileData, "image/png");
-        }
-
-        [HttpGet]
-        [Route("/[controller]/DrawCell6Highres/{plusCode6}")]
-        public FileContentResult DrawCell6Highres(string plusCode6)
-        {
-            PerformanceTracker pt = new PerformanceTracker("DrawCell6Highres");
-            //Load terrain data for an 6cell, turn it into a bitmap
-            var db = new PraxisContext();
-            var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode6 && mt.resolutionScale == 11 && mt.mode == 1).FirstOrDefault();
-            if (existingResults == null || existingResults.MapTileId == null)
-            {
-                //requires a list of colors to use, which might vary per app. Defined in AreaType
-                GeoArea sixCell = OpenLocationCode.DecodeValid(plusCode6);
-                //var allPlaces = GetPlaces(sixCell); // , null, false, Configuration.GetValue<bool>("generateAreas"), resolutionCell10
-                var results = MapTiles.DrawPlusCode(plusCode6, true); // MapTiles.DrawAreaAtSize(sixCell, 1600, 2000, allPlaces);
-                db.MapTiles.Add(new MapTile() { PlusCode = plusCode6, CreatedOn = DateTime.Now, mode = 1, resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(sixCell) });
-                db.SaveChanges();
-                pt.Stop(plusCode6);
-                return File(results, "image/png");
-            }
-            pt.Stop(plusCode6);
-            return File(existingResults.tileData, "image/png");
-        }
-
-        // I will need to rethink the flex-draw function for V4.
-        //could just pass area and imagesize to ImageStats, and not allow for resolution to be set.
-        //[HttpGet]
-        //[Route("/[controller]/DrawFlex/{lat}/{lon}/{size}/{resolution}")]
-        //public FileContentResult DrawFlex(double lat, double lon, double size, int resolution)
-        //{
-            
-        //    //Flex endpoint doesnt save data to DB or cache stuff yet.
-        //    PerformanceTracker pt = new PerformanceTracker("DrawFlex");
-        //    GeoArea box = new GeoArea(new GeoPoint(lat - (size / 2), lon - (size / 2)), new GeoPoint(lat + (size / 2), lon + (size / 2)));
-        //    var allPlaces = GetPlaces(box); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")
-        //    byte[] results;
-        //    if (resolution == 10)
-        //        results = MapTiles.DrawAreaMapTileSkia(ref allPlaces, box, 10);
-        //    else
-        //        results = MapTiles.DrawAreaMapTileSkia(ref allPlaces, box, 11);
-        //    pt.Stop(lat + "|" + lon + "|" + size + "|" + resolution);
-        //    return File(results, "image/png");
-        //}
 
         [HttpGet]
         [Route("/[controller]/GetPoint/{lat}/{lon}")]
