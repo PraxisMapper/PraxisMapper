@@ -2,8 +2,10 @@
 using CoreComponents.Support;
 using Google.OpenLocationCode;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using PraxisMapper.Classes;
+using SkiaSharp;
 using static CoreComponents.ConstantValues;
 using static CoreComponents.DbTables;
 using static CoreComponents.Place;
@@ -22,6 +24,7 @@ namespace PraxisMapper.Controllers
 
         private static MemoryCache cache;
         private readonly IConfiguration Configuration;
+        private readonly static SKColor bgColor = TagParser.GetStyleBgColor("teamColor");
         public AreaControlController(IConfiguration configuration)
         {
             Configuration = configuration;
@@ -48,33 +51,17 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet] //TODO technically this is a post.
-        [Route("/[controller]/claimArea/{storedOsmElementId}/{factionId}")]
-        [Route("/Gameplay/claimArea/{storedOsmElementId}/{factionId}")]
-        public bool ClaimArea(long storedOsmElementId, int factionId)
+        [Route("/[controller]/claimArea/{storedOsmElementId}/{faction}")]
+        [Route("/Gameplay/claimArea/{storedOsmElementId}/{faction}")]
+        public bool ClaimArea(long storedOsmElementId, string faction)
         {
+            ///StoredOmeElementId is the primary key on the table, not the OSM ID
+            GenericData.SetStoredElementData(storedOsmElementId, "teamColor", faction);
             PraxisContext db = new PraxisContext();
-            var mapData = db.StoredOsmElements.Where(md => md.id == storedOsmElementId).FirstOrDefault();
-            var teamClaim = db.TeamClaims.Where(a => a.StoredElementId == storedOsmElementId).FirstOrDefault();
-            if (teamClaim == null)
-            {
-                teamClaim = new DbTables.AreaControlTeam();
-                db.TeamClaims.Add(teamClaim);
-                if (mapData == null)
-                {
-                    //TODO: restore this feature.
-                    //mapData = db.GeneratedMapData.Where(md => md.GeneratedMapDataId == MapDataId - 100000000).Select(m => new MapData() { MapDataId = MapDataId, place = m.place }).FirstOrDefault();
-                    //teamClaim.IsGeneratedArea = true;
-                }
-                teamClaim.StoredElementId = storedOsmElementId;
-                teamClaim.points = GetScoreForSinglePlace(mapData.elementGeometry);
-            }
-            teamClaim.FactionId = factionId;
-            teamClaim.claimedAt = DateTime.Now;
-            db.SaveChanges();
             //Tuple<long, int> shortcut = new Tuple<long, int>(MapDataId, factionId); //tell the application later not to hit the DB on every tile for this entry.
-            //ExpireAreaControlMapTilesCell8(mapData); //If this works correctly, i can set a much longer default expiration value on AreaControl tiles than 1 minute I currently use.
-            MapTiles.ExpireMapTiles(mapData.elementGeometry, storedOsmElementId, 2);
-            MapTiles.ExpireSlippyMapTiles(mapData.elementGeometry, storedOsmElementId, 2);
+            var element = db.StoredOsmElements.Where(s => s.id == storedOsmElementId).First();
+            MapTiles.ExpireMapTiles(element.elementGeometry, storedOsmElementId);
+            MapTiles.ExpireSlippyMapTiles(element.elementGeometry, storedOsmElementId);
             
             return true;
         }
@@ -122,11 +109,14 @@ namespace PraxisMapper.Controllers
                 //Draw this entry
                 //requires a list of colors to use, which might vary per app
                 GeoArea CellEightArea = OpenLocationCode.DecodeValid(Cell8);
-                if (places == null) //Don't download the data twice if we already have it, just reset the tags.
-                    places = GetPlaces(CellEightArea, skipTags: true); // , includeGenerated: Configuration.GetValue<bool>("generateAreas") TODO restore generated area logic.
+                var cellPoly = Converters.GeoAreaToPolygon(pluscode);
+                //if (places == null) //Don't download the data twice if we already have it, just reset the tags.
+                //places = GetPlaces(CellEightArea, skipTags: true); // , includeGenerated: Configuration.GetValue<bool>("generateAreas") TODO restore generated area logic.
 
-                ImageStats info = new ImageStats(pluscode, 80, 100); //Cell8 size
-                var results = MapTiles.DrawMPAreaControlMapTile(info, places);
+                ImageStats info = new ImageStats(pluscode, 160, 200); //Cell8 size TODO use DrawPlusCode here, add parameteres as needed
+                var ops = MapTiles.GetPaintOpsForCustomDataElements(Converters.GeoAreaToPolygon(CellEightArea), "teamColor", "teamColor", info);
+                
+                var results = MapTiles.DrawAreaAtSize(info, ops, bgColor); //MapTiles.DrawMPAreaControlMapTile(info, places);
                 if (factionColorTile == null) //create a new entry
                 {
                     factionColorTile = new MapTile() { PlusCode = Cell8, CreatedOn = DateTime.Now, styleSet = "teamColor", resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(CellEightArea) };
@@ -141,25 +131,8 @@ namespace PraxisMapper.Controllers
                 db.SaveChanges();
             }
 
-            //Some image items setup.
-            //hard-coded, the size of a Cell8 with res11 is 160x200 when doubled.
-            //TODO: functionalize layering tiles?
-            SkiaSharp.SKBitmap bitmap = new SkiaSharp.SKBitmap(160, 200, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul);
-            SkiaSharp.SKCanvas canvas = new SkiaSharp.SKCanvas(bitmap);
-            SkiaSharp.SKPaint paint = new SkiaSharp.SKPaint();
-            canvas.Scale(1, 1, 80, 100);
-            paint.IsAntialias = true;
-
-            var baseBmp = SkiaSharp.SKBitmap.Decode(baseMapTile.tileData);
-            var areaControlOverlay = SkiaSharp.SKBitmap.Decode(factionColorTile.tileData);
-            canvas.DrawBitmap(baseBmp, 0, 0);
-            canvas.DrawBitmap(areaControlOverlay, 0, 0);
-            var ms = new MemoryStream();
-            var skms = new SkiaSharp.SKManagedWStream(ms);
-            bitmap.Encode(skms, SkiaSharp.SKEncodedImageFormat.Png, 100);
-            var output = ms.ToArray();
-            skms.Dispose(); ms.Close(); ms.Dispose();
-
+            ImageStats info2 = new ImageStats(pluscode, 160, 200);
+            var output = MapTiles.LayerTiles(info2, baseMapTile.tileData, factionColorTile.tileData);
             pt.Stop(Cell8);
             return File(output, "image/png");
         }

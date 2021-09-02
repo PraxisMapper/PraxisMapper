@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using PraxisMapper.Classes;
+using SkiaSharp;
 using System;
 using System.Linq;
 using System.Text;
@@ -24,7 +25,6 @@ namespace PraxisMapper.Controllers
         //CalculateX commands are here because they read the MapData table, but the player doing something with them happens in GameplayController.
 
         private static MemoryCache cache;
-
         private readonly IConfiguration Configuration;
         public MapDataController(IConfiguration configuration)
         {
@@ -111,6 +111,7 @@ namespace PraxisMapper.Controllers
         public FileContentResult DrawCell(string plusCode8, string styleSet = "mapTiles")
         {
             //NOTE: this will work for all PlusCode sized passed in. Default to anticipating 8s as the default.
+            //TODO This function might get replaced with GetPlusCode in MapTileController.Its effectively the smae thing.
             PerformanceTracker pt = new PerformanceTracker("DrawCell");
             //Load terrain data for an 8cell, turn it into a bitmap
             var db = new PraxisContext();

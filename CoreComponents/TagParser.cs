@@ -137,6 +137,11 @@ namespace CoreComponents
             return defaultStyle.name;
         }
 
+        public static SKColor GetStyleBgColor(string styleSet)
+        {
+            return allStyleGroups[styleSet]["background"].paintOperations.First().paint.Color;
+        }
+
         public static bool MatchOnTags(TagParserEntry tpe, StoredOsmElement sw)
         {
             return MatchOnTags(tpe, sw.Tags);

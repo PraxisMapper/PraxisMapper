@@ -22,37 +22,37 @@ namespace CoreComponents
         public static int MapTileSizeSquare = 512; //Default value, updated by PraxisMapper at startup. COvers Slippy tiles, not gameplay tiles.
         static SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
 
-        public static byte[] DrawMPAreaControlMapTile(ImageStats info, List<StoredOsmElement> places = null)
-        {
-            bool drawEverything = false; //for debugging/testing
-            var smallestFeature = 0;
+        //public static byte[] DrawMPAreaControlMapTile(ImageStats info, List<StoredOsmElement> places = null)
+        //{
+        //    bool drawEverything = false; //for debugging/testing
+        //    var smallestFeature = 0;
 
-            //To make sure we don't get any seams on our maptiles (or points that don't show a full circle, we add a little extra area to the image before drawing, then crop it out at the end.
-            //Do this after determining image size, since Skia will ignore parts off-canvas.
-            var loadDataArea = new GeoArea(new GeoPoint(info.area.Min.Latitude - resolutionCell10, info.area.Min.Longitude - resolutionCell10), new GeoPoint(info.area.Max.Latitude + resolutionCell10, info.area.Max.Longitude + resolutionCell10));
+        //    //To make sure we don't get any seams on our maptiles (or points that don't show a full circle, we add a little extra area to the image before drawing, then crop it out at the end.
+        //    //Do this after determining image size, since Skia will ignore parts off-canvas.
+        //    var loadDataArea = new GeoArea(new GeoPoint(info.area.Min.Latitude - resolutionCell10, info.area.Min.Longitude - resolutionCell10), new GeoPoint(info.area.Max.Latitude + resolutionCell10, info.area.Max.Longitude + resolutionCell10));
 
-            var db = new PraxisContext();
-            if (places == null)
-                places = GetPlaces(loadDataArea, skipTags: true); //, null, false, true, smallestFeature //Includes generated here with the final True parameter.
-            List<long> placeIDs = places.Select(a => a.sourceItemID).ToList();
-            Dictionary<long, long> teamClaims = db.TeamClaims.Where(act => placeIDs.Contains(act.StoredElementId)).ToDictionary(k => k.StoredElementId, v => v.FactionId);
-            Dictionary<long, string> teamNames = db.Factions.ToDictionary(k => k.FactionId, v => v.Name);
-            places = places
-                .Where(a => teamClaims.ContainsKey(a.sourceItemID)) //Only draw elements claimed by a team.
-                .Where(a => a.AreaSize >= smallestFeature) //only draw elements big enough to draw
-                .OrderByDescending(a => a.AreaSize) //Order from biggest to smallest.
-                .ToList();
+        //    var db = new PraxisContext();
+        //    if (places == null)
+        //        places = GetPlaces(loadDataArea, skipTags: true); //, null, false, true, smallestFeature //Includes generated here with the final True parameter.
+        //    List<long> placeIDs = places.Select(a => a.sourceItemID).ToList();
+        //    Dictionary<long, long> teamClaims = db.TeamClaims.Where(act => placeIDs.Contains(act.StoredElementId)).ToDictionary(k => k.StoredElementId, v => v.FactionId);
+        //    Dictionary<long, string> teamNames = db.Factions.ToDictionary(k => k.FactionId, v => v.Name);
+        //    places = places
+        //        .Where(a => teamClaims.ContainsKey(a.sourceItemID)) //Only draw elements claimed by a team.
+        //        .Where(a => a.AreaSize >= smallestFeature) //only draw elements big enough to draw
+        //        .OrderByDescending(a => a.AreaSize) //Order from biggest to smallest.
+        //        .ToList();
 
-            foreach (var ap in places) //Set team ownership via tags.
-            {
-                if (teamClaims.ContainsKey(ap.sourceItemID))
-                    ap.Tags = new List<ElementTags>() { new ElementTags() { Key = "team", Value = teamNames[teamClaims[ap.sourceItemID]] } };
-                else
-                    ap.Tags = new List<ElementTags>() { new ElementTags() { Key = "team", Value = "none" } };
-            }
+        //    foreach (var ap in places) //Set team ownership via tags.
+        //    {
+        //        if (teamClaims.ContainsKey(ap.sourceItemID))
+        //            ap.Tags = new List<ElementTags>() { new ElementTags() { Key = "team", Value = teamNames[teamClaims[ap.sourceItemID]] } };
+        //        else
+        //            ap.Tags = new List<ElementTags>() { new ElementTags() { Key = "team", Value = "none" } };
+        //    }
 
-            return DrawAreaAtSize(info, places, TagParser.allStyleGroups["teamColor"]);
-        }
+        //    return DrawAreaAtSize(info, places, "teamColor");
+        //}
 
         public static byte[] DrawPaintTownSlippyTileSkia(ImageStats info, int instanceID)
         {
@@ -263,13 +263,13 @@ namespace CoreComponents
             return results;
         }
 
-        public static void ExpireMapTiles(Geometry g, long elementId, int limitModeTo = 0)
+        public static void ExpireMapTiles(Geometry g, long elementId, string styleSet = "")
         {
             //If this would be faster as raw SQL, see function below for a template on how to write that.
             //TODO: test this logic, should be faster but 
             var db = new PraxisContext();
             //MariaDB SQL, should be functional
-            string SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (mode = " + limitModeTo + " OR " + limitModeTo + " = 0) AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM StoredOsmElements WHERE id = " + elementId + "))";
+            string SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM StoredOsmElements WHERE id = " + elementId + "))";
             db.Database.ExecuteSqlRaw(SQL);
             //var mapTiles = db.MapTiles.Where(m => m.areaCovered.Intersects(g) && (limitModeTo == 0 || m.mode == limitModeTo)).ToList(); //TODO: can I select only the ExpiresOn value and have that save back correctly?
             //foreach (var mt in mapTiles)
@@ -278,12 +278,12 @@ namespace CoreComponents
             //db.SaveChanges();
         }
 
-        public static void ExpireSlippyMapTiles(Geometry g, long elementId, int limitModeTo = 0)
+        public static void ExpireSlippyMapTiles(Geometry g, long elementId, string styleSet = "")
         {
             //Might this be better off as raw SQL? If I expire, say, an entire state, that could be a lot of map tiles to pull into RAM just for a date to change.
             //var raw = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE ST_INTERSECTS(areaCovered, ST_GeomFromText(" + g.AsText() + "))";
             var db = new PraxisContext();
-            string SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (mode = " + limitModeTo + " OR " + limitModeTo + " = 0) AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM StoredOsmElements WHERE id = " + elementId + "))";
+            string SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet = '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM StoredOsmElements WHERE id = " + elementId + "))";
             db.Database.ExecuteSqlRaw(SQL);
             //var mapTiles = db.SlippyMapTiles.Where(m => m.areaCovered.Intersects(g) && (limitModeTo == 0 || m.mode == limitModeTo)).ToList(); //TODO: can I select only the ExpiresOn value and have that save back correctly?
             //foreach (var mt in mapTiles)
@@ -333,7 +333,40 @@ namespace CoreComponents
             //return DrawAreaAtSize(Cell8, 80, 100, drawnItems);
         //}
 
-        public static byte[] DrawPlusCode(string area, string styleSet = "mapTiles", bool doubleRes = false)
+        public static void GetPlusCodeImagePixelSize(string code, out int X, out int Y, bool doubleRes = true)
+        {
+            switch (code.Length)
+            {
+                case 10:
+                    X = 4;
+                    Y = 5;
+                    break;
+                case 8:
+                    X = 80;
+                    Y = 100;
+                    break;
+                case 6:
+                    X = 4 * 20 * 20;
+                    Y = 5 * 20 * 20;
+                    break;
+                case 4: //This tends to break Skiasharp because of layering bitmaps to draw polygons with holes.
+                    X = 4 * 20 * 20 * 20;
+                    Y = 5 * 20 * 20 * 20;
+                    break;
+                default:
+                    X = 0;
+                    Y = 0;
+                    break;
+            }
+
+            if (doubleRes)
+            {
+                X *= 2;
+                Y *= 2;
+            }
+        }
+
+        public static byte[] DrawPlusCode(string area, string styleSet = "mapTiles", bool doubleRes = true)
         {
             //This might be a cleaner version of my V4 function, for working with CellX sized tiles..
             //This will draw at a Cell11 resolution automatically.
@@ -341,65 +374,45 @@ namespace CoreComponents
             //then get all the area
 
             int imgX = 0, imgY = 0;
-            switch (area.Length) //Didn't I have a function for this already?
-            {
-                case 10:
-                    imgX = 4;
-                    imgY = 5;
-                    break;
-                case 8:
-                    imgX = 80;
-                    imgY = 100;
-                    break;
-                case 6:
-                    imgX = 4 * 20 * 20;
-                    imgY = 5 * 20 * 20;
-                    break;
-                case 4: //This tends to break Skiasharp because of layering bitmaps to draw polygons with holes.
-                    imgX = 4 * 20 * 20 * 20;
-                    imgY = 5 * 20 * 20 * 20;
-                    break;
-                default:
-                    imgX = 0;
-                    imgY = 0;
-                    break;
-            }
-
-            if (doubleRes)
-            {
-                imgX *= 2;
-                imgY *= 2;
-            }    
+            GetPlusCodeImagePixelSize(area, out imgX, out imgY, doubleRes);
 
             ImageStats info = new ImageStats(OpenLocationCode.DecodeValid(area), imgX, imgY);
-            return DrawAreaAtSize(info, null, null, false);
+            info.drawPoints = true;
+            var places = GetPlacesForTile(info);
+            var paintOps = GetPaintOpsForStoredElements(places, styleSet, info);
+            return DrawAreaAtSize(info, paintOps, TagParser.GetStyleBgColor(styleSet));
         }
 
-        public static byte[] DrawAreaAtSize(GeoArea relevantArea, int imageSizeX, int imageSizeY, List<StoredOsmElement> drawnItems = null, Dictionary<string, TagParserEntry> styles = null)
-        {
+        //public static byte[] DrawAreaAtSize(GeoArea relevantArea, int imageSizeX, int imageSizeY, List<CompletePaintOp> paintOps)
+        //{
             //Create an Info object and use that to pass to to the main image.
-            ImageStats info = new ImageStats(relevantArea, imageSizeX, imageSizeY);
-            return DrawAreaAtSize(info, drawnItems, styles, false); //This is a gameplay tile, and we want all items in it. ~Zoom 15.2
-        }
+            //ImageStats info = new ImageStats(relevantArea, imageSizeX, imageSizeY);
+            //return DrawAreaAtSize(info, paintOps, false); //This is a gameplay tile, and we want all items in it. ~Zoom 15.2
+        //}
 
         //This generic function takes the area to draw, a size to make the canvas, and then draws it all.
         //Optional parameter allows you to pass in different stuff that the DB alone has, possibly for manual or one-off changes to styling
         //or other elements converted for maptile purposes.
 
-        public static byte[] DrawAreaAtSize(ImageStats stats, List<StoredOsmElement> drawnItems = null, Dictionary<string, TagParserEntry> styles = null, bool filterSmallAreas = true)
+        public static byte[] DrawAreaAtSize(ImageStats stats, List<StoredOsmElement> drawnItems = null, string styleSet = null, bool filterSmallAreas = true)
         {
             //This is the new core drawing function. Takes in an area, the items to draw, and the size of the image to draw. 
             //The drawn items get their paint pulled from the TagParser's list. If I need multiple match lists, I'll need to make a way
             //to pick which list of tagparser rules to use.
+            //This can work for user data by using the linked StoredOsmElements from the items in CustomDataStoredElement.
+            //I need a slightly different function for using CustomDataPlusCode, or another optional parameter here
 
-            if (styles == null)
+            Dictionary<string, TagParserEntry> styles;
+            if (styleSet != null)
+                 styles = TagParser.allStyleGroups[styleSet];
+            else
                 styles = TagParser.allStyleGroups.First().Value;
 
             double minimumSize = 0;
             double minSizeSquared = 0;
             if (filterSmallAreas)
             { 
-                minimumSize = stats.degreesPerPixelX * 8; //don't draw elements under 16 pixel in perimeter. at slippy zoom 12, this is approx. 4x4 pixel for a Cell10.
+                minimumSize = stats.degreesPerPixelX * 8; //don't draw small elements. THis runs on perimeter/length
                 minSizeSquared = minimumSize * minimumSize;
             }
 
@@ -421,15 +434,9 @@ namespace CoreComponents
             canvas.Scale(1, -1, stats.imageSizeX / 2, stats.imageSizeY / 2);
             SKPaint paint = new SKPaint();
 
-            //What I want here is a list of an object with an elementGeometry object for the shape, and a paintOp attached to it
-            var pass1 = drawnItems.Select(d => new { d.AreaSize, d.elementGeometry, paintOp = styles[d.GameElementName].paintOperations });
-            var pass2 = new List<CompletePaintOp>();
-            foreach (var op in pass1)
-                foreach (var po in op.paintOp)
-                    if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
-                        pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po));
+            var paintOps = GetPaintOpsForStoredElements(drawnItems, "mapTiles", stats);
 
-            foreach (var w in pass2.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))
+            foreach (var w in paintOps.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))
             {
                 paint = w.paintOp.paint;
                 if (paint.Color.Alpha == 0)
@@ -525,6 +532,163 @@ namespace CoreComponents
             var results = ms.ToArray();
             skms.Dispose(); ms.Close(); ms.Dispose();
             return results;
+        }
+
+        public static byte[] DrawAreaAtSize(ImageStats stats, List<CompletePaintOp> paintOps, SKColor bgColor)
+        {
+            //This is the new core drawing function. Once the paint operations have been created, I just draw them here.
+            //baseline image data stuff           
+            SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
+            SKCanvas canvas = new SKCanvas(bitmap);
+            //Maybe I should force a draw that fills the image to BG as the first draw?
+            //var bgColor = styles[bgStyle].paintOperations.FirstOrDefault().paint; //Backgound is a named style, unmatched will be the last entry and transparent.
+            canvas.Clear(bgColor);
+            canvas.Scale(1, -1, stats.imageSizeX / 2, stats.imageSizeY / 2);
+            SKPaint paint = new SKPaint();
+
+            foreach (var w in paintOps.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))
+            {
+                paint = w.paintOp.paint;
+                if (paint.Color.Alpha == 0)
+                    continue; //This area is transparent, skip drawing it entirely.
+
+                var path = new SKPath();
+                switch (w.elementGeometry.GeometryType)
+                {
+                    //Polygons without holes are super easy and fast: draw the path.
+                    //Polygons with holes require their own bitmap to be drawn correctly and then overlaid onto the canvas.
+                    //I want to use paths to fix things for performance reasons, but I have to use Bitmaps because paths apply their blend mode to
+                    //ALL elements already drawn, not just the last one.
+                    case "Polygon":
+                        var p = w.elementGeometry as Polygon;
+                        if (p.Holes.Length == 0)
+                        {
+                            path.AddPoly(Converters.PolygonToSKPoints(p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                            canvas.DrawPath(path, paint);
+                        }
+                        else
+                        {
+                            var innerBitmap = DrawPolygon((Polygon)w.elementGeometry, paint, stats);
+                            canvas.DrawBitmap(innerBitmap, 0, 0, paint);
+                        }
+                        break;
+                    case "MultiPolygon":
+                        foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries)
+                        {
+                            var p2p = p2 as Polygon;
+                            if (p2p.Holes.Length == 0)
+                            {
+                                path.AddPoly(Converters.PolygonToSKPoints(p2p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                                canvas.DrawPath(path, paint);
+                            }
+                            else
+                            {
+                                var innerBitmap = DrawPolygon(p2p, paint, stats);
+                                canvas.DrawBitmap(innerBitmap, 0, 0, paint);
+                            }
+                        }
+                        break;
+                    case "LineString":
+                        var firstPoint = w.elementGeometry.Coordinates.First();
+                        var lastPoint = w.elementGeometry.Coordinates.Last();
+                        var points = Converters.PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                        if (firstPoint.Equals(lastPoint))
+                        {
+                            //This is a closed shape. Check to see if it's supposed to be filled in.
+                            if (paint.Style == SKPaintStyle.Fill)
+                            {
+                                path.AddPoly(points);
+                                canvas.DrawPath(path, paint);
+                                continue;
+                            }
+                        }
+                        for (var line = 0; line < points.Length - 1; line++)
+                            canvas.DrawLine(points[line], points[line + 1], paint);
+                        break;
+                    case "MultiLineString":
+                        foreach (var p3 in ((MultiLineString)w.elementGeometry).Geometries)
+                        {
+                            //TODO: might want to see if I need to move the LineString logic here, or if multiline string are never filled areas.
+                            var points2 = Converters.PolygonToSKPoints(p3, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                            for (var line = 0; line < points2.Length - 1; line++)
+                                canvas.DrawLine(points2[line], points2[line + 1], paint);
+                        }
+                        break;
+                    case "Point":
+                        var convertedPoint = Converters.PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                        //If this type has an icon, use it. Otherwise draw a circle in that type's color.
+                        if (!string.IsNullOrEmpty(w.paintOp.fileName))
+                        {
+                            SKBitmap icon = TagParser.cachedBitmaps[w.paintOp.fileName];
+                            canvas.DrawBitmap(icon, convertedPoint[0]);
+                        }
+                        else
+                        {
+                            var circleRadius = (float)(ConstantValues.resolutionCell10 / stats.degreesPerPixelX / 2); //I want points to be drawn as 1 Cell10 in diameter.
+                            canvas.DrawCircle(convertedPoint[0], circleRadius, paint);
+                            //canvas.DrawCircle(convertedPoint[0], circleRadius, styles["outline"].paintOperations.First().paint); //TODO: this needs to be a PaintOp of its own, like roads and buildings have
+                        }
+                        break;
+                    default:
+                        Log.WriteLog("Unknown geometry type found, not drawn.");
+                        break;
+                }
+            }
+            //}
+
+            var ms = new MemoryStream();
+            var skms = new SKManagedWStream(ms);
+            bitmap.Encode(skms, SKEncodedImageFormat.Png, 100);
+            var results = ms.ToArray();
+            skms.Dispose(); ms.Close(); ms.Dispose();
+            return results;
+        }
+
+        //What if I have a few functions to generate a list of CompletePaintOps and pass that in to DrawAreaAtSize from
+        //whichever function is calling it?
+
+        public static List<CompletePaintOp> GetPaintOpsForStoredElements(List<StoredOsmElement> elements, string styleSet, ImageStats stats)
+        {
+            var styles = TagParser.allStyleGroups[styleSet];
+            var pass1 = elements.Select(d => new { d.AreaSize, d.elementGeometry, paintOp = styles[d.GameElementName].paintOperations });
+            var pass2 = new List<CompletePaintOp>();
+            foreach (var op in pass1)
+                foreach (var po in op.paintOp)
+                    if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
+                        pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po));
+
+            return pass2;
+        }
+
+        public static List<CompletePaintOp> GetPaintOpsForCustomDataElements(Geometry area, string dataKey, string styleSet, ImageStats stats)
+        {
+            //NOTE: styleSet must == dataKey for this to work. Or should I just add that to this function?
+            var db = new PraxisContext();
+            var elements = db.customDataOsmElements.Where(d => d.dataKey == dataKey && area.Intersects(d.storedOsmElement.elementGeometry)).ToList();
+            var styles = TagParser.allStyleGroups[styleSet];
+            var pass1 = elements.Select(d => new { d.storedOsmElement.AreaSize, d.storedOsmElement.elementGeometry, paintOp = styles[d.dataValue].paintOperations });
+            var pass2 = new List<CompletePaintOp>();
+            foreach (var op in pass1)
+                foreach (var po in op.paintOp)
+                    if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
+                        pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po));
+
+            return pass2;
+        }
+
+        public static List<CompletePaintOp> GetPaintOpsForCustomDataPlusCodes(Geometry area, string dataKey, string styleSet, ImageStats stats)
+        {
+            var db = new PraxisContext();
+            var elements = db.CustomDataPlusCodes.Where(d => d.dataKey == dataKey && area.Intersects(d.geoAreaIndex)).ToList();
+            var styles = TagParser.allStyleGroups[styleSet];
+            var pass1 = elements.Select(d => new { d.geoAreaIndex.Area, d.geoAreaIndex, paintOp = styles[d.dataValue].paintOperations });
+            var pass2 = new List<CompletePaintOp>();
+            foreach (var op in pass1)
+                foreach (var po in op.paintOp)
+                    if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
+                        pass2.Add(new CompletePaintOp(op.geoAreaIndex, op.Area, po));
+
+            return pass2;
         }
 
         public static string DrawAreaAtSizeSVG(ImageStats stats, List<StoredOsmElement> drawnItems = null, Dictionary<string, TagParserEntry> styles = null, bool filterSmallAreas = true)
@@ -823,6 +987,26 @@ namespace CoreComponents
             }//);
             progressTimer.Stop();
             Log.WriteLog("Zoom " + zoomLevel + " map tiles drawn in " + progressTimer.Elapsed.ToString());
+        }
+
+        public static byte[] LayerTiles(ImageStats info, byte[] bottomTile, byte[] topTile)
+        {
+            SkiaSharp.SKBitmap bitmap = new SkiaSharp.SKBitmap(info.imageSizeX, info.imageSizeY, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul);
+            SkiaSharp.SKCanvas canvas = new SkiaSharp.SKCanvas(bitmap);
+            SkiaSharp.SKPaint paint = new SkiaSharp.SKPaint();
+            canvas.Scale(1, 1, info.imageSizeX /2, info.imageSizeY / 2);
+            paint.IsAntialias = true;
+
+            var baseBmp = SkiaSharp.SKBitmap.Decode(bottomTile);
+            var topBmp = SkiaSharp.SKBitmap.Decode(topTile);
+            canvas.DrawBitmap(baseBmp, 0, 0);
+            canvas.DrawBitmap(topBmp, 0, 0);
+            var ms = new MemoryStream();
+            var skms = new SkiaSharp.SKManagedWStream(ms);
+            bitmap.Encode(skms, SkiaSharp.SKEncodedImageFormat.Png, 100);
+            var output = ms.ToArray();
+            skms.Dispose(); ms.Close(); ms.Dispose();
+            return output;
         }
     }
 }

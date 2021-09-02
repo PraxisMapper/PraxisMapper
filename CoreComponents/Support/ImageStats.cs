@@ -15,6 +15,8 @@ namespace CoreComponents.Support
         public int imageSizeY { get; set; }
         public double degreesPerPixelX { get; set; }
         public double degreesPerPixelY { get; set; }
+        public bool drawPoints { get; set; }
+        public double filterSize { get; set; }
 
         public GeoArea area { get; set; }
         
