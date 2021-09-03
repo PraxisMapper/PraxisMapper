@@ -55,60 +55,60 @@ namespace CoreComponents
         //    return DrawAreaAtSize(info, places, "teamColor");
         //}
 
-        public static byte[] DrawPaintTownSlippyTileSkia(ImageStats info, int instanceID)
-        {
-            //It might be fun on rare occasion to try and draw this all at once, but zoomed out too far and we won't see anything and will be very slow.
-            //Find all Cell8s in the relevant area.
-            MemoryStream ms = new MemoryStream();
-            var Cell8Wide = info.area.LongitudeWidth / resolutionCell8;
-            var Cell8High = info.area.LatitudeHeight / resolutionCell8;
+        //public static byte[] DrawPaintTownSlippyTileSkia(ImageStats info, int instanceID)
+        //{
+        //    //It might be fun on rare occasion to try and draw this all at once, but zoomed out too far and we won't see anything and will be very slow.
+        //    //Find all Cell8s in the relevant area.
+        //    MemoryStream ms = new MemoryStream();
+        //    var Cell8Wide = info.area.LongitudeWidth / resolutionCell8;
+        //    var Cell8High = info.area.LatitudeHeight / resolutionCell8;
 
-            //These may or may not be the same, even if the map tile is smaller than 1 Cell8.
-            var firstCell8 = new OpenLocationCode(info.area.SouthLatitude, info.area.WestLongitude).CodeDigits.Substring(0, 8);
-            var lastCell8 = new OpenLocationCode(info.area.NorthLatitude, info.area.EastLongitude).CodeDigits.Substring(0, 8);
-            if (firstCell8 != lastCell8)
-            {
-                //quick hack to make sure we process enough data.
-                Cell8High++;
-                Cell8Wide++;
-            }
+        //    //These may or may not be the same, even if the map tile is smaller than 1 Cell8.
+        //    var firstCell8 = new OpenLocationCode(info.area.SouthLatitude, info.area.WestLongitude).CodeDigits.Substring(0, 8);
+        //    var lastCell8 = new OpenLocationCode(info.area.NorthLatitude, info.area.EastLongitude).CodeDigits.Substring(0, 8);
+        //    if (firstCell8 != lastCell8)
+        //    {
+        //        //quick hack to make sure we process enough data.
+        //        Cell8High++;
+        //        Cell8Wide++;
+        //    }
 
-            List<PaintTownEntry> allData = new List<PaintTownEntry>();
-            for (var x = 0; x < Cell8Wide; x++)
-                for (var y = 0; y < Cell8High; y++)
-                {
-                    var thisCell = new OpenLocationCode(info.area.SouthLatitude + (resolutionCell8 * x), info.area.WestLongitude + (resolutionCell8 * y)).CodeDigits.Substring(0, 8);
-                    //var thisData = PaintTown.LearnCell8(instanceID, thisCell);
-                    //allData.AddRange(thisData);
-                }
+        //    //List<PaintTownEntry> allData = new List<PaintTownEntry>();
+        //    for (var x = 0; x < Cell8Wide; x++)
+        //        for (var y = 0; y < Cell8High; y++)
+        //        {
+        //            var thisCell = new OpenLocationCode(info.area.SouthLatitude + (resolutionCell8 * x), info.area.WestLongitude + (resolutionCell8 * y)).CodeDigits.Substring(0, 8);
+        //            //var thisData = PaintTown.LearnCell8(instanceID, thisCell);
+        //            //allData.AddRange(thisData);
+        //        }
 
-            //Some image items setup.
-            SKBitmap bitmap = new SKBitmap(info.imageSizeX, info.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
-            SKCanvas canvas = new SKCanvas(bitmap);
-            var bgColor = SKColors.Transparent;
-            canvas.Clear(bgColor);
-            canvas.Scale(1, -1, info.imageSizeX / 2, info.imageSizeY / 2);
-            SKPaint paint = new SKPaint();
-            SKColor color = new SKColor();
-            paint.IsAntialias = true;
-            foreach (var line in allData)
-            {
-                var location = OpenLocationCode.DecodeValid(line.Cell10);
-                var placeAsPoly = Converters.GeoAreaToPolygon(location);
-                var path = new SKPath();
-                path.AddPoly(Converters.PolygonToSKPoints(placeAsPoly, info.area, info.degreesPerPixelX, info.degreesPerPixelY));
-                paint.Style = SKPaintStyle.Fill;
-                SKColor.TryParse(teamColorReferenceLookupSkia[line.FactionId].FirstOrDefault(), out color);
-                paint.Color = color;
-                canvas.DrawPath(path, paint);
-            }
+        //    //Some image items setup.
+        //    SKBitmap bitmap = new SKBitmap(info.imageSizeX, info.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
+        //    SKCanvas canvas = new SKCanvas(bitmap);
+        //    var bgColor = SKColors.Transparent;
+        //    canvas.Clear(bgColor);
+        //    canvas.Scale(1, -1, info.imageSizeX / 2, info.imageSizeY / 2);
+        //    SKPaint paint = new SKPaint();
+        //    SKColor color = new SKColor();
+        //    paint.IsAntialias = true;
+        //    //foreach (var line in allData)
+        //    //{
+        //    //    var location = OpenLocationCode.DecodeValid(line.Cell10);
+        //    //    var placeAsPoly = Converters.GeoAreaToPolygon(location);
+        //    //    var path = new SKPath();
+        //    //    path.AddPoly(Converters.PolygonToSKPoints(placeAsPoly, info.area, info.degreesPerPixelX, info.degreesPerPixelY));
+        //    //    paint.Style = SKPaintStyle.Fill;
+        //    //    SKColor.TryParse(teamColorReferenceLookupSkia[line.FactionId].FirstOrDefault(), out color);
+        //    //    paint.Color = color;
+        //    //    canvas.DrawPath(path, paint);
+        //    //}
 
-            var skms = new SKManagedWStream(ms);
-            bitmap.Encode(skms, SKEncodedImageFormat.Png, 100);
-            var results = ms.ToArray();
-            skms.Dispose(); ms.Close(); ms.Dispose();
-            return results;
-        }
+        //    var skms = new SKManagedWStream(ms);
+        //    bitmap.Encode(skms, SKEncodedImageFormat.Png, 100);
+        //    var results = ms.ToArray();
+        //    skms.Dispose(); ms.Close(); ms.Dispose();
+        //    return results;
+        //}
 
         public static byte[] DrawOfflineEstimatedAreas(ImageStats info, List<StoredOsmElement> items)
         {
@@ -264,7 +264,17 @@ namespace CoreComponents
             return results;
         }
 
-        public static void ExpireMapTiles(Geometry g, long elementId, string styleSet = "")
+        public static void ExpireMapTiles(Geometry g, string styleSet = "")
+        {
+            //If this would be faster as raw SQL, see function below for a template on how to write that.
+            //TODO: test this logic, should be faster but 
+            var db = new PraxisContext();
+            //MariaDB SQL, should be functional
+            string SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, ST_GEOMFROMTEXT('" + g.AsText() + "'))";
+            db.Database.ExecuteSqlRaw(SQL);
+        }
+
+        public static void ExpireMapTiles(long elementId, string styleSet = "")
         {
             //If this would be faster as raw SQL, see function below for a template on how to write that.
             //TODO: test this logic, should be faster but 
@@ -272,14 +282,19 @@ namespace CoreComponents
             //MariaDB SQL, should be functional
             string SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM StoredOsmElements WHERE id = " + elementId + "))";
             db.Database.ExecuteSqlRaw(SQL);
-            //var mapTiles = db.MapTiles.Where(m => m.areaCovered.Intersects(g) && (limitModeTo == 0 || m.mode == limitModeTo)).ToList(); //TODO: can I select only the ExpiresOn value and have that save back correctly?
-            //foreach (var mt in mapTiles)
-                //mt.ExpireOn = DateTime.Now;
-
-            //db.SaveChanges();
         }
 
-        public static void ExpireSlippyMapTiles(Geometry g, long elementId, string styleSet = "")
+        public static void ExpireSlippyMapTiles(Geometry g, string styleSet = "")
+        {
+            //If this would be faster as raw SQL, see function below for a template on how to write that.
+            //TODO: test this logic, should be faster but 
+            var db = new PraxisContext();
+            //MariaDB SQL, should be functional
+            string SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, ST_GEOMFROMTEXT('" + g.AsText() + "'))";
+            db.Database.ExecuteSqlRaw(SQL);
+        }
+
+        public static void ExpireSlippyMapTiles(long elementId, string styleSet = "")
         {
             //Might this be better off as raw SQL? If I expire, say, an entire state, that could be a lot of map tiles to pull into RAM just for a date to change.
             //var raw = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE ST_INTERSECTS(areaCovered, ST_GeomFromText(" + g.AsText() + "))";

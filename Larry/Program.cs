@@ -291,6 +291,15 @@ namespace Larry
 
                 Log.WriteLog("Beginning game maptile draw for relation " + subargs[2]);
                 GeoArea drawRegion = new GeoArea(env.MinY, env.MinX, env.MaxY, env.MaxX);
+
+                var db = new PraxisContext();
+                var settings = db.ServerSettings.First();
+                settings.EastBound = env.MaxX;
+                settings.NorthBound = env.MaxY;
+                settings.WestBound = env.MinX;
+                settings.SouthBound = env.MinY;
+                db.SaveChanges();
+                
                 MapTiles.PregenMapTilesForArea(drawRegion);
                 MapTiles.PregenSlippyMapTilesForArea(drawRegion, 8);
                 MapTiles.PregenSlippyMapTilesForArea(drawRegion, 10);

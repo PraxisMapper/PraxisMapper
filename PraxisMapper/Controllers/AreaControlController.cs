@@ -60,8 +60,8 @@ namespace PraxisMapper.Controllers
             PraxisContext db = new PraxisContext();
             //Tuple<long, int> shortcut = new Tuple<long, int>(MapDataId, factionId); //tell the application later not to hit the DB on every tile for this entry.
             var element = db.StoredOsmElements.Where(s => s.id == storedOsmElementId).First();
-            MapTiles.ExpireMapTiles(element.elementGeometry, storedOsmElementId);
-            MapTiles.ExpireSlippyMapTiles(element.elementGeometry, storedOsmElementId);
+            MapTiles.ExpireMapTiles(storedOsmElementId, "teamColor");
+            MapTiles.ExpireSlippyMapTiles(storedOsmElementId, "teamColor"); //These 2 previous had both element.elementGeometry and the elementID, should only need 1.
             
             return true;
         }
@@ -125,7 +125,7 @@ namespace PraxisMapper.Controllers
                 else //update the existing entry.
                 {
                     factionColorTile.tileData = results;
-                    factionColorTile.ExpireOn = DateTime.Now.AddMinutes(1); //TODO: only expire tiles when an area is claimed.
+                    factionColorTile.ExpireOn = DateTime.Now.AddYears(10);
                     factionColorTile.CreatedOn = DateTime.Now;
                 }
                 db.SaveChanges();
@@ -137,35 +137,35 @@ namespace PraxisMapper.Controllers
             return File(output, "image/png");
         }
 
-        [HttpGet]
-        [Route("/[controller]/FindChangedMapTiles/{mapDataId}")]
-        [Route("/Gameplay/FindChangedMapTiles/{mapDataId}")]
-        public string FindChangedMapTiles(long mapDataId)
-        {
-            PerformanceTracker pt = new PerformanceTracker("FindChangedMapTiles");
-            string results = "";
-            //return a separated list of maptiles that need updated.
-            var db = new PraxisContext();
-            var md = db.StoredOsmElements.Where(m => m.id == mapDataId).FirstOrDefault();
-            var space = md.elementGeometry.Envelope;
-            var geoAreaToRefresh = new GeoArea(new GeoPoint(space.Coordinates.Min().Y, space.Coordinates.Min().X), new GeoPoint(space.Coordinates.Max().Y, space.Coordinates.Max().X));
-            var Cell8XTiles = geoAreaToRefresh.LongitudeWidth / resolutionCell8;
-            var Cell8YTiles = geoAreaToRefresh.LatitudeHeight / resolutionCell8;
-            for (var x = 0; x < Cell8XTiles; x++)
-            {
-                for (var y = 0; y < Cell8YTiles; y++)
-                {
-                    var olc = new OpenLocationCode(new GeoPoint(geoAreaToRefresh.SouthLatitude + (resolutionCell8 * y), geoAreaToRefresh.WestLongitude + (resolutionCell8 * x)));
-                    var olcPoly = Converters.GeoAreaToPolygon(olc.Decode());
-                    if (md.elementGeometry.Intersects(olcPoly)) //If this intersects the original way, redraw that tile. Lets us minimize work for oddly-shaped areas.
-                    {
-                        results += olc.CodeDigits + "|";
-                    }
-                }
-            }
-            pt.Stop();
-            return results;
-        }
+        //[HttpGet]
+        //[Route("/[controller]/FindChangedMapTiles/{mapDataId}")]
+        //[Route("/Gameplay/FindChangedMapTiles/{mapDataId}")]
+        //public string FindChangedMapTiles(long mapDataId)
+        //{
+        //    PerformanceTracker pt = new PerformanceTracker("FindChangedMapTiles");
+        //    string results = "";
+        //    //return a separated list of maptiles that need updated.
+        //    var db = new PraxisContext();
+        //    var md = db.StoredOsmElements.Where(m => m.id == mapDataId).FirstOrDefault();
+        //    var space = md.elementGeometry.Envelope;
+        //    var geoAreaToRefresh = new GeoArea(new GeoPoint(space.Coordinates.Min().Y, space.Coordinates.Min().X), new GeoPoint(space.Coordinates.Max().Y, space.Coordinates.Max().X));
+        //    var Cell8XTiles = geoAreaToRefresh.LongitudeWidth / resolutionCell8;
+        //    var Cell8YTiles = geoAreaToRefresh.LatitudeHeight / resolutionCell8;
+        //    for (var x = 0; x < Cell8XTiles; x++)
+        //    {
+        //        for (var y = 0; y < Cell8YTiles; y++)
+        //        {
+        //            var olc = new OpenLocationCode(new GeoPoint(geoAreaToRefresh.SouthLatitude + (resolutionCell8 * y), geoAreaToRefresh.WestLongitude + (resolutionCell8 * x)));
+        //            var olcPoly = Converters.GeoAreaToPolygon(olc.Decode());
+        //            if (md.elementGeometry.Intersects(olcPoly)) //If this intersects the original way, redraw that tile. Lets us minimize work for oddly-shaped areas.
+        //            {
+        //                results += olc.CodeDigits + "|";
+        //            }
+        //        }
+        //    }
+        //    pt.Stop();
+        //    return results;
+        //}
 
         [HttpGet]
         [Route("/[controller]/AreaOwners/{mapDataId}")]

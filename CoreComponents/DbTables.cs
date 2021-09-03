@@ -64,38 +64,6 @@ namespace CoreComponents
             public string HtmlColor { get; set; } //Should be transparent, so this can be overlaid on top of the normal map tile.
         }
 
-        public class PaintTownEntry
-        {
-            public long PaintTownEntryId { get; set; }
-            public int PaintTownConfigId { get; set; } //If we're running multiple PaintTown instances at once, this lets us identify which one belongs to which.
-            public string Cell10 { get; set; }
-            public string Cell8 { get; set; }
-            public int FactionId { get; set; }
-            public DateTime ClaimedAt { get; set; }
-            public DateTime CanFlipFactionAt { get; set; }
-        }
-
-        public class PaintTownConfig
-        {
-            public int PaintTownConfigId { get; set; }
-            public string Name { get; set; } //help identify which game/scoreboard we're looking at.
-            public int DurationHours { get; set; } //how long to let a game run for. Set to -1 to make a permanent instance.
-            public DateTime NextReset { get; set; } //add DurationHours to this if we're past the expiration time. Subtract to see the last reset date. Set to far in the future on permanent instances.
-            public int Cell10LockoutTimer { get; set; } //The number of seconds that a Cell10 entry cannot be flipped for when a valid claim happens.
-            public bool Repeating { get; set; } //Does this instance automatically repeat
-            public DateTime StartTime { get; set; } //For non-repeating instances, when to start taking requests.
-        }
-
-        public class PaintTownScoreRecord
-        {
-            public long PaintTownScoreRecordId { get; set; }
-            public int PaintTownConfigId { get; set; }
-            public string Results { get; set; } //A concatenated set of results into one column.
-            public int WinningFactionID { get; set; }
-            public int WinningScore { get; set; }
-            public DateTime RecordedAt { get; set; }
-        }
-
         public class ErrorLog
         {
             public int ErrorLogId { get; set; }

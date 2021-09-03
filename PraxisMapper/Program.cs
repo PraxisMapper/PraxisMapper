@@ -26,8 +26,6 @@ namespace PraxisMapper
             cache.Set("caching", serverSettings.enableMapTileCaching); //convenience entry
             var factions = db.Factions.ToList();
             cache.Set("Factions", factions);
-            var paintTownConfigs = db.PaintTownConfigs.ToList();
-            cache.Set("PTTConfigs", paintTownConfigs);
             //Set configured Slippy Map tile size
             MapTiles.MapTileSizeSquare = serverSettings.SlippyMapTileSizeSquare;
 
