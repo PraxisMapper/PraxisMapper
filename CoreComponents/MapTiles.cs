@@ -550,14 +550,15 @@ namespace CoreComponents
             foreach (var w in paintOps.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))
             {
                 paint = w.paintOp.paint;
+                
+                if (w.paintOp.fromTag) //FromTag is for when you are saving color data directly to each element, instead of tying it to a styleset.
+                    paint.Color = SKColor.Parse(w.tagValue);
+
                 if (paint.Color.Alpha == 0)
                     continue; //This area is transparent, skip drawing it entirely.
 
-                if (w.paintOp.randomize)
+                if (w.paintOp.randomize) //To randomize the color on every Draw call.
                     paint.Color = new SKColor((byte)r.Next(0, 255), (byte)r.Next(0, 255), (byte)r.Next(0, 255), 99);
-
-                if (w.paintOp.fromTag)
-                    paint.Color = SKColor.Parse(w.tagValue);
 
                 var path = new SKPath();
                 switch (w.elementGeometry.GeometryType)
