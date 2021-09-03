@@ -1261,7 +1261,7 @@ namespace PerformanceTestApp
             sw.Stop();
             Log.WriteLog("loaded 1 random tile via index in : " + sw.Elapsed);
             sw.Restart();
-            MapTiles.ExpireSlippyMapTiles(randomTileArea, 1);
+            MapTiles.ExpireSlippyMapTiles(randomTileArea, "mapTiles");
             sw.Stop();
             Log.WriteLog("Expired 1 random map tile in:" + sw.Elapsed);
 
@@ -1306,7 +1306,7 @@ namespace PerformanceTestApp
             //InsertAreaTypesToDb(mode);
             InsertDefaultServerConfig();
             InsertDefaultFactionsToDb(mode);
-            InsertDefaultPaintTownConfigs();
+            //InsertDefaultPaintTownConfigs();
             InsertDefaultStyle(mode);
         }
 
@@ -1377,25 +1377,25 @@ namespace PerformanceTestApp
             }
         }
 
-        public static void InsertDefaultPaintTownConfigs()
-        {
-            var db = new PraxisContext();
-            //we set the reset time to next Saturday at midnight for a default.
-            var nextSaturday = DateTime.Now.AddDays(6 - (int)DateTime.Now.DayOfWeek);
-            nextSaturday.AddHours(-nextSaturday.Hour);
-            nextSaturday.AddMinutes(-nextSaturday.Minute);
-            nextSaturday.AddSeconds(-nextSaturday.Second);
+        //public static void InsertDefaultPaintTownConfigs()
+        //{
+        //    var db = new PraxisContext();
+        //    //we set the reset time to next Saturday at midnight for a default.
+        //    var nextSaturday = DateTime.Now.AddDays(6 - (int)DateTime.Now.DayOfWeek);
+        //    nextSaturday.AddHours(-nextSaturday.Hour);
+        //    nextSaturday.AddMinutes(-nextSaturday.Minute);
+        //    nextSaturday.AddSeconds(-nextSaturday.Second);
 
-            var tomorrow = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day).AddDays(1);
-            db.PaintTownConfigs.Add(new PaintTownConfig() { Name = "All-Time", Cell10LockoutTimer = 300, DurationHours = -1, NextReset = nextSaturday });
-            db.PaintTownConfigs.Add(new PaintTownConfig() { Name = "Weekly", Cell10LockoutTimer = 300, DurationHours = 168, NextReset = new DateTime(2099, 12, 31) });
-            //db.PaintTownConfigs.Add(new PaintTownConfig() { Name = "Daily", Cell10LockoutTimer = 30, DurationHours = 24, NextReset = tomorrow });
+        //    var tomorrow = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day).AddDays(1);
+        //    db.PaintTownConfigs.Add(new PaintTownConfig() { Name = "All-Time", Cell10LockoutTimer = 300, DurationHours = -1, NextReset = nextSaturday });
+        //    db.PaintTownConfigs.Add(new PaintTownConfig() { Name = "Weekly", Cell10LockoutTimer = 300, DurationHours = 168, NextReset = new DateTime(2099, 12, 31) });
+        //    //db.PaintTownConfigs.Add(new PaintTownConfig() { Name = "Daily", Cell10LockoutTimer = 30, DurationHours = 24, NextReset = tomorrow });
 
-            //PaintTheTown requires dummy entries in the playerData table, or it doesn't know which factions exist. It's faster to do this once here than to check on every call to playerData
-            foreach (var faction in Singletons.defaultFaction)
-                GenericData.SetPlayerData("dummy", "FactionId", faction.FactionId.ToString());
-            db.SaveChanges();
-        }
+        //    //PaintTheTown requires dummy entries in the playerData table, or it doesn't know which factions exist. It's faster to do this once here than to check on every call to playerData
+        //    foreach (var faction in Singletons.defaultFaction)
+        //        GenericData.SetPlayerData("dummy", "FactionId", faction.FactionId.ToString());
+        //    db.SaveChanges();
+        //}
 
         public static void CleanDb()
         {

@@ -12,9 +12,6 @@ namespace CoreComponents
         public DbSet<SlippyMapTile> SlippyMapTiles { get; set; }
         public DbSet<Faction> Factions { get; set; }
         public DbSet<AreaControlTeam> TeamClaims { get; set; } 
-        public DbSet<PaintTownConfig> PaintTownConfigs { get; set; }
-        public DbSet<PaintTownEntry> PaintTownEntries { get; set; }
-        public DbSet<PaintTownScoreRecord> PaintTownScoreRecords { get; set; }
         public DbSet<ErrorLog> ErrorLogs { get; set; }
         public DbSet<ServerSetting> ServerSettings { get; set; }
         public DbSet<TileTracking> TileTrackings { get; set; }
@@ -75,15 +72,6 @@ namespace CoreComponents
 
             model.Entity<AreaControlTeam>().HasIndex(m => m.StoredElementId);
             model.Entity<AreaControlTeam>().HasIndex(m => m.FactionId);
-
-            model.Entity<PaintTownEntry>().HasIndex(m => m.FactionId);
-            model.Entity<PaintTownEntry>().HasIndex(m => m.PaintTownConfigId);
-            model.Entity<PaintTownEntry>().HasIndex(m => m.Cell8); //index for looking up current tiles.
-            model.Entity<PaintTownEntry>().HasIndex(m => m.Cell10); //index for claiming
-            //No index on the claimedAt column, since the Cell8Recent call should use the Cell8 index, and then scanning over a max of 400 entries shouldn't be terrible. Add that here if this assumption is wrong.
-
-            model.Entity<PaintTownScoreRecord>().HasIndex(m => m.PaintTownConfigId);
-            model.Entity<PaintTownScoreRecord>().HasIndex(m => m.WinningFactionID);
 
             model.Entity<ElementTags>().HasIndex(m => m.Key);
             model.Entity<ElementTags>().HasOne(m => m.storedOsmElement).WithMany(m => m.Tags).HasForeignKey(m => new { m.SourceItemId, m.SourceItemType }).HasPrincipalKey(m => new { m.sourceItemID, m.sourceItemType });
@@ -155,7 +143,6 @@ namespace CoreComponents
 
             InsertDefaultServerConfig();
             InsertDefaultFactionsToDb();
-            InsertDefaultPaintTownConfigs();
             InsertDefaultStyle();
         }
 
@@ -209,26 +196,26 @@ namespace CoreComponents
             }
         }
 
-        public static void InsertDefaultPaintTownConfigs()
-        {
-            var db = new PraxisContext();
-            //we set the reset time to next Saturday at midnight for a default.
-            var nextSaturday = DateTime.Now.AddDays(6 - (int)DateTime.Now.DayOfWeek);
-            nextSaturday.AddHours(-nextSaturday.Hour);
-            nextSaturday.AddMinutes(-nextSaturday.Minute);
-            nextSaturday.AddSeconds(-nextSaturday.Second);
+        //public static void InsertDefaultPaintTownConfigs()
+        //{
+        //    var db = new PraxisContext();
+        //    //we set the reset time to next Saturday at midnight for a default.
+        //    var nextSaturday = DateTime.Now.AddDays(6 - (int)DateTime.Now.DayOfWeek);
+        //    nextSaturday.AddHours(-nextSaturday.Hour);
+        //    nextSaturday.AddMinutes(-nextSaturday.Minute);
+        //    nextSaturday.AddSeconds(-nextSaturday.Second);
 
-            var tomorrow = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day).AddDays(1);
-            db.PaintTownConfigs.Add(new PaintTownConfig() {PaintTownConfigId =1,  Name = "All-Time", Cell10LockoutTimer = 300, DurationHours = -1, NextReset = nextSaturday });
-            db.PaintTownConfigs.Add(new PaintTownConfig() {PaintTownConfigId =2, Name = "Weekly", Cell10LockoutTimer = 300, DurationHours = 168, NextReset = nextSaturday });
+        //    var tomorrow = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day).AddDays(1);
+        //    db.PaintTownConfigs.Add(new PaintTownConfig() {PaintTownConfigId =1,  Name = "All-Time", Cell10LockoutTimer = 300, DurationHours = -1, NextReset = nextSaturday });
+        //    db.PaintTownConfigs.Add(new PaintTownConfig() {PaintTownConfigId =2, Name = "Weekly", Cell10LockoutTimer = 300, DurationHours = 168, NextReset = nextSaturday });
 
-            //PaintTheTown requires dummy entries in the playerData table, or it doesn't know which factions exist. It's faster to do this once here than to check on every call to playerData
-            foreach (var faction in Singletons.defaultFaction)
-            {
-                GenericData.SetPlayerData("dummy", "FactionId", faction.FactionId.ToString());
-            }
-            db.SaveChanges();
-        }
+        //    //PaintTheTown requires dummy entries in the playerData table, or it doesn't know which factions exist. It's faster to do this once here than to check on every call to playerData
+        //    foreach (var faction in Singletons.defaultFaction)
+        //    {
+        //        GenericData.SetPlayerData("dummy", "FactionId", faction.FactionId.ToString());
+        //    }
+        //    db.SaveChanges();
+        //}
     }
 }
 

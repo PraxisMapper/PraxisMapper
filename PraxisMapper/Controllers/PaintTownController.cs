@@ -4,6 +4,7 @@ using Google.OpenLocationCode;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
+using NetTopologySuite.Geometries;
 using PraxisMapper.Classes;
 using SkiaSharp;
 using System;
@@ -85,6 +86,9 @@ namespace PraxisMapper.Controllers
                 Random r = new Random();
                 SKColor color = new SKColor((byte)r.Next(0, 255), (byte)r.Next(0, 255), (byte)r.Next(0, 255), 66);
                 GenericData.SetPlusCodeData(Cell10, "color", color.ToString());
+                Geometry g= Converters.GeoAreaToPolygon(OpenLocationCode.DecodeValid(Cell10));
+                MapTiles.ExpireMapTiles(g, "paintTown");
+                MapTiles.ExpireSlippyMapTiles(g, "paintTown");
 
                 db.SaveChanges();
                 pt.Stop(Cell10);
@@ -112,21 +116,16 @@ namespace PraxisMapper.Controllers
                 {
                     //Create this entry
                     var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare, MapTiles.MapTileSizeSquare);
-                    info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
-                    if (zoom >= 15) //Gameplay areas are ~15.
-                        info.filterSize = 0;
+                    //info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
+                    //if (zoom >= 15) //Gameplay areas are ~15.
+                        //info.filterSize = 0;
 
                     var dataLoadArea = new GeoArea(info.area.SouthLatitude - ConstantValues.resolutionCell10, info.area.WestLongitude - ConstantValues.resolutionCell10, info.area.NorthLatitude + ConstantValues.resolutionCell10, info.area.EastLongitude + ConstantValues.resolutionCell10);
                     DateTime expires = DateTime.Now;
-                    byte[] results = null;
-                    //var places = GetPlaces(dataLoadArea, filterSize: info.filterSize); //includeGenerated: false, filterSize: filterSize  //NOTE: in this case, we want generated areas to be their own slippy layer, so the config setting is ignored here.
-                    //results = MapTiles.DrawAreaAtSize(info, places, styleSet, true);
-                    //var places = GetPlacesForTile(info, null, styleSet);
-                    //var data = GenericData.GetAllPlusCodeDataInArea(info.area);
+                    
                     var paintOps = MapTiles.GetPaintOpsForCustomDataPlusCodes(Converters.GeoAreaToPolygon(info.area), "color", "paintTown", info);
-         
-                    results = MapTiles.DrawAreaAtSize(info, paintOps, TagParser.GetStyleBgColor(styleSet));
-                    expires = DateTime.Now.AddMinutes(5); //Assuming you are going to manually update/clear tiles when you reload base data
+                    byte[] results = MapTiles.DrawAreaAtSize(info, paintOps, TagParser.GetStyleBgColor(styleSet));
+                    expires = DateTime.Now.AddYears(10);
                     if (existingResults == null)
                         db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, CreatedOn = DateTime.Now, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
                     else
