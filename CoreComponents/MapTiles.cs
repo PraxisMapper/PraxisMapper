@@ -724,7 +724,7 @@ namespace CoreComponents
             //SKCanvas canvas = new SKCanvas(bitmap);
             var bgColor = styles["background"].paintOperations.FirstOrDefault().paint; //Backgound is a named style, unmatched will be the last entry and transparent.
             canvas.Clear(bgColor.Color);
-            canvas.Scale(1, -1, stats.imageSizeX / 2, stats.imageSizeY / 2); //svg is negative pixels tall if canvas is scaled -1 on Y
+            canvas.Scale(1, -1, stats.imageSizeX / 2, stats.imageSizeY / 2);
             SKPaint paint = new SKPaint();
 
             //I guess what I want here is a list of an object with an elementGeometry object for the shape, and a paintOp attached to it
