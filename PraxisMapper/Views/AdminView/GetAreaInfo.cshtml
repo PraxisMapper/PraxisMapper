@@ -19,4 +19,10 @@ Gameplay Areas:<br />
 
 Rendering time: @ViewBag.timeToDraw
 <br />
-<img src="@ViewBag.imageString" />
+@if(ViewBag.UseSvg){
+    <object type="image/svg+xml" data="@ViewBag.imageString"></object>
+    @Html.Raw(ViewBag.imageString)
+}
+else{
+    <img src="@ViewBag.imageString" />
+}
