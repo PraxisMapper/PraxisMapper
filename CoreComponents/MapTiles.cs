@@ -718,13 +718,13 @@ namespace CoreComponents
 
             //baseline image data stuff           
             //SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
-            var bounds = new SKRect(0, stats.imageSizeY, stats.imageSizeX, 0);
+            var bounds = new SKRect(0, 0, stats.imageSizeX, stats.imageSizeY);
             MemoryStream s = new MemoryStream();
-            SKCanvas canvas = SKSvgCanvas.Create(bounds, s);
+            SKCanvas canvas = SKSvgCanvas.Create(bounds, s); //output not guaranteed to be complete until the canvas is deleted?!?
             //SKCanvas canvas = new SKCanvas(bitmap);
             var bgColor = styles["background"].paintOperations.FirstOrDefault().paint; //Backgound is a named style, unmatched will be the last entry and transparent.
             canvas.Clear(bgColor.Color);
-            canvas.Scale(1, -1, stats.imageSizeX / 2, stats.imageSizeY / 2);
+            canvas.Scale(1, -1, stats.imageSizeX / 2, stats.imageSizeY / 2); //svg is negative pixels tall if canvas is scaled -1 on Y
             SKPaint paint = new SKPaint();
 
             //I guess what I want here is a list of an object with an elementGeometry object for the shape, and a paintOp attached to it
@@ -828,7 +828,9 @@ namespace CoreComponents
                         break;
                 }
             }
-
+            canvas.Flush();
+            canvas.Dispose();
+            canvas = null;
             //var skms = new SKManagedWStream(ms);
             s.Position = 0;
             var svgData = new StreamReader(s).ReadToEnd();
