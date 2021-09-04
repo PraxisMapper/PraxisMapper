@@ -50,7 +50,7 @@ namespace PraxisMapper.Controllers
                 string results = "";
                 foreach (var cell in cellData.Where(c => c.key == "color"))
                     results += cell.plusCode + "=" + cell.value + "|";
-                pt.Stop();
+                pt.Stop(Cell8);
                 return results;
             }
             catch (Exception ex)

@@ -277,6 +277,7 @@ namespace CoreComponents
             public string dataKey { get; set; }
             public string dataValue { get; set; }
             public DateTime? expiration { get; set; } //optional.
+            [Required]
             public Geometry geoAreaIndex { get; set; } //PlusCode listed as a geometry object for index/search purposes.
         }
 

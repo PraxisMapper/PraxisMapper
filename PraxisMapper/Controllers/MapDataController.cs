@@ -46,6 +46,7 @@ namespace PraxisMapper.Controllers
             //TODO: this is pretty hard coded to only work for Cell8s. I will have to work on it and the functions farther down the chain to make this work for any size pluscode.
             //fullcode = 1 is probably a little faster on the device, but 0 currently matches the app and im testing on the cloud server, so 0 this stays for now.
             //Send over the plus code to look up.
+            //if (plusCode == null) return "";
             PerformanceTracker pt = new PerformanceTracker("LearnCell");
             var codeString = plusCode;
             string cachedResults = "";
