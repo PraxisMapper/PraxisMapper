@@ -1283,6 +1283,7 @@ namespace PerformanceTestApp
                 db.Database.ExecuteSqlRaw(PraxisContext.MapTileIndexPG);
                 db.Database.ExecuteSqlRaw(PraxisContext.SlippyMapTileIndexPG);
                 db.Database.ExecuteSqlRaw(PraxisContext.StoredElementsIndexPG);
+                
             }
             else
             {
@@ -1291,6 +1292,7 @@ namespace PerformanceTestApp
                 db.Database.ExecuteSqlRaw(PraxisContext.MapTileIndex);
                 db.Database.ExecuteSqlRaw(PraxisContext.SlippyMapTileIndex);
                 db.Database.ExecuteSqlRaw(PraxisContext.StoredElementsIndex);
+                db.Database.ExecuteSqlRaw(PraxisContext.customDataPlusCodesIndex);
             }
 
             if (mode == "SQLServer")
