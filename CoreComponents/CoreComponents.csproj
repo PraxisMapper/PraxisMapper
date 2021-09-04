@@ -6,8 +6,11 @@
 
   <ItemGroup>
     <Compile Remove="CustomDependencies\**" />
+    <Compile Remove="Interfaces\**" />
     <EmbeddedResource Remove="CustomDependencies\**" />
+    <EmbeddedResource Remove="Interfaces\**" />
     <None Remove="CustomDependencies\**" />
+    <None Remove="Interfaces\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -47,10 +50,6 @@
     <PackageReference Include="protobuf-net" Version="3.0.101" />
     <PackageReference Include="SkiaSharp" Version="2.88.0-preview.120" />
     <PackageReference Include="Z.EntityFramework.Extensions.EFCore" Version="6.0.0-preview.6.21352.1-2" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Interfaces\" />
   </ItemGroup>
 
 </Project>

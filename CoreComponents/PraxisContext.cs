@@ -11,7 +11,6 @@ namespace CoreComponents
         public DbSet<MapTile> MapTiles { get; set; }
         public DbSet<SlippyMapTile> SlippyMapTiles { get; set; }
         public DbSet<Faction> Factions { get; set; }
-        public DbSet<AreaControlTeam> TeamClaims { get; set; } 
         public DbSet<ErrorLog> ErrorLogs { get; set; }
         public DbSet<ServerSetting> ServerSettings { get; set; }
         public DbSet<TileTracking> TileTrackings { get; set; }
@@ -69,9 +68,6 @@ namespace CoreComponents
 
             model.Entity<SlippyMapTile>().HasIndex(m => m.Values);
             model.Entity<SlippyMapTile>().HasIndex(m => m.styleSet);
-
-            model.Entity<AreaControlTeam>().HasIndex(m => m.StoredElementId);
-            model.Entity<AreaControlTeam>().HasIndex(m => m.FactionId);
 
             model.Entity<ElementTags>().HasIndex(m => m.Key);
             model.Entity<ElementTags>().HasOne(m => m.storedOsmElement).WithMany(m => m.Tags).HasForeignKey(m => new { m.SourceItemId, m.SourceItemType }).HasPrincipalKey(m => new { m.sourceItemID, m.sourceItemType });

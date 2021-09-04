@@ -102,7 +102,7 @@ namespace PraxisMapper.Controllers
         [HttpGet]
         //[Route("/[controller]/DrawSlippyTile/{x}/{y}/{zoom}/{layer}")] //old, not slippy map conventions
         [Route("/[controller]/DrawSlippyTile/{zoom}/{x}/{y}.png")] //slippy map conventions.
-        public FileContentResult DrawPaintTownSlippyTile(int x, int y, int zoom, string styleSet)
+        public FileContentResult DrawPaintTownSlippyTile(int x, int y, int zoom, string styleSet = "paintTown")
         {
             try
             {
@@ -123,7 +123,7 @@ namespace PraxisMapper.Controllers
                     var dataLoadArea = new GeoArea(info.area.SouthLatitude - ConstantValues.resolutionCell10, info.area.WestLongitude - ConstantValues.resolutionCell10, info.area.NorthLatitude + ConstantValues.resolutionCell10, info.area.EastLongitude + ConstantValues.resolutionCell10);
                     DateTime expires = DateTime.Now;
                     
-                    var paintOps = MapTiles.GetPaintOpsForCustomDataPlusCodes(Converters.GeoAreaToPolygon(info.area), "color", "paintTown", info);
+                    var paintOps = MapTiles.GetPaintOpsForCustomDataPlusCodesFromTagValue(Converters.GeoAreaToPolygon(info.area), "color", "paintTown", info);
                     byte[] results = MapTiles.DrawAreaAtSize(info, paintOps, TagParser.GetStyleBgColor(styleSet));
                     expires = DateTime.Now.AddYears(10);
                     if (existingResults == null)
@@ -147,6 +147,36 @@ namespace PraxisMapper.Controllers
             {
                 ErrorLogger.LogError(ex);
                 return null;
+            }
+        }
+
+        [HttpGet]
+        [Route("/[controller]/FillTestAreas/{percent}")]
+        public void FillTestAreas(int percent)
+        {
+            var db = new PraxisContext();
+            var settings = db.ServerSettings.First();
+            Random r = new Random();
+
+            double currentY = settings.SouthBound;
+            double currentX = settings.WestBound;
+
+            //Loop through all Cell10s in range, make (percent) of them filled in with a random color.
+            while(currentY < settings.NorthBound)
+            {
+                while(currentX < settings.EastBound)
+                {
+                    currentX += ConstantValues.resolutionCell10;
+                    
+                    if (r.Next(0, 100) > percent)
+                        continue;
+
+                    var Cell10 = new OpenLocationCode(currentY, currentX, 10).CodeDigits;
+                    SKColor color = new SKColor((byte)r.Next(0, 255), (byte)r.Next(0, 255), (byte)r.Next(0, 255), 66);
+                    GenericData.SetPlusCodeData(Cell10, "color", color.ToString());
+                }
+                currentY += ConstantValues.resolutionCell10;
+                currentX = settings.WestBound;
             }
         }
     }
