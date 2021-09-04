@@ -55,11 +55,15 @@ namespace PraxisMapper.Controllers
         [Route("/Gameplay/claimArea/{storedOsmElementId}/{faction}")]
         public bool ClaimArea(long storedOsmElementId, string faction)
         {
-            ///StoredOmeElementId is the primary key on the table, not the OSM ID
-            GenericData.SetStoredElementData(storedOsmElementId, "teamColor", faction);
             PraxisContext db = new PraxisContext();
             //Tuple<long, int> shortcut = new Tuple<long, int>(MapDataId, factionId); //tell the application later not to hit the DB on every tile for this entry.
             var element = db.StoredOsmElements.Where(s => s.id == storedOsmElementId).First();
+            ///StoredOmeElementId is the primary key on the table, not the OSM ID
+            GenericData.SetStoredElementData(storedOsmElementId, "teamColor", faction);
+            var score = element.elementGeometry.Length;
+            if (score < 1)
+                score = 1;
+            GenericData.SetStoredElementData(storedOsmElementId, "points", ((int)score).ToString());
             MapTiles.ExpireMapTiles(storedOsmElementId, "teamColor");
             MapTiles.ExpireSlippyMapTiles(storedOsmElementId, "teamColor"); //These 2 previous had both element.elementGeometry and the elementID, should only need 1.
             
@@ -80,6 +84,8 @@ namespace PraxisMapper.Controllers
 
             return results;
         }
+
+        //TODO: add slippy tile for MAC mode data.
 
         //This code technically works on any Cell size, I haven't yet functionalized it correctly yet.
         [HttpGet]
@@ -172,14 +178,12 @@ namespace PraxisMapper.Controllers
         [Route("/Gameplay/AreaOwners/{mapDataId}")]
         public string AreaOwners(long mapDataId)
         {
-            //App asks to see which team owns this areas.
+            //App asks to see which team owns this area.
             //Return the area name (or type if unnamed), the team that owns it, and its point cost (pipe-separated)
             PerformanceTracker pt = new PerformanceTracker("AreaOwners");
             var db = new PraxisContext();
-            var owner = db.TeamClaims.Where(a => a.StoredElementId == mapDataId).FirstOrDefault();
+            var owner = GenericData.GetElementData(mapDataId, "teamColor");
             var mapData = db.StoredOsmElements.Where(m => m.id == mapDataId).FirstOrDefault();
-            //if (mapData == null && (Configuration.GetValue<bool>("generateAreas") == true)) //TODO restore this feature.
-                //mapData = db.GeneratedMapData.Where(m => m.GeneratedMapDataId == mapDataId - 100000000).Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }).FirstOrDefault();
             if (mapData == null)
                 //This is an error, probably from not clearing data between server instances.
                 return "MissingArea|Nobody|0";
@@ -189,7 +193,7 @@ namespace PraxisMapper.Controllers
 
             if (owner != null)
             {
-                var factionName = db.Factions.Where(f => f.FactionId == owner.FactionId).FirstOrDefault().Name;
+                var factionName = db.Factions.Where(f => f.TeamColorTag == owner).FirstOrDefault().Name;
                 pt.Stop();
                 return mapData.name + "|" + factionName + "|" + GetScoreForSinglePlace(mapData.elementGeometry);
             }
@@ -207,8 +211,9 @@ namespace PraxisMapper.Controllers
         {
             PerformanceTracker pt = new PerformanceTracker("FactionScores");
             var db = new PraxisContext();
-            var teamNames = db.Factions.ToLookup(k => k.FactionId, v => v.Name);
-            var scores = db.TeamClaims.GroupBy(a => a.FactionId).Select(a => new { team = a.Key, score = a.Sum(aa => aa.points), teamName = teamNames[a.Key] }).ToList();
+            var teamNames = db.Factions.ToLookup(k => k.TeamColorTag, v => v.Name);
+            var scores = db.customDataOsmElements.Where(d => d.dataKey == "teamColor").GroupBy(d => d.dataValue).Select(d => new {team = d.Key, score = d.Sum(dd => dd.storedOsmElement.elementGeometry.Length), teamName = teamNames[d.Key] }).ToList();
+            //var scores = db.TeamClaims.GroupBy(a => a.FactionId).Select(a => new { team = a.Key, score = a.Sum(aa => aa.points), teamName = teamNames[a.Key] }).ToList();
 
             var results = string.Join(Environment.NewLine, scores.Select(s => s.team + "|" + s.teamName + "|" + s.score));
             pt.Stop();

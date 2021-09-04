@@ -462,7 +462,7 @@ namespace Larry
                 {
                     string cellToCheck = parentCell + OpenLocationCode.CodeAlphabet[pos1].ToString() + OpenLocationCode.CodeAlphabet[pos2].ToString();
                     var area = new OpenLocationCode(cellToCheck).Decode();
-                    ImageStats info = new ImageStats(area, 80, 100); //values for Cell8 sized area with Cell11 resolution.
+                    ImageStats info = new ImageStats(area, 160, 200); //values for Cell8 sized area with 2xCell11 resolution.
                     if (cellToCheck.Length == 8) //We don't want to do the DoPlacesExist check here, since we'll want empty tiles for empty areas at this l
                     {
                         var places = GetPlaces(area, cell6Data); //These are cloned in GetPlaces, so we aren't intersecting areas twice and breaking drawing. //, false, false, 0

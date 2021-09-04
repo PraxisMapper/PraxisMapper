@@ -18,6 +18,7 @@ namespace CoreComponents
                 row.dataKey = key;
                 row.PlusCode = plusCode;
                 row.geoAreaIndex = Converters.GeoAreaToPolygon(OpenLocationCode.DecodeValid(plusCode.ToUpper()));
+                db.CustomDataPlusCodes.Add(row);
             }
             if (expiration != null)
                 row.expiration = expiration;
@@ -44,6 +45,7 @@ namespace CoreComponents
                 row = new DbTables.CustomDataOsmElement();
                 row.dataKey = key;
                 row.StoredOsmElementId = elementId;
+                db.customDataOsmElements.Add(row);
             }
             if(expiration != null)
                 row.expiration = expiration;
@@ -79,6 +81,7 @@ namespace CoreComponents
                 row = new DbTables.PlayerData();
                 row.dataKey = key;
                 row.deviceID = playerId;
+                db.PlayerData.Add(row);
             }
             if (expiration != null)
                 row.expiration = expiration;

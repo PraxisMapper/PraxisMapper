@@ -699,12 +699,29 @@ namespace CoreComponents
             return pass2;
         }
 
+        //This function only works if all the dataValue entries are a key in styles
         public static List<CompletePaintOp> GetPaintOpsForCustomDataPlusCodes(Geometry area, string dataKey, string styleSet, ImageStats stats)
         {
             var db = new PraxisContext();
             var elements = db.CustomDataPlusCodes.Where(d => d.dataKey == dataKey && area.Intersects(d.geoAreaIndex)).ToList();
             var styles = TagParser.allStyleGroups[styleSet];
             var pass1 = elements.Select(d => new { d.geoAreaIndex.Area, d.geoAreaIndex, paintOp = styles[d.dataValue].paintOperations, d.dataValue});
+            var pass2 = new List<CompletePaintOp>();
+            foreach (var op in pass1)
+                foreach (var po in op.paintOp)
+                    if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
+                        pass2.Add(new CompletePaintOp(op.geoAreaIndex, op.Area, po, op.dataValue));
+
+            return pass2;
+        }
+
+        //Allows for 1 style to pull a color from the custom data value.
+        public static List<CompletePaintOp> GetPaintOpsForCustomDataPlusCodesFromTagValue(Geometry area, string dataKey, string styleSet, ImageStats stats)
+        {
+            var db = new PraxisContext();
+            var elements = db.CustomDataPlusCodes.Where(d => d.dataKey == dataKey && area.Intersects(d.geoAreaIndex)).ToList();
+            var styles = TagParser.allStyleGroups[styleSet];
+            var pass1 = elements.Select(d => new { d.geoAreaIndex.Area, d.geoAreaIndex, paintOp = styles["tag"].paintOperations, d.dataValue });
             var pass2 = new List<CompletePaintOp>();
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)

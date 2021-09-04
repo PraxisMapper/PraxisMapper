@@ -47,21 +47,13 @@ namespace CoreComponents
             public Geometry areaCovered { get; set; } //This lets us find and expire map tiles if the data under them changes.
         }
 
-        public class AreaControlTeam //A table for tracking which player faction controls which area (we dont store data on player location on the servers)
-        {
-            public long AreaControlTeamId { get; set; }
-            public long FactionId { get; set; }
-            public long StoredElementId { get; set; }
-            public bool IsGeneratedArea { get; set; }
-            public long points { get; set; } //a quick reference of how many cells this area takes to own. Saving here to reduce calculations if/when I set up a scoreboard of areas owned.
-            public DateTime claimedAt { get; set; }
-        }
-
         public class Faction
         {
+            //TODO: this table should be removed from CoreComponents, moved to implementation specific location.
             public long FactionId { get; set; }
             public string Name { get; set; }
             public string HtmlColor { get; set; } //Should be transparent, so this can be overlaid on top of the normal map tile.
+            public string TeamColorTag {get;set;} //name used to ID ownership in GenericData calls.
         }
 
         public class ErrorLog
@@ -72,6 +64,14 @@ namespace CoreComponents
             public DateTime LoggedAt { get; set; }
 
         }
+
+        public class CustomArbitraryData //This is here so devs won't need a secondary DB for small stuff.
+        { 
+            public int id { get; set; }
+            public string dataKey { get; set; }
+            public string dataValue { get; set; }
+        }
+        
 
         public class TagParserEntry
         {
