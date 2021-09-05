@@ -143,6 +143,56 @@ namespace PraxisMapper.Controllers
             return File(output, "image/png");
         }
 
+        [HttpGet]
+        [Route("/[controller]/DrawFactionModeSlippyTile/{zoom}/{x}/{y}.png")]
+        public FileContentResult DrawFactionModeSlippyTile(int x, int y, int zoom, string styleSet = "teamColor")
+        {
+            try
+            {
+                PerformanceTracker pt = new PerformanceTracker("DrawFactionModeSlippyTile");
+                string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
+                var db = new PraxisContext();
+                var existingResults = db.SlippyMapTiles.Where(mt => mt.Values == tileKey && mt.styleSet == "paintTown").FirstOrDefault();
+                bool useCache = true;
+                cache.TryGetValue("caching", out useCache);
+                if (!useCache || existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
+                {
+                    //Create this entry
+                    var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare, MapTiles.MapTileSizeSquare);
+                    //info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
+                    //if (zoom >= 15) //Gameplay areas are ~15.
+                    //info.filterSize = 0;
+
+                    var dataLoadArea = new GeoArea(info.area.SouthLatitude - ConstantValues.resolutionCell10, info.area.WestLongitude - ConstantValues.resolutionCell10, info.area.NorthLatitude + ConstantValues.resolutionCell10, info.area.EastLongitude + ConstantValues.resolutionCell10);
+                    DateTime expires = DateTime.Now;
+
+                    var paintOps = MapTiles.GetPaintOpsForCustomDataElements(Converters.GeoAreaToPolygon(info.area), "teamColor", "teamColor", info);
+                    byte[] results = MapTiles.DrawAreaAtSize(info, paintOps, TagParser.GetStyleBgColor(styleSet));
+                    expires = DateTime.Now.AddYears(10);
+                    if (existingResults == null)
+                        db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, CreatedOn = DateTime.Now, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
+                    else
+                    {
+                        existingResults.CreatedOn = DateTime.Now;
+                        existingResults.ExpireOn = expires;
+                        existingResults.tileData = results;
+                    }
+                    if (useCache)
+                        db.SaveChanges();
+                    pt.Stop(tileKey + "|" + styleSet);
+                    return File(results, "image/png");
+                }
+
+                pt.Stop(tileKey + "|" + styleSet);
+                return File(existingResults.tileData, "image/png");
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex);
+                return null;
+            }
+        }
+
         //[HttpGet]
         //[Route("/[controller]/FindChangedMapTiles/{mapDataId}")]
         //[Route("/Gameplay/FindChangedMapTiles/{mapDataId}")]
@@ -229,10 +279,10 @@ namespace PraxisMapper.Controllers
             var factions = db.Factions.ToList();
             Random r = new Random();
 
-            var assignPlaces = db.StoredOsmElements.Where(s => r.Next(0, 100) > percent).Select(a => a.id).ToList();
+            var assignPlaces = db.StoredOsmElements.Select(a => a.id).ToList().Where(s => r.Next(0, 100) < percent).ToList(); //first ToList allows r.Next() to work.
             foreach(var a in assignPlaces)
             {
-                GenericData.SetStoredElementData(a, "teamColor", factions[r.Next(0, 3)].ToString());
+                GenericData.SetStoredElementData(a, "teamColor", factions[r.Next(0, 3)].FactionId.ToString());
             }
         }
     }
