@@ -89,9 +89,9 @@ namespace PraxisMapper.Controllers
 
         //This code technically works on any Cell size, I haven't yet functionalized it correctly yet.
         [HttpGet]
-        [Route("/[controller]/DrawFactionModeCell8HighRes/{Cell8}/{styleSet}")]
-        [Route("/[controller]/DrawFactionModeCell8/{Cell8}/{styleSet}")]
-        public FileContentResult DrawFactionModeCell8(string Cell8, string styleSet)
+        [Route("/[controller]/DrawFactionModeCell8HighRes/{Cell8}/")]
+        [Route("/[controller]/DrawFactionModeCell8/{Cell8}")]
+        public FileContentResult DrawFactionModeCell8(string Cell8, string styleSet = "mapTiles")
         {
             PerformanceTracker pt = new PerformanceTracker("DrawFactionModeCell8");
             //We will try to minimize rework done.
@@ -109,7 +109,7 @@ namespace PraxisMapper.Controllers
                 db.SaveChanges();
             }
 
-            var factionColorTile = db.MapTiles.Where(mt => mt.PlusCode == styleSet && mt.resolutionScale == 11 && mt.styleSet == "teamColor").FirstOrDefault();
+            var factionColorTile = db.MapTiles.Where(mt => mt.PlusCode == Cell8 && mt.resolutionScale == 11 && mt.styleSet == "teamColor").FirstOrDefault();
             if (factionColorTile == null || factionColorTile.MapTileId == null || factionColorTile.ExpireOn < DateTime.Now)
             {
                 //Draw this entry
