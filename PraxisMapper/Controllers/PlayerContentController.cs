@@ -34,26 +34,25 @@ namespace PraxisMapper.Controllers
 
                 var db = new PraxisContext();
                 var player = GenericData.GetPlayerData(deviceID, "DisplayName");
-                var player2 = GenericData.GetPlayerData(deviceID, "FactionId");
+                var playerFaction = GenericData.GetPlayerData(deviceID, "FactionId");
                 
-                var factions = db.Factions.ToList();
-                if (factions.Any(f => f.FactionId.ToString() == player2))
+                var factions = db.Factions.ToList(); //TODO: factions should become arbitrary data or hard-coded to the controller.
+                if (factions.Any(f => f.FactionId.ToString() == playerFaction))
                 {
                     pt.Stop();
-                    return player2.ToLong();
+                    return playerFaction.ToLong();
                 }
 
-                var smallestTeam = db.PlayerData
-                    .Where(p => p.dataKey == "FactionId")
-                    .GroupBy(ta => ta.dataValue)
-                    .Select(ta => new { team = ta.Key.ToLong(), members = ta.Count() })
-                    .OrderBy(ta => ta.members)
-                    .First().team;
+                long smallestTeam = 0;
+                List<Tuple<long, int>>teamSizes = new System.Collections.Generic.List<Tuple<long, int>>();
+                foreach(var f in factions)
+                {
+                    var teamSize = db.PlayerData.Count(p => p.dataKey == "FactionId" && p.dataValue == f.FactionId.ToString());
+                    teamSizes.Add(Tuple.Create(f.FactionId, teamSize));
+                }
 
-                if (smallestTeam == null || smallestTeam == 0)
-                    smallestTeam = factions.First().FactionId;
+                smallestTeam = teamSizes.OrderBy(t => t.Item2).First().Item1;
 
-                //player.FactionId = smallestTeam;
                 GenericData.SetPlayerData(deviceID, "FactionId", smallestTeam.ToString());
                 db.SaveChanges();
                 pt.Stop(deviceID + "|" + smallestTeam);
