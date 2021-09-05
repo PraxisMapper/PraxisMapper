@@ -70,8 +70,8 @@ namespace PraxisMapper.Controllers
             //pluscode8 //first 6 digits of this pluscode. each line below is the last 4 that have an area type.
             //pluscode2|name|type|MapDataID  //less data transmitted, an extra string concat per entry phone-side.
 
-            var data = SearchArea(ref box, ref places, (fullCode == 1));
-            var results = String.Join("/r/n", data.Select(d => d.Key + "|" + d.Value.Select(v => v.Name + "|" + v.areaType + "|" + v.OsmElementId + v.OsmElementType)));
+            var data = SearchArea(ref box, ref places, (fullCode == 1)); //TODO: do i need to string.join() the data.select() results below to get all entries in one spot?
+            var results = String.Join("/r/n", data.Select(d => d.Key + "|" + d.Value.Select(v => v.Name + "|" + v.areaType + "|" + v.OsmElementId + v.OsmElementType).FirstOrDefault()));
 
             pt.Stop(codeString);
             return codeString + Environment.NewLine + results;

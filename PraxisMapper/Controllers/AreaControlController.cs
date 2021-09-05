@@ -51,15 +51,15 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet] //TODO technically this is a post.
-        [Route("/[controller]/claimArea/{storedOsmElementId}/{faction}")]
-        [Route("/Gameplay/claimArea/{storedOsmElementId}/{faction}")]
-        public bool ClaimArea(long storedOsmElementId, string faction)
+        [Route("/[controller]/claimArea/{storedOsmElementId}/{factionId}")]
+        [Route("/Gameplay/claimArea/{storedOsmElementId}/{factionId}")]
+        public bool ClaimArea(long storedOsmElementId, long factionId)
         {
             PraxisContext db = new PraxisContext();
             //Tuple<long, int> shortcut = new Tuple<long, int>(MapDataId, factionId); //tell the application later not to hit the DB on every tile for this entry.
             var element = db.StoredOsmElements.Where(s => s.id == storedOsmElementId).First();
             ///StoredOmeElementId is the primary key on the table, not the OSM ID
-            GenericData.SetStoredElementData(storedOsmElementId, "teamColor", faction);
+            GenericData.SetStoredElementData(storedOsmElementId, "teamColor", factionId.ToString());
             var score = element.elementGeometry.Length;
             if (score < 1)
                 score = 1;
@@ -218,6 +218,22 @@ namespace PraxisMapper.Controllers
             var results = string.Join(Environment.NewLine, scores.Select(s => s.team + "|" + s.teamName + "|" + s.score));
             pt.Stop();
             return results;
+        }
+
+        [HttpGet]
+        [Route("/[controller]/FillTestAreas/{percent}")]
+        public void FillTestAreas(int percent)
+        {
+            var db = new PraxisContext();
+            var settings = db.ServerSettings.First();
+            var factions = db.Factions.ToList();
+            Random r = new Random();
+
+            var assignPlaces = db.StoredOsmElements.Where(s => r.Next(0, 100) > percent).Select(a => a.id).ToList();
+            foreach(var a in assignPlaces)
+            {
+                GenericData.SetStoredElementData(a, "teamColor", factions[r.Next(0, 3)].ToString());
+            }
         }
     }
 }
