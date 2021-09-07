@@ -399,11 +399,26 @@ namespace CoreComponents
             return DrawAreaAtSize(info, paintOps, TagParser.GetStyleBgColor(styleSet));
         }
 
+        public static byte[] DrawPlusCode(string area, List<CompletePaintOp> paintOps, string styleSet="mapTiles", bool doubleRes = true)
+        {
+            //This might be a cleaner version of my V4 function, for working with CellX sized tiles..
+            //This will draw at a Cell11 resolution automatically.
+            //Split it into a few functions.
+            //then get all the area
+
+            int imgX = 0, imgY = 0;
+            GetPlusCodeImagePixelSize(area, out imgX, out imgY, doubleRes);
+
+            ImageStats info = new ImageStats(OpenLocationCode.DecodeValid(area), imgX, imgY);
+            info.drawPoints = true;
+            return DrawAreaAtSize(info, paintOps, TagParser.GetStyleBgColor(styleSet));
+        }
+
         //public static byte[] DrawAreaAtSize(GeoArea relevantArea, int imageSizeX, int imageSizeY, List<CompletePaintOp> paintOps)
         //{
-            //Create an Info object and use that to pass to to the main image.
-            //ImageStats info = new ImageStats(relevantArea, imageSizeX, imageSizeY);
-            //return DrawAreaAtSize(info, paintOps, false); //This is a gameplay tile, and we want all items in it. ~Zoom 15.2
+        //Create an Info object and use that to pass to to the main image.
+        //ImageStats info = new ImageStats(relevantArea, imageSizeX, imageSizeY);
+        //return DrawAreaAtSize(info, paintOps, false); //This is a gameplay tile, and we want all items in it. ~Zoom 15.2
         //}
 
         //This generic function takes the area to draw, a size to make the canvas, and then draws it all.
@@ -556,8 +571,6 @@ namespace CoreComponents
             //baseline image data stuff           
             SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
             SKCanvas canvas = new SKCanvas(bitmap);
-            //Maybe I should force a draw that fills the image to BG as the first draw?
-            //var bgColor = styles[bgStyle].paintOperations.FirstOrDefault().paint; //Backgound is a named style, unmatched will be the last entry and transparent.
             canvas.Clear(bgColor);
             canvas.Scale(1, -1, stats.imageSizeX / 2, stats.imageSizeY / 2);
             SKPaint paint = new SKPaint();
@@ -666,9 +679,6 @@ namespace CoreComponents
             skms.Dispose(); ms.Close(); ms.Dispose();
             return results;
         }
-
-        //What if I have a few functions to generate a list of CompletePaintOps and pass that in to DrawAreaAtSize from
-        //whichever function is calling it?
 
         public static List<CompletePaintOp> GetPaintOpsForStoredElements(List<StoredOsmElement> elements, string styleSet, ImageStats stats)
         {
