@@ -104,35 +104,35 @@ namespace PraxisMapper.Controllers
             return LearnCell(Cell8, 1);
         }
 
-        [HttpGet]
-        [Route("/[controller]/DrawCell8Highres/{plusCode8}/{styleSet}")]
-        [Route("/[controller]/DrawCell8Highres/{plusCode8}")]
-        [Route("/[controller]/DrawCell/{plusCode8}/{styleSet}")]
-        [Route("/[controller]/DrawCell/{plusCode8}")]
-        public FileContentResult DrawCell(string plusCode8, string styleSet = "mapTiles")
-        {
-            //NOTE: this will work for all PlusCode sized passed in. Default to anticipating 8s as the default.
-            //TODO This function might get replaced with GetPlusCode in MapTileController.Its effectively the smae thing.
-            PerformanceTracker pt = new PerformanceTracker("DrawCell");
-            //Load terrain data for an 8cell, turn it into a bitmap
-            var db = new PraxisContext();
-            var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode8 && mt.resolutionScale == 11 && mt.styleSet == styleSet).FirstOrDefault();
-            if (existingResults == null || existingResults.MapTileId == null)
-            {
-                //Create this entry
-                //requires a list of colors to use, which might vary per app
-                GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
-                //var places = GetPlaces(eightCell); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")
-                var results = MapTiles.DrawPlusCode(plusCode8, styleSet, true);
-                db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, CreatedOn = DateTime.Now, styleSet = styleSet, resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(eightCell) });
-                db.SaveChanges();
-                pt.Stop(plusCode8);
-                return File(results, "image/png");
-            }
+        //[HttpGet]
+        //[Route("/[controller]/DrawCell8Highres/{plusCode8}/{styleSet}")]
+        //[Route("/[controller]/DrawCell8Highres/{plusCode8}")]
+        //[Route("/[controller]/DrawCell/{plusCode8}/{styleSet}")]
+        //[Route("/[controller]/DrawCell/{plusCode8}")]
+        //public FileContentResult DrawCell(string plusCode8, string styleSet = "mapTiles")
+        //{
+        //    //NOTE: this will work for all PlusCode sized passed in. Default to anticipating 8s as the default.
+        //    //TODO This function might get replaced with GetPlusCode in MapTileController.Its effectively the smae thing.
+        //    PerformanceTracker pt = new PerformanceTracker("DrawCell");
+        //    //Load terrain data for an 8cell, turn it into a bitmap
+        //    var db = new PraxisContext();
+        //    var existingResults = db.MapTiles.Where(mt => mt.PlusCode == plusCode8 && mt.resolutionScale == 11 && mt.styleSet == styleSet).FirstOrDefault();
+        //    if (existingResults == null || existingResults.MapTileId == null)
+        //    {
+        //        //Create this entry
+        //        //requires a list of colors to use, which might vary per app
+        //        GeoArea eightCell = OpenLocationCode.DecodeValid(plusCode8);
+        //        //var places = GetPlaces(eightCell); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")
+        //        var results = MapTiles.DrawPlusCode(plusCode8, styleSet, true);
+        //        db.MapTiles.Add(new MapTile() { PlusCode = plusCode8, CreatedOn = DateTime.Now, styleSet = styleSet, resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(eightCell) });
+        //        db.SaveChanges();
+        //        pt.Stop(plusCode8);
+        //        return File(results, "image/png");
+        //    }
 
-            pt.Stop(plusCode8);
-            return File(existingResults.tileData, "image/png");
-        }
+        //    pt.Stop(plusCode8);
+        //    return File(existingResults.tileData, "image/png");
+        //}
 
 
 
