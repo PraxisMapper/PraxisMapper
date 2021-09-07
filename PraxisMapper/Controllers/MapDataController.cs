@@ -39,7 +39,7 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        [Route("/[controller]/LearnCell8/{plusCode8}")]
+        [Route("/[controller]/LearnCell8/{plusCode}")]
         [Route("/[controller]/LearnCell/{plusCode}")]
         public string LearnCell(string plusCode, int fullCode = 0) //The primary function used by the original intended game mode.
         {
@@ -71,7 +71,7 @@ namespace PraxisMapper.Controllers
             //pluscode2|name|type|MapDataID  //less data transmitted, an extra string concat per entry phone-side.
 
             var data = SearchArea(ref box, ref places, (fullCode == 1)); //TODO: do i need to string.join() the data.select() results below to get all entries in one spot?
-            var results = String.Join("/r/n", data.Select(d => d.Key + "|" + d.Value.Select(v => v.Name + "|" + v.areaType + "|" + v.OsmElementId + v.OsmElementType).FirstOrDefault()));
+            var results = String.Join(Environment.NewLine, data.Select(d => d.Key + "|" + d.Value.Select(v => v.Name + "|" + v.areaType + "|" + v.StoredOsmElementId).FirstOrDefault()));
 
             pt.Stop(codeString);
             return codeString + Environment.NewLine + results;
@@ -188,7 +188,7 @@ namespace PraxisMapper.Controllers
             //This endpoint puts the whole 10-digit plus code (without the separator) at the start of the line. I can't guarentee that any digits are shared since this isn't a grid-bound endpoint.
 
             var data = SearchArea(ref box, ref places, true);
-            var results = String.Join("/r/n", data.Select(d => d.Key + "|" + d.Value.Select(v => v.Name + "|" + v.areaType + "|" + v.OsmElementId + v.OsmElementType)));
+            var results = String.Join(Environment.NewLine, data.Select(d => d.Key + "|" + d.Value.Select(v => v.Name + "|" + v.areaType + "|" + v.StoredOsmElementId)));
             pt.Stop(pointDesc + "|" + size);
             return results;
         }

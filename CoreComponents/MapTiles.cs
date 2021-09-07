@@ -687,7 +687,7 @@ namespace CoreComponents
         {
             //NOTE: styleSet must == dataKey for this to work. Or should I just add that to this function?
             var db = new PraxisContext();
-            var elements = db.customDataOsmElements.Include(d => d.storedOsmElement).Where(d => d.dataKey == dataKey && area.Intersects(d.storedOsmElement.elementGeometry)).ToList();
+            var elements = db.CustomDataOsmElements.Include(d => d.storedOsmElement).Where(d => d.dataKey == dataKey && area.Intersects(d.storedOsmElement.elementGeometry)).ToList();
             var styles = TagParser.allStyleGroups[styleSet];
             var pass1 = elements.Select(d => new { d.storedOsmElement.AreaSize, d.storedOsmElement.elementGeometry, paintOp = styles[d.dataValue].paintOperations, d.dataValue });
             var pass2 = new List<CompletePaintOp>();

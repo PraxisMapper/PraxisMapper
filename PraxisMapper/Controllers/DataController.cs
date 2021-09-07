@@ -78,5 +78,19 @@ namespace PraxisMapper.Controllers
             return null;
         }
 
+        [HttpGet]
+        [Route("/[controller]/SetGlobalData/{key}/{value}")]
+        public bool SetGlobalData(string key, string value)
+        {
+            return GenericData.SetGlobalData(key, value);
+        }
+
+        [HttpGet]
+        [Route("/[controller]/GetGlobalData/{key}")]
+        public string GetGlobalData(string key)
+        {
+            return GenericData.GetGlobalData(key);
+        }
+
     }
 }
