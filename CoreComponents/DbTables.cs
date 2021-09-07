@@ -65,7 +65,7 @@ namespace CoreComponents
 
         }
 
-        public class CustomArbitraryData //This is here so devs won't need a secondary DB for small stuff.
+        public class GlobalDataEntries //This is here so devs won't need a secondary DB for small stuff.
         { 
             public int id { get; set; }
             public string dataKey { get; set; }

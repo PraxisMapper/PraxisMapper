@@ -39,13 +39,13 @@ namespace CoreComponents
         {
             var db = new PraxisContext();
             //An upsert command would be great here, but I dont think the entities do that.
-            var row = db.customDataOsmElements.Where(p => p.StoredOsmElementId == elementId && p.dataKey == key).FirstOrDefault();
+            var row = db.CustomDataOsmElements.Where(p => p.StoredOsmElementId == elementId && p.dataKey == key).FirstOrDefault();
             if (row == null)
             {
                 row = new DbTables.CustomDataOsmElement();
                 row.dataKey = key;
                 row.StoredOsmElementId = elementId;
-                db.customDataOsmElements.Add(row);
+                db.CustomDataOsmElements.Add(row);
             }
             if(expiration != null)
                 row.expiration = expiration;
@@ -56,7 +56,7 @@ namespace CoreComponents
         public static string GetElementData(long elementId, string key)
         {
             var db = new PraxisContext();
-            var row = db.customDataOsmElements.Where(p => p.StoredOsmElementId == elementId && p.dataKey == key).FirstOrDefault();
+            var row = db.CustomDataOsmElements.Where(p => p.StoredOsmElementId == elementId && p.dataKey == key).FirstOrDefault();
             if (row == null || row.expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
                 return "";
             return row.dataValue;
@@ -115,8 +115,7 @@ namespace CoreComponents
         {
             var db = new PraxisContext();
             var poly = Converters.GeoAreaToPolygon(area);
-            //TODO: remember join syntax for entities that work on the DB and not the in-memory version.
-            var data = db.customDataOsmElements.Where(d => poly.Intersects(d.storedOsmElement.elementGeometry)).Select(d => new CustomDataAreaResult(d.StoredOsmElementId, d.dataKey, d.dataValue)).ToList();
+            var data = db.CustomDataOsmElements.Where(d => poly.Intersects(d.storedOsmElement.elementGeometry)).Select(d => new CustomDataAreaResult(d.StoredOsmElementId, d.dataKey, d.dataValue)).ToList();
 
             return data;
         }
@@ -124,13 +123,34 @@ namespace CoreComponents
         public static List<CustomDataAreaResult> GetAllDataInPlace(long elementId, int elementType)
         {
             var db = new PraxisContext();
-            //TODO: remember join syntax for entities that work on the DB and not the in-memory version.
             var place = db.StoredOsmElements.Where(s => s.id == elementId && s.sourceItemType == elementType).First();
-            var data = db.customDataOsmElements.Where(d => place.elementGeometry.Intersects(d.storedOsmElement.elementGeometry)).Select(d => new CustomDataAreaResult(d.StoredOsmElementId, d.dataKey, d.dataValue)).ToList();
+            var data = db.CustomDataOsmElements.Where(d => place.elementGeometry.Intersects(d.storedOsmElement.elementGeometry)).Select(d => new CustomDataAreaResult(d.StoredOsmElementId, d.dataKey, d.dataValue)).ToList();
 
             return data;
         }
 
+        public static string GetGlobalData(string key)
+        {
+            var db = new PraxisContext();
+            var row = db.GlobalDataEntries.Where(s => s.dataKey == key).FirstOrDefault();
+            if (row == null)
+                return "";
 
+            return row.dataValue;
+        }
+
+        public static bool SetGlobalData(string key, string value)
+        {
+            var db = new PraxisContext();
+            var row = db.GlobalDataEntries.Where(p => p.dataKey == key).FirstOrDefault();
+            if (row == null)
+            {
+                row = new DbTables.GlobalDataEntries();
+                row.dataKey = key;
+                db.GlobalDataEntries.Add(row);
+            }
+            row.dataValue = value;
+            return db.SaveChanges() == 1;
+        }
     }
 }

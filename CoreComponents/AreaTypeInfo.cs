@@ -18,7 +18,7 @@ namespace CoreComponents
             if (!allowPoints)
                 entries = entries.Where(e => e.elementGeometry.GeometryType != "Point").ToList();            
 
-            entries = entries.OrderBy(e => e.AreaSize).ToList();
+            entries = entries.OrderBy(e => e.elementGeometry.Length).ToList(); //I want lines to show up before areas in most cases, so this should do that.
             return entries;
         }
 
@@ -28,7 +28,7 @@ namespace CoreComponents
             var entries = SortGameElements(entriesHere);
             var results = new List<TerrainData>();
             foreach (var e in entries)
-                results.Add(new TerrainData() { Name = e.name, areaType = e.GameElementName, OsmElementId = e.sourceItemID, OsmElementType = e.sourceItemType }); // entry.name + "|" + entry.GameElementName + "|" + entry.sourceItemID + "|" + entry.sourceItemType;
+                results.Add(new TerrainData() { Name = e.name, areaType = e.GameElementName, StoredOsmElementId = e.id}); // entry.name + "|" + entry.GameElementName + "|" + entry.sourceItemID + "|" + entry.sourceItemType;
             return results;
         }
 

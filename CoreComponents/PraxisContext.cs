@@ -23,11 +23,12 @@ namespace CoreComponents
 
         public DbSet<ElementTags> ElementTags { get; set; } //This table is exposed so I can search it directly faster.
 
-        public DbSet<ScavengerHunt> scavengerHunts { get; set; }
-        public DbSet<ScavengerHuntEntry> scavengerHuntEntries { get; set; }
+        public DbSet<ScavengerHunt> scavengerHunts { get; set; } //Should become custom data
+        public DbSet<ScavengerHuntEntry> scavengerHuntEntries { get; set; } //should become custom data.
 
-        public DbSet<CustomDataOsmElement> customDataOsmElements { get; set; }
+        public DbSet<CustomDataOsmElement> CustomDataOsmElements { get; set; }
         public DbSet<CustomDataPlusCode> CustomDataPlusCodes { get; set; }
+        public DbSet<GlobalDataEntries> GlobalDataEntries { get; set; }
 
 
         //IConfiguration Config;

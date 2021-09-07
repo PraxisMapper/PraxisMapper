@@ -55,18 +55,19 @@ namespace PraxisMapper.Controllers
         [Route("/Gameplay/claimArea/{storedOsmElementId}/{factionId}")]
         public bool ClaimArea(long storedOsmElementId, long factionId)
         {
+            PerformanceTracker pt = new PerformanceTracker("ClaimArea");
             PraxisContext db = new PraxisContext();
             //Tuple<long, int> shortcut = new Tuple<long, int>(MapDataId, factionId); //tell the application later not to hit the DB on every tile for this entry.
             var element = db.StoredOsmElements.Where(s => s.id == storedOsmElementId).First();
             ///StoredOmeElementId is the primary key on the table, not the OSM ID
             GenericData.SetStoredElementData(storedOsmElementId, "teamColor", factionId.ToString());
-            var score = element.elementGeometry.Length;
+            var score = GetScoreForSinglePlace(element.elementGeometry); 
             if (score < 1)
                 score = 1;
             GenericData.SetStoredElementData(storedOsmElementId, "points", ((int)score).ToString());
             MapTiles.ExpireMapTiles(storedOsmElementId, "teamColor");
             MapTiles.ExpireSlippyMapTiles(storedOsmElementId, "teamColor"); //These 2 previous had both element.elementGeometry and the elementID, should only need 1.
-            
+            pt.Stop();
             return true;
         }
 
@@ -84,8 +85,6 @@ namespace PraxisMapper.Controllers
 
             return results;
         }
-
-        //TODO: add slippy tile for MAC mode data.
 
         //This code technically works on any Cell size, I haven't yet functionalized it correctly yet.
         [HttpGet]
@@ -193,35 +192,36 @@ namespace PraxisMapper.Controllers
             }
         }
 
-        //[HttpGet]
-        //[Route("/[controller]/FindChangedMapTiles/{mapDataId}")]
-        //[Route("/Gameplay/FindChangedMapTiles/{mapDataId}")]
-        //public string FindChangedMapTiles(long mapDataId)
-        //{
-        //    PerformanceTracker pt = new PerformanceTracker("FindChangedMapTiles");
-        //    string results = "";
-        //    //return a separated list of maptiles that need updated.
-        //    var db = new PraxisContext();
-        //    var md = db.StoredOsmElements.Where(m => m.id == mapDataId).FirstOrDefault();
-        //    var space = md.elementGeometry.Envelope;
-        //    var geoAreaToRefresh = new GeoArea(new GeoPoint(space.Coordinates.Min().Y, space.Coordinates.Min().X), new GeoPoint(space.Coordinates.Max().Y, space.Coordinates.Max().X));
-        //    var Cell8XTiles = geoAreaToRefresh.LongitudeWidth / resolutionCell8;
-        //    var Cell8YTiles = geoAreaToRefresh.LatitudeHeight / resolutionCell8;
-        //    for (var x = 0; x < Cell8XTiles; x++)
-        //    {
-        //        for (var y = 0; y < Cell8YTiles; y++)
-        //        {
-        //            var olc = new OpenLocationCode(new GeoPoint(geoAreaToRefresh.SouthLatitude + (resolutionCell8 * y), geoAreaToRefresh.WestLongitude + (resolutionCell8 * x)));
-        //            var olcPoly = Converters.GeoAreaToPolygon(olc.Decode());
-        //            if (md.elementGeometry.Intersects(olcPoly)) //If this intersects the original way, redraw that tile. Lets us minimize work for oddly-shaped areas.
-        //            {
-        //                results += olc.CodeDigits + "|";
-        //            }
-        //        }
-        //    }
-        //    pt.Stop();
-        //    return results;
-        //}
+        //Might need to restore this for clients
+        [HttpGet]
+        [Route("/[controller]/FindChangedMapTiles/{mapDataId}")]
+        [Route("/Gameplay/FindChangedMapTiles/{mapDataId}")]
+        public string FindChangedMapTiles(long mapDataId)
+        {
+            PerformanceTracker pt = new PerformanceTracker("FindChangedMapTiles");
+            string results = "";
+            //return a separated list of maptiles that need updated.
+            var db = new PraxisContext();
+            var md = db.StoredOsmElements.Where(m => m.id == mapDataId).FirstOrDefault();
+            var space = md.elementGeometry.Envelope;
+            var geoAreaToRefresh = new GeoArea(new GeoPoint(space.Coordinates.Min().Y, space.Coordinates.Min().X), new GeoPoint(space.Coordinates.Max().Y, space.Coordinates.Max().X));
+            var Cell8XTiles = geoAreaToRefresh.LongitudeWidth / resolutionCell8;
+            var Cell8YTiles = geoAreaToRefresh.LatitudeHeight / resolutionCell8;
+            for (var x = 0; x < Cell8XTiles; x++)
+            {
+                for (var y = 0; y < Cell8YTiles; y++)
+                {
+                    var olc = new OpenLocationCode(new GeoPoint(geoAreaToRefresh.SouthLatitude + (resolutionCell8 * y), geoAreaToRefresh.WestLongitude + (resolutionCell8 * x)));
+                    var olcPoly = Converters.GeoAreaToPolygon(olc.Decode());
+                    if (md.elementGeometry.Intersects(olcPoly)) //If this intersects the original way, redraw that tile. Lets us minimize work for oddly-shaped areas.
+                    {
+                        results += olc.CodeDigits + "|";
+                    }
+                }
+            }
+            pt.Stop();
+            return results;
+        }
 
         [HttpGet]
         [Route("/[controller]/AreaOwners/{mapDataId}")]
@@ -241,7 +241,7 @@ namespace PraxisMapper.Controllers
             //if (string.IsNullOrWhiteSpace(mapData.name))
                 //mapData.name = areaIdReference[mapData.AreaTypeId].FirstOrDefault();
 
-            if (owner != null)
+            if (owner != "")
             {
                 var factionName = db.Factions.Where(f => f.TeamColorTag == owner).FirstOrDefault().Name;
                 pt.Stop();
@@ -262,7 +262,7 @@ namespace PraxisMapper.Controllers
             PerformanceTracker pt = new PerformanceTracker("FactionScores");
             var db = new PraxisContext();
             var teamNames = db.Factions.ToLookup(k => k.TeamColorTag, v => v.Name);
-            var scores = db.customDataOsmElements.Where(d => d.dataKey == "teamColor").GroupBy(d => d.dataValue).Select(d => new {team = d.Key, score = d.Sum(dd => dd.storedOsmElement.elementGeometry.Length), teamName = teamNames[d.Key] }).ToList();
+            var scores = db.CustomDataOsmElements.Where(d => d.dataKey == "teamColor").GroupBy(d => d.dataValue).Select(d => new {team = d.Key, score = d.Sum(dd => dd.storedOsmElement.elementGeometry.Length), teamName = teamNames[d.Key] }).ToList();
             //var scores = db.TeamClaims.GroupBy(a => a.FactionId).Select(a => new { team = a.Key, score = a.Sum(aa => aa.points), teamName = teamNames[a.Key] }).ToList();
 
             var results = string.Join(Environment.NewLine, scores.Select(s => s.team + "|" + s.teamName + "|" + s.score));
