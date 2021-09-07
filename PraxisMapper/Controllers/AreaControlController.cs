@@ -145,47 +145,47 @@ namespace PraxisMapper.Controllers
             return File(output, "image/png");
         }
 
-        [Route("/[controller]/DrawAreaControlOverlay/{Cell8}")]
-        public FileContentResult DrawAreaControlOverlay(string Cell8)
-        {
-            //TODO: I think it's better to have the background tiles be shared across modes, and to
-            //regenerate the smaller, overlay tiles more often. This means that I need one endpoint
-            //for the background normal map tiles and one for the overlay, and the app needs to draw both in order.
-            PerformanceTracker pt = new PerformanceTracker("DrawAreaControlOverlay");
-            //We will try to minimize rework done.
-            var db = new PraxisContext();
-            System.Collections.Generic.List<StoredOsmElement> places = null;
-            GeoArea pluscode = OpenLocationCode.DecodeValid(Cell8);
-            var factionColorTile = db.MapTiles.Where(mt => mt.PlusCode == Cell8 && mt.resolutionScale == 11 && mt.styleSet == "teamColor").FirstOrDefault();
-            if (factionColorTile == null || factionColorTile.MapTileId == null || factionColorTile.ExpireOn < DateTime.Now)
-            {
-                //Draw this entry
-                //requires a list of colors to use, which might vary per app
-                GeoArea CellEightArea = OpenLocationCode.DecodeValid(Cell8);
-                var cellPoly = Converters.GeoAreaToPolygon(pluscode);
-                //if (places == null) //Don't download the data twice if we already have it, just reset the tags.
-                //places = GetPlaces(CellEightArea, skipTags: true); // , includeGenerated: Configuration.GetValue<bool>("generateAreas") TODO restore generated area logic.
+        //[Route("/[controller]/DrawAreaControlOverlay/{Cell8}")]
+        //public FileContentResult DrawAreaControlOverlay(string Cell8)
+        //{
+        //    //TODO: I think it's better to have the background tiles be shared across modes, and to
+        //    //regenerate the smaller, overlay tiles more often. This means that I need one endpoint
+        //    //for the background normal map tiles and one for the overlay, and the app needs to draw both in order.
+        //    PerformanceTracker pt = new PerformanceTracker("DrawAreaControlOverlay");
+        //    //We will try to minimize rework done.
+        //    var db = new PraxisContext();
+        //    System.Collections.Generic.List<StoredOsmElement> places = null;
+        //    GeoArea pluscode = OpenLocationCode.DecodeValid(Cell8);
+        //    var factionColorTile = db.MapTiles.Where(mt => mt.PlusCode == Cell8 && mt.resolutionScale == 11 && mt.styleSet == "teamColor").FirstOrDefault();
+        //    if (factionColorTile == null || factionColorTile.MapTileId == null || factionColorTile.ExpireOn < DateTime.Now)
+        //    {
+        //        //Draw this entry
+        //        //requires a list of colors to use, which might vary per app
+        //        GeoArea CellEightArea = OpenLocationCode.DecodeValid(Cell8);
+        //        var cellPoly = Converters.GeoAreaToPolygon(pluscode);
+        //        //if (places == null) //Don't download the data twice if we already have it, just reset the tags.
+        //        //places = GetPlaces(CellEightArea, skipTags: true); // , includeGenerated: Configuration.GetValue<bool>("generateAreas") TODO restore generated area logic.
 
-                ImageStats info = new ImageStats(pluscode, 160, 200); //Cell8 size TODO use DrawPlusCode here, add parameteres as needed
-                var ops = MapTiles.GetPaintOpsForCustomDataElements(Converters.GeoAreaToPolygon(CellEightArea), "teamColor", "teamColor", info);
+        //        ImageStats info = new ImageStats(pluscode, 160, 200); //Cell8 size TODO use DrawPlusCode here, add parameteres as needed
+        //        var ops = MapTiles.GetPaintOpsForCustomDataElements(Converters.GeoAreaToPolygon(CellEightArea), "teamColor", "teamColor", info);
 
-                var results = MapTiles.DrawAreaAtSize(info, ops, bgColor); //MapTiles.DrawMPAreaControlMapTile(info, places);
-                if (factionColorTile == null) //create a new entry
-                {
-                    factionColorTile = new MapTile() { PlusCode = Cell8, CreatedOn = DateTime.Now, styleSet = "teamColor", resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(CellEightArea) };
-                    db.MapTiles.Add(factionColorTile);
-                }
-                else //update the existing entry.
-                {
-                    factionColorTile.tileData = results;
-                    factionColorTile.ExpireOn = DateTime.Now.AddYears(10);
-                    factionColorTile.CreatedOn = DateTime.Now;
-                }
-                db.SaveChanges();
-            }
-            pt.Stop(Cell8);
-            return File(factionColorTile.tileData, "image/png");
-        }
+        //        var results = MapTiles.DrawAreaAtSize(info, ops, bgColor); //MapTiles.DrawMPAreaControlMapTile(info, places);
+        //        if (factionColorTile == null) //create a new entry
+        //        {
+        //            factionColorTile = new MapTile() { PlusCode = Cell8, CreatedOn = DateTime.Now, styleSet = "teamColor", resolutionScale = 11, tileData = results, areaCovered = Converters.GeoAreaToPolygon(CellEightArea) };
+        //            db.MapTiles.Add(factionColorTile);
+        //        }
+        //        else //update the existing entry.
+        //        {
+        //            factionColorTile.tileData = results;
+        //            factionColorTile.ExpireOn = DateTime.Now.AddYears(10);
+        //            factionColorTile.CreatedOn = DateTime.Now;
+        //        }
+        //        db.SaveChanges();
+        //    }
+        //    pt.Stop(Cell8);
+        //    return File(factionColorTile.tileData, "image/png");
+        //}
 
         [HttpGet]
         [Route("/[controller]/DrawFactionModeSlippyTile/{zoom}/{x}/{y}.png")]
@@ -288,7 +288,7 @@ namespace PraxisMapper.Controllers
 
             if (owner != "")
             {
-                var factionName = db.Factions.Where(f => f.TeamColorTag == owner).FirstOrDefault().Name;
+                var factionName = db.Factions.Where(f => f.FactionId.ToString() == owner).FirstOrDefault().Name;
                 pt.Stop();
                 return mapData.name + "|" + factionName + "|" + GetScoreForSinglePlace(mapData.elementGeometry);
             }

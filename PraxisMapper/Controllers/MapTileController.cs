@@ -288,7 +288,8 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/DrawPlusCode/{code}/{styleSet}")]
-        public FileContentResult DrawPlusCode(string code, string styleSet)
+        [Route("/[controller]/DrawPlusCode/{code}")]
+        public FileContentResult DrawPlusCode(string code, string styleSet = "mapTiles")
         {
             try
             {
