@@ -21,6 +21,8 @@ namespace PraxisMapper
             CoreComponents.Log.WriteToFile = Configuration.GetValue<bool>("enableFileLogging");
             PraxisContext.connectionString = Configuration.GetValue<string>("dbConnectionString");
             PraxisContext.serverMode = Configuration.GetValue<string>("dbMode");
+            PraxisHeaderCheck.enableAuthCheck = Configuration.GetValue<bool>("enableAuthCheck");
+            PraxisHeaderCheck.ServerAuthKey = Configuration.GetValue<string>("serverAuthKey");
             //AdminController.adminPwd = Configuration.GetValue<string>("adminPwd"); This pulls it directly from the configuration object in AdminController.
 
             TagParser.Initialize(false); //set to true when debugging new style rules without resetting the database entries.
@@ -49,7 +51,7 @@ namespace PraxisMapper
             app.UseStaticFiles( new StaticFileOptions() { FileProvider = new PhysicalFileProvider(Path.Combine(env.ContentRootPath, "Content")), RequestPath = "/Content" });
             app.UseRouting();
 
-            //app.UseAuthorization(); //I dont really use this on this API
+            app.UsePraxisHeaderCheck();
 
             app.UseEndpoints(endpoints =>
             {
