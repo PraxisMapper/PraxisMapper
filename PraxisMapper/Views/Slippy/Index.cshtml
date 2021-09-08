@@ -16,19 +16,18 @@
 
     </div>
     <script type="text/javascript">
-        //var baseSite = "http://us.praxismapper.org";
-        //var baseSite = "http://localhost/PraxisMapper";
+    var serverKey = "testingKey"; //TODO: lock this page to only localhost or find an alternate way to obfuscate this.
         var baseSite = window.location.href.replace("/slippy", "");
-        var url = baseSite + '/{id}/{z}/{x}/{y}.png'
-        var baseData = L.tileLayer(url, {id: "MapTile/DrawSlippyTile", tileSize:512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
-        var ptt = L.tileLayer(url, { id: "MapTile/DrawSlippyTileCustomPlusCodesByTag/paintTown/color", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
-        //var ptt = L.tileLayer(url, { id: "PaintTown/DrawSlippyTile", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
-        var ac = L.tileLayer(url, { id: "AreaControl/DrawFactionModeSlippyTile", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
-        var generated = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
-        var adminBounds = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
-        var adminBounds2 = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
-        var baseDataTEstV4 = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
-        var offlineEstimateAreas = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 })
+        var url = baseSite + '/{id}/{z}/{x}/{y}.png?PraxisAuthKey=' + serverKey;
+        var baseData = L.tileLayer(url, {id: "MapTile/DrawSlippyTile", tileSize:512, maxZoom: 20, minZoom: 9, zoomOffset: -1 });
+        var ptt = L.tileLayer(url, { id: "MapTile/DrawSlippyTileCustomPlusCodesByTag/paintTown/color", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 });
+        //var ptt = L.tileLayer(url, { id: "PaintTown/DrawSlippyTile", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 });
+        var ac = L.tileLayer(url, { id: "AreaControl/DrawFactionModeSlippyTile", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 });
+        var generated = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 });
+        var adminBounds = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 });
+        var adminBounds2 = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 });
+        var baseDataTEstV4 = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 });
+        var offlineEstimateAreas = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 });
 
         var baseLayers = {
             "Base Data": baseData,
@@ -43,7 +42,6 @@
             "Offline Estimates": offlineEstimateAreas
         };
 
-        var serverKey = "testingKey"; //TODO: lock this page to only localhost or find an alternate way to obfuscate this.
         var startLat = 0;
         var startLon = 0;
         var mymap = L.map('mapid'); 
@@ -59,7 +57,7 @@
             })
         );
         
-    L.tileLayer(baseSite + '/MapTile/DrawSlippyTile/mapTiles/{z}/{x}/{y}.png', {
+    L.tileLayer(baseSite + '/MapTile/DrawSlippyTile/mapTiles/{z}/{x}/{y}.png?PraxisAuthKey=' + serverKey, {
     maxZoom: 20,
     minZoom: 9,
     zoom: 15,

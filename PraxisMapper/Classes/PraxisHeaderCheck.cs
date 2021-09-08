@@ -5,7 +5,7 @@ public class PraxisHeaderCheck
     private readonly RequestDelegate _next;
 
     //Define target endpoints to protect, so webview apps will load without issues.
-    static string[] protectedControllers = new string[] { "admin", "data" }; //maptile removed for now, since Leaflet requires extra logic to handle adding that to a request url.
+    static string[] protectedControllers = new string[] { "admin", "data", "maptile" };
     public static string ServerAuthKey = "";
     public static bool enableAuthCheck = false;
 
@@ -16,9 +16,9 @@ public class PraxisHeaderCheck
 
     public async Task Invoke(HttpContext context)
     {
-        
-        Microsoft.Extensions.Primitives.StringValues requestAuthKey = "";
-        if (enableAuthCheck && protectedControllers.Any(c => context.Request.Path.Value.ToLower().Contains(c)) && (!context.Request.Headers.TryGetValue("PraxisAuthKey", out requestAuthKey) || ServerAuthKey != requestAuthKey))
+        if (enableAuthCheck 
+            && protectedControllers.Any(c => context.Request.Path.Value.ToLower().Contains(c)) 
+            && (!context.Request.Headers.Any(h => h.Key == "PraxisAuthKey" && h.Value == ServerAuthKey) && !context.Request.Query.Any(q => q.Key== "PraxisAuthKey" && q.Value == ServerAuthKey)))
         {
             context.Abort();
         }
