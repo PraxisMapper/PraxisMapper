@@ -43,10 +43,11 @@
             "Offline Estimates": offlineEstimateAreas
         };
 
+        var serverKey = "testingKey"; //TODO: lock this page to only localhost or find an alternate way to obfuscate this.
         var startLat = 0;
         var startLon = 0;
         var mymap = L.map('mapid'); 
-        fetch(baseSite +  "/Data/GetServerBounds")
+        fetch(baseSite +  "/Data/GetServerBounds", {headers : {'PraxisAuthKey':serverKey}})
         .then(b =>
             b.text().then(bb => {
                 var points = bb.split("|"); 
