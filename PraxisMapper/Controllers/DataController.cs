@@ -92,5 +92,16 @@ namespace PraxisMapper.Controllers
             return GenericData.GetGlobalData(key);
         }
 
+        [HttpGet]
+        [Route("/[controller]/GetServerBounds")]
+        public string GetServerBounds()
+        {
+            //TODO: this could create and store the bounds entry ahead of time, possibly on startup
+            //instead of getting it each call.
+            var db = new PraxisContext();
+            var bounds = db.ServerSettings.First();
+            return bounds.SouthBound + "|" + bounds.WestBound + "|" + bounds.NorthBound + "|" + bounds.EastBound;
+        }
+
     }
 }

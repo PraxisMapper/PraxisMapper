@@ -43,8 +43,21 @@
             "Offline Estimates": offlineEstimateAreas
         };
 
-    var mymap = L.map('mapid').setView([41.503425, -81.698995], 13);
-    //    var mymap = L.map('mapid').setView([39.1280, -75.4956], 15);
+        var startLat = 0;
+        var startLon = 0;
+        var mymap = L.map('mapid'); 
+        fetch(baseSite +  "/Data/GetServerBounds")
+        .then(b =>
+            b.text().then(bb => {
+                var points = bb.split("|"); 
+                for(var i = 0; i < 4; i++)
+                    points[i] = points[i] * 1; //quick conversion to numbers from strings.
+                startLat = points[0] + (points[2] - points[0]) / 2; 
+                startLon = points[1] + (points[3] - points[1]) / 2;
+                mymap = mymap.setView([startLat, startLon], 15);
+            })
+        );
+        
     L.tileLayer(baseSite + '/MapTile/DrawSlippyTile/mapTiles/{z}/{x}/{y}.png', {
     maxZoom: 20,
     minZoom: 9,
