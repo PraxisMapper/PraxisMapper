@@ -14,6 +14,10 @@ namespace PraxisMapper.Controllers
     [ApiController]
     public class DataController : Controller
     {
+        static object globalIncrementLock = new object();
+        static object plusCodeIncrementLock = new object();
+        static object storedElementIncrementLock = new object();
+
         //TODO: make all Set* values a Put instead of a Get
         [HttpGet]
         [Route("/[controller]/SetPlusCodeData/{plusCode}/{key}/{value}")]
@@ -103,5 +107,37 @@ namespace PraxisMapper.Controllers
             return bounds.SouthBound + "|" + bounds.WestBound + "|" + bounds.NorthBound + "|" + bounds.EastBound;
         }
 
+        public void IncrementGlobalData(string key, double changeAmount)
+        {
+            lock (globalIncrementLock)
+            {
+                var data = GenericData.GetGlobalData(key);
+                double val = Double.Parse(data);
+                val += changeAmount;
+                GenericData.SetGlobalData(key, val.ToString());
+            }
+        }
+
+        public void IncrementPlusCodeData(string plusCode, string key, double changeAmount)
+        {
+            lock (plusCodeIncrementLock)
+            {
+                var data = GenericData.GetPlusCodeData(plusCode, key);
+                double val = Double.Parse(data);
+                val += changeAmount;
+                GenericData.SetPlusCodeData(plusCode, key, val.ToString());
+            }
+        }
+
+        public void IncrementStoredElementData(long elementId, string key, double changeAmount)
+        {
+            lock (storedElementIncrementLock)
+            {
+                var data = GenericData.GetElementData(elementId,key);
+                double val = Double.Parse(data);
+                val += changeAmount;
+                GenericData.SetStoredElementData(elementId, key, val.ToString());
+            }
+        }
     }
 }
