@@ -21,6 +21,7 @@ public class PraxisHeaderCheck
             && (!context.Request.Headers.Any(h => h.Key == "PraxisAuthKey" && h.Value == ServerAuthKey) && !context.Request.Query.Any(q => q.Key== "PraxisAuthKey" && q.Value == ServerAuthKey)))
         {
             context.Abort();
+            return;
         }
 
         await this._next.Invoke(context).ConfigureAwait(false);
