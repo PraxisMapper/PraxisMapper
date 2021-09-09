@@ -1,8 +1,10 @@
 ﻿using CoreComponents;
 using Google.OpenLocationCode;
 using Microsoft.AspNetCore.Mvc;
+using PraxisMapper.Classes;
 using System.Text;
 using static CoreComponents.DbTables;
+using static CoreComponents.Place;
 
 namespace PraxisMapper.Controllers
 {
@@ -31,6 +33,21 @@ namespace PraxisMapper.Controllers
         public string GetPlusCodeData(string plusCode, string key)
         {
             return GenericData.GetPlusCodeData(plusCode, key);
+        }
+
+        //TODO: make all Set* values a Put instead of a Get
+        [HttpGet]
+        [Route("/[controller]/SetPlayerData/{deviceId}/{key}/{value}")]
+        public bool SetPlayerData(string deviceId, string key, string value)
+        {
+            return GenericData.SetPlayerData(deviceId, key, value);
+        }
+
+        [HttpGet]
+        [Route("/[controller]/GetPlayerData/{deviceId}/{key}")]
+        public string GetPlayerData(string deviceId, string key)
+        {
+            return GenericData.GetPlayerData(deviceId, key);
         }
 
         [HttpGet]
@@ -138,6 +155,42 @@ namespace PraxisMapper.Controllers
                 val += changeAmount;
                 GenericData.SetStoredElementData(elementId, key, val.ToString());
             }
+        }
+
+        [HttpGet]
+        [Route("/[controller]/GetPlusCodeTerrainData/{plusCode}")]
+        [Route("/MapData/LearnCell8/{plusCode}")]
+        public string GetPlusCodeTerrainData(string plusCode, int fullCode = 1)
+        {
+            PerformanceTracker pt = new PerformanceTracker("GetPlusCodeTerrainData");
+            var codeString = plusCode;
+            GeoArea box = OpenLocationCode.DecodeValid(codeString);
+            var places = GetPlaces(box); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")  //All the places in this 8-code
+
+            //TODO: restore the auto-generate interesting areas logic with v4. This will mean making areas if there's 0 IsGameElement values in the results, since it's all in 1 table now.
+            //if (Configuration.GetValue<bool>("generateAreas") && !places.Any(p => p.AreaTypeId < 13 || p.AreaTypeId == 100)) //check for 100 to not make new entries in the same spot.
+            //{
+            //    var newAreas = CreateInterestingPlaces(codeString8);
+            //    places = newAreas.Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }).ToList();
+            //}
+
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine(codeString);
+            //pluscode8 //first 6 digits of this pluscode. each line below is the last 4 that have an area type.
+            //pluscode2|name|type|MapDataID  //less data transmitted, an extra string concat per entry phone-side.
+
+            var data = AreaTypeInfo.SearchArea(ref box, ref places, true); //TODO: do i need to string.join() the data.select() results below to get all entries in one spot?
+            var results = String.Join(Environment.NewLine, data.Select(d => d.Key + "|" + d.Value.Select(v => v.Name + "|" + v.areaType + "|" + v.StoredOsmElementId).FirstOrDefault()));
+
+            pt.Stop(codeString);
+            return results;
+        }
+
+        [HttpGet]
+        [Route("/[controller]/GetScoreForArea/{elementId}")]
+        public long GetScoreForArea(long elementId)
+        {
+            return ScoreData.GetScoreForSinglePlace(elementId);
         }
     }
 }

@@ -11,11 +11,13 @@ Area: A rectangle overlaid on the map, may contain 0 or more whole or partial Pl
 Score: The numerical values earned and added for factions
 Faction: One of the teams working towards a goal in a gameplay mode.
 
-Controllers:
+Controllers
+Admin:
+AdminView:
+Data:
+MapData:
+MapTile:
 
-GPSExplore: Basic leaderboard endpoints.  Will probably require a lot of customization per game.
-
-Gameplay: Functions for different gameplay modes. Initial one is for Area Control, using factions.
 
 MapData: The core of the server. Spatial data and processing to be usable in a location based game. Imported data from OpenStreetMaps, can be updated from them via other utilities included in the solution.
 LearnX - Pull in the name and area type of each 10cell for a client app.
