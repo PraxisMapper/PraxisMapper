@@ -16,6 +16,7 @@ namespace PraxisMapper.Controllers
     [ApiController]
     public class DataController : Controller
     {
+        static object playerIncrementLock = new object();
         static object globalIncrementLock = new object();
         static object plusCodeIncrementLock = new object();
         static object storedElementIncrementLock = new object();
@@ -124,34 +125,57 @@ namespace PraxisMapper.Controllers
             return bounds.SouthBound + "|" + bounds.WestBound + "|" + bounds.NorthBound + "|" + bounds.EastBound;
         }
 
+        [HttpGet]
+        [Route("/[controller]/IncrementPlayerData/{deviceId}/{key}/{changeAmount}")]
+        public void IncrementPlayerData(string deviceId, string key, double changeAmount)
+        {
+            lock (playerIncrementLock)
+            {
+                var data = GenericData.GetPlayerData(deviceId, key);
+                double val = 0;
+                Double.TryParse(data, out val);
+                val += changeAmount;
+                GenericData.SetPlayerData(deviceId, key, val.ToString());
+            }
+        }
+
+        [HttpGet]
+        [Route("/[controller]/IncrementGlobalData/{key}/{changeAmount}")]
         public void IncrementGlobalData(string key, double changeAmount)
         {
             lock (globalIncrementLock)
             {
                 var data = GenericData.GetGlobalData(key);
-                double val = Double.Parse(data);
+                double val = 0;
+                Double.TryParse(data, out val);
                 val += changeAmount;
                 GenericData.SetGlobalData(key, val.ToString());
             }
         }
 
+        [HttpGet]
+        [Route("/[controller]/IncrementPlusCodeData/{plusCode}/{key}/{changeAmount}")]
         public void IncrementPlusCodeData(string plusCode, string key, double changeAmount)
         {
             lock (plusCodeIncrementLock)
             {
                 var data = GenericData.GetPlusCodeData(plusCode, key);
-                double val = Double.Parse(data);
+                double val = 0;
+                Double.TryParse(data, out val);
                 val += changeAmount;
                 GenericData.SetPlusCodeData(plusCode, key, val.ToString());
             }
         }
 
+        [HttpGet]
+        [Route("/[controller]/IncrementStoredElementData/{elementId}/{key}/{changeAmount}")]
         public void IncrementStoredElementData(long elementId, string key, double changeAmount)
         {
             lock (storedElementIncrementLock)
             {
                 var data = GenericData.GetElementData(elementId,key);
-                double val = Double.Parse(data);
+                double val = 0;
+                Double.TryParse(data, out val);
                 val += changeAmount;
                 GenericData.SetStoredElementData(elementId, key, val.ToString());
             }
