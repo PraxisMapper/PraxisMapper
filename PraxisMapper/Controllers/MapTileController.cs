@@ -119,8 +119,7 @@ namespace PraxisMapper.Controllers
                     var places = GetPlacesForTile(info, null, styleSet);
                     var paintOps = MapTiles.GetPaintOpsForCustomDataElements(Converters.GeoAreaToPolygon(info.area), dataKey, styleSet, info);
                     results = MapTiles.DrawAreaAtSize(info, paintOps, TagParser.GetStyleBgColor(styleSet));
-                    //expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
-                    expires = DateTime.Now.AddSeconds(30); //Switched to 30 seconds since generic endpoints don't auto-reset maptiles.
+                    expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                     if (existingResults == null)
                         db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, CreatedOn = DateTime.Now, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(info.area) });
                     else
@@ -180,8 +179,7 @@ namespace PraxisMapper.Controllers
                     var places = GetPlacesForTile(info, null, styleSet);
                     var paintOps = MapTiles.GetPaintOpsForCustomDataPlusCodes(Converters.GeoAreaToPolygon(info.area), dataKey, styleSet, info);
                     results = MapTiles.DrawAreaAtSize(info, paintOps, TagParser.GetStyleBgColor(styleSet));
-                    //expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
-                    expires = DateTime.Now.AddSeconds(30); //Switched to 30 seconds since generic endpoints don't auto-reset maptiles.
+                    expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                     if (existingResults == null)
                         db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, CreatedOn = DateTime.Now, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(info.area) });
                     else
@@ -241,8 +239,7 @@ namespace PraxisMapper.Controllers
                     var places = GetPlacesForTile(info, null, styleSet);
                     var paintOps = MapTiles.GetPaintOpsForCustomDataPlusCodesFromTagValue(Converters.GeoAreaToPolygon(info.area), dataKey, styleSet, info);
                     results = MapTiles.DrawAreaAtSize(info, paintOps, TagParser.GetStyleBgColor(styleSet));
-                    //expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
-                    expires = DateTime.Now.AddSeconds(30); //Switched to 30 seconds since generic endpoints don't auto-reset maptiles.
+                    expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                     if (existingResults == null)
                         db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, CreatedOn = DateTime.Now, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(info.area) });
                     else
@@ -310,7 +307,7 @@ namespace PraxisMapper.Controllers
                     var expires = DateTime.Now.AddYears(10); //Assuming tile expiration occurs only when needed.
                     var dataLoadArea = OpenLocationCode.DecodeValid(code);
                     if (existingResults == null)
-                        db.MapTiles.Add(new MapTile() { PlusCode = code, CreatedOn = DateTime.Now, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
+                        db.MapTiles.Add(new MapTile() { PlusCode = code, CreatedOn = DateTime.Now, resolutionScale = 11, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
                     else
                     {
                         existingResults.CreatedOn = DateTime.Now;
@@ -355,11 +352,10 @@ namespace PraxisMapper.Controllers
                     ImageStats stats = new ImageStats(area, imgX, imgY);
                     var paintOps = MapTiles.GetPaintOpsForCustomDataPlusCodes(poly, dataKey, styleSet, stats);
                     var results = MapTiles.DrawAreaAtSize(stats, paintOps, TagParser.GetStyleBgColor(styleSet));
-                    //var expires = DateTime.Now.AddYears(10); //Assuming tile expiration occurs only when needed.
-                    var expires = DateTime.Now.AddSeconds(30); //Switched to 30 seconds since generic endpoints don't auto-reset maptiles.
+                    var expires = DateTime.Now.AddYears(10); //Assuming tile expiration occurs only when needed.
                     var dataLoadArea = OpenLocationCode.DecodeValid(code);
                     if (existingResults == null)
-                        db.MapTiles.Add(new MapTile() { PlusCode = code, CreatedOn = DateTime.Now, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
+                        db.MapTiles.Add(new MapTile() { PlusCode = code, CreatedOn = DateTime.Now, resolutionScale = 11, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
                     else
                     {
                         existingResults.CreatedOn = DateTime.Now;
@@ -404,11 +400,10 @@ namespace PraxisMapper.Controllers
                     ImageStats stats = new ImageStats(area, imgX, imgY);
                     var paintOps = MapTiles.GetPaintOpsForCustomDataPlusCodesFromTagValue(poly, dataKey, styleSet, stats);
                     var results = MapTiles.DrawAreaAtSize(stats, paintOps, TagParser.GetStyleBgColor(styleSet));
-                    //var expires = DateTime.Now.AddYears(10); //Assuming tile expiration occurs only when needed.
-                    var expires = DateTime.Now.AddSeconds(30); //Switched to 30 seconds since generic endpoints don't auto-reset maptiles.
+                    var expires = DateTime.Now.AddYears(10); //Assuming tile expiration occurs only when needed.
                     var dataLoadArea = OpenLocationCode.DecodeValid(code);
                     if (existingResults == null)
-                        db.MapTiles.Add(new MapTile() { PlusCode = code, CreatedOn = DateTime.Now, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
+                        db.MapTiles.Add(new MapTile() { PlusCode = code, resolutionScale = 11, CreatedOn = DateTime.Now, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
                     else
                     {
                         existingResults.CreatedOn = DateTime.Now;
@@ -453,8 +448,7 @@ namespace PraxisMapper.Controllers
                     ImageStats stats = new ImageStats(area, imgX, imgY);
                     var paintOps = MapTiles.GetPaintOpsForCustomDataElements(poly, dataKey, styleSet, stats);
                     var results = MapTiles.DrawAreaAtSize(stats, paintOps, TagParser.GetStyleBgColor(styleSet));
-                    //var expires = DateTime.Now.AddYears(10); //Assuming tile expiration occurs only when needed.
-                    var expires = DateTime.Now.AddSeconds(30); //Switched to 30 seconds since generic endpoints don't auto-reset maptiles.
+                    var expires = DateTime.Now.AddYears(10); //Assuming tile expiration occurs only when needed.
                     var dataLoadArea = OpenLocationCode.DecodeValid(code);
                     if (existingResults == null)
                         db.MapTiles.Add(new MapTile() { PlusCode = code, CreatedOn = DateTime.Now, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
@@ -477,6 +471,13 @@ namespace PraxisMapper.Controllers
                 ErrorLogger.LogError(ex);
                 return null;
             }
+        }
+
+        [HttpGet]
+        [Route("/[controller]/ExpireTiles/{elementId}/{styleSet}")]
+        public void ExpireTiles(long elementId, string styleSet)
+        {
+            MapTiles.ExpireMapTiles(elementId, styleSet);
         }
 
     }
