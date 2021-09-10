@@ -451,7 +451,7 @@ namespace PraxisMapper.Controllers
                     var expires = DateTime.Now.AddYears(10); //Assuming tile expiration occurs only when needed.
                     var dataLoadArea = OpenLocationCode.DecodeValid(code);
                     if (existingResults == null)
-                        db.MapTiles.Add(new MapTile() { PlusCode = code, CreatedOn = DateTime.Now, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
+                        db.MapTiles.Add(new MapTile() { PlusCode = code, resolutionScale = 11, CreatedOn = DateTime.Now, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
                     else
                     {
                         existingResults.CreatedOn = DateTime.Now;
