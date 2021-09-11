@@ -968,9 +968,9 @@ namespace CoreComponents
 
                     //Create the maptile first, so if we save it to the DB/a file we can call the lock once per loop.
                     //NOTE: this should use DrawPlusCode instead and double the res.
-                    var info = new ImageStats(areaForTile, 80, 100); //Each pixel is a Cell11, we're drawing a Cell8. For Cell6 testing this is 1600x2000, just barely within android limits
+                    var info = new ImageStats(areaForTile, 160, 200); //Each pixel is a Cell11, we're drawing a Cell8. For Cell6 testing this is 1600x2000, just barely within android limits
                     var tile = MapTiles.DrawAreaAtSize(info, areaList);
-                    tilesToSave.Add(new MapTile() { tileData = tile, PlusCode = plusCode.Code, CreatedOn = DateTime.Now, ExpireOn = DateTime.Now.AddDays(365 * 10), areaCovered = Converters.GeoAreaToPolygon(plusCodeArea), resolutionScale = 11, styleSet = "mapTiles" });
+                    tilesToSave.Add(new MapTile() { tileData = tile, PlusCode = plusCode.CodeDigits.Substring(0,8), CreatedOn = DateTime.Now, ExpireOn = DateTime.Now.AddDays(365 * 10), areaCovered = Converters.GeoAreaToPolygon(plusCodeArea), resolutionScale = 11, styleSet = "mapTiles" });
 
                     mapTileCounter++;
                 });
