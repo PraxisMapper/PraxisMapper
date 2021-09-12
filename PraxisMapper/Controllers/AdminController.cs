@@ -57,12 +57,6 @@ namespace PraxisMapper.Controllers
             return results;
         }
 
-        public string GetRunningModes()
-        {
-            //Report to an admin or an app which modes have which instances, and their configuration.
-            return "";
-        }
-
         [HttpGet]
         [Route("/[controller]/GetServerBounds/{password}")]
         public string GetServerBounds(string password)

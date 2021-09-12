@@ -8,7 +8,7 @@ namespace PraxisMapper.Classes
     public class PerformanceTracker
     {
         //A simple, short class for tracking how long each function call takes. Useful for getting an idea of function runtimes. Toggleable via EnableLogging. 
-        //the amount of overhead this class adds is pretty neglible, something under 1ms per API call.
+        //the amount of overhead this class adds is pretty neglible, something under 5ms per API call.
         public static bool EnableLogging = true;
 
         PerformanceInfo pi = new PerformanceInfo();

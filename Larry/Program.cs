@@ -623,7 +623,7 @@ namespace Larry
                 List<StoredOsmElement> oneEntry = new List<StoredOsmElement>();
                 oneEntry.Add(trail);
 
-                var overlapped = AreaTypeInfo.SearchArea(ref thisPath, ref oneEntry, true);
+                var overlapped = AreaTypeInfo.SearchArea(ref thisPath, ref oneEntry);
                 if (overlapped.Count() > 0)
                 {
                     tdSmalls.TryAdd(trail.name, new TerrainDataSmall() { Name = trail.name, areaType = trail.GameElementName });

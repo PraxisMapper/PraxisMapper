@@ -10,7 +10,6 @@ namespace PraxisMapper.Controllers
 {
     //DataController: For handling generic get/set commands for data by location.
     //The part that actually allows for games to be made using PraxisMapper without editing code. (give or take styles until a style editor exists on an admin interface)
-    //If I wanted to track data per user on the server, this similar setup might be the way to do it, with phoneId, key, and value.
 
     [Route("[controller]")]
     [ApiController]
@@ -81,23 +80,12 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/GetAllDataInOsmElement/{elementId}/{elementType}")]
         public string GetAllDataInOsmElement(long elementId, int elementType)
         {
-            var db = new PraxisContext();
-
             var data = GenericData.GetAllDataInPlace(elementId, elementType);
             StringBuilder sb = new StringBuilder();
             foreach (var d in data)
                 sb.Append(d.elementId).Append("|").Append(d.key).Append("|").AppendLine(d.value);
 
             return sb.ToString();
-        }
-
-        [HttpGet]
-        [Route("/[controller]/DrawUserData/{styleSet}/{plusCode}")]
-        public byte[] DrawCustomDataTile(string styleSet, string plusCode)
-        {
-            var styleToUse = TagParser.allStyleGroups[styleSet];
-            //TODO: pull out generic data, draw it as appropriate.
-            return null;
         }
 
         [HttpGet]
@@ -183,29 +171,43 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/GetPlusCodeTerrainData/{plusCode}")]
-        [Route("/MapData/LearnCell8/{plusCode}")]
-        public string GetPlusCodeTerrainData(string plusCode, int fullCode = 1)
+        public string GetPlusCodeTerrainData(string plusCode)
         {
+            //This function returns 1 line per Cell10, the smallest (and therefore highest priority) item intersecting that cell10.
             PerformanceTracker pt = new PerformanceTracker("GetPlusCodeTerrainData");
             var codeString = plusCode;
             GeoArea box = OpenLocationCode.DecodeValid(codeString);
-            var places = GetPlaces(box); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")  //All the places in this 8-code
-
-            //TODO: restore the auto-generate interesting areas logic with v4. This will mean making areas if there's 0 IsGameElement values in the results, since it's all in 1 table now.
-            //if (Configuration.GetValue<bool>("generateAreas") && !places.Any(p => p.AreaTypeId < 13 || p.AreaTypeId == 100)) //check for 100 to not make new entries in the same spot.
-            //{
-            //    var newAreas = CreateInterestingPlaces(codeString8);
-            //    places = newAreas.Select(g => new MapData() { MapDataId = g.GeneratedMapDataId + 100000000, place = g.place, type = g.type, name = g.name, AreaTypeId = g.AreaTypeId }).ToList();
-            //}
+            var places = GetPlaces(box); 
 
             StringBuilder sb = new StringBuilder();
-            sb.AppendLine(codeString);
-            //pluscode8 //first 6 digits of this pluscode. each line below is the last 4 that have an area type.
-            //pluscode2|name|type|MapDataID  //less data transmitted, an extra string concat per entry phone-side.
+            //pluscode|name|type|StoredOsmElementID  //less data transmitted, an extra string concat per entry phone-side.
 
-            var data = AreaTypeInfo.SearchArea(ref box, ref places, true); //TODO: do i need to string.join() the data.select() results below to get all entries in one spot?
-            var results = String.Join(Environment.NewLine, data.Select(d => d.Key + "|" + d.Value.Select(v => v.Name + "|" + v.areaType + "|" + v.StoredOsmElementId).FirstOrDefault()));
+            var data = AreaTypeInfo.SearchArea(ref box, ref places);
+            foreach (var d in data)
+                sb.Append(d.Key).Append("|").Append(d.Value.Name).Append("|").Append(d.Value.areaType).Append("|").Append(d.Value.StoredOsmElementId).Append("\r\n");
+            var results = sb.ToString();
+            pt.Stop(codeString);
+            return results;
+        }
 
+        [HttpGet]
+        [Route("/[controller]/GetPlusCodeTerrainDataFull/{plusCode}")]
+        public string GetPlusCodeTerrainDataFull(string plusCode)
+        {
+            //This function returns 1 line per Cell10 per intersecting element. For an app that needs to know all things in all points.
+            PerformanceTracker pt = new PerformanceTracker("GetPlusCodeTerrainDataFull");
+            var codeString = plusCode;
+            GeoArea box = OpenLocationCode.DecodeValid(codeString);
+            var places = GetPlaces(box); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")  //All the places in this Cell8
+
+            StringBuilder sb = new StringBuilder();
+            //pluscode|name|type|StoredOsmElementID
+
+            var data = AreaTypeInfo.SearchAreaFull(ref box, ref places);
+            foreach (var d in data)
+                foreach(var v in d.Value)
+                    sb.Append(d.Key).Append("|").Append(v.Name).Append("|").Append(v.areaType).Append("|").Append(v.StoredOsmElementId).Append("\r\n");
+            var results = sb.ToString();
             pt.Stop(codeString);
             return results;
         }
