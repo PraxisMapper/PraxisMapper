@@ -34,7 +34,7 @@ namespace CoreComponents
                 var location = Converters.GeoAreaToPolygon(area); //Prepared items don't work on a DB lookup.
                 var db = new CoreComponents.PraxisContext();
                 db.Database.SetCommandTimeout(new TimeSpan(0, 2, 0));
-                if (skipTags) //Should make the load slightly faster, when we do something like a team control check, where the data we want to look at isn't in the OSM tags.
+                if (skipTags) //Should make the load slightly faster if we're parsing existing items that already got tags applied
                 {
                     places = db.StoredOsmElements.Where(md => location.Intersects(md.elementGeometry) && md.AreaSize >= filterSize && (includePoints || md.sourceItemType != 1)).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList();
                     return places; //Jump out before we do ApplyTags
@@ -47,10 +47,11 @@ namespace CoreComponents
             else
             {
                 var location = Converters.GeoAreaToPreparedPolygon(area);
-                places = source.Where(md => location.Intersects(md.elementGeometry) && md.AreaSize >= filterSize && (includePoints || md.sourceItemType != 1)).Select(md => md.Clone()).ToList(); // && md.AreaSize > filterSize
+                places = source.Where(md => location.Intersects(md.elementGeometry) && md.AreaSize >= filterSize && (includePoints || md.sourceItemType != 1)).Select(md => md.Clone()).ToList();
             }
 
-            TagParser.ApplyTags(places, styleSet); //populates the fields we don't save to the DB. Might want to move this 
+            if (!skipTags)
+                TagParser.ApplyTags(places, styleSet); //populates the fields we don't save to the DB.
             return places;
         }
 
