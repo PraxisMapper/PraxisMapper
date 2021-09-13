@@ -19,26 +19,9 @@ namespace PraxisMapper.Controllers
             return View();
         }
 
-        public JsonResult GetScavengerHunts()
-        {
-            PerformanceTracker pt = new PerformanceTracker("GetScavengerHunts");
-            var db = new PraxisContext();
-            var results = db.scavengerHunts.ToList();
-            pt.Stop();
-            return Json(results);
-        }
-
-        public JsonResult GetScavengerHuntEntries(long scavengerHuntId)
-        {
-            PerformanceTracker pt = new PerformanceTracker("GetScavengerHunts");
-            var db = new PraxisContext();
-            var results = db.scavengerHuntEntries.Where(s => s.ScavengerHunt.id == scavengerHuntId).ToList(); //might be faster to .Include() the entries on the hunt itself?
-            pt.Stop();
-            return Json(results);
-        }
-
         public void ExpireMapTiles()
         {
+            //TODO: this is also a duplicate from DataController, but this setup is much less specific.
             PerformanceTracker pt = new PerformanceTracker("ExpireMapTilesAdmin");
             var db = new PraxisContext();
             //TODO: this is a thing where I probably don't want to load each entry into memory, so using raw SQL for performance here instead.

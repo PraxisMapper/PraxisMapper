@@ -4,6 +4,7 @@ using Google.OpenLocationCode;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
+using NetTopologySuite.Geometries.Prepared;
 using PraxisMapper.Classes;
 using System;
 using System.Linq;
@@ -47,6 +48,9 @@ namespace PraxisMapper.Controllers
                 {
                     //Create this entry
                     var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare, MapTiles.MapTileSizeSquare);
+                    if (!BoundsCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
+                        return null;
+
                     info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
                     if (zoom >= 15) //Gameplay areas are ~15.
                        info.filterSize = 0;
@@ -107,6 +111,8 @@ namespace PraxisMapper.Controllers
                 {
                     //Create this entry
                     var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare, MapTiles.MapTileSizeSquare);
+                    if (!BoundsCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
+                        return null;
                     info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
                     if (zoom >= 15) //Gameplay areas are ~15.
                         info.filterSize = 0;
@@ -167,6 +173,8 @@ namespace PraxisMapper.Controllers
                 {
                     //Create this entry
                     var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare, MapTiles.MapTileSizeSquare);
+                    if (!BoundsCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
+                        return null;
                     info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
                     if (zoom >= 15) //Gameplay areas are ~15.
                         info.filterSize = 0;
@@ -227,6 +235,8 @@ namespace PraxisMapper.Controllers
                 {
                     //Create this entry
                     var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare, MapTiles.MapTileSizeSquare);
+                    if (!BoundsCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
+                        return null;
                     info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
                     if (zoom >= 15) //Gameplay areas are ~15.
                         info.filterSize = 0;
@@ -294,6 +304,8 @@ namespace PraxisMapper.Controllers
             try
             {
                 PerformanceTracker pt = new PerformanceTracker("DrawPlusCode");
+                if (!BoundsCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(code)))
+                    return null;
                 code = code.ToUpper();
                 string tileKey = code + "|" + styleSet;
                 var db = new PraxisContext();
@@ -336,6 +348,8 @@ namespace PraxisMapper.Controllers
             try
             {
                 PerformanceTracker pt = new PerformanceTracker("DrawPlusCodeCustomData");
+                if (!BoundsCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(code)))
+                    return null;
                 code = code.ToUpper();
                 string tileKey = code + "|" + styleSet + "|" + dataKey;
                 var db = new PraxisContext();
@@ -384,6 +398,8 @@ namespace PraxisMapper.Controllers
             try
             {
                 PerformanceTracker pt = new PerformanceTracker("DrawPlusCodeCustomData");
+                if (!BoundsCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(code)))
+                    return null;
                 code = code.ToUpper();
                 string tileKey = code + "|" + styleSet + "|" + dataKey;
                 var db = new PraxisContext();
@@ -432,6 +448,8 @@ namespace PraxisMapper.Controllers
             try
             {
                 PerformanceTracker pt = new PerformanceTracker("DrawPlusCodeCustomElements");
+                if (!BoundsCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(code)))
+                    return null;
                 code = code.ToUpper();
                 string tileKey = code + "|" + styleSet + "|" + dataKey;
                 var db = new PraxisContext();

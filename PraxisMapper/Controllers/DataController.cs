@@ -1,6 +1,8 @@
 ﻿using CoreComponents;
 using Google.OpenLocationCode;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
+using NetTopologySuite.Geometries.Prepared;
 using PraxisMapper.Classes;
 using System.Text;
 using static CoreComponents.DbTables;
@@ -20,11 +22,22 @@ namespace PraxisMapper.Controllers
         static object plusCodeIncrementLock = new object();
         static object storedElementIncrementLock = new object();
 
+        private readonly IConfiguration Configuration;
+        private static IMemoryCache cache;
+
+        public DataController(IConfiguration configuration, IMemoryCache memoryCacheSingleton)
+        {
+            Configuration = configuration;
+            cache = memoryCacheSingleton;
+        }
+
         //TODO: make all Set* values a Put instead of a Get
         [HttpGet]
         [Route("/[controller]/SetPlusCodeData/{plusCode}/{key}/{value}")]
         public bool SetPlusCodeData(string plusCode, string key, string value)
         {
+            if (!BoundsCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
+                return false;
             return GenericData.SetPlusCodeData(plusCode, key, value);
         }
 
@@ -32,6 +45,8 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/GetPlusCodeData/{plusCode}/{key}")]
         public string GetPlusCodeData(string plusCode, string key)
         {
+            if (!BoundsCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
+                return "";
             return GenericData.GetPlusCodeData(plusCode, key);
         }
 
@@ -68,6 +83,8 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/GetAllDataInPlusCode/{plusCode}")]
         public string GetAllDataInPlusCode(string plusCode)
         {
+            if (!BoundsCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
+                return "";
             var data = GenericData.GetAllDataInPlusCode(plusCode);
             StringBuilder sb = new StringBuilder();
             foreach (var d in data)
@@ -106,10 +123,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/GetServerBounds")]
         public string GetServerBounds()
         {
-            //TODO: this could create and store the bounds entry ahead of time, possibly on startup
-            //instead of getting it each call.
-            var db = new PraxisContext();
-            var bounds = db.ServerSettings.First();
+            var bounds = cache.Get<ServerSetting>("settings");
             return bounds.SouthBound + "|" + bounds.WestBound + "|" + bounds.NorthBound + "|" + bounds.EastBound;
         }
 
@@ -145,6 +159,8 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/IncrementPlusCodeData/{plusCode}/{key}/{changeAmount}")]
         public void IncrementPlusCodeData(string plusCode, string key, double changeAmount)
         {
+            if (!BoundsCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
+                return;
             lock (plusCodeIncrementLock)
             {
                 var data = GenericData.GetPlusCodeData(plusCode, key);
@@ -175,8 +191,9 @@ namespace PraxisMapper.Controllers
         {
             //This function returns 1 line per Cell10, the smallest (and therefore highest priority) item intersecting that cell10.
             PerformanceTracker pt = new PerformanceTracker("GetPlusCodeTerrainData");
-            var codeString = plusCode;
-            GeoArea box = OpenLocationCode.DecodeValid(codeString);
+            GeoArea box = OpenLocationCode.DecodeValid(plusCode);
+            if (!BoundsCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), box))
+                return "";            
             var places = GetPlaces(box); 
 
             StringBuilder sb = new StringBuilder();
@@ -186,7 +203,7 @@ namespace PraxisMapper.Controllers
             foreach (var d in data)
                 sb.Append(d.Key).Append("|").Append(d.Value.Name).Append("|").Append(d.Value.areaType).Append("|").Append(d.Value.StoredOsmElementId).Append("\r\n");
             var results = sb.ToString();
-            pt.Stop(codeString);
+            pt.Stop(plusCode);
             return results;
         }
 
@@ -196,8 +213,9 @@ namespace PraxisMapper.Controllers
         {
             //This function returns 1 line per Cell10 per intersecting element. For an app that needs to know all things in all points.
             PerformanceTracker pt = new PerformanceTracker("GetPlusCodeTerrainDataFull");
-            var codeString = plusCode;
-            GeoArea box = OpenLocationCode.DecodeValid(codeString);
+            GeoArea box = OpenLocationCode.DecodeValid(plusCode);
+            if (!BoundsCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), box))
+                return "";
             var places = GetPlaces(box); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")  //All the places in this Cell8
 
             StringBuilder sb = new StringBuilder();
@@ -208,7 +226,7 @@ namespace PraxisMapper.Controllers
                 foreach(var v in d.Value)
                     sb.Append(d.Key).Append("|").Append(v.Name).Append("|").Append(v.areaType).Append("|").Append(v.StoredOsmElementId).Append("\r\n");
             var results = sb.ToString();
-            pt.Stop(codeString);
+            pt.Stop(plusCode);
             return results;
         }
 

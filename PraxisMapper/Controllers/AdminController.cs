@@ -1,8 +1,10 @@
 ﻿using CoreComponents;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Linq;
+using static CoreComponents.DbTables;
 
 namespace PraxisMapper.Controllers
 {
@@ -15,10 +17,12 @@ namespace PraxisMapper.Controllers
     {
         //For stuff the admin would want to do but not allow anyone else to do.
         private readonly IConfiguration Configuration;
+        private readonly IMemoryCache cache;
 
-        public AdminController(IConfiguration configuration)
+        public AdminController(IConfiguration configuration, IMemoryCache _cache)
         {
             Configuration = configuration;
+            cache = _cache;
         }
 
         
@@ -61,11 +65,11 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/GetServerBounds/{password}")]
         public string GetServerBounds(string password)
         {
+            //NOTE: this is duplicated in DataController without the admin password check.
             if (password != Configuration.GetValue<string>("adminPwd"))
                 return "";
 
-            var db = new PraxisContext();
-            var results = db.ServerSettings.FirstOrDefault();
+            var results = cache.Get<ServerSetting>("settings");
             return results.SouthBound + "," + results.WestBound + "|" + results.NorthBound + "," + results.EastBound;
         }
 
