@@ -26,5 +26,14 @@ namespace CoreComponents
 
             return false;
         }
+
+        public static bool IsInBounds(IPreparedGeometry bounds, double lat, double lon)
+        {
+            Point p = new Point(lon, lat);
+            if (bounds.Intersects(p))
+                return true;
+
+            return false;
+        }
     }
 }
