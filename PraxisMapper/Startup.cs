@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using NetTopologySuite.Geometries.Prepared;
 using PraxisMapper.Classes;
 using System.IO;
 using System.Linq;
@@ -14,7 +15,7 @@ namespace PraxisMapper
 {
     public class Startup
     {
-        public Startup(IConfiguration configuration) //too early for memory cache.
+        public Startup(IConfiguration configuration)  //can't use MemoryCache here, have to wait utnil Configure for services and DI
         {
             Configuration = configuration;
             PerformanceTracker.EnableLogging = Configuration.GetValue<bool>("enablePerformanceTracker");
@@ -40,7 +41,7 @@ namespace PraxisMapper
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IMemoryCache cache)
         {
             if (env.IsDevelopment())
             {
@@ -57,6 +58,15 @@ namespace PraxisMapper
             {
                 endpoints.MapControllers();
             });
+
+            //Populate the memory cache with some data we won't edit until a restart occurs.
+            var entryOptions = new MemoryCacheEntryOptions().SetPriority(CacheItemPriority.NeverRemove);
+
+            var db = new PraxisContext();
+            var settings = db.ServerSettings.First();
+            cache.Set<DbTables.ServerSetting>("settings", settings, entryOptions);
+            var serverBounds = Converters.GeoAreaToPreparedPolygon(new Google.OpenLocationCode.GeoArea(settings.SouthBound, settings.WestBound, settings.NorthBound, settings.EastBound));
+            cache.Set<IPreparedGeometry>("serverBounds", serverBounds, entryOptions);
         }
     }
 }
