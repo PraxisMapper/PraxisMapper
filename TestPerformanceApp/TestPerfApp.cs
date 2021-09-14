@@ -1305,10 +1305,7 @@ namespace PerformanceTestApp
                 db.Database.ExecuteSqlRaw("SET collation_server = 'utf8mb4_unicode_ci'; SET character_set_server = 'utf8mb4'"); //MariaDB defaults to latin2_swedish, we need Unicode.
             }
 
-            //InsertAreaTypesToDb(mode);
             InsertDefaultServerConfig();
-            InsertDefaultFactionsToDb(mode);
-            //InsertDefaultPaintTownConfigs();
             InsertDefaultStyle(mode);
         }
 
@@ -1328,24 +1325,6 @@ namespace PerformanceTestApp
         //        db.Database.CommitTransaction();
         //    }
         //}
-
-        public static void InsertDefaultFactionsToDb(string mode)
-        {
-            var db = new PraxisContext();
-
-            if (mode == "SQLServer")
-            {
-                db.Database.BeginTransaction();
-                db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Factions ON;");
-            }
-            db.Factions.AddRange(defaultFaction);
-            db.SaveChanges();
-            if (mode == "SQLServer")
-            {
-                db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Factions OFF;");
-                db.Database.CommitTransaction();
-            }
-        }
 
         public static void InsertDefaultServerConfig()
         {

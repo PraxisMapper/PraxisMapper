@@ -86,7 +86,7 @@ namespace CoreComponents
             }
         }
 
-        //A trigger to ensure all data inserted is valid by SQL Server rules.
+        //A trigger to ensure all data inserted is valid by MSSQL Server rules.
         public static string MapDataValidTriggerMSSQL = "CREATE TRIGGER dbo.MakeValid ON dbo.MapData AFTER INSERT AS BEGIN UPDATE dbo.MapData SET place = place.MakeValid() WHERE MapDataId in (SELECT MapDataId from inserted) END";
         public static string GeneratedMapDataValidTriggerMSSQL = "CREATE TRIGGER dbo.GenereatedMapDataMakeValid ON dbo.GeneratedMapData AFTER INSERT AS BEGIN UPDATE dbo.GeneratedMapData SET place = place.MakeValid() WHERE GeneratedMapDataId in (SELECT GeneratedMapDataId from inserted) END";
 
@@ -140,27 +140,8 @@ namespace CoreComponents
             }
 
             InsertDefaultServerConfig();
-            //InsertDefaultFactionsToDb();
             InsertDefaultStyle();
         }
-
-        //public static void InsertDefaultFactionsToDb()
-        //{
-        //    var db = new PraxisContext();
-
-        //    if (serverMode == "SQLServer")
-        //    {
-        //        //db.Database.BeginTransaction();
-        //        //db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Factions ON;");
-        //    }
-        //    //db.Factions.AddRange(Singletons.defaultFaction);
-        //    db.SaveChanges();
-        //    if (serverMode == "SQLServer")
-        //    {
-        //        //db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Factions OFF;");
-        //        //db.Database.CommitTransaction();
-        //    }
-        //}
 
         public static void InsertDefaultServerConfig()
         {
@@ -193,27 +174,6 @@ namespace CoreComponents
                 db.Database.CommitTransaction();
             }
         }
-
-        //public static void InsertDefaultPaintTownConfigs()
-        //{
-        //    var db = new PraxisContext();
-        //    //we set the reset time to next Saturday at midnight for a default.
-        //    var nextSaturday = DateTime.Now.AddDays(6 - (int)DateTime.Now.DayOfWeek);
-        //    nextSaturday.AddHours(-nextSaturday.Hour);
-        //    nextSaturday.AddMinutes(-nextSaturday.Minute);
-        //    nextSaturday.AddSeconds(-nextSaturday.Second);
-
-        //    var tomorrow = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day).AddDays(1);
-        //    db.PaintTownConfigs.Add(new PaintTownConfig() {PaintTownConfigId =1,  Name = "All-Time", Cell10LockoutTimer = 300, DurationHours = -1, NextReset = nextSaturday });
-        //    db.PaintTownConfigs.Add(new PaintTownConfig() {PaintTownConfigId =2, Name = "Weekly", Cell10LockoutTimer = 300, DurationHours = 168, NextReset = nextSaturday });
-
-        //    //PaintTheTown requires dummy entries in the playerData table, or it doesn't know which factions exist. It's faster to do this once here than to check on every call to playerData
-        //    foreach (var faction in Singletons.defaultFaction)
-        //    {
-        //        GenericData.SetPlayerData("dummy", "FactionId", faction.FactionId.ToString());
-        //    }
-        //    db.SaveChanges();
-        //}
     }
 }
 
