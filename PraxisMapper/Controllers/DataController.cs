@@ -67,14 +67,14 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/SetElementData/{elementId}/{key}/{value}")]
-        public bool SetStoredElementData(long elementId, string key, string value)
+        public bool SetStoredElementData(Guid elementId, string key, string value)
         {
             return GenericData.SetStoredElementData(elementId, key, value);
         }
 
         [HttpGet]
         [Route("/[controller]/GetElementData/{elementId}/{key}")]
-        public string GetElementData(long elementId, string key)
+        public string GetElementData(Guid elementId, string key)
         {
             return GenericData.GetElementData(elementId, key);
         }
@@ -107,11 +107,11 @@ namespace PraxisMapper.Controllers
         //}
 
         [HttpGet]
-        [Route("/[controller]/GetAllDataInOsmElement/{elementId}/{elementType}")]
-        public string GetAllDataInOsmElement(Guid elementId, int elementType)
+        [Route("/[controller]/GetAllDataInOsmElement/{elementId}/")]
+        public string GetAllDataInOsmElement(Guid elementId)
 
         {
-            var data = GenericData.GetAllDataInPlace(elementId, elementType);
+            var data = GenericData.GetAllDataInPlace(elementId);
             StringBuilder sb = new StringBuilder();
             foreach (var d in data)
                 sb.Append(d.elementId).Append("|").Append(d.key).Append("|").AppendLine(d.value);
@@ -187,7 +187,7 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/IncrementStoredElementData/{elementId}/{key}/{changeAmount}")]
-        public void IncrementStoredElementData(long elementId, string key, double changeAmount)
+        public void IncrementStoredElementData(Guid elementId, string key, double changeAmount)
         {
             lock (storedElementIncrementLock)
             {

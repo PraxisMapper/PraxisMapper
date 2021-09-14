@@ -15,6 +15,6 @@ namespace CoreComponents.Support
     public record CompletePaintOp(Geometry elementGeometry, double areaSize, TagParserPaint paintOp, string tagValue);
 
     public record CustomDataResult(string plusCode, string key, string value);
-    public record CustomDataAreaResult(long elementId, string key, string value);
+    public record CustomDataAreaResult(Guid elementId, string key, string value);
 
 }

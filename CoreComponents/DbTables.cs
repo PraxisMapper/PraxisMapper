@@ -285,8 +285,9 @@ namespace CoreComponents
         public class CustomDataOsmElement
         {
             //for storing collection data server-side per existing map area. Join on that table to get geometry area.
-            public long id { get; set; }
+            public long id { get; set; } //internal primary key
             public long StoredOsmElementId { get; set; } //might not be necessary?
+            public Guid privacyId { get; set; } //This should be exposed and used to help block users from attaching players to locations.
             public StoredOsmElement storedOsmElement { get; set; }
             public string dataKey { get; set; }
             public string dataValue { get; set; }
