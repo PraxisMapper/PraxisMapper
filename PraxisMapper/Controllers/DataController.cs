@@ -36,7 +36,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/SetPlusCodeData/{plusCode}/{key}/{value}")]
         public bool SetPlusCodeData(string plusCode, string key, string value)
         {
-            if (!BoundsCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
+            if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return false;
             return GenericData.SetPlusCodeData(plusCode, key, value);
         }
@@ -45,7 +45,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/GetPlusCodeData/{plusCode}/{key}")]
         public string GetPlusCodeData(string plusCode, string key)
         {
-            if (!BoundsCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
+            if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return "";
             return GenericData.GetPlusCodeData(plusCode, key);
         }
@@ -83,7 +83,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/GetAllDataInPlusCode/{plusCode}")]
         public string GetAllDataInPlusCode(string plusCode)
         {
-            if (!BoundsCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
+            if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return "";
             var data = GenericData.GetAllDataInPlusCode(plusCode);
             StringBuilder sb = new StringBuilder();
@@ -93,9 +93,23 @@ namespace PraxisMapper.Controllers
             return sb.ToString();
         }
 
+        //[HttpGet]
+        //[Route("/[controller]/GetAllDataInOsmElement/{elementId}/{elementType}")]
+        //public string GetAllDataInOsmElement(long elementId, int elementType)
+
+        //{
+        //    var data = GenericData.GetAllDataInPlace(elementId, elementType);
+        //    StringBuilder sb = new StringBuilder();
+        //    foreach (var d in data)
+        //        sb.Append(d.elementId).Append("|").Append(d.key).Append("|").AppendLine(d.value);
+
+        //    return sb.ToString();
+        //}
+
         [HttpGet]
         [Route("/[controller]/GetAllDataInOsmElement/{elementId}/{elementType}")]
-        public string GetAllDataInOsmElement(long elementId, int elementType)
+        public string GetAllDataInOsmElement(Guid elementId, int elementType)
+
         {
             var data = GenericData.GetAllDataInPlace(elementId, elementType);
             StringBuilder sb = new StringBuilder();
@@ -159,7 +173,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/IncrementPlusCodeData/{plusCode}/{key}/{changeAmount}")]
         public void IncrementPlusCodeData(string plusCode, string key, double changeAmount)
         {
-            if (!BoundsCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
+            if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return;
             lock (plusCodeIncrementLock)
             {
@@ -192,7 +206,7 @@ namespace PraxisMapper.Controllers
             //This function returns 1 line per Cell10, the smallest (and therefore highest priority) item intersecting that cell10.
             PerformanceTracker pt = new PerformanceTracker("GetPlusCodeTerrainData");
             GeoArea box = OpenLocationCode.DecodeValid(plusCode);
-            if (!BoundsCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), box))
+            if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), box))
                 return "";            
             var places = GetPlaces(box); 
 
@@ -214,7 +228,7 @@ namespace PraxisMapper.Controllers
             //This function returns 1 line per Cell10 per intersecting element. For an app that needs to know all things in all points.
             PerformanceTracker pt = new PerformanceTracker("GetPlusCodeTerrainDataFull");
             GeoArea box = OpenLocationCode.DecodeValid(plusCode);
-            if (!BoundsCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), box))
+            if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), box))
                 return "";
             var places = GetPlaces(box); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")  //All the places in this Cell8
 
@@ -232,7 +246,7 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/GetScoreForArea/{elementId}")]
-        public long GetScoreForArea(long elementId)
+        public long GetScoreForArea(Guid elementId)
         {
             return ScoreData.GetScoreForSinglePlace(elementId);
         }

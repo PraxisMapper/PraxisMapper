@@ -168,9 +168,9 @@ namespace CoreComponents
         //because the TagParser will determine it on-demand instead of storing changeable data.
         public class StoredOsmElement
         {
-            public long id { get; set; }
+            public long id { get; set; } //Internal primary key, don't pass this to clients.
             public string name { get; set; }
-            public long sourceItemID { get; set; }
+            public long sourceItemID { get; set; } //Try to use PrivacyId instead of this where possible to avoid connecting players to locations.
             public int sourceItemType { get; set; } //1: node, 2: way, 3: relation
             [Column(TypeName = "geography")]
             [Required]
@@ -183,6 +183,7 @@ namespace CoreComponents
             //public double LineLength { get; set; } //For sorting purposes. Only applies to lines.
             public bool IsGenerated { get; set; } //Was auto-generated for spaces devoid of IsGameElement areas to interact with. assumed IsGameElement is true. SourceItemId will be set to some magic value plus an increment.
             public bool IsUserProvided { get; set; } //A user created/uploaded this area. SourceItemId will be set to some magic value plus an increment.
+            public Guid privacyId { get; set; } = new Guid(); //Pass this Id to clients, so we can attempt to block attaching players to locations in the DB.
             public override string ToString()
             {
                 return (sourceItemType == 3 ? "Relation " : sourceItemType == 2 ? "Way " : "Node ") +  sourceItemID.ToString() + ":" + name;

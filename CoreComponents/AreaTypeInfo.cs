@@ -30,7 +30,7 @@ namespace CoreComponents
             //var entries = SortGameElements(entriesHere); //If I want all of them, I don't care as much about sorting.
             var results = new List<TerrainData>();
             foreach (var e in entriesHere)
-                results.Add(new TerrainData() { Name = e.name, areaType = e.GameElementName, StoredOsmElementId = e.id});
+                results.Add(new TerrainData() { Name = e.name, areaType = e.GameElementName, StoredOsmElementId = e.privacyId }); //e.id
             return results;
         }
 
@@ -40,7 +40,7 @@ namespace CoreComponents
             //This one only returns the smallest entry, for games that only need to check the most interesting area in a cell.
             //var entry = SortGameElements(entriesHere).First(); //Entries should already be sorted biggest to smallest, so just get the last one.
             var entry = entriesHere.Last();
-            return new TerrainData() { Name = entry.name, areaType = entry.GameElementName, StoredOsmElementId = entry.id };
+            return new TerrainData() { Name = entry.name, areaType = entry.GameElementName, StoredOsmElementId = entry.privacyId };
         }
 
         public static Dictionary<string, TerrainData> SearchArea(ref GeoArea area, ref List<StoredOsmElement> elements)

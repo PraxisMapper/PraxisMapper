@@ -193,6 +193,7 @@ namespace CoreComponents
         public static string LoadDataOnPlace(long id)
         {
             //Debugging helper call. Loads up some information on an area and display it.
+            //Not currently used anywhere.
             var db = new PraxisContext();
             var entries = db.StoredOsmElements.Where(m => m.id == id || m.sourceItemID == id).ToList();
             string results = "";

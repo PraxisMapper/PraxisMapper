@@ -17,18 +17,6 @@ namespace PraxisMapper
         public static void Main(string[] args)
         {
             var host = CreateHostBuilder(args).Build();
-
-            //Let's save some stuff to the cache.
-            var cache = host.Services.GetRequiredService<IMemoryCache>();
-            var db = new PraxisContext();
-            var serverSettings = db.ServerSettings.FirstOrDefault();
-            cache.Set("ServerSettings", serverSettings);
-            cache.Set("caching", serverSettings.enableMapTileCaching); //convenience entry
-            //var factions = db.Factions.ToList();
-            //cache.Set("Factions", factions);
-            //Set configured Slippy Map tile size
-            MapTiles.MapTileSizeSquare = serverSettings.SlippyMapTileSizeSquare;
-
             host.Run();
         }
 

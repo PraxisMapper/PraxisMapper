@@ -20,12 +20,12 @@ namespace CoreComponents
             //Determines the Scores for the Places, limited to the intersection of the current Area. 1 Cell10 = 1 Score.
             //EX: if a park overlaps 800 Cell10s, but the current area overlaps 250 of them, this returns 250 for that park.
             //Lists each Place and its corresponding Score.
-            List<Tuple<string, long, long>> areaSizes = new List<Tuple<string, long, long>>();
+            List<Tuple<string, long, Guid>> areaSizes = new List<Tuple<string, long, Guid>>();
             foreach (var md in places)
             {
                 var containedArea = md.elementGeometry.Intersection(areaPoly);
                 var areaCell10Count = GetScoreForSinglePlace(containedArea);
-                areaSizes.Add(new Tuple<string, long, long>(md.name, areaCell10Count, md.sourceItemID));
+                areaSizes.Add(new Tuple<string, long, Guid>(md.name, areaCell10Count, md.privacyId));
             }
             return string.Join(Environment.NewLine, areaSizes.Select(a => a.Item1 + "|" + a.Item2 + "|" + a.Item3));
         }
@@ -67,10 +67,10 @@ namespace CoreComponents
             return containedAreaCell10Count;
         }
 
-        public static long GetScoreForSinglePlace(long elementId)
+        public static long GetScoreForSinglePlace(Guid elementId)
         {
             var db = new PraxisContext();
-            var place = db.StoredOsmElements.Where(e => e.id == elementId).Select(e => e.elementGeometry).FirstOrDefault();
+            var place = db.StoredOsmElements.Where(e => e.privacyId == elementId).Select(e => e.elementGeometry).FirstOrDefault();
             return GetScoreForSinglePlace(place);
         }
 
