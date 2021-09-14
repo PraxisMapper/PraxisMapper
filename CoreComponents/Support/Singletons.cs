@@ -22,14 +22,15 @@ namespace CoreComponents
             //TODO: more shapes, ideally more interesting than simple polygons? Star? Heart? Arc?
         };
 
-        public static List<Faction> defaultFaction = new List<Faction>()
-        {
-            new Faction() { FactionId = 1,  HtmlColor = "FF000088", Name = "Red Team" },
-            new Faction() { FactionId = 2, HtmlColor = "00FF0088", Name = "Green Team" },
-            new Faction() { FactionId = 3, HtmlColor = "87CEEB88", Name = "Blue Team" }, //Sky blue, versus deep blue that matches Water elements.
-        };
 
-        public static ILookup<long, string> teamColorReferenceLookupSkia = defaultFaction.ToLookup(k => k.FactionId, v => v.HtmlColor.Substring(6, 2) + v.HtmlColor.Substring(0, 6)); //needed to make the Dictionary<> correctly.
+        //public static List<Faction> defaultFaction = new List<Faction>()
+        //{
+        //    new Faction() { FactionId = 1,  HtmlColor = "FF000088", Name = "Red Team" },
+        //    new Faction() { FactionId = 2, HtmlColor = "00FF0088", Name = "Green Team" },
+        //    new Faction() { FactionId = 3, HtmlColor = "87CEEB88", Name = "Blue Team" }, //Sky blue, versus deep blue that matches Water elements.
+        //};
+
+        //public static ILookup<long, string> teamColorReferenceLookupSkia = defaultFaction.ToLookup(k => k.FactionId, v => v.HtmlColor.Substring(6, 2) + v.HtmlColor.Substring(0, 6)); //needed to make the Dictionary<> correctly.
 
 
         //A * value is a wildcard that means any value counts as a match for that key.
