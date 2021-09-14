@@ -53,6 +53,7 @@ namespace PraxisMapper
             app.UseRouting();
 
             app.UsePraxisHeaderCheck();
+            app.UseGlobalErrorHandler();
 
             app.UseEndpoints(endpoints =>
             {
