@@ -66,9 +66,9 @@ namespace PraxisMapper.Controllers
             ViewBag.isUserProvided = area.IsUserProvided;
 
             var geoarea = Converters.GeometryToGeoArea(area.elementGeometry.Envelope);
-            geoarea = new Google.OpenLocationCode.GeoArea(geoarea.SouthLatitude - ConstantValues.resolutionCell10, 
+            geoarea = new Google.OpenLocationCode.GeoArea(geoarea.SouthLatitude - ConstantValues.resolutionCell10,
                 geoarea.WestLongitude - ConstantValues.resolutionCell10,
-                geoarea.NorthLatitude + ConstantValues.resolutionCell10, 
+                geoarea.NorthLatitude + ConstantValues.resolutionCell10,
                 geoarea.EastLongitude + ConstantValues.resolutionCell10); //add some padding to the edges.
             ImageStats istats = new ImageStats(geoarea, (int)(geoarea.LongitudeWidth / ConstantValues.resolutionCell11Lon), (int)(geoarea.LatitudeHeight / ConstantValues.resolutionCell11Lat));
 
@@ -101,6 +101,17 @@ namespace PraxisMapper.Controllers
             ViewBag.areasByType = areasByType;
 
             return View();
+        }
+
+        [Route("/[controller]/GetAreaInfo/{privacyId}/")]
+        public ActionResult GetAreaInfo(Guid privacyId)
+        {
+            var db = new PraxisContext();
+            var area = db.StoredOsmElements.Include(e => e.Tags).Where(e => e.privacyId == privacyId).FirstOrDefault();
+            if (area != null)
+                return GetAreaInfo(area.sourceItemID, area.sourceItemType);
+
+            return null;
         }
     }
 }

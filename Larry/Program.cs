@@ -536,8 +536,6 @@ namespace Larry
 
                 buffered = Converters.GeometryToGeoArea(fullArea.elementGeometry);
                 //This should also be able to take a bounding box in addition in the future.
-                if (relationID == 350381)
-                    buffered = new GeoArea(41.27401, -81.97301, 41.6763, -81.3665); //A smaller box that doesn't cross half the lake.
             }
             else
                 buffered = bounds;

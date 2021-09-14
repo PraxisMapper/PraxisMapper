@@ -10,6 +10,9 @@ namespace CoreComponents
         public static bool SetPlusCodeData(string plusCode, string key, string value, DateTime? expiration = null)
         {
             var db = new PraxisContext();
+            if (db.PlayerData.Any(p => p.deviceID == key || p.deviceID == value))
+                return false;
+
             //An upsert command would be great here, but I dont think the entities do that.
             var row = db.CustomDataPlusCodes.Where(p => p.PlusCode == plusCode && p.dataKey == key).FirstOrDefault();
             if (row == null)
@@ -38,6 +41,8 @@ namespace CoreComponents
         public static bool SetStoredElementData(long elementId, string key, string value, DateTime? expiration = null)
         {
             var db = new PraxisContext();
+            if (db.PlayerData.Any(p => p.deviceID == key || p.deviceID == value))
+                return false;
             //An upsert command would be great here, but I dont think the entities do that.
             var row = db.CustomDataOsmElements.Where(p => p.StoredOsmElementId == elementId && p.dataKey == key).FirstOrDefault();
             if (row == null)
@@ -73,7 +78,15 @@ namespace CoreComponents
 
         public static bool SetPlayerData(string playerId, string key, string value, DateTime? expiration = null)
         {
+            if (DataCheck.IsPlusCode(key) || DataCheck.IsPlusCode(value))
+                return false; //Reject attaching a player to a pluscode.
+
             var db = new PraxisContext();
+            Guid tempCheck = new Guid();
+            if ((Guid.TryParse(key, out tempCheck) && db.StoredOsmElements.Any(osm => osm.privacyId == tempCheck)) 
+                || (Guid.TryParse(value, out tempCheck) && db.StoredOsmElements.Any(osm => osm.privacyId == tempCheck)))
+                return false; //reject attaching a player to an area
+
             //An upsert command would be great here, but I dont think the entities do that.
             var row = db.PlayerData.Where(p => p.deviceID == playerId && p.dataKey == key).FirstOrDefault();
             if (row == null)
@@ -120,10 +133,19 @@ namespace CoreComponents
             return data;
         }
 
-        public static List<CustomDataAreaResult> GetAllDataInPlace(long elementId, int elementType)
+        //public static List<CustomDataAreaResult> GetAllDataInPlace(long elementId, int elementType)
+        //{
+        //    var db = new PraxisContext();
+        //    var place = db.StoredOsmElements.Where(s => s.id == elementId && s.sourceItemType == elementType).First();
+        //    var data = db.CustomDataOsmElements.Where(d => place.elementGeometry.Intersects(d.storedOsmElement.elementGeometry)).Select(d => new CustomDataAreaResult(d.StoredOsmElementId, d.dataKey, d.dataValue)).ToList();
+
+        //    return data;
+        //}
+
+        public static List<CustomDataAreaResult> GetAllDataInPlace(Guid elementId, int elementType)
         {
             var db = new PraxisContext();
-            var place = db.StoredOsmElements.Where(s => s.id == elementId && s.sourceItemType == elementType).First();
+            var place = db.StoredOsmElements.Where(s => s.privacyId == elementId && s.sourceItemType == elementType).First();
             var data = db.CustomDataOsmElements.Where(d => place.elementGeometry.Intersects(d.storedOsmElement.elementGeometry)).Select(d => new CustomDataAreaResult(d.StoredOsmElementId, d.dataKey, d.dataValue)).ToList();
 
             return data;
@@ -141,7 +163,24 @@ namespace CoreComponents
 
         public static bool SetGlobalData(string key, string value)
         {
+            bool trackingPlayer = false;
+            bool trackingLocation = false;
+
             var db = new PraxisContext();
+            if (db.PlayerData.Any(p => p.deviceID == key || p.deviceID == value))
+                trackingPlayer = true;
+
+            if (DataCheck.IsPlusCode(key) || DataCheck.IsPlusCode(value))
+                trackingLocation = true;
+
+            Guid tempCheck = new Guid();
+            if ((Guid.TryParse(key, out tempCheck) && db.StoredOsmElements.Any(osm => osm.privacyId == tempCheck))
+                || (Guid.TryParse(value, out tempCheck) && db.StoredOsmElements.Any(osm => osm.privacyId == tempCheck)))
+                trackingLocation = true;
+
+            if (trackingLocation && trackingPlayer) //Do not allow players and locations to be attached on the global level as a workaround to being blocked on the individual levels.
+                return false;
+
             var row = db.GlobalDataEntries.Where(p => p.dataKey == key).FirstOrDefault();
             if (row == null)
             {

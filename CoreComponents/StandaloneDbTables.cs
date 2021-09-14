@@ -27,7 +27,7 @@ namespace CoreComponents
             public string Name { get; set; }
             public string areaType { get; set; } //the game element name
             //These column(s) are used by MapDataController.LearnCell8, so they stay, even though I'm not using them in the self contained DB.
-            public long StoredOsmElementId { get; set; } //Might be irrelevant on self-contained DB 
+            public Guid StoredOsmElementId { get; set; } //Might be irrelevant on self-contained DB. Matches PrivacyId in main DB
             //public long OsmElementType { get; set; } //Could be unnecessary on the standalone DB.
 
             public override string ToString()
