@@ -47,15 +47,6 @@ namespace CoreComponents
             public Geometry areaCovered { get; set; } //This lets us find and expire map tiles if the data under them changes.
         }
 
-        public class Faction
-        {
-            //TODO: this table should be removed from CoreComponents, moved to implementation specific location.
-            public long FactionId { get; set; }
-            public string Name { get; set; }
-            public string HtmlColor { get; set; } //Should be transparent, so this can be overlaid on top of the normal map tile.
-            public string TeamColorTag {get;set;} //name used to ID ownership in GenericData calls.
-        }
-
         public class ErrorLog
         {
             public int ErrorLogId { get; set; }

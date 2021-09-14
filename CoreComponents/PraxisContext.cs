@@ -10,7 +10,6 @@ namespace CoreComponents
         public DbSet<PerformanceInfo> PerformanceInfo { get; set; }
         public DbSet<MapTile> MapTiles { get; set; }
         public DbSet<SlippyMapTile> SlippyMapTiles { get; set; }
-        public DbSet<Faction> Factions { get; set; }
         public DbSet<ErrorLog> ErrorLogs { get; set; }
         public DbSet<ServerSetting> ServerSettings { get; set; }
         public DbSet<TileTracking> TileTrackings { get; set; }
@@ -75,6 +74,7 @@ namespace CoreComponents
 
             model.Entity<CustomDataOsmElement>().HasIndex(m => m.dataKey);
             model.Entity<CustomDataOsmElement>().HasIndex(m => m.StoredOsmElementId);
+            model.Entity<CustomDataOsmElement>().HasIndex(m => m.privacyId);
 
             model.Entity<CustomDataPlusCode>().HasIndex(m => m.dataKey);
             model.Entity<CustomDataPlusCode>().HasIndex(m => m.PlusCode);
@@ -140,27 +140,27 @@ namespace CoreComponents
             }
 
             InsertDefaultServerConfig();
-            InsertDefaultFactionsToDb();
+            //InsertDefaultFactionsToDb();
             InsertDefaultStyle();
         }
 
-        public static void InsertDefaultFactionsToDb()
-        {
-            var db = new PraxisContext();
+        //public static void InsertDefaultFactionsToDb()
+        //{
+        //    var db = new PraxisContext();
 
-            if (serverMode == "SQLServer")
-            {
-                db.Database.BeginTransaction();
-                db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Factions ON;");
-            }
-            db.Factions.AddRange(Singletons.defaultFaction);
-            db.SaveChanges();
-            if (serverMode == "SQLServer")
-            {
-                db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Factions OFF;");
-                db.Database.CommitTransaction();
-            }
-        }
+        //    if (serverMode == "SQLServer")
+        //    {
+        //        //db.Database.BeginTransaction();
+        //        //db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Factions ON;");
+        //    }
+        //    //db.Factions.AddRange(Singletons.defaultFaction);
+        //    db.SaveChanges();
+        //    if (serverMode == "SQLServer")
+        //    {
+        //        //db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Factions OFF;");
+        //        //db.Database.CommitTransaction();
+        //    }
+        //}
 
         public static void InsertDefaultServerConfig()
         {
