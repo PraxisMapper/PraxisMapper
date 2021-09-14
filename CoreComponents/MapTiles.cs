@@ -977,7 +977,7 @@ namespace CoreComponents
                 });
                 db.MapTiles.AddRange(tilesToSave);
                 db.SaveChanges();
-                Log.WriteLog(mapTileCounter + " tiles processed, " + Math.Round((mapTileCounter / totalTiles) * 100, 2) + "% complete");
+                Log.WriteLog(mapTileCounter + " tiles processed, " + Math.Round((mapTileCounter / totalTiles) * 100, 2) + "% complete, " + Math.Round(mapTileCounter / progressTimer.Elapsed.TotalSeconds, 2) + " tiles per second.");
 
             }//);
             progressTimer.Stop();

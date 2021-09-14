@@ -1248,7 +1248,7 @@ namespace PerformanceTestApp
             var allTiles = db.SlippyMapTiles.ToList();
             sw.Stop();
             Log.WriteLog("All tiles loaded from DB in " + sw.Elapsed);
-            var randomTileArea = allTiles.OrderBy(t => new Guid()).First().areaCovered; //To use for checking the index.
+            var randomTileArea = allTiles.OrderBy(t => Guid.NewGuid()).First().areaCovered; //To use for checking the index.
             sw.Restart();
             var allTiles2 = db.SlippyMapTiles.ToList();
             Log.WriteLog("All Tiles pulled again while in RAM in: " + sw.Elapsed);
