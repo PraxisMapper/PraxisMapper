@@ -13,18 +13,13 @@ namespace CoreComponents
         public DbSet<ErrorLog> ErrorLogs { get; set; }
         public DbSet<ServerSetting> ServerSettings { get; set; }
         public DbSet<TileTracking> TileTrackings { get; set; }
-        public DbSet<ZztGame> ZztGames { get; set; }
-        public DbSet<GamesBeaten> GamesBeaten { get; set; }
+        //public DbSet<ZztGame> ZztGames { get; set; }
+        //public DbSet<GamesBeaten> GamesBeaten { get; set; }
         public DbSet<StoredOsmElement> StoredOsmElements { get; set; }
         public DbSet<TagParserEntry> TagParserEntries { get; set; }
         public DbSet<TagParserMatchRule> TagParserMatchRules { get; set; }
         public DbSet<TagParserPaint> TagParserPaints { get; set; }
-
         public DbSet<ElementTags> ElementTags { get; set; } //This table is exposed so I can search it directly faster.
-
-        public DbSet<ScavengerHunt> scavengerHunts { get; set; } //Should become custom data
-        public DbSet<ScavengerHuntEntry> scavengerHuntEntries { get; set; } //should become custom data.
-
         public DbSet<CustomDataOsmElement> CustomDataOsmElements { get; set; }
         public DbSet<CustomDataPlusCode> CustomDataPlusCodes { get; set; }
         public DbSet<GlobalDataEntries> GlobalDataEntries { get; set; }
