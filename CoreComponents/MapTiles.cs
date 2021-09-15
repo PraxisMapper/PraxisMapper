@@ -274,13 +274,13 @@ namespace CoreComponents
             db.Database.ExecuteSqlRaw(SQL);
         }
 
-        public static void ExpireMapTiles(long elementId, string styleSet = "")
+        public static void ExpireMapTiles(Guid elementId, string styleSet = "")
         {
             //If this would be faster as raw SQL, see function below for a template on how to write that.
             //TODO: test this logic, should be faster but 
             var db = new PraxisContext();
             //MariaDB SQL, should be functional
-            string SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM StoredOsmElements WHERE id = " + elementId + "))";
+            string SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM StoredOsmElements WHERE privacyId = '" + elementId + "'))";
             db.Database.ExecuteSqlRaw(SQL);
         }
 

@@ -493,7 +493,7 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/ExpireTiles/{elementId}/{styleSet}")]
-        public void ExpireTiles(long elementId, string styleSet)
+        public void ExpireTiles(Guid elementId, string styleSet)
         {
             MapTiles.ExpireMapTiles(elementId, styleSet);
         }
