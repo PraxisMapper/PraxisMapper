@@ -91,7 +91,7 @@ namespace CoreComponents
         public static string GetElementData(Guid elementId, string key)
         {
             var db = new PraxisContext();
-            var row = db.CustomDataOsmElements.Where(p => p.storedOsmElement.privacyId == elementId && p.dataKey == key).FirstOrDefault();
+            var row = db.CustomDataOsmElements.Include(p => p.storedOsmElement).Where(p => p.storedOsmElement.privacyId == elementId && p.dataKey == key).FirstOrDefault();
             if (row == null || row.expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
                 return "";
             return row.dataValue;
@@ -193,10 +193,10 @@ namespace CoreComponents
         {
             var db = new PraxisContext();
             var poly = Converters.GeoAreaToPolygon(area);
-            var data = db.CustomDataOsmElements.Where(d => poly.Intersects(d.storedOsmElement.elementGeometry))
+            var data = db.CustomDataOsmElements.Include(d => d.storedOsmElement).Where(d => poly.Intersects(d.storedOsmElement.elementGeometry))
                 .ToList() //Required to run the next Where on the C# side
                 .Where(row => row.expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
-                .Select(d => new CustomDataAreaResult(d.privacyId, d.dataKey, d.dataValue))
+                .Select(d => new CustomDataAreaResult(d.storedOsmElement.privacyId, d.dataKey, d.dataValue))
                 .ToList();
 
             return data;
@@ -223,7 +223,7 @@ namespace CoreComponents
             var data = db.CustomDataOsmElements.Where(d => d.storedOsmElement.elementGeometry.Intersects(d.storedOsmElement.elementGeometry))
                 .ToList() //Required to run the next Where on the C# side
                 .Where(row => row.expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
-                .Select(d => new CustomDataAreaResult(d.privacyId, d.dataKey, d.dataValue))
+                .Select(d => new CustomDataAreaResult(place.privacyId, d.dataKey, d.dataValue))
                 .ToList();
 
             return data;
