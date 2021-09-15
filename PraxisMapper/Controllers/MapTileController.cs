@@ -449,7 +449,7 @@ namespace PraxisMapper.Controllers
             {
                 PerformanceTracker pt = new PerformanceTracker("DrawPlusCodeCustomElements");
                 if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(code)))
-                    return null;
+                    return File(new byte[0], "text/text");
                 code = code.ToUpper();
                 string tileKey = code + "|" + styleSet + "|" + dataKey;
                 var db = new PraxisContext();

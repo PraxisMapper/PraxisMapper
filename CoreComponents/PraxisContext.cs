@@ -69,7 +69,7 @@ namespace CoreComponents
 
             model.Entity<CustomDataOsmElement>().HasIndex(m => m.dataKey);
             model.Entity<CustomDataOsmElement>().HasIndex(m => m.StoredOsmElementId);
-            model.Entity<CustomDataOsmElement>().HasIndex(m => m.privacyId);
+            //model.Entity<CustomDataOsmElement>().HasIndex(m => m.privacyId);
 
             model.Entity<CustomDataPlusCode>().HasIndex(m => m.dataKey);
             model.Entity<CustomDataPlusCode>().HasIndex(m => m.PlusCode);
