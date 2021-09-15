@@ -1,4 +1,9 @@
 ﻿
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using System.Linq;
+using System.Threading.Tasks;
+
 namespace PraxisMapper.Classes;
 public class PraxisHeaderCheck
 {

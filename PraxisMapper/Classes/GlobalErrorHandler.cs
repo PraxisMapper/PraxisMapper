@@ -1,4 +1,9 @@
-﻿namespace PraxisMapper.Classes
+﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using System;
+using System.Threading.Tasks;
+
+namespace PraxisMapper.Classes
 {
     public class ErrorHandlerMiddleware
     {

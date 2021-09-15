@@ -9,6 +9,11 @@ using System.Text;
 using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Prepared;
+using System.IO;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using System.Linq;
 
 namespace CoreComponents.PbfReader
 {

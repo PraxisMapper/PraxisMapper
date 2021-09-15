@@ -14,6 +14,7 @@ using OsmSharp.API;
 using System.Xml.Schema;
 using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
+using System.Threading.Tasks;
 
 namespace CoreComponents
 {
