@@ -1,5 +1,6 @@
 ﻿using CoreComponents.Support;
 using Google.OpenLocationCode;
+using Microsoft.EntityFrameworkCore;
 
 namespace CoreComponents
 {
@@ -65,12 +66,14 @@ namespace CoreComponents
             if (db.PlayerData.Any(p => p.deviceID == key || p.deviceID == value))
                 return false;
             //An upsert command would be great here, but I dont think the entities do that.
-            var row = db.CustomDataOsmElements.Where(p => p.privacyId == elementId && p.dataKey == key).FirstOrDefault();
+            var row = db.CustomDataOsmElements.Include(p => p.storedOsmElement).Where(p => p.storedOsmElement.privacyId == elementId && p.dataKey == key).FirstOrDefault();
             if (row == null)
             {
+                var sourceItem = db.StoredOsmElements.Where(p => p.privacyId == elementId).First();
                 row = new DbTables.CustomDataOsmElement();
                 row.dataKey = key;
-                row.privacyId = elementId;
+                //row.StoredOsmElementId = sourceItem.id;
+                row.storedOsmElement = sourceItem;
                 db.CustomDataOsmElements.Add(row);
             }
             if(expiration != null)
@@ -88,7 +91,7 @@ namespace CoreComponents
         public static string GetElementData(Guid elementId, string key)
         {
             var db = new PraxisContext();
-            var row = db.CustomDataOsmElements.Where(p => p.privacyId == elementId && p.dataKey == key).FirstOrDefault();
+            var row = db.CustomDataOsmElements.Where(p => p.storedOsmElement.privacyId == elementId && p.dataKey == key).FirstOrDefault();
             if (row == null || row.expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
                 return "";
             return row.dataValue;
