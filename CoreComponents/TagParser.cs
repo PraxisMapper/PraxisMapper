@@ -5,10 +5,10 @@ using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using static CoreComponents.DbTables;
-using static CoreComponents.Singletons;
+using static PraxisCore.DbTables;
+using static PraxisCore.Singletons;
 
-namespace CoreComponents
+namespace PraxisCore
 {
     //NOTE:
     //per https://lists.openstreetmap.org/pipermail/talk/2008-February/023419.html

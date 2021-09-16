@@ -1,4 +1,4 @@
-﻿//using CoreComponents;
+﻿//using PraxisCore;
 //using Google.OpenLocationCode;
 //using Microsoft.AspNetCore.Mvc;
 //using Microsoft.Extensions.Caching.Memory;
@@ -8,10 +8,10 @@
 //using System;
 //using System.Linq;
 //using System.Text;
-//using static CoreComponents.AreaTypeInfo;
-//using static CoreComponents.ConstantValues;
-//using static CoreComponents.Place;
-//using static CoreComponents.ScoreData;
+//using static PraxisCore.AreaTypeInfo;
+//using static PraxisCore.ConstantValues;
+//using static PraxisCore.Place;
+//using static PraxisCore.ScoreData;
 
 //namespace PraxisMapper.Controllers
 //{

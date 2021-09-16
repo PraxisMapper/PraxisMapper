@@ -1,4 +1,4 @@
-﻿using CoreComponents.Support;
+﻿using PraxisCore.Support;
 using NetTopologySuite.Geometries;
 using OsmSharp;
 using System;
@@ -6,11 +6,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
-using static CoreComponents.ConstantValues;
-using static CoreComponents.DbTables;
-using static CoreComponents.Singletons;
+using static PraxisCore.ConstantValues;
+using static PraxisCore.DbTables;
+using static PraxisCore.Singletons;
 
-namespace CoreComponents
+namespace PraxisCore
 {
     public static class GeometrySupport
     {
@@ -171,8 +171,8 @@ namespace CoreComponents
         {
             if (md != null) //null can be returned from the functions that convert OSM entries to StoredElement
             {
-                var recordVersion = new CoreComponents.Support.StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement,md.IsUserProvided, md.IsGenerated);
-                var test = JsonSerializer.Serialize(recordVersion, typeof(CoreComponents.Support.StoredOsmElementForJson));
+                var recordVersion = new PraxisCore.Support.StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement,md.IsUserProvided, md.IsGenerated);
+                var test = JsonSerializer.Serialize(recordVersion, typeof(PraxisCore.Support.StoredOsmElementForJson));
                 File.AppendAllText(filename, test + Environment.NewLine);
             }
         }

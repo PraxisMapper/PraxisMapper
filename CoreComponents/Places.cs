@@ -1,16 +1,16 @@
-﻿using CoreComponents.Support;
+﻿using PraxisCore.Support;
 using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using static CoreComponents.ConstantValues;
-using static CoreComponents.DbTables;
-using static CoreComponents.GeometrySupport;
-using static CoreComponents.Singletons;
+using static PraxisCore.ConstantValues;
+using static PraxisCore.DbTables;
+using static PraxisCore.GeometrySupport;
+using static PraxisCore.Singletons;
 
-namespace CoreComponents
+namespace PraxisCore
 {
     public static class Place 
     {
@@ -32,7 +32,7 @@ namespace CoreComponents
             if (source == null)
             {
                 var location = Converters.GeoAreaToPolygon(area); //Prepared items don't work on a DB lookup.
-                var db = new CoreComponents.PraxisContext();
+                var db = new PraxisCore.PraxisContext();
                 db.Database.SetCommandTimeout(new TimeSpan(0, 2, 0));
                 if (skipTags) //Should make the load slightly faster if we're parsing existing items that already got tags applied
                 {

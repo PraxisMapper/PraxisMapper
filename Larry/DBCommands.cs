@@ -1,9 +1,9 @@
-﻿using CoreComponents;
+﻿using PraxisCore;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using static CoreComponents.ConstantValues;
+using static PraxisCore.ConstantValues;
 
 namespace Larry
 {

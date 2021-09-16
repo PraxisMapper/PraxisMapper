@@ -1,11 +1,11 @@
-﻿using CoreComponents.Support;
+﻿using PraxisCore.Support;
 using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace CoreComponents
+namespace PraxisCore
 {
     //Handles read/write for the generic area/player/global data tables.
     public static class GenericData

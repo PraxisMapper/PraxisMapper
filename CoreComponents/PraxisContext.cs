@@ -1,8 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System;
-using static CoreComponents.DbTables;
+using static PraxisCore.DbTables;
 
-namespace CoreComponents
+namespace PraxisCore
 {
     public class PraxisContext : DbContext
     {

@@ -1,13 +1,13 @@
-﻿using CoreComponents.Support;
+﻿using PraxisCore.Support;
 using Google.OpenLocationCode;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Prepared;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using static CoreComponents.Singletons;
+using static PraxisCore.Singletons;
 
-namespace CoreComponents
+namespace PraxisCore
 {
     public static class Converters
     {
@@ -60,7 +60,7 @@ namespace CoreComponents
             return points;
         }
 
-        public static SkiaSharp.SKPoint PlaceInfoToSKPoint(CoreComponents.StandaloneDbTables.PlaceInfo2 pi, ImageStats imgstats)
+        public static SkiaSharp.SKPoint PlaceInfoToSKPoint(PraxisCore.StandaloneDbTables.PlaceInfo2 pi, ImageStats imgstats)
         {
             SkiaSharp.SKPoint point = new SkiaSharp.SKPoint();
             point.X = (float)((pi.lonCenter - imgstats.area.WestLongitude) * (1 / imgstats.degreesPerPixelX));
@@ -68,7 +68,7 @@ namespace CoreComponents
             return point;
         }
 
-        public static SkiaSharp.SKPoint[] PlaceInfoToSKPoints(CoreComponents.StandaloneDbTables.PlaceInfo2 pi, ImageStats info)
+        public static SkiaSharp.SKPoint[] PlaceInfoToSKPoints(PraxisCore.StandaloneDbTables.PlaceInfo2 pi, ImageStats info)
         {
             float heightMod = (float)pi.height / 2;
             float widthMod = (float)pi.width / 2;
@@ -85,7 +85,7 @@ namespace CoreComponents
             return points;
         }
 
-        public static SkiaSharp.SKRect PlaceInfoToRect(CoreComponents.StandaloneDbTables.PlaceInfo2 pi, ImageStats info)
+        public static SkiaSharp.SKRect PlaceInfoToRect(PraxisCore.StandaloneDbTables.PlaceInfo2 pi, ImageStats info)
         {
             SkiaSharp.SKRect r = new SkiaSharp.SKRect();
             float heightMod = (float)pi.height / 2;

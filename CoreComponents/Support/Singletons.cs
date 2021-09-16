@@ -3,9 +3,9 @@ using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Prepared;
 using System.Collections.Generic;
 using System.Linq;
-using static CoreComponents.DbTables;
+using static PraxisCore.DbTables;
 
-namespace CoreComponents
+namespace PraxisCore
 {
     public static class Singletons
     {

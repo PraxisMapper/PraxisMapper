@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using CoreComponents;
+using PraxisCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;

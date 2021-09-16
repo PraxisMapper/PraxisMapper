@@ -35,10 +35,10 @@ using System.Linq;
 using OsmSharp.Geo;
 using OsmSharp;
 using ProtoBuf.Serializers;
-using static CoreComponents.Singletons;
+using static PraxisCore.Singletons;
 using System.Reflection.Metadata.Ecma335;
 
-namespace CoreComponents
+namespace PraxisCore
 {
     /// <summary>
     /// The default feature interpreter.

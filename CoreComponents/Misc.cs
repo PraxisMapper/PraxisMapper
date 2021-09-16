@@ -1,9 +1,9 @@
 ﻿using SkiaSharp;
 using System;
 using System.Linq;
-using static CoreComponents.DbTables;
+using static PraxisCore.DbTables;
 
-namespace CoreComponents
+namespace PraxisCore
 {
     public class Misc
     {

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
-namespace CoreComponents
+namespace PraxisCore
 {
     //A bunch of exention methods I find useful.
     public static class Extensions

@@ -1,5 +1,5 @@
-﻿using CoreComponents;
-using CoreComponents.Support;
+﻿using PraxisCore;
+using PraxisCore.Support;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PraxisMapper.Classes;
@@ -44,7 +44,7 @@ namespace PraxisMapper.Controllers
             var tile = MapTiles.DrawAreaAtSize(istats);
             sw.Stop();
 
-            ViewBag.placeCount = CoreComponents.Place.GetPlaces(istats.area).Count();
+            ViewBag.placeCount = PraxisCore.Place.GetPlaces(istats.area).Count();
             ViewBag.timeToDraw = sw.Elapsed.ToString();
             ViewBag.imageString = "data:image/png;base64," + Convert.ToBase64String(tile);
 
@@ -91,7 +91,7 @@ namespace PraxisMapper.Controllers
             ViewBag.timeToDraw = sw.Elapsed;
             ViewBag.placeCount = 0;
             ViewBag.areasByType = "";
-            var places = CoreComponents.Place.GetPlaces(istats.area);
+            var places = PraxisCore.Place.GetPlaces(istats.area);
             ViewBag.placeCount = places.Count();
             var grouped = places.GroupBy(p => p.GameElementName);
             string areasByType = "";

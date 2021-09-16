@@ -4,19 +4,19 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using static CoreComponents.ConstantValues;
-using static CoreComponents.DbTables;
-using static CoreComponents.Place;
-using static CoreComponents.Singletons;
+using static PraxisCore.ConstantValues;
+using static PraxisCore.DbTables;
+using static PraxisCore.Place;
+using static PraxisCore.Singletons;
 using SkiaSharp;
-using CoreComponents.Support;
+using PraxisCore.Support;
 using OsmSharp.API;
 using System.Xml.Schema;
 using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using System.Threading.Tasks;
 
-namespace CoreComponents
+namespace PraxisCore
 {
     public static class MapTiles
     {
@@ -129,7 +129,7 @@ namespace CoreComponents
             strokePaint.TextAlign = SKTextAlign.Center;
             //TagParser.ApplyTags(items);
 
-            var placeInfo = CoreComponents.Standalone.Standalone.GetPlaceInfo(items.Where(i =>
+            var placeInfo = PraxisCore.Standalone.Standalone.GetPlaceInfo(items.Where(i =>
             i.IsGameElement
             ).ToList());
 
