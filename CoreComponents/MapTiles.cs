@@ -1026,7 +1026,7 @@ namespace PraxisCore
                 //foreach (var x in xCoords)
                 {
                     //make map tile.
-                    var info = new ImageStats(zoomLevel, x, y, MapTileSizeSquare, MapTileSizeSquare);
+                    var info = new ImageStats(zoomLevel, x, y, MapTileSizeSquare);
                     var acheck = Converters.GeoAreaToPolygon(info.area); //this is faster than using a PreparedPolygon in testing, which was unexpected.
                     var areaList = rowList.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); //This one is for the maptile
                     

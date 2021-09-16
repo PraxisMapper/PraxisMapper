@@ -47,7 +47,7 @@ namespace PraxisMapper.Controllers
                 if (!useCache || existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
                 {
                     //Create this entry
-                    var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare, MapTiles.MapTileSizeSquare);
+                    var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare);
                     if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
                         return null;
 
@@ -110,7 +110,7 @@ namespace PraxisMapper.Controllers
                 if (!useCache || existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
                 {
                     //Create this entry
-                    var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare, MapTiles.MapTileSizeSquare);
+                    var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare);
                     if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
                         return null;
                     info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
@@ -172,7 +172,7 @@ namespace PraxisMapper.Controllers
                 if (!useCache || existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
                 {
                     //Create this entry
-                    var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare, MapTiles.MapTileSizeSquare);
+                    var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare);
                     if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
                         return null;
                     info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
@@ -234,7 +234,7 @@ namespace PraxisMapper.Controllers
                 if (!useCache || existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
                 {
                     //Create this entry
-                    var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare, MapTiles.MapTileSizeSquare);
+                    var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare);
                     if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
                         return null;
                     info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.

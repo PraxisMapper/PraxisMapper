@@ -10,7 +10,6 @@ namespace PraxisCore.Support
     public class ImageStats
     {
         //a small helper class to calculate and reuse some common calculations
-        //TODO: start passing this into converters to cut down the number of parameters used.
         public int imageSizeX { get; set; }
         public int imageSizeY { get; set; }
         public double degreesPerPixelX { get; set; }
@@ -20,6 +19,13 @@ namespace PraxisCore.Support
 
         public GeoArea area { get; set; }
         
+        /// <summary>
+        /// Creates a new ImageStats for a given GeoArea from a PlusCode to match the defined width and height. 
+        /// Plus Codes are usually rendered at a 4:5 aspect ratio in Praxismapper due to defining a base pixel as an 11-char PlusCode
+        /// </summary>
+        /// <param name="geoArea">Decoded pluscode</param>
+        /// <param name="imageWidth">image width in pixels</param>
+        /// <param name="imageHeight">image height in pixels</param>
         public ImageStats(GeoArea geoArea, int imageWidth, int imageHeight)
         {
             //Pluscode parameters
@@ -31,7 +37,15 @@ namespace PraxisCore.Support
             degreesPerPixelY = area.LatitudeHeight / imageSizeY;
         }
 
-        public ImageStats(int zoomLevel, int xTile, int yTile, int imageWidth, int imageHeight)
+        /// <summary>
+        /// Creates a new ImageStats for a set of SlippyMap parameters. 
+        /// Default slippy tiles are drawn at 512x512 versus the standard 256x256. Setting your Slippymap view's zoom offset to -1 creates an identical experience for the user.
+        /// </summary>
+        /// <param name="zoomLevel">Integer 2-20, per SlippyMap conventions</param>
+        /// <param name="xTile">X coords of the requested tile</param>
+        /// <param name="yTile">Y coords of the requested tile</param>
+        /// <param name="imageSize">Image width in pixels. Usually 512 in PraxisMapper</param>
+        public ImageStats(int zoomLevel, int xTile, int yTile, int imageSize)
         {
             //Slippy map parameters
             var n = Math.Pow(2, zoomLevel);
@@ -50,11 +64,11 @@ namespace PraxisCore.Support
 
             area = new GeoArea(lat_degree_s, lon_degree_w, lat_degree_n, lon_degree_e);
 
-            imageSizeX = imageWidth;
-            imageSizeY = imageHeight;
+            imageSizeX = imageSize;
+            imageSizeY = imageSize;
 
-            degreesPerPixelX = areaWidthDegrees / imageWidth;
-            degreesPerPixelY = areaHeightDegrees / imageHeight;
+            degreesPerPixelX = areaWidthDegrees / imageSize;
+            degreesPerPixelY = areaHeightDegrees / imageSize;
         }
     }
 }

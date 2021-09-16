@@ -11,14 +11,11 @@ namespace PraxisCore
 {
     public static class Converters
     {
-        public static Tuple<double, double, double> ShiftPlusCodeToFlexParams(string plusCode)
-        {
-            //This helper method is necessary if I want to allow arbitrary-sized areas while using PlusCodes at the code, perhaps.
-            //Take a plus code, convert it to the parameters i need for my Flex calls (center lat, center lon, size)
-            GeoArea box = OpenLocationCode.DecodeValid(plusCode);
-            return new Tuple<double, double, double>(box.CenterLatitude, box.CenterLongitude, box.LatitudeHeight); //Plus codes aren't square, so this over-shoots the width.
-        }
-
+        /// <summary>
+        /// Converts a GeoArea into a NTS coordinate array
+        /// </summary>
+        /// <param name="plusCodeArea">The GeoArea to convert</param>
+        /// <returns>a Coordinate array using the GeoArea's boundaries</returns>
         public static Coordinate[] GeoAreaToCoordArray(GeoArea plusCodeArea)
         {
             var cord1 = new Coordinate(plusCodeArea.Min.Longitude, plusCodeArea.Min.Latitude);
@@ -30,16 +27,31 @@ namespace PraxisCore
             return cordSeq;
         }
 
+        /// <summary>
+        /// Converts a GeoArea from a PlusCode into an NTS Polygon. Useful for making PlusCodes work with spatial indexes in a database.
+        /// </summary>
+        /// <param name="plusCodeArea">GeoArea from a PlusCode</param>
+        /// <returns>a Polygon covering the GeoArea provided</returns>
         public static Geometry GeoAreaToPolygon(GeoArea plusCodeArea)
         {
             return factory.CreatePolygon(GeoAreaToCoordArray(plusCodeArea));
         }
 
+        /// <summary>
+        /// Converts a GeoArea from a PlusCode into an NTS PreparedPolygon, ideal for using to test intersections against a list of Geometry objects.
+        /// </summary>
+        /// <param name="plusCodeArea">GeoArea from a PlusCode</param>
+        /// <returns>a PreparedPolygon covering the GeoArea provided.</returns>
         public static IPreparedGeometry GeoAreaToPreparedPolygon(GeoArea plusCodeArea)
         {
             return pgf.Create(GeoAreaToPolygon(plusCodeArea));
         }
 
+        /// <summary>
+        /// Convert an OSMSharp CompleteWay into an array of coordinates. Used by the FeatureInterpreter.
+        /// </summary>
+        /// <param name="w">The CompleteWay to convert</param>
+        /// <returns>An array of coordinate pairs</returns>
         public static Coordinate[] CompleteWayToCoordArray(OsmSharp.Complete.CompleteWay w)
         {
             if (w == null)
@@ -54,6 +66,14 @@ namespace PraxisCore
             return results.ToArray();
         }
 
+        /// <summary>
+        /// Converts an NTS Polygon into a SkiaSharp SKPoint array so that it can be drawn in SkiaSharp.
+        /// </summary>
+        /// <param name="place">Polygon object to be converted/drawn</param>
+        /// <param name="drawingArea">GeoArea representing the image area being drawn. Usually passed from an ImageStats object</param>
+        /// <param name="degreesPerPixelX">Width of each pixel in degrees</param>
+        /// <param name="degreesPerPixelY">Height of each pixel in degrees</param>
+        /// <returns>Array of SkPoints for the image information provided.</returns>
         public static SkiaSharp.SKPoint[] PolygonToSKPoints(Geometry place, GeoArea drawingArea, double degreesPerPixelX, double degreesPerPixelY)
         {
             SkiaSharp.SKPoint[] points = place.Coordinates.Select(o => new SkiaSharp.SKPoint((float)((o.X - drawingArea.WestLongitude) * (1 / degreesPerPixelX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / degreesPerPixelY)))).ToArray();
@@ -85,6 +105,12 @@ namespace PraxisCore
             return points;
         }
 
+        /// <summary>
+        /// Converts the offline-standalone PlaceInfo entries into SKRects for drawing on a SlippyMap. Used to visualize the offline mode beahvior of areas.
+        /// </summary>
+        /// <param name="pi">PlaceInfo object to convert</param>
+        /// <param name="info">ImageStats for the resulting map tile</param>
+        /// <returns>The SKRect representing the standaloneDb size of the PlaceInfo</returns>
         public static SkiaSharp.SKRect PlaceInfoToRect(PraxisCore.StandaloneDbTables.PlaceInfo2 pi, ImageStats info)
         {
             SkiaSharp.SKRect r = new SkiaSharp.SKRect();
@@ -103,6 +129,11 @@ namespace PraxisCore
             return r;
         }
 
+        /// <summary>
+        /// Converts an NTS Geometry object into a GeoArea object matching the Geometry's internal envelope.
+        /// </summary>
+        /// <param name="g">The NTS Geometry object to convert</param>
+        /// <returns>the GeoArea covering the Geometry's internal envelope, or null if the conversion fails.</returns>
         public static GeoArea GeometryToGeoArea(Geometry g)
         {
             try
@@ -116,21 +147,45 @@ namespace PraxisCore
             }
         }
 
+        /// <summary>
+        /// Get the X value for a SlippyMap tile based on a given longitude and a zoom value
+        /// </summary>
+        /// <param name="lon">longitude in degrees</param>
+        /// <param name="z">zoom level</param>
+        /// <returns>the X value to draw a tile at the given longitude</returns>
         public static int GetSlippyXFromLon(double lon, int z)
         {
             return (int)(Math.Floor((lon + 180.0) / 360.0 * (1 << z)));
         }
 
+        /// <summary>
+        /// Get the Y value for a SlippyMap tile based on a given latitude and a zoom value
+        /// </summary>
+        /// <param name="lat">latitude in degrees</param>
+        /// <param name="z">zoom level</param>
+        /// <returns>the Y value to draw a tile at the given latitude</returns>
         public static int GetSlippyYFromLat(double lat, int z)
         {
             return (int)Math.Floor((1 - Math.Log(Math.Tan(lat.ToRadians()) + 1 / Math.Cos(lat.ToRadians())) / Math.PI) / 2 * (1 << z));
         }
 
+        /// <summary>
+        /// Gets the longitude to use give a SlippyMap X coord and zoom level
+        /// </summary>
+        /// <param name="x">X parameter from a SlippyMap coordinate</param>
+        /// <param name="z">Zoom level for a SlippyMap tile</param>
+        /// <returns>longitude in degrees of the SlippyMap tile</returns>
         public static double SlippyXToLon(int x, int z)
         {
             return x / (double)(1 << z) * 360.0 - 180;
         }
 
+        /// <summary>
+        /// Gets the latitude to use give a SlippyMap Y coord and zoom level
+        /// </summary>
+        /// <param name="y">Y parameter from a SlippyMap coordinate</param>
+        /// <param name="z">Zoom level for a SlippyMap tile</param>
+        /// <returns>latitude in degrees of the SlippyMap tile</returns>
         public static double SlippyYToLat(int y, int z)
         {
             double n = Math.PI - 2.0 * Math.PI * y / (double)(1 << z);
