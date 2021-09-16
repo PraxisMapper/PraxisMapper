@@ -13,6 +13,12 @@ namespace PraxisCore
     public static class AreaTypeInfo 
     {
         //The new version, which returns a sorted list of places, smallest to largest, for when a single space contains multiple entries (default ScavengerHunt logic)
+        /// <summary>
+        /// Sorts the given list by AreaSize. Larger elements should be drawn first, so smaller areas will appear over them on maptiles.
+        /// </summary>
+        /// <param name="entries">The list of entries to sort by</param>
+        /// <param name="allowPoints">If true, include points in the return list as size 0. If false, filters those out from the returned list.</param>
+        /// <returns>The sorted list of entries</returns>
         public static List<StoredOsmElement> SortGameElements(List<StoredOsmElement> entries, bool allowPoints = true)
         {
             //I sort entries on loading from the Database. It's possible this step is unnecessary if everything else runs in order, just using last instead of first.
@@ -23,17 +29,26 @@ namespace PraxisCore
             return entries;
         }
 
+        /// <summary>
+        /// Get the areatype (as defined by TagParser) for each OSM element in the list, along with name and client-facing ID.
+        /// </summary>
+        /// <param name="entriesHere">the list of elements to pull data from</param>
+        /// <returns>A list of name, areatype, and elementIds for a client</returns>
         public static List<TerrainData> DetermineAreaPlaces(List<StoredOsmElement> entriesHere)
         {
             //Which Place in this given Area is the one that should be displayed on the game/map as the name? picks the smallest one.
             //This one return all entries, for a game mode that might need all of them.
-            //var entries = SortGameElements(entriesHere); //If I want all of them, I don't care as much about sorting.
-            var results = new List<TerrainData>();
+            var results = new List<TerrainData>(entriesHere.Count());
             foreach (var e in entriesHere)
-                results.Add(new TerrainData() { Name = e.name, areaType = e.GameElementName, StoredOsmElementId = e.privacyId }); //e.id
+                results.Add(new TerrainData() { Name = e.name, areaType = e.GameElementName, StoredOsmElementId = e.privacyId });
             return results;
         }
 
+        /// <summary>
+        /// Returns the smallest (most-important) element in a list, to identify which element a client should use.
+        /// </summary>
+        /// <param name="entriesHere">the list of elements to pull data from</param>
+        /// <returns>the name, areatype, and client facing ID of the OSM element to use</returns>
         public static TerrainData DetermineAreaPlace(List<StoredOsmElement> entriesHere)
         {
             //Which Place in this given Area is the one that should be displayed on the game/map as the name? picks the smallest one.
@@ -43,6 +58,12 @@ namespace PraxisCore
             return new TerrainData() { Name = entry.name, areaType = entry.GameElementName, StoredOsmElementId = entry.privacyId };
         }
 
+        /// <summary>
+        /// Find which element in the list intersect with which PlusCodes inside the area. Returns one element per PlusCode
+        /// </summary>
+        /// <param name="area">GeoArea from a decoded PlusCode</param>
+        /// <param name="elements">A list of OSM elements</param>
+        /// <returns>returns a dictionary using PlusCode as the key and name/areatype/client facing Id of the smallest element intersecting that PlusCode</returns>
         public static Dictionary<string, TerrainData> SearchArea(ref GeoArea area, ref List<StoredOsmElement> elements)
         {
             //Singular function, returns 1 item entry per cell10.
@@ -73,6 +94,12 @@ namespace PraxisCore
             return results;
         }
 
+        /// <summary>
+        /// Find which elements in the list intersect with which PlusCodes inside the area. Returns multiple elements per PlusCode
+        /// </summary>
+        /// <param name="area">GeoArea from a decoded PlusCode</param>
+        /// <param name="elements">A list of OSM elements</param>
+        /// <returns>returns a dictionary using PlusCode as the key and name/areatype/client facing Id of all element intersecting that PlusCode</returns>
         public static Dictionary<string, List<TerrainData>> SearchAreaFull(ref GeoArea area, ref List<StoredOsmElement> elements)
         {
             //Plural function, returns all entries for each cell10.
@@ -102,10 +129,17 @@ namespace PraxisCore
             return results;
         }
 
-        public static Tuple<string, List<TerrainData>> FindPlacesInCell10(double x, double y, ref List<StoredOsmElement> places)
+        /// <summary>
+        /// Returns all the elements in a list that intersect with the 10-digit PlusCode at the given lat/lon coordinates.
+        /// </summary>
+        /// <param name="lon">longitude in degrees</param>
+        /// <param name="lat">latitude in degrees</param>
+        /// <param name="places">list of OSM elements</param>
+        /// <returns>a tuple of the 10-digit plus code and a list of name/areatype/client facing ID for each element in that pluscode.</returns>
+        public static Tuple<string, List<TerrainData>> FindPlacesInCell10(double lon, double lat, ref List<StoredOsmElement> places)
         {
             //Plural function, gets all areas in each cell10.
-            var box = new GeoArea(new GeoPoint(y, x), new GeoPoint(y + resolutionCell10, x + resolutionCell10));
+            var box = new GeoArea(new GeoPoint(lat, lon), new GeoPoint(lat + resolutionCell10, lon + resolutionCell10));
             var entriesHere = GetPlaces(box, places, skipTags:true).ToList();
 
             if (entriesHere.Count() == 0)
@@ -114,12 +148,20 @@ namespace PraxisCore
             var area = DetermineAreaPlaces(entriesHere);
             if (area != null && area.Count() > 0)
             {
-                string olc = new OpenLocationCode(y, x).CodeDigits;
+                string olc = new OpenLocationCode(lat, lon).CodeDigits;
                 return new Tuple<string, List<TerrainData>>(olc, area);
             }
             return null;
         }
 
+
+        /// <summary>
+        /// Returns the smallest element in a list that intersect with the 10-digit PlusCode at the given lat/lon coordinates.
+        /// </summary>
+        /// <param name="lon">longitude in degrees</param>
+        /// <param name="lat">latitude in degrees</param>
+        /// <param name="places">list of OSM elements</param>
+        /// <returns>a tuple of the 10-digit plus code and the name/areatype/client facing ID for the smallest element in that pluscode.</returns>
         public static Tuple<string, TerrainData> FindPlaceInCell10(double x, double y, ref List<StoredOsmElement> places)
         {
             //singular function, only returns the smallest area in a cell.

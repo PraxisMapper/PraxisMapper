@@ -13,6 +13,9 @@ namespace PraxisCore
         public static PreparedGeometryFactory pgf = new PreparedGeometryFactory();
         public static bool SimplifyAreas = false;
 
+        /// <summary>
+        /// The predefined list of shapes to generate areas in. 4 basic geometric shapes.
+        /// </summary>
         public static List<List<Coordinate>> possibleShapes = new List<List<Coordinate>>() //When generating gameplay areas in empty Cell8s
         {
             new List<Coordinate>() { new Coordinate(0, 0), new Coordinate(.5, 1), new Coordinate(1, 0)}, //triangle.
@@ -21,17 +24,6 @@ namespace PraxisCore
             new List<Coordinate>() { new Coordinate(.5, 0), new Coordinate(0, .33), new Coordinate(0, .66), new Coordinate(.5, 1), new Coordinate(1, .66), new Coordinate(1, .33) }, //roughly a hexagon.
             //TODO: more shapes, ideally more interesting than simple polygons? Star? Heart? Arc?
         };
-
-
-        //public static List<Faction> defaultFaction = new List<Faction>()
-        //{
-        //    new Faction() { FactionId = 1,  HtmlColor = "FF000088", Name = "Red Team" },
-        //    new Faction() { FactionId = 2, HtmlColor = "00FF0088", Name = "Green Team" },
-        //    new Faction() { FactionId = 3, HtmlColor = "87CEEB88", Name = "Blue Team" }, //Sky blue, versus deep blue that matches Water elements.
-        //};
-
-        //public static ILookup<long, string> teamColorReferenceLookupSkia = defaultFaction.ToLookup(k => k.FactionId, v => v.HtmlColor.Substring(6, 2) + v.HtmlColor.Substring(0, 6)); //needed to make the Dictionary<> correctly.
-
 
         //A * value is a wildcard that means any value counts as a match for that key.
         //types vary:
@@ -46,6 +38,15 @@ namespace PraxisCore
         //default content: 100
         //TODO to consider: set up logic so that elements scale with the zoom level. I'd need a ScalePaintOps() function to apply it to all styles for a single draw call?
         //Or perhaps I set the size in pixels at a given zoom level, and then multiply the size by a scale factor? Some entries might need to opt-out of scaling (like admin boundaries)
+
+        /// <summary>
+        /// The baseline set of TagParser styles. 
+        /// <list type="bullet">
+        /// <item><description>mapTiles: The baseline map tile style, based on OSMCarto</description></item>
+        /// <item><description>teamColor: 3 predefined styles to allow for Red(1), Green(2) and Blue(3) teams in a game. Set a tag to the color's ID and then call a DrawCustomX function with this style.</description></item>
+        /// <item><description>paintTown: A simple styleset that pulls the color to use from the tag provided.</description></item>
+        /// </list>
+        /// </summary>
         public static List<TagParserEntry> defaultTagParserEntries = new List<TagParserEntry>()
         {
             new TagParserEntry() { MatchOrder = 1, name ="water", styleSet = "mapTiles",
