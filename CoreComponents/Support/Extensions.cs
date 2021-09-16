@@ -106,21 +106,42 @@ namespace PraxisCore
             return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(input.ToLower());
         }
 
+        /// <summary>
+        /// Convert a string to its Unicode byte format.
+        /// </summary>
+        /// <param name="s">input string</param>
+        /// <returns>byte array of unicode values for the string</returns>
         public static byte[] ToByteArrayUnicode(this string s)
         {
             return Encoding.Unicode.GetBytes(s);
         }
 
+        /// <summary>
+        /// Convert a string to its ASCII byte format
+        /// </summary>
+        /// <param name="s">input string</param>
+        /// <returns>byte array of ASCII values for the string</returns>
         public static byte[] ToByteArrayASCII(this string s)
         {
             return Encoding.ASCII.GetBytes(s);
         }
 
+        /// <summary>
+        /// Convert a byte array to a string
+        /// </summary>
+        /// <param name="b">input byte array</param>
+        /// <returns>the string represented by the byte array</returns>
         public static string ToByteString(this byte[] b)
         {
             return BitConverter.ToString(b).Replace("-", "");
         }
 
+        /// <summary>
+        /// Take a single list of OSM elements and split it into a given number of sub-lists.
+        /// </summary>
+        /// <param name="mainlist">the source list</param>
+        /// <param name="splitIntoCount">how many new lists to create</param>
+        /// <returns>a List of arrays of OSM elements</returns>
         public static IEnumerable<DbTables.StoredOsmElement>[] SplitListToMultiple(this IEnumerable<DbTables.StoredOsmElement> mainlist, int splitIntoCount)
         {
             List<DbTables.StoredOsmElement>[] results = new List<DbTables.StoredOsmElement>[splitIntoCount];
@@ -136,6 +157,11 @@ namespace PraxisCore
             return results;
         }
 
+        /// <summary>
+        /// Convert degrees to radians
+        /// </summary>
+        /// <param name="val">input in degrees</param>
+        /// <returns>radian value</returns>
         public static double ToRadians(this double val)
         {
             return (Math.PI / 180) * val;

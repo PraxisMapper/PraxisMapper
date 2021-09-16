@@ -15,6 +15,11 @@ namespace PraxisCore.Standalone
     //Stuff related to make a standalone, separate DB for offline games.
     public static class Standalone
     {
+        /// <summary>
+        /// Convert main DB OSM elements into compact estimated offline DB place info records.
+        /// </summary>
+        /// <param name="allPlaces">the list of elements to copy into the standalone DB</param>
+        /// <returns>a list of PlaceInfo items to use in the standalone DB</returns>
         public static List<PlaceInfo2> GetPlaceInfo(List<StoredOsmElement> allPlaces)
         {
             var results = new List<PlaceInfo2>();
@@ -43,6 +48,12 @@ namespace PraxisCore.Standalone
             return results;
         }
 
+        /// <summary>
+        /// Auto-create some scavenger hunt entries for a standalone game DB. Makes a list for entries that have a wikipedia tag,
+        /// and then entries for all styles in the first TagParser style that have IsGameElement set to true.
+        /// </summary>
+        /// <param name="allPlaces">the list of OSM elements to search</param>
+        /// <returns>the list of scavenger hunt entries</returns>
         public static List<ScavengerHuntStandalone> GetScavengerHunts(List<StoredOsmElement> allPlaces)
         {
             //TODO: This is going to need updated for the new TagParser rules. testing at the minimum
@@ -73,6 +84,13 @@ namespace PraxisCore.Standalone
             return results;
         }
 
+        /// <summary>
+        /// Create the map tiles for an offline game, to be stored on the device alongside the database.
+        /// </summary>
+        /// <param name="relationID">the OSM relation the game will be built around</param>
+        /// <param name="buffered">the GeoArea to use as the gameplay area</param>
+        /// <param name="allPlaces">List of OSM Elements to use while drawing tiles</param>
+        /// <param name="saveToFolder">If true, save images to a named folder. Does not currently save any output if this is false.</param>
         public static void DrawMapTilesStandalone(long relationID, GeoArea buffered, List<StoredOsmElement> allPlaces, bool saveToFolder)
         {
 
@@ -159,6 +177,12 @@ namespace PraxisCore.Standalone
             }//);
         }
 
+        /// <summary>
+        /// Create an index table for the standalone offline game db. Takes everything inside a 6 digit PlusCode area, and save a list of elements inside it.
+        /// </summary>
+        /// <param name="buffered">the GeoArea to generate this indexed lookup for</param>
+        /// <param name="allPlaces">the elements to search while making the index</param>
+        /// <returns>a Dictionary of 6 digit PlusCodes and the list of OSM elements that intersect it. </returns>
         public static ConcurrentDictionary<string, List<StoredOsmElement>> IndexAreasPerCell6(GeoArea buffered, List<StoredOsmElement> allPlaces)
         {
             //NOTE: this could use the same optimization I applied to drawing map tiles
