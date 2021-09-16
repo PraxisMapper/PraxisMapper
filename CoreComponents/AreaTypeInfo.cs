@@ -2,12 +2,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using static CoreComponents.ConstantValues;
-using static CoreComponents.DbTables;
-using static CoreComponents.Place;
-using static CoreComponents.StandaloneDbTables;
+using static PraxisCore.ConstantValues;
+using static PraxisCore.DbTables;
+using static PraxisCore.Place;
+using static PraxisCore.StandaloneDbTables;
 
-namespace CoreComponents
+namespace PraxisCore
 {
     //this is data on an Area (PlusCode cell), so AreaTypeInfo is the correct name. Places are StoredOsmElement entries.
     public static class AreaTypeInfo 

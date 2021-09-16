@@ -1,11 +1,11 @@
-﻿using CoreComponents;
+﻿using PraxisCore;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using static CoreComponents.DbTables;
+using static PraxisCore.DbTables;
 
 namespace PerformanceTestApp
 {

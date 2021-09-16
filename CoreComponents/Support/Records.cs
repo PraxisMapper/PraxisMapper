@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using NetTopologySuite;
 using NetTopologySuite.Geometries;
-using static CoreComponents.DbTables;
+using static PraxisCore.DbTables;
 
-namespace CoreComponents.Support
+namespace PraxisCore.Support
 {
     //records are new C# 9.0 shorthand for an immutable class (only edited on creation).
     public record MapDataForJson(string name, string place, string type, long? WayId, long? NodeId, long? RelationId, int AreaTypeId, double? AreaSize); //used for serializing MapData, since Geography types do not serialize nicely.

@@ -8,7 +8,7 @@
 //-----------------------------------------------------------------------------
 
 // Generated from: fileformat.proto
-namespace CoreComponents.PbfReader
+namespace PraxisCore.PbfReader
 {
     /// <summary>
     /// 

@@ -1,5 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using static CoreComponents.StandaloneDbTables;
+using static PraxisCore.StandaloneDbTables;
 
 namespace Larry
 {

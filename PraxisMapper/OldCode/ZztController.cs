@@ -6,7 +6,7 @@
 //using System.Linq;
 //using System.Threading.Tasks;
 //using Google.OpenLocationCode;
-//using CoreComponents;
+//using PraxisCore;
 //using NetTopologySuite.Geometries;
 //using System.Text;
 //using PraxisMapper.Classes;

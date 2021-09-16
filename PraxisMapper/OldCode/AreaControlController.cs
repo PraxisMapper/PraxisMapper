@@ -1,15 +1,15 @@
-﻿//using CoreComponents;
-//using CoreComponents.Support;
+﻿//using PraxisCore;
+//using PraxisCore.Support;
 //using Google.OpenLocationCode;
 //using Microsoft.AspNetCore.Mvc;
 //using Microsoft.EntityFrameworkCore;
 //using Microsoft.Extensions.Caching.Memory;
 //using PraxisMapper.Classes;
 //using SkiaSharp;
-//using static CoreComponents.ConstantValues;
-//using static CoreComponents.DbTables;
-//using static CoreComponents.Place;
-//using static CoreComponents.ScoreData;
+//using static PraxisCore.ConstantValues;
+//using static PraxisCore.DbTables;
+//using static PraxisCore.Place;
+//using static PraxisCore.ScoreData;
 
 //namespace PraxisMapper.Controllers
 //{

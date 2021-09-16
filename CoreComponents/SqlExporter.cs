@@ -1,4 +1,4 @@
-﻿using CoreComponents.Support;
+﻿using PraxisCore.Support;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using MySqlConnector;
@@ -10,10 +10,10 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using static CoreComponents.DbTables;
-using static CoreComponents.Singletons;
+using static PraxisCore.DbTables;
+using static PraxisCore.Singletons;
 
-namespace CoreComponents
+namespace PraxisCore
 {
     public static class SqlExporter
     {

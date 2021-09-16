@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 
-namespace CoreComponents
+namespace PraxisCore
 {
     //For Dependency Injection
     //NOTE: this works as written, but I have no particular purpose assigned to this service yet. 

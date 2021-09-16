@@ -1,4 +1,4 @@
-using CoreComponents;
+using PraxisCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Caching.Memory;
@@ -19,7 +19,7 @@ namespace PraxisMapper
         {
             Configuration = configuration;
             PerformanceTracker.EnableLogging = Configuration.GetValue<bool>("enablePerformanceTracker");
-            CoreComponents.Log.WriteToFile = Configuration.GetValue<bool>("enableFileLogging");
+            PraxisCore.Log.WriteToFile = Configuration.GetValue<bool>("enableFileLogging");
             PraxisContext.connectionString = Configuration.GetValue<string>("dbConnectionString");
             PraxisContext.serverMode = Configuration.GetValue<string>("dbMode");
             PraxisHeaderCheck.enableAuthCheck = Configuration.GetValue<bool>("enableAuthCheck");

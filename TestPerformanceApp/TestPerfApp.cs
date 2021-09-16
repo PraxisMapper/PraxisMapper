@@ -1,5 +1,5 @@
-﻿using CoreComponents;
-using CoreComponents.Support;
+﻿using PraxisCore;
+using PraxisCore.Support;
 using Google.Common.Geometry;
 using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
@@ -16,11 +16,11 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using static CoreComponents.ConstantValues;
-using static CoreComponents.DbTables;
-using static CoreComponents.GeometrySupport;
-using static CoreComponents.Place;
-using static CoreComponents.Singletons;
+using static PraxisCore.ConstantValues;
+using static PraxisCore.DbTables;
+using static PraxisCore.GeometrySupport;
+using static PraxisCore.Place;
+using static PraxisCore.Singletons;
 
 namespace PerformanceTestApp
 {
@@ -82,7 +82,7 @@ namespace PerformanceTestApp
 
 
             //Sample code for later, I will want to make sure these indexes work as expected.
-            //CoreComponents.MapTiles.ExpireSlippyMapTiles(Converters.GeoAreaToPolygon(OpenLocationCode.DecodeValid("86HWHHFF")));
+            //PraxisCore.MapTiles.ExpireSlippyMapTiles(Converters.GeoAreaToPolygon(OpenLocationCode.DecodeValid("86HWHHFF")));
             //TestMapTileIndexSpeed();
 
             //TODO: consider pulling 4-cell worth of places into memory, querying against that instead of a DB lookup every time?
@@ -129,7 +129,7 @@ namespace PerformanceTestApp
             //sw.Stop();
             //Log.WriteLog(filename + " loaded first (relation) block to RAM in " + sw.Elapsed);
             //sw.Restart();
-            //CoreComponents.PbfFileParser.ProcessPMPBFResults(data1, "testFileName-block3239.json");
+            //PraxisCore.PbfFileParser.ProcessPMPBFResults(data1, "testFileName-block3239.json");
             ////458 of 7799 convert correctly. 
             //sw.Stop();
             //Log.WriteLog("wrote all results for relation block to JSON in " + sw.Elapsed);
@@ -156,7 +156,7 @@ namespace PerformanceTestApp
         //        var x = reader.GetGeometryFromBlock(block);
         //        if (x != null) //Task this, so I can process the next block while writing these results.
         //            System.Threading.Tasks.Task.Run(() => 
-        //            //CoreComponents.PbfFileParser.ProcessPMPBFResults(x, "testFile-ohio.json")
+        //            //PraxisCore.PbfFileParser.ProcessPMPBFResults(x, "testFile-ohio.json")
         //            //ProcessPMPBFResults(x, @"D:\Projects\PraxisMapper Files\Trimmed JSON Files\testFile-ohio.json")
         //            );
         //}
@@ -314,7 +314,7 @@ namespace PerformanceTestApp
             sw.Start();
             //Pick a specific area for testing, since we want to compare the math.
             string plusCode6 = cell6;
-            var db = new CoreComponents.PraxisContext();
+            var db = new PraxisCore.PraxisContext();
             var places = GetPlaces(OpenLocationCode.DecodeValid(plusCode6));  //All the places in this 6-code
             var box = OpenLocationCode.DecodeValid(plusCode6);
             sw.Stop();
@@ -570,7 +570,7 @@ namespace PerformanceTestApp
             List<StoredOsmElement> places;
             if (source == null)
             {
-                var db = new CoreComponents.PraxisContext();
+                var db = new PraxisCore.PraxisContext();
                 places = db.StoredOsmElements.Where(md => md.elementGeometry.Intersects(location)).ToList();
             }
             else
@@ -586,7 +586,7 @@ namespace PerformanceTestApp
         //    List<MapData> places;
         //    if (source == null)
         //    {
-        //        var db = new CoreComponents.PraxisContext();
+        //        var db = new PraxisCore.PraxisContext();
         //        places = db.getPlaces((location)).ToList();
         //    }
         //    else
@@ -605,7 +605,7 @@ namespace PerformanceTestApp
         //    List<MapData> places;
         //    if (source == null)
         //    {
-        //        var db = new CoreComponents.PraxisContext();
+        //        var db = new PraxisCore.PraxisContext();
         //        db.ChangeTracker.AutoDetectChangesEnabled = false;
         //        places = db.MapData.Where(md => md.place.Intersects(location)).ToList();
         //    }
@@ -617,7 +617,7 @@ namespace PerformanceTestApp
         //public static void TestMapDataAbbrev()
         //{
         //    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-        //    var db = new CoreComponents.PraxisContext();
+        //    var db = new PraxisCore.PraxisContext();
 
         //    for (int i = 0; i < 5; i++)
         //    {
@@ -638,7 +638,7 @@ namespace PerformanceTestApp
         public static void TestPrecompiledQuery()
         {
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-            var db = new CoreComponents.PraxisContext();
+            var db = new PraxisCore.PraxisContext();
 
 
             for (int i = 0; i < 5; i++)

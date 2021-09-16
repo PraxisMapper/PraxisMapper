@@ -1,5 +1,5 @@
-﻿using CoreComponents;
-using CoreComponents.Support;
+﻿using PraxisCore;
+using PraxisCore.Support;
 using Google.OpenLocationCode;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
@@ -8,8 +8,8 @@ using NetTopologySuite.Geometries.Prepared;
 using PraxisMapper.Classes;
 using System;
 using System.Linq;
-using static CoreComponents.DbTables;
-using static CoreComponents.Place;
+using static PraxisCore.DbTables;
+using static PraxisCore.Place;
 
 namespace PraxisMapper.Controllers
 {

@@ -1,8 +1,8 @@
 ﻿using ProtoBuf;
 using Ionic.Zlib;
 using System.Collections.Concurrent;
-using static CoreComponents.DbTables;
-using CoreComponents.Support;
+using static PraxisCore.DbTables;
+using PraxisCore.Support;
 using System.Text.Json;
 using OsmSharp.Complete;
 using System.Text;
@@ -15,7 +15,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Linq;
 
-namespace CoreComponents.PbfReader
+namespace PraxisCore.PbfReader
 {
     public class PbfReader
     {
@@ -231,7 +231,7 @@ namespace CoreComponents.PbfReader
             //LoadBlockInfo();
             var block = relationFinder[areaId];
 
-            CoreComponents.Singletons.SimplifyAreas = true; //Labrador Sea is huge. 12 MB by itself.
+            PraxisCore.Singletons.SimplifyAreas = true; //Labrador Sea is huge. 12 MB by itself.
             var r = GetRelation(areaId);
             var r2 = GeometrySupport.ConvertOsmEntryToStoredElement(r);
             GeometrySupport.WriteSingleStoredElementToFile("labradorSea.json", r2);

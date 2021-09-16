@@ -1,6 +1,6 @@
-﻿using CoreComponents;
+﻿using PraxisCore;
 using System;
-using static CoreComponents.DbTables;
+using static PraxisCore.DbTables;
 using System.Diagnostics;
 
 namespace PraxisMapper.Classes

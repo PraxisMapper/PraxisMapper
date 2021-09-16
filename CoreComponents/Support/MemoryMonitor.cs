@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Runtime;
 using System.Threading.Tasks;
 
-namespace CoreComponents.Support
+namespace PraxisCore.Support
 {
     public class MemoryMonitor
     {

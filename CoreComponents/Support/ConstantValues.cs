@@ -1,4 +1,4 @@
-﻿namespace CoreComponents
+﻿namespace PraxisCore
 {
     public static class ConstantValues
     {

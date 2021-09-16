@@ -12,7 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CoreComponents\CoreComponents.csproj" />
+    <ProjectReference Include="..\CoreComponents\PraxisCore.csproj" />
   </ItemGroup>
 
 </Project>

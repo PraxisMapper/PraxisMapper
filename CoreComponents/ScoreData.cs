@@ -2,10 +2,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using static CoreComponents.ConstantValues;
-using static CoreComponents.DbTables;
+using static PraxisCore.ConstantValues;
+using static PraxisCore.DbTables;
 
-namespace CoreComponents
+namespace PraxisCore
 {
     public static class ScoreData
     {

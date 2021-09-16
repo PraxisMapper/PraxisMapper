@@ -1,4 +1,4 @@
-﻿using CoreComponents;
+﻿using PraxisCore;
 using System;
 
 namespace PraxisMapper.Classes

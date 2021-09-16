@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace CoreComponents
+namespace PraxisCore
 {
     public class StandaloneDbTables
     {

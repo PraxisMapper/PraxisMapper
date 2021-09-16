@@ -1,5 +1,5 @@
-﻿using CoreComponents;
-using CoreComponents.Support;
+﻿using PraxisCore;
+using PraxisCore.Support;
 using Google.OpenLocationCode;
 using NetTopologySuite;
 using NetTopologySuite.Geometries;
@@ -9,12 +9,12 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
-using static CoreComponents.ConstantValues;
-using static CoreComponents.DbTables;
-using static CoreComponents.Place;
-using static CoreComponents.Singletons;
-using static CoreComponents.StandaloneDbTables;
-using CoreComponents.PbfReader;
+using static PraxisCore.ConstantValues;
+using static PraxisCore.DbTables;
+using static PraxisCore.Place;
+using static PraxisCore.Singletons;
+using static PraxisCore.StandaloneDbTables;
+using PraxisCore.PbfReader;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ValueGeneration.Internal;
 
@@ -573,7 +573,7 @@ namespace Larry
             var basePlaces = allPlaces.Where(a => a.name != "" || a.GameElementName != "unmatched").ToList(); //.Where(a => a.name != "").ToList();// && (a.IsGameElement || wikiList.Contains(a.name))).ToList();
             var distinctNames = basePlaces.Select(p => p.name).Distinct().ToList();//This distinct might be causing things in multiple pieces to only detect one of them, not all of them?
 
-            var placeInfo = CoreComponents.Standalone.Standalone.GetPlaceInfo(basePlaces);
+            var placeInfo = PraxisCore.Standalone.Standalone.GetPlaceInfo(basePlaces);
             //Remove trails later.
             //SHORTCUT: for roads that are a straight-enough line (under 1 Cell10 in width or height)
             //just treat them as being 1 Cell10 in that axis, and skip tracking them by each Cell10 they cover.
@@ -594,7 +594,7 @@ namespace Larry
 
             //to save time, i need to index which areas are in which Cell6.
             //So i know which entries I can skip when running.
-            var indexCell6 = CoreComponents.Standalone.Standalone.IndexAreasPerCell6(buffered, basePlaces);
+            var indexCell6 = PraxisCore.Standalone.Standalone.IndexAreasPerCell6(buffered, basePlaces);
             var indexes = indexCell6.SelectMany(i => i.Value.Select(v => new PlaceIndex() { PlusCode = i.Key, placeInfoId = placeDictionary[v.sourceItemID].id })).ToList();
             sqliteDb.PlaceIndexs.AddRange(indexes);
 
@@ -643,7 +643,7 @@ namespace Larry
             Log.WriteLog("Trails processed at " + DateTime.Now);
 
             //make scavenger hunts
-            var sh = CoreComponents.Standalone.Standalone.GetScavengerHunts(allPlaces);
+            var sh = PraxisCore.Standalone.Standalone.GetScavengerHunts(allPlaces);
             sqliteDb.ScavengerHunts.AddRange(sh);
             sqliteDb.SaveChanges();
             Log.WriteLog("Auto-created scavenger hunt entries at " + DateTime.Now);
@@ -658,7 +658,7 @@ namespace Larry
 
             //now we have the list of places we need to be concerned with. 
             System.IO.Directory.CreateDirectory(relationID + "Tiles");
-            CoreComponents.Standalone.Standalone.DrawMapTilesStandalone(relationID, buffered, allPlaces, saveToFolder);
+            PraxisCore.Standalone.Standalone.DrawMapTilesStandalone(relationID, buffered, allPlaces, saveToFolder);
             sqliteDb.SaveChanges();
             Log.WriteLog("Maptiles drawn at " + DateTime.Now);
 

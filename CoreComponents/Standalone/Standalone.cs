@@ -1,16 +1,16 @@
-﻿using CoreComponents.Support;
+﻿using PraxisCore.Support;
 using Google.OpenLocationCode;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using static CoreComponents.DbTables;
-using static CoreComponents.StandaloneDbTables;
-using static CoreComponents.ConstantValues;
+using static PraxisCore.DbTables;
+using static PraxisCore.StandaloneDbTables;
+using static PraxisCore.ConstantValues;
 using System.Collections.Concurrent;
 
-namespace CoreComponents.Standalone
+namespace PraxisCore.Standalone
 {
     //Stuff related to make a standalone, separate DB for offline games.
     public static class Standalone
