@@ -95,19 +95,6 @@ namespace PraxisMapper.Controllers
             return sb.ToString();
         }
 
-        //[HttpGet]
-        //[Route("/[controller]/GetAllDataInOsmElement/{elementId}/{elementType}")]
-        //public string GetAllDataInOsmElement(long elementId, int elementType)
-
-        //{
-        //    var data = GenericData.GetAllDataInPlace(elementId, elementType);
-        //    StringBuilder sb = new StringBuilder();
-        //    foreach (var d in data)
-        //        sb.Append(d.elementId).Append("|").Append(d.key).Append("|").AppendLine(d.value);
-
-        //    return sb.ToString();
-        //}
-
         [HttpGet]
         [Route("/[controller]/GetAllDataInOsmElement/{elementId}/")]
         public string GetAllDataInOsmElement(Guid elementId)
