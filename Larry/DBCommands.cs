@@ -81,9 +81,9 @@ namespace Larry
             Log.WriteLog("Duped Relation entries deleted at " + DateTime.Now);
         }
 
-        public static void UpdateExistingEntries()
+        public static void UpdateExistingEntries(string path)
         {
-            List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.JsonMapDataFolder, "*.json").ToList();
+            List<string> filenames = System.IO.Directory.EnumerateFiles(path, "*.json").ToList();
             System.Threading.Tasks.ParallelOptions po = new System.Threading.Tasks.ParallelOptions();
             po.MaxDegreeOfParallelism = 8; //Limit how many running loops at once we have.
             System.Threading.Tasks.Parallel.ForEach(filenames, po, (filename) =>
