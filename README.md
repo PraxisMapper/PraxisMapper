@@ -26,7 +26,7 @@ Source code for a test application, Hypothesis, is available at https://github.c
 * Download the smallest usable PBF map extract file you can find for the area you want to cover for gameplay from Geofabrik.de
 * On OpenStreetMap.org, search for the area you want your game to cover, and write down its Relation ID or Way ID.
 * Install MariaDB and create a service account for PraxisMapper
-* Update the config files for Larry and PraxisMapper with your connection string for the database
-* Build and run Larry, then execute it from the command line with your extract file and Relation/Way ID, like "Larry -createDB -loadOneArea:YourExtractFile.osm.pbf:123456"
+* Update the config files for Larry and PraxisMapper with your connection string for the database, and with the folder path to the PBF file for Larry
+* Build and run Larry, then execute it from the command line with your extract filename and Relation/Way ID, like "Larry -createDB -loadOneArea:YourExtractFile.osm.pbf:123456"
 * Install and configure IIS for ASP.NET Core, creating an application for PraxisMapper
 * Publish the PraxisMapper project from VS 2022 and copy the output to your IIS application
