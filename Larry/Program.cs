@@ -17,6 +17,8 @@ using static PraxisCore.StandaloneDbTables;
 using PraxisCore.PbfReader;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ValueGeneration.Internal;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration.Json;
 
 
 //TODO: look into using Span<T> instead of lists? This might be worth looking at performance differences. (and/or Memory<T>, which might be a parent for Spans)
@@ -27,11 +29,16 @@ namespace Larry
 {
     class Program
     {
+        static IConfigurationRoot config;
         static void Main(string[] args)
         {
+            var builder = new ConfigurationBuilder()
+            .AddJsonFile("Larry.config.json");
+            config = builder.Build();
+
             var memMon = new MemoryMonitor();
-            PraxisContext.connectionString = ParserSettings.DbConnectionString;
-            PraxisContext.serverMode = ParserSettings.DbMode;
+            PraxisContext.connectionString = config["DbConnectionString"];
+            PraxisContext.serverMode = config["DbMode"];
 
             Log.WriteLog("Larry started at " + DateTime.Now);
 
@@ -63,9 +70,9 @@ namespace Larry
             if (args.Any(a => a == "-noLogs"))
                 Log.Verbosity = Log.VerbosityLevels.Off;
 
-            if (args.Any(a => a == "-spaceSaver"))
+            if (args.Any(a => a == "-spaceSaver")) //TODO use the config value, not a command line arg
             {
-                ParserSettings.UseHighAccuracy = false;
+                config["UseHighAccuracy"] = "false";
                 factory = NtsGeometryServices.Instance.CreateGeometryFactory(new PrecisionModel(1000000), 4326); //SRID matches Plus code values.  Precision model means round all points to 7 decimal places to not exceed float's useful range.
                 SimplifyAreas = true; //rounds off points that are within a Cell10's distance of each other. Makes fancy architecture and highly detailed paths less pretty on map tiles, but works for gameplay data.
             }
@@ -109,22 +116,22 @@ namespace Larry
                 string level2 = splitData.Count() >= 3 ? splitData[2] : "us";
                 string level3 = splitData.Count() >= 2 ? splitData[1] : "ohio";
 
-                DownloadPbfFile(level1, level2, level3, ParserSettings.PbfFolder);
+                DownloadPbfFile(level1, level2, level3, config["PbfFolder"]);
             }
 
             if (args.Any(a => a == "-resetXml" || a == "-resetPbf")) //update both anyways.
             {
-                FileCommands.ResetFiles(ParserSettings.PbfFolder);
+                FileCommands.ResetFiles(config["PbfFolder"]);
             }
 
             if (args.Any(a => a == "-resetJson"))
             {
-                FileCommands.ResetFiles(ParserSettings.JsonMapDataFolder);
+                FileCommands.ResetFiles(config["JsonMapDataFolder"]);
             }
 
             if (args.Any(a => a == "-debugArea"))
             {
-                var filename = ParserSettings.PbfFolder + "ohio-latest.osm.pbf";
+                var filename = config["PbfFolder"] + "ohio-latest.osm.pbf";
                 var areaId = 350381;
                 PbfReader r = new PbfReader();
                 r.debugArea(filename, areaId);
@@ -132,12 +139,12 @@ namespace Larry
 
             if (args.Any(a => a == "-loadPbfsToDb"))
             {
-                List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
+                List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.pbf").ToList();
                 foreach (string filename in filenames)
                 {
                     Log.WriteLog("Loading " + filename + " to database  at " + DateTime.Now);
                     PbfReader r = new PbfReader();
-                    r.ProcessFile(filename, true, ParserSettings.OnlyTaggedAreas);
+                    r.ProcessFile(filename, true, config["OnlyTaggedAreas"] == "true");
 
                     File.Move(filename, filename + "done");
                     Log.WriteLog("Finished " + filename + " load at " + DateTime.Now);
@@ -146,13 +153,13 @@ namespace Larry
 
             if (args.Any(a => a == "-loadPbfsToJson"))
             {
-                List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.PbfFolder, "*.pbf").ToList();
+                List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.pbf").ToList();
                 foreach (string filename in filenames)
                 {
                     Log.WriteLog("Loading " + filename + " to JSON file at " + DateTime.Now);
                     PbfReader r = new PbfReader();
-                    r.outputPath = ParserSettings.JsonMapDataFolder;
-                    r.ProcessFile(filename, false, ParserSettings.OnlyTaggedAreas, true); //final true is testing code.
+                    r.outputPath = config["JsonMapDataFolder"];
+                    r.ProcessFile(filename, false, config["OnlyTaggedAreas"] == "true", true); //final true is testing code.
                     File.Move(filename, filename + "done");
                 }
             }
@@ -185,7 +192,7 @@ namespace Larry
                 db.Database.SetCommandTimeout(Int32.MaxValue);
                 //Might want to set this up to disable keys, do all the file imports, then enable keys
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
-                List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.JsonMapDataFolder, "*.geomInfile").ToList();
+                List<string> filenames = System.IO.Directory.EnumerateFiles(config["JsonMapDataFolder"], "*.geomInfile").ToList();
                 foreach (var jsonFileName in filenames)
                 {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
@@ -204,7 +211,7 @@ namespace Larry
                     //System.IO.File.Move(tempTags, tempTags + "done");
                 }
 
-                filenames = System.IO.Directory.EnumerateFiles(ParserSettings.JsonMapDataFolder, "*.tagsInfile").ToList();
+                filenames = System.IO.Directory.EnumerateFiles(config["JsonMapDataFolder"], "*.tagsInfile").ToList();
                 foreach (var jsonFileName in filenames)
                 {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
@@ -228,7 +235,7 @@ namespace Larry
             {
                 var db = new PraxisContext();
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
-                List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.JsonMapDataFolder, "*.json").ToList();
+                List<string> filenames = System.IO.Directory.EnumerateFiles(config["JsonMapDataFolder"], "*.json").ToList();
                 long entryCounter = 0;
                 foreach (var jsonFileName in filenames)
                 {
@@ -284,10 +291,10 @@ namespace Larry
             {
                 //TODO: call createDB here if this is a single command to populate up a web server from scratch.
                 var subargs = args.First(a => a.StartsWith("-loadOneArea:")).Split(":");
-                Console.WriteLine("Loading relation " + subargs[2] + " from file " + ParserSettings.PbfFolder + subargs[1]);
+                Console.WriteLine("Loading relation " + subargs[2] + " from file " + config["PbfFolder"] + subargs[1]);
                 var r = new PbfReader();
-                r.outputPath = ParserSettings.JsonMapDataFolder;
-                var env = r.GetOneAreaFromFile(ParserSettings.PbfFolder + subargs[1], Int64.Parse(subargs[2]));
+                r.outputPath = config["JsonMapDataFolder"];
+                var env = r.GetOneAreaFromFile(config["PbfFolder"] + subargs[1], Int64.Parse(subargs[2]));
 
                 Log.WriteLog("Beginning game maptile draw for relation " + subargs[2]);
                 GeoArea drawRegion = new GeoArea(env.MinY, env.MinX, env.MaxY, env.MaxX);
@@ -313,7 +320,7 @@ namespace Larry
 
             if (args.Any(a => a == "-updateDatabase"))
             {
-                DBCommands.UpdateExistingEntries();
+                DBCommands.UpdateExistingEntries(config["JsonMapDataFolder"]);
             }
 
             if (args.Any(a => a == "-removeDupes"))
@@ -664,9 +671,9 @@ namespace Larry
 
             //Copy the files as necessary to their correct location.
             if (saveToFolder)
-                Directory.Move(relationID + "Tiles", ParserSettings.Solar2dExportFolder + "Tiles");
+                Directory.Move(relationID + "Tiles", config["Solar2dExportFolder"] + "Tiles");
 
-            File.Copy(relationID + ".sqlite", ParserSettings.Solar2dExportFolder + "database.sqlite");
+            File.Copy(relationID + ".sqlite", config["Solar2dExportFolder"] + "database.sqlite");
 
             Log.WriteLog("Standalone gameplay DB done.");
         }
@@ -684,7 +691,7 @@ namespace Larry
             //10k inserts split across 4 tasks: takes 6.5 seconds (would expect 10 or 11 from earlier test, so this scales good!)
             //10k LOAD INFILE : 13 seconds, but ALL of that was writing the file. it becomes a background task and runs outside of my app otherwise.
             //So far: looks like tasking off smaller sets will get me data inserted faster.
-            var filename = ParserSettings.JsonMapDataFolder + "asia-latest.osm.json";
+            var filename = config["JsonMapDataFolder"] + "asia-latest.osm.json";
             var lines = File.ReadLines(filename);
 
             var db = new PraxisContext();
