@@ -24,93 +24,12 @@ namespace PraxisCore
         static SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
         static Random r = new Random();
 
-        //public static byte[] DrawMPAreaControlMapTile(ImageStats info, List<StoredOsmElement> places = null)
-        //{
-        //    bool drawEverything = false; //for debugging/testing
-        //    var smallestFeature = 0;
-
-        //    //To make sure we don't get any seams on our maptiles (or points that don't show a full circle, we add a little extra area to the image before drawing, then crop it out at the end.
-        //    //Do this after determining image size, since Skia will ignore parts off-canvas.
-        //    var loadDataArea = new GeoArea(new GeoPoint(info.area.Min.Latitude - resolutionCell10, info.area.Min.Longitude - resolutionCell10), new GeoPoint(info.area.Max.Latitude + resolutionCell10, info.area.Max.Longitude + resolutionCell10));
-
-        //    var db = new PraxisContext();
-        //    if (places == null)
-        //        places = GetPlaces(loadDataArea, skipTags: true); //, null, false, true, smallestFeature //Includes generated here with the final True parameter.
-        //    List<long> placeIDs = places.Select(a => a.sourceItemID).ToList();
-        //    Dictionary<long, long> teamClaims = db.TeamClaims.Where(act => placeIDs.Contains(act.StoredElementId)).ToDictionary(k => k.StoredElementId, v => v.FactionId);
-        //    Dictionary<long, string> teamNames = db.Factions.ToDictionary(k => k.FactionId, v => v.Name);
-        //    places = places
-        //        .Where(a => teamClaims.ContainsKey(a.sourceItemID)) //Only draw elements claimed by a team.
-        //        .Where(a => a.AreaSize >= smallestFeature) //only draw elements big enough to draw
-        //        .OrderByDescending(a => a.AreaSize) //Order from biggest to smallest.
-        //        .ToList();
-
-        //    foreach (var ap in places) //Set team ownership via tags.
-        //    {
-        //        if (teamClaims.ContainsKey(ap.sourceItemID))
-        //            ap.Tags = new List<ElementTags>() { new ElementTags() { Key = "team", Value = teamNames[teamClaims[ap.sourceItemID]] } };
-        //        else
-        //            ap.Tags = new List<ElementTags>() { new ElementTags() { Key = "team", Value = "none" } };
-        //    }
-
-        //    return DrawAreaAtSize(info, places, "teamColor");
-        //}
-
-        //public static byte[] DrawPaintTownSlippyTileSkia(ImageStats info, int instanceID)
-        //{
-        //    //It might be fun on rare occasion to try and draw this all at once, but zoomed out too far and we won't see anything and will be very slow.
-        //    //Find all Cell8s in the relevant area.
-        //    MemoryStream ms = new MemoryStream();
-        //    var Cell8Wide = info.area.LongitudeWidth / resolutionCell8;
-        //    var Cell8High = info.area.LatitudeHeight / resolutionCell8;
-
-        //    //These may or may not be the same, even if the map tile is smaller than 1 Cell8.
-        //    var firstCell8 = new OpenLocationCode(info.area.SouthLatitude, info.area.WestLongitude).CodeDigits.Substring(0, 8);
-        //    var lastCell8 = new OpenLocationCode(info.area.NorthLatitude, info.area.EastLongitude).CodeDigits.Substring(0, 8);
-        //    if (firstCell8 != lastCell8)
-        //    {
-        //        //quick hack to make sure we process enough data.
-        //        Cell8High++;
-        //        Cell8Wide++;
-        //    }
-
-        //    //List<PaintTownEntry> allData = new List<PaintTownEntry>();
-        //    for (var x = 0; x < Cell8Wide; x++)
-        //        for (var y = 0; y < Cell8High; y++)
-        //        {
-        //            var thisCell = new OpenLocationCode(info.area.SouthLatitude + (resolutionCell8 * x), info.area.WestLongitude + (resolutionCell8 * y)).CodeDigits.Substring(0, 8);
-        //            //var thisData = PaintTown.LearnCell8(instanceID, thisCell);
-        //            //allData.AddRange(thisData);
-        //        }
-
-        //    //Some image items setup.
-        //    SKBitmap bitmap = new SKBitmap(info.imageSizeX, info.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
-        //    SKCanvas canvas = new SKCanvas(bitmap);
-        //    var bgColor = SKColors.Transparent;
-        //    canvas.Clear(bgColor);
-        //    canvas.Scale(1, -1, info.imageSizeX / 2, info.imageSizeY / 2);
-        //    SKPaint paint = new SKPaint();
-        //    SKColor color = new SKColor();
-        //    paint.IsAntialias = true;
-        //    //foreach (var line in allData)
-        //    //{
-        //    //    var location = OpenLocationCode.DecodeValid(line.Cell10);
-        //    //    var placeAsPoly = Converters.GeoAreaToPolygon(location);
-        //    //    var path = new SKPath();
-        //    //    path.AddPoly(Converters.PolygonToSKPoints(placeAsPoly, info.area, info.degreesPerPixelX, info.degreesPerPixelY));
-        //    //    paint.Style = SKPaintStyle.Fill;
-        //    //    SKColor.TryParse(teamColorReferenceLookupSkia[line.FactionId].FirstOrDefault(), out color);
-        //    //    paint.Color = color;
-        //    //    canvas.DrawPath(path, paint);
-        //    //}
-
-        //    var skms = new SKManagedWStream(ms);
-        //    bitmap.Encode(skms, SKEncodedImageFormat.Png, 100);
-        //    var results = ms.ToArray();
-        //    skms.Dispose(); ms.Close(); ms.Dispose();
-        //    return results;
-        //}
-
+        /// <summary>
+        /// Draw square boxes around each area to approximate how they would behave in an offline app
+        /// </summary>
+        /// <param name="info">the image information for drawing</param>
+        /// <param name="items">the elements to draw.</param>
+        /// <returns>byte array of the generated .png tile image</returns>
         public static byte[] DrawOfflineEstimatedAreas(ImageStats info, List<StoredOsmElement> items)
         {
             SKBitmap bitmap = new SKBitmap(info.imageSizeX, info.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
@@ -157,6 +76,11 @@ namespace PraxisCore
             return results;
         }
 
+        /// <summary>
+        /// Draws grid lines to match boundaries for 8 character PlusCodes.
+        /// </summary>
+        /// <param name="totalArea">the GeoArea to draw lines in</param>
+        /// <returns>the byte array for the maptile png file</returns>
         public static byte[] DrawCell8GridLines(GeoArea totalArea)
         {
             int imageSizeX = MapTileSizeSquare;
@@ -211,6 +135,11 @@ namespace PraxisCore
             return results;
         }
 
+        /// <summary>
+        /// Draws grid lines to match boundaries for 10 character PlusCodes.
+        /// </summary>
+        /// <param name="totalArea">the GeoArea to draw lines in</param>
+        /// <returns>the byte array for the maptile png file</returns>
         public static byte[] DrawCell10GridLines(GeoArea totalArea)
         {
             int imageSizeX = MapTileSizeSquare;
@@ -265,6 +194,11 @@ namespace PraxisCore
             return results;
         }
 
+        /// <summary>
+        /// Force gameplay maptiles to expire and be redrawn on next access. Can be limited to a specific style set or run on all tiles.
+        /// </summary>
+        /// <param name="g">the area to expire intersecting maptiles with</param>
+        /// <param name="styleSet">which set of maptiles to expire. All tiles if this is an empty string</param>
         public static void ExpireMapTiles(Geometry g, string styleSet = "")
         {
             //If this would be faster as raw SQL, see function below for a template on how to write that.
@@ -275,6 +209,11 @@ namespace PraxisCore
             db.Database.ExecuteSqlRaw(SQL);
         }
 
+        /// <summary>
+        /// Force gameplay maptiles to expire and be redrawn on next access. Can be limited to a specific style set or run on all tiles.
+        /// </summary>
+        /// <param name="elementId">the privacyID of a storedOsmElement to expire intersecting tiles for.</param>
+        /// <param name="styleSet">which set of maptiles to expire. All tiles if this is an empty string</param>
         public static void ExpireMapTiles(Guid elementId, string styleSet = "")
         {
             //If this would be faster as raw SQL, see function below for a template on how to write that.
@@ -285,6 +224,11 @@ namespace PraxisCore
             db.Database.ExecuteSqlRaw(SQL);
         }
 
+        /// <summary>
+        /// Force SlippyMap tiles to expire and be redrawn on next access. Can be limited to a specific style set or run on all tiles.
+        /// </summary>
+        /// <param name="g">the area to expire intersecting maptiles with</param>
+        /// <param name="styleSet">which set of SlippyMap tiles to expire. All tiles if this is an empty string</param>
         public static void ExpireSlippyMapTiles(Geometry g, string styleSet = "")
         {
             //If this would be faster as raw SQL, see function below for a template on how to write that.
@@ -295,20 +239,25 @@ namespace PraxisCore
             db.Database.ExecuteSqlRaw(SQL);
         }
 
-        public static void ExpireSlippyMapTiles(long elementId, string styleSet = "")
+        /// <summary>
+        /// Force SlippyMap tiles to expire and be redrawn on next access. Can be limited to a specific style set or run on all tiles.
+        /// </summary>
+        /// <param name="elementId">the privacyID of a storedOsmElement to expire intersecting tiles for.</param>
+        /// <param name="styleSet">which set of maptiles to expire. All tiles if this is an empty string</param>
+        public static void ExpireSlippyMapTiles(Guid elementId, string styleSet = "")
         {
             //Might this be better off as raw SQL? If I expire, say, an entire state, that could be a lot of map tiles to pull into RAM just for a date to change.
             //var raw = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE ST_INTERSECTS(areaCovered, ST_GeomFromText(" + g.AsText() + "))";
             var db = new PraxisContext();
-            string SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet = '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM StoredOsmElements WHERE id = " + elementId + "))";
+            string SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet = '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM StoredOsmElements WHERE privacyId = '" + elementId + "'))";
             db.Database.ExecuteSqlRaw(SQL);
-            //var mapTiles = db.SlippyMapTiles.Where(m => m.areaCovered.Intersects(g) && (limitModeTo == 0 || m.mode == limitModeTo)).ToList(); //TODO: can I select only the ExpiresOn value and have that save back correctly?
-            //foreach (var mt in mapTiles)
-            //mt.ExpireOn = DateTime.Now;
-
-            //db.SaveChanges();
         }
 
+        /// <summary>
+        /// FUTURE FEATURE - Take a path provided by a user, draw it as a maptile. Potentially useful for exercise trackers Must not be saved to the database.
+        /// </summary>
+        /// <param name="pointListAsString">a string of points separate by , and | </param>
+        /// <returns>the png file with the path drawn over the mapdata in the area.</returns>
         public static byte[] DrawUserPath(string pointListAsString)
         {
             //String is formatted as Lat,Lon~Lat,Lon~ repeating. Characters chosen to not be percent-encoded if submitted as part of the URL.
@@ -333,7 +282,7 @@ namespace PraxisCore
             SKPaint paint = new SKPaint();
             paint.Style = SKPaintStyle.Stroke;
             paint.StrokeWidth = 4; //Larger than normal lines at any zoom level.
-            paint.Color = new SKColor(255, 255, 255); //Pure White, for maximum visibility.
+            paint.Color = new SKColor(0, 0, 0); //Pure black, for maximum visibility.
             for (var x = 0; x < drawableLine.Length - 1; x++)
                 canvas.DrawLine(drawableLine[x], drawableLine[x + 1], paint);
 
@@ -345,11 +294,13 @@ namespace PraxisCore
             return results;
         }
 
-        //public static byte[] DrawCell8V4(GeoArea Cell8, List<StoredOsmElement> drawnItems = null)
-        //{
-            //return DrawAreaAtSize(Cell8, 80, 100, drawnItems);
-        //}
-
+        /// <summary>
+        /// A code reference for how big an image would be using 11-character PlusCodes for 1 pixel (or 2x2 if doubleRes is true)
+        /// </summary>
+        /// <param name="code">the code provided to determine image size</param>
+        /// <param name="X">out param for image width</param>
+        /// <param name="Y">out param for image height</param>
+        /// <param name="doubleRes">if true, each Cell11 in the resulting image will be 2x2 pixels, or 1x1 if false.</param>
         public static void GetPlusCodeImagePixelSize(string code, out int X, out int Y, bool doubleRes = true)
         {
             switch (code.Length)
@@ -383,6 +334,13 @@ namespace PraxisCore
             }
         }
 
+        /// <summary>
+        /// Get the image for a PlusCode. Can optionally draw in a specific style set.
+        /// </summary>
+        /// <param name="area">the PlusCode string to draw. Can be 6-11 digits long</param>
+        /// <param name="styleSet">the TagParser style set to use when drawing</param>
+        /// <param name="doubleRes">treat each Cell11 contained as 2x2 pixels when true, 1x1 when not.</param>
+        /// <returns></returns>
         public static byte[] DrawPlusCode(string area, string styleSet = "mapTiles", bool doubleRes = true)
         {
             //This might be a cleaner version of my V4 function, for working with CellX sized tiles..
@@ -401,6 +359,14 @@ namespace PraxisCore
             return DrawAreaAtSize(info, paintOps, TagParser.GetStyleBgColor(styleSet));
         }
 
+        /// <summary>
+        /// Get the image for a PlusCode. Can optionally draw in a specific style set.
+        /// </summary>
+        /// <param name="area">the PlusCode string to draw. Can be 6-11 digits long</param>
+        /// <param name="paintOps">the list of paint operations to run through for drawing</param>
+        /// <param name="styleSet">the TagParser style set to use for determining the background color.</param>
+        /// <param name="doubleRes">treat each Cell11 contained as 2x2 pixels when true, 1x1 when not.</param>
+        /// <returns>a byte array for the png file of the pluscode image file</returns>
         public static byte[] DrawPlusCode(string area, List<CompletePaintOp> paintOps, string styleSet="mapTiles", bool doubleRes = true)
         {
             //This might be a cleaner version of my V4 function, for working with CellX sized tiles..
@@ -426,7 +392,14 @@ namespace PraxisCore
         //This generic function takes the area to draw, a size to make the canvas, and then draws it all.
         //Optional parameter allows you to pass in different stuff that the DB alone has, possibly for manual or one-off changes to styling
         //or other elements converted for maptile purposes.
-
+        /// <summary>
+        /// A highly generic image drawing function. Given image info, things to draw, and the style rules for drawing, returns the corresponding image.
+        /// </summary>
+        /// <param name="stats">Image information, including width and height.</param>
+        /// <param name="drawnItems">the elments to draw</param>
+        /// <param name="styleSet">the style rules to use when drawing</param>
+        /// <param name="filterSmallAreas">if true, removes elements from the drawing that take up fewer than 8 pixels.</param>
+        /// <returns></returns>
         public static byte[] DrawAreaAtSize(ImageStats stats, List<StoredOsmElement> drawnItems = null, string styleSet = null, bool filterSmallAreas = true)
         {
             //This is the new core drawing function. Takes in an area, the items to draw, and the size of the image to draw. 
@@ -487,6 +460,7 @@ namespace PraxisCore
                             if (p.Holes.Length == 0)
                             {
                                 path.AddPoly(Converters.PolygonToSKPoints(p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                            //path.
                                 canvas.DrawPath(path, paint);
                             }
                             else
@@ -599,16 +573,26 @@ namespace PraxisCore
                     //ALL elements already drawn, not just the last one.
                     case "Polygon":
                         var p = w.elementGeometry as Polygon;
-                        if (p.Holes.Length == 0)
-                        {
-                            path.AddPoly(Converters.PolygonToSKPoints(p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                            canvas.DrawPath(path, paint);
-                        }
-                        else
-                        {
-                            var innerBitmap = DrawPolygon((Polygon)w.elementGeometry, paint, stats);
-                            canvas.DrawBitmap(innerBitmap, 0, 0, paint);
-                        }
+                        //new attempt without drawing to a new bitmap
+                        //TODO test this to make sure it behaves as desired. would be huge perf improvement
+                        path.AddPoly(Converters.PolygonToSKPoints(p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                        
+                        foreach(var ir in p.Holes)
+                            path.AddPoly(Converters.PolygonToSKPoints(ir, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                        
+                        canvas.DrawPath(path, paint);
+
+                        //old
+                        //if (p.Holes.Length == 0)
+                        //{
+                        //    path.AddPoly(Converters.PolygonToSKPoints(p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                        //    canvas.DrawPath(path, paint);
+                        //}
+                        //else
+                        //{
+                        //    var innerBitmap = DrawPolygon((Polygon)w.elementGeometry, paint, stats);
+                        //    canvas.DrawBitmap(innerBitmap, 0, 0, paint);
+                        //}
                         break;
                     case "MultiPolygon":
                         foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries)
@@ -887,6 +871,7 @@ namespace PraxisCore
 
         //Possible optimization: Cap image size to polygon size inside cropped area for parent image. 
         //Would need more math to apply to correct location.
+        //TODO: test to see if I can just apply the holes as a path to the same path and have them hidden?
         public static SKBitmap DrawPolygon(Polygon polygon, SKPaint paint, ImageStats stats)
         {
             //In order to do this the most correct, i have to draw the outer ring, then erase all the innner rings.
