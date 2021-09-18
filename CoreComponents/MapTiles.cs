@@ -254,7 +254,7 @@ namespace PraxisCore
         }
 
         /// <summary>
-        /// FUTURE FEATURE - Take a path provided by a user, draw it as a maptile. Potentially useful for exercise trackers Must not be saved to the database.
+        /// Take a path provided by a user, draw it as a maptile. Potentially useful for exercise trackers. Resulting file must not be saved to the server as that would be user tracking.
         /// </summary>
         /// <param name="pointListAsString">a string of points separate by , and | </param>
         /// <returns>the png file with the path drawn over the mapdata in the area.</returns>
@@ -275,7 +275,7 @@ namespace PraxisCore
 
             //Now, draw that path on the map.
             var places = GetPlaces(mapToDraw); //, null, false, false, degreesPerPixelX * 4 ///TODO: restore item filtering
-            var baseImage = DrawAreaAtSize(info, places); //InnerDrawSkia(ref places, mapToDraw, degreesPerPixelX, degreesPerPixelY, 1024, 1024);
+            var baseImage = DrawAreaAtSize(info, places);
 
             SKBitmap sKBitmap = SKBitmap.Decode(baseImage);
             SKCanvas canvas = new SKCanvas(sKBitmap);
@@ -382,18 +382,11 @@ namespace PraxisCore
             return DrawAreaAtSize(info, paintOps, TagParser.GetStyleBgColor(styleSet));
         }
 
-        //public static byte[] DrawAreaAtSize(GeoArea relevantArea, int imageSizeX, int imageSizeY, List<CompletePaintOp> paintOps)
-        //{
-        //Create an Info object and use that to pass to to the main image.
-        //ImageStats info = new ImageStats(relevantArea, imageSizeX, imageSizeY);
-        //return DrawAreaAtSize(info, paintOps, false); //This is a gameplay tile, and we want all items in it. ~Zoom 15.2
-        //}
 
-        //This generic function takes the area to draw, a size to make the canvas, and then draws it all.
         //Optional parameter allows you to pass in different stuff that the DB alone has, possibly for manual or one-off changes to styling
         //or other elements converted for maptile purposes.
         /// <summary>
-        /// A highly generic image drawing function. Given image info, things to draw, and the style rules for drawing, returns the corresponding image.
+        /// //This generic function takes the area to draw and creates an image for it. Can optionally be provided specific elements, a specific style set, and told to filter small areas out of the results.
         /// </summary>
         /// <param name="stats">Image information, including width and height.</param>
         /// <param name="drawnItems">the elments to draw</param>
@@ -594,7 +587,7 @@ namespace PraxisCore
                         //    canvas.DrawBitmap(innerBitmap, 0, 0, paint);
                         //}
                         break;
-                    case "MultiPolygon":
+                    case "MultiPolygon": //TODO move new polygon code here from above case if it works.
                         foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries)
                         {
                             var p2p = p2 as Polygon;
@@ -666,6 +659,13 @@ namespace PraxisCore
             return results;
         }
 
+        /// <summary>
+        /// Creates the list of paint commands for the given elements, styles, and image area.
+        /// </summary>
+        /// <param name="elements">the list of StoredOsmElements to be drawn</param>
+        /// <param name="styleSet">the style set to use when drwaing the elements</param>
+        /// <param name="stats">the info on the resulting image for calculating ops.</param>
+        /// <returns>a list of CompletePaintOps to be passed into a DrawArea function</returns>
         public static List<CompletePaintOp> GetPaintOpsForStoredElements(List<StoredOsmElement> elements, string styleSet, ImageStats stats)
         {
             var styles = TagParser.allStyleGroups[styleSet];
@@ -679,6 +679,14 @@ namespace PraxisCore
             return pass2;
         }
 
+        /// <summary>
+        /// Creates the list of paint commands for the elements intersecting the given area, with the given data key attached to OSM elements and style set, for the image.
+        /// </summary>
+        /// <param name="area">a Polygon covering the area to draw. Intended to match the ImageStats GeoArea. May be removed in favor of using the ImageStats GeoArea later. </param>
+        /// <param name="dataKey">the key to pull data from attached to any Osm Elements intersecting the area</param>
+        /// <param name="styleSet">the style set to use when drawing the intersecting elements</param>
+        /// <param name="stats">the info on the resulting image for calculating ops.</param>
+        /// <returns>a list of CompletePaintOps to be passed into a DrawArea function</returns>
         public static List<CompletePaintOp> GetPaintOpsForCustomDataElements(Geometry area, string dataKey, string styleSet, ImageStats stats)
         {
             //NOTE: styleSet must == dataKey for this to work. Or should I just add that to this function?
@@ -696,6 +704,14 @@ namespace PraxisCore
         }
 
         //This function only works if all the dataValue entries are a key in styles
+        /// <summary>
+        /// Creates the list of paint commands for the PlusCode cells intersecting the given area, with the given data key and style set, for the image.
+        /// </summary>
+        /// <param name="area">a Polygon covering the area to draw. Intended to match the ImageStats GeoArea. May be removed in favor of using the ImageStats GeoArea later. </param>
+        /// <param name="dataKey">the key to pull data from attached to any Osm Elements intersecting the area</param>
+        /// <param name="styleSet">the style set to use when drawing the intersecting elements</param>
+        /// <param name="stats">the info on the resulting image for calculating ops.</param>
+        /// <returns>a list of CompletePaintOps to be passed into a DrawArea function</returns>
         public static List<CompletePaintOp> GetPaintOpsForCustomDataPlusCodes(Geometry area, string dataKey, string styleSet, ImageStats stats)
         {
             var db = new PraxisContext();
@@ -712,6 +728,14 @@ namespace PraxisCore
         }
 
         //Allows for 1 style to pull a color from the custom data value.
+        /// <summary>
+        /// Creates the list of paint commands for the PlusCode cells intersecting the given area, with the given data key and style set, for the image. In this case, the color will be the tag's value.
+        /// </summary>
+        /// <param name="area">a Polygon covering the area to draw. Intended to match the ImageStats GeoArea. May be removed in favor of using the ImageStats GeoArea later. </param>
+        /// <param name="dataKey">the key to pull data from attached to any Osm Elements intersecting the area</param>
+        /// <param name="styleSet">the style set to use when drawing the intersecting elements</param>
+        /// <param name="stats">the info on the resulting image for calculating ops.</param>
+        /// <returns>a list of CompletePaintOps to be passed into a DrawArea function</returns>
         public static List<CompletePaintOp> GetPaintOpsForCustomDataPlusCodesFromTagValue(Geometry area, string dataKey, string styleSet, ImageStats stats)
         {
             var db = new PraxisContext();
@@ -727,6 +751,14 @@ namespace PraxisCore
             return pass2;
         }
 
+        /// <summary>
+        /// Creates an SVG image instead of a PNG file, but otherwise operates the same as DrawAreaAtSize.
+        /// </summary>
+        /// <param name="stats">the image properties to draw</param>
+        /// <param name="drawnItems">the list of elements to draw. Will load from the database if null.</param>
+        /// <param name="styles">a dictionary of TagParserEntries to select to draw</param>
+        /// <param name="filterSmallAreas">if true, skips entries below a certain size when drawing.</param>
+        /// <returns>a string containing the SVG XML</returns>
         public static string DrawAreaAtSizeSVG(ImageStats stats, List<StoredOsmElement> drawnItems = null, Dictionary<string, TagParserEntry> styles = null, bool filterSmallAreas = true)
         {
             //TODO: make this take CompletePaintOps
@@ -871,7 +903,14 @@ namespace PraxisCore
 
         //Possible optimization: Cap image size to polygon size inside cropped area for parent image. 
         //Would need more math to apply to correct location.
-        //TODO: test to see if I can just apply the holes as a path to the same path and have them hidden?
+        //TODO: test to see if I can just apply the holes as a path to the same path and have them be removed? Skiasharp might know to draw clockwise-lists of points as a hole.
+        /// <summary>
+        /// Draws a polygon as its own image,to be overlaid onto another image. Potentially obsoleted by drawing holes properly in SkiaSharp paths/polygons.
+        /// </summary>
+        /// <param name="polygon">The polygon with holes to draw</param>
+        /// <param name="paint">the paint operation to use when drawing</param>
+        /// <param name="stats">the ImageStats for the image this bitmap will be merged into</param>
+        /// <returns>an SKBitmap to be merged into an existing SKBitmap.</returns>
         public static SKBitmap DrawPolygon(Polygon polygon, SKPaint paint, ImageStats stats)
         {
             //In order to do this the most correct, i have to draw the outer ring, then erase all the innner rings.
@@ -895,6 +934,10 @@ namespace PraxisCore
             return bitmap;
         }
 
+        /// <summary>
+        /// Creates all gameplay tiles for a given area and saves them to the database.
+        /// </summary>
+        /// <param name="buffered">the GeoArea of the area to create tiles for.</param>
         public static void PregenMapTilesForArea(GeoArea buffered)
         {
             //There is a very similar function for this in Standalone.cs, but this one writes back to the main DB.
@@ -971,6 +1014,11 @@ namespace PraxisCore
 
         }
 
+        /// <summary>
+        /// Generates all SlippyMap tiles for a given area and zoom level, and saves them to the database.
+        /// </summary>
+        /// <param name="buffered">the GeoArea to generate tiles for</param>
+        /// <param name="zoomLevel">the zoom level to generate tiles at.</param>
         public static void PregenSlippyMapTilesForArea(GeoArea buffered, int zoomLevel)
         {
             //There is a very similar function for this in Standalone.cs, but this one writes back to the main DB.
@@ -1029,6 +1077,13 @@ namespace PraxisCore
             Log.WriteLog("Zoom " + zoomLevel + " map tiles drawn in " + progressTimer.Elapsed.ToString());
         }
 
+        /// <summary>
+        /// Combines 2 images into one, given the shared ImageStats for both supplied images.
+        /// </summary>
+        /// <param name="info">the ImageStats object used to generate both bottom and top tiles.</param>
+        /// <param name="bottomTile">the tile to use as the base of the image. Expected to be opaque.</param>
+        /// <param name="topTile">The tile to layer on top. Expected to be at least partly transparent or translucent.</param>
+        /// <returns></returns>
         public static byte[] LayerTiles(ImageStats info, byte[] bottomTile, byte[] topTile)
         {
             SkiaSharp.SKBitmap bitmap = new SkiaSharp.SKBitmap(info.imageSizeX, info.imageSizeY, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul);
