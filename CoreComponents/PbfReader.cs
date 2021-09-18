@@ -83,11 +83,19 @@ namespace PraxisCore.PbfReader
 
         public bool displayStatus = true;
 
+        /// <summary>
+        /// Returns how many blocks are in the current PBF file.
+        /// </summary>
+        /// <returns>long of blocks in the opened file</returns>
         public long BlockCount()
         {
             return blockPositions.Count();
         }
 
+        /// <summary>
+        /// Opens up a file for reading. 
+        /// </summary>
+        /// <param name="filename">the path to the file to read.</param>
         private void Open(string filename)
         {
             fi = new FileInfo(filename);
@@ -97,12 +105,22 @@ namespace PraxisCore.PbfReader
             Serializer.PrepareSerializer<Blob>();
         }
 
+        /// <summary>
+        /// Closes the currently open file
+        /// </summary>
         private void Close()
         {
             fs.Close();
             fs.Dispose();
         }
 
+        /// <summary>
+        /// Runs through the entire process to convert a PBF file into usable PraxisMapper data. The server bounds for this process must be identified via other functions.
+        /// </summary>
+        /// <param name="filename">The path to the PBF file to read</param>
+        /// <param name="saveToDb">If true, saves the resulting objects directly to a database. Otherwise, serialized the data to a JSON entry in a text file. </param>
+        /// <param name="onlyTagMatchedEntries">If true, only load data in the file that meets a rule in TagParser. If false, processes all elements in the file.</param>
+        /// <param name="saveForInfileLoad">if true AND saveToDb is false, saves the results to a MariaDB Infile load formatted text file instead of JSON, which can be loaded directly to the database dramatically faster than processing the JSON format.</param>
         public void ProcessFile(string filename, bool saveToDb = false, bool onlyTagMatchedEntries = false, bool saveForInfileLoad = false)
         {
             try
@@ -141,7 +159,7 @@ namespace PraxisCore.PbfReader
                         {
                             //This path is MariaDB specific, but allows populating the database much, much faster.
                             //Process the results in 2 file, 1 for geometry data, 1 for tags.
-                            var wt = ProcessReaderResultsForInFile(geoData, outputPath + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", saveToDb, onlyTagMatchedEntries);
+                            var wt = ProcessReaderResultsForInFile(geoData, outputPath + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", onlyTagMatchedEntries);
                             if (wt != null)
                                 writeTasks.Add(wt);
                         }
@@ -173,6 +191,12 @@ namespace PraxisCore.PbfReader
             }
         }
 
+        /// <summary>
+        /// Given a filename and a relation's ID from OpenStreetMap, processes all elements that intersect the given relation directly to the database.
+        /// </summary>
+        /// <param name="filename">the PBF file to process</param>
+        /// <param name="relationId">the OSM relation ID to use as the basis for loaded data</param>
+        /// <returns>the Envelope for the given relation, to be used to identify server bounds.</returns>
         public Envelope GetOneAreaFromFile(string filename, long relationId)
         {
             //Get a bounding box from a single relation, then pull all entries in it from the file to the DB.
@@ -224,58 +248,60 @@ namespace PraxisCore.PbfReader
             }
         }
 
-        public void debugArea(string filename, long areaId)
-        {
-            Open(filename);
-            IndexFile();
-            //LoadBlockInfo();
-            var block = relationFinder[areaId];
+        /// <summary>
+        
+        //public void debugArea(string filename, long areaId)
+        //{
+        //    Open(filename);
+        //    IndexFile();
+        //    //LoadBlockInfo();
+        //    var block = relationFinder[areaId];
 
-            PraxisCore.Singletons.SimplifyAreas = true; //Labrador Sea is huge. 12 MB by itself.
-            var r = GetRelation(areaId);
-            var r2 = GeometrySupport.ConvertOsmEntryToStoredElement(r);
-            GeometrySupport.WriteSingleStoredElementToFile("labradorSea.json", r2);
-            Close();
-            CleanupFiles();
-        }
+        //    PraxisCore.Singletons.SimplifyAreas = true; //Labrador Sea is huge. 12 MB by itself.
+        //    var r = GetRelation(areaId);
+        //    var r2 = GeometrySupport.ConvertOsmEntryToStoredElement(r);
+        //    GeometrySupport.WriteSingleStoredElementToFile("labradorSea.json", r2);
+        //    Close();
+        //    CleanupFiles();
+        //}
 
-        public void debugPerfTest(string filename)
-        {
-            //testing feature interprester variances.
-            Open(filename);
-            IndexFile();
-            var featureInterpreter = new PMFeatureInterpreter();
-            var allRelations = new List<CompleteRelation>();
-            foreach (var r in relationFinder)
-            {
-                try
-                {
-                    var g = GetRelation(9428957);  //(r.Key); //gulf of st laurence
-                    TimeSpan runA, runB;
+        //public void debugPerfTest(string filename)
+        //{
+        //    //testing feature interprester variances.
+        //    Open(filename);
+        //    IndexFile();
+        //    var featureInterpreter = new PMFeatureInterpreter();
+        //    var allRelations = new List<CompleteRelation>();
+        //    foreach (var r in relationFinder)
+        //    {
+        //        try
+        //        {
+        //            var g = GetRelation(9428957);  //(r.Key); //gulf of st laurence
+        //            TimeSpan runA, runB;
 
-                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-                    sw.Start();
-                    var featureA = featureInterpreter.Interpret(g);
-                    sw.Stop();
-                    runA = sw.Elapsed;
-                    Log.WriteLog("Customized interpreter ran in " + runA);
-                    var check2 = GeometrySupport.SimplifyArea(featureA.First().Geometry);
-                    sw.Restart();
-                    var featureB = OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(g); //mainline version, while i get my version dialed in for edge cases.
-                    sw.Stop();
-                    runB = sw.Elapsed;
-                    Log.WriteLog("Default interpreter ran in " + runB);
-                    Log.WriteLog("Change from using custom interpreter: " + (runB - runA));
-                    var a = 1;
-                }
-                catch (Exception ex)
-                {
-                    //do nothing
-                }
-            }
-
-        }
-
+        //            System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+        //            sw.Start();
+        //            var featureA = featureInterpreter.Interpret(g);
+        //            sw.Stop();
+        //            runA = sw.Elapsed;
+        //            Log.WriteLog("Customized interpreter ran in " + runA);
+        //            var check2 = GeometrySupport.SimplifyArea(featureA.First().Geometry);
+        //            sw.Restart();
+        //            var featureB = OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(g); //mainline version, while i get my version dialed in for edge cases.
+        //            sw.Stop();
+        //            runB = sw.Elapsed;
+        //            Log.WriteLog("Default interpreter ran in " + runB);
+        //            Log.WriteLog("Change from using custom interpreter: " + (runB - runA));
+        //            var a = 1;
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            //do nothing
+        //        }
+        //    }
+        //}
+        
+        //Build the index for entries in this PBF file.
         private void IndexFile()
         {
             Log.WriteLog("Indexing file...");
@@ -342,6 +368,8 @@ namespace PraxisCore.PbfReader
                         long maxNode = long.MinValue;
                         if (pb2.primitivegroup[0].dense != null)
                         {
+                            //TODO: I think these are sorted in order. If so, I can skip the ForEach loop,
+                            //and just use the first dense.id as the min, and then dense.Sum(id) for the max
                             foreach (var n in pb2.primitivegroup[0].dense.id)
                             {
                                 nodecounter += n;
@@ -358,7 +386,7 @@ namespace PraxisCore.PbfReader
                 waiting.Add(tasked);
             }
             Task.WaitAll(waiting.ToArray());
-            //this logic does require the wayIndex to be in blockID order, which they usually are.
+            //this logic does require the wayIndex to be in blockID order, which they are (at least from Geofabrik).
             foreach (var w in wayFinder.OrderBy(w => w.Key))
             {
                 wayFinderList.Add(Tuple.Create(w.Key, w.Value));
@@ -371,6 +399,11 @@ namespace PraxisCore.PbfReader
             SetOptimizationValues();
         }
         
+        /// <summary>
+        /// If a block is already in memory, load it. If it isn't, load it from disk and add it to memory.
+        /// </summary>
+        /// <param name="blockId">the ID for the block in question</param>
+        /// <returns>the PrimitiveBlock requested</returns>
         private PrimitiveBlock GetBlock(long blockId)
         {
             //Track that this entry was requested for this processing block.
@@ -387,6 +420,11 @@ namespace PraxisCore.PbfReader
             return results;
         }
 
+        /// <summary>
+        /// Loads a PrimitiveBlock from the PBF file.
+        /// </summary>
+        /// <param name="blockId">the block to read from the file</param>
+        /// <returns>the PrimitiveBlock requested</returns>
         private PrimitiveBlock GetBlockFromFile(long blockId)
         {
             byte[] thisblob1;
@@ -423,6 +461,11 @@ namespace PraxisCore.PbfReader
         //    return thisblob1;
         //}
 
+        /// <summary>
+        /// Converts the byte array for a block into the PrimitiveBlock object.
+        /// </summary>
+        /// <param name="blockBytes">the bytes making up the block</param>
+        /// <returns>the PrimitiveBlock object requested.</returns>
         private PrimitiveBlock DecodeBlock(byte[] blockBytes)
         {
             var ms2 = new MemoryStream(blockBytes);
@@ -434,6 +477,12 @@ namespace PraxisCore.PbfReader
             return pulledBlock;
         }
 
+        /// <summary>
+        /// Processes the requested relation into an OSMSharp CompleteRelation from the currently opened file
+        /// </summary>
+        /// <param name="relationId">the relation to load and process</param>
+        /// <param name="ignoreUnmatched">if true, skip entries that don't get a TagParser match applied to them.</param>
+        /// <returns>an OSMSharp CompleteRelation, or null if entries are missing, the elements were unmatched and ignoreUnmatched is true, or there were errors creating the object.</returns>
         private OsmSharp.Complete.CompleteRelation GetRelation(long relationId, bool ignoreUnmatched = false)
         {
             try
@@ -541,6 +590,14 @@ namespace PraxisCore.PbfReader
             }
         }
 
+        /// <summary>
+        /// Processes the requested way from the currently open file into an OSMSharp CompleteWay
+        /// </summary>
+        /// <param name="wayId">the way Id to process</param>
+        /// <param name="skipUntagged">if true, skip this entry if it doesn't have any tags applied to it</param>
+        /// <param name="hints">a list of currently loaded blocks to check before doing a full BTree search for entries</param>
+        /// <param name="ignoreUnmatched">if true, returns null if this element's tags only match the default style.</param>
+        /// <returns>the CompleteWay object requested, or null if skipUntagged or ignoreUnmatched checks skip this elements, or if there is an error processing the way</returns>
         private OsmSharp.Complete.CompleteWay GetWay(long wayId, bool skipUntagged, List<long> hints = null, bool ignoreUnmatched = false)
         {
             try
@@ -623,6 +680,12 @@ namespace PraxisCore.PbfReader
             }
         }
 
+        /// <summary>
+        /// Returns the Nodes that have tags applied from a block.
+        /// </summary>
+        /// <param name="block">the block of Nodes to search through</param>
+        /// <param name="ignoreUnmatched">if true, skip nodes that have tags that only match the default TaParser style.</param>
+        /// <returns>a list of Nodes with tags, which may have a length of 0.</returns>
         private List<OsmSharp.Node> GetTaggedNodesFromBlock(PrimitiveBlock block, bool ignoreUnmatched = false)
         {
             List<OsmSharp.Node> taggedNodes = new List<OsmSharp.Node>(8000);
@@ -691,76 +754,13 @@ namespace PraxisCore.PbfReader
             return taggedNodes;
         }
 
-        //private OsmSharp.Node GetNode(long nodeId, bool skipTags = true, List<long> hints = null)
-        //{
-        //    var nodeBlockValues = FindBlockKeyForNode(nodeId, hints);
-
-        //    PrimitiveBlock nodeBlock = GetBlock(nodeBlockValues);
-        //    var nodePrimGroup = nodeBlock.primitivegroup[0];
-        //    var keyvals = nodePrimGroup.dense.keys_vals;
-
-        //    //sort out tags ahead of time.
-        //    int entryCounter = 0;
-        //    List<Tuple<int, string, string>> idKeyVal = new List<Tuple<int, string, string>>();
-        //    for (int i = 0; i < keyvals.Count; i++)
-        //    {
-        //        if (keyvals[i] == 0)
-        //        {
-        //            entryCounter++;
-        //            continue;
-        //        }
-        //        //skip to next entry.
-        //        idKeyVal.Add(
-        //            Tuple.Create(entryCounter,
-        //        System.Text.Encoding.UTF8.GetString(nodeBlock.stringtable.s[keyvals[i]]),
-        //        System.Text.Encoding.UTF8.GetString(nodeBlock.stringtable.s[keyvals[i + 1]])
-        //        ));
-        //        i++;
-        //    }
-
-        //    var decodedTags = idKeyVal.ToLookup(k => k.Item1, v => new OsmSharp.Tags.Tag(v.Item2, v.Item3));
-
-        //    long nodeCounter = 0;
-        //    int index = -1;
-        //    long latDelta = 0;
-        //    long lonDelta = 0;
-        //    var dense = nodePrimGroup.dense; //this appears to save a little CPU time instead of getting the list each time
-        //    var denseIds = dense.id;
-        //    var dLat = dense.lat;
-        //    var dLon = dense.lon;
-        //    while (nodeCounter != nodeId)
-        //    {
-        //        index += 1;
-        //        if (index == 8000)
-        //            return null;
-        //        nodeCounter += denseIds[index];
-        //        latDelta += dLat[index];
-        //        lonDelta += dLon[index];
-        //    }
-
-        //    OsmSharp.Node filled = new OsmSharp.Node();
-        //    filled.Id = nodeId;
-        //    filled.Latitude = DecodeLatLon(latDelta, nodeBlock.lat_offset, nodeBlock.granularity);
-        //    filled.Longitude = DecodeLatLon(lonDelta, nodeBlock.lon_offset, nodeBlock.granularity);
-
-        //    //if bounds checking, drop nodes that aren't needed.
-        //    if (bounds != null)
-        //    {
-        //        if (filled.Latitude < bounds.MinY || filled.Latitude > bounds.MaxY || filled.Longitude < bounds.MinX || filled.Longitude > bounds.MaxX)
-        //            return null;
-        //    }
-
-        //    if (!skipTags)
-        //    {
-        //        OsmSharp.Tags.TagsCollection tc = new OsmSharp.Tags.TagsCollection();
-        //        foreach (var t in decodedTags[index].ToList())
-        //            tc.Add(t);
-
-        //        filled.Tags = tc;
-        //    }
-        //    return filled;
-        //}
-
+        /// <summary>
+        /// Pulls out all requested nodes from a block. Significantly faster to pull all nodes per block this way than to run through the list for each node.
+        /// </summary>
+        /// <param name="blockId">the block to pull nodes out of</param>
+        /// <param name="nodeIds">the IDs of nodes to load from this block</param>
+        /// <returns>a Dictionary of the node ID and corresponding values.</returns>
+        /// <exception cref="Exception">If a node isn't found in the expected block, an exception is thrown.</exception>
         private Dictionary<long, OsmSharp.Node> GetAllNeededNodesInBlock(long blockId, long[] nodeIds)
         {
             Dictionary<long, OsmSharp.Node> results = new Dictionary<long, OsmSharp.Node>(nodeIds.Length);
@@ -800,6 +800,12 @@ namespace PraxisCore.PbfReader
             return results;
         }
 
+        /// <summary>
+        /// Determine if a block is expected to have the given node by its nodeID, using its indexed values
+        /// </summary>
+        /// <param name="key">the NodeId to check for in this block</param>
+        /// <param name="value">the Tuple of min and max node IDs in a block.</param>
+        /// <returns>true if key is between the 2 Tuple values, or false ifnot.</returns>
         private bool NodeHasKey(long key, Tuple<long, long> value)
         {
             //key is block id
@@ -812,6 +818,13 @@ namespace PraxisCore.PbfReader
             return true;
         }
 
+        /// <summary>
+        /// Determine which node in the file has the given Node, using a BTree search on the index.
+        /// </summary>
+        /// <param name="nodeId">The node to find in the currently opened file</param>
+        /// <param name="hints">a list of blocks to check first, assuming that nodes previously searched are likely to be near each other. Ignored if more than 20 entries are in the list. </param>
+        /// <returns>the block ID containing the requested node</returns>
+        /// <exception cref="Exception">Throws an exception if the nodeId isn't found in the current file.</exception>
         private long FindBlockKeyForNode(long nodeId, List<long> hints = null) //BTree
         {
             //This is the most-called function in this class, and therefore the most performance-dependent.
@@ -852,6 +865,14 @@ namespace PraxisCore.PbfReader
             throw new Exception("Node Not Found");
         }
 
+        /// <summary>
+        /// Determine which node in the file has the given Way, using a BTree search on the index.
+        /// </summary>
+        /// <param name="wayId">The way to find in the currently opened file</param>
+        /// <param name="hints">a list of blocks to check first, assuming that blocks previously searched are likely to be near each other. Ignored if more than 20 entries are in the list. </param>
+        /// <returns>the block ID containing the requested way</returns>
+        /// <exception cref="Exception">Throws an exception if the way isn't found in the current file.</exception>
+
         private long FindBlockKeyForWay(long wayId, List<long> hints) //BTree
         {
             if (hints != null && hints.Count() < wayHintsMax) //skip hints if the BTree search is fewer checks.
@@ -887,6 +908,12 @@ namespace PraxisCore.PbfReader
             throw new Exception("Way Not Found");
         }
 
+        /// <summary>
+        /// Puts loading a Relation into its own thread so the rest of the file could advance instead of waiting on one object. Exports directly to the destination JSON file upon processing. Not currently used in the process, since this task can reload blocks previously discarded and cause RAM related issues.
+        /// </summary>
+        /// <param name="elementId">the relation to convert on its own</param>
+        /// <param name="saveFilename">the destination file to save the JSON formatted StoredOsmElement to. </param>
+        /// <returns>the Task handling the processing.</returns>
         public Task GetBigRelationSolo(long elementId, string saveFilename)
         {
             //For splitting off a single, long-running element into its own whole thread.
@@ -941,6 +968,14 @@ namespace PraxisCore.PbfReader
             }
         }
 
+        /// <summary>
+        /// Processes all entries in a PBF block for use in a PraxisMapper server.
+        /// </summary>
+        /// <param name="blockId">the block to process</param>
+        /// <param name="onlyTagMatchedEntries">if true, skips elements that match the default style for the TagParser style set</param>
+        /// <param name="infileProcess">if true, save results to a MariaDB Infile formatted text file, allowing for dramatically faster loading than the normal JSON process.</param>
+        /// <param name="exportNodesToJson">if true, save results in JSON format to a text file for loading into any database.</param>
+        /// <returns>A ConcurrentBag of OSMSharp CompleteGeo objects.</returns>
         public ConcurrentBag<OsmSharp.Complete.ICompleteOsmGeo> GetGeometryFromBlock(long blockId, bool onlyTagMatchedEntries = false, bool infileProcess = false, bool exportNodesToJson = false)
         {
             //This grabs the chosen block, populates everything in it to an OsmSharp.Complete object and returns that list
@@ -1055,12 +1090,22 @@ namespace PraxisCore.PbfReader
         }
 
         //Taken from OsmSharp (MIT License)
+        /// <summary>
+        /// Turns a PBF's dense stored data into a standard latitude or longitude value in degrees.
+        /// </summary>
+        /// <param name="valueOffset">the valueOffset for the block data is loaded from</param>
+        /// <param name="offset">the offset for the node currently loaded</param>
+        /// <param name="granularity">the granularity value of the block data is loaded from</param>
+        /// <returns>a double represeting the lat or lon value for the given dense values</returns>
         private static double DecodeLatLon(long valueOffset, long offset, long granularity)
         {
             return .000000001 * (offset + (granularity * valueOffset));
         }
         //end OsmSharp copied functions.
 
+        /// <summary>
+        /// Saves the indexes created for the currently opened file to their own files, so that they can be read instead of created if processing needs to resume later.
+        /// </summary>
         private void SaveBlockInfo()
         {
             string filename = outputPath + fi.Name + ".blockinfo";
@@ -1103,6 +1148,9 @@ namespace PraxisCore.PbfReader
             System.IO.File.WriteAllLines(filename, data);
         }
 
+        /// <summary>
+        /// Loads indexed data from a previous run from file, to skip reprocessing the entire file.
+        /// </summary>
         private void LoadBlockInfo()
         {
             try
@@ -1158,6 +1206,9 @@ namespace PraxisCore.PbfReader
             }
         }
 
+        /// <summary>
+        /// Use the indexed data to store a few values needed for optimiazations to work at their best.
+        /// </summary>
         private void SetOptimizationValues()
         {
             nodeFinderTotal = nodeFinderList.Count();
@@ -1170,12 +1221,17 @@ namespace PraxisCore.PbfReader
             wayHintsMax = (int)Math.Log2(wayFinderTotal);
         }
 
+        /// <summary>
+        /// Saves the currently completed block to a file, so we can resume without reprocessing existing data if needed.
+        /// </summary>
+        /// <param name="blockID">the block most recently processed</param>
         private void SaveCurrentBlock(long blockID)
         {
             string filename = outputPath + fi.Name + ".progress";
             System.IO.File.WriteAllText(filename, blockID.ToString());
         }
 
+        //Loads the most recently completed block from a file to resume without doing duplicate work.
         private long FindLastCompletedBlock()
         {
             string filename = outputPath + fi.Name + ".progress";
@@ -1183,6 +1239,9 @@ namespace PraxisCore.PbfReader
             return blockID;
         }
 
+        /// <summary>
+        /// Delete indexes and progress file.
+        /// </summary>
         private void CleanupFiles()
         {
             foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.blockinfo"))
@@ -1201,6 +1260,9 @@ namespace PraxisCore.PbfReader
                 System.IO.File.Delete(file);
         }
 
+        /// <summary>
+        /// Called to display periodic performance summaries on the console while a file is being processed.
+        /// </summary>
         public void ShowWaitInfo()
         {
             Task.Run(() =>
@@ -1220,6 +1282,14 @@ namespace PraxisCore.PbfReader
             });
         }
 
+        /// <summary>
+        /// Take a list of OSMSharp CompleteGeo items, and convert them into PraxisMapper's StoredOsmElement objects.
+        /// </summary>
+        /// <param name="items">the OSMSharp CompleteGeo items to convert</param>
+        /// <param name="saveFilename">The filename to save data to. Ignored if saveToDB is true</param>
+        /// <param name="saveToDb">If true, insert the items directly to the database instead of exporting to a file as JSON elements.</param>
+        /// <param name="onlyTagMatchedElements">if true, only loads in elements that dont' match the default entry for a TagParser style set</param>
+        /// <returns>the Task handling the conversion process</returns>
         public Task ProcessReaderResults(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, string saveFilename, bool saveToDb = false, bool onlyTagMatchedElements = false)
         {
             //This one is easy, we just dump the geodata to the file.
@@ -1287,7 +1357,14 @@ namespace PraxisCore.PbfReader
             }
         }
 
-        public Task ProcessReaderResultsForInFile(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, string saveFilename, bool saveToDb = false, bool onlyTagMatchedElements = false)
+        /// <summary>
+        /// Take a list of OSMSharp CompleteGeo items, and convert them into PraxisMapper's StoredOsmElement objects in a MariaDb InFile import format
+        /// </summary>
+        /// <param name="items">the OSMSharp CompleteGeo items to convert</param>
+        /// <param name="saveFilename">The base filename to use for both export files. </param>
+        /// <param name="onlyTagMatchedElements">if true, only loads in elements that dont' match the default entry for a TagParser style set</param>
+        /// <returns>the Task handling the conversion process</returns>
+        public Task ProcessReaderResultsForInFile(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, string saveFilename, bool onlyTagMatchedElements = false)
         {
             //This one is easy, we just dump the geodata to one file, and tags to another.
             ConcurrentBag<StoredOsmElement> elements = new ConcurrentBag<StoredOsmElement>();
