@@ -134,7 +134,7 @@ namespace Larry
                 var filename = config["PbfFolder"] + "ohio-latest.osm.pbf";
                 var areaId = 350381;
                 PbfReader r = new PbfReader();
-                r.debugArea(filename, areaId);
+                //r.debugArea(filename, areaId);
             }
 
             if (args.Any(a => a == "-loadPbfsToDb"))

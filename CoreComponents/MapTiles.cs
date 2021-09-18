@@ -367,7 +367,7 @@ namespace PraxisCore
         /// <param name="styleSet">the TagParser style set to use for determining the background color.</param>
         /// <param name="doubleRes">treat each Cell11 contained as 2x2 pixels when true, 1x1 when not.</param>
         /// <returns>a byte array for the png file of the pluscode image file</returns>
-        public static byte[] DrawPlusCode(string area, List<CompletePaintOp> paintOps, string styleSet="mapTiles", bool doubleRes = true)
+        public static byte[] DrawPlusCode(string area, List<CompletePaintOp> paintOps, string styleSet = "mapTiles", bool doubleRes = true)
         {
             //This might be a cleaner version of my V4 function, for working with CellX sized tiles..
             //This will draw at a Cell11 resolution automatically.
@@ -403,14 +403,14 @@ namespace PraxisCore
 
             Dictionary<string, TagParserEntry> styles;
             if (styleSet != null)
-                 styles = TagParser.allStyleGroups[styleSet];
+                styles = TagParser.allStyleGroups[styleSet];
             else
                 styles = TagParser.allStyleGroups.First().Value;
 
             double minimumSize = 0;
             double minSizeSquared = 0;
             if (filterSmallAreas)
-            { 
+            {
                 minimumSize = stats.degreesPerPixelX * 8; //don't draw small elements. THis runs on perimeter/length
                 minSizeSquared = minimumSize * minimumSize;
             }
@@ -442,88 +442,96 @@ namespace PraxisCore
                     continue; //This area is transparent, skip drawing it entirely.
 
                 var path = new SKPath();
-                    switch (w.elementGeometry.GeometryType)
-                    {
-                        //Polygons without holes are super easy and fast: draw the path.
-                        //Polygons with holes require their own bitmap to be drawn correctly and then overlaid onto the canvas.
-                        //I want to use paths to fix things for performance reasons, but I have to use Bitmaps because paths apply their blend mode to
-                        //ALL elements already drawn, not just the last one.
-                        case "Polygon":
-                            var p = w.elementGeometry as Polygon;
-                            if (p.Holes.Length == 0)
-                            {
-                                path.AddPoly(Converters.PolygonToSKPoints(p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                            //path.
-                                canvas.DrawPath(path, paint);
-                            }
-                            else
-                            {
-                                var innerBitmap = DrawPolygon((Polygon)w.elementGeometry, paint, stats);
-                                canvas.DrawBitmap(innerBitmap, 0, 0, paint);
-                            }
-                            break;
-                        case "MultiPolygon":
-                            foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries)
-                            {
-                                var p2p = p2 as Polygon;
-                                if (p2p.Holes.Length == 0)
-                                {
-                                    path.AddPoly(Converters.PolygonToSKPoints(p2p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                                    canvas.DrawPath(path, paint);
-                                }
-                                else
-                                {
-                                    var innerBitmap = DrawPolygon(p2p, paint, stats);
-                                    canvas.DrawBitmap(innerBitmap, 0, 0, paint);
-                                }
-                            }
-                            break;
-                        case "LineString":
-                            var firstPoint = w.elementGeometry.Coordinates.First();
-                            var lastPoint = w.elementGeometry.Coordinates.Last();
-                            var points = Converters.PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
-                            if (firstPoint.Equals(lastPoint))
-                            {
-                                //This is a closed shape. Check to see if it's supposed to be filled in.
-                                if (paint.Style == SKPaintStyle.Fill)
-                                {
-                                    path.AddPoly(points);
-                                    canvas.DrawPath(path, paint);
-                                    continue;
-                                }
-                            }
-                            for (var line = 0; line < points.Length - 1; line++)
-                                canvas.DrawLine(points[line], points[line + 1], paint);
-                            break;
-                        case "MultiLineString":
-                            foreach (var p3 in ((MultiLineString)w.elementGeometry).Geometries)
-                            {
-                                //TODO: might want to see if I need to move the LineString logic here, or if multiline string are never filled areas.
-                                var points2 = Converters.PolygonToSKPoints(p3, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
-                                for (var line = 0; line < points2.Length - 1; line++)
-                                    canvas.DrawLine(points2[line], points2[line + 1], paint);
-                            }
-                            break;
-                        case "Point":
-                            var convertedPoint = Converters.PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
-                            //If this type has an icon, use it. Otherwise draw a circle in that type's color.
-                            if (!string.IsNullOrEmpty(w.paintOp.fileName))
-                            {
-                                SKBitmap icon = TagParser.cachedBitmaps[w.paintOp.fileName];
-                                canvas.DrawBitmap(icon, convertedPoint[0]);
-                            }
-                            else
-                            {
-                                var circleRadius = (float)(ConstantValues.resolutionCell10 / stats.degreesPerPixelX / 2); //I want points to be drawn as 1 Cell10 in diameter.
-                                canvas.DrawCircle(convertedPoint[0], circleRadius, paint);
-                                canvas.DrawCircle(convertedPoint[0], circleRadius, styles["outline"].paintOperations.First().paint); //TODO: this forces an outline style to be present in the list or this crashes.
+                path.FillType = SKPathFillType.EvenOdd;
+                switch (w.elementGeometry.GeometryType)
+                {
+                    case "Polygon":
+                        var p = w.elementGeometry as Polygon;
+                        path.AddPoly(Converters.PolygonToSKPoints(p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                        foreach (var hole in p.InteriorRings)
+                            path.AddPoly(Converters.PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                        canvas.DrawPath(path, paint);
+
+                        //Old, slower code. Commented out pending further testing to confirm the new logic doesn't create new issues.
+                        //if (p.Holes.Length == 0)
+                        //{
+                        //    path.AddPoly(Converters.PolygonToSKPoints(p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                        //    canvas.DrawPath(path, paint);
+                        //}
+                        //else
+                        //{
+                        //    var innerBitmap = DrawPolygon(p, paint, stats);
+                        //    canvas.DrawBitmap(innerBitmap, 0, 0, paint);
+                        //}
+                        break;
+                    case "MultiPolygon":
+                        foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries)
+                        {
+                            var p2p = p2 as Polygon;
+                            path.AddPoly(Converters.PolygonToSKPoints(p2p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                            foreach (var hole in p2p.InteriorRings)
+                                path.AddPoly(Converters.PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                            canvas.DrawPath(path, paint);
+
+                            //Old, slower code. Commented out pending further testing to confirm the new logic doesn't create new issues.
+                            //if (p.Holes.Length == 0)
+                            //{
+                            //    path.AddPoly(Converters.PolygonToSKPoints(p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                            //    canvas.DrawPath(path, paint);
+                            //}
+                            //else
+                            //{
+                            //    var innerBitmap = DrawPolygon(p, paint, stats);
+                            //    canvas.DrawBitmap(innerBitmap, 0, 0, paint);
+                            //}
                         }
-                            break;
-                        default:
-                            Log.WriteLog("Unknown geometry type found, not drawn.");
-                            break;
-                    }
+                        break;
+                    case "LineString":
+                        var firstPoint = w.elementGeometry.Coordinates.First();
+                        var lastPoint = w.elementGeometry.Coordinates.Last();
+                        var points = Converters.PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                        if (firstPoint.Equals(lastPoint))
+                        {
+                            //This is a closed shape. Check to see if it's supposed to be filled in.
+                            if (paint.Style == SKPaintStyle.Fill)
+                            {
+                                path.AddPoly(points);
+                                canvas.DrawPath(path, paint);
+                                continue;
+                            }
+                        }
+                        for (var line = 0; line < points.Length - 1; line++)
+                            canvas.DrawLine(points[line], points[line + 1], paint);
+                        break;
+                    case "MultiLineString":
+                        foreach (var p3 in ((MultiLineString)w.elementGeometry).Geometries)
+                        {
+                            //TODO: might want to see if I need to move the LineString logic here, or if multiline string are never filled areas.
+                            var points2 = Converters.PolygonToSKPoints(p3, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                            for (var line = 0; line < points2.Length - 1; line++)
+                                canvas.DrawLine(points2[line], points2[line + 1], paint);
+                        }
+                        break;
+                    case "Point":
+                        var convertedPoint = Converters.PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                        //If this type has an icon, use it. Otherwise draw a circle in that type's color.
+                        if (!string.IsNullOrEmpty(w.paintOp.fileName))
+                        {
+                            SKBitmap icon = TagParser.cachedBitmaps[w.paintOp.fileName];
+                            canvas.DrawBitmap(icon, convertedPoint[0]);
+                        }
+                        else
+                        {
+                            var circleRadius = (float)(ConstantValues.resolutionCell10 / stats.degreesPerPixelX / 2); //I want points to be drawn as 1 Cell10 in diameter.
+                            canvas.DrawCircle(convertedPoint[0], circleRadius, paint);
+                            canvas.DrawCircle(convertedPoint[0], circleRadius, styles["outline"].paintOperations.First().paint); //TODO: this forces an outline style to be present in the list or this crashes.
+                        }
+                        break;
+                    default:
+                        Log.WriteLog("Unknown geometry type found, not drawn.");
+                        break;
                 }
+            }
             //}
 
             var ms = new MemoryStream();
@@ -547,7 +555,7 @@ namespace PraxisCore
             foreach (var w in paintOps.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))
             {
                 paint = w.paintOp.paint;
-                
+
                 if (w.paintOp.fromTag) //FromTag is for when you are saving color data directly to each element, instead of tying it to a styleset.
                     paint.Color = SKColor.Parse(w.tagValue);
 
@@ -566,16 +574,11 @@ namespace PraxisCore
                     //ALL elements already drawn, not just the last one.
                     case "Polygon":
                         var p = w.elementGeometry as Polygon;
-                        //new attempt without drawing to a new bitmap
-                        //TODO test this to make sure it behaves as desired. would be huge perf improvement
                         path.AddPoly(Converters.PolygonToSKPoints(p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                        
-                        foreach(var ir in p.Holes)
+                        foreach (var ir in p.Holes)
                             path.AddPoly(Converters.PolygonToSKPoints(ir, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                        
                         canvas.DrawPath(path, paint);
 
-                        //old
                         //if (p.Holes.Length == 0)
                         //{
                         //    path.AddPoly(Converters.PolygonToSKPoints(p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
@@ -587,20 +590,25 @@ namespace PraxisCore
                         //    canvas.DrawBitmap(innerBitmap, 0, 0, paint);
                         //}
                         break;
-                    case "MultiPolygon": //TODO move new polygon code here from above case if it works.
+                    case "MultiPolygon": 
                         foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries)
                         {
                             var p2p = p2 as Polygon;
-                            if (p2p.Holes.Length == 0)
-                            {
-                                path.AddPoly(Converters.PolygonToSKPoints(p2p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                                canvas.DrawPath(path, paint);
-                            }
-                            else
-                            {
-                                var innerBitmap = DrawPolygon(p2p, paint, stats);
-                                canvas.DrawBitmap(innerBitmap, 0, 0, paint);
-                            }
+                            path.AddPoly(Converters.PolygonToSKPoints(p2p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                            foreach (var ir in p2p.Holes)
+                                path.AddPoly(Converters.PolygonToSKPoints(ir, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                            canvas.DrawPath(path, paint);
+
+                            //if (p2p.Holes.Length == 0)
+                            //{
+                            //    path.AddPoly(Converters.PolygonToSKPoints(p2p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                            //    canvas.DrawPath(path, paint);
+                            //}
+                            //else
+                            //{
+                            //    var innerBitmap = DrawPolygon(p2p, paint, stats);
+                            //    canvas.DrawBitmap(innerBitmap, 0, 0, paint);
+                            //}
                         }
                         break;
                     case "LineString":
@@ -717,7 +725,7 @@ namespace PraxisCore
             var db = new PraxisContext();
             var elements = db.CustomDataPlusCodes.Where(d => d.dataKey == dataKey && area.Intersects(d.geoAreaIndex)).ToList();
             var styles = TagParser.allStyleGroups[styleSet];
-            var pass1 = elements.Select(d => new { d.geoAreaIndex.Area, d.geoAreaIndex, paintOp = styles[d.dataValue].paintOperations, d.dataValue});
+            var pass1 = elements.Select(d => new { d.geoAreaIndex.Area, d.geoAreaIndex, paintOp = styles[d.dataValue].paintOperations, d.dataValue });
             var pass2 = new List<CompletePaintOp>();
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
@@ -816,9 +824,9 @@ namespace PraxisCore
                     //ALL elements already drawn, not just the last one.
                     case "Polygon":
                         var p = w.elementGeometry as Polygon;
-                        
-                            path.AddPoly(Converters.PolygonToSKPoints(p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                            canvas.DrawPath(path, paint);
+
+                        path.AddPoly(Converters.PolygonToSKPoints(p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                        canvas.DrawPath(path, paint);
 
                         foreach (var hole in p.InteriorRings)
                         {
@@ -832,9 +840,9 @@ namespace PraxisCore
                         foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries)
                         {
                             var p2p = p2 as Polygon;
-                            
-                                path.AddPoly(Converters.PolygonToSKPoints(p2p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                                canvas.DrawPath(path, paint);
+
+                            path.AddPoly(Converters.PolygonToSKPoints(p2p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                            canvas.DrawPath(path, paint);
 
                             foreach (var hole in p2p.InteriorRings)
                             {
@@ -901,9 +909,6 @@ namespace PraxisCore
             return svgData;
         }
 
-        //Possible optimization: Cap image size to polygon size inside cropped area for parent image. 
-        //Would need more math to apply to correct location.
-        //TODO: test to see if I can just apply the holes as a path to the same path and have them be removed? Skiasharp might know to draw clockwise-lists of points as a hole.
         /// <summary>
         /// Draws a polygon as its own image,to be overlaid onto another image. Potentially obsoleted by drawing holes properly in SkiaSharp paths/polygons.
         /// </summary>
@@ -911,28 +916,28 @@ namespace PraxisCore
         /// <param name="paint">the paint operation to use when drawing</param>
         /// <param name="stats">the ImageStats for the image this bitmap will be merged into</param>
         /// <returns>an SKBitmap to be merged into an existing SKBitmap.</returns>
-        public static SKBitmap DrawPolygon(Polygon polygon, SKPaint paint, ImageStats stats)
-        {
-            //In order to do this the most correct, i have to draw the outer ring, then erase all the innner rings.
-            //THEN draw that image overtop the original.
-            SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
-            SKCanvas canvas = new SKCanvas(bitmap);
-            var bgColor = SKColors.Transparent;
-            canvas.Clear(bgColor);
-            canvas.Scale(1, 1, stats.imageSizeX / 2, stats.imageSizeY / 2);
-            var path = new SKPath();
-            path.AddPoly(Converters.PolygonToSKPoints(polygon.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-            canvas.DrawPath(path, paint);
+        //public static SKBitmap DrawPolygon(Polygon polygon, SKPaint paint, ImageStats stats)
+        //{
+        //    //In order to do this the most correct, i have to draw the outer ring, then erase all the innner rings.
+        //    //THEN draw that image overtop the original.
+        //    SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
+        //    SKCanvas canvas = new SKCanvas(bitmap);
+        //    var bgColor = SKColors.Transparent;
+        //    canvas.Clear(bgColor);
+        //    canvas.Scale(1, 1, stats.imageSizeX / 2, stats.imageSizeY / 2);
+        //    var path = new SKPath();
+        //    path.AddPoly(Converters.PolygonToSKPoints(polygon.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+        //    canvas.DrawPath(path, paint);
 
-            foreach (var hole in polygon.InteriorRings)
-            {
-                path = new SKPath();
-                path.AddPoly(Converters.PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                canvas.DrawPath(path, eraser);
-            }
+        //    foreach (var hole in polygon.InteriorRings)
+        //    {
+        //        path = new SKPath();
+        //        path.AddPoly(Converters.PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+        //        canvas.DrawPath(path, eraser);
+        //    }
 
-            return bitmap;
-        }
+        //    return bitmap;
+        //}
 
         /// <summary>
         /// Creates all gameplay tiles for a given area and saves them to the database.
@@ -1000,7 +1005,7 @@ namespace PraxisCore
                     //NOTE: this should use DrawPlusCode instead and double the res.
                     var info = new ImageStats(areaForTile, 160, 200); //Each pixel is a Cell11, we're drawing a Cell8. For Cell6 testing this is 1600x2000, just barely within android limits
                     var tile = MapTiles.DrawAreaAtSize(info, areaList);
-                    tilesToSave.Add(new MapTile() { tileData = tile, PlusCode = plusCode.CodeDigits.Substring(0,8), CreatedOn = DateTime.Now, ExpireOn = DateTime.Now.AddDays(365 * 10), areaCovered = Converters.GeoAreaToPolygon(plusCodeArea), resolutionScale = 11, styleSet = "mapTiles" });
+                    tilesToSave.Add(new MapTile() { tileData = tile, PlusCode = plusCode.CodeDigits.Substring(0, 8), CreatedOn = DateTime.Now, ExpireOn = DateTime.Now.AddDays(365 * 10), areaCovered = Converters.GeoAreaToPolygon(plusCodeArea), resolutionScale = 11, styleSet = "mapTiles" });
 
                     mapTileCounter++;
                 });
@@ -1035,18 +1040,18 @@ namespace PraxisCore
             var xTiles = neCornerLon - swCornerLon + 1;
             var yTiles = swCornerLat - neCornerLat + 1;
             var totalTiles = xTiles * yTiles;
-            
+
             Log.WriteLog("Starting processing " + totalTiles + " maptiles for zoom level " + zoomLevel);
             long mapTileCounter = 0;
             System.Diagnostics.Stopwatch progressTimer = new System.Diagnostics.Stopwatch();
             progressTimer.Start();
 
             //foreach (var y in yCoords)
-            for(var y = neCornerLat; y <= swCornerLat; y++)
+            for (var y = neCornerLat; y <= swCornerLat; y++)
             {
                 //Make a collision box for just this row of Cell8s, and send the loop below just the list of things that might be relevant.
                 //Add a Cell8 buffer space so all elements are loaded and drawn without needing to loop through the entire area.
-                GeoArea thisRow = new GeoArea(Converters.SlippyYToLat(y+1, zoomLevel) - ConstantValues.resolutionCell8,
+                GeoArea thisRow = new GeoArea(Converters.SlippyYToLat(y + 1, zoomLevel) - ConstantValues.resolutionCell8,
                     Converters.SlippyXToLon(swCornerLon, zoomLevel) - ConstantValues.resolutionCell8,
                     Converters.SlippyYToLat(y, zoomLevel) + ConstantValues.resolutionCell8,
                     Converters.SlippyXToLon(neCornerLon, zoomLevel) + resolutionCell8);
@@ -1054,7 +1059,7 @@ namespace PraxisCore
                 var rowList = GetPlaces(thisRow);
                 var tilesToSave = new ConcurrentBag<SlippyMapTile>();
 
-                Parallel.For(swCornerLon, neCornerLon +1, (x) =>
+                Parallel.For(swCornerLon, neCornerLon + 1, (x) =>
                 //Parallel.ForEach(xCoords, x =>
                 //foreach (var x in xCoords)
                 {
@@ -1062,7 +1067,7 @@ namespace PraxisCore
                     var info = new ImageStats(zoomLevel, x, y, MapTileSizeSquare);
                     var acheck = Converters.GeoAreaToPolygon(info.area); //this is faster than using a PreparedPolygon in testing, which was unexpected.
                     var areaList = rowList.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); //This one is for the maptile
-                    
+
                     var tile = MapTiles.DrawAreaAtSize(info, areaList);
                     tilesToSave.Add(new SlippyMapTile() { tileData = tile, Values = x + "|" + y + "|" + zoomLevel, CreatedOn = DateTime.Now, ExpireOn = DateTime.Now.AddDays(365 * 10), areaCovered = Converters.GeoAreaToPolygon(info.area), styleSet = "mapTiles" });
 
@@ -1089,7 +1094,7 @@ namespace PraxisCore
             SkiaSharp.SKBitmap bitmap = new SkiaSharp.SKBitmap(info.imageSizeX, info.imageSizeY, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul);
             SkiaSharp.SKCanvas canvas = new SkiaSharp.SKCanvas(bitmap);
             SkiaSharp.SKPaint paint = new SkiaSharp.SKPaint();
-            canvas.Scale(1, 1, info.imageSizeX /2, info.imageSizeY / 2);
+            canvas.Scale(1, 1, info.imageSizeX / 2, info.imageSizeY / 2);
             paint.IsAntialias = true;
 
             var baseBmp = SkiaSharp.SKBitmap.Decode(bottomTile);

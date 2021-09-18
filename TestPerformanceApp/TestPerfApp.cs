@@ -21,6 +21,7 @@ using static PraxisCore.DbTables;
 using static PraxisCore.GeometrySupport;
 using static PraxisCore.Place;
 using static PraxisCore.Singletons;
+using SkiaSharp;
 
 namespace PerformanceTestApp
 {
@@ -46,7 +47,7 @@ namespace PerformanceTestApp
             //PraxisContext.serverMode = "PostgreSQL";
             //PraxisContext.connectionString = "server=localhost;database=praxis;user=root;password=asdf;";
 
-            TagParser.Initialize();
+            //TagParser.Initialize();
 
             if (Debugger.IsAttached)
                 Console.WriteLine("Run this in Release mode for accurate numbers!");
@@ -71,7 +72,8 @@ namespace PerformanceTestApp
             //TestTagParser();
             //TestCropVsNoCropDraw("86HWPM");
             //TestCropVsNoCropDraw("86HW");
-            TestCustomPbfReader();
+            //TestCustomPbfReader();
+            TestDrawingHoles();
 
             //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
             //These cannot all be enabled in one run. You must comment/uncomment each one separately.
@@ -1533,9 +1535,113 @@ namespace PerformanceTestApp
             var tile2 = MapTiles.DrawAreaAtSize(info, places);
             sw.Stop();
             Log.WriteLog("Cropped tile drawn in " + sw.ElapsedMilliseconds + "ms");
+        }
 
+        //public static TestIndexingPerf()
+        //{
+        //    //Current Node Index logic
+        //    long nodecounter = 0;
+        //    long minNode = long.MaxValue;
+        //    long maxNode = long.MinValue;
+        //    if (pb2.primitivegroup[0].dense != null)
+        //    {
+        //        foreach (var n in pb2.primitivegroup[0].dense.id)
+        //        {
+        //            nodecounter += n;
+        //            if (nodecounter < minNode)
+        //                minNode = nodecounter;
+        //            if (nodecounter > maxNode)
+        //                maxNode = nodecounter;
+        //        }
+        //        nodeFinder2.TryAdd(passedBC, new Tuple<long, long>(minNode, maxNode));
+        //    }
+        //    //new logic.
+        //}
+
+        public static void TestDrawingHoles()
+        {
+            //Results: correctly adding holes to a path makes it draw faster at all sizes, and uses far less RAM.
+            //Load one item from a file. Using Lake Erie for now
+            var elementID = 4039900;
+            string filename = @"D:\Projects\PraxisMapper Files\XmlToProcess\ohio-latest.osm.pbf";
+            PraxisCore.PbfReader.PbfReader r = new PraxisCore.PbfReader.PbfReader();
+            var testElement = r.LoadOneRelationFromFile(filename, elementID);
+            var NTSelement = GeometrySupport.ConvertOsmEntryToStoredElement(testElement);
+
+            //prep the drawing area.
+            var geoarea = Converters.GeometryToGeoArea(NTSelement.elementGeometry);
+            geoarea = new Google.OpenLocationCode.GeoArea(geoarea.SouthLatitude - ConstantValues.resolutionCell10,
+                geoarea.WestLongitude - ConstantValues.resolutionCell10,
+                geoarea.NorthLatitude + ConstantValues.resolutionCell10,
+                geoarea.EastLongitude + ConstantValues.resolutionCell10); //add some padding to the edges.
+            ImageStats stats = new ImageStats(geoarea, (int)(geoarea.LongitudeWidth / ConstantValues.resolutionCell11Lon * .5), (int)(geoarea.LatitudeHeight / ConstantValues.resolutionCell11Lat * .5));
+
+            //Draw the image the old way.
+            //Stopwatch sw = new Stopwatch();
+            //sw.Start();
+            //SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
+            //SKCanvas canvas = new SKCanvas(bitmap);
+            //var bgColor = SKColors.White;
+            //canvas.Clear(bgColor);
+            //canvas.Scale(1, -1, stats.imageSizeX / 2, stats.imageSizeY / 2);
+            //SKPaint paint = new SKPaint();
+            //paint.Color = SKColors.Blue;
+
+            //var path = new SKPath();
+            //path.FillType = SKPathFillType.EvenOdd;
+            //var p = NTSelement.elementGeometry as Polygon;
+            //if (p.Holes.Length == 0)
+            //{
+            //    path.AddPoly(Converters.PolygonToSKPoints(p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+            //    //path.
+            //    canvas.DrawPath(path, paint);
+            //}
+            //else
+            //{
+            //    //var innerBitmap = MapTiles.DrawPolygon(p, paint, stats);
+            //    //canvas.DrawBitmap(innerBitmap, 0, 0, paint);
+            //}
+            //var ms = new MemoryStream();
+            //var skms = new SKManagedWStream(ms);
+            //bitmap.Encode(skms, SKEncodedImageFormat.Png, 100);
+            //var image1 = ms.ToArray();
+            //skms.Dispose(); ms.Close(); ms.Dispose();
+            //sw.Stop();
+            //Log.WriteLog("Separate bitmap drawn in " + sw.Elapsed);
+
+            //and draw again the new way
+            Stopwatch sw2 = new Stopwatch();
+            sw2.Start();
+            SKBitmap bitmap2 = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
+            SKCanvas canvas2 = new SKCanvas(bitmap2);
+            var bgColor2 = SKColors.White;
+            canvas2.Clear(bgColor2);
+            canvas2.Scale(1, -1, stats.imageSizeX / 2, stats.imageSizeY / 2);
+            SKPaint paint2 = new SKPaint();
+            paint2.Color = SKColors.Blue;
+
+            var path2 = new SKPath();
+            path2.FillType = SKPathFillType.EvenOdd;
+            var p2 = NTSelement.elementGeometry as Polygon;
+            path2.AddPoly(Converters.PolygonToSKPoints(p2.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+            foreach (var hole in p2.InteriorRings)
+            {
+                path2.AddPoly(Converters.PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+            }
+            canvas2.DrawPath(path2, paint2);
             
+            var ms2 = new MemoryStream();
+            var skms2 = new SKManagedWStream(ms2);
+            bitmap2.Encode(skms2, SKEncodedImageFormat.Png, 100);
+            var image2 = ms2.ToArray();
+            skms2.Dispose(); ms2.Close(); ms2.Dispose();
+            sw2.Stop();
 
+            Log.WriteLog("Multiple polys in path drawn in " + sw2.Elapsed);
+            //Log.WriteLog("Images are identical: " + image1.SequenceEqual(image2));
+
+            //File.WriteAllBytes("test1.png", image1);
+            File.WriteAllBytes("test2.png", image2);
         }
     }
 }
