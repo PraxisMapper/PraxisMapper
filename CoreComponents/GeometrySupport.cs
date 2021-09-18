@@ -20,6 +20,11 @@ namespace PraxisCore
         private static JsonSerializerOptions jso = new JsonSerializerOptions() { };
         private static PMFeatureInterpreter featureInterpreter = new PMFeatureInterpreter();
         
+        /// <summary>
+        /// Forces a Polygon to run counter-clockwise, and inner holes to run clockwise, which is important for NTS geometry. SQL Server rejects objects that aren't CCW.
+        /// </summary>
+        /// <param name="p">Polygon to run operations on</param>
+        /// <returns>the Polygon in CCW orientaiton, or null if the orientation cannot be confimred or corrected</returns>
         public static Polygon CCWCheck(Polygon p)
         {
             if (p == null)
@@ -36,7 +41,6 @@ namespace PraxisCore
                     p.Holes[i] = (LinearRing)p.Holes[i].Reverse();
             }
 
-            //Sql Server Geography type requires polygon points to be in counter-clockwise order.  This function returns the polygon in the right orientation, or null if it can't.
             if (p.Shell.IsCCW)
                 return p;
             p = (Polygon)p.Reverse();
@@ -46,11 +50,23 @@ namespace PraxisCore
             return null; //not CCW either way? Happen occasionally for some reason, and it will fail to write to a SQL Server DB. I think its related to lines crossing over each other multiple times?
         }
 
+        /// <summary>
+        /// Creates a Geometry object from the WellKnownText for a geometry.
+        /// </summary>
+        /// <param name="elementGeometry">The WKT for a geometry item</param>
+        /// <returns>a Geometry object for the WKT provided</returns>
         public static Geometry GeometryFromWKT(string elementGeometry)
         {
             return reader.Read(elementGeometry);
         }
 
+        /// <summary>
+        /// Run a CCWCheck on a Geometry and (if enabled) simplify the geometry of an object to the minimum
+        /// resolution for PraxisMapper gameplay, which is a Cell10 in degrees (.000125). Simplifying areas reduces storage
+        /// space for OSM Elements by about 30% but dramatically reduces the accuracy of rendered map tiles.
+        /// </summary>
+        /// <param name="place">The Geometry to CCWCheck and potentially simplify</param>
+        /// <returns>The Geometry object, in CCW orientation and potentially simplified.</returns>
         public static Geometry SimplifyArea(Geometry place)
         {
             if (!SimplifyAreas)
@@ -110,6 +126,11 @@ namespace PraxisCore
             //return simplerPlace;
         }
 
+        /// <summary>
+        /// Create a database StoredOsmElement from an OSMSharp Complete object.
+        /// </summary>
+        /// <param name="g">the CompleteOSMGeo object to prepare to save to the DB</param>
+        /// <returns>the StoredOsmElement ready to save to the DB</returns>
         public static StoredOsmElement ConvertOsmEntryToStoredElement(OsmSharp.Complete.ICompleteOsmGeo g)
         {
             if (g.Tags == null || g.Tags.Count() == 0)
@@ -153,6 +174,11 @@ namespace PraxisCore
             }
         }
 
+        /// <summary>
+        /// Dump a list of Stored OSM Elements to a JSON file.
+        /// </summary>
+        /// <param name="filename"> path to save data to</param>
+        /// <param name="mapdata">the list of elements to save</param>
         public static void WriteStoredElementListToFile(string filename, ref List<StoredOsmElement> mapdata)
         {
             List<string> results = new List<string>(mapdata.Count());
@@ -167,6 +193,11 @@ namespace PraxisCore
             Log.WriteLog("All StoredElement entries were serialized individually and saved to file at " + DateTime.Now, Log.VerbosityLevels.High);
         }
 
+        /// <summary>
+        /// Add one stored OSM element to the end of a file.
+        /// </summary>
+        /// <param name="filename">path to save data to</param>
+        /// <param name="md">the element to save</param>
         public static void WriteSingleStoredElementToFile(string filename, StoredOsmElement md)
         {
             if (md != null) //null can be returned from the functions that convert OSM entries to StoredElement
@@ -177,6 +208,11 @@ namespace PraxisCore
             }
         }
 
+        /// <summary>
+        /// Loads up JSON data into RAM for use.
+        /// </summary>
+        /// <param name="filename">the JSON file to parse. </param>
+        /// <returns>a list of storedOSMelements</returns>
         public static List<StoredOsmElement> ReadStoredElementsFileToMemory(string filename)
         {
             StreamReader sr = new StreamReader(filename);
@@ -200,6 +236,11 @@ namespace PraxisCore
             return lm;
         }
 
+        /// <summary>
+        /// Turns a JSON string into a StoredOSMElement
+        /// </summary>
+        /// <param name="sw">the json string to parse</param>
+        /// <returns>the StoredOsmElement</returns>
         public static StoredOsmElement ConvertSingleJsonStoredElement(string sw)
         {
             StoredOsmElementForJson j = (StoredOsmElementForJson)JsonSerializer.Deserialize(sw, typeof(StoredOsmElementForJson), jso);
