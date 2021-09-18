@@ -78,7 +78,7 @@ namespace PraxisCore.PbfReader
         //    1205151, //Lake Huron, 14,000 ways. Can Stack overflow joining rings.
         //    148838, //United States. 1029 members but a very large geographic area
         //    9428957, //Gulf of St. Lawrence. 11,000 ways. Can finish processing, so it's somewhere between 11k and 14k that the stack overflow hits.
-        //    4039900, //Lake Erie is 1100 ways, takes ~56 seconds start to finish.
+        //    4039900, //Lake Erie is 1100 ways, originally took ~56 seconds start to finish, now runs in 3-6 seconds on its own.
         //};
 
         public bool displayStatus = true;
@@ -218,9 +218,9 @@ namespace PraxisCore.PbfReader
                 bounds = NTSrelation.elementGeometry.EnvelopeInternal;
                 var pgf = new PreparedGeometryFactory();
                 boundsEntry = pgf.Create(NTSrelation.elementGeometry);
-                
+
                 //The boundsEntry will be used when checking geometry, and things that intersect will be processed and the rest excluded.                
-                for(var block = nextBlockId; block >= 1; block--)
+                for (var block = nextBlockId; block >= 1; block--)
                 {
                     if (block >= firstRelationBlock)
                         Log.WriteLog("Relation Block " + block);
@@ -249,7 +249,7 @@ namespace PraxisCore.PbfReader
         }
 
         /// <summary>
-        
+
         //public void debugArea(string filename, long areaId)
         //{
         //    Open(filename);
@@ -300,11 +300,14 @@ namespace PraxisCore.PbfReader
         //        }
         //    }
         //}
-        
+
+
         //Build the index for entries in this PBF file.
         private void IndexFile()
         {
             Log.WriteLog("Indexing file...");
+            System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+            sw.Start();
             fs.Position = 0;
             long blockCounter = 0;
             blockPositions = new Dictionary<long, long>();
@@ -341,16 +344,15 @@ namespace PraxisCore.PbfReader
                 fs.Read(thisblob, 0, bh.datasize);
 
                 var passedBC = blockCounter;
-                var tasked = Task.Run(() =>
+                var tasked = Task.Run(() => //Threading makes this run approx. twice as fast.
                 {
                     var pb2 = DecodeBlock(thisblob);
 
                     var group = pb2.primitivegroup[0]; //If i get a file with multiple PrimitiveGroups in a block, make this a ForEach loop instead.
                     if (group.ways.Count > 0)
                     {
-                        var wMax = group.ways.Max(w => w.id);
-                        if (!wayFinder.TryAdd(passedBC, wMax))
-                            Log.WriteLog("ERROR: failed to add block " + passedBC + " to way index");
+                        var wMax = group.ways.Last().id; //.Max(w => w.id);
+                        wayFinder.TryAdd(passedBC, wMax);
                         wayCounter++;
                     }
                     else if (group.relations.Count > 0)
@@ -363,21 +365,12 @@ namespace PraxisCore.PbfReader
                     }
                     else
                     {
-                        long nodecounter = 0;
-                        long minNode = long.MaxValue;
-                        long maxNode = long.MinValue;
-                        if (pb2.primitivegroup[0].dense != null)
+                        long minNode = 0;
+                        long maxNode = 0;
+                        if (group.dense != null)
                         {
-                            //TODO: I think these are sorted in order. If so, I can skip the ForEach loop,
-                            //and just use the first dense.id as the min, and then dense.Sum(id) for the max
-                            foreach (var n in pb2.primitivegroup[0].dense.id)
-                            {
-                                nodecounter += n;
-                                if (nodecounter < minNode)
-                                    minNode = nodecounter;
-                                if (nodecounter > maxNode)
-                                    maxNode = nodecounter;
-                            }
+                            minNode = group.dense.id[0];
+                            maxNode = group.dense.id.Sum();
                             nodeFinder2.TryAdd(passedBC, new Tuple<long, long>(minNode, maxNode));
                         }
                     }
@@ -397,8 +390,10 @@ namespace PraxisCore.PbfReader
                 nodeFinderList.Add(Tuple.Create(entry.Key, entry.Value.Item1, entry.Value.Item2));
             }
             SetOptimizationValues();
+            sw.Stop();
+            Log.WriteLog("File indexed in " + sw.Elapsed);
         }
-        
+
         /// <summary>
         /// If a block is already in memory, load it. If it isn't, load it from disk and add it to memory.
         /// </summary>
@@ -609,7 +604,7 @@ namespace PraxisCore.PbfReader
                 var way = wayPrimGroup.ways.FirstOrDefault(w => w.id == wayId);
                 if (way == null)
                     return null; //way wasn't in the block it was supposed to be in.
-                //finally have the core item
+                                 //finally have the core item
 
                 if (skipUntagged && way.keys.Count == 0)
                     return null;
@@ -639,7 +634,7 @@ namespace PraxisCore.PbfReader
                 //This is significantly faster than doing a GetBlock per node when 1 block has mulitple entries
                 //its a little complicated but a solid performance boost.
                 long idToFind = 0; //more deltas 
-                //blockId, nodeID
+                                   //blockId, nodeID
                 List<Tuple<long, long>> nodesPerBlock = new List<Tuple<long, long>>();
                 List<long> distinctBlockIds = new List<long>();
                 for (int i = 0; i < way.refs.Count; i++)
@@ -1312,7 +1307,7 @@ namespace PraxisCore.PbfReader
                 elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => TagParser.GetStyleForOsmWay(e.Tags).name != TagParser.defaultStyle.name));
 
             if (boundsEntry != null)
-               elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => boundsEntry.Intersects(e.elementGeometry)));
+                elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => boundsEntry.Intersects(e.elementGeometry)));
 
             if (saveToDb)
             {
@@ -1419,6 +1414,51 @@ namespace PraxisCore.PbfReader
             });
 
             return monitorTask;
+        }
+
+        /// <summary>
+        /// Pull a single relation out of the given PBF file as an OSMSharp CompleteRelation. Will index the file as normal if needed, but does not clean up the indexed file to allow for reuse later.
+        /// </summary>
+        /// <param name="filename">The filename containing the relation</param>
+        /// <param name="relationId">the relation to process</param>
+        /// <returns></returns>
+        public CompleteRelation LoadOneRelationFromFile(string filename, long relationId)
+        {
+            Log.WriteLog("Starting to load one relation from file.");
+            try
+            {
+                System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                sw.Start();
+                Open(filename);
+                LoadBlockInfo();
+                nextBlockId = 0;
+                if (relationFinder.Count == 0)
+                {
+                    IndexFile();
+                    SaveBlockInfo();
+                    SaveCurrentBlock(BlockCount());
+                }
+                nextBlockId = BlockCount() - 1;
+
+                if (displayStatus)
+                    ShowWaitInfo();
+
+                var relation = GetRelation(relationId);
+                var output = ProcessReaderResults(new List<CompleteOsmGeo>() { relation }, "", false, false);
+                Close();
+                //CleanupFiles();
+                sw.Stop();
+                Log.WriteLog("Processing completed at " + DateTime.Now + ", session lasted " + sw.Elapsed);
+                return relation;
+            }
+            catch (Exception ex)
+            {
+                while (ex.InnerException != null)
+                    ex = ex.InnerException;
+                Log.WriteLog("Error processing file: " + ex.Message + ex.StackTrace);
+                return null;
+            }
+
         }
     }
 }
