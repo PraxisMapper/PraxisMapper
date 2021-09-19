@@ -114,10 +114,10 @@ namespace PraxisCore
         //    return defaultStyle;
         //}
 
-        public static TagParserEntry GetStyleForOsmWay(TagsCollectionBase tags)
+        public static TagParserEntry GetStyleForOsmWay(TagsCollectionBase tags, string styleSet = "mapTiles")
         {
-            //var tempTags = tags.Select(t => new ElementTags() { Key = t.Key, Value = t.Value }).ToList();
-            return GetStyleForOsmWay(tags);
+            var tempTags = tags.Select(t => new ElementTags() { Key = t.Key, Value = t.Value }).ToList();
+            return GetStyleForOsmWay(tempTags, styleSet);
         }
 
         public static string GetAreaType(TagsCollectionBase tags)

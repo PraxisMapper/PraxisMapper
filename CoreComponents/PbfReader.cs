@@ -614,13 +614,9 @@ namespace PraxisCore.PbfReader
                 finalway.Id = wayId;
                 finalway.Tags = new OsmSharp.Tags.TagsCollection();
 
-                //skipUntagged is false from GetRelation, so we can ignore tag data in that case.
-                //but we do want tags for when we load a block full of ways. SkipUntagged means we need to read tags to know what we didn't skip.
-                if (skipUntagged)
-                    for (int i = 0; i < way.keys.Count(); i++)
-                    {
-                        finalway.Tags.Add(new OsmSharp.Tags.Tag(System.Text.Encoding.UTF8.GetString(wayBlock.stringtable.s[(int)way.keys[i]]), System.Text.Encoding.UTF8.GetString(wayBlock.stringtable.s[(int)way.vals[i]])));
-                    }
+                //We always need to apply tags here, so we can either skip after (if IgnoredUmatched is set) or to pass along tag values correctly.
+                for (int i = 0; i < way.keys.Count(); i++)
+                    finalway.Tags.Add(new OsmSharp.Tags.Tag(System.Text.Encoding.UTF8.GetString(wayBlock.stringtable.s[(int)way.keys[i]]), System.Text.Encoding.UTF8.GetString(wayBlock.stringtable.s[(int)way.vals[i]])));
 
                 if (ignoreUnmatched)
                 {
@@ -1421,7 +1417,7 @@ namespace PraxisCore.PbfReader
         /// </summary>
         /// <param name="filename">The filename containing the relation</param>
         /// <param name="relationId">the relation to process</param>
-        /// <returns></returns>
+        /// <returns>The CompleteRelation requested, or null if it was unable to be created from the file.</returns>
         public CompleteRelation LoadOneRelationFromFile(string filename, long relationId)
         {
             Log.WriteLog("Starting to load one relation from file.");
@@ -1458,7 +1454,49 @@ namespace PraxisCore.PbfReader
                 Log.WriteLog("Error processing file: " + ex.Message + ex.StackTrace);
                 return null;
             }
+        }
 
+        /// <summary>
+        /// Pull a single Way out of the given PBF file as an OSMSharp CompleteWay. Will index the file as normal if needed, but does not clean up the indexed file to allow for reuse later.
+        /// </summary>
+        /// <param name="filename">The filename containing the relation</param>
+        /// <param name="wayId">the relation to process</param>
+        /// <returns>the CompleteWay requested, or null if it was unable to be created from the file.</returns>
+        public CompleteWay LoadOneWayFromFile(string filename, long wayId)
+        {
+            Log.WriteLog("Starting to load one relation from file.");
+            try
+            {
+                System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                sw.Start();
+                Open(filename);
+                LoadBlockInfo();
+                nextBlockId = 0;
+                if (relationFinder.Count == 0)
+                {
+                    IndexFile();
+                    SaveBlockInfo();
+                    SaveCurrentBlock(BlockCount());
+                }
+                nextBlockId = BlockCount() - 1;
+
+                if (displayStatus)
+                    ShowWaitInfo();
+
+                var way = GetWay(wayId, false);
+                var output = ProcessReaderResults(new List<CompleteOsmGeo>() { way }, "", false, false);
+                Close();
+                sw.Stop();
+                Log.WriteLog("Processing completed at " + DateTime.Now + ", session lasted " + sw.Elapsed);
+                return way;
+            }
+            catch (Exception ex)
+            {
+                while (ex.InnerException != null)
+                    ex = ex.InnerException;
+                Log.WriteLog("Error processing file: " + ex.Message + ex.StackTrace);
+                return null;
+            }
         }
     }
 }
