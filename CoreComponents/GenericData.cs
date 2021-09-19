@@ -7,7 +7,9 @@ using System.Linq;
 
 namespace PraxisCore
 {
-    //Handles read/write for the generic area/player/global data tables.
+    /// <summary>
+    /// Classes that handle reading and writing key-value pairs for players, places, pluscodes, or the global set.
+    /// </summary>
     public static class GenericData
     {
         /// <summary>

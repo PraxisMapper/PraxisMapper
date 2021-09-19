@@ -33,7 +33,7 @@ namespace Larry
         {
             //This is an important command if you don't want to track data outside of your initial area.
             Log.WriteLog("Detecting server map boundaries from data at " + DateTime.Now);
-            var results = Place.GetServerBounds(resolutionCell8); //Using 8 for now.
+            var results = Place.DetectServerBounds(resolutionCell8); //Using 8 for now.
 
             var db = new PraxisContext();
             var settings = db.ServerSettings.FirstOrDefault();

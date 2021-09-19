@@ -9,6 +9,9 @@ using System.Threading.Tasks;
 
 namespace PraxisCore
 {
+    /// <summary>
+    /// Confirm if data is inside server bounds, or if a PlusCode is parseable by PraxisMapper
+    /// </summary>
     public static class DataCheck
     {
         /// <summary>
@@ -37,6 +40,17 @@ namespace PraxisCore
                 return true;
 
             return false;
+        }
+
+        /// <summary>
+        /// Determine if a Polygon (presumably from a map element) intersects with the data contained in the server.
+        /// </summary>
+        /// <param name="bounds">PreparedGeometry representing the server's usable boundaries</param>
+        /// <param name="plusCode">PlusCode string to check against the server bounds.</param>
+        /// <returns>true if the 2 parameters intersect, or false if they do not.</returns>
+        public static bool IsInBounds(IPreparedGeometry bounds, string plusCode)
+        {
+            return IsInBounds(bounds, OpenLocationCode.DecodeValid(plusCode));
         }
 
         /// <summary>

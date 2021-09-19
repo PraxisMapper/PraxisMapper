@@ -10,6 +10,9 @@ using static PraxisCore.StandaloneDbTables;
 namespace PraxisCore
 {
     //this is data on an Area (PlusCode cell), so AreaTypeInfo is the correct name. Places are StoredOsmElement entries.
+    /// <summary>
+    /// Functions that search or sort the gameplay or map style type of areas.
+    /// </summary>
     public static class AreaTypeInfo 
     {
         //The new version, which returns a sorted list of places, smallest to largest, for when a single space contains multiple entries (default ScavengerHunt logic)

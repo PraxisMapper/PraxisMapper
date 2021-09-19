@@ -17,6 +17,9 @@ using System.Linq;
 
 namespace PraxisCore.PbfReader
 {
+    /// <summary>
+    /// PraxisMapper's customized, multithreaded PBF parser. Saves on RAM usage by relying on disk access when needed. 
+    /// </summary>
     public class PbfReader
     {
         //The 5th generation of logic for pulling geometry out of a pbf file. This one is written specfically for PraxisMapper, and

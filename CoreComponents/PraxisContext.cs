@@ -4,6 +4,9 @@ using static PraxisCore.DbTables;
 
 namespace PraxisCore
 {
+    /// <summary>
+    /// A self-contained database connector for everything PraxisMapper can do in its database.
+    /// </summary>
     public class PraxisContext : DbContext
     {
         public DbSet<PlayerData> PlayerData { get; set; }
@@ -24,8 +27,6 @@ namespace PraxisCore
         public DbSet<CustomDataPlusCode> CustomDataPlusCodes { get; set; }
         public DbSet<GlobalDataEntries> GlobalDataEntries { get; set; }
 
-
-        //IConfiguration Config;
         public static string connectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;"; //Needs a default value.
         public static string serverMode = "SQLServer";
 

@@ -15,6 +15,9 @@ using static PraxisCore.Singletons;
 
 namespace PraxisCore
 {
+    /// <summary>
+    /// A very much in-development class for dumping data into a faster-loading format. Will probably need methods written per destination DB provider. Currently only works for MariaDB's LOAD DATA INFILE process.
+    /// </summary>
     public static class SqlExporter
     {
         //Converts stuff into raw SQL files.
@@ -25,15 +28,17 @@ namespace PraxisCore
         //see: https://dev.mysql.com/doc/refman/8.0/en/gis-data-formats.html
         //This might be why my first attemp was failing.
 
-        //alt 4: another attempt at MySqlBulkLoader in a function? Still have to solve tag issue. TAgs need to be a second file.
-        //MySqlBulkLoader bulk = new MySqlBulkLoader(); 
-
         //Attempt 3: use LOAD DATA INFILE 
-        //This needs to remember to save in Tags somehow.
 
+        /// <summary>
+        /// Creates 2 files for loading into MariaDB through the LOAD DATA INFILE process, one for tags and one for elements.
+        /// </summary>
+        /// <param name="items">the StoredOsmElements to convert to the INFILE format.</param>
         public static void LoadDataInfileTest(List<StoredOsmElement> items)
         {
             //Write to tab delimited file first, following schema.
+            //TODO: this might need PrivacyID assigned here, since the entities make a Guid just a char(32) instead of their own type.
+            //TODO: would this be faster with 2 StringBuilders than 2 string arrays?
             string[] outputData = new string[items.Count()];
             List<string> outputTags = new List<string>();
 
@@ -68,6 +73,10 @@ namespace PraxisCore
         }
 
         //Attempt 2: insert the row first, then insert the WKB directly to the column? MariaDB syntax. Is better for single inserts, isn't better than doing batches in EFCore.
+        /// <summary>
+        /// A test at loading data into MariaDB faster by using raw SQL. Is faster when inserting 1 row, isn't faster when doing multiples. Not particulary worth using in general.
+        /// </summary>
+        /// <param name="item"></param>
         public static void InsertGeomFastTest(StoredOsmElement item)
         {
             var db = new PraxisContext();
@@ -88,6 +97,11 @@ namespace PraxisCore
         }
 
         //Attempt 1: write the SQL file to be run in HeidiSQL. MariaDB syntax.
+        /// <summary>
+        /// Tried to save the generated SQL to be run later against MariaDB instead of using the entities alone. This wasn't a productive path to go down.
+        /// </summary>
+        /// <param name="elements"></param>
+        /// <param name="filename"></param>
         public static void DumpToSql(List<StoredOsmElement> elements, string filename)
         {
             //Assuming that we're getting a limited set of elements
