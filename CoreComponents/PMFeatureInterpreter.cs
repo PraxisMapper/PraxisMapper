@@ -1,6 +1,6 @@
-﻿//Taken wholesale from OsmSharp and modified for PraxisMapper to fix bugs while waiting for updates.
+﻿//Taken wholesale from OsmSharp and modified for PraxisMapper to fix bugs and optimize some logic.
 //Specifically, the NoRecursion functions were done for Praxismapper to get around stack limits when
-//parsing Ways of very large (11k+) nodes.
+//parsing Ways of very large (11k+) nodes, and optimizing for PraxisMapper specifically.
 //This file remains distributed under the original license:
 // The MIT License (MIT)
 
@@ -41,22 +41,26 @@ using System.Reflection.Metadata.Ecma335;
 namespace PraxisCore
 {
     /// <summary>
-    /// The default feature interpreter.
+    /// PraxisMapper's modified feature interpreter. Doesn't use recursion, allowing for significantly larger relations and ways to be processed than the default OSMSharp interpreter.
     /// </summary>
-    public class PMFeatureInterpreter : FeatureInterpreter
+    public class PMFeatureInterpreter
     {
+
         /// <summary>
-        /// Interprets an OSM-object and returns the corresponding geometry.
+        /// The list of tags that normally indicate an area unless specified otherwise.
         /// </summary>
-        public override FeatureCollection Interpret(ICompleteOsmGeo osmObject)
+        static List<string> areaTags = new List<string>() { "building", "landuse", "amenity", "harbour", "historic", "leisure", "man_made", "military", "natural", "office",
+                    "place", "public_transport", "shop", "sport", "tourism", "waterway", "wetland", "water", "aeroway"};
+
+        /// <summary>
+        /// Interprets an OSM-object and returns the corresponding geometry. Returns null on a failure.
+        /// </summary>
+        public Geometry Interpret(ICompleteOsmGeo osmObject)
         {
             // DISCLAIMER: this is a very very very simple geometry interpreter and
             // contains hardcoded all relevant tags.
+            if (osmObject == null) return null;
 
-            var collection = new FeatureCollection();
-            if (osmObject == null) return collection;
-
-            TagsCollectionBase tags;
             switch (osmObject.Type)
             {
                 case OsmGeoType.Node:
@@ -68,151 +72,91 @@ namespace PraxisCore
 
                     if (newCollection.Count > 0)
                     { // there is still some relevant information left.
-                        collection.Add(new Feature(new Point((osmObject as OsmSharp.Node).GetCoordinate()),
-                            TagsAndIdToAttributes(osmObject)));
+                        return new Point((osmObject as OsmSharp.Node).GetCoordinate());
                     }
                     break;
                 case OsmGeoType.Way:
-                    tags = osmObject.Tags;
+                    
 
-                    if (tags == null)
-                    {
-                        return collection;
-                    }
+                    if (osmObject.Tags == null || osmObject.Tags.Count == 0)
+                        return null;
 
                     bool isArea = false;
-                    if ((tags.ContainsKey("building") && !tags.IsFalse("building")) ||
-                        (tags.ContainsKey("landuse") && !tags.IsFalse("landuse")) ||
-                        (tags.ContainsKey("amenity") && !tags.IsFalse("amenity")) ||
-                        (tags.ContainsKey("harbour") && !tags.IsFalse("harbour")) ||
-                        (tags.ContainsKey("historic") && !tags.IsFalse("historic")) ||
-                        (tags.ContainsKey("leisure") && !tags.IsFalse("leisure")) ||
-                        (tags.ContainsKey("man_made") && !tags.IsFalse("man_made")) ||
-                        (tags.ContainsKey("military") && !tags.IsFalse("military")) ||
-                        (tags.ContainsKey("natural") && !tags.IsFalse("natural")) ||
-                        (tags.ContainsKey("office") && !tags.IsFalse("office")) ||
-                        (tags.ContainsKey("place") && !tags.IsFalse("place")) ||
-                        (tags.ContainsKey("public_transport") && !tags.IsFalse("public_transport")) ||
-                        (tags.ContainsKey("shop") && !tags.IsFalse("shop")) ||
-                        (tags.ContainsKey("sport") && !tags.IsFalse("sport")) ||
-                        (tags.ContainsKey("tourism") && !tags.IsFalse("tourism")) ||
-                        (tags.ContainsKey("waterway") && !tags.IsFalse("waterway")) ||
-                        (tags.ContainsKey("wetland") && !tags.IsFalse("wetland")) ||
-                        (tags.ContainsKey("water") && !tags.IsFalse("water")) ||
-                        (tags.ContainsKey("aeroway") && !tags.IsFalse("aeroway")))
-                    { // these tags usually indicate an area.
+                    if (osmObject.Tags.ContainsAnyKey(areaTags)) //These tags normally default to an area regardless of the value provided.
                         isArea = true;
-                    }
 
-                    if (tags.IsTrue("area"))
+                    if (osmObject.Tags.IsTrue("area"))
                     { // explicitly indicated that this is an area.
                         isArea = true;
                     }
-                    else if (tags.IsFalse("area"))
+                    else if (osmObject.Tags.IsFalse("area"))
                     { // explicitly indicated that this is not an area.
                         isArea = false;
                     }
 
                     // check for a closed line if area.
                     var coordinates = (osmObject as CompleteWay).GetCoordinates();
-                    if (isArea && coordinates.Count > 1 &&
-                        !coordinates[0].Equals2D(coordinates[coordinates.Count - 1]))
+                    if (isArea && coordinates.Count > 1 && !coordinates[0].Equals2D(coordinates[coordinates.Count - 1]))
                     { // not an area, first and last coordinate do not match.
-                        //Logger.Log("DefaultFeatureInterpreter", TraceEventType.Warning, "{0} is supposed to be an area but first and last coordinates do not match.",
-                          //  osmObject.ToInvariantString());
                     }
                     else if (!isArea && coordinates.Count < 2)
                     { // not a linestring, needs at least two coordinates.
-                        //Logger.Log("DefaultFeatureInterpreter", TraceEventType.Warning, "{0} is supposed to be a linestring but has less than two coordinates.",
-                          //  osmObject.ToInvariantString());
                     }
                     else if (isArea && coordinates.Count < 4)
                     {// not a linearring, needs at least four coordinates, with first and last identical.
-                       // Logger.Log("DefaultFeatureInterpreter", TraceEventType.Warning, "{0} is supposed to be a linearring but has less than four coordinates.",
-                         //   osmObject.ToInvariantString());
                     }
                     else
                     {
                         if (isArea)
                         { // area tags leads to simple polygon
-                            var lineairRing = new Feature(new LinearRing(coordinates.
-                                ToArray<Coordinate>()), TagsAndIdToAttributes(osmObject));
-                            collection.Add(lineairRing);
+                            return new LinearRing(coordinates.ToArray());
                         }
                         else
                         { // no area tag leads to just a line.
-                            var lineString = new Feature(new LineString(coordinates.
-                                ToArray<Coordinate>()), TagsAndIdToAttributes(osmObject));
-                            collection.Add(lineString);
+                            return new LineString(coordinates.ToArray());
                         }
                     }
                     break;
                 case OsmGeoType.Relation:
                     var relation = (osmObject as CompleteRelation);
-                    tags = relation.Tags;
+                    if (relation.Tags == null || relation.Tags.Count == 0)
+                        return null;
 
-                    if (tags == null)
-                    {
-                        return collection;
-                    }
-
-                    if (tags.TryGetValue("type", out var typeValue))
+                    if (relation.Tags.TryGetValue("type", out var typeValue))
                     { // there is a type in this relation.
                         if (typeValue == "multipolygon" || typeValue == "linearring")
                         { // this relation is a multipolygon.
-                            var feature = this.InterpretMultipolygonRelationNoRecursion(relation);
-                            if (feature != null)
-                            { // add the geometry.
-                                collection.Add(feature);
-                            }
+                            return this.InterpretMultipolygonRelationNoRecursion(relation);
                         }
-                        else if (typeValue == "boundary" && tags.Contains("boundary", "administrative"))
+                        else if (typeValue == "boundary" && relation.Tags.Contains("boundary", "administrative"))
                         { // this relation is a boundary.
-                            var feature = this.InterpretMultipolygonRelationNoRecursion(relation);
-                            if (feature != null)
-                            { // add the geometry.
-                                collection.Add(feature);
-                            }
+                            return this.InterpretMultipolygonRelationNoRecursion(relation);
                         }
                     }
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
             }
-            return collection;
+            return null;
         }
 
         /// <summary>
-        /// Returns true if the given tags collection contains tags that could represents an area.
+        /// Returns true if the given tags collection contains tags that could represents an area. waterway=river or waterway=stream could be potential false positives,
+        /// but can't be confirmed without the actual geometry or the area=* tag set to true or false.
         /// </summary>
-        public override bool IsPotentiallyArea(TagsCollectionBase tags)
+        public bool IsPotentiallyArea(TagsCollectionBase tags)
         {
-            if (tags == null || tags.Count == 0) { return false; } // no tags, assume no area.
+            if (tags == null || tags.Count == 0)
+                return false; // no tags, assume no area.
+
+            if (tags.IsTrue("area"))
+                return true;
+            else if (tags.IsFalse("area"))
+                return false;
 
             bool isArea = false;
-            if ((tags.ContainsKey("building") && !tags.IsFalse("building")) ||
-                (tags.ContainsKey("landuse") && !tags.IsFalse("landuse")) ||
-                (tags.ContainsKey("amenity") && !tags.IsFalse("amenity")) ||
-                (tags.ContainsKey("harbour") && !tags.IsFalse("harbour")) ||
-                (tags.ContainsKey("historic") && !tags.IsFalse("historic")) ||
-                (tags.ContainsKey("leisure") && !tags.IsFalse("leisure")) ||
-                (tags.ContainsKey("man_made") && !tags.IsFalse("man_made")) ||
-                (tags.ContainsKey("military") && !tags.IsFalse("military")) ||
-                (tags.ContainsKey("natural") && !tags.IsFalse("natural")) ||
-                (tags.ContainsKey("office") && !tags.IsFalse("office")) ||
-                (tags.ContainsKey("place") && !tags.IsFalse("place")) ||
-                (tags.ContainsKey("power") && !tags.IsFalse("power")) ||
-                (tags.ContainsKey("public_transport") && !tags.IsFalse("public_transport")) ||
-                (tags.ContainsKey("shop") && !tags.IsFalse("shop")) ||
-                (tags.ContainsKey("sport") && !tags.IsFalse("sport")) ||
-                (tags.ContainsKey("tourism") && !tags.IsFalse("tourism")) ||
-                (tags.ContainsKey("waterway") && !tags.IsFalse("waterway") && !tags.Contains("waterway", "river") && !tags.Contains("waterway", "stream")) ||
-                (tags.ContainsKey("wetland") && !tags.IsFalse("wetland")) ||
-                (tags.ContainsKey("water") && !tags.IsFalse("water")) ||
-                (tags.ContainsKey("aeroway") && !tags.IsFalse("aeroway")))
-            {
+            if (tags.ContainsAnyKey(areaTags))
                 isArea = true;
-            }
 
             if (tags.TryGetValue("type", out var typeValue))
             {
@@ -226,217 +170,14 @@ namespace PraxisCore
                         break;
                 }
             }
-
-            if (tags.IsTrue("area"))
-            { // explicitly indicated that this is an area.
-                isArea = true;
-            }
-            else if (tags.IsFalse("area"))
-            { // explicitly indicated that this is not an area.
-                isArea = false;
-            }
-
             return isArea;
         }
 
         /// <summary>
-        /// Tries to interpret a given multipolygon relation.
+        /// Creates a set of rings (as Polygons) from the provided CompleteWays. Closed Ways are used as-is, open Ways are joined together if possible.
         /// </summary>
-        private Feature InterpretMultipolygonRelation(CompleteRelation relation)
-        {
-            Feature feature = null;
-            if (relation.Members == null)
-            { // the relation has no members.
-                return null;
-            }
-
-            // build lists of outer and inner ways.
-            var ways = new List<KeyValuePair<bool, CompleteWay>>(); // outer=true
-            foreach (var member in relation.Members)
-            {
-                switch (member.Role)
-                {
-                    case "inner" when member.Member is CompleteWay: // an inner member.
-                        ways.Add(new KeyValuePair<bool, CompleteWay>(
-                            false, member.Member as CompleteWay));
-                        break;
-                    case "outer" when member.Member is CompleteWay: // an outer member.
-                        ways.Add(new KeyValuePair<bool, CompleteWay>(
-                            true, member.Member as CompleteWay));
-                        break;
-                }
-            }
-
-            // started a similar algorithm and then found this:
-            // loosely based on: http://wiki.openstreetmap.org/wiki/Relation:multipolygon/Algorithm
-
-            // recusively try to assign the rings.
-            //Console.WriteLine("starting ring assignment for relation " + relation.Id + "(" + ways.Count + (" ways)"));
-            if (!this.AssignRings(ways, out var rings))
-            {
-                Log.WriteLog($"Ring assignment failed: invalid multipolygon relation [{relation.Id}] detected!");
-                //Logging.Logger.Log("DefaultFeatureInterpreter", TraceEventType.Error,
-                //$"Ring assignment failed: invalid multipolygon relation [{relation.Id}] detected!");
-            }
-            // group the rings and create a multipolygon.
-            var geometry = this.GroupRings(rings);
-            if (geometry != null)
-            {
-                feature = new Feature(geometry, TagsAndIdToAttributes(relation));
-            }
-            return feature;
-        }
-
-        /// <summary>
-        /// Groups the rings into polygons.
-        /// </summary>
-        private Geometry GroupRings(List<KeyValuePair<bool, LinearRing>> rings)
-        {
-            Geometry geometry = null;
-            var containsFlags = new bool[rings.Count][]; // means [x] contains [y]
-            for (var x = 0; x < rings.Count; x++)
-            {
-                var xPolygon = new Polygon(rings[x].Value);
-                containsFlags[x] = new bool[rings.Count];
-                for (var y = 0; y < rings.Count; y++)
-                {
-                    var yPolygon = new Polygon(rings[y].Value);
-                    try
-                    {
-                        containsFlags[x][y] = xPolygon.Contains(yPolygon);
-                    }
-                    catch (TopologyException)
-                    {
-                        return null;
-                    }
-                }
-            }
-            var used = new bool[rings.Count];
-            List<Polygon> multiPolygon = null;
-            while (used.Contains(false))
-            { // select a ring not contained by any other.
-                LinearRing outer = null;
-                int outerIdx = -1;
-                for (int idx = 0; idx < rings.Count; idx++)
-                {
-                    if (!used[idx] && this.CheckUncontained(rings, containsFlags, used, idx))
-                    { // this ring is not contained in any other used rings.
-                        if (!rings[idx].Key)
-                        {
-                            Log.WriteLog("Invalid multipolygon relation: an 'inner' ring was detected without an 'outer'.");
-                            //Logging.Logger.Log("DefaultFeatureInterpreter", TraceEventType.Error,
-                            //"Invalid multipolygon relation: an 'inner' ring was detected without an 'outer'.");
-                        }
-                        outerIdx = idx;
-                        outer = rings[idx].Value;
-                        used[idx] = true;
-                        break;
-                    }
-                }
-                if (outer != null)
-                { // an outer ring was found, find inner rings.
-                    var inners = new List<LinearRing>();
-                    // select all rings contained by inner but not by any others.
-                    for (int idx = 0; idx < rings.Count; idx++)
-                    {
-                        if (!used[idx] && containsFlags[outerIdx][idx] &&
-                            this.CheckUncontained(rings, containsFlags, used, idx))
-                        {
-                            inners.Add(rings[idx].Value);
-                            used[idx] = true;
-                        }
-                    }
-
-                    var unused = !used.Contains(false);
-                    if (multiPolygon == null &&
-                        inners.Count == 0 &&
-                        unused)
-                    { // there is just one lineair ring.
-                        geometry = outer;
-                        break;
-                    }
-                    else if (multiPolygon == null &&
-                        unused)
-                    { // there is just one polygon.
-                        var polygon = new Polygon(
-                            outer, inners.ToArray());
-                        geometry = polygon;
-                        break;
-                    }
-                    else
-                    { // there have to be other polygons.
-                        if (multiPolygon == null)
-                        {
-                            multiPolygon = new List<Polygon>();
-                        }
-                        multiPolygon.Add(new Polygon(outer, inners.ToArray()));
-                        geometry = new MultiPolygon(multiPolygon.ToArray());
-                    }
-                }
-                else
-                { // unused rings left but they cannot be designated as 'outer'.
-                    //Log.WriteLog("Invalid multipolygon relation: Unassigned rings left.");
-                    //Logging.Logger.Log("DefaultFeatureInterpreter", TraceEventType.Error,
-                    //    "Invalid multipolygon relation: Unassigned rings left.");
-                    break;
-                }
-            }
-            return geometry;
-        }
-
-        /// <summary>
-        /// Checks if a ring is not contained by any other unused ring.
-        /// </summary>
-        private bool CheckUncontained(List<KeyValuePair<bool, LinearRing>> rings,
-            bool[][] containsFlags, bool[] used, int ringIdx)
-        {
-            for (var i = 0; i < rings.Count; i++)
-            {
-                if (i != ringIdx && !used[i] && containsFlags[i][ringIdx])
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        /// <summary>
-        /// Tries to extract all rings from the given ways.
-        /// </summary>
-        private bool AssignRings(List<KeyValuePair<bool, CompleteWay>> ways, out List<KeyValuePair<bool, LinearRing>> rings)
-        {
-            return this.AssignRings(ways, new bool[ways.Count], out rings);
-        }
-
-        /// <summary>
-        /// Assigns rings to the unassigned ways.
-        /// </summary>
-        private bool AssignRings(List<KeyValuePair<bool, CompleteWay>> ways, bool[] assignedFlags, out List<KeyValuePair<bool, LinearRing>> rings)
-        {
-            //rings = new List<KeyValuePair<bool, LinearRing>>();
-            var assigned = false;
-            for (var i = 0; i < ways.Count; i++)
-            {
-                if (!assignedFlags[i])
-                {
-                    assigned = true;
-                    LinearRing ring;
-                    if (this.AssignRing(ways, i, assignedFlags, out ring))
-                    { // assigning the ring successed.
-                        List<KeyValuePair<bool, LinearRing>> otherRings;
-                        if (this.AssignRings(ways, assignedFlags, out otherRings)) //This recursive stack eventually fails on the Labrador Sea, 25,000 ways.
-                        { // assigning the rings succeeded.
-                            rings = otherRings;
-                            rings.Add(new KeyValuePair<bool, LinearRing>(ways[i].Key, ring));
-                            return true;
-                        }
-                    }
-                }
-            }
-            rings = new List<KeyValuePair<bool, LinearRing>>();
-            return !assigned;
-        }
-
+        /// <param name="ways">a list of CompleteWays to turn into a Polygon</param>
+        /// <returns>a list of Polygons made from the given Ways</returns>
         private static List<Polygon> BuildRings(List<CompleteWay> ways)
         {
             //This is where I look at points to try and combine these.
@@ -449,7 +190,7 @@ namespace PraxisCore
                 ways.Remove(c);
                 polys.Add(factory.CreatePolygon(Converters.CompleteWayToCoordArray(c)));
             }
-            
+
             while (ways.Count() > 0)
             {
                 var a = GetShapeFromLines(ref ways);
@@ -460,6 +201,12 @@ namespace PraxisCore
             return polys;
         }
 
+        /// <summary>
+        /// Gives a list of Inner and Outer ways, creates a Geometry object representing the combined lists. Can return a Polygon or MultiPolygon depending on inputs.
+        /// </summary>
+        /// <param name="outerways">The list of outer ways. Must not be empty.</param>
+        /// <param name="innerways">The list of inner ways. Maybe empty </param>
+        /// <returns></returns>
         private Geometry BuildGeometry(List<CompleteWay> outerways, List<CompleteWay> innerways)
         {
             var outerRings = new List<Polygon>();
@@ -469,7 +216,7 @@ namespace PraxisCore
             outerRings = BuildRings(outerways);
             if (outerRings == null || outerRings.Count == 0)
                 return null;
-           
+
             innerRings = BuildRings(innerways);
 
             Geometry outer = null;
@@ -489,116 +236,13 @@ namespace PraxisCore
         }
 
         /// <summary>
-        /// Creates a new lineair ring from the given way and updates the assigned flags array.
+        /// Parse a CompleteRelation into a Geometry. Avoids recursion to allow for much larger objects to be processed than the default OSMSharp FeatureInterpreter.
         /// </summary>
-        private bool AssignRing(List<KeyValuePair<bool, CompleteWay>> ways, int way, bool[] assignedFlags, out LinearRing ring)
+        /// <param name="relation">The CompleteRelation to process</param>
+        /// <returns>the Geometry to use in the application elsewhere, or null if an error occurred generating the Geometry. </returns>
+        private Geometry InterpretMultipolygonRelationNoRecursion(CompleteRelation relation)
         {
-            List<Coordinate> coordinates = null;
-            assignedFlags[way] = true;
-            if (ways[way].Value.IsClosed())
-            { // the was is closed.
-                coordinates = ways[way].Value.GetCoordinates();
-            }
-            else
-            { // the way is open.
-                var roleFlag = ways[way].Key;
-
-                // complete the ring.
-                var nodes = new List<Node>(ways[way].Value.Nodes);
-                if (this.CompleteRing(ways, assignedFlags, nodes, roleFlag))
-                { // the ring was completed!
-                    coordinates = new List<Coordinate>(nodes.Count);
-                    foreach (var node in nodes)
-                    {
-                        coordinates.Add(node.GetCoordinate());
-                    }
-                }
-                else
-                { // oops, assignment failed: backtrack again!
-                    assignedFlags[way] = false;
-                    ring = null;
-                    return false;
-                }
-            }
-            ring = new LinearRing(coordinates.ToArray());
-            return true;
-        }
-
-        /// <summary>
-        /// Completes an uncompleted ring.
-        /// </summary>
-        /// <param name="ways"></param>
-        /// <param name="assignedFlags"></param>
-        /// <param name="nodes"></param>
-        /// <param name="role"></param>
-        /// <returns></returns>
-        private bool CompleteRing(List<KeyValuePair<bool, CompleteWay>> ways, bool[] assignedFlags,
-            List<Node> nodes, bool? role)
-        {
-            //This is also a recursive function, and might actually be the one hitting the stack overflow?
-            for (var idx = 0; idx < ways.Count; idx++)
-            {
-                if (!assignedFlags[idx])
-                { // way not assigned.
-                    var wayEntry = ways[idx];
-                    var nextWay = wayEntry.Value;
-                    if (!role.HasValue || wayEntry.Key == role.Value)
-                    { // only try matching roles if the role has been set.
-                        List<Node> nextNodes = null;
-                        if (nodes[nodes.Count - 1].Id == nextWay.Nodes[0].Id)
-                        { // last node of the previous way is the first node of the next way.
-                            nextNodes = nextWay.Nodes.GetRange(1, nextWay.Nodes.Length - 1);
-                            assignedFlags[idx] = true;
-                        }
-                        else if (nodes[nodes.Count - 1].Id == nextWay.Nodes[nextWay.Nodes.Length - 1].Id)
-                        { // last node of the previous way is the last node of the next way.
-                            nextNodes = nextWay.Nodes.GetRange(0, nextWay.Nodes.Length - 1);
-                            nextNodes.Reverse();
-                            assignedFlags[idx] = true;
-                        }
-
-                        // add the next nodes if any.
-                        if (assignedFlags[idx])
-                        { // yep, way was assigned!
-                            nodes.AddRange(nextNodes);
-                            if (nodes[nodes.Count - 1].Id == nodes[0].Id)
-                            { // yes! a closed ring was found!
-                                return true;
-                            }
-                            else
-                            { // noo! ring not closed yet!
-                                if (this.CompleteRing(ways.Where(w => !w.Key).ToList(), assignedFlags, nodes, role))
-                                { // yes! a complete ring was found
-                                    return true;
-                                }
-                                else
-                                { // damn complete ring not found. backtrack people!
-                                    assignedFlags[idx] = false;
-                                    nodes.RemoveRange(nodes.Count - nextNodes.Count, nextNodes.Count);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            return false;
-        }
-
-        private static AttributesTable TagsAndIdToAttributes(ICompleteOsmGeo osmObject)
-        {
-            var attr = osmObject.Tags.ToAttributeTable();
-            //attr.Add("id", osmObject.Id);
-
-            return attr;
-        }
-
-        //These functions are new and PraxisMapper specific, but currently use older classes that need updated to OsmSharp ones.
-        //Meant to get results without being recursive, to avoid stack overflows the way that AssignRings
-        //above can on very large ways.
-
-        private Feature InterpretMultipolygonRelationNoRecursion(CompleteRelation relation)
-        {
-            Feature feature = null;
+            //Feature feature = null;
             if (relation.Members == null)
             { // the relation has no members.
                 return null;
@@ -619,117 +263,68 @@ namespace PraxisCore
                         outers.Add(member.Member as CompleteWay);
                         break;
                     default:
-                        //Log.WriteLog("Member" + member.Member.Id + " was't assigned a role!");
                         break;
                 }
             }
 
-            //foreach(var o in outers)
-            //{
-            //    bool hasFirstMatch = false, hasLastMatch = false;
-            //    var firstNode = o.Nodes.First();
-            //    var lastNode = o.Nodes.Last();
-            //    if (outers.Any(oo => oo.Id != o.Id && (oo.Nodes.First().Id == firstNode.Id || oo.Nodes.Last().Id == firstNode.Id)))
-            //        hasFirstMatch = true;
-            //    if (outers.Any(oo => oo.Id != o.Id && (oo.Nodes.First().Id == lastNode.Id || oo.Nodes.Last().Id == lastNode.Id)))
-            //        hasLastMatch = true;
-
-            //    if (!hasFirstMatch && !hasLastMatch)
-            //        Log.WriteLog("Entry " + o.Id + " has no matches despite being marked Outer!");
-            //    else if (!hasLastMatch || !hasFirstMatch)
-            //        Log.WriteLog("Entry " + o.Id + " has one match, but not part of a closed loop!");
-            //}
-
-
             var geometry = BuildGeometry(outers, inners);
-
-            if (geometry != null)
-            {
-                feature = new Feature(geometry, TagsAndIdToAttributes(relation));
-            }
-            return feature;
-
+            return geometry;
         }
-        
+
+        /// <summary>
+        /// Takes the first way in a list, and searches for any/all ways that connect to it to form a closed polygon. Returns null if a closed shape cannot be formed.
+        /// Call this repeatedly on a list until it is empty to find all polygons in a list of ways.
+        /// </summary>
+        /// <param name="shapeList">The list of ways to search. Will remove all ways that join to the first one or any joined to it from this list.</param>
+        /// <returns>A Polygon if ways were able to be joined into a closed shape with the first way in the list, or null if not.</returns>
         private static Polygon GetShapeFromLines(ref List<CompleteWay> shapeList)
         {
-            //takes shapelist as ref, returns a polygon, leaves any other entries in shapelist to be called again.
             //NOTE/TODO: if this is a relation of lines that aren't a polygon (EX: a very long hiking trail), this should probably return the combined linestring?
 
             List<Node> currentShape = new List<Node>();
-            //List<Coordinate> possiblePolygon = new List<Coordinate>();
             var firstShape = shapeList.FirstOrDefault();
             if (firstShape == null)
             {
                 Log.WriteLog("shapelist has 0 ways in shapelist?", Log.VerbosityLevels.High);
                 return null;
             }
-            
+
             Node originalStartPoint = firstShape.Nodes.First();
 
             shapeList.Remove(firstShape);
             var nextStartnode = firstShape.Nodes.Last();
             var closedShape = false;
-            //var isError = false;
-            //possiblePolygon.AddRange(firstShape.Nodes.Select(n => new Coordinate((float)n.Longitude, (float)n.Latitude)).ToList());
             currentShape.AddRange(firstShape.Nodes);
             while (closedShape == false)
             {
-                //var allPossibleLines = shapeList.Where(s => s.Nodes.First().Id == nextStartnode.Id).ToList();
-                //if (allPossibleLines.Count > 1)
-                //{
-                //    Log.WriteLog("Shape has multiple possible lines to follow, might not process correctly.", Log.VerbosityLevels.High);
-                //}
                 var lineToAdd = shapeList.FirstOrDefault(s => s.Nodes.First().Id == nextStartnode.Id); //allPossibleLines.FirstOrDefault();
                 if (lineToAdd == null)
                 {
                     //check other direction
-                    //allPossibleLines = shapeList.Where(s => s.Nodes.Last().Id == nextStartnode.Id).ToList();
-                    //if (allPossibleLines.Count > 1)
-                    //{
-                    //    Log.WriteLog("Way has multiple possible lines to follow, might not process correctly (Reversed Order).");
-                    //}
                     lineToAdd = shapeList.FirstOrDefault(s => s.Nodes.Last().Id == nextStartnode.Id); //allPossibleLines.FirstOrDefault();
                     if (lineToAdd == null)
                     {
                         return null;
-                        //if (shapeList.Count() > 0)
-                        //{
-                            //If all lines are joined and none remain, this might just be a relation of lines. Return a combined element
-                           // Log.WriteLog("shape doesn't seem to have properly connecting lines, can't process as polygon.", Log.VerbosityLevels.High);
-                            //return null;
-                            //closedShape = true; //rename this to something better for breaking the loop
-                            //isError = true; //rename this to something like IsPolygon
-                        //}
                     }
                     else
                         lineToAdd.Nodes = lineToAdd.Nodes.Reverse().ToArray(); //This way was drawn backwards relative to the original way.
                 }
-                //if (!isError)
-                //{
-                //possiblePolygon.AddRange(lineToAdd.Nodes.Skip(1).Select(n => new Coordinate((float)n.Longitude, (float)n.Latitude)).ToList());
                 currentShape.AddRange(lineToAdd.Nodes.Skip(1));
-                    nextStartnode = lineToAdd.Nodes.Last();
-                    shapeList.Remove(lineToAdd);
+                nextStartnode = lineToAdd.Nodes.Last();
+                shapeList.Remove(lineToAdd);
 
-                    if (nextStartnode.Id == originalStartPoint.Id)
-                        closedShape = true;
-                    if (shapeList.Count == 0 && !closedShape)
-                        return null;
-                        //isError = true;
-                //}
+                if (nextStartnode.Id == originalStartPoint.Id)
+                    closedShape = true;
+                if (shapeList.Count == 0 && !closedShape)
+                    return null;
             }
-            //if (isError)
-              //  return null;
 
-            //if (possiblePolygon.Count <= 3)
             if (currentShape.Count <= 3)
             {
-                Log.WriteLog("Didn't find enough points to turn into a polygon. Probably an error.", Log.VerbosityLevels.High);
+                Log.WriteLog("Didn't find enough points to turn into a polygon. Probably an error in the source data.", Log.VerbosityLevels.High);
                 return null;
             }
 
-            //var poly = factory.CreatePolygon(possiblePolygon.ToArray());
             var poly = factory.CreatePolygon(currentShape.Select(s => new Coordinate((float)s.Longitude, (float)s.Latitude)).ToArray());
             poly = GeometrySupport.CCWCheck(poly);
             if (poly == null)
