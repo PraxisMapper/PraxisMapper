@@ -138,18 +138,17 @@ namespace PraxisCore
 
             try
             {
-                var feature = featureInterpreter.Interpret(g); //OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(g); //Changed while waiting for bugfixes
-                //var feature = OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(g); //mainline version, while i get my version dialed in for edge cases.
-                if (feature.Count() != 1)
+                var geometry = featureInterpreter.Interpret(g); 
+                if (geometry == null)
                 {
-                    Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + " didn't return expected number of features (" + feature.Count() + ")", Log.VerbosityLevels.High);
+                    Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + " didn't interpret into a Geometry object", Log.VerbosityLevels.High);
                     return null;
                 }
                 var sw = new StoredOsmElement();
                 sw.name = TagParser.GetPlaceName(g.Tags);
                 sw.sourceItemID = g.Id;
                 sw.sourceItemType = (g.Type == OsmGeoType.Relation ? 3 : g.Type == OsmGeoType.Way ? 2 : 1);
-                var geo = GeometrySupport.SimplifyArea(feature.First().Geometry);
+                var geo = GeometrySupport.SimplifyArea(geometry);
                 if (geo == null)
                 {
                     Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + " didn't simplify for some reason.", Log.VerbosityLevels.High);
