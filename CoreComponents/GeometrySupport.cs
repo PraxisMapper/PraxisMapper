@@ -12,6 +12,9 @@ using static PraxisCore.Singletons;
 
 namespace PraxisCore
 {
+    /// <summary>
+    /// Common functions revolving around Geometry object operations
+    /// </summary>
     public static class GeometrySupport
     {
         //Shared class for functions that do work on Geometry objects.

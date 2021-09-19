@@ -15,20 +15,38 @@ namespace PraxisCore
     // Mapnik uses at least 5 layers internally for its tiles. (roughly, in top to bottom order)
     //Labels (text), Fill, Features, Area, HillShading.
     //I would need better area-vs-feature detection (OSMSharp has this,and I think I included that in my code)
+
+    /// <summary>
+    /// Determines an element's gameplay type and rules for drawing it on maptiles, along with tracking styles.
+    /// </summary>
     public static class TagParser
     {
         public static TagParserEntry defaultStyle; //background color must be last if I want un-matched areas to be hidden, its own color if i want areas with no ways at all to show up.
         public static Dictionary<string, SKBitmap> cachedBitmaps = new Dictionary<string, SKBitmap>(); //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
         public static Dictionary<string, Dictionary<string, TagParserEntry>> allStyleGroups = new Dictionary<string, Dictionary<string, TagParserEntry>>();
 
+        /// <summary>
+        /// Call once when the server or app is started. Loads all the styles and caches baseline data for later use.
+        /// </summary>
+        /// <param name="onlyDefaults">if true, skip loading the styles from the DB and use Praxismapper's defaults </param>
         public static void Initialize(bool onlyDefaults = false)
         {
-            //Load TPE entries from DB for app.
-            var db = new PraxisContext();
+            List<TagParserEntry> styles;
 
-            var styles = db.TagParserEntries.Include(t => t.TagParserMatchRules).Include(t => t.paintOperations).ToList();
-            if (onlyDefaults || styles == null || styles.Count() == 0)
+            if (onlyDefaults)
                 styles = Singletons.defaultTagParserEntries;
+            else
+            {
+                //Load TPE entries from DB for app.
+                var db = new PraxisContext();
+                styles = db.TagParserEntries.Include(t => t.TagParserMatchRules).Include(t => t.paintOperations).ToList();
+                if (styles == null || styles.Count() == 0)
+                    styles = Singletons.defaultTagParserEntries;
+
+                var dbSettings = db.ServerSettings.FirstOrDefault();
+                if (dbSettings != null)
+                    MapTiles.MapTileSizeSquare = dbSettings.SlippyMapTileSizeSquare;
+            }
 
             foreach (var s in styles)
                 foreach(var p in s.paintOperations)
@@ -50,13 +68,13 @@ namespace PraxisCore
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "default" }}
             };
-
-            var dbSettings = db.ServerSettings.FirstOrDefault();
-            if (dbSettings != null)
-                MapTiles.MapTileSizeSquare = dbSettings.SlippyMapTileSizeSquare;
         }
 
-        public static void SetPaintForTPP(TagParserPaint tpe)
+        /// <summary>
+        /// Create the SKPaint object for each style and store it in the requested object.
+        /// </summary>
+        /// <param name="tpe">the TagParserPaint object to populate</param>
+        private static void SetPaintForTPP(TagParserPaint tpe)
         {
             var paint = new SKPaint();
             //TODO: enable a style to use static-random colors.
@@ -86,6 +104,12 @@ namespace PraxisCore
             tpe.paint = paint;
         }
 
+        /// <summary>
+        /// Returns the style to use on an element given its tags and a styleset to search against.
+        /// </summary>
+        /// <param name="tags">the tags attached to a StoredOsmElement to search</param>
+        /// <param name="styleSet">the styleset with the rules for parsing elements</param>
+        /// <returns>The TagParserEntry that matches the rules and tags given, or a defaultStyle if none match.</returns>
         public static TagParserEntry GetStyleForOsmWay(ICollection<ElementTags> tags, string styleSet = "mapTiles")
         {
             if (tags == null || tags.Count() == 0)
@@ -99,32 +123,37 @@ namespace PraxisCore
 
             return defaultStyle;
         }
-        //The ICollection<> version should handle everything, and nothing should need to cast from ICollection to List again.
-        //public static TagParserEntry GetStyleForOsmWay(List<ElementTags> tags, string styleSet = "mapTiles")
-        //{
-        //    if (tags == null || tags.Count() == 0)
-        //        return defaultStyle;
-            
-        //    foreach (var drawingRules in allStyleGroups[styleSet])
-        //    {
-        //        if (MatchOnTags(drawingRules.Value, tags))
-        //            return drawingRules.Value;
-        //    }
-            
-        //    return defaultStyle;
-        //}
 
+        /// <summary>
+        /// Returns the style to use on an CompleteGeo object given its tags and a styleset to search against.
+        /// </summary>
+        /// <param name="tags">the tags attached to a CompleteGeo object to search</param>
+        /// <param name="styleSet">the styleset with the rules for parsing elements</param>
+        /// <returns>The TagParserEntry that matches the rules and tags given, or a defaultStyle if none match.</returns>
         public static TagParserEntry GetStyleForOsmWay(TagsCollectionBase tags, string styleSet = "mapTiles")
         {
             var tempTags = tags.Select(t => new ElementTags() { Key = t.Key, Value = t.Value }).ToList();
             return GetStyleForOsmWay(tempTags, styleSet);
         }
 
-        public static string GetAreaType(TagsCollectionBase tags)
+        /// <summary>
+        /// Determines the name of the matching style for a CompleteGeo object
+        /// </summary>
+        /// <param name="tags">the tags attached to a completeGeo object</param>
+        /// <param name="styleSet">the styleset to match against</param>
+        /// <returns>The name of the style from the given styleSet that matches the CompleteGeo's tags</returns>
+        public static string GetAreaType(TagsCollectionBase tags, string styleSet = "mapTiles")
         {
             var tempTags = tags.Select(t => new ElementTags() { Key = t.Key, Value = t.Value }).ToList();
             return GetAreaType(tempTags);
         }
+
+        /// <summary>
+        /// Determines if the name of the matching style for a StoredOsmElement object
+        /// </summary>
+        /// <param name="tags">the tags attached to a StoredOsmElement object</param>
+        /// <param name="styleSet">the styleset to match against</param>
+        /// <returns>The name of the style from the given styleSet that matches the StoredOsmElement tags</returns>
         public static string GetAreaType(List<ElementTags> tags, string styleSet = "mapTiles")
         {
             if (tags == null || tags.Count() == 0)
@@ -137,18 +166,27 @@ namespace PraxisCore
             return defaultStyle.name;
         }
 
+        /// <summary>
+        /// Get the background color from a style set
+        /// </summary>
+        /// <param name="styleSet">the name of the style set to pull the background color from</param>
+        /// <returns>the SKColor saved into the requested background paint object.</returns>
         public static SKColor GetStyleBgColor(string styleSet)
         {
             return allStyleGroups[styleSet]["background"].paintOperations.First().paint.Color;
         }
 
-        public static bool MatchOnTags(TagParserEntry tpe, StoredOsmElement sw)
-        {
-            return MatchOnTags(tpe, sw.Tags);
-        }
 
+        /// <summary>
+        /// Determine if this TagParserEntry matches or not against a StoredOsmElement's tags.
+        /// </summary>
+        /// <param name="tpe">The TagParserEntry to check</param>
+        /// <param name="tags">the tags for a StoredOsmElement to use</param>
+        /// <returns>true if this TagParserEntry applies to this StoredOsmElement's tags, or false if it does not.</returns>
         public static bool MatchOnTags(TagParserEntry tpe, ICollection<ElementTags> tags)
         {
+            //TODO: would this be faster if the tags were converted to a Dictionary? Or does the overhead of converting remove any real gain?
+            //TODO ON THAT: pass in the dictionary, so its converted once instead of once per style.
             //Changing this to return as soon as any entry fails makes it run about twice as fast.
             bool OrMatched = false;
             int orRuleCount = 0;
@@ -216,6 +254,11 @@ namespace PraxisCore
             return false;
         }
 
+        /// <summary>
+        /// Filters out a bunch of tags PraxisMapper will not use. 
+        /// </summary>
+        /// <param name="rawTags"The initial tags from a CompleteGeo object></param>
+        /// <returns>A list of ElementTags with the undesired tags removed.</returns>
         public static List<ElementTags> getFilteredTags(TagsCollectionBase rawTags)
         {
             return rawTags.Where(t =>
@@ -263,7 +306,12 @@ namespace PraxisCore
                 .Select(t => new ElementTags() { Key = t.Key, Value = t.Value }).ToList();
         }
 
-        public static string GetPlaceName(TagsCollectionBase tagsO) //Should this be part of TagParser? Probably.
+        /// <summary>
+        /// Search the tags of a CompleteGeo object for a name value
+        /// </summary>
+        /// <param name="tagsO">the tags to search</param>
+        /// <returns>a Name value if one is found, or an empty string if not</returns>
+        public static string GetPlaceName(TagsCollectionBase tagsO) 
         {
             if (tagsO.Count() == 0)
                 return "";
@@ -274,6 +322,11 @@ namespace PraxisCore
             return retVal;
         }
 
+        /// <summary>
+        /// Get a link to a StoredOsmElement's wikipedia page, if tagged with a wiki tag.
+        /// </summary>
+        /// <param name="element">the StoredOsmElement with tags to check</param>
+        /// <returns>a link to the relevant Wikipedia page for an element, or an empty string if the element has no such tag.</returns>
         public static string GetWikipediaLink(StoredOsmElement element)
         {
             var wikiTag = element.Tags.Where(t => t.Key == "wikipedia").FirstOrDefault();
@@ -284,6 +337,12 @@ namespace PraxisCore
             return "https://" + splitValue[0] + ".wikipedia.org/wiki/" + splitValue[1]; //TODO: check if special characters need replaced or encoded on this.
         }
 
+        /// <summary>
+        /// Apply the rules for a styleset to a list of places. Fills in some placeholder values that aren't persisted into the database.
+        /// </summary>
+        /// <param name="places">the list of StoredOsmElements to check</param>
+        /// <param name="styleSet">the name of the style set to apply to the elements.</param>
+        /// <returns>the list of places with the appropriate data filled in.</returns>
         public static List<StoredOsmElement> ApplyTags(List<StoredOsmElement> places, string styleSet)
         {
             foreach (var p in places)
@@ -295,6 +354,11 @@ namespace PraxisCore
             return places;
         }
 
+        /// <summary>
+        /// Pull a static, but practically randomized, color for an area based on the MD5 hash of its name. All identically named areas will get the same color.
+        /// </summary>
+        /// <param name="areaname">the name of the area to generate a color for</param>
+        /// <returns>an SKColor value based on the area's name.</returns>
         public static SKColor PickStaticColorForArea(string areaname)
         {
             var hasher = System.Security.Cryptography.MD5.Create();

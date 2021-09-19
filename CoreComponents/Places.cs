@@ -12,6 +12,9 @@ using static PraxisCore.Singletons;
 
 namespace PraxisCore
 {
+    /// <summary>
+    /// Places are StoredOsmElements 
+    /// </summary>
     public static class Place 
     {
         //for now, anything that does a query on StoredOsmElement or a list of StoredOsmElement entries
@@ -259,7 +262,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="resolution">How many degrees to scan at a time. Bigger numbers are faster, smaller numbers are more precise.</param>
         /// <returns>a GeoArea representing the bounds of the server's location at the resolution given.</returns>
-        public static GeoArea GetServerBounds(double resolution)
+        public static GeoArea DetectServerBounds(double resolution)
         {
             //Auto-detect what the boundaries are for the database's data set. This might be better off as a Larry command to calculate, and save the results in a DB table.
             //NOTE: with the Aleutian islands, the USA is considered as wide as the entire map. These sit on both sides of the meridian.
@@ -301,33 +304,7 @@ namespace PraxisCore
 
             return new GeoArea(new GeoPoint(SouthLimit, WestLimit), new GeoPoint(NorthLimit, EastLimit));
         }
-
-        /// <summary>
-        /// Determine if a PlusCode is inside the gameplay area. Expects an in-memory copy of the ServerSetting row to be passed in.
-        /// </summary>
-        /// <param name="code">The PlusCode object to check</param>
-        /// <param name="bounds">the ServerSetting entry containing the bounds values.</param>
-        /// <returns>true if the area is in bounds, false if it is outside the gameplay area.</returns>
-        public static bool IsInBounds(OpenLocationCode code, ServerSetting bounds)
-        {
-            var area = code.Decode();
-
-            return (bounds.NorthBound >= area.NorthLatitude && bounds.SouthBound <= area.SouthLatitude
-                && bounds.EastBound >= area.EastLongitude && bounds.WestBound <= area.WestLongitude);
-        }
-
-        /// <summary>
-        /// Determine if a PlusCode is inside the gameplay area. Expects an in-memory copy of the ServerSetting row to be passed in.
-        /// </summary>
-        /// <param name="code">the PlusCode string to check</param>
-        /// <param name="bounds">the ServerSetting entry containing the bounds values.</param>
-        /// <returns>true if the area is in bounds, false if it is outside the gameplay area.</returns>
-        public static bool IsInBounds(string code, ServerSetting bounds)
-        {
-            var area = new OpenLocationCode(code);
-            return IsInBounds(area, bounds);
-        }
-
+        
         //This is for getting all places that have a specific TagParser style/match. Admin boundaries, parks, etc.
         /// <summary>
         /// Pull in all elements from a list that have a given style. 

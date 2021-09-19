@@ -18,6 +18,9 @@ using System.Threading.Tasks;
 
 namespace PraxisCore
 {
+    /// <summary>
+    /// All functions related to generating or expiring map tiles. Both PlusCode sized tiles for gameplay or SlippyMap tiles for a webview.
+    /// </summary>
     public static class MapTiles
     {
         public static int MapTileSizeSquare = 512; //Default value, updated by PraxisMapper at startup. COvers Slippy tiles, not gameplay tiles.
@@ -908,36 +911,6 @@ namespace PraxisCore
             //skms.Dispose(); ms.Close(); ms.Dispose();
             return svgData;
         }
-
-        /// <summary>
-        /// Draws a polygon as its own image,to be overlaid onto another image. Potentially obsoleted by drawing holes properly in SkiaSharp paths/polygons.
-        /// </summary>
-        /// <param name="polygon">The polygon with holes to draw</param>
-        /// <param name="paint">the paint operation to use when drawing</param>
-        /// <param name="stats">the ImageStats for the image this bitmap will be merged into</param>
-        /// <returns>an SKBitmap to be merged into an existing SKBitmap.</returns>
-        //public static SKBitmap DrawPolygon(Polygon polygon, SKPaint paint, ImageStats stats)
-        //{
-        //    //In order to do this the most correct, i have to draw the outer ring, then erase all the innner rings.
-        //    //THEN draw that image overtop the original.
-        //    SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
-        //    SKCanvas canvas = new SKCanvas(bitmap);
-        //    var bgColor = SKColors.Transparent;
-        //    canvas.Clear(bgColor);
-        //    canvas.Scale(1, 1, stats.imageSizeX / 2, stats.imageSizeY / 2);
-        //    var path = new SKPath();
-        //    path.AddPoly(Converters.PolygonToSKPoints(polygon.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-        //    canvas.DrawPath(path, paint);
-
-        //    foreach (var hole in polygon.InteriorRings)
-        //    {
-        //        path = new SKPath();
-        //        path.AddPoly(Converters.PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-        //        canvas.DrawPath(path, eraser);
-        //    }
-
-        //    return bitmap;
-        //}
 
         /// <summary>
         /// Creates all gameplay tiles for a given area and saves them to the database.

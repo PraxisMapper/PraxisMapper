@@ -9,6 +9,9 @@ using static PraxisCore.Singletons;
 
 namespace PraxisCore
 {
+    /// <summary>
+    /// Functions that translate one thing to another somewhere in PraxisMapper.
+    /// </summary>
     public static class Converters
     {
         /// <summary>
