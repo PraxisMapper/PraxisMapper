@@ -264,7 +264,7 @@ namespace PraxisCore
         /// <returns>a GeoArea representing the bounds of the server's location at the resolution given.</returns>
         public static GeoArea DetectServerBounds(double resolution)
         {
-            //Auto-detect what the boundaries are for the database's data set. This might be better off as a Larry command to calculate, and save the results in a DB table.
+            //Auto-detect what the boundaries are for the database's data set.
             //NOTE: with the Aleutian islands, the USA is considered as wide as the entire map. These sit on both sides of the meridian.
             //These 2 start in the opposite corners, to make sure the replacements are correctly detected.
             double SouthLimit = 360; 

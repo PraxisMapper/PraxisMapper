@@ -29,11 +29,19 @@ namespace PraxisCore.PbfReader
         //TODO:
         //Make some function paramters settings in here, like saveInFile or saveToDb.
 
+        public bool saveToInfile = false;
+        public bool saveToDB = false;
+        public bool saveToJson = true; //Defaults to the common intermediate output.
+        public bool onlyTaggedAreas = false; //This is somewhat redundant, since all ways/relations will be tagged and storing untagged nodes isnt necessary in PM.
+        public bool onlyMatchedAreas = false;
+
+        public string outputPath = "";
+
         //Primary function:
         //ProcessFile(filename) should do everything automatically and allow resuming if you stop the app.
 
         FileInfo fi;
-        FileStream fs;
+        FileStream fs; // The input file. Output files are used with StreamWriters.
 
         //<osmId, blockId>
         ConcurrentDictionary<long, long> relationFinder = new ConcurrentDictionary<long, long>();
@@ -65,7 +73,6 @@ namespace PraxisCore.PbfReader
         object geomFileLock = new object(); //Writing to mariadb LOAD DATA INFILE for StoredOsmElement
         object tagsFileLock = new object(); //Writing to mariadb LOAD DATA INFILE for ElementTags
 
-        public string outputPath = "";
         long nextBlockId = 0;
         long firstWayBlock = 0;
         long firstRelationBlock = 0;
@@ -128,10 +135,8 @@ namespace PraxisCore.PbfReader
         /// Runs through the entire process to convert a PBF file into usable PraxisMapper data. The server bounds for this process must be identified via other functions.
         /// </summary>
         /// <param name="filename">The path to the PBF file to read</param>
-        /// <param name="saveToDb">If true, saves the resulting objects directly to a database. Otherwise, serialized the data to a JSON entry in a text file. </param>
         /// <param name="onlyTagMatchedEntries">If true, only load data in the file that meets a rule in TagParser. If false, processes all elements in the file.</param>
-        /// <param name="saveForInfileLoad">if true AND saveToDb is false, saves the results to a MariaDB Infile load formatted text file instead of JSON, which can be loaded directly to the database dramatically faster than processing the JSON format.</param>
-        public void ProcessFile(string filename, bool saveToDb = false, bool onlyTagMatchedEntries = false, bool saveForInfileLoad = false)
+        public void ProcessFile(string filename)
         {
             try
             {
@@ -155,14 +160,14 @@ namespace PraxisCore.PbfReader
                 if (displayStatus)
                     ShowWaitInfo();
 
-                if (!saveToDb)
+                if (!saveToDB)
                 {
-                    if (saveForInfileLoad)
+                    if (saveToInfile)
                     {
                         geomFileStream = new StreamWriter(new FileStream(outputPath + System.IO.Path.GetFileNameWithoutExtension(filename) + ".geomInfile", FileMode.Create));
                         tagsFileStream = new StreamWriter(new FileStream(outputPath + System.IO.Path.GetFileNameWithoutExtension(filename) + ".tagsInfile", FileMode.Create));
                     }
-                    else
+                    else if (saveToJson)
                         jsonFileStream = new StreamWriter(new FileStream(outputPath + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", FileMode.Create));
                 }
 
@@ -171,22 +176,22 @@ namespace PraxisCore.PbfReader
                     System.Diagnostics.Stopwatch swBlock = new System.Diagnostics.Stopwatch(); //Includes both GetGeometry and ProcessResults time, but writing to disk is done in a thread independent of this.
                     swBlock.Start();
                     long thisBlockId = block;
-                    var geoData = GetGeometryFromBlock(thisBlockId, onlyTagMatchedEntries, saveForInfileLoad);
+                    var geoData = GetGeometryFromBlock(thisBlockId, onlyMatchedAreas, saveToInfile);
                     //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
                     //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
                     if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
                     {
-                        if (saveForInfileLoad)
+                        if (saveToInfile)
                         {
                             //This path is MariaDB specific, but allows populating the database much, much faster.
                             //Process the results in 2 file, 1 for geometry data, 1 for tags.
-                            var wt = ProcessReaderResultsForInFile(geoData, onlyTagMatchedEntries);
+                            var wt = ProcessReaderResultsForInFile(geoData, onlyMatchedAreas);
                             if (wt != null)
                                 writeTasks.Add(wt);
                         }
                         else
                         {
-                            var wt = ProcessReaderResults(geoData, outputPath + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", saveToDb, onlyTagMatchedEntries);
+                            var wt = ProcessReaderResults(geoData, onlyMatchedAreas);
                             if (wt != null)
                                 writeTasks.Add(wt);
                         }
@@ -200,7 +205,7 @@ namespace PraxisCore.PbfReader
                 Log.WriteLog("Waiting on " + writeTasks.Where(w => !w.IsCompleted).Count() + " additional tasks");
                 Task.WaitAll(writeTasks.ToArray());
                 Close();
-                if (saveForInfileLoad)
+                if (saveToInfile)
                 {
                     geomFileStream.Flush();
                     geomFileStream.Close();
@@ -209,7 +214,7 @@ namespace PraxisCore.PbfReader
                     tagsFileStream.Close();
                     tagsFileStream.Dispose();
                 }
-                if (!saveToDb)
+                if (saveToJson)
                 {
                     jsonFileStream.Flush();
                     jsonFileStream.Close();
@@ -265,7 +270,7 @@ namespace PraxisCore.PbfReader
                     else
                         Log.WriteLog("Node Block " + block);
                     var geoData = GetGeometryFromBlock(block, false, false).Where(g => g != null).ToList();
-                    ProcessReaderResults(geoData, "nooutputfile", true, false);
+                    ProcessReaderResults(geoData);
                 }
                 Task.WaitAll(writeTasks.ToArray());
                 Close();
@@ -1315,9 +1320,10 @@ namespace PraxisCore.PbfReader
         /// <param name="saveToDb">If true, insert the items directly to the database instead of exporting to a file as JSON elements.</param>
         /// <param name="onlyTagMatchedElements">if true, only loads in elements that dont' match the default entry for a TagParser style set</param>
         /// <returns>the Task handling the conversion process</returns>
-        public Task ProcessReaderResults(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, string saveFilename, bool saveToDb = false, bool onlyTagMatchedElements = false)
+        public Task ProcessReaderResults(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, bool onlyTagMatchedElements = false)
         {
             //This one is easy, we just dump the geodata to the file.
+            string saveFilename = outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + ".json";
             ConcurrentBag<StoredOsmElement> elements = new ConcurrentBag<StoredOsmElement>();
             DateTime startedProcess = DateTime.Now;
 
@@ -1339,7 +1345,7 @@ namespace PraxisCore.PbfReader
             if (boundsEntry != null)
                 elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => boundsEntry.Intersects(e.elementGeometry)));
 
-            if (saveToDb)
+            if (saveToDB)
             {
                 var splits = elements.AsEnumerable().SplitListToMultiple(4);
                 List<Task> lt = new List<Task>();
@@ -1470,7 +1476,7 @@ namespace PraxisCore.PbfReader
                     ShowWaitInfo();
 
                 var relation = GetRelation(relationId);
-                var output = ProcessReaderResults(new List<CompleteOsmGeo>() { relation }, "", false, false);
+                var output = ProcessReaderResults(new List<CompleteOsmGeo>() { relation });
                 Close();
                 //CleanupFiles();
                 sw.Stop();
@@ -1514,7 +1520,7 @@ namespace PraxisCore.PbfReader
                     ShowWaitInfo();
 
                 var way = GetWay(wayId, false);
-                var output = ProcessReaderResults(new List<CompleteOsmGeo>() { way }, "", false, false);
+                var output = ProcessReaderResults(new List<CompleteOsmGeo>() { way });
                 Close();
                 sw.Stop();
                 Log.WriteLog("Processing completed at " + DateTime.Now + ", session lasted " + sw.Elapsed);
