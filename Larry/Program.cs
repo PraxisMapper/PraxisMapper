@@ -92,7 +92,7 @@ namespace Larry
                 DBCommands.CleanDb();
             }
 
-            TagParser.Initialize(false); //Do this after the DB values are parsed.
+            TagParser.Initialize(config["ForceTagParserDefaults"] == "True"); //Do this after the DB values are parsed.
 
             if (args.Any(a => a == "-findServerBounds"))
             {
@@ -144,7 +144,7 @@ namespace Larry
                 {
                     Log.WriteLog("Loading " + filename + " to database  at " + DateTime.Now);
                     PbfReader r = new PbfReader();
-                    r.ProcessFile(filename, true, config["OnlyTaggedAreas"] == "true");
+                    r.ProcessFile(filename, true, config["OnlyTaggedAreas"] == "True");
 
                     File.Move(filename, filename + "done");
                     Log.WriteLog("Finished " + filename + " load at " + DateTime.Now);
@@ -159,7 +159,7 @@ namespace Larry
                     Log.WriteLog("Loading " + filename + " to JSON file at " + DateTime.Now);
                     PbfReader r = new PbfReader();
                     r.outputPath = config["JsonMapDataFolder"];
-                    r.ProcessFile(filename, false, config["OnlyTaggedAreas"] == "true", true); //final true is testing code.
+                    r.ProcessFile(filename, false, config["OnlyTaggedAreas"] == "True", config["UseMariaDBInFile"] == "True");
                     File.Move(filename, filename + "done");
                 }
             }
