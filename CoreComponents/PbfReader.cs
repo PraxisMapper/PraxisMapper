@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Linq;
+using System.Threading;
 
 namespace PraxisCore.PbfReader
 {
@@ -32,10 +33,13 @@ namespace PraxisCore.PbfReader
         public bool saveToInfile = false;
         public bool saveToDB = false;
         public bool saveToJson = true; //Defaults to the common intermediate output.
-        public bool onlyTaggedAreas = false; //This is somewhat redundant, since all ways/relations will be tagged and storing untagged nodes isnt necessary in PM.
+        //public bool onlyTaggedAreas = false; //This is somewhat redundant, since all ways/relations will be tagged and storing untagged nodes isnt necessary in PM.
         public bool onlyMatchedAreas = false;
 
         public string outputPath = "";
+        public string filenameHeader = "";
+
+        Task waitInfoTask;
 
         //Primary function:
         //ProcessFile(filename) should do everything automatically and allow resuming if you stop the app.
@@ -100,6 +104,14 @@ namespace PraxisCore.PbfReader
         StreamWriter tagsFileStream;
         StreamWriter jsonFileStream;
 
+        CancellationTokenSource tokensource = new CancellationTokenSource();
+        CancellationToken token;
+
+        public PbfReader()
+        {
+            token = tokensource.Token;
+        }
+
         /// <summary>
         /// Returns how many blocks are in the current PBF file.
         /// </summary>
@@ -129,6 +141,7 @@ namespace PraxisCore.PbfReader
         {
             fs.Close();
             fs.Dispose();
+            EndWaitInfoTask();
         }
 
         /// <summary>
@@ -136,12 +149,13 @@ namespace PraxisCore.PbfReader
         /// </summary>
         /// <param name="filename">The path to the PBF file to read</param>
         /// <param name="onlyTagMatchedEntries">If true, only load data in the file that meets a rule in TagParser. If false, processes all elements in the file.</param>
-        public void ProcessFile(string filename)
+        public void ProcessFile(string filename, long relationId = 0)
         {
             try
             {
                 System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                 sw.Start();
+
                 Open(filename);
                 LoadBlockInfo();
                 nextBlockId = 0;
@@ -160,15 +174,26 @@ namespace PraxisCore.PbfReader
                 if (displayStatus)
                     ShowWaitInfo();
 
+                if (relationId != 0)
+                {
+                    filenameHeader += relationId.ToString() + "-";
+                    //Get the source relation first
+                    var relation = GetRelation(relationId);
+                    var NTSrelation = GeometrySupport.ConvertOsmEntryToStoredElement(relation);
+                    bounds = NTSrelation.elementGeometry.EnvelopeInternal;
+                    var pgf = new PreparedGeometryFactory();
+                    boundsEntry = pgf.Create(NTSrelation.elementGeometry);
+                }
+
                 if (!saveToDB)
                 {
                     if (saveToInfile)
                     {
-                        geomFileStream = new StreamWriter(new FileStream(outputPath + System.IO.Path.GetFileNameWithoutExtension(filename) + ".geomInfile", FileMode.Create));
-                        tagsFileStream = new StreamWriter(new FileStream(outputPath + System.IO.Path.GetFileNameWithoutExtension(filename) + ".tagsInfile", FileMode.Create));
+                        geomFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".geomInfile", FileMode.Create));
+                        tagsFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".tagsInfile", FileMode.Create));
                     }
                     else if (saveToJson)
-                        jsonFileStream = new StreamWriter(new FileStream(outputPath + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", FileMode.Create));
+                        jsonFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", FileMode.Create));
                 }
 
                 for (var block = nextBlockId; block > 0; block--)
@@ -181,20 +206,9 @@ namespace PraxisCore.PbfReader
                     //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
                     if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
                     {
-                        if (saveToInfile)
-                        {
-                            //This path is MariaDB specific, but allows populating the database much, much faster.
-                            //Process the results in 2 file, 1 for geometry data, 1 for tags.
-                            var wt = ProcessReaderResultsForInFile(geoData, onlyMatchedAreas);
-                            if (wt != null)
-                                writeTasks.Add(wt);
-                        }
-                        else
-                        {
-                            var wt = ProcessReaderResults(geoData, onlyMatchedAreas);
-                            if (wt != null)
-                                writeTasks.Add(wt);
-                        }
+                        var wt = ProcessReaderResults(geoData);
+                        if (wt != null)
+                            writeTasks.Add(wt);
                     }
                     SaveCurrentBlock(block);
                     swBlock.Stop();
@@ -243,6 +257,7 @@ namespace PraxisCore.PbfReader
             //Get a bounding box from a single relation, then pull all entries in it from the file to the DB.
             try
             {
+                outputPath += relationId.ToString() + "-";
                 System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                 sw.Start();
                 Open(filename);
@@ -276,7 +291,7 @@ namespace PraxisCore.PbfReader
                 Close();
                 CleanupFiles();
                 sw.Stop();
-                Log.WriteLog("Area imported to DB at " + DateTime.Now + ", session lasted " + sw.Elapsed);
+                Log.WriteLog("Area processed at " + DateTime.Now + ", session lasted " + sw.Elapsed);
                 Log.WriteLog("Waiting for threaded tasks to finish.");
                 return bounds;
             }
@@ -1274,20 +1289,27 @@ namespace PraxisCore.PbfReader
         /// </summary>
         private void CleanupFiles()
         {
-            foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.blockinfo"))
-                System.IO.File.Delete(file);
+            try
+            {
+                foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.blockinfo"))
+                    System.IO.File.Delete(file);
 
-            foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.relationIndex"))
-                System.IO.File.Delete(file);
+                foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.relationIndex"))
+                    System.IO.File.Delete(file);
 
-            foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.nodeIndex"))
-                System.IO.File.Delete(file);
+                foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.nodeIndex"))
+                    System.IO.File.Delete(file);
 
-            foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.wayIndex"))
-                System.IO.File.Delete(file);
+                foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.wayIndex"))
+                    System.IO.File.Delete(file);
 
-            foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.progress"))
-                System.IO.File.Delete(file);
+                foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.progress"))
+                    System.IO.File.Delete(file);
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog("Error cleaning up files: " + ex.Message);
+            }
         }
 
         /// <summary>
@@ -1295,7 +1317,7 @@ namespace PraxisCore.PbfReader
         /// </summary>
         public void ShowWaitInfo()
         {
-            Task.Run(() =>
+            waitInfoTask = Task.Run(() =>
             {
                 while (true)
                 {
@@ -1309,7 +1331,12 @@ namespace PraxisCore.PbfReader
                     }
                     System.Threading.Thread.Sleep(60000);
                 }
-            });
+            }, token);
+        }
+
+        public void EndWaitInfoTask()
+        {
+            tokensource.Cancel();
         }
 
         /// <summary>
@@ -1320,7 +1347,7 @@ namespace PraxisCore.PbfReader
         /// <param name="saveToDb">If true, insert the items directly to the database instead of exporting to a file as JSON elements.</param>
         /// <param name="onlyTagMatchedElements">if true, only loads in elements that dont' match the default entry for a TagParser style set</param>
         /// <returns>the Task handling the conversion process</returns>
-        public Task ProcessReaderResults(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, bool onlyTagMatchedElements = false)
+        public Task ProcessReaderResults(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items)
         {
             //This one is easy, we just dump the geodata to the file.
             string saveFilename = outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + ".json";
@@ -1339,7 +1366,7 @@ namespace PraxisCore.PbfReader
             Task.WaitAll(relList.ToArray());
             relList = new ConcurrentBag<Task>();
 
-            if (onlyTagMatchedElements)
+            if (onlyMatchedAreas)
                 elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => TagParser.GetStyleForOsmWay(e.Tags).name != TagParser.defaultStyle.name));
 
             if (boundsEntry != null)
@@ -1357,95 +1384,71 @@ namespace PraxisCore.PbfReader
             }
             else
             {
-                //ConcurrentBag<string> results = new ConcurrentBag<string>();
-                StringBuilder jsonSB = new StringBuilder(50000000); //50MB of JsonData for a block is a good starting buffer.
-                foreach (var md in elements.Where(e => e != null))
+                if (saveToJson)
                 {
-                    //relList.Add(Task.Run(() =>
-                    //{
+                    //ConcurrentBag<string> results = new ConcurrentBag<string>();
+                    StringBuilder jsonSB = new StringBuilder(50000000); //50MB of JsonData for a block is a good starting buffer.
+                    foreach (var md in elements.Where(e => e != null))
+                    {
+                        //relList.Add(Task.Run(() =>
+                        //{
                         var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated);
                         var test = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
                         jsonSB.Append(test).Append(Environment.NewLine);
-                    //}));
-                }
-                //Task.WaitAll(relList.ToArray());
-
-                var monitorTask = System.Threading.Tasks.Task.Run(() =>
-                {
-                    try
-                    {
-                        lock (fileLock)
-                            jsonFileStream.Write(jsonSB);
-
-                        Log.WriteLog("Data written to disk");
+                        //}));
                     }
-                    catch (Exception ex)
+                    //Task.WaitAll(relList.ToArray());
+
+                    var monitorTask = System.Threading.Tasks.Task.Run(() =>
                     {
-                        Log.WriteLog("Error writing data to disk:" + ex.Message);
+                        try
+                        {
+                            lock (fileLock)
+                                jsonFileStream.Write(jsonSB);
+
+                            Log.WriteLog("Data written to disk");
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.WriteLog("Error writing data to disk:" + ex.Message);
+                        }
+                    });
+
+                    return monitorTask;
+                }
+                else if (saveToInfile)
+                {
+                    //It's much faster to use StringBuilders here than the string arrays that were previously here.
+                    //Starts with 50MB allocated in each 2 stringBuilders to minimize reallocations.
+                    StringBuilder geometryBuilds = new StringBuilder(50000000);
+                    StringBuilder tagBuilds = new StringBuilder(50000000);
+                    //TODO: I might need to assign a PrivacyID at this step, since MariaDB has that saved in the entities as a char(32)
+                    foreach (var md in elements.Where(e => e != null))
+                    {
+                        geometryBuilds.Append(md.name).Append("\t").Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(md.elementGeometry.AsText()).Append("\t").Append(md.elementGeometry.Length).Append(Environment.NewLine);
+                        foreach (var t in md.Tags)
+                            tagBuilds.Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(t.Key).Append("\t").Append(t.Value.Replace("\r", "").Replace("\n", "")).Append(Environment.NewLine); //Might also need to sanitize / and ' ?
                     }
-                });
 
-                return monitorTask;
-            }
-        }
-
-        /// <summary>
-        /// Take a list of OSMSharp CompleteGeo items, and convert them into PraxisMapper's StoredOsmElement objects in a MariaDb InFile import format
-        /// </summary>
-        /// <param name="items">the OSMSharp CompleteGeo items to convert</param>
-        /// <param name="onlyTagMatchedElements">if true, only loads in elements that dont' match the default entry for a TagParser style set</param>
-        /// <returns>the Task handling the conversion process</returns>
-        public Task ProcessReaderResultsForInFile(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, bool onlyTagMatchedElements = false)
-        {
-            //This one is easy, we just dump the geodata to one file, and tags to another.
-            ConcurrentBag<StoredOsmElement> elements = new ConcurrentBag<StoredOsmElement>();
-            ConcurrentBag<Tuple<string>> tags = new ConcurrentBag<Tuple<string>>();
-
-            if (items == null || items.Count() == 0)
-                return null;
-
-            relList = new ConcurrentBag<Task>();
-            foreach (var r in items)
-            {
-                if (r != null)
-                    relList.Add(Task.Run(() => elements.Add(GeometrySupport.ConvertOsmEntryToStoredElement(r))));
-            }
-            Task.WaitAll(relList.ToArray());
-            relList = new ConcurrentBag<Task>();
-
-            if (onlyTagMatchedElements)
-                elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => e != null && TagParser.GetStyleForOsmWay(e.Tags).name != TagParser.defaultStyle.name));
-
-            //It's much faster to use StringBuilders here than the string arrays that were previously here.
-            //Starts with 50MB allocated in each 2 stringBuilders to minimize reallocations.
-            StringBuilder geometryBuilds = new StringBuilder(50000000);
-            StringBuilder tagBuilds = new StringBuilder(50000000);
-
-            //TODO: I might need to assign a PrivacyID at this step, since MariaDB has that saved in the entities as a char(32)
-            foreach (var md in elements.Where(e => e != null))
-            {
-                geometryBuilds.Append(md.name).Append("\t").Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(md.elementGeometry.AsText()).Append("\t").Append(md.elementGeometry.Length).Append(Environment.NewLine);
-                foreach (var t in md.Tags)
-                    tagBuilds.Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(t.Key).Append("\t").Append(t.Value.Replace("\r", "").Replace("\n", "")).Append(Environment.NewLine); //Might also need to sanitize / and ' ?
-            }
-
-            var monitorTask = Task.Run(() =>
-            {
-                try
-                {
-                    lock (geomFileLock)
-                        geomFileStream.Write(geometryBuilds);
-                    lock (tagsFileLock)
-                        tagsFileStream.Write(tagBuilds);
-                    Log.WriteLog("Data written to disk");
+                    var monitorTask = Task.Run(() =>
+                    {
+                        try
+                        {
+                            lock (geomFileLock)
+                                geomFileStream.Write(geometryBuilds);
+                            lock (tagsFileLock)
+                                tagsFileStream.Write(tagBuilds);
+                            Log.WriteLog("Data written to disk");
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.WriteLog("Error writing data to disk:" + ex.Message);
+                        }
+                    });
                 }
-                catch (Exception ex)
-                {
-                    Log.WriteLog("Error writing data to disk:" + ex.Message);
-                }
-            });
 
-            return monitorTask;
+                return null; //some invalid options were passed and we didnt run through anything.
+            }
         }
 
         /// <summary>
