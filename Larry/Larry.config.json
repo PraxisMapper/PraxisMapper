@@ -9,5 +9,7 @@
   "UseHighAccuracy": true,
   "OnlyTaggedAreas": false,
   "ForceTagParserDefaults": false,
-  "UseMariaDBInFile": false
+  "UseMariaDBInFile": false,
+  "UseOneRelationID": 0,
+  "LogLevel": 1
 }

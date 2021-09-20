@@ -37,8 +37,7 @@ namespace Larry
             config = builder.Build();
 
             var memMon = new MemoryMonitor();
-            PraxisContext.connectionString = config["DbConnectionString"];
-            PraxisContext.serverMode = config["DbMode"];
+            ApplyConfigValues();
 
             Log.WriteLog("Larry started at " + DateTime.Now);
 
@@ -47,34 +46,6 @@ namespace Larry
                 Console.WriteLine("You must pass an arguement to this application");
                 //TODO: list valid commands or point at the docs file
                 return;
-            }
-
-            if (args.Any(a => a.StartsWith("-dbMode:")))
-            {
-                //scan a file for information on what will or won't load.
-                string arg = args.Where(a => a.StartsWith("-dbMode:")).First().Replace("-dbMode:", "");
-                PraxisContext.serverMode = arg;
-            }
-
-            if (args.Any(a => a.StartsWith("-dbConString:")))
-            {
-                //scan a file for information on what will or won't load.
-                string arg = args.Where(a => a.StartsWith("-dbConString:")).First().Replace("-dbConString:", "");
-                PraxisContext.connectionString = arg;
-            }
-
-            //Check for settings flags first before running any commands.
-            if (args.Any(a => a == "-v" || a == "-verbose"))
-                Log.Verbosity = Log.VerbosityLevels.High;
-
-            if (args.Any(a => a == "-noLogs"))
-                Log.Verbosity = Log.VerbosityLevels.Off;
-
-            if (args.Any(a => a == "-spaceSaver")) //TODO use the config value, not a command line arg
-            {
-                config["UseHighAccuracy"] = "false";
-                factory = NtsGeometryServices.Instance.CreateGeometryFactory(new PrecisionModel(1000000), 4326); //SRID matches Plus code values.  Precision model means round all points to 7 decimal places to not exceed float's useful range.
-                SimplifyAreas = true; //rounds off points that are within a Cell10's distance of each other. Makes fancy architecture and highly detailed paths less pretty on map tiles, but works for gameplay data.
             }
 
             //If multiple args are supplied, run them in the order that make sense, not the order the args are supplied.
@@ -91,8 +62,6 @@ namespace Larry
                 Console.WriteLine("Clearing out tables for testing.");
                 DBCommands.CleanDb();
             }
-
-            TagParser.Initialize(config["ForceTagParserDefaults"] == "True"); //Do this after the DB values are parsed.
 
             if (args.Any(a => a == "-findServerBounds"))
             {
@@ -119,7 +88,7 @@ namespace Larry
                 DownloadPbfFile(level1, level2, level3, config["PbfFolder"]);
             }
 
-            if (args.Any(a => a == "-resetXml" || a == "-resetPbf")) //update both anyways.
+            if (args.Any(a => a == "-resetPbf"))
             {
                 FileCommands.ResetFiles(config["PbfFolder"]);
             }
@@ -137,29 +106,21 @@ namespace Larry
                 //r.debugArea(filename, areaId);
             }
 
-            if (args.Any(a => a == "-loadPbfsToDb"))
+            if (args.Any(a => a == "-ProcessPbfs"))
             {
                 List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.pbf").ToList();
                 foreach (string filename in filenames)
                 {
-                    Log.WriteLog("Loading " + filename + " to database  at " + DateTime.Now);
-                    PbfReader r = new PbfReader();
-                    r.ProcessFile(filename, true, config["OnlyTaggedAreas"] == "True");
-
-                    File.Move(filename, filename + "done");
-                    Log.WriteLog("Finished " + filename + " load at " + DateTime.Now);
-                }
-            }
-
-            if (args.Any(a => a == "-loadPbfsToJson"))
-            {
-                List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.pbf").ToList();
-                foreach (string filename in filenames)
-                {
-                    Log.WriteLog("Loading " + filename + " to JSON file at " + DateTime.Now);
+                    Log.WriteLog("Loading " + filename + " at " + DateTime.Now);
                     PbfReader r = new PbfReader();
                     r.outputPath = config["JsonMapDataFolder"];
-                    r.ProcessFile(filename, false, config["OnlyTaggedAreas"] == "True", config["UseMariaDBInFile"] == "True");
+                    r.saveToInfile = config["UseMariaDBInFile"] == "True";
+                    r.saveToDB = config["UseMariaDBInFile"] != "True";
+                    r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
+                    if (config["UseOneRelationID"] == "0")
+                        r.ProcessFile(filename);
+                    else
+                        r.GetOneAreaFromFile(filename, long.Parse(config["UseOneRelationID"]));
                     File.Move(filename, filename + "done");
                 }
             }
@@ -287,6 +248,7 @@ namespace Larry
             }
 
             //TODO: rename it to something like 'makeServerFor:'
+            //This should now work with the config values set and the -ProcessPbfs command.
             if (args.Any(a => a.StartsWith("-loadOneArea:"))) //-loadOneArea:filename:relationId
             {
                 //TODO: call createDB here if this is a single command to populate up a web server from scratch.
@@ -430,6 +392,34 @@ namespace Larry
                     }
                 }
             }
+        }
+
+        private static void ApplyConfigValues()
+        {
+            PraxisContext.connectionString = config["DbConnectionString"];
+            PraxisContext.serverMode = config["DbMode"];
+
+            if (config["UseHighAccuracy"] != "True")
+            {
+                factory = NtsGeometryServices.Instance.CreateGeometryFactory(new PrecisionModel(1000000), 4326); //SRID matches 10-character Plus code values.  Precision model means round all points to 7 decimal places to not exceed float's useful range.
+                SimplifyAreas = true; //rounds off points that are within a Cell10's distance of each other. Makes fancy architecture and highly detailed paths less pretty on map tiles, but works for gameplay data.
+            }
+
+            int logLevel = int.Parse(config["LogLevel"]);
+            switch (logLevel)
+            {
+                case 0:
+                    Log.Verbosity = Log.VerbosityLevels.Off;
+                    break;
+                case 1:
+                    Log.Verbosity = Log.VerbosityLevels.Normal;
+                    break;
+                case 2:
+                    Log.Verbosity = Log.VerbosityLevels.High;
+                    break;
+            }
+
+            TagParser.Initialize(config["ForceTagParserDefaults"] == "True"); //Do this after the DB values are parsed.
         }
 
         public static void DetectMapTilesRecursive(string parentCell, bool skipExisting) //This was off slightly at one point, but I didn't document how much or why. Should be correct now.

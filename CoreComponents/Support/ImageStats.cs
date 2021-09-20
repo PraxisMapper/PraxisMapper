@@ -7,9 +7,12 @@ using System.Threading.Tasks;
 
 namespace PraxisCore.Support
 {
+    /// <summary>
+    /// Helper class to store some common values needed when generating images. Saving the area to draw and the resolution to draw it at allows for a lot of flexibilty
+    /// </summary>
+
     public class ImageStats
     {
-        //a small helper class to calculate and reuse some common calculations
         public int imageSizeX { get; set; }
         public int imageSizeY { get; set; }
         public double degreesPerPixelX { get; set; }
@@ -23,7 +26,7 @@ namespace PraxisCore.Support
         /// Creates a new ImageStats for a given GeoArea from a PlusCode to match the defined width and height. 
         /// Plus Codes are usually rendered at a 4:5 aspect ratio in Praxismapper due to defining a base pixel as an 11-char PlusCode
         /// </summary>
-        /// <param name="geoArea">Decoded pluscode</param>
+        /// <param name="geoArea">Decoded pluscode, or converted coordinates into a GeoArea</param>
         /// <param name="imageWidth">image width in pixels</param>
         /// <param name="imageHeight">image height in pixels</param>
         public ImageStats(GeoArea geoArea, int imageWidth, int imageHeight)
