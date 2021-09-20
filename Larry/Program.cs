@@ -98,14 +98,6 @@ namespace Larry
                 FileCommands.ResetFiles(config["JsonMapDataFolder"]);
             }
 
-            if (args.Any(a => a == "-debugArea"))
-            {
-                var filename = config["PbfFolder"] + "ohio-latest.osm.pbf";
-                var areaId = 350381;
-                PbfReader r = new PbfReader();
-                //r.debugArea(filename, areaId);
-            }
-
             if (args.Any(a => a == "-ProcessPbfs"))
             {
                 List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.pbf").ToList();
@@ -115,12 +107,10 @@ namespace Larry
                     PbfReader r = new PbfReader();
                     r.outputPath = config["JsonMapDataFolder"];
                     r.saveToInfile = config["UseMariaDBInFile"] == "True";
-                    r.saveToDB = config["UseMariaDBInFile"] != "True";
+                    r.saveToJson = !r.saveToInfile;
+                    r.saveToDB = false; //config["UseMariaDBInFile"] != "True";
                     r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
-                    if (config["UseOneRelationID"] == "0")
-                        r.ProcessFile(filename);
-                    else
-                        r.GetOneAreaFromFile(filename, long.Parse(config["UseOneRelationID"]));
+                    r.ProcessFile(filename, long.Parse(config["UseOneRelationID"]));
                     File.Move(filename, filename + "done");
                 }
             }
@@ -247,7 +237,7 @@ namespace Larry
                 }
             }
 
-            //TODO: rename it to something like 'makeServerFor:'
+            //TODO: rename it to something like 'makeServer:'
             //This should now work with the config values set and the -ProcessPbfs command.
             if (args.Any(a => a.StartsWith("-loadOneArea:"))) //-loadOneArea:filename:relationId
             {
