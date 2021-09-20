@@ -8,4 +8,5 @@
   "Solar2dExportFolder": "",
   "UseHighAccuracy": true,
   "OnlyTaggedAreas": false,
+  "ForceTagParserDefaults": false
 }
