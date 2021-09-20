@@ -107,10 +107,25 @@ namespace PraxisCore
         /// <summary>
         /// Returns the style to use on an element given its tags and a styleset to search against.
         /// </summary>
-        /// <param name="tags">the tags attached to a StoredOsmElement to search</param>
+        /// <param name="tags">the tags attached to a StoredOsmElement to search. A list will be converted to a dictionary and error out if duplicate keys are present in the tags.</param>
         /// <param name="styleSet">the styleset with the rules for parsing elements</param>
         /// <returns>The TagParserEntry that matches the rules and tags given, or a defaultStyle if none match.</returns>
         public static TagParserEntry GetStyleForOsmWay(ICollection<ElementTags> tags, string styleSet = "mapTiles")
+        {
+            if (tags == null || tags.Count() == 0)
+                return defaultStyle;
+
+            Dictionary<string, string> dTags = tags.ToDictionary(k => k.Key, v => v.Value);
+            return GetStyleForOsmWay(dTags, styleSet);
+        }
+
+        /// <summary>
+        /// Returns the style to use on an element given its tags and a styleset to search against.
+        /// </summary>
+        /// <param name="tags">the tags attached to a StoredOsmElement to search</param>
+        /// <param name="styleSet">the styleset with the rules for parsing elements</param>
+        /// <returns>The TagParserEntry that matches the rules and tags given, or a defaultStyle if none match.</returns>
+        public static TagParserEntry GetStyleForOsmWay(Dictionary<string, string> tags, string styleSet = "mapTiles")
         {
             if (tags == null || tags.Count() == 0)
                 return defaultStyle;
@@ -132,7 +147,7 @@ namespace PraxisCore
         /// <returns>The TagParserEntry that matches the rules and tags given, or a defaultStyle if none match.</returns>
         public static TagParserEntry GetStyleForOsmWay(TagsCollectionBase tags, string styleSet = "mapTiles")
         {
-            var tempTags = tags.Select(t => new ElementTags() { Key = t.Key, Value = t.Value }).ToList();
+            var tempTags = tags.ToDictionary(k => k.Key, v => v.Value);
             return GetStyleForOsmWay(tempTags, styleSet);
         }
 
@@ -167,6 +182,24 @@ namespace PraxisCore
         }
 
         /// <summary>
+        /// Determines if the name of the matching style for a StoredOsmElement object
+        /// </summary>
+        /// <param name="tags">the tags attached to a StoredOsmElement object</param>
+        /// <param name="styleSet">the styleset to match against</param>
+        /// <returns>The name of the style from the given styleSet that matches the StoredOsmElement tags</returns>
+        public static string GetAreaType(Dictionary<string, string> tags, string styleSet = "mapTiles")
+        {
+            if (tags == null || tags.Count() == 0)
+                return defaultStyle.name;
+
+            foreach (var drawingRules in allStyleGroups[styleSet])
+                if (MatchOnTags(drawingRules.Value, tags))
+                    return drawingRules.Value.name;
+
+            return defaultStyle.name;
+        }
+
+        /// <summary>
         /// Get the background color from a style set
         /// </summary>
         /// <param name="styleSet">the name of the style set to pull the background color from</param>
@@ -185,8 +218,6 @@ namespace PraxisCore
         /// <returns>true if this TagParserEntry applies to this StoredOsmElement's tags, or false if it does not.</returns>
         public static bool MatchOnTags(TagParserEntry tpe, ICollection<ElementTags> tags)
         {
-            //TODO: would this be faster if the tags were converted to a Dictionary? Or does the overhead of converting remove any real gain?
-            //TODO ON THAT: pass in the dictionary, so its converted once instead of once per style.
             //Changing this to return as soon as any entry fails makes it run about twice as fast.
             bool OrMatched = false;
             int orRuleCount = 0;
@@ -215,7 +246,7 @@ namespace PraxisCore
                         break;
                     case "or": //Or rules don't fail early, since only one of them needs to match. Otherwise is the same as ANY logic.
                         orRuleCount++;
-                        if (!tags.Any(t => t.Key == entry.Key))
+                        if (!tags.Any(t => t.Key == entry.Key) || OrMatched)
                             continue;
 
                         var possibleValuesOr = entry.Value.Split("|");
@@ -251,6 +282,82 @@ namespace PraxisCore
             if (OrMatched || orRuleCount == 0)
                 return true;
 
+            return false;
+        }
+
+        /// <summary>
+        /// Determine if this TagParserEntry matches or not against a StoredOsmElement's tags. Higher performance due to the use of a dictionary.
+        /// </summary>
+        /// <param name="tpe">the TagParserEntry to match</param>
+        /// <param name="tags">a Dictionary representing the place's tags</param>
+        /// <returns>true if this rule entry matches against the place's tags, or false if not.</returns>
+        public static bool MatchOnTags(TagParserEntry tpe, Dictionary<string, string> tags)
+        {
+            //TODO: performance test this against the default MatchOnTags setup, including converting tags to dictionary beforehand.
+            //Changing this to return as soon as any entry fails makes it run about twice as fast.
+            bool OrMatched = false;
+            int orRuleCount = 0;
+
+            TagParserMatchRule entry;
+
+            //Step 1: check all the rules against these tags.
+            //The * value is required for all the rules, so check it first.
+            for (var i = 0; i < tpe.TagParserMatchRules.Count(); i++)
+            //foreach(var entry in tpe.TagParserMatchRules)
+            {
+                entry = tpe.TagParserMatchRules.ElementAt(i);
+
+                string actualvalue = "";
+                bool isPresent = tags.TryGetValue(entry.Key, out actualvalue);
+
+                if (entry.Value == "*") //The Key needs to exist, but any value counts.
+                {
+                    if (isPresent)
+                        continue;
+                }
+
+                switch (entry.MatchType)
+                {
+                    case "any":
+                        if (!isPresent)
+                            return false;
+
+                        if (!entry.Value.Contains(actualvalue))
+                            return false;
+                        break;
+                    case "or": //Or rules don't fail early, since only one of them needs to match. Otherwise is the same as ANY logic.
+                        orRuleCount++;
+                        if (!isPresent || OrMatched) //Skip checking the actual value if we already matched on an OR rule.
+                            continue;
+
+                        if (entry.Value.Contains(actualvalue))
+                            OrMatched = true;
+                        break;
+                    case "not":
+                        if (!isPresent)
+                            continue;
+
+                        if (entry.Value.Contains(actualvalue))
+                            return false; //Not does not want to match this.
+                        break;
+                    case "equals": //for single possible values, EQUALS is slightly faster than ANY
+                        if (!isPresent || actualvalue != entry.Value)
+                            return false;
+                        break;
+                    case "none":
+                        //never matches anything. Useful for background color or other special styles that need to exist but don't want to appear normally.
+                        return false;
+                    case "default":
+                        //Always matches. Can only be on one entry, which is the last entry and the default color
+                        return true;
+                }
+            }
+
+            //Now, we should have bailed out if any mandatory thing didn't match. Now make sure that we either had 0 OR checks or matched on any OR rule provided.
+            if (OrMatched || orRuleCount == 0)
+                return true;
+
+            //We did not match an OR clause, so this TPE is not a match.
             return false;
         }
 
