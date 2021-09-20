@@ -69,11 +69,11 @@ namespace PerformanceTestApp
             //TestRasterVsVectorCell8();
             //TestRasterVsVectorCell10();
             //TestImageSharpVsSkiaSharp(); //imagesharp was removed for being vastly slower.
-            //TestTagParser();
+            TestTagParser();
             //TestCropVsNoCropDraw("86HWPM");
             //TestCropVsNoCropDraw("86HW");
             //TestCustomPbfReader();
-            TestDrawingHoles();
+            //TestDrawingHoles();
 
             //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
             //These cannot all be enabled in one run. You must comment/uncomment each one separately.
@@ -1410,12 +1410,12 @@ namespace PerformanceTestApp
             List<ElementTags> emptyList = new List<ElementTags>();
             Stopwatch sw = new Stopwatch();
             sw.Start();
-            for (var i = 0; i < 1000; i++)
+            for (var i = 0; i < 100000; i++)
                 foreach (var style in TagParser.allStyleGroups.First().Value)
                     TagParser.GetStyleForOsmWay(emptyList);
                     //TagParser.MatchOnTags(style, emptyList);
             sw.Stop();
-            Log.WriteLog("1000 empty lists run in " + sw.ElapsedTicks + " ticks with default (" + sw.ElapsedMilliseconds / 1000.0 + "ms avg)");
+            Log.WriteLog("100000 empty lists run in " + sw.ElapsedTicks + " ticks with default (" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
 
             //sw.Restart();
             //for (var i = 0; i < 1000; i++)
@@ -1429,12 +1429,12 @@ namespace PerformanceTestApp
             defaultSingle.Add(new ElementTags() { Key = "badEntry", Value = "mustBeDefault" });
 
             sw.Restart();
-            for (var i = 0; i < 1000; i++)
+            for (var i = 0; i < 100000; i++)
                 foreach (var style in TagParser.allStyleGroups.First().Value)
                     TagParser.GetStyleForOsmWay(defaultSingle);
                     //TagParser.MatchOnTags(style, defaultSingle);
             sw.Stop();
-            Log.WriteLog("1000 single entry default-match lists run in " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds / 1000.0 +"ms avg)");
+            Log.WriteLog("100000 single entry default-match lists run in " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds / 100000.0 +"ms avg)");
 
             //sw.Restart();
             //for (var i = 0; i < 1000; i++)
@@ -1456,36 +1456,69 @@ namespace PerformanceTestApp
             biglist.Add(new ElementTags() { Key = "waterway", Value = "river" });
 
             sw.Restart();
-            for (var i = 0; i < 1000; i++)
+            for (var i = 0; i < 100000; i++)
                 foreach (var style in TagParser.allStyleGroups.First().Value)
                     TagParser.GetStyleForOsmWay(biglist);
                     //TagParser.MatchOnTags(style, defaultSingle);
             sw.Stop();
-            Log.WriteLog("1000 8-tag match-water lists run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 1000.0 + "ms avg)");
+            Log.WriteLog("100000 8-tag match-water lists run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
 
             biglist.Remove(biglist.Last()); //Remove the water-match tag.
             biglist.Add(new ElementTags() { Key = "other", Value = "tag" });
 
             sw.Restart();
-            for (var i = 0; i < 1000; i++)
+            for (var i = 0; i < 100000; i++)
                 foreach (var style in TagParser.allStyleGroups.First().Value)
                     TagParser.GetStyleForOsmWay(biglist);
             //TagParser.MatchOnTags(style, defaultSingle);
             sw.Stop();
-            Log.WriteLog("1000 8-tag default match lists run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 1000.0 + "ms avg)");
+            Log.WriteLog("100000 8-tag default match lists run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
 
-            biglist.AddRange(biglist);
-            biglist.AddRange(biglist);
-            biglist.AddRange(biglist);
-            biglist.AddRange(biglist);
+            var biglist2 = biglist.Select(b => b).ToList();
+            biglist2.Add(new ElementTags() { Key = "2badEntry", Value = "nothing" });
+            biglist2.Add(new ElementTags() { Key = "2place", Value = "neighborhood" });
+            biglist2.Add(new ElementTags() { Key = "2natual", Value = "hill" });
+            biglist2.Add(new ElementTags() { Key = "2lanes", Value = "7" });
+            biglist2.Add(new ElementTags() { Key = "2placeholder", Value = "stuff" });
+            biglist2.Add(new ElementTags() { Key = "2screensize", Value = "small" });
+            biglist2.Add(new ElementTags() { Key = "2twoMore", Value = "entries" });
+            biglist2.Add(new ElementTags() { Key = "2andHere", Value = "WeGo" });
+            biglist2.Add(new ElementTags() { Key = "2waterway", Value = "river" });
+            biglist2.Add(new ElementTags() { Key = "32badEntry", Value = "nothing" });
+            biglist2.Add(new ElementTags() { Key = "32place", Value = "neighborhood" });
+            biglist2.Add(new ElementTags() { Key = "32natual", Value = "hill" });
+            biglist2.Add(new ElementTags() { Key = "32lanes", Value = "7" });
+            biglist2.Add(new ElementTags() { Key = "32placeholder", Value = "stuff" });
+            biglist2.Add(new ElementTags() { Key = "32screensize", Value = "small" });
+            biglist2.Add(new ElementTags() { Key = "32twoMore", Value = "entries" });
+            biglist2.Add(new ElementTags() { Key = "32andHere", Value = "WeGo" });
+            biglist2.Add(new ElementTags() { Key = "32waterway", Value = "river" });
+            biglist2.Add(new ElementTags() { Key = "42badEntry", Value = "nothing" });
+            biglist2.Add(new ElementTags() { Key = "42place", Value = "neighborhood" });
+            biglist2.Add(new ElementTags() { Key = "42natual", Value = "hill" });
+            biglist2.Add(new ElementTags() { Key = "42lanes", Value = "7" });
+            biglist2.Add(new ElementTags() { Key = "42placeholder", Value = "stuff" });
+            biglist2.Add(new ElementTags() { Key = "42screensize", Value = "small" });
+            biglist2.Add(new ElementTags() { Key = "42twoMore", Value = "entries" });
+            biglist2.Add(new ElementTags() { Key = "42andHere", Value = "WeGo" });
+            biglist2.Add(new ElementTags() { Key = "42waterway", Value = "river" });
+            biglist2.Add(new ElementTags() { Key = "52badEntry", Value = "nothing" });
+            biglist2.Add(new ElementTags() { Key = "52place", Value = "neighborhood" });
+            biglist2.Add(new ElementTags() { Key = "52natual", Value = "hill" });
+            biglist2.Add(new ElementTags() { Key = "52lanes", Value = "7" });
+            biglist2.Add(new ElementTags() { Key = "52placeholder", Value = "stuff" });
+            biglist2.Add(new ElementTags() { Key = "52screensize", Value = "small" });
+            biglist2.Add(new ElementTags() { Key = "52twoMore", Value = "entries" });
+            biglist2.Add(new ElementTags() { Key = "52andHere", Value = "WeGo" });
+            biglist2.Add(new ElementTags() { Key = "52waterway", Value = "river" });
 
             sw.Restart();
-            for (var i = 0; i < 1000; i++)
+            for (var i = 0; i < 100000; i++)
                 foreach (var style in TagParser.allStyleGroups.First().Value)
-                    TagParser.GetStyleForOsmWay(biglist);
+                    TagParser.GetStyleForOsmWay(biglist2);
             //TagParser.MatchOnTags(style, defaultSingle);
             sw.Stop();
-            Log.WriteLog("1000 40-tag default match lists run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 1000.0 + "ms avg)");
+            Log.WriteLog("100000 48-tag default match lists run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
 
             //sw.Restart();
             //for (var i = 0; i < 1000; i++)
@@ -1493,6 +1526,44 @@ namespace PerformanceTestApp
             //        TagParser.MatchOnTagsAlt(style, defaultSingle);
             //sw.Stop();
             //Log.WriteLog("1000 big match on water lists run in " + sw.ElapsedTicks + " ticks with alt");
+
+            Log.WriteLog("Using dictionary instead of list:");
+            Dictionary<string, string> searchDict = new Dictionary<string, string>();
+
+            sw.Restart();
+            for (var i = 0; i < 100000; i++)
+                foreach (var style in TagParser.allStyleGroups.First().Value)
+                    TagParser.GetStyleForOsmWay(searchDict);
+            sw.Stop();
+            Log.WriteLog("100000 empty dicts run in " + sw.ElapsedTicks + " ticks with default (" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
+
+            searchDict.Add("badEntry", "mustBeDefault");
+
+            sw.Restart();
+            for (var i = 0; i < 100000; i++)
+                foreach (var style in TagParser.allStyleGroups.First().Value)
+                    TagParser.GetStyleForOsmWay(searchDict);
+            sw.Stop();
+            Log.WriteLog("100000 single entry default-matchdicts run in " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
+
+            searchDict = biglist.ToDictionary(k => k.Key, v => v.Value);
+
+            sw.Restart();
+            for (var i = 0; i < 100000; i++)
+                foreach (var style in TagParser.allStyleGroups.First().Value)
+                    TagParser.GetStyleForOsmWay(searchDict);
+            sw.Stop();
+            Log.WriteLog("100000 8-tag match-water dicts run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
+
+            searchDict = biglist2.ToDictionary(k => k.Key, v => v.Value);
+
+            sw.Restart();
+            for (var i = 0; i < 100000; i++)
+                foreach (var style in TagParser.allStyleGroups.First().Value)
+                    TagParser.GetStyleForOsmWay(searchDict);
+            sw.Stop();
+            Log.WriteLog("100000 48-tag match-water dicts run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
+
 
 
         }

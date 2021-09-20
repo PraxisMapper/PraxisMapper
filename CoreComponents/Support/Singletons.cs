@@ -25,7 +25,8 @@ namespace PraxisCore
             //TODO: more shapes, ideally more interesting than simple polygons? Star? Heart? Arc?
         };
 
-        //A * value is a wildcard that means any value counts as a match for that key.
+        //A * value is a wildcard that means any value counts as a match for that key. If the tag exists, its value is irrelevant. Cannot be used in NOT checks.
+        //A * key is a rule that will not match based on tag values, as no key will == *. Used for backgrounds and special styles called up by name.
         //types vary:
         //any: one of the pipe delimited values in the value is present for the given key.
         //equals: the one specific value exists on that key. Slightly faster than Any when matching a single key, but trivially so.
