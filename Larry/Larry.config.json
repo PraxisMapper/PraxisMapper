@@ -2,11 +2,12 @@
   "DbMode": "MariaDB",
   "DbConnectionString": "server=localhost;database=praxis;user=root;password=asdf;",
   "ForceSeparateFiles": false,
-  "PbfFolder": "C:\\praxis\\",
-  "JsonMapDataFolder": "C:\\praxis\\",
+  "PbfFolder": "C:\\Praxis\\",
+  "JsonMapDataFolder": "C:\\Praxis\\",
   "FilesizeSplit": 4000000000,
   "Solar2dExportFolder": "",
   "UseHighAccuracy": true,
   "OnlyTaggedAreas": false,
-  "ForceTagParserDefaults": false
+  "ForceTagParserDefaults": false,
+  "UseMariaDBInFile": false
 }
