@@ -69,11 +69,12 @@ namespace PerformanceTestApp
             //TestRasterVsVectorCell8();
             //TestRasterVsVectorCell10();
             //TestImageSharpVsSkiaSharp(); //imagesharp was removed for being vastly slower.
-            TestTagParser();
+            //TestTagParser();
             //TestCropVsNoCropDraw("86HWPM");
             //TestCropVsNoCropDraw("86HW");
             //TestCustomPbfReader();
             //TestDrawingHoles();
+            TestPbfParsing();
 
             //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
             //These cannot all be enabled in one run. You must comment/uncomment each one separately.
@@ -1713,6 +1714,29 @@ namespace PerformanceTestApp
 
             //File.WriteAllBytes("test1.png", image1);
             File.WriteAllBytes("test2.png", image2);
+        }
+
+        public static void TestPbfParsing()
+        {
+            var pmFI = new PMFeatureInterpreter();
+            var osmFI = new OsmSharp.Geo.DefaultFeatureInterpreter();
+
+            System.Diagnostics.Stopwatch sw = new Stopwatch();
+            sw.Start();
+            var pbfR = new PraxisCore.PbfReader.PbfReader();
+            pbfR.outputPath = "";
+            var pmComplete = pbfR.LoadOneRelationFromFile(@"C:\praxis\ohio-latest.osm.pbf", 4039900);
+            sw.Stop();
+            Log.WriteLog("Customized PBF reader loaded 1 area in " + sw.Elapsed);
+
+            sw.Restart();
+            OsmSharp.Streams.PBFOsmStreamSource pbfO = new PBFOsmStreamSource(new FileStream(@"C:\praxis\ohio-latest.osm.pbf", FileMode.Open));
+            var osmComplete = pbfO.Where(p => p.Id == 4039900 && p.Type == OsmGeoType.Relation).ToComplete().FirstOrDefault();
+            sw.Stop();
+            Log.WriteLog("Original PBF reader loaded 1 area in " + sw.Elapsed);
+
+
+
         }
     }
 }

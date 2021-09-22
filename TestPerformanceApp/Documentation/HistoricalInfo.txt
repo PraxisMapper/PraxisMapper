@@ -221,3 +221,17 @@ Conclusion: The new codepath is much faster than the original for over 8 tags. F
 The average # of tags per element is ~3 per https://taginfo.openstreetmap.org/reports/database_statistics
 On average, single-tag entries are twice as fast, and longer lists of tags are faster still.
 
+Comparing my PBF reader versus OSMSharp stock (Lake Erie):
+Starting to load one relation from file.
+Indexing file...
+Found 3241 blocks. 4 relation blocks and 350 way blocks.
+File indexed in 00:00:08.1569974
+Current stats:
+Blocks completed this run: 0
+Long-running/writing pending: 0
+Processing tasks: 0
+Processing completed at 9/22/2021 9:21:47 AM, session lasted 00:00:11.1531879
+Customized PBF reader loaded 1 area in 00:00:11.2660481
+Original PBF reader loaded 1 area in 00:00:51.5567605
+Conclusion: Even with indexing, my code is much faster. I knew it was, but I wanted to see a difference. 5x faster for a single area.
+Doing multiple areas would reduce that gap, but my code uses much less RAM in that case.
