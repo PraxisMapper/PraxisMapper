@@ -678,7 +678,7 @@ namespace PraxisCore
         {
             var styles = TagParser.allStyleGroups[styleSet];
             var pass1 = elements.Select(d => new { d.AreaSize, d.elementGeometry, paintOp = styles[d.GameElementName].paintOperations });
-            var pass2 = new List<CompletePaintOp>();
+            var pass2 = new List<CompletePaintOp>(elements.Count() * 2); //assuming each element will have a Fill and a Stroke operation.
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
                     if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
@@ -702,7 +702,7 @@ namespace PraxisCore
             var elements = db.CustomDataOsmElements.Include(d => d.storedOsmElement).Where(d => d.dataKey == dataKey && area.Intersects(d.storedOsmElement.elementGeometry)).ToList();
             var styles = TagParser.allStyleGroups[styleSet];
             var pass1 = elements.Select(d => new { d.storedOsmElement.AreaSize, d.storedOsmElement.elementGeometry, paintOp = styles[d.dataValue].paintOperations, d.dataValue });
-            var pass2 = new List<CompletePaintOp>();
+            var pass2 = new List<CompletePaintOp>(elements.Count() * 2); //assume each element has a Fill and Stroke op separately
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
                     if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
@@ -726,7 +726,7 @@ namespace PraxisCore
             var elements = db.CustomDataPlusCodes.Where(d => d.dataKey == dataKey && area.Intersects(d.geoAreaIndex)).ToList();
             var styles = TagParser.allStyleGroups[styleSet];
             var pass1 = elements.Select(d => new { d.geoAreaIndex.Area, d.geoAreaIndex, paintOp = styles[d.dataValue].paintOperations, d.dataValue });
-            var pass2 = new List<CompletePaintOp>();
+            var pass2 = new List<CompletePaintOp>(elements.Count() * 2); //assuming each element has a Fill and Stroke op separately
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
                     if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
@@ -750,7 +750,7 @@ namespace PraxisCore
             var elements = db.CustomDataPlusCodes.Where(d => d.dataKey == dataKey && area.Intersects(d.geoAreaIndex)).ToList();
             var styles = TagParser.allStyleGroups[styleSet];
             var pass1 = elements.Select(d => new { d.geoAreaIndex.Area, d.geoAreaIndex, paintOp = styles["tag"].paintOperations, d.dataValue });
-            var pass2 = new List<CompletePaintOp>();
+            var pass2 = new List<CompletePaintOp>(elements.Count() * 2); //assuming each element has a Fill and Stroke op separately
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
                     if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
@@ -799,7 +799,7 @@ namespace PraxisCore
 
             //I guess what I want here is a list of an object with an elementGeometry object for the shape, and a paintOp attached to it
             var pass1 = drawnItems.Select(d => new { d.AreaSize, d.elementGeometry, paintOp = styles[d.GameElementName].paintOperations });
-            var pass2 = new List<CompletePaintOp>();
+            var pass2 = new List<CompletePaintOp>(drawnItems.Count() * 2);
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
                     pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po, ""));
@@ -933,7 +933,7 @@ namespace PraxisCore
 
             //now, for every Cell8 involved, draw and name it.
             //This is tricky to run in parallel because it's not smooth increments
-            var yCoords = new List<double>();
+            var yCoords = new List<double>((int)(intersectCheck.EnvelopeInternal.Height / resolutionCell8) + 1);
             var yVal = swCorner.Decode().SouthLatitude;
             while (yVal <= neCorner.Decode().NorthLatitude)
             {
@@ -941,7 +941,7 @@ namespace PraxisCore
                 yVal += resolutionCell8;
             }
 
-            var xCoords = new List<double>();
+            var xCoords = new List<double>((int)(intersectCheck.EnvelopeInternal.Width / resolutionCell8) + 1);
             var xVal = swCorner.Decode().WestLongitude;
             while (xVal <= neCorner.Decode().EastLongitude)
             {
