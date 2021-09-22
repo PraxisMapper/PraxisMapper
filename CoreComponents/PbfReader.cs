@@ -30,6 +30,9 @@ namespace PraxisCore.PbfReader
         //TODO:
         //Make some function paramters settings in here, like saveInFile or saveToDb.
 
+        static int initialCapacity = 7993; //ConcurrentDictionary says initial capacity shouldn't be divisible by a small prime number, so i picked the prime closes to 8,000 for initial capacity
+        static int initialConcurrency = Environment.ProcessorCount;
+
         public bool saveToInfile = false;
         public bool saveToDB = false;
         public bool saveToJson = true; //Defaults to the common intermediate output.
@@ -48,26 +51,26 @@ namespace PraxisCore.PbfReader
         FileStream fs; // The input file. Output files are used with StreamWriters.
 
         //<osmId, blockId>
-        ConcurrentDictionary<long, long> relationFinder = new ConcurrentDictionary<long, long>();
+        ConcurrentDictionary<long, long> relationFinder = new ConcurrentDictionary<long, long>(initialConcurrency, initialCapacity);
 
         //this is blockId, <minNode, maxNode>.
-        ConcurrentDictionary<long, Tuple<long, long>> nodeFinder2 = new ConcurrentDictionary<long, Tuple<long, long>>();
+        ConcurrentDictionary<long, Tuple<long, long>> nodeFinder2 = new ConcurrentDictionary<long, Tuple<long, long>>(initialConcurrency, initialCapacity);
         //blockId, minNode, maxNode.
-        List<Tuple<long, long, long>> nodeFinderList = new List<Tuple<long, long, long>>();
+        List<Tuple<long, long, long>> nodeFinderList = new List<Tuple<long, long, long>>(initialCapacity);
         //<blockId, maxWayId> since ways are sorted in order.
-        ConcurrentDictionary<long, long> wayFinder = new ConcurrentDictionary<long, long>();// Concurrent needed because loading is threaded.
-        List<Tuple<long, long>> wayFinderList = new List<Tuple<long, long>>();
+        ConcurrentDictionary<long, long> wayFinder = new ConcurrentDictionary<long, long>(initialConcurrency, initialCapacity);// Concurrent needed because loading is threaded.
+        List<Tuple<long, long>> wayFinderList = new List<Tuple<long, long>>(initialCapacity);
         int nodeFinderTotal = 0;
         int wayFinderTotal = 0;
 
-        Dictionary<long, long> blockPositions = new Dictionary<long, long>();
-        Dictionary<long, int> blockSizes = new Dictionary<long, int>();
+        Dictionary<long, long> blockPositions = new Dictionary<long, long>(initialCapacity);
+        Dictionary<long, int> blockSizes = new Dictionary<long, int>(initialCapacity);
 
         Envelope bounds = null; //If not null, reject elements not within it
         IPreparedGeometry boundsEntry = null; //use for precise detection of what to include.
 
-        ConcurrentDictionary<long, PrimitiveBlock> activeBlocks = new ConcurrentDictionary<long, PrimitiveBlock>();
-        ConcurrentDictionary<long, bool> accessedBlocks = new ConcurrentDictionary<long, bool>();
+        ConcurrentDictionary<long, PrimitiveBlock> activeBlocks = new ConcurrentDictionary<long, PrimitiveBlock>(8, initialCapacity);
+        ConcurrentDictionary<long, bool> accessedBlocks = new ConcurrentDictionary<long, bool>(8, initialCapacity);
 
         private PrimitiveBlock _block = new PrimitiveBlock();
         private BlobHeader _header = new BlobHeader();
@@ -366,11 +369,11 @@ namespace PraxisCore.PbfReader
             sw.Start();
             fs.Position = 0;
             long blockCounter = 0;
-            blockPositions = new Dictionary<long, long>();
-            blockSizes = new Dictionary<long, int>();
-            relationFinder = new ConcurrentDictionary<long, long>();
-            nodeFinder2 = new ConcurrentDictionary<long, Tuple<long, long>>();
-            wayFinder = new ConcurrentDictionary<long, long>();
+            blockPositions = new Dictionary<long, long>(initialCapacity);
+            blockSizes = new Dictionary<long, int>(initialCapacity);
+            relationFinder = new ConcurrentDictionary<long, long>(initialConcurrency, initialCapacity);
+            nodeFinder2 = new ConcurrentDictionary<long, Tuple<long, long>>(initialConcurrency, initialCapacity);
+            wayFinder = new ConcurrentDictionary<long, long>(initialConcurrency, initialCapacity);
 
             BlobHeader bh = new BlobHeader();
             Blob b = new Blob();
@@ -384,7 +387,7 @@ namespace PraxisCore.PbfReader
             blockPositions.Add(0, fs.Position);
             blockSizes.Add(0, bh.datasize);
 
-            List<Task> waiting = new List<Task>();
+            List<Task> waiting = new List<Task>(initialCapacity);
             int relationCounter = 0;
             int wayCounter = 0;
 
@@ -605,8 +608,8 @@ namespace PraxisCore.PbfReader
 
                 //This makes sure we only load each element once. If a relation references an element more than once (it shouldnt)
                 //this saves us from re-creating the same entry.
-                Dictionary<long, OsmSharp.Complete.CompleteWay> loadedWays = new Dictionary<long, OsmSharp.Complete.CompleteWay>();
-                List<OsmSharp.Complete.CompleteRelationMember> crms = new List<OsmSharp.Complete.CompleteRelationMember>();
+                Dictionary<long, OsmSharp.Complete.CompleteWay> loadedWays = new Dictionary<long, OsmSharp.Complete.CompleteWay>(8000);
+                List<OsmSharp.Complete.CompleteRelationMember> crms = new List<OsmSharp.Complete.CompleteRelationMember>(8000);
                 idToFind = 0;
                 for (int i = 0; i < rel.memids.Count; i++)
                 {
@@ -668,7 +671,7 @@ namespace PraxisCore.PbfReader
                 //Now I have the data needed to fill in nodes for a way
                 OsmSharp.Complete.CompleteWay finalway = new OsmSharp.Complete.CompleteWay();
                 finalway.Id = wayId;
-                finalway.Tags = new OsmSharp.Tags.TagsCollection();
+                finalway.Tags = new OsmSharp.Tags.TagsCollection(5);
 
                 //We always need to apply tags here, so we can either skip after (if IgnoredUmatched is set) or to pass along tag values correctly.
                 for (int i = 0; i < way.keys.Count(); i++)
@@ -687,8 +690,8 @@ namespace PraxisCore.PbfReader
                 //its a little complicated but a solid performance boost.
                 long idToFind = 0; //more deltas 
                                    //blockId, nodeID
-                List<Tuple<long, long>> nodesPerBlock = new List<Tuple<long, long>>();
-                List<long> distinctBlockIds = new List<long>();
+                List<Tuple<long, long>> nodesPerBlock = new List<Tuple<long, long>>(8000);
+                List<long> distinctBlockIds = new List<long>(8000); //Could make this a dictionary and tryAdd instead of add and distinct every time?
                 for (int i = 0; i < way.refs.Count; i++)
                 {
                     idToFind += way.refs[i];
@@ -699,8 +702,8 @@ namespace PraxisCore.PbfReader
                 }
                 var nodesByBlock = nodesPerBlock.ToLookup(k => k.Item1, v => v.Item2);
 
-                List<OsmSharp.Node> nodeList = new List<OsmSharp.Node>();
-                Dictionary<long, OsmSharp.Node> AllNodes = new Dictionary<long, OsmSharp.Node>();
+                List<OsmSharp.Node> nodeList = new List<OsmSharp.Node>(8000);
+                Dictionary<long, OsmSharp.Node> AllNodes = new Dictionary<long, OsmSharp.Node>(8000);
                 foreach (var block in nodesByBlock)
                 {
                     var someNodes = GetAllNeededNodesInBlock(block.Key, block.Distinct().OrderBy(b => b).ToArray());
