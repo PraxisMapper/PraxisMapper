@@ -98,21 +98,9 @@ namespace Larry
                 FileCommands.ResetFiles(config["JsonMapDataFolder"]);
             }
 
-            if (args.Any(a => a == "-ProcessPbfs"))
+            if (args.Any(a => a == "-processPbfs"))
             {
-                List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.pbf").ToList();
-                foreach (string filename in filenames)
-                {
-                    Log.WriteLog("Loading " + filename + " at " + DateTime.Now);
-                    PbfReader r = new PbfReader();
-                    r.outputPath = config["JsonMapDataFolder"];
-                    r.saveToInfile = config["UseMariaDBInFile"] == "True";
-                    r.saveToJson = !r.saveToInfile;
-                    r.saveToDB = false; //config["UseMariaDBInFile"] != "True";
-                    r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
-                    r.ProcessFile(filename, long.Parse(config["UseOneRelationID"]));
-                    File.Move(filename, filename + "done");
-                }
+                processPbfs();
             }
 
             if (args.Any(a => a == "-convertJsonToSql"))
@@ -123,43 +111,25 @@ namespace Larry
                 var entries = db.StoredOsmElements.Take(100).ToList();
                 SqlExporter.DumpToSql(entries, "testfile.sql");
 
-
-                //flip a JSON file to a SQL file and try and run it directly on the DB.
-                //var db = new PraxisContext();
-                //db.ChangeTracker.AutoDetectChangesEnabled = false;
-                //List<string> filenames = System.IO.Directory.EnumerateFiles(ParserSettings.JsonMapDataFolder, "*.json").ToList();
-                //long entryCounter = 0;
-                //foreach (var jsonFileName in filenames)
-                //{
-
-                //    SqlExporter.DumpToSql();
-                //}
-
+                
             }
 
             if (args.Any(a => a == "-loadJsonToDbInfile")) //May be MariaDB only.
             {
                 var db = new PraxisContext();
                 db.Database.SetCommandTimeout(Int32.MaxValue);
-                //Might want to set this up to disable keys, do all the file imports, then enable keys
+                //Might want to set this up to disable keys, do all the file imports, then enable keys. It might already do that on this import.
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
                 List<string> filenames = System.IO.Directory.EnumerateFiles(config["JsonMapDataFolder"], "*.geomInfile").ToList();
                 foreach (var jsonFileName in filenames)
                 {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
-                    //var tempFile = @"D:\Projects\PraxisMapper Files\Trimmed JSON Files\loadData.pm";  //System.IO.Path.GetTempFileName();
-                    //var tempTags = @"D:\Projects\PraxisMapper Files\Trimmed JSON Files\loadTags.pm";  //System.IO.Path.GetTempFileName();
-                    var mariaPath = jsonFileName.Replace("\\", "\\\\");
-                    //var mariaPathTags = tempTags.Replace("\\", "\\\\");
-                    //var db = new PraxisContext();
-                    
+                    var mariaPath = jsonFileName.Replace("\\", "\\\\");                   
                     db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' INTO TABLE StoredOsmElements fields terminated by '\t' lines terminated by '\r\n' (name, sourceItemID, sourceItemType, @elementGeometry, AreaSize) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
-                    //db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPathTags + "' INTO TABLE ElementTags fields terminated by '\t' (SourceItemId, SourceItemType, `key`, `value`)");
                     sw.Stop();
                     Console.WriteLine("Geometry loaded from " + jsonFileName + " in " + sw.Elapsed);
                     System.IO.File.Move(jsonFileName, jsonFileName + "done");
-                    //System.IO.File.Move(tempTags, tempTags + "done");
                 }
 
                 filenames = System.IO.Directory.EnumerateFiles(config["JsonMapDataFolder"], "*.tagsInfile").ToList();
@@ -167,18 +137,11 @@ namespace Larry
                 {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
-                    //var tempFile = @"D:\Projects\PraxisMapper Files\Trimmed JSON Files\loadData.pm";  //System.IO.Path.GetTempFileName();
-                    //var tempTags = @"D:\Projects\PraxisMapper Files\Trimmed JSON Files\loadTags.pm";  //System.IO.Path.GetTempFileName();
                     var mariaPath = jsonFileName.Replace("\\", "\\\\");
-                    //var mariaPathTags = tempTags.Replace("\\", "\\\\");
-                    //var db = new PraxisContext();
-                    //NOTE TODO mariadb expects lines to end with \n by default. This means windows line endings will leave a \r at the end of every Value. Maybe end this with a number to quietly avoid cross-platform issues on that? numbers should parse automatically and ignore the \r
-                    //db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' INTO TABLE StoredOsmElements fields terminated by '\t' (name, sourceItemID, sourceItemType, @elementGeometry, AreaSize) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
                     db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' INTO TABLE ElementTags fields terminated by '\t' lines terminated by '\r\n' (SourceItemId, SourceItemType, `key`, `value`)");
                     sw.Stop();
                     Console.WriteLine("Tags loaded from " + jsonFileName + " in " + sw.Elapsed);
                     System.IO.File.Move(jsonFileName, jsonFileName + "done");
-                    //System.IO.File.Move(tempTags, tempTags + "done");
                 }
             }
 
@@ -199,9 +162,6 @@ namespace Larry
                     while (!sr.EndOfStream)
                     {
                         //NOTE: the slowest part of getting a server going now is inserting into the DB. 
-                        //SR only hits 1.5MB/s (was .9 on NET 5) for this task, and these can be multigigabyte files,
-                        //The fastest way I've found so far to reliably speed this up is to run 4 Tasks of 2500 entries to save at once, 
-                        //which takes about half the time of doing 10k at once in one thread.
                         string entry = sr.ReadLine();
                         StoredOsmElement stored = GeometrySupport.ConvertSingleJsonStoredElement(entry);
                         if (stored != null)
@@ -237,9 +197,9 @@ namespace Larry
                 }
             }
 
-            //TODO: rename it to something like 'makeServer:'
+            //TODO: rename it to something like 'makeServer:', or make that its own command
             //This should now work with the config values set and the -ProcessPbfs command.
-            if (args.Any(a => a.StartsWith("-loadOneArea:"))) //-loadOneArea:filename:relationId
+            if (args.Any(a => a.StartsWith("-loadOneArea"))) //-loadOneArea:filename:relationId
             {
                 //TODO: call createDB here if this is a single command to populate up a web server from scratch.
                 var subargs = args.First(a => a.StartsWith("-loadOneArea:")).Split(":");
@@ -314,46 +274,12 @@ namespace Larry
 
             if (args.Any(a => a == "-autoCreateMapTiles")) //better for letting the app decide which tiles to create than manually calling out Cell6 names.
             {
-                //NOTE: this loop ran at 11 maptiles per second on my original attempt. This optimized setup runs at up to 2600 maptiles per second.
-                //Remember: this shouldn't draw GeneratedMapTile areas, nor should this create them.
-                //Tiles should be redrawn when those get made, if they get made.
-                //This should also over-write existing map tiles if present, in case the data's been updated since last run.
-                //TODO: add logic to either overwrite or skip existing tiles.
-                bool skip = true; //This skips over 128,000 tiles in about a minute. Decent.
-
-                //Potential alternative idea:
-                //One loops detects which map tiles need drawn, using the algorithm, and saves that list to a new DB table
-                //A second process digs through that list and draws the map tiles, then marks them  as drawn (or deletes them from the list?)
-
-                //Search for all areas that needs a map tile created.
-                List<string> Cell2s = new List<string>();
-
-                //Cell2 detection loop: 22-CV. All others are 22-XX.
-                for (var pos1 = 0; pos1 <= OpenLocationCode.CodeAlphabet.IndexOf('C'); pos1++)
-                    for (var pos2 = 0; pos2 <= OpenLocationCode.CodeAlphabet.IndexOf('V'); pos2++)
-                    {
-                        string cellToCheck = OpenLocationCode.CodeAlphabet[pos1].ToString() + OpenLocationCode.CodeAlphabet[pos2].ToString();
-                        var area = new OpenLocationCode(cellToCheck);
-                        var tileNeedsMade = DoPlacesExist(area.Decode());
-                        if (tileNeedsMade)
-                        {
-                            Log.WriteLog("Noting: Cell2 " + cellToCheck + " has areas to draw");
-                            Cell2s.Add(cellToCheck);
-                        }
-                        else
-                        {
-                            Log.WriteLog("Skipping Cell2 " + cellToCheck + " for future mapdrawing checks.");
-                        }
-                    }
-
-                foreach (var cell2 in Cell2s)
-                    DetectMapTilesRecursive(cell2, skip);
+                autoCreateMapTiles();
             }
 
             if (args.Any(a => a.StartsWith("-drawOneImage:")))
             {
-                string code = args.First(a => a.StartsWith("-drawOneImage:")).Split(":")[1];
-                System.IO.File.WriteAllBytes(code + ".png", MapTiles.DrawPlusCode(code, "mapTiles", true));
+                DrawOneImage(args.First(a => a.StartsWith("-drawOneImage:")).Split(":")[1]);
             }
 
             if (args.Any(a => a == "-fixAreaSizes"))
@@ -363,23 +289,86 @@ namespace Larry
 
             if (args.Any(a => a.StartsWith("-populateEmptyArea:")))
             {
-                var db = new PraxisContext();
-                var cell6 = args.Where(a => a.StartsWith("-populateEmptyArea:")).First().Split(":")[1];
-                CodeArea box6 = OpenLocationCode.DecodeValid(cell6);
-                var location6 = Converters.GeoAreaToPolygon(box6);
-                var places = db.StoredOsmElements.Where(md => md.elementGeometry.Intersects(location6)).ToList(); //TODO: filter this down to only areas with IsGameElement == true
-                var fakeplaces = places.Where(p => p.IsGenerated).ToList();
+                populateEmptyAreas(args.Where(a => a.StartsWith("-populateEmptyArea:")).First().Split(":")[1]);
+            }
+        }
 
-                for (int x = 0; x < 20; x++)
+        private static void processPbfs()
+        {
+            List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.pbf").ToList();
+            foreach (string filename in filenames)
+            {
+                Log.WriteLog("Loading " + filename + " at " + DateTime.Now);
+                PbfReader r = new PbfReader();
+                r.outputPath = config["JsonMapDataFolder"];
+                r.saveToInfile = config["UseMariaDBInFile"] == "True";
+                r.saveToJson = !r.saveToInfile;
+                r.saveToDB = false; //config["UseMariaDBInFile"] != "True";
+                r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
+                r.ProcessFile(filename, long.Parse(config["UseOneRelationID"]));
+                File.Move(filename, filename + "done");
+            }
+        }
+        private static void autoCreateMapTiles()
+        {
+            //NOTE: this loop ran at 11 maptiles per second on my original attempt. This optimized setup runs at up to 2600 maptiles per second.
+            //Remember: this shouldn't draw GeneratedMapTile areas, nor should this create them.
+            //Tiles should be redrawn when those get made, if they get made.
+            //This should also over-write existing map tiles if present, in case the data's been updated since last run.
+            //TODO: add logic to either overwrite or skip existing tiles.
+            bool skip = true; //This skips over 128,000 tiles in about a minute. Decent.
+
+            //Potential alternative idea:
+            //One loops detects which map tiles need drawn, using the algorithm, and saves that list to a new DB table
+            //A second process digs through that list and draws the map tiles, then marks them  as drawn (or deletes them from the list?)
+
+            //Search for all areas that needs a map tile created.
+            List<string> Cell2s = new List<string>();
+
+            //Cell2 detection loop: 22-CV. All others are 22-XX.
+            for (var pos1 = 0; pos1 <= OpenLocationCode.CodeAlphabet.IndexOf('C'); pos1++)
+                for (var pos2 = 0; pos2 <= OpenLocationCode.CodeAlphabet.IndexOf('V'); pos2++)
                 {
-                    for (int y = 0; y < 20; y++)
+                    string cellToCheck = OpenLocationCode.CodeAlphabet[pos1].ToString() + OpenLocationCode.CodeAlphabet[pos2].ToString();
+                    var area = new OpenLocationCode(cellToCheck);
+                    var tileNeedsMade = DoPlacesExist(area.Decode());
+                    if (tileNeedsMade)
                     {
-                        string cell8 = cell6 + OpenLocationCode.CodeAlphabet[x] + OpenLocationCode.CodeAlphabet[y];
-                        CodeArea box = OpenLocationCode.DecodeValid(cell8);
-                        var location = Converters.GeoAreaToPolygon(box);
-                        if (!places.Any(md => md.elementGeometry.Intersects(location)) && !fakeplaces.Any(md => md.elementGeometry.Intersects(location)))
-                            CreateInterestingPlaces(cell8);
+                        Log.WriteLog("Noting: Cell2 " + cellToCheck + " has areas to draw");
+                        Cell2s.Add(cellToCheck);
                     }
+                    else
+                    {
+                        Log.WriteLog("Skipping Cell2 " + cellToCheck + " for future mapdrawing checks.");
+                    }
+                }
+
+            foreach (var cell2 in Cell2s)
+                DetectMapTilesRecursive(cell2, skip);
+        }
+
+        private static void DrawOneImage(string code)
+        {
+            System.IO.File.WriteAllBytes(code + ".png", MapTiles.DrawPlusCode(code, "mapTiles", true));
+        }
+
+        private static void populateEmptyAreas(string cell6)
+        {
+            var db = new PraxisContext();
+            CodeArea box6 = OpenLocationCode.DecodeValid(cell6);
+            var location6 = Converters.GeoAreaToPolygon(box6);
+            var places = db.StoredOsmElements.Where(md => md.elementGeometry.Intersects(location6)).ToList(); //TODO: filter this down to only areas with IsGameElement == true
+            var fakeplaces = places.Where(p => p.IsGenerated).ToList();
+
+            for (int x = 0; x < 20; x++)
+            {
+                for (int y = 0; y < 20; y++)
+                {
+                    string cell8 = cell6 + OpenLocationCode.CodeAlphabet[x] + OpenLocationCode.CodeAlphabet[y];
+                    CodeArea box = OpenLocationCode.DecodeValid(cell8);
+                    var location = Converters.GeoAreaToPolygon(box);
+                    if (!places.Any(md => md.elementGeometry.Intersects(location)) && !fakeplaces.Any(md => md.elementGeometry.Intersects(location)))
+                        CreateInterestingPlaces(cell8);
                 }
             }
         }
