@@ -19,7 +19,7 @@ namespace PraxisCore
     {
         //Shared class for functions that do work on Geometry objects.
 
-        private static NetTopologySuite.IO.WKTReader reader = new NetTopologySuite.IO.WKTReader() {DefaultSRID = 4326 };
+        private static NetTopologySuite.IO.WKTReader geomTextReader = new NetTopologySuite.IO.WKTReader() {DefaultSRID = 4326 };
         private static JsonSerializerOptions jso = new JsonSerializerOptions() { };
         private static PMFeatureInterpreter featureInterpreter = new PMFeatureInterpreter();
         
@@ -60,7 +60,7 @@ namespace PraxisCore
         /// <returns>a Geometry object for the WKT provided</returns>
         public static Geometry GeometryFromWKT(string elementGeometry)
         {
-            return reader.Read(elementGeometry);
+            return geomTextReader.Read(elementGeometry);
         }
 
         /// <summary>
@@ -246,7 +246,7 @@ namespace PraxisCore
         public static StoredOsmElement ConvertSingleJsonStoredElement(string sw)
         {
             StoredOsmElementForJson j = (StoredOsmElementForJson)JsonSerializer.Deserialize(sw, typeof(StoredOsmElementForJson), jso);
-            var temp = new StoredOsmElement() { id = j.id, name = j.name, sourceItemID = j.sourceItemID, sourceItemType = j.sourceItemType, elementGeometry = reader.Read(j.elementGeometry), IsGameElement = j.IsGameElement, Tags = new List<ElementTags>(), IsGenerated = j.isGenerated, IsUserProvided = j.isUserProvided };
+            var temp = new StoredOsmElement() { id = j.id, name = j.name, sourceItemID = j.sourceItemID, sourceItemType = j.sourceItemType, elementGeometry = geomTextReader.Read(j.elementGeometry), IsGameElement = j.IsGameElement, Tags = new List<ElementTags>(), IsGenerated = j.isGenerated, IsUserProvided = j.isUserProvided };
             if (!string.IsNullOrWhiteSpace(j.WayTags))
             {
                 var tagData = j.WayTags.Split("~");

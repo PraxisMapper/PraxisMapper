@@ -16,9 +16,7 @@ using static PraxisCore.Singletons;
 using static PraxisCore.StandaloneDbTables;
 using PraxisCore.PbfReader;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ValueGeneration.Internal;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Configuration.Json;
 
 
 //TODO: look into using Span<T> instead of lists? This might be worth looking at performance differences. (and/or Memory<T>, which might be a parent for Spans)
@@ -47,9 +45,14 @@ namespace Larry
                 //TODO: list valid commands or point at the docs file
                 return;
             }
+            //Sanity check some values.
+            if (config["UseMariaDBInFile"] == "True" && config["DbMode"] != "MariaDB")
+            {
+                Console.WriteLine("You set a MariaDB-only option on and aren't using MariaDB! Fix the configs to use MariaDB or disable the InFile setting and run again.");
+                return;
+            }
 
             //If multiple args are supplied, run them in the order that make sense, not the order the args are supplied.
-
             if (args.Any(a => a == "-createDB")) //setup the destination database
             {
                 Console.WriteLine("Creating database with current database settings.");
@@ -68,7 +71,7 @@ namespace Larry
                 DBCommands.FindServerBounds();
             }
 
-            if (args.Any(a => a == "-singleTest"))
+            if (args.Any(a => a == "-singleTest")) //Removable
             {
                 //Check on a specific thing. Not an end-user command.
                 //Current task: Identify issue with relation
@@ -98,110 +101,48 @@ namespace Larry
                 FileCommands.ResetFiles(config["JsonMapDataFolder"]);
             }
 
+            if (args.Any(a => a == "drawFromPbf:")) //Conceptual, not completed.
+            {
+                //get area and all things contained in area to RAM.
+                //Draw stuff from RAM.
+            }
+
             if (args.Any(a => a == "-processPbfs"))
             {
                 processPbfs();
             }
 
-            if (args.Any(a => a == "-convertJsonToSql"))
+            if (args.Any(a => a == "-convertJsonToSql")) //Removeable.
             {
 
                 //test code
                 var db = new PraxisContext();
                 var entries = db.StoredOsmElements.Take(100).ToList();
                 SqlExporter.DumpToSql(entries, "testfile.sql");
-
-                
             }
 
-            if (args.Any(a => a == "-loadJsonToDbInfile")) //May be MariaDB only.
+            if (args.Any(a => a == "-loadProcessedData"))
             {
-                var db = new PraxisContext();
-                db.Database.SetCommandTimeout(Int32.MaxValue);
-                //Might want to set this up to disable keys, do all the file imports, then enable keys. It might already do that on this import.
-                db.ChangeTracker.AutoDetectChangesEnabled = false;
-                List<string> filenames = System.IO.Directory.EnumerateFiles(config["JsonMapDataFolder"], "*.geomInfile").ToList();
-                foreach (var jsonFileName in filenames)
-                {
-                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-                    sw.Start();
-                    var mariaPath = jsonFileName.Replace("\\", "\\\\");                   
-                    db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' INTO TABLE StoredOsmElements fields terminated by '\t' lines terminated by '\r\n' (name, sourceItemID, sourceItemType, @elementGeometry, AreaSize) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
-                    sw.Stop();
-                    Console.WriteLine("Geometry loaded from " + jsonFileName + " in " + sw.Elapsed);
-                    System.IO.File.Move(jsonFileName, jsonFileName + "done");
-                }
-
-                filenames = System.IO.Directory.EnumerateFiles(config["JsonMapDataFolder"], "*.tagsInfile").ToList();
-                foreach (var jsonFileName in filenames)
-                {
-                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-                    sw.Start();
-                    var mariaPath = jsonFileName.Replace("\\", "\\\\");
-                    db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' INTO TABLE ElementTags fields terminated by '\t' lines terminated by '\r\n' (SourceItemId, SourceItemType, `key`, `value`)");
-                    sw.Stop();
-                    Console.WriteLine("Tags loaded from " + jsonFileName + " in " + sw.Elapsed);
-                    System.IO.File.Move(jsonFileName, jsonFileName + "done");
-                }
+                loadProcessedData();
             }
 
-            if (args.Any(a => a == "-loadJsonToDb"))
-            {
-                var db = new PraxisContext();
-                db.ChangeTracker.AutoDetectChangesEnabled = false;
-                List<string> filenames = System.IO.Directory.EnumerateFiles(config["JsonMapDataFolder"], "*.json").ToList();
-                long entryCounter = 0;
-                foreach (var jsonFileName in filenames)
-                {
-                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-                    Log.WriteLog("Loading " + jsonFileName + " to database at " + DateTime.Now);
-                    var fr = File.OpenRead(jsonFileName);
-                    var sr = new StreamReader(fr);
-                    List<StoredOsmElement> pendingData = new List<StoredOsmElement>();
-                    sw.Start();
-                    while (!sr.EndOfStream)
-                    {
-                        //NOTE: the slowest part of getting a server going now is inserting into the DB. 
-                        string entry = sr.ReadLine();
-                        StoredOsmElement stored = GeometrySupport.ConvertSingleJsonStoredElement(entry);
-                        if (stored != null)
-                            pendingData.Add(stored);
+            //if (args.Any(a => a == "makeWholeServer")) //Not a release 1 feature, but taking notes now.
+            //{
+                //This is the wizard command, try to check and do everything at once.
+                //Check for MariaDB and install/configure if missing (including service account)
+                //check for a PBF file and prompt to download one if none found
+                //if data files are present, use them. otherwise process the PBF file per settings
+                //Pre-generate gameplay map tiles.
+                //Possible: Grab the Solar2D example app, adjust it to work with the server running on this machine.
+                //--check external IP, update .lua source file to point to this pc.
+                //Fire up the Kestral exe to get the server working
+                //Open up a browser to the adminview slippytile page.
+            //}
 
-                        entryCounter++;
 
-                        if (entryCounter > 10000)
-                        {
-                            var splitLists = pendingData.SplitListToMultiple(4);
-                            List<Task> lt = new List<Task>();
-                            foreach (var list in splitLists)
-                                lt.Add(Task.Run(() => { var db = new PraxisContext(); db.ChangeTracker.AutoDetectChangesEnabled = false; db.StoredOsmElements.AddRange(list); db.SaveChanges(); }));
-                            Task.WaitAll(lt.ToArray());
-                            Log.WriteLog("Save done in " + sw.Elapsed);
-                            sw.Restart();
-
-                            pendingData = new List<StoredOsmElement>();
-                            entryCounter = 0;
-                        }
-                    }
-
-                    var splitLists2 = pendingData.SplitListToMultiple(4);
-                    List<Task> lt2 = new List<Task>();
-                    foreach (var list in splitLists2)
-                        lt2.Add(Task.Run(() => { var db = new PraxisContext(); db.ChangeTracker.AutoDetectChangesEnabled = false; db.StoredOsmElements.AddRange(list); db.SaveChanges(); }));
-                    Task.WaitAll(lt2.ToArray());
-                    Log.WriteLog("Final save done in " + sw.Elapsed);
-                    sw.Restart();
-                    sr.Close(); sr.Dispose();
-                    fr.Close(); fr.Dispose();
-                    File.Move(jsonFileName, jsonFileName + "done");
-                }
-            }
-
-            //TODO: rename it to something like 'makeServer:', or make that its own command
             //This should now work with the config values set and the -ProcessPbfs command.
             if (args.Any(a => a.StartsWith("-loadOneArea"))) //-loadOneArea:filename:relationId
             {
-                //TODO: call createDB here if this is a single command to populate up a web server from scratch.
                 var subargs = args.First(a => a.StartsWith("-loadOneArea:")).Split(":");
                 Console.WriteLine("Loading relation " + subargs[2] + " from file " + config["PbfFolder"] + subargs[1]);
                 var r = new PbfReader();
@@ -307,6 +248,88 @@ namespace Larry
                 r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
                 r.ProcessFile(filename, long.Parse(config["UseOneRelationID"]));
                 File.Move(filename, filename + "done");
+            }
+        }
+
+        private static void loadProcessedData()
+        {
+            var db = new PraxisContext();
+            db.Database.SetCommandTimeout(Int32.MaxValue);
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
+
+            if (config["UseMariaDBInFile"] == "True")
+            {
+                List<string> filenames = System.IO.Directory.EnumerateFiles(config["JsonMapDataFolder"], "*.geomInfile").ToList();
+                foreach (var jsonFileName in filenames)
+                {
+                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                    sw.Start();
+                    var mariaPath = jsonFileName.Replace("\\", "\\\\");
+                    db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' INTO TABLE StoredOsmElements fields terminated by '\t' lines terminated by '\r\n' (name, sourceItemID, sourceItemType, @elementGeometry, AreaSize) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
+                    sw.Stop();
+                    Console.WriteLine("Geometry loaded from " + jsonFileName + " in " + sw.Elapsed);
+                    System.IO.File.Move(jsonFileName, jsonFileName + "done");
+                }
+
+                filenames = System.IO.Directory.EnumerateFiles(config["JsonMapDataFolder"], "*.tagsInfile").ToList();
+                foreach (var jsonFileName in filenames)
+                {
+                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                    sw.Start();
+                    var mariaPath = jsonFileName.Replace("\\", "\\\\");
+                    db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' INTO TABLE ElementTags fields terminated by '\t' lines terminated by '\r\n' (SourceItemId, SourceItemType, `key`, `value`)");
+                    sw.Stop();
+                    Console.WriteLine("Tags loaded from " + jsonFileName + " in " + sw.Elapsed);
+                    System.IO.File.Move(jsonFileName, jsonFileName + "done");
+                }
+            }
+            else //typical Json files
+            {
+                List<string> filenames = System.IO.Directory.EnumerateFiles(config["JsonMapDataFolder"], "*.json").ToList();
+                long entryCounter = 0;
+                foreach (var jsonFileName in filenames)
+                {
+                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                    Log.WriteLog("Loading " + jsonFileName + " to database at " + DateTime.Now);
+                    var fr = File.OpenRead(jsonFileName);
+                    var sr = new StreamReader(fr);
+                    List<StoredOsmElement> pendingData = new List<StoredOsmElement>(10050);
+                    sw.Start();
+                    while (!sr.EndOfStream)
+                    {
+                        //NOTE: the slowest part of getting a server going now is inserting into the DB. 
+                        string entry = sr.ReadLine();
+                        StoredOsmElement stored = GeometrySupport.ConvertSingleJsonStoredElement(entry);
+                        //if (stored != null) //TODO TEST: this should never return null.
+                        pendingData.Add(stored);
+
+                        entryCounter++;
+                        if (entryCounter >= 10000)
+                        {
+                            var splitLists = pendingData.SplitListToMultiple(4);
+                            List<Task> lt = new List<Task>(4);
+                            foreach (var list in splitLists)
+                                lt.Add(Task.Run(() => { var db = new PraxisContext(); db.ChangeTracker.AutoDetectChangesEnabled = false; db.StoredOsmElements.AddRange(list); db.SaveChanges(); }));
+                            Task.WaitAll(lt.ToArray());
+                            Log.WriteLog("Save done in " + sw.Elapsed);
+                            sw.Restart();
+
+                            pendingData.Clear();
+                            entryCounter = 0;
+                        }
+                    }
+
+                    var splitLists2 = pendingData.SplitListToMultiple(4);
+                    List<Task> lt2 = new List<Task>(4);
+                    foreach (var list in splitLists2)
+                        lt2.Add(Task.Run(() => { var db = new PraxisContext(); db.ChangeTracker.AutoDetectChangesEnabled = false; db.StoredOsmElements.AddRange(list); db.SaveChanges(); }));
+                    Task.WaitAll(lt2.ToArray());
+                    Log.WriteLog("Final save done in " + sw.Elapsed);
+                    sw.Restart();
+                    sr.Close(); sr.Dispose();
+                    fr.Close(); fr.Dispose();
+                    File.Move(jsonFileName, jsonFileName + "done");
+                }
             }
         }
         private static void autoCreateMapTiles()

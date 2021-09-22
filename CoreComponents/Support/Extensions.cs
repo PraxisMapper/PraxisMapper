@@ -146,7 +146,7 @@ namespace PraxisCore
         {
             List<DbTables.StoredOsmElement>[] results = new List<DbTables.StoredOsmElement>[splitIntoCount];
             for (int i = 0; i < splitIntoCount; i++)
-                results[i] = new List<DbTables.StoredOsmElement>();
+                results[i] = new List<DbTables.StoredOsmElement>(2600);
 
             int splitCount = 0;
             foreach(var i in mainlist)
