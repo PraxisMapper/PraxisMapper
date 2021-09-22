@@ -1479,7 +1479,6 @@ namespace PraxisCore.PbfReader
                     ShowWaitInfo();
 
                 var relation = GetRelation(relationId);
-                var output = ProcessReaderResults(new List<CompleteOsmGeo>() { relation });
                 Close();
                 //CleanupFiles();
                 sw.Stop();
@@ -1523,7 +1522,6 @@ namespace PraxisCore.PbfReader
                     ShowWaitInfo();
 
                 var way = GetWay(wayId, false);
-                var output = ProcessReaderResults(new List<CompleteOsmGeo>() { way });
                 Close();
                 sw.Stop();
                 Log.WriteLog("Processing completed at " + DateTime.Now + ", session lasted " + sw.Elapsed);
