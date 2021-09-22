@@ -1,12 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using NetTopologySuite.Geometries;
 using OsmSharp.Tags;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using static PraxisCore.DbTables;
-using static PraxisCore.Singletons;
 
 namespace PraxisCore
 {

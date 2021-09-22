@@ -1,17 +1,9 @@
-﻿using PraxisCore.Support;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Conventions;
-using MySqlConnector;
-using NetTopologySuite.Geometries;
-using Npgsql;
+﻿using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using static PraxisCore.DbTables;
-using static PraxisCore.Singletons;
 
 namespace PraxisCore
 {
