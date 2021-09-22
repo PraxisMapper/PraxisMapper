@@ -9,6 +9,7 @@ using System;
 using System.Text;
 using static PraxisCore.DbTables;
 using static PraxisCore.Place;
+using System.Linq;
 
 namespace PraxisMapper.Controllers
 {
@@ -197,7 +198,8 @@ namespace PraxisMapper.Controllers
             GeoArea box = OpenLocationCode.DecodeValid(plusCode);
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), box))
                 return "";            
-            var places = GetPlaces(box); 
+            var places = GetPlaces(box);
+            places = places.Where(p => p.GameElementName != TagParser.defaultStyle.name).ToList();
 
             StringBuilder sb = new StringBuilder();
             //pluscode|name|type|StoredOsmElementID  //less data transmitted, an extra string concat per entry phone-side.
@@ -220,6 +222,7 @@ namespace PraxisMapper.Controllers
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), box))
                 return "";
             var places = GetPlaces(box); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")  //All the places in this Cell8
+            places = places.Where(p => p.GameElementName != TagParser.defaultStyle.name).ToList();
 
             StringBuilder sb = new StringBuilder();
             //pluscode|name|type|StoredOsmElementID
