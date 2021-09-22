@@ -207,15 +207,6 @@ namespace PraxisCore
             return data;
         }
 
-        //public static List<CustomDataAreaResult> GetAllDataInPlace(long elementId, int elementType)
-        //{
-        //    var db = new PraxisContext();
-        //    var place = db.StoredOsmElements.Where(s => s.id == elementId && s.sourceItemType == elementType).First();
-        //    var data = db.CustomDataOsmElements.Where(d => place.elementGeometry.Intersects(d.storedOsmElement.elementGeometry)).Select(d => new CustomDataAreaResult(d.StoredOsmElementId, d.dataKey, d.dataValue)).ToList();
-
-        //    return data;
-        //}
-
         /// <summary>
         /// Load all of the key/value pairs attached to a map element. Expired entries will be ignored.
         /// </summary>
