@@ -25,18 +25,14 @@
 // THE SOFTWARE.
 
 using System;
-using NetTopologySuite.Features;
 using NetTopologySuite.Geometries;
 using OsmSharp.Complete;
-using OsmSharp.Logging;
 using OsmSharp.Tags;
 using System.Collections.Generic;
 using System.Linq;
 using OsmSharp.Geo;
 using OsmSharp;
-using ProtoBuf.Serializers;
 using static PraxisCore.Singletons;
-using System.Reflection.Metadata.Ecma335;
 
 namespace PraxisCore
 {

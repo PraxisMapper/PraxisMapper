@@ -1,7 +1,4 @@
-﻿using SkiaSharp;
-using System;
-using System.Linq;
-using static PraxisCore.DbTables;
+﻿using System.Linq;
 
 namespace PraxisCore
 {
