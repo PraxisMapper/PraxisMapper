@@ -108,11 +108,11 @@ namespace PraxisCore
             },
             new TagParserEntry() { MatchOrder = 8, name ="retail", styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "FFD6D1", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
+                    new TagParserPaint() { HtmlColorCode = "FFD4CE", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "landuse", Value = "retail", MatchType = "or"},
-                    new TagParserMatchRule() {Key="building", Value="retail", MatchType="or" },
+                    new TagParserMatchRule() { Key = "landuse", Value = "retail|commercial", MatchType = "or"},
+                    new TagParserMatchRule() {Key="building", Value="retail|commercial", MatchType="or" },
                     new TagParserMatchRule() {Key="shop", Value="*", MatchType="or" }
             }},
             new TagParserEntry() { IsGameElement = true, MatchOrder = 9, name ="tourism", styleSet = "mapTiles",
@@ -211,12 +211,12 @@ namespace PraxisCore
                     new TagParserMatchRule() { Key = "natural", Value = "wood", MatchType = "or" },
                     new TagParserMatchRule() { Key = "landuse", Value = "forest|orchard", MatchType = "or" },
             }},
-            new TagParserEntry() { MatchOrder = 21, name ="otherspots",  styleSet = "mapTiles",
+            new TagParserEntry() { MatchOrder = 21, name ="industrial",  styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "EB63EB", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
+                    new TagParserPaint() { HtmlColorCode = "EBDBE8", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "landuse", Value = "industrial|commerical", MatchType = "any" },
+                    new TagParserMatchRule() { Key = "landuse", Value = "industrial", MatchType = "equals" },
             }},
             new TagParserEntry() { MatchOrder = 22, name ="residential",  styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
