@@ -72,30 +72,24 @@ namespace PraxisCore
                     }
                     break;
                 case OsmGeoType.Way:
-                    
-
                     if (osmObject.Tags == null || osmObject.Tags.Count == 0)
                         return null;
 
                     bool isArea = false;
-                    if (osmObject.Tags.ContainsAnyKey(areaTags)) //These tags normally default to an area regardless of the value provided.
-                        isArea = true;
-
-                    if (osmObject.Tags.IsTrue("area"))
-                    { // explicitly indicated that this is an area.
-                        isArea = true;
-                    }
-                    else if (osmObject.Tags.IsFalse("area"))
-                    { // explicitly indicated that this is not an area.
-                        isArea = false;
-                    }
-
                     // check for a closed line if area.
                     var coordinates = (osmObject as CompleteWay).GetCoordinates();
-                    if (isArea && coordinates.Count > 1 && !coordinates[0].Equals2D(coordinates[coordinates.Count - 1]))
-                    { // not an area, first and last coordinate do not match.
+                    if (coordinates.Count > 1 && coordinates[0].Equals2D(coordinates[coordinates.Count - 1]))
+                    { // This might be an area, or just a line that ends where it starts. Look at tags to decide.
+                        if (osmObject.Tags.ContainsAnyKey(areaTags)) //These tags normally default to an area regardless of the value provided.
+                            isArea = true;
+                        string areaVal = "";
+                        if (osmObject.Tags.TryGetValue("area", out areaVal))
+                        { // explicitly indicated that this is or isn't an area.
+                            isArea = areaVal == "true";
+                        }
                     }
-                    else if (!isArea && coordinates.Count < 2)
+
+                    if (!isArea && coordinates.Count < 2)
                     { // not a linestring, needs at least two coordinates.
                     }
                     else if (isArea && coordinates.Count < 4)
