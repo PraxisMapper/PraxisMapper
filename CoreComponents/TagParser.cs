@@ -301,24 +301,20 @@ namespace PraxisCore
             //Step 1: check all the rules against these tags.
             //The * value is required for all the rules, so check it first.
             for (var i = 0; i < tpe.TagParserMatchRules.Count(); i++)
-            //foreach(var entry in tpe.TagParserMatchRules)
             {
                 entry = tpe.TagParserMatchRules.ElementAt(i);
 
                 string actualvalue = "";
                 bool isPresent = tags.TryGetValue(entry.Key, out actualvalue);
 
-                if (entry.Value == "*") //The Key needs to exist, but any value counts.
-                {
-                    if (isPresent)
-                        continue;
-                }
-
                 switch (entry.MatchType)
                 {
                     case "any":
                         if (!isPresent)
                             return false;
+
+                        if (entry.Value == "*")
+                            continue;
 
                         if (!entry.Value.Contains(actualvalue))
                             return false;
@@ -328,17 +324,20 @@ namespace PraxisCore
                         if (!isPresent || OrMatched) //Skip checking the actual value if we already matched on an OR rule.
                             continue;
 
-                        if (entry.Value.Contains(actualvalue))
+                        if (entry.Value == "*" || entry.Value.Contains(actualvalue))
                             OrMatched = true;
                         break;
                     case "not":
                         if (!isPresent)
                             continue;
 
-                        if (entry.Value.Contains(actualvalue))
+                        if (entry.Value.Contains(actualvalue) || entry.Value == "*")
                             return false; //Not does not want to match this.
                         break;
                     case "equals": //for single possible values, EQUALS is slightly faster than ANY
+                        if (entry.Value == "*" && isPresent)
+                            continue;
+
                         if (!isPresent || actualvalue != entry.Value)
                             return false;
                         break;

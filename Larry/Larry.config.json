@@ -11,5 +11,6 @@
   "ForceTagParserDefaults": false,
   "UseMariaDBInFile": false,
   "UseOneRelationID": 0,
-  "LogLevel": 1
+  "LogLevel": 1,
+  "KeepElementsInMemory": false
 }

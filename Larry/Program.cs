@@ -28,6 +28,7 @@ namespace Larry
     class Program
     {
         static IConfigurationRoot config;
+        static List<StoredOsmElement> memorySource;
         static void Main(string[] args)
         {
             var builder = new ConfigurationBuilder()
@@ -45,6 +46,10 @@ namespace Larry
                 //TODO: list valid commands or point at the docs file
                 return;
             }
+
+            if (config["KeepElementsInMemory"] == "True")
+                memorySource = new List<StoredOsmElement>(20000);
+
             //Sanity check some values.
             if (config["UseMariaDBInFile"] == "True" && config["DbMode"] != "MariaDB")
             {
@@ -253,9 +258,13 @@ namespace Larry
 
         private static void loadProcessedData()
         {
-            var db = new PraxisContext();
-            db.Database.SetCommandTimeout(Int32.MaxValue);
-            db.ChangeTracker.AutoDetectChangesEnabled = false;
+            PraxisContext db = null;
+            if (config["KeepElementsInMemory"] != "True")
+            {
+                db = new PraxisContext();
+                db.Database.SetCommandTimeout(Int32.MaxValue);
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
+            }
 
             if (config["UseMariaDBInFile"] == "True")
             {
@@ -281,6 +290,33 @@ namespace Larry
                     sw.Stop();
                     Console.WriteLine("Tags loaded from " + jsonFileName + " in " + sw.Elapsed);
                     System.IO.File.Move(jsonFileName, jsonFileName + "done");
+                }
+            }
+            else if (config["KeepElementsInMemory"] == "True")
+            {
+                //Read stuff to RAM to use for testing 
+                List<string> filenames = System.IO.Directory.EnumerateFiles(config["JsonMapDataFolder"], "*.json").ToList();
+                foreach (var jsonFileName in filenames)
+                {
+                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                    Log.WriteLog("Loading " + jsonFileName + " to database at " + DateTime.Now);
+                    var fr = File.OpenRead(jsonFileName);
+                    var sr = new StreamReader(fr);
+                    List<StoredOsmElement> pendingData = new List<StoredOsmElement>(10050);
+                    sw.Start();
+                    while (!sr.EndOfStream)
+                    {
+                        //NOTE: the slowest part of getting a server going now is inserting into the DB. 
+                        string entry = sr.ReadLine();
+                        StoredOsmElement stored = GeometrySupport.ConvertSingleJsonStoredElement(entry);
+                        //if (stored != null) //TODO TEST: this should never return null.
+                        memorySource.Add(stored);
+                    }
+
+                    Log.WriteLog("Files loaded to memory in " + sw.Elapsed);
+                    sw.Stop();
+                    sr.Close(); sr.Dispose();
+                    fr.Close(); fr.Dispose();
                 }
             }
             else //typical Json files
@@ -325,7 +361,7 @@ namespace Larry
                         lt2.Add(Task.Run(() => { var db = new PraxisContext(); db.ChangeTracker.AutoDetectChangesEnabled = false; db.StoredOsmElements.AddRange(list); db.SaveChanges(); }));
                     Task.WaitAll(lt2.ToArray());
                     Log.WriteLog("Final save done in " + sw.Elapsed);
-                    sw.Restart();
+                    sw.Stop();
                     sr.Close(); sr.Dispose();
                     fr.Close(); fr.Dispose();
                     File.Move(jsonFileName, jsonFileName + "done");
@@ -372,7 +408,14 @@ namespace Larry
 
         private static void DrawOneImage(string code)
         {
-            System.IO.File.WriteAllBytes(code + ".png", MapTiles.DrawPlusCode(code, "mapTiles", true));
+            System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+            sw.Start();
+            TagParser.ApplyTags(memorySource, "mapTiles");
+            ImageStats istats = new ImageStats(OpenLocationCode.DecodeValid(code), 1024, 1024);
+            var paintOps = MapTiles.GetPaintOpsForStoredElements(memorySource, "mapTiles", istats);
+            System.IO.File.WriteAllBytes(config["JsonMapDataFolder"] +  code + ".png", MapTiles.DrawPlusCode(code, paintOps, "mapTiles", true));
+            sw.Stop();
+            Log.WriteLog("image drawn from memory in " + sw.Elapsed);
         }
 
         private static void populateEmptyAreas(string cell6)

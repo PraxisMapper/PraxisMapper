@@ -192,11 +192,11 @@ namespace PraxisCore.PbfReader
                 {
                     if (saveToInfile)
                     {
-                        geomFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".geomInfile", FileMode.Create));
-                        tagsFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".tagsInfile", FileMode.Create));
+                        geomFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".geomInfile", FileMode.OpenOrCreate));
+                        tagsFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".tagsInfile", FileMode.OpenOrCreate));
                     }
                     else if (saveToJson)
-                        jsonFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", FileMode.Create));
+                        jsonFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", FileMode.OpenOrCreate));
                 }
 
                 for (var block = nextBlockId; block > 0; block--)
@@ -288,7 +288,7 @@ namespace PraxisCore.PbfReader
                     else
                         Log.WriteLog("Node Block " + block);
                     var geoData = GetGeometryFromBlock(block, false, false).Where(g => g != null).ToList();
-                    ProcessReaderResults(geoData);
+                    writeTasks.Add(ProcessReaderResults(geoData));
                 }
                 Task.WaitAll(writeTasks.ToArray());
                 Close();
@@ -499,22 +499,6 @@ namespace PraxisCore.PbfReader
             return pulledBlock;
         }
 
-        //private byte[] GetBlockBytes(long blockId)
-        //{
-
-        //    byte[] thisblob1;
-        //    lock (msLock)
-        //    {
-        //        long pos1 = blockPositions[blockId];
-        //        int size1 = blockSizes[blockId];
-        //        fs.Seek(pos1, SeekOrigin.Begin);
-        //        thisblob1 = new byte[size1];
-        //        fs.Read(thisblob1, 0, size1);
-        //    }
-        //    Console.WriteLine("Block " + blockId + " loaded to RAM as bytes");
-        //    return thisblob1;
-        //}
-
         /// <summary>
         /// Converts the byte array for a block into the PrimitiveBlock object.
         /// </summary>
@@ -671,7 +655,7 @@ namespace PraxisCore.PbfReader
                 //Now I have the data needed to fill in nodes for a way
                 OsmSharp.Complete.CompleteWay finalway = new OsmSharp.Complete.CompleteWay();
                 finalway.Id = wayId;
-                finalway.Tags = new OsmSharp.Tags.TagsCollection(5);
+                finalway.Tags = new OsmSharp.Tags.TagsCollection(5); //Average is 3.
 
                 //We always need to apply tags here, so we can either skip after (if IgnoredUmatched is set) or to pass along tag values correctly.
                 for (int i = 0; i < way.keys.Count(); i++)
@@ -691,7 +675,7 @@ namespace PraxisCore.PbfReader
                 long idToFind = 0; //more deltas 
                                    //blockId, nodeID
                 List<Tuple<long, long>> nodesPerBlock = new List<Tuple<long, long>>(8000);
-                List<long> distinctBlockIds = new List<long>(8000); //Could make this a dictionary and tryAdd instead of add and distinct every time?
+                List<long> distinctBlockIds = new List<long>(way.refs.Count); //Could make this a dictionary and tryAdd instead of add and distinct every time?
                 for (int i = 0; i < way.refs.Count; i++)
                 {
                     idToFind += way.refs[i];
@@ -1402,22 +1386,26 @@ namespace PraxisCore.PbfReader
                     }
                     //Task.WaitAll(relList.ToArray());
 
-                    var monitorTask = System.Threading.Tasks.Task.Run(() =>
-                    {
+                    //var monitorTask = System.Threading.Tasks.Task.Run(() =>
+                    //{
                         try
                         {
+                            //System.Diagnostics.Stopwatch sw2 = new System.Diagnostics.Stopwatch();
+                            //sw2.Start();
                             lock (fileLock)
                                 jsonFileStream.Write(jsonSB);
 
-                            Log.WriteLog("Data written to disk");
+                            //sw2.Stop();
+                            //Log.WriteLog("Data written to disk in" + sw2.Elapsed);
                         }
                         catch (Exception ex)
                         {
                             Log.WriteLog("Error writing data to disk:" + ex.Message);
                         }
-                    });
+                    //});
 
-                    return monitorTask;
+                    //return monitorTask;
+                    return null;
                 }
                 else if (saveToInfile)
                 {
@@ -1433,21 +1421,21 @@ namespace PraxisCore.PbfReader
                             tagBuilds.Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(t.Key).Append("\t").Append(t.Value.Replace("\r", "").Replace("\n", "")).Append(Environment.NewLine); //Might also need to sanitize / and ' ?
                     }
 
-                    var monitorTask = Task.Run(() =>
-                    {
+                    //var monitorTask = Task.Run(() =>
+                    //{
                         try
                         {
                             lock (geomFileLock)
                                 geomFileStream.Write(geometryBuilds);
                             lock (tagsFileLock)
                                 tagsFileStream.Write(tagBuilds);
-                            Log.WriteLog("Data written to disk");
+                            //Log.WriteLog("Data written to disk");
                         }
                         catch (Exception ex)
                         {
                             Log.WriteLog("Error writing data to disk:" + ex.Message);
                         }
-                    });
+                    //});
                 }
 
                 return null; //some invalid options were passed and we didnt run through anything.
