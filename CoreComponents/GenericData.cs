@@ -27,7 +27,7 @@ namespace PraxisCore
                 return false;
 
             //An upsert command would be great here, but I dont think the entities do that.
-            var row = db.CustomDataPlusCodes.Where(p => p.PlusCode == plusCode && p.dataKey == key).FirstOrDefault();
+            var row = db.CustomDataPlusCodes.FirstOrDefault(p => p.PlusCode == plusCode && p.dataKey == key);
             if (row == null)
             {
                 row = new DbTables.CustomDataPlusCode();
@@ -51,7 +51,7 @@ namespace PraxisCore
         public static string GetPlusCodeData(string plusCode, string key)
         {
             var db = new PraxisContext();
-            var row = db.CustomDataPlusCodes.Where(p => p.PlusCode == plusCode && p.dataKey == key).FirstOrDefault();
+            var row = db.CustomDataPlusCodes.FirstOrDefault(p => p.PlusCode == plusCode && p.dataKey == key);
             if (row == null || row.expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now)
                 return "";
             return row.dataValue;
@@ -71,10 +71,10 @@ namespace PraxisCore
             if (db.PlayerData.Any(p => p.deviceID == key || p.deviceID == value))
                 return false;
             //An upsert command would be great here, but I dont think the entities do that.
-            var row = db.CustomDataOsmElements.Include(p => p.storedOsmElement).Where(p => p.storedOsmElement.privacyId == elementId && p.dataKey == key).FirstOrDefault();
+            var row = db.CustomDataOsmElements.Include(p => p.storedOsmElement).FirstOrDefault(p => p.storedOsmElement.privacyId == elementId && p.dataKey == key);
             if (row == null)
             {
-                var sourceItem = db.StoredOsmElements.Where(p => p.privacyId == elementId).First();
+                var sourceItem = db.StoredOsmElements.First(p => p.privacyId == elementId);
                 row = new DbTables.CustomDataOsmElement();
                 row.dataKey = key;
                 //row.StoredOsmElementId = sourceItem.id;
@@ -96,7 +96,7 @@ namespace PraxisCore
         public static string GetElementData(Guid elementId, string key)
         {
             var db = new PraxisContext();
-            var row = db.CustomDataOsmElements.Include(p => p.storedOsmElement).Where(p => p.storedOsmElement.privacyId == elementId && p.dataKey == key).FirstOrDefault();
+            var row = db.CustomDataOsmElements.Include(p => p.storedOsmElement).FirstOrDefault(p => p.storedOsmElement.privacyId == elementId && p.dataKey == key);
             if (row == null || row.expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now)
                 return "";
             return row.dataValue;
@@ -111,7 +111,7 @@ namespace PraxisCore
         public static string GetPlayerData(string playerId, string key)
         {
             var db = new PraxisContext();
-            var row = db.PlayerData.Where(p => p.deviceID == playerId && p.dataKey == key).FirstOrDefault();
+            var row = db.PlayerData.FirstOrDefault(p => p.deviceID == playerId && p.dataKey == key);
             if (row == null || row.expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now)
                 return "";
             return row.dataValue;
@@ -137,7 +137,7 @@ namespace PraxisCore
                 return false; //reject attaching a player to an area
 
             //An upsert command would be great here, but I dont think the entities do that.
-            var row = db.PlayerData.Where(p => p.deviceID == playerId && p.dataKey == key).FirstOrDefault();
+            var row = db.PlayerData.FirstOrDefault(p => p.deviceID == playerId && p.dataKey == key);
             if (row == null)
             {
                 row = new DbTables.PlayerData();
@@ -215,7 +215,7 @@ namespace PraxisCore
         public static List<CustomDataAreaResult> GetAllDataInPlace(Guid elementId)
         {
             var db = new PraxisContext();
-            var place = db.StoredOsmElements.Where(s => s.privacyId == elementId).First();
+            var place = db.StoredOsmElements.First(s => s.privacyId == elementId);
             var data = db.CustomDataOsmElements.Where(d => d.storedOsmElement.elementGeometry.Intersects(d.storedOsmElement.elementGeometry))
                 .ToList() //Required to run the next Where on the C# side
                 .Where(row => row.expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now)
@@ -233,7 +233,7 @@ namespace PraxisCore
         public static string GetGlobalData(string key)
         {
             var db = new PraxisContext();
-            var row = db.GlobalDataEntries.Where(s => s.dataKey == key).FirstOrDefault();
+            var row = db.GlobalDataEntries.FirstOrDefault(s => s.dataKey == key);
             if (row == null)
                 return "";
 
@@ -266,7 +266,7 @@ namespace PraxisCore
             if (trackingLocation && trackingPlayer) //Do not allow players and locations to be attached on the global level as a workaround to being blocked on the individual levels.
                 return false;
 
-            var row = db.GlobalDataEntries.Where(p => p.dataKey == key).FirstOrDefault();
+            var row = db.GlobalDataEntries.FirstOrDefault(p => p.dataKey == key);
             if (row == null)
             {
                 row = new DbTables.GlobalDataEntries();

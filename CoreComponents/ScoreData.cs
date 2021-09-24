@@ -94,7 +94,7 @@ namespace PraxisCore
         public static long GetScoreForSinglePlace(Guid elementId)
         {
             var db = new PraxisContext();
-            var place = db.StoredOsmElements.Where(e => e.privacyId == elementId).Select(e => e.elementGeometry).FirstOrDefault();
+            var place = db.StoredOsmElements.FirstOrDefault(e => e.privacyId == elementId).elementGeometry;
             return GetScoreForSinglePlace(place);
         }
     }

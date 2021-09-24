@@ -649,7 +649,6 @@ namespace PraxisCore
                         {
                             var circleRadius = (float)(ConstantValues.resolutionCell10 / stats.degreesPerPixelX / 2); //I want points to be drawn as 1 Cell10 in diameter.
                             canvas.DrawCircle(convertedPoint[0], circleRadius, paint);
-                            //canvas.DrawCircle(convertedPoint[0], circleRadius, styles["outline"].paintOperations.First().paint); //TODO: this needs to be a PaintOp of its own, like roads and buildings have
                         }
                         break;
                     default:
