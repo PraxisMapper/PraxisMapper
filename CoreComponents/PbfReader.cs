@@ -515,6 +515,32 @@ namespace PraxisCore.PbfReader
             return pulledBlock;
         }
 
+        private Relation findRelationInBlockList(List<Relation> primRels, long relId)
+        {
+            int min = 0;
+            int max = primRels.Count();
+            int current = max / 2;
+            int prevCheck = 0;
+            while (min != max && prevCheck != current)
+            {
+                var check = primRels[current];
+                if (check.id < relId) //This max is below our way, shift up
+                {
+                    min = current;
+                }
+                else if (check.id > relId) //this max is over our way, check previous block if this one is correct OR shift down if not
+                {
+                    max = current;
+                }
+                else
+                    return check;
+
+                prevCheck = current;
+                current = (min + max) / 2;
+            }
+            return null;
+        }
+
         /// <summary>
         /// Processes the requested relation into an OSMSharp CompleteRelation from the currently opened file
         /// </summary>
@@ -529,7 +555,7 @@ namespace PraxisCore.PbfReader
                 PrimitiveBlock relationBlock = GetBlock(relationBlockValues);
 
                 var relPrimGroup = relationBlock.primitivegroup[0];
-                var rel = relPrimGroup.relations.FirstOrDefault(r => r.id == relationId);
+                var rel = findRelationInBlockList(relPrimGroup.relations, relationId); //relPrimGroup.relations.FirstOrDefault(r => r.id == relationId);
 
                 //sanity check - if this relation doesn't have inner or outer role members,
                 //its not one i can process.
@@ -629,6 +655,32 @@ namespace PraxisCore.PbfReader
             }
         }
 
+        private Way findWayInBlockList(List<Way> primWays, long wayId)
+        {
+            int min = 0;
+            int max = primWays.Count();
+            int current = max / 2;
+            int prevCheck = 0;
+            while (min != max && prevCheck != current)
+            {
+                var check = primWays[current];
+                if (check.id < wayId) //This max is below our way, shift up
+                {
+                    min = current;
+                }
+                else if (check.id > wayId) //this max is over our way, check previous block if this one is correct OR shift down if not
+                {
+                    max = current;
+                }
+                else
+                    return check;
+
+                prevCheck = current;
+                current = (min + max) / 2;
+            }
+            return null;
+        }
+
         /// <summary>
         /// Processes the requested way from the currently open file into an OSMSharp CompleteWay
         /// </summary>
@@ -645,18 +697,38 @@ namespace PraxisCore.PbfReader
 
                 PrimitiveBlock wayBlock = GetBlock(wayBlockValues);
                 var wayPrimGroup = wayBlock.primitivegroup[0];
-                var way = wayPrimGroup.ways.FirstOrDefault(w => w.id == wayId);
+                var way = findWayInBlockList(wayPrimGroup.ways, wayId); //wayPrimGroup.ways.FirstOrDefault(w => w.id == wayId);
                 if (way == null)
                     return null; //way wasn't in the block it was supposed to be in.
                                  //finally have the core item
 
+                return GetWay(way, wayBlock, skipUntagged, ignoreUnmatched);
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog("GetWay failed: " + ex.Message + ex.StackTrace);
+                return null; //Failed to get way, probably because a node didn't exist in the file.
+            }
+        }
+
+        /// <summary>
+        /// Processes the requested way from the currently open file into an OSMSharp CompleteWay
+        /// </summary>
+        /// <param name="way">the way, in PBF form</param>
+        /// <param name="skipUntagged">if true, skip this entry if it doesn't have any tags applied to it</param>
+        /// <param name="ignoreUnmatched">if true, returns null if this element's tags only match the default style.</param>
+        /// <returns>the CompleteWay object requested, or null if skipUntagged or ignoreUnmatched checks skip this elements, or if there is an error processing the way</returns>
+        private OsmSharp.Complete.CompleteWay GetWay(Way way, PrimitiveBlock wayBlock, bool skipUntagged, bool ignoreUnmatched = false)
+        {
+            try
+            {               
                 if (skipUntagged && way.keys.Count == 0)
                     return null;
 
                 //Now I have the data needed to fill in nodes for a way
                 OsmSharp.Complete.CompleteWay finalway = new OsmSharp.Complete.CompleteWay();
-                finalway.Id = wayId;
-                finalway.Tags = new OsmSharp.Tags.TagsCollection(5); //Average is 3.
+                finalway.Id = way.id;
+                finalway.Tags = new OsmSharp.Tags.TagsCollection(way.keys.Count());
 
                 //We always need to apply tags here, so we can either skip after (if IgnoredUmatched is set) or to pass along tag values correctly.
                 for (int i = 0; i < way.keys.Count(); i++)
@@ -667,7 +739,6 @@ namespace PraxisCore.PbfReader
                     if (TagParser.GetStyleForOsmWay(finalway.Tags).name == TagParser.defaultStyle.name)
                         return null; //don't process this one, we said not to load entries that aren't already in our style list.
                 }
-
 
                 //NOTES:
                 //This gets all the entries we want from each node, then loads those all in 1 pass per referenced block.
@@ -802,15 +873,15 @@ namespace PraxisCore.PbfReader
             int arrayIndex = 0;
 
             var block = GetBlock(blockId);
-            var group = block.primitivegroup[0];
+            var group = block.primitivegroup[0].dense;
 
             int index = -1;
             long nodeCounter = 0;
             long latDelta = 0;
             long lonDelta = 0;
-            var denseIds = group.dense.id;
-            var dLat = group.dense.lat;
-            var dLon = group.dense.lon;
+            var denseIds = group.id;
+            var dLat = group.lat;
+            var dLon = group.lon;
             while (results.Count < nodeIds.Length)
             {
                 index++;
@@ -1043,7 +1114,7 @@ namespace PraxisCore.PbfReader
                         List<long> hint = new List<long>() { blockId };
                         foreach (var r in primgroup.ways.OrderByDescending(w => w.refs.Count())) //Ordering should help consistency in runtime, though it offers little other benefit.
                         {
-                            relList.Add(Task.Run(() => results.Add(GetWay(r.id, true, hint, onlyTagMatchedEntries))));
+                            relList.Add(Task.Run(() => results.Add(GetWay(r, block, true, onlyTagMatchedEntries))));
                         }
                     }
                     else
