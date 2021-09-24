@@ -555,7 +555,7 @@ namespace PraxisCore.PbfReader
                 PrimitiveBlock relationBlock = GetBlock(relationBlockValues);
 
                 var relPrimGroup = relationBlock.primitivegroup[0];
-                var rel = findRelationInBlockList(relPrimGroup.relations, relationId); //relPrimGroup.relations.FirstOrDefault(r => r.id == relationId);
+                var rel = findRelationInBlockList(relPrimGroup.relations, relationId);
 
                 //sanity check - if this relation doesn't have inner or outer role members,
                 //its not one i can process.
@@ -697,7 +697,7 @@ namespace PraxisCore.PbfReader
 
                 PrimitiveBlock wayBlock = GetBlock(wayBlockValues);
                 var wayPrimGroup = wayBlock.primitivegroup[0];
-                var way = findWayInBlockList(wayPrimGroup.ways, wayId); //wayPrimGroup.ways.FirstOrDefault(w => w.id == wayId);
+                var way = findWayInBlockList(wayPrimGroup.ways, wayId);
                 if (way == null)
                     return null; //way wasn't in the block it was supposed to be in.
                                  //finally have the core item

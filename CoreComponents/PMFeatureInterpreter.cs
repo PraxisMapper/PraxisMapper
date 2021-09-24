@@ -287,11 +287,11 @@ namespace PraxisCore
             currentShape.AddRange(firstShape.Nodes);
             while (closedShape == false)
             {
-                var lineToAdd = shapeList.FirstOrDefault(s => s.Nodes.First().Id == nextStartnode.Id); //allPossibleLines.FirstOrDefault();
+                var lineToAdd = shapeList.FirstOrDefault(s => s.Nodes.First().Id == nextStartnode.Id); 
                 if (lineToAdd == null)
                 {
                     //check other direction
-                    lineToAdd = shapeList.FirstOrDefault(s => s.Nodes.Last().Id == nextStartnode.Id); //allPossibleLines.FirstOrDefault();
+                    lineToAdd = shapeList.FirstOrDefault(s => s.Nodes.Last().Id == nextStartnode.Id); 
                     if (lineToAdd == null)
                     {
                         return null;

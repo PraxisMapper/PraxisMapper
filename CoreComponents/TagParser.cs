@@ -238,7 +238,7 @@ namespace PraxisCore
                             return false;
 
                         var possibleValues = entry.Value.Split("|");
-                        var actualValue = tags.Where(t => t.Key == entry.Key).Select(t => t.Value).FirstOrDefault();
+                        var actualValue = tags.FirstOrDefault(t => t.Key == entry.Key).Value;
                         if (!possibleValues.Contains(actualValue))
                             return false;
                         break;
@@ -248,7 +248,7 @@ namespace PraxisCore
                             continue;
 
                         var possibleValuesOr = entry.Value.Split("|");
-                        var actualValueOr = tags.Where(t => t.Key == entry.Key).Select(t => t.Value).FirstOrDefault();
+                        var actualValueOr = tags.FirstOrDefault(t => t.Key == entry.Key).Value;
                         if (possibleValuesOr.Contains(actualValueOr))
                             OrMatched = true;
                         break;
@@ -257,14 +257,14 @@ namespace PraxisCore
                             continue;
 
                         var possibleValuesNot = entry.Value.Split("|");
-                        var actualValueNot = tags.Where(t => t.Key == entry.Key).Select(t => t.Value).FirstOrDefault();
+                        var actualValueNot = tags.FirstOrDefault(t => t.Key == entry.Key).Value;
                         if (possibleValuesNot.Contains(actualValueNot))
                             return false; //Not does not want to match this.
                         break;
                     case "equals": //for single possible values, EQUALS is slightly faster than ANY
                         if (!tags.Any(t => t.Key == entry.Key))
                             return false;
-                        if (tags.Where(t => t.Key == entry.Key).Select(t => t.Value).FirstOrDefault() != entry.Value)
+                        if (tags.FirstOrDefault(t => t.Key == entry.Key).Value != entry.Value)
                             return false;
                         break;
                     case "none":
@@ -433,7 +433,7 @@ namespace PraxisCore
         /// <returns>a link to the relevant Wikipedia page for an element, or an empty string if the element has no such tag.</returns>
         public static string GetWikipediaLink(StoredOsmElement element)
         {
-            var wikiTag = element.Tags.Where(t => t.Key == "wikipedia").FirstOrDefault();
+            var wikiTag = element.Tags.FirstOrDefault(t => t.Key == "wikipedia");
             if (wikiTag == null)
                 return "";
 
