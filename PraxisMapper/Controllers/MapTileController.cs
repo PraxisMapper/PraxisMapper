@@ -41,7 +41,7 @@ namespace PraxisMapper.Controllers
                 PerformanceTracker pt = new PerformanceTracker("DrawSlippyTile");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var db = new PraxisContext();
-                var existingResults = db.SlippyMapTiles.Where(mt => mt.Values == tileKey && mt.styleSet == styleSet).FirstOrDefault();
+                var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.styleSet == styleSet);
                 bool useCache = true;
                 cache.TryGetValue("caching", out useCache);
                 if (!useCache || existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
@@ -104,7 +104,7 @@ namespace PraxisMapper.Controllers
                 PerformanceTracker pt = new PerformanceTracker("DrawSlippyTileCustomElements");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var db = new PraxisContext();
-                var existingResults = db.SlippyMapTiles.Where(mt => mt.Values == tileKey && mt.styleSet == styleSet).FirstOrDefault();
+                var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.styleSet == styleSet);
                 bool useCache = true;
                 cache.TryGetValue("caching", out useCache);
                 if (!useCache || existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
@@ -166,7 +166,7 @@ namespace PraxisMapper.Controllers
                 PerformanceTracker pt = new PerformanceTracker("DrawSlippyTileCustomPlusCodes");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var db = new PraxisContext();
-                var existingResults = db.SlippyMapTiles.Where(mt => mt.Values == tileKey && mt.styleSet == styleSet).FirstOrDefault();
+                var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.styleSet == styleSet);
                 bool useCache = true;
                 cache.TryGetValue("caching", out useCache);
                 if (!useCache || existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
@@ -228,7 +228,7 @@ namespace PraxisMapper.Controllers
                 PerformanceTracker pt = new PerformanceTracker("DrawSlippyTile");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var db = new PraxisContext();
-                var existingResults = db.SlippyMapTiles.Where(mt => mt.Values == tileKey && mt.styleSet == styleSet).FirstOrDefault();
+                var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.styleSet == styleSet);
                 bool useCache = true;
                 cache.TryGetValue("caching", out useCache);
                 if (!useCache || existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
@@ -282,7 +282,7 @@ namespace PraxisMapper.Controllers
             //I think, what I actually need, is the CreatedOn, and if it's newer than the client's tile, replace it.
             PerformanceTracker pt = new PerformanceTracker("CheckTileExpiration");
             var db = new PraxisContext();
-            var mapTileExp = db.MapTiles.Where(m => m.PlusCode == PlusCode && m.styleSet == styleSet ).Select(m => m.ExpireOn).FirstOrDefault();
+            var mapTileExp = db.MapTiles.FirstOrDefault(m => m.PlusCode == PlusCode && m.styleSet == styleSet ).ExpireOn;
             pt.Stop();
             return mapTileExp.ToShortDateString();
         }
@@ -309,7 +309,7 @@ namespace PraxisMapper.Controllers
                 code = code.ToUpper();
                 string tileKey = code + "|" + styleSet;
                 var db = new PraxisContext();
-                var existingResults = db.MapTiles.Where(mt => mt.PlusCode == code && mt.styleSet == styleSet).FirstOrDefault();
+                var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.styleSet == styleSet);
                 bool useCache = true;
                 cache.TryGetValue("caching", out useCache);
                 if (!useCache || existingResults == null || existingResults.MapTileId == null || existingResults.ExpireOn < DateTime.Now)
@@ -353,7 +353,7 @@ namespace PraxisMapper.Controllers
                 code = code.ToUpper();
                 string tileKey = code + "|" + styleSet + "|" + dataKey;
                 var db = new PraxisContext();
-                var existingResults = db.MapTiles.Where(mt => mt.PlusCode == code && mt.styleSet == styleSet).FirstOrDefault();
+                var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.styleSet == styleSet);
                 bool useCache = true;
                 cache.TryGetValue("caching", out useCache);
                 if (!useCache || existingResults == null || existingResults.MapTileId == null || existingResults.ExpireOn < DateTime.Now)
@@ -403,7 +403,7 @@ namespace PraxisMapper.Controllers
                 code = code.ToUpper();
                 string tileKey = code + "|" + styleSet + "|" + dataKey;
                 var db = new PraxisContext();
-                var existingResults = db.MapTiles.Where(mt => mt.PlusCode == code && mt.styleSet == styleSet).FirstOrDefault();
+                var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.styleSet == styleSet);
                 bool useCache = true;
                 cache.TryGetValue("caching", out useCache);
                 if (!useCache || existingResults == null || existingResults.MapTileId == null || existingResults.ExpireOn < DateTime.Now)
@@ -453,7 +453,7 @@ namespace PraxisMapper.Controllers
                 code = code.ToUpper();
                 string tileKey = code + "|" + styleSet + "|" + dataKey;
                 var db = new PraxisContext();
-                var existingResults = db.MapTiles.Where(mt => mt.PlusCode == code && mt.styleSet == styleSet).FirstOrDefault();
+                var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.styleSet == styleSet);
                 bool useCache = true;
                 cache.TryGetValue("caching", out useCache);
                 if (!useCache || existingResults == null || existingResults.MapTileId == null || existingResults.ExpireOn < DateTime.Now)

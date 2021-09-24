@@ -55,7 +55,7 @@ namespace PraxisMapper.Controllers
         public ActionResult GetAreaInfo(long sourceElementId, int sourceElementType)
         {
             var db = new PraxisContext();
-            var area = db.StoredOsmElements.Include(e => e.Tags).Where(e => e.sourceItemID == sourceElementId && e.sourceItemType == sourceElementType).FirstOrDefault();
+            var area = db.StoredOsmElements.Include(e => e.Tags).FirstOrDefault(e => e.sourceItemID == sourceElementId && e.sourceItemType == sourceElementType);
             if (area == null)
                 return View();
 
@@ -107,7 +107,7 @@ namespace PraxisMapper.Controllers
         public ActionResult GetAreaInfo(Guid privacyId)
         {
             var db = new PraxisContext();
-            var area = db.StoredOsmElements.Include(e => e.Tags).Where(e => e.privacyId == privacyId).FirstOrDefault();
+            var area = db.StoredOsmElements.Include(e => e.Tags).FirstOrDefault(e => e.privacyId == privacyId);
             if (area != null)
                 return GetAreaInfo(area.sourceItemID, area.sourceItemType);
 
