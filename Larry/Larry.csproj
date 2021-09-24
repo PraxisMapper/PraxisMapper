@@ -23,7 +23,7 @@
     <PackageReference Include="NetTopologySuite" Version="2.3.0" />
     <PackageReference Include="OsmSharp" Version="7.0.0-pre014" />
     <PackageReference Include="OsmSharp.Geo" Version="7.0.0-pre014" />
-    <PackageReference Include="Z.EntityFramework.Extensions.EFCore" Version="6.0.0-preview.7.21378.4-5" />
+    <PackageReference Include="Z.EntityFramework.Extensions.EFCore" Version="6.0.0-rc.1.21452.10-1" />
   </ItemGroup>
 
   <ItemGroup>

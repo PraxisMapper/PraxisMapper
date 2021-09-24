@@ -76,18 +76,18 @@ namespace Larry
                 DBCommands.FindServerBounds();
             }
 
-            if (args.Any(a => a == "-singleTest")) //Removable
-            {
+            //if (args.Any(a => a == "-singleTest")) //Removable
+            //{
                 //Check on a specific thing. Not an end-user command.
                 //Current task: Identify issue with relation
-                SingleTest();
+                //SingleTest();
                 //new PbfReader().debugPerfTest(ParserSettings.PbfFolder + "north-america-latest.osm.pbf");
-            }
+            //}
 
             if (args.Any(a => a.StartsWith("-getPbf:")))
             {
                 //Wants 3 pieces. Drops in placeholders if some are missing. Giving no parameters downloads Ohio.
-                string arg = args.Where(a => a.StartsWith("-getPbf:")).First().Replace("-getPbf:", "");
+                string arg = args.First(a => a.StartsWith("-getPbf:")).Replace("-getPbf:", "");
                 var splitData = arg.Split('|'); //remember the first one will be empty.
                 string level1 = splitData.Count() >= 4 ? splitData[3] : "north-america";
                 string level2 = splitData.Count() >= 3 ? splitData[2] : "us";
@@ -106,25 +106,25 @@ namespace Larry
                 FileCommands.ResetFiles(config["JsonMapDataFolder"]);
             }
 
-            if (args.Any(a => a == "drawFromPbf:")) //Conceptual, not completed.
-            {
+            //if (args.Any(a => a == "drawFromPbf:")) //Conceptual, not completed.
+            //{
                 //get area and all things contained in area to RAM.
                 //Draw stuff from RAM.
-            }
+            //}
 
             if (args.Any(a => a == "-processPbfs"))
             {
                 processPbfs();
             }
 
-            if (args.Any(a => a == "-convertJsonToSql")) //Removeable.
-            {
+            //if (args.Any(a => a == "-convertJsonToSql")) //Removeable.
+            //{
 
-                //test code
-                var db = new PraxisContext();
-                var entries = db.StoredOsmElements.Take(100).ToList();
-                SqlExporter.DumpToSql(entries, "testfile.sql");
-            }
+            //    //test code
+            //    var db = new PraxisContext();
+            //    var entries = db.StoredOsmElements.Take(100).ToList();
+            //    SqlExporter.DumpToSql(entries, "testfile.sql");
+            //}
 
             if (args.Any(a => a == "-loadProcessedData"))
             {
@@ -146,50 +146,46 @@ namespace Larry
 
 
             //This should now work with the config values set and the -ProcessPbfs command.
-            if (args.Any(a => a.StartsWith("-loadOneArea"))) //-loadOneArea:filename:relationId
-            {
-                var subargs = args.First(a => a.StartsWith("-loadOneArea:")).Split(":");
-                Console.WriteLine("Loading relation " + subargs[2] + " from file " + config["PbfFolder"] + subargs[1]);
-                var r = new PbfReader();
-                r.outputPath = config["JsonMapDataFolder"];
-                var env = r.GetOneAreaFromFile(config["PbfFolder"] + subargs[1], Int64.Parse(subargs[2]));
+            //if (args.Any(a => a.StartsWith("-loadOneArea"))) //-loadOneArea:filename:relationId
+            //{
+            //    var subargs = args.First(a => a.StartsWith("-loadOneArea:")).Split(":");
+            //    Console.WriteLine("Loading relation " + subargs[2] + " from file " + config["PbfFolder"] + subargs[1]);
+            //    var r = new PbfReader();
+            //    r.outputPath = config["JsonMapDataFolder"];
+            //    var env = r.GetOneAreaFromFile(config["PbfFolder"] + subargs[1], Int64.Parse(subargs[2]));
 
-                Log.WriteLog("Beginning game maptile draw for relation " + subargs[2]);
-                GeoArea drawRegion = new GeoArea(env.MinY, env.MinX, env.MaxY, env.MaxX);
+            //    Log.WriteLog("Beginning game maptile draw for relation " + subargs[2]);
+            //    GeoArea drawRegion = new GeoArea(env.MinY, env.MinX, env.MaxY, env.MaxX);
 
-                var db = new PraxisContext();
-                var settings = db.ServerSettings.First();
-                settings.EastBound = env.MaxX;
-                settings.NorthBound = env.MaxY;
-                settings.WestBound = env.MinX;
-                settings.SouthBound = env.MinY;
-                db.SaveChanges();
+            //    var db = new PraxisContext();
+            //    var settings = db.ServerSettings.First();
+            //    settings.EastBound = env.MaxX;
+            //    settings.NorthBound = env.MaxY;
+            //    settings.WestBound = env.MinX;
+            //    settings.SouthBound = env.MinY;
+            //    db.SaveChanges();
                 
-                MapTiles.PregenMapTilesForArea(drawRegion);
-                MapTiles.PregenSlippyMapTilesForArea(drawRegion, 8);
-                MapTiles.PregenSlippyMapTilesForArea(drawRegion, 10);
-                MapTiles.PregenSlippyMapTilesForArea(drawRegion, 12);
-                MapTiles.PregenSlippyMapTilesForArea(drawRegion, 14);
-                MapTiles.PregenSlippyMapTilesForArea(drawRegion, 16);
-                MapTiles.PregenSlippyMapTilesForArea(drawRegion, 18); 
-                //zoom 20 can get generated on the server on-demand.
-                Log.WriteLog("Game maptiles completed");
-            }
+            //    MapTiles.PregenMapTilesForArea(drawRegion);
+            //    MapTiles.PregenSlippyMapTilesForArea(drawRegion, 8);
+            //    MapTiles.PregenSlippyMapTilesForArea(drawRegion, 10);
+            //    MapTiles.PregenSlippyMapTilesForArea(drawRegion, 12);
+            //    MapTiles.PregenSlippyMapTilesForArea(drawRegion, 14);
+            //    MapTiles.PregenSlippyMapTilesForArea(drawRegion, 16);
+            //    MapTiles.PregenSlippyMapTilesForArea(drawRegion, 18); 
+            //    //zoom 20 can get generated on the server on-demand.
+            //    Log.WriteLog("Game maptiles completed");
+            //}
 
-            if (args.Any(a => a == "-updateDatabase"))
-            {
-                DBCommands.UpdateExistingEntries(config["JsonMapDataFolder"]);
-            }
-
-            if (args.Any(a => a == "-removeDupes"))
-            {
-                DBCommands.RemoveDuplicates();
-            }
+            //TODO: rework Update process to handle the mulitple data files that could be used.
+            //if (args.Any(a => a == "-updateDatabase"))
+            //{
+                //DBCommands.UpdateExistingEntries(config["JsonMapDataFolder"]);
+            //}
 
             if (args.Any(a => a.StartsWith("-createStandaloneRelation")))
             {
                 //This makes a standalone DB for a specific relation passed in as a paramter. 
-                int relationId = args.Where(a => a.StartsWith("-createStandaloneRelation")).First().Split('|')[1].ToInt();
+                int relationId = args.First(a => a.StartsWith("-createStandaloneRelation")).Split('|')[1].ToInt();
                 CreateStandaloneDB(relationId, null, false, true); //How map tiles are handled is determined by the optional parameters
             }
 
@@ -198,7 +194,7 @@ namespace Larry
                 //This makes a standalone DB for a specific area passed in as a paramter.
                 //If you want to cover a region in a less-specific way, or the best available relation is much larger than you thought, this might be better.
 
-                string[] bounds = args.Where(a => a.StartsWith("-createStandaloneBox")).First().Split('|');
+                string[] bounds = args.First(a => a.StartsWith("-createStandaloneBox")).Split('|');
                 GeoArea boundsArea = new GeoArea(bounds[1].ToDouble(), bounds[2].ToDouble(), bounds[3].ToDouble(), bounds[4].ToDouble());
 
                 //in order, these go south/west/north/east.
@@ -208,7 +204,7 @@ namespace Larry
             if (args.Any(a => a.StartsWith("-createStandalonePoint")))
             {
                 //This makes a standalone DB centered on a specific point, it will grab a Cell6's area around that point.
-                string[] bounds = args.Where(a => a.StartsWith("-createStandalonePoint")).First().Split('|');
+                string[] bounds = args.First(a => a.StartsWith("-createStandalonePoint")).Split('|');
 
                 var resSplit = resolutionCell6 / 2;
                 GeoArea boundsArea = new GeoArea(bounds[1].ToDouble() - resSplit, bounds[2].ToDouble() - resSplit, bounds[1].ToDouble() + resSplit, bounds[2].ToDouble() + resSplit);
@@ -217,7 +213,7 @@ namespace Larry
                 CreateStandaloneDB(0, boundsArea, false, true); //How map tiles are handled is determined by the optional parameters
             }
 
-
+            //TODO: this should just work for server bounds, and not  have to check every Cell2.
             if (args.Any(a => a == "-autoCreateMapTiles")) //better for letting the app decide which tiles to create than manually calling out Cell6 names.
             {
                 autoCreateMapTiles();
@@ -228,15 +224,11 @@ namespace Larry
                 DrawOneImage(args.First(a => a.StartsWith("-drawOneImage:")).Split(":")[1]);
             }
 
-            if (args.Any(a => a == "-fixAreaSizes"))
-            {
-                DBCommands.FixAreaSizes();
-            }
-
-            if (args.Any(a => a.StartsWith("-populateEmptyArea:")))
-            {
-                populateEmptyAreas(args.Where(a => a.StartsWith("-populateEmptyArea:")).First().Split(":")[1]);
-            }
+            //This is not currently finished or testing in the current setup. Will return in a future release.
+            //if (args.Any(a => a.StartsWith("-populateEmptyArea:")))
+            //{
+            //    populateEmptyAreas(args.First(a => a.StartsWith("-populateEmptyArea:")).Split(":")[1]);
+            //}
         }
 
         private static void processPbfs()
@@ -309,7 +301,6 @@ namespace Larry
                         //NOTE: the slowest part of getting a server going now is inserting into the DB. 
                         string entry = sr.ReadLine();
                         StoredOsmElement stored = GeometrySupport.ConvertSingleJsonStoredElement(entry);
-                        //if (stored != null) //TODO TEST: this should never return null.
                         memorySource.Add(stored);
                     }
 
@@ -336,7 +327,6 @@ namespace Larry
                         //NOTE: the slowest part of getting a server going now is inserting into the DB. 
                         string entry = sr.ReadLine();
                         StoredOsmElement stored = GeometrySupport.ConvertSingleJsonStoredElement(entry);
-                        //if (stored != null) //TODO TEST: this should never return null.
                         pendingData.Add(stored);
 
                         entryCounter++;
@@ -417,6 +407,8 @@ namespace Larry
             sw.Stop();
             Log.WriteLog("image drawn from memory in " + sw.Elapsed);
         }
+
+        
 
         private static void populateEmptyAreas(string cell6)
         {
@@ -572,7 +564,7 @@ namespace Larry
             GeoArea buffered;
             if (relationID > 0)
             {
-                var fullArea = mainDb.StoredOsmElements.Where(m => m.sourceItemID == relationID && m.sourceItemType == 3).FirstOrDefault();
+                var fullArea = mainDb.StoredOsmElements.FirstOrDefault(m => m.sourceItemID == relationID && m.sourceItemType == 3);
                 if (fullArea == null)
                     return;
 
@@ -792,24 +784,6 @@ namespace Larry
             Console.WriteLine("Whole threaded setup ran in " + outer.Elapsed);
             Console.WriteLine("DB-only operations ran in " + inner.Elapsed);
 
-
-
-
-
-            //original
-            //trying to find one relation to fix.
-            //string filename = ParserSettings.PbfFolder + "ohio-latest.osm.pbf";
-            //long oneId = 6113131;
-
-            //FileStream fs = new FileStream(filename, FileMode.Open);
-            //var source = new PBFOsmStreamSource(fs);
-            //var relation = source.ToComplete().Where(s => s.Type == OsmGeoType.Relation && s.Id == oneId).Select(s => (OsmSharp.Complete.CompleteRelation)s).FirstOrDefault();
-            //var converted = GeometrySupport.ConvertOsmEntryToStoredElement(relation);
-            //StoredOsmElement sw = new StoredOsmElement();
-            //Log.WriteLog("Relevant data pulled from file and converted at" + DateTime.Now);
-
-            //string destFileName = System.IO.Path.GetFileNameWithoutExtension(filename);
-            //GeometrySupport.WriteSingleStoredElementToFile(ParserSettings.JsonMapDataFolder + destFileName + "-MapData-Test.json", converted);
         }
 
         public static void DownloadPbfFile(string topLevel, string subLevel1, string subLevel2, string destinationFolder)
