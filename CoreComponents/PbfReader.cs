@@ -1464,7 +1464,7 @@ namespace PraxisCore.PbfReader
                         {
                             //System.Diagnostics.Stopwatch sw2 = new System.Diagnostics.Stopwatch();
                             //sw2.Start();
-                            lock (fileLock)
+                            //lock (fileLock)
                                 jsonFileStream.Write(jsonSB);
 
                             //sw2.Stop();
@@ -1497,9 +1497,9 @@ namespace PraxisCore.PbfReader
                     //{
                         try
                         {
-                            lock (geomFileLock)
+                            //lock (geomFileLock)
                                 geomFileStream.Write(geometryBuilds);
-                            lock (tagsFileLock)
+                            //lock (tagsFileLock)
                                 tagsFileStream.Write(tagBuilds);
                             //Log.WriteLog("Data written to disk");
                         }
