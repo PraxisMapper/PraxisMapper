@@ -592,10 +592,11 @@ namespace PraxisCore.PbfReader
 
                 //This makes sure we only load each element once. If a relation references an element more than once (it shouldnt)
                 //this saves us from re-creating the same entry.
-                Dictionary<long, OsmSharp.Complete.CompleteWay> loadedWays = new Dictionary<long, OsmSharp.Complete.CompleteWay>(8000);
-                List<OsmSharp.Complete.CompleteRelationMember> crms = new List<OsmSharp.Complete.CompleteRelationMember>(8000);
+                int capacity = rel.memids.Count();
+                Dictionary<long, OsmSharp.Complete.CompleteWay> loadedWays = new Dictionary<long, OsmSharp.Complete.CompleteWay>(capacity);
+                List<OsmSharp.Complete.CompleteRelationMember> crms = new List<OsmSharp.Complete.CompleteRelationMember>(capacity);
                 idToFind = 0;
-                for (int i = 0; i < rel.memids.Count; i++)
+                for (int i = 0; i < capacity; i++)
                 {
                     idToFind += rel.memids[i];
                     Relation.MemberType typeToFind = rel.types[i];
@@ -674,8 +675,8 @@ namespace PraxisCore.PbfReader
                 //its a little complicated but a solid performance boost.
                 long idToFind = 0; //more deltas 
                                    //blockId, nodeID
-                List<Tuple<long, long>> nodesPerBlock = new List<Tuple<long, long>>(8000);
-                List<long> distinctBlockIds = new List<long>(way.refs.Count); //Could make this a dictionary and tryAdd instead of add and distinct every time?
+                List<Tuple<long, long>> nodesPerBlock = new List<Tuple<long, long>>();
+                List<long> distinctBlockIds = new List<long>(); //Could make this a dictionary and tryAdd instead of add and distinct every time?
                 for (int i = 0; i < way.refs.Count; i++)
                 {
                     idToFind += way.refs[i];
@@ -686,8 +687,8 @@ namespace PraxisCore.PbfReader
                 }
                 var nodesByBlock = nodesPerBlock.ToLookup(k => k.Item1, v => v.Item2);
 
-                List<OsmSharp.Node> nodeList = new List<OsmSharp.Node>(8000);
-                Dictionary<long, OsmSharp.Node> AllNodes = new Dictionary<long, OsmSharp.Node>(8000);
+                List<OsmSharp.Node> nodeList = new List<OsmSharp.Node>();
+                Dictionary<long, OsmSharp.Node> AllNodes = new Dictionary<long, OsmSharp.Node>();
                 foreach (var block in nodesByBlock)
                 {
                     var someNodes = GetAllNeededNodesInBlock(block.Key, block.Distinct().OrderBy(b => b).ToArray());
@@ -722,7 +723,7 @@ namespace PraxisCore.PbfReader
         /// <returns>a list of Nodes with tags, which may have a length of 0.</returns>
         private List<OsmSharp.Node> GetTaggedNodesFromBlock(PrimitiveBlock block, bool ignoreUnmatched = false)
         {
-            List<OsmSharp.Node> taggedNodes = new List<OsmSharp.Node>(8000);
+            List<OsmSharp.Node> taggedNodes = new List<OsmSharp.Node>(40); //2% of nodes have tags, on averages this is a reasonable starting capacity.
             var dense = block.primitivegroup[0].dense;
 
             //Shortcut: if dense.keys.count == 8000, there's no tagged nodes at all here (0 means 'no keys', and 8000 0's means every entry has no keys)
