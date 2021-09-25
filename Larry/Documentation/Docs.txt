@@ -1,26 +1,33 @@
 ﻿Larry
 Larry is the behind-the-scenes guy that gets all the work done for you.
-
 The console app thats the start of setting up your location based game server.
 
-Configuration settings:
+Typical use:
+Update the configuration files with the values you want to use.
+Run "Larry -makeServerDb" from the command line and wait for the command to succeed.
 
-Valid command-line options:
--verbose or -v  -- display everything via the console/file log. Useful for more detailed troubleshooting.
--noLogs -- Don't do any logging, just run quietly.
--processEverything --When running through .osm.pbf files, include roads, buildings, and parking lots.
--spaceSaver --Reduce accuracy and simplify paths to save storage space. Truncates locations to 7 decimal places, simplifies path to .resolutionCell10 (.000125 degrees). Uses 30-40% less space, accuracy on the Cell10 level is extremely similar. Not recommended for use when drawing map tiles, but is fine for LearnCellX calls.
--dbMode:<mode> -- Use a specific database connection instead of what's in the config class. Options are SQLServer, MariaDB, and PostgreSQL.
---dbConString:<connectionString> --Use a specific connection string instead of the compiled config entry. Must be a valid connection string matching the mode supplied.
+Configuration settings definitions:
+DbMode: Which database backend to use. Valid options are SQLServer, MariaDB, or PostgreSQL
+DbConnectionString: The connection string for the selected database. 
+PbfFolder: The path to the folder containing 1 or more .osm.pbf files to process. Must end with the trailing slash (\ on windows, / elsewhere)
+JsonMapDataFolder: The path to the folder containing the output files from processing. Must end with the trailing slash (\ on windows, / elsewhere)
+Solar2dExportFolder: Not currently used. Will allow for updating an example game to your server in a future release.
+UseHighAccuracy: If true, uses data as it was loaded. If false, simplifies down areas to work the same for gameplay while using 30% less space, but makes maptiles inaccurate.
+OnlyTaggedAreas: If true, only loads data that matches from a style set into your database. If false, loads all data from the source into your database, allowing for updating styles without reparsing files.
+ForceTagParserDefaults: if true, skips connecting to the database and uses the default styles and gameplay areas. If false, loads styles from the database, allowing for customization and additional styles.
+UseMariaDBInFile: If true, and DbMode is 'MariaDB', will save output files to a different format that loads to the database much faster but doesn't work with the other backend options.
+UseOneRelationID: If 0, loads all data from the source files to the database. If any other number, loads an OSM Relation with the given number, and only saves data that overlaps with that relation.
+LogLevel: Sets how much data to display on the console window/log file. 0 does no logging, 1 is the default, and 2 includes additional error messages and details not normally relevant to use.
+KeepElementsInMemory: If false, operate normally and efficiently. If true, stores results in memory instead of loading them to a database. Useful for confirming output files are valid and drawing large images without a server running.
 
-Valid Commands:
--createDB --Create the database Larry is configured to connect to.
--cleanDB --Empties out the tables Larry can populate, if you need to start over or reset data.
--resetXml or -resetPbf --renames all the .pbfDone and .xmlDone files in the configured folder to their original extension, if you want to re-process them.
--resetJson --Renamed the .jsonDone files in the configured output folder to .json so you can reload them into a database.
--trimPbfFiles --Read through all the .osm.pbf files in the configured directory, and outputs the results as a .json file in the configured output directory.
--trimPbfsByType --Read through all the .osm.pbf files in the configured directory, and outputs the results as a .json file for each AreaType in the configured output directory. Use this if you hit OutOfMemory exceptions trying to parse the file normally.
--readMapData --Reads the .json files in the configured output directory, and loads them into the database.
--extractBigAreas --use with a continent extract file or planet.osm.pbf to pull out areas that are larger than a typical country- or state-sized extract file. There's a fixed list in the code of which ones to look for.
--populateEmptyArea:Cell6 --Scans the area of the given Cell6 for Cell8s with no interesting areas (AreaTypeIDs under 13 are 'interesting'). Creates an area into GeneratedMapData if no existing interesting areas are found for each Cell8. This would be done automatically if PraxisMapper is configured to do so on a LearnCell8 call, but this lets you do that work ahead of time instead if you have a known area you want to fill in.
--autoCreateMapTiles --Searches the database for areas that need map tiles created, skips empty ones. Useful for pre-caching map tiles over an area, but can take a very long time for a full Cell2 (2 weeks, approximately)
+Advanced Commands:
+-createDB --Create an empty PraxisMapper database on the server Larry is configured to connect to.
+-resetPbf --renames all the .pbfDone files in the configured folder to their original extension, if you want to re-process them.
+-resetJson --Renamed the .jsonDone (or MariaDB geomInfile and tagsInfile) files in the configured output folder to .json so you can reload them into a database.
+-processPbfs --Reads through OSM extracts in .pbf format from the configured PbfFolder, and processes them into a format that PraxisMapper can use. Can be resumed if the process is cancelled. Usually saves output to an intermediate file.
+-loadProcessedData --Read the file output from the processing step, and loads them into the database. 
+-createStandaloneRelation --Instead of making a database for a webserver, creates a SQLite db for an offline game with no network access. Approximates each area to a rectangle, and saves maptiles to a folder or a table.
+-createStandaloneBox --As previous command, but uses a bounding area provided in the command instead of a relation in the file.
+-createStandalonePoint --as previous command, but makes a game for a 6-digit PlusCode cell centered on the given coordinates.
+-autoCreateMapTiles --Searches the database for areas that need map tiles created, skips empty ones. Runs a search on a global scale, but doesn't draw tiles with no data. Intended for very large game areas, not required for a typical server setup.
+-drawOneImage:234567 --given a PlusCode after the colon, draws a PNG file of that PlusCode. Requires KeepElementsInMemory to be true to work.
