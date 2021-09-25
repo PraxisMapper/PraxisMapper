@@ -176,8 +176,8 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        [Route("/[controller]/IncrementStoredElementData/{elementId}/{key}/{changeAmount}")]
-        public void IncrementStoredElementData(Guid elementId, string key, double changeAmount)
+        [Route("/[controller]/IncrementElementData/{elementId}/{key}/{changeAmount}")]
+        public void IncrementElementData(Guid elementId, string key, double changeAmount)
         {
             lock (storedElementIncrementLock)
             {
@@ -202,7 +202,7 @@ namespace PraxisMapper.Controllers
             places = places.Where(p => p.GameElementName != TagParser.defaultStyle.name).ToList();
 
             StringBuilder sb = new StringBuilder();
-            //pluscode|name|type|StoredOsmElementID  //less data transmitted, an extra string concat per entry phone-side.
+            //pluscode|name|type|PrivacyID 
 
             var data = AreaTypeInfo.SearchArea(ref box, ref places);
             foreach (var d in data)
@@ -237,8 +237,8 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        [Route("/[controller]/GetScoreForArea/{elementId}")]
-        public long GetScoreForArea(Guid elementId)
+        [Route("/[controller]/GetScoreForPlace/{elementId}")]
+        public long GetScoreForPlace(Guid elementId)
         {
             return ScoreData.GetScoreForSinglePlace(elementId);
         }

@@ -1,45 +1,69 @@
 ﻿Keywords and naming conventions:
-Flex: takes lat, lon, and size parameters. Allows you to work with areas outside of the plus code grid segments.
-Cell#: takes a plus code of the # length. Ignores padding characters. (EX: the OLC spec may say to use 86CFJJ00+00, this app only wants to see 86CFJJ)
-Highres: returns data using Cell11 sizes instead of Cell10. 20x more data returned doing this.
-Learn: pull in interesting areas from the DB for a client app to use.
-Calculate: count the number of Cell10 spaces an area takes up.
-Draw: create a PNG of a given area.
-Test: A debug function for setting up your game. Not something the game should use itself. Shouldn't be enabled in a production setup.
-Place: A location on the map intended to be interactible with for game purposes. May be an OSM point, area, or relation. As of this writing (1/20/21), this is anything processed that isn't an admin boundary.
-Area: A rectangle overlaid on the map, may contain 0 or more whole or partial Places. Usually a OLC Cell of some character length/size, but may be Flex values.
-Score: The numerical values earned and added for factions
-Faction: One of the teams working towards a goal in a gameplay mode.
+Area: A rectangle overlaid on the map, may contain 0 or more whole or partial Places. Usually a PlusCode Cell of some character length/size, but may simply be a bounding box.
+Cell#: A plus code of # length, starting from the left. Ignores padding characters. (EX: For a Cell6, the OLC spec may say to use 86CFJJ00+00, this app only wants to see 86CFJJ as that string.)
+Draw: A Draw function returns PNG data in a byte array, unless otherwise indicated (EX: future DrawX methods could return SVG data)
+Faction: One of the teams working towards a goal in a gameplay mode. None are built into PraxisMapper, but factions are the easiest way to disconnect an individual player from their activities in-game and prevent user tracking.
+Element: An entry from OpenStreetMap. May be a singe point, a Way, or a Relation. In PraxisMapper, synonymous with Place and used interchangeably.
+OSM Area: An Element that forms a closed shape. An OSM Element can be either an OSM Area, a point, or a line. May have holes inside the closed shape.
+Place: A location on the map intended to be interactible with for game purposes. May be an OSM point, area, or relation. Anything that matched a TagParser rule is considered a Place.
+Point: A single lat/lon coordinate pair. Can be a Place draw on a map tile. 
+Score: The numerical values earned and added to indicate gameplay activity or progress. The number that goes up when you do things in-game.
 
 Controllers
 Admin:
+The Admin controller will be the endpoint in a future release for the commands an admin can issue.
+
 AdminView:
+The AdminView controller handles providing the webpages to the admin to view and manage the server.
+
+ExpireMapTiles/ - Updates all gameplay and slippy map tiles to expire immediately, forcing them to be redrawn the next time they are requested. Will be moved to Admin controller in a future release.
+GetMapTileInfo/{zoom}/{x}/{y} - Draws the slippy maptile requested fresh, and the number of Places loaded from the database.
+GetPlaceInfo/{sourceElementId}/{sourceElementType} - SourceElementId is the OSM id for the element in question, and sourceElementType is the OSM type (1 = point, 2 = way, 3 = relation). Draws the element requested and any places within its envelope, and provides some information on the Place and its surroundings.
+GetPlaceInfo/{privacyId} - privacyId is the client-facing ID for an OSM element in the database. Draws the element requested and any places within its envelope, and provides some information on the Place and its surroundings.
+
 Data:
-MapData:
+The Data controller handles the majority of the gameplay related requests. Primarily used for attaching key-value pairs to a place, area, or player. 
+PraxisMapper strongly suggests not attaching a player and a location together on the server, and will attempt to enforce this philosophy through code. 
+Interactions are acceptable, but you should avoid having enough data on the server to track a specific individual's movement. Do not connect a player and a location on the server.
+ACCEPTABLE EXAMPLES: Set a Place's color to a player's team. Increment a 'total visits' counter for a place, Adding to a player's score for visiting a certain type of place. Removing a defeated monster from the map.
+UNACCEPTABLE EXAMPLES: Set a Place as a player's 'Home Base', save a PlusCode on game start as a player's starting location, displaying which PlusCode or Place a player last interacted with. Annoucing which player defeated a monster to all players.
+All of the unacceptable examples are fine for a game, ONLY IF that data is on the acting player's device and not the server.
+All Get* endpoints return a blank string is a value is not present in the server's database.
+
+GetAllDataInPlusCode/{plusCode} - Loads all key/value pairs attached to a given PlusCode. Results are 1 entry per line, in "PlusCode|key|value" format
+GetAllDataInOsmElement/{elementId} - Loads all key/value pairs attached to a given Place. Results are 1 entry per line, in "PlaceId|key|value" format
+GetElementData/{elementId}/{key} - Loads the value for a given key attached to a Place
+GetGlobalData/{key} - Loads the value for a given key from the global set.
+GetPlayerData/{deviceId}/{key} - Loads the value for a given key attached to a player.
+GetPlusCodeData/{plusCode}/{key} - Loads the value for a given key attached to a PlusCode. 
+GetPlusCodeTerrainData/{plusCode} - For each Cell10 in the given PlusCode, gets the info on the smallest intersecting Element. 1 line per Cell10, format "Cell10|PlaceName|gameElementName|privacyID". 
+GetPlusCodeTerrainDataFull/{plusCode} - For each Cell10 in the given PlusCode, gets the info on all intersecting Elements. 1 line per Element per Cell10, format "Cell10|PlaceName|gameElementName|privacyID". 
+GetScoreForArea/{elementId} - Calculates a default score for a Place, which is the # of Cell10s it is long (for a line) or covers in surface area. (for a closed shape).
+GetServerBounds/ - Loads the boundaries of the gameplay area for a server. The server will reject requests from outside this area. The value is set during database creation, and is a rectangle covering all OSM Elements in the database.
+SetElementData/{elementId}/{key}/{value} -Saves a key/value pair to the server attached to a Place. Cannot be a player's deviceId.
+SetGlobalData/{key}/{value} - Saves a key/value pair to the server's global set without reference to anything else. Cannot be a combination of a player's deviceId and a PlusCode or a PlaceId.
+SetPlusCodeData/{plusCode}/{key}/{value} -  Saves a key/value pair to the server attached to a PlusCode. Cannot be a player's deviceId.
+SetPlayerData/{deviceId}/{key}/{value} - Saves a key/value pair to the server attached to a player's deviceId. Cannot be a PlusCode or a Place's ID.
+IncrementElementData/{elementId}/{key}/{changeAmount} - For a Place's key/value pair, change the numerical value by changeAmount. Ensures that all simultaneous requests to Increment this value will be applied correctly.
+IncrementGlobalData/{key}/{changeAmount} - For a global key/value pair, change the numerical value by changeAmount. Ensures that all simultaneous requests to Increment this value will be applied correctly.
+IncrementPlayerData/{deviceId}/{key}/{changeAmount} - For a players key/value pair, change the numerical value by changeAmount. Ensures that all simultaneous requests to Increment this value will be applied correctly.
+IncrementPlusCodeData/{plusCode}/{key}/{changeAmount} - For a PlusCode's key/value pair, change the numerical value by changeAmount. Ensures that all simultaneous requests to Increment this value will be applied correctly.
+
 MapTile:
+The MapTile controller deals with all image-related requests. The server will by default save maptiles until their underlying data changes, and most acts of changing that data should expire the maptiles automatically.
 
+CheckTileExpiration/{PlusCode}/{styleSet} - Returns the short date format for when a requested gameplay Map Tile expires.
+DrawPlusCode/{code}/{styleSet} - Draws a PlusCode map tile, for the code requested in the styleset requested. These are the tile expected to be used by games as the main background.
+DrawPlusCode/{code} - Draws a PlusCode map tile, for the code requested in the default styleset. These are the tile expected to be used by games as the main background.
+DrawPlusCodeCustomData/{code}/{styleSet}/{dataKey} - Draws a PlusCode map tile, for the code requested based on key-value pairs with the given dataKey, in the requested styleset. These are the tile expected to be used by games as overlays to indicate game state when PlusCode data is relevant. Will be a grid of squares, since PlusCodes are being drawn.
+DrawPlusCodeCustomDataByTag/{code}/{styleSet}/{dataKey} - Draws a PlusCode map tile, for the code requested loading the color stored in the PlusCodes key-value pair requested by dataKey. based on key-value pairs with the given dataKey, in the requested styleset. Requires the style set to have a "tag" member set with the fromTag property set to true. These are the tile expected to be used by games as overlays to indicate game state when PlusCode data is relevant. Will be a grid of squares, since PlusCodes are being drawn.
+DrawPlusCodeCustomElements/{code}/{styleSet}/{dataKey} - Draws a PlusCode map tile, for the Places contained inside based on key-value pairs with the given dataKey, in the requested styleset. These are the tile expected to be used by games as overlays to indicate game state when Place data is relevant.
+DrawSlippyTile/{styleSet}/{zoom}/{x}/{y}.png - Returns the SlippyMap tile for the given zoom/x/y coordinates, according to the styleSet drawing rules. The .png ending is required per SlippyMap convention.
+DrawSlippyTileCustomElements/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png - Returns the SlippyMap tile for the given zoom/x/y coordinates, for data stored in elements key-value pairs requested by dataKey, according to the styleSet drawing rules. The .png ending is required per SlippyMap convention.
+DrawSlippyTileCustomPlusCodes/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png - Returns the SlippyMap tile for the given zoom/x/y coordinates, for data stored in the PlusCodes key-value pair requested by dataKey, according to the styleSet drawing rules. This will be a grid of squares, since this draws PlusCodes. The .png ending is required per SlippyMap convention.
+DrawSlippyTileCustomPlusCodesByTag/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png - Returns the SlippyMap tile for the given zoom/x/y coordinates, loading the color stored in the PlusCodes key-value pair requested by dataKey. Requires the style set to have a "tag" member set with the fromTag property set to true. This will be a grid of squares, since this draws PlusCodes. The .png ending is required per SlippyMap convention.
+ExpireTiles/{elementId}/{styleSet} - Expires all map tiles drawn in the given style set that contain the given Place. Must be called by the client as necessary when interacting with an element, as the server does not know which key-value pairs are used to draw map tiles.
 
-MapData: The core of the server. Spatial data and processing to be usable in a location based game. Imported data from OpenStreetMaps, can be updated from them via other utilities included in the solution.
-LearnX - Pull in the name and area type of each 10cell for a client app.
---LearnAdminBoundaries: Get the administrative boundaries containing a point. Country, State, City, etc. Not all OSM partial files will contain all the data needed for the bounds referred to by it.
---LearnCell6: Search the current Cell6 for interesting areas in the DB, return a list of plus codes, the name and type of the interesting area per Cell10 in the Cell6.
---LearnSurroundingCell6: Search a Cell6 sized area centered on the given point for interesting areas in the DB, return a list of plus codes, the name and type of the interesting area per Cell10 in the area.
---LearnSurroundingFlex: Search an area centered on the given point for interesting areas in the DB, return a list of plus codes, the name and type of the interesting area per Cell10 in the area.
-CalculateX - get the number of cells an area takes up
---CalculateAreaPoints: how many points does each area have in the given Cell8?
---CalculateFlexFullAreaPoints: how many points does each area in the given region(lat/lon/size) take up total?
---CalculateFlexAreaPoints: how many points does each area have in the given region(lat/lon/size)?
---CalculateFullAreaPoints: how many points does each area in the given Cell8 take up total?
-DrawX - get a PNG maptile of an area
---DrawCell10Highres: Draws a 4x5 PNG of the Cell11 area type colors in a Cell10.
---DrawCell8: draws a PNG of a Cell8. 1 pixel is 1 Cell10. 20x20 pixels.
---DrawCell8Highres: draws a PNG of a Cell8. 1 pixel is 1 Cell11. 80x100 pixels.
---DrawCell6: draws a PNG of a Cell6. 1 pixel is 1 Cell10. 400x400 pixels. Not fast enough to generate on the fly for a web game.
---DrawCell6Highres: draws a PNG of a Cell6. 1 pixel is 1 Cell11. 1200x1600 pixels. Not fast enough to generate on the fly for a web game.
---DrawFlex: Draws a PNG of the given area, at the  Cell11 resolution (unless 10 is passed in as the resolution parameter). Performance is the same as the DrawCell# calls, but centered on the point passed in.
-TestX - debugging functions. Should probably disable these in a production setup somehow.
---TestServerUp: returns "OK". Confirms your web server is configured correctly and running separate from the database.
---TestPoint: returns any interesting areas and their type in the Cell10 containing the given point.
---TestMapDataEntry: Returns any MapData entries in the DB with the given NodeID, WayID, RelationID, or MapDataID, and some stats on them. Helpful to see if an entry is present and procesed correctly.
-
-PlayerContent: Stuff the players add or move through gameplay. Not intended to be stuff that would change automatically. Also requires a lot of customization per game.
+Slippy:
+Slippy controller handles the webpages with a Slippymap viewer (Leaflet.js). These can be useful for visualizing data on the server. Admin access only.
+Index/ - Opens up a Slippymap viewer, initially set on the center of the server's bounds. Can toggle between various tile overlays. 
