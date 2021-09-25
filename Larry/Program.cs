@@ -63,25 +63,10 @@ namespace Larry
                 createDb();
             }
             
-            //I haven't actually done this, since its rarely useful now. I just drop and refill the DB.
-            //if (args.Any(a => a == "-cleanDB"))
-            //{
-            //    Console.WriteLine("Clearing out tables for testing.");
-            //    DBCommands.CleanDb();
-            //}
-
             if (args.Any(a => a == "-findServerBounds"))
             {
                 DBCommands.FindServerBounds();
             }
-
-            //if (args.Any(a => a == "-singleTest")) //Removable
-            //{
-                //Check on a specific thing. Not an end-user command.
-                //Current task: Identify issue with relation
-                //SingleTest();
-                //new PbfReader().debugPerfTest(ParserSettings.PbfFolder + "north-america-latest.osm.pbf");
-            //}
 
             if (args.Any(a => a.StartsWith("-getPbf:")))
             {
@@ -116,15 +101,6 @@ namespace Larry
                 processPbfs();
             }
 
-            //if (args.Any(a => a == "-convertJsonToSql")) //Removeable.
-            //{
-
-            //    //test code
-            //    var db = new PraxisContext();
-            //    var entries = db.StoredOsmElements.Take(100).ToList();
-            //    SqlExporter.DumpToSql(entries, "testfile.sql");
-            //}
-
             if (args.Any(a => a == "-loadProcessedData"))
             {
                 loadProcessedData();
@@ -157,38 +133,6 @@ namespace Larry
             //Open up a browser to the adminview slippytile page.
             //}
 
-
-            //This should now work with the config values set and the -ProcessPbfs command.
-            //if (args.Any(a => a.StartsWith("-loadOneArea"))) //-loadOneArea:filename:relationId
-            //{
-            //    var subargs = args.First(a => a.StartsWith("-loadOneArea:")).Split(":");
-            //    Console.WriteLine("Loading relation " + subargs[2] + " from file " + config["PbfFolder"] + subargs[1]);
-            //    var r = new PbfReader();
-            //    r.outputPath = config["JsonMapDataFolder"];
-            //    var env = r.GetOneAreaFromFile(config["PbfFolder"] + subargs[1], Int64.Parse(subargs[2]));
-
-            //    Log.WriteLog("Beginning game maptile draw for relation " + subargs[2]);
-            //    GeoArea drawRegion = new GeoArea(env.MinY, env.MinX, env.MaxY, env.MaxX);
-
-            //    var db = new PraxisContext();
-            //    var settings = db.ServerSettings.First();
-            //    settings.EastBound = env.MaxX;
-            //    settings.NorthBound = env.MaxY;
-            //    settings.WestBound = env.MinX;
-            //    settings.SouthBound = env.MinY;
-            //    db.SaveChanges();
-
-            //    MapTiles.PregenMapTilesForArea(drawRegion);
-            //    MapTiles.PregenSlippyMapTilesForArea(drawRegion, 8);
-            //    MapTiles.PregenSlippyMapTilesForArea(drawRegion, 10);
-            //    MapTiles.PregenSlippyMapTilesForArea(drawRegion, 12);
-            //    MapTiles.PregenSlippyMapTilesForArea(drawRegion, 14);
-            //    MapTiles.PregenSlippyMapTilesForArea(drawRegion, 16);
-            //    MapTiles.PregenSlippyMapTilesForArea(drawRegion, 18); 
-            //    //zoom 20 can get generated on the server on-demand.
-            //    Log.WriteLog("Game maptiles completed");
-            //}
-
             //TODO: rework Update process to handle the mulitple data files that could be used.
             //if (args.Any(a => a == "-updateDatabase"))
             //{
@@ -206,7 +150,6 @@ namespace Larry
             {
                 //This makes a standalone DB for a specific area passed in as a paramter.
                 //If you want to cover a region in a less-specific way, or the best available relation is much larger than you thought, this might be better.
-
                 string[] bounds = args.First(a => a.StartsWith("-createStandaloneBox")).Split('|');
                 GeoArea boundsArea = new GeoArea(bounds[1].ToDouble(), bounds[2].ToDouble(), bounds[3].ToDouble(), bounds[4].ToDouble());
 
@@ -226,7 +169,6 @@ namespace Larry
                 CreateStandaloneDB(0, boundsArea, false, true); //How map tiles are handled is determined by the optional parameters
             }
 
-            //TODO: this should just work for server bounds, and not  have to check every Cell2.
             if (args.Any(a => a == "-autoCreateMapTiles")) //better for letting the app decide which tiles to create than manually calling out Cell6 names.
             {
                 autoCreateMapTiles();
@@ -380,16 +322,10 @@ namespace Larry
         }
         private static void autoCreateMapTiles()
         {
-            //NOTE: this loop ran at 11 maptiles per second on my original attempt. This optimized setup runs at up to 2600 maptiles per second.
             //Remember: this shouldn't draw GeneratedMapTile areas, nor should this create them.
             //Tiles should be redrawn when those get made, if they get made.
             //This should also over-write existing map tiles if present, in case the data's been updated since last run.
-            //TODO: add logic to either overwrite or skip existing tiles.
             bool skip = true; //This skips over 128,000 tiles in about a minute. Decent.
-
-            //Potential alternative idea:
-            //One loops detects which map tiles need drawn, using the algorithm, and saves that list to a new DB table
-            //A second process digs through that list and draws the map tiles, then marks them  as drawn (or deletes them from the list?)
 
             //Search for all areas that needs a map tile created.
             List<string> Cell2s = new List<string>();
@@ -427,8 +363,6 @@ namespace Larry
             sw.Stop();
             Log.WriteLog("image drawn from memory in " + sw.Elapsed);
         }
-
-        
 
         private static void populateEmptyAreas(string cell6)
         {
@@ -497,7 +431,6 @@ namespace Larry
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
             sw.Start();
 
-            //ConcurrentBag<MapData>cell6Data = new ConcurrentBag<MapData>();
             List<StoredOsmElement> cell6Data = new List<StoredOsmElement>();
             if (parentCell.Length == 6)
             {
@@ -510,9 +443,7 @@ namespace Larry
             //This is fairly well optimized, and I suspect there's not much more I can do here to get this to go faster.
             //using 2 parallel loops is faster than 1 or 0. Having MariaDB on the same box is what pegs the CPU, not this double-parallel loop.
             System.Threading.Tasks.Parallel.For(0, 20, (pos1) =>
-                //for (int pos1 = 0; pos1 < 20; pos1++)
                 System.Threading.Tasks.Parallel.For(0, 20, (pos2) =>
-                //for (int pos2 = 0; pos2 < 20; pos2++)
                 {
                     string cellToCheck = parentCell + OpenLocationCode.CodeAlphabet[pos1].ToString() + OpenLocationCode.CodeAlphabet[pos2].ToString();
                     var area = new OpenLocationCode(cellToCheck).Decode();
@@ -723,87 +654,6 @@ namespace Larry
             File.Copy(relationID + ".sqlite", config["Solar2dExportFolder"] + "database.sqlite");
 
             Log.WriteLog("Standalone gameplay DB done.");
-        }
-
-        public static void SingleTest()
-        {
-            //new single test: comparing insert speed of big elements.
-            //doing 1:1 inserts: speed is trivially off in either direction randomly, usually faster on RawSqlWKB side (EX: .017 seconds faster)
-            //1k entities:
-            //1k raw:
-            //10k entities: 11 seconds
-            //10k raw: 36 seconds (entities have major gain from batch processing)
-            //10k inserts WITH THREADING? : threading borks up max connections.
-            //1k inserts split across 4 tasks: takes 1 second.
-            //10k inserts split across 4 tasks: takes 6.5 seconds (would expect 10 or 11 from earlier test, so this scales good!)
-            //10k LOAD INFILE : 13 seconds, but ALL of that was writing the file. it becomes a background task and runs outside of my app otherwise.
-            //So far: looks like tasking off smaller sets will get me data inserted faster.
-            var filename = config["JsonMapDataFolder"] + "asia-latest.osm.json";
-            var lines = File.ReadLines(filename);
-
-            var db = new PraxisContext();
-
-            List<StoredOsmElement> popList = new List<StoredOsmElement>();
-            System.Diagnostics.Stopwatch entities = new System.Diagnostics.Stopwatch();
-            System.Diagnostics.Stopwatch rawAsByte = new System.Diagnostics.Stopwatch();
-
-            foreach (var l in lines.Take(10000))
-            {
-                var entry = GeometrySupport.ConvertSingleJsonStoredElement(l);
-                popList.Add(entry);
-
-                //entities.Restart();
-                //db = new PraxisContext(); //Moved here because it's also part of InsertGeomFastTest
-                //db.StoredOsmElements.Add(entry);
-                //db.SaveChanges();
-                //entities.Stop();
-
-                //rawAsByte.Restart();
-                //SqlExporter.InsertGeomFastTest(entry);
-                //rawAsByte.Stop();
-
-                //var perfDiff = entities.Elapsed - rawAsByte.Elapsed; //Positive means raw is faster, negative means entities are faster.
-                //Console.WriteLine("Entities " + entities.Elapsed + " vs RawSql " + rawAsByte.Elapsed + " Diff: " + perfDiff + " on " + entry.elementGeometry.NumPoints + "-point item.");
-            }
-
-            //now testing LOAD DATA INFILE
-            rawAsByte.Restart();
-            SqlExporter.LoadDataInfileTest(popList);
-            rawAsByte.Stop();
-            Console.WriteLine("1k LOAD DATA INFILE results: " + rawAsByte.Elapsed);
-
-            //Part 2: batch inserts
-            entities.Restart();
-            db = new PraxisContext(); //Moved here because it's also part of InsertGeomFastTest
-            db.StoredOsmElements.AddRange(popList);
-            db.SaveChanges();
-            entities.Stop();
-            Console.WriteLine("Entity 1k batch inserts: " + entities.Elapsed);
-            Console.WriteLine("Starting raw insert loop");
-
-            rawAsByte.Restart();
-            foreach (var p in popList)
-                SqlExporter.InsertGeomFastTest(p);
-            rawAsByte.Stop();
-            Console.WriteLine("RawSql 1k sequential inserts: " + rawAsByte.Elapsed);
-
-            //part 3: thread fast inserts? Nope, hits max connections and errors out.
-            //part 3 for real: Split list into 4, run 4 tasks for each sub-list.
-            System.Diagnostics.Stopwatch outer = new System.Diagnostics.Stopwatch();
-            System.Diagnostics.Stopwatch inner = new System.Diagnostics.Stopwatch();
-            outer.Start();
-            var splitLists = popList.SplitListToMultiple(4);
-            List<Task> lt = new List<Task>();
-            inner.Start();
-            foreach (var list in splitLists)
-                lt.Add(Task.Run(() => { var db = new PraxisContext(); db.AddRange(list); db.SaveChanges(); }));
-            Task.WaitAll(lt.ToArray());
-            inner.Stop();
-            outer.Stop();
-
-            Console.WriteLine("Whole threaded setup ran in " + outer.Elapsed);
-            Console.WriteLine("DB-only operations ran in " + inner.Elapsed);
-
         }
 
         public static void DownloadPbfFile(string topLevel, string subLevel1, string subLevel2, string destinationFolder)

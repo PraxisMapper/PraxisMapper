@@ -1,35 +1,16 @@
 ﻿using PraxisCore;
-using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using static PraxisCore.ConstantValues;
+using static PraxisCore.DbTables;
 
 namespace Larry
 {
     //DBCommands is where functions that do database work go. This includes reading from JSON files to create/update/delete DB entries.
     public static class DBCommands
     {
-        public static void CleanDb()
-        {
-            Log.WriteLog("Cleaning DB at " + DateTime.Now);
-            PraxisContext osm = new PraxisContext();
-            osm.Database.SetCommandTimeout(900);
-
-            osm.Database.ExecuteSqlRaw("TRUNCATE TABLE MapData");
-            Log.WriteLog("MapData cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
-            osm.Database.ExecuteSqlRaw("TRUNCATE TABLE MapTiles");
-            Log.WriteLog("MapTiles cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
-            osm.Database.ExecuteSqlRaw("TRUNCATE TABLE PerformanceInfo");
-            Log.WriteLog("PerformanceInfo cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
-            osm.Database.ExecuteSqlRaw("TRUNCATE TABLE GeneratedMapData");
-            Log.WriteLog("GeneratedMapData cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
-            osm.Database.ExecuteSqlRaw("TRUNCATE TABLE SlippyMapTiles");
-            Log.WriteLog("SlippyMapTiles cleaned at " + DateTime.Now, Log.VerbosityLevels.High);
-            Log.WriteLog("DB cleaned at " + DateTime.Now);
-        }
-
-        public static void FindServerBounds()
+        public static ServerSetting FindServerBounds()
         {
             //This is an important command if you don't want to track data outside of your initial area.
             Log.WriteLog("Detecting server map boundaries from data at " + DateTime.Now);
@@ -43,6 +24,7 @@ namespace Larry
             settings.WestBound = results.WestLongitude;
             db.SaveChanges();
             Log.WriteLog("Server map boundaries found and saved at " + DateTime.Now);
+            return settings;
         }
 
         public static void RemoveDuplicates()
