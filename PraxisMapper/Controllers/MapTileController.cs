@@ -27,15 +27,11 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        //[Route("/[controller]/DrawSlippyTile/{x}/{y}/{zoom}/{layer}")] //old, not slippy map conventions
         [Route("/[controller]/DrawSlippyTile/{styleSet}/{zoom}/{x}/{y}.png")] //slippy map conventions.
         public FileContentResult DrawSlippyTile(int x, int y, int zoom, string styleSet)
         {
             //slippymaps don't use coords. They use a grid from -180W to 180E, 85.0511N to -85.0511S (they might also use radians, not degrees, for an additional conversion step)
             //Remember to invert Y to match PlusCodes going south to north.
-            //BUT Also, PlusCodes have 20^(zoom/2) tiles, and Slippy maps have 2^zoom tiles, this doesn't even line up nicely.
-            //Slippy Map tiles might just have to be their own thing.
-            //I will also say these are 512x512 images.
             try
             {
                 PerformanceTracker pt = new PerformanceTracker("DrawSlippyTile");
@@ -58,8 +54,6 @@ namespace PraxisMapper.Controllers
                     var dataLoadArea = new GeoArea(info.area.SouthLatitude - ConstantValues.resolutionCell10, info.area.WestLongitude - ConstantValues.resolutionCell10, info.area.NorthLatitude + ConstantValues.resolutionCell10, info.area.EastLongitude + ConstantValues.resolutionCell10);
                     DateTime expires = DateTime.Now;
                     byte[] results = null;
-                    //var places = GetPlaces(dataLoadArea, filterSize: info.filterSize); //includeGenerated: false, filterSize: filterSize  //NOTE: in this case, we want generated areas to be their own slippy layer, so the config setting is ignored here.
-                    //results = MapTiles.DrawAreaAtSize(info, places, styleSet, true);
                     var places = GetPlacesForTile(info, null, styleSet);
                     var paintOps = MapTiles.GetPaintOpsForStoredElements(places, styleSet, info);
                     results = MapTiles.DrawAreaAtSize(info, paintOps, TagParser.GetStyleBgColor(styleSet));
@@ -89,16 +83,12 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        //[Route("/[controller]/DrawSlippyTile/{x}/{y}/{zoom}/{layer}")] //old, not slippy map conventions
         [Route("/[controller]/DrawSlippyTileCustomElements/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
 
         public FileContentResult DrawSlippyTileCustomElements(int x, int y, int zoom, string styleSet, string dataKey)
         {
             //slippymaps don't use coords. They use a grid from -180W to 180E, 85.0511N to -85.0511S (they might also use radians, not degrees, for an additional conversion step)
             //Remember to invert Y to match PlusCodes going south to north.
-            //BUT Also, PlusCodes have 20^(zoom/2) tiles, and Slippy maps have 2^zoom tiles, this doesn't even line up nicely.
-            //Slippy Map tiles might just have to be their own thing.
-            //I will also say these are 512x512 images.
             try
             {
                 PerformanceTracker pt = new PerformanceTracker("DrawSlippyTileCustomElements");
@@ -117,11 +107,8 @@ namespace PraxisMapper.Controllers
                     if (zoom >= 15) //Gameplay areas are ~15.
                         info.filterSize = 0;
 
-                    //var dataLoadArea = new GeoArea(info.area.SouthLatitude - ConstantValues.resolutionCell10, info.area.WestLongitude - ConstantValues.resolutionCell10, info.area.NorthLatitude + ConstantValues.resolutionCell10, info.area.EastLongitude + ConstantValues.resolutionCell10);
                     DateTime expires = DateTime.Now;
                     byte[] results = null;
-                    //var places = GetPlaces(dataLoadArea, filterSize: info.filterSize); //includeGenerated: false, filterSize: filterSize  //NOTE: in this case, we want generated areas to be their own slippy layer, so the config setting is ignored here.
-                    //results = MapTiles.DrawAreaAtSize(info, places, styleSet, true);
                     var places = GetPlacesForTile(info, null, styleSet);
                     var paintOps = MapTiles.GetPaintOpsForCustomDataElements(Converters.GeoAreaToPolygon(info.area), dataKey, styleSet, info);
                     results = MapTiles.DrawAreaAtSize(info, paintOps, TagParser.GetStyleBgColor(styleSet));
@@ -151,16 +138,12 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        //[Route("/[controller]/DrawSlippyTile/{x}/{y}/{zoom}/{layer}")] //old, not slippy map conventions
         [Route("/[controller]/DrawSlippyTileCustomPlusCodes/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
 
         public FileContentResult DrawSlippyTileCustomPlusCodes(int x, int y, int zoom, string styleSet, string dataKey)
         {
             //slippymaps don't use coords. They use a grid from -180W to 180E, 85.0511N to -85.0511S (they might also use radians, not degrees, for an additional conversion step)
             //Remember to invert Y to match PlusCodes going south to north.
-            //BUT Also, PlusCodes have 20^(zoom/2) tiles, and Slippy maps have 2^zoom tiles, this doesn't even line up nicely.
-            //Slippy Map tiles might just have to be their own thing.
-            //I will also say these are 512x512 images.
             try
             {
                 PerformanceTracker pt = new PerformanceTracker("DrawSlippyTileCustomPlusCodes");
@@ -213,16 +196,12 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        //[Route("/[controller]/DrawSlippyTile/{x}/{y}/{zoom}/{layer}")] //old, not slippy map conventions
         [Route("/[controller]/DrawSlippyTileCustomPlusCodesByTag/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
 
         public FileContentResult DrawSlippyTileCustomPlusCodesByTag(int x, int y, int zoom, string styleSet, string dataKey)
         {
             //slippymaps don't use coords. They use a grid from -180W to 180E, 85.0511N to -85.0511S (they might also use radians, not degrees, for an additional conversion step)
             //Remember to invert Y to match PlusCodes going south to north.
-            //BUT Also, PlusCodes have 20^(zoom/2) tiles, and Slippy maps have 2^zoom tiles, this doesn't even line up nicely.
-            //Slippy Map tiles might just have to be their own thing.
-            //I will also say these are 512x512 images.
             try
             {
                 PerformanceTracker pt = new PerformanceTracker("DrawSlippyTile");

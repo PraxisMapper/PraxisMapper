@@ -51,8 +51,8 @@ namespace PraxisMapper.Controllers
             return View();
         }
 
-        [Route("/[controller]/GetAreaInfo/{sourceElementId}/{sourceElementType}")]
-        public ActionResult GetAreaInfo(long sourceElementId, int sourceElementType)
+        [Route("/[controller]/GetPlaceInfo/{sourceElementId}/{sourceElementType}")]
+        public ActionResult GetPlaceInfo(long sourceElementId, int sourceElementType)
         {
             var db = new PraxisContext();
             var area = db.StoredOsmElements.Include(e => e.Tags).FirstOrDefault(e => e.sourceItemID == sourceElementId && e.sourceItemType == sourceElementType);
@@ -103,13 +103,13 @@ namespace PraxisMapper.Controllers
             return View();
         }
 
-        [Route("/[controller]/GetAreaInfo/{privacyId}/")]
-        public ActionResult GetAreaInfo(Guid privacyId)
+        [Route("/[controller]/GetPlaceInfo/{privacyId}/")]
+        public ActionResult GetPlaceInfo(Guid privacyId)
         {
             var db = new PraxisContext();
             var area = db.StoredOsmElements.Include(e => e.Tags).FirstOrDefault(e => e.privacyId == privacyId);
             if (area != null)
-                return GetAreaInfo(area.sourceItemID, area.sourceItemType);
+                return GetPlaceInfo(area.sourceItemID, area.sourceItemType);
 
             return null;
         }
