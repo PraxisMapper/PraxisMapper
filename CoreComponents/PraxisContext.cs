@@ -15,7 +15,7 @@ namespace PraxisCore
         public DbSet<SlippyMapTile> SlippyMapTiles { get; set; }
         public DbSet<ErrorLog> ErrorLogs { get; set; }
         public DbSet<ServerSetting> ServerSettings { get; set; }
-        public DbSet<TileTracking> TileTrackings { get; set; }
+        public DbSet<TileTracking> TileTrackings { get; set; } //This table is for making a full planet's maptiles, and tracks which ones have been drawn or not drawn to allow resuming.
         //public DbSet<ZztGame> ZztGames { get; set; }
         //public DbSet<GamesBeaten> GamesBeaten { get; set; }
         public DbSet<StoredOsmElement> StoredOsmElements { get; set; }
@@ -27,7 +27,7 @@ namespace PraxisCore
         public DbSet<CustomDataPlusCode> CustomDataPlusCodes { get; set; }
         public DbSet<GlobalDataEntries> GlobalDataEntries { get; set; }
 
-        public static string connectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;"; //Needs a default value.
+        public static string connectionString = "Data Source=localhost\\SQLDEV;UID=PraxisService;PWD=lamepassword;Initial Catalog=Praxis;"; //Needs a default value.
         public static string serverMode = "SQLServer";
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)

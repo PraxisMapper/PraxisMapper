@@ -60,16 +60,15 @@ namespace Larry
             //If multiple args are supplied, run them in the order that make sense, not the order the args are supplied.
             if (args.Any(a => a == "-createDB")) //setup the destination database
             {
-                Console.WriteLine("Creating database with current database settings.");
-                var db = new PraxisContext();
-                db.MakePraxisDB();
+                createDb();
             }
-
-            if (args.Any(a => a == "-cleanDB"))
-            {
-                Console.WriteLine("Clearing out tables for testing.");
-                DBCommands.CleanDb();
-            }
+            
+            //I haven't actually done this, since its rarely useful now. I just drop and refill the DB.
+            //if (args.Any(a => a == "-cleanDB"))
+            //{
+            //    Console.WriteLine("Clearing out tables for testing.");
+            //    DBCommands.CleanDb();
+            //}
 
             if (args.Any(a => a == "-findServerBounds"))
             {
@@ -131,17 +130,31 @@ namespace Larry
                 loadProcessedData();
             }
 
+            if (args.Any(a => a == "-makeServerDb"))
+            {
+                //This is the single command to get a server going, assuming you have done all the setup steps yourself beforehand and your config is correct.
+                createDb();
+                processPbfs();
+                loadProcessedData();
+                var bounds = DBCommands.FindServerBounds();
+                var boundsArea = new GeoArea(bounds.SouthBound, bounds.WestBound, bounds.NorthBound, bounds.EastBound);
+                MapTiles.PregenMapTilesForArea(boundsArea);
+
+                Log.WriteLog("Server setup complete.");
+            }
+
+
             //if (args.Any(a => a == "makeWholeServer")) //Not a release 1 feature, but taking notes now.
             //{
-                //This is the wizard command, try to check and do everything at once.
-                //Check for MariaDB and install/configure if missing (including service account)
-                //check for a PBF file and prompt to download one if none found
-                //if data files are present, use them. otherwise process the PBF file per settings
-                //Pre-generate gameplay map tiles.
-                //Possible: Grab the Solar2D example app, adjust it to work with the server running on this machine.
-                //--check external IP, update .lua source file to point to this pc.
-                //Fire up the Kestral exe to get the server working
-                //Open up a browser to the adminview slippytile page.
+            //This is the wizard command, try to check and do everything at once.
+            //Check for MariaDB and install/configure if missing (including service account)
+            //check for a PBF file and prompt to download one if none found
+            //if data files are present, use them. otherwise process the PBF file per settings
+            //Pre-generate gameplay map tiles.
+            //Possible: Grab the Solar2D example app, adjust it to work with the server running on this machine.
+            //--check external IP, update .lua source file to point to this pc.
+            //Fire up the Kestral exe to get the server working
+            //Open up a browser to the adminview slippytile page.
             //}
 
 
@@ -164,7 +177,7 @@ namespace Larry
             //    settings.WestBound = env.MinX;
             //    settings.SouthBound = env.MinY;
             //    db.SaveChanges();
-                
+
             //    MapTiles.PregenMapTilesForArea(drawRegion);
             //    MapTiles.PregenSlippyMapTilesForArea(drawRegion, 8);
             //    MapTiles.PregenSlippyMapTilesForArea(drawRegion, 10);
@@ -179,13 +192,13 @@ namespace Larry
             //TODO: rework Update process to handle the mulitple data files that could be used.
             //if (args.Any(a => a == "-updateDatabase"))
             //{
-                //DBCommands.UpdateExistingEntries(config["JsonMapDataFolder"]);
+            //DBCommands.UpdateExistingEntries(config["JsonMapDataFolder"]);
             //}
 
             if (args.Any(a => a.StartsWith("-createStandaloneRelation")))
             {
                 //This makes a standalone DB for a specific relation passed in as a paramter. 
-                int relationId = args.First(a => a.StartsWith("-createStandaloneRelation")).Split('|')[1].ToInt();
+                int relationId = Int32.Parse(config["UseOneRelationID"]);
                 CreateStandaloneDB(relationId, null, false, true); //How map tiles are handled is determined by the optional parameters
             }
 
@@ -229,6 +242,13 @@ namespace Larry
             //{
             //    populateEmptyAreas(args.First(a => a.StartsWith("-populateEmptyArea:")).Split(":")[1]);
             //}
+        }
+
+        private static void createDb()
+        {
+            Console.WriteLine("Creating database with current database settings.");
+            var db = new PraxisContext();
+            db.MakePraxisDB();
         }
 
         private static void processPbfs()

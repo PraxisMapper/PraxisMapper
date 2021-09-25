@@ -260,7 +260,7 @@ namespace PraxisCore
         /// <summary>
         /// Scans the database to determine the outer boundaries of locations in it.
         /// </summary>
-        /// <param name="resolution">How many degrees to scan at a time. Bigger numbers are faster, smaller numbers are more precise.</param>
+        /// <param name="resolution">How many degrees to scan at a time. Must be smaller than 1.</param>
         /// <returns>a GeoArea representing the bounds of the server's location at the resolution given.</returns>
         public static GeoArea DetectServerBounds(double resolution)
         {
@@ -272,34 +272,38 @@ namespace PraxisCore
             double WestLimit = 360;
             double EastLimit = -360;
 
-            //OK, a better idea might be just to scan the world map with a Cell8-sized box that reaches the whole way across, and stop when you hit HasPlaces.
-            //This could be optimized by scanning bigger plus codes down to smaller ones, but this gets it done.
-            var northscanner = new GeoArea(new GeoPoint(90 - resolution, -180), new GeoPoint(90, 180));
+            double scanRes = 1; //1 degree.
+            //This is now a 2-step process for speed. The first pass runs at 1 degree intervals for speed, then drops to the given resolution for precision.
+            var northscanner = new GeoArea(new GeoPoint(90 - scanRes, -180), new GeoPoint(90, 180));
             while(!DoPlacesExist(northscanner))
-            {
+                northscanner = new GeoArea(new GeoPoint(northscanner.SouthLatitude - scanRes, -180), new GeoPoint(northscanner.NorthLatitude - scanRes, 180));
+            northscanner = new GeoArea(new GeoPoint(northscanner.SouthLatitude - resolution, -180), new GeoPoint(northscanner.NorthLatitude - resolution, 180));
+            while (!DoPlacesExist(northscanner))
                 northscanner = new GeoArea(new GeoPoint(northscanner.SouthLatitude - resolution, -180), new GeoPoint(northscanner.NorthLatitude - resolution, 180));
-            }
             NorthLimit = northscanner.NorthLatitude;
 
-            var southscanner = new GeoArea(new GeoPoint(-90, -180), new GeoPoint(-90 + resolution, 180));
+            var southscanner = new GeoArea(new GeoPoint(-90, -180), new GeoPoint(-90 + scanRes, 180));
             while (!DoPlacesExist(southscanner))
-            {
+                southscanner = new GeoArea(new GeoPoint(southscanner.SouthLatitude + scanRes, -180), new GeoPoint(southscanner.NorthLatitude + scanRes, 180));
+            southscanner = new GeoArea(new GeoPoint(southscanner.SouthLatitude + resolution, -180), new GeoPoint(southscanner.NorthLatitude + resolution, 180));
+            while (!DoPlacesExist(southscanner))
                 southscanner = new GeoArea(new GeoPoint(southscanner.SouthLatitude + resolution, -180), new GeoPoint(southscanner.NorthLatitude + resolution, 180));
-            }
             SouthLimit = southscanner.SouthLatitude;
 
-            var westScanner = new GeoArea(new GeoPoint(-90, -180), new GeoPoint(90, -180 + resolution));
+            var westScanner = new GeoArea(new GeoPoint(-90, -180), new GeoPoint(90, -180 + scanRes));
             while (!DoPlacesExist(westScanner))
-            {
+                westScanner = new GeoArea(new GeoPoint(-90, westScanner.WestLongitude + scanRes), new GeoPoint(90, westScanner.EastLongitude + scanRes));
+            westScanner = new GeoArea(new GeoPoint(-90, westScanner.WestLongitude + resolution), new GeoPoint(90, westScanner.EastLongitude + resolution));
+            while (!DoPlacesExist(westScanner))
                 westScanner = new GeoArea(new GeoPoint(-90, westScanner.WestLongitude + resolution), new GeoPoint(90, westScanner.EastLongitude + resolution));
-            }
             WestLimit = westScanner.WestLongitude;
 
-            var eastscanner = new GeoArea(new GeoPoint(-90, 180 - resolutionCell8), new GeoPoint(90, 180));
+            var eastscanner = new GeoArea(new GeoPoint(-90, 180 - scanRes), new GeoPoint(90, 180));
             while (!DoPlacesExist(eastscanner))
-            {
+                eastscanner = new GeoArea(new GeoPoint(-90, eastscanner.WestLongitude - scanRes), new GeoPoint(90, eastscanner.EastLongitude - scanRes));
+            eastscanner = new GeoArea(new GeoPoint(-90, eastscanner.WestLongitude - resolution), new GeoPoint(90, eastscanner.EastLongitude - resolution));
+            while (!DoPlacesExist(eastscanner))
                 eastscanner = new GeoArea(new GeoPoint(-90, eastscanner.WestLongitude - resolution), new GeoPoint(90, eastscanner.EastLongitude - resolution));
-            }
             EastLimit = eastscanner.EastLongitude;
 
             return new GeoArea(new GeoPoint(SouthLimit, WestLimit), new GeoPoint(NorthLimit, EastLimit));
