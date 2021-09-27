@@ -7,7 +7,7 @@ namespace PraxisCore
     {
         //TODO: make this a service? Replace with default logging class?
         static string filename = "PraxisCore-" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".txt";
-        static StreamWriter sw = new StreamWriter(filename);
+        //static StreamWriter sw = new StreamWriter(filename);
         /// <summary>
         /// The level of logging to display. Ignores messages if their output level is higher than this.
         /// </summary>
@@ -39,7 +39,8 @@ namespace PraxisCore
             Console.WriteLine(message);
             if (WriteToFile)
                 lock (fileLock)
-                    sw.WriteLine(message);
+                    System.IO.File.WriteAllText(filename, message + Environment.NewLine);
+                    //sw.WriteLine(message);
         }
 
     }

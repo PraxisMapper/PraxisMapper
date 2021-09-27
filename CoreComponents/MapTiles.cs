@@ -931,7 +931,6 @@ namespace PraxisCore
             progressTimer.Start();
 
             //now, for every Cell8 involved, draw and name it.
-            //This is tricky to run in parallel because it's not smooth increments
             var yCoords = new List<double>((int)(intersectCheck.EnvelopeInternal.Height / resolutionCell8) + 1);
             var yVal = swCorner.Decode().SouthLatitude;
             while (yVal <= neCorner.Decode().NorthLatitude)
@@ -953,7 +952,7 @@ namespace PraxisCore
                 //Make a collision box for just this row of Cell8s, and send the loop below just the list of things that might be relevant.
                 //Add a Cell8 buffer space so all elements are loaded and drawn without needing to loop through the entire area.
                 GeoArea thisRow = new GeoArea(y - ConstantValues.resolutionCell8, xCoords.First() - ConstantValues.resolutionCell8, y + ConstantValues.resolutionCell8 + ConstantValues.resolutionCell8, xCoords.Last() + resolutionCell8);
-                var row = Converters.GeoAreaToPolygon(thisRow);
+                //var row = Converters.GeoAreaToPolygon(thisRow);
                 var rowList = GetPlaces(thisRow);
                 var tilesToSave = new ConcurrentBag<MapTile>();
 
@@ -965,18 +964,23 @@ namespace PraxisCore
                     var plusCode8 = plusCode.CodeDigits.Substring(0, 8);
                     var plusCodeArea = OpenLocationCode.DecodeValid(plusCode8);
 
-                    var areaForTile = new GeoArea(new GeoPoint(plusCodeArea.SouthLatitude, plusCodeArea.WestLongitude), new GeoPoint(plusCodeArea.NorthLatitude, plusCodeArea.EastLongitude));
-                    var acheck = Converters.GeoAreaToPolygon(areaForTile); //this is faster than using a PreparedPolygon in testing, which was unexpected.
+                    //var areaForTile = new GeoArea(new GeoPoint(plusCodeArea.SouthLatitude, plusCodeArea.WestLongitude), new GeoPoint(plusCodeArea.NorthLatitude, plusCodeArea.EastLongitude));
+                    var acheck = Converters.GeoAreaToPreparedPolygon(plusCodeArea); //PreparedPoly is faster with lots of areas to check, slower on a small number, due to the overhead of preparing.
                     var areaList = rowList.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); //This one is for the maptile
 
+                    var info = new ImageStats(plusCodeArea, 160, 200);
+                    //new setup.
+                    var areaPaintOps = MapTiles.GetPaintOpsForStoredElements(areaList, "mapTiles", info);
+                    var tile = DrawPlusCode(plusCode8, areaPaintOps, "mapTiles");
+
+                    //old setup.
                     //Create the maptile first, so if we save it to the DB/a file we can call the lock once per loop.
                     //NOTE: this should use DrawPlusCode instead and double the res.
-                    var info = new ImageStats(areaForTile, 160, 200); //Each pixel is a Cell11, we're drawing a Cell8. For Cell6 testing this is 1600x2000, just barely within android limits
-                    var tile = MapTiles.DrawAreaAtSize(info, areaList);
-                    tilesToSave.Add(new MapTile() { tileData = tile, PlusCode = plusCode.CodeDigits.Substring(0, 8), CreatedOn = DateTime.Now, ExpireOn = DateTime.Now.AddDays(365 * 10), areaCovered = Converters.GeoAreaToPolygon(plusCodeArea), resolutionScale = 11, styleSet = "mapTiles" });
-
-                    mapTileCounter++;
+                    //var info = new ImageStats(areaForTile, 160, 200); //Each pixel is a Cell11, we're drawing a Cell8. For Cell6 testing this is 1600x2000, just barely within android limits
+                    //var tile = MapTiles.DrawAreaAtSize(info, areaList);
+                    tilesToSave.Add(new MapTile() { tileData = tile, PlusCode = plusCode8, CreatedOn = DateTime.Now, ExpireOn = DateTime.Now.AddYears(10), areaCovered = acheck.Geometry, resolutionScale = 11, styleSet = "mapTiles" });
                 });
+                mapTileCounter += tilesToSave.Count();
                 db.MapTiles.AddRange(tilesToSave);
                 db.SaveChanges();
                 Log.WriteLog(mapTileCounter + " tiles processed, " + Math.Round((mapTileCounter / totalTiles) * 100, 2) + "% complete, " + Math.Round(mapTileCounter / progressTimer.Elapsed.TotalSeconds, 2) + " tiles per second.");
@@ -984,7 +988,6 @@ namespace PraxisCore
             }//);
             progressTimer.Stop();
             Log.WriteLog("Area map tiles drawn in " + progressTimer.Elapsed.ToString());
-
         }
 
         /// <summary>

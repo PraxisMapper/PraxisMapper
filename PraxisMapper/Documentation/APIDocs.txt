@@ -39,7 +39,7 @@ GetPlusCodeData/{plusCode}/{key} - Loads the value for a given key attached to a
 GetPlusCodeTerrainData/{plusCode} - For each Cell10 in the given PlusCode, gets the info on the smallest intersecting Element. 1 line per Cell10, format "Cell10|PlaceName|gameElementName|privacyID". 
 GetPlusCodeTerrainDataFull/{plusCode} - For each Cell10 in the given PlusCode, gets the info on all intersecting Elements. 1 line per Element per Cell10, format "Cell10|PlaceName|gameElementName|privacyID". 
 GetScoreForArea/{elementId} - Calculates a default score for a Place, which is the # of Cell10s it is long (for a line) or covers in surface area. (for a closed shape).
-GetServerBounds/ - Loads the boundaries of the gameplay area for a server. The server will reject requests from outside this area. The value is set during database creation, and is a rectangle covering all OSM Elements in the database.
+GetServerBounds/ - Loads the boundaries of the gameplay area for a server as pipe separated doubles in a string, format "south|west|north|east". The server will reject requests from outside this area. The value is set during database creation, and is a rectangle covering all OSM Elements in the database.
 SetElementData/{elementId}/{key}/{value} -Saves a key/value pair to the server attached to a Place. Cannot be a player's deviceId.
 SetGlobalData/{key}/{value} - Saves a key/value pair to the server's global set without reference to anything else. Cannot be a combination of a player's deviceId and a PlusCode or a PlaceId.
 SetPlusCodeData/{plusCode}/{key}/{value} -  Saves a key/value pair to the server attached to a PlusCode. Cannot be a player's deviceId.
