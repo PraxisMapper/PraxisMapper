@@ -166,7 +166,7 @@ namespace PraxisCore
                     var poly = factory.CreatePolygon((LinearRing)sw.elementGeometry);
                     sw.elementGeometry = poly;
                 }
-                sw.AreaSize = sw.elementGeometry.Length;
+                sw.AreaSize = sw.elementGeometry.Length > 0 ? sw.elementGeometry.Length : resolutionCell10;
                 return sw;
             }
             catch(Exception ex)
@@ -277,7 +277,7 @@ namespace PraxisCore
                 }
                 temp.elementGeometry = mp;
             }
-            temp.AreaSize = temp.elementGeometry.Length;
+            temp.AreaSize = temp.elementGeometry.Length > 0 ? temp.elementGeometry.Length : resolutionCell10;
             return temp;
         }
     }

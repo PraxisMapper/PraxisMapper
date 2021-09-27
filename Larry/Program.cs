@@ -299,7 +299,7 @@ namespace Larry
                             foreach (var list in splitLists)
                                 lt.Add(Task.Run(() => { var db = new PraxisContext(); db.ChangeTracker.AutoDetectChangesEnabled = false; db.StoredOsmElements.AddRange(list); db.SaveChanges(); }));
                             Task.WaitAll(lt.ToArray());
-                            Log.WriteLog("Save done in " + sw.Elapsed);
+                            Log.WriteLog("10,000 elements saved in " + sw.Elapsed);
                             sw.Restart();
 
                             pendingData.Clear();

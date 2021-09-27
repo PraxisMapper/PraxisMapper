@@ -1382,7 +1382,7 @@ namespace PraxisCore.PbfReader
         {
             waitInfoTask = Task.Run(() =>
             {
-                while (true)
+                while (!token.IsCancellationRequested)
                 {
                     Log.WriteLog("Current stats:");
                     Log.WriteLog("Blocks completed this run: " + timeList.Count());
@@ -1439,7 +1439,6 @@ namespace PraxisCore.PbfReader
                 return null;
 
             //Single check per block to fix points having 0 size.
-            bool fixNodeSize = false;
             if (elements.First().sourceItemType == 1)
                 foreach (var e in elements)
                     e.AreaSize = ConstantValues.resolutionCell10;
@@ -1484,7 +1483,7 @@ namespace PraxisCore.PbfReader
                     StringBuilder tagBuilds = new StringBuilder(200000); //20k
                     foreach (var md in elements)
                     {
-                        geometryBuilds.Append(md.name).Append("\t").Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(md.elementGeometry.AsText()).Append("\t").Append(md.elementGeometry.Length).Append("\t").Append(Guid.NewGuid()).Append("\r\n");
+                        geometryBuilds.Append(md.name).Append("\t").Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(md.elementGeometry.AsText()).Append("\t").Append(md.AreaSize).Append("\t").Append(Guid.NewGuid()).Append("\r\n");
                         foreach (var t in md.Tags)
                             tagBuilds.Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(t.Key).Append("\t").Append(t.Value.Replace("\r", "").Replace("\n", "")).Append("\r\n"); //Might also need to sanitize / and ' ?
                     }
