@@ -78,7 +78,8 @@ namespace PraxisCore
         /// <returns>A list of StoredOsmElements that intersect the area, have a perimter greater than or equal to filtersize.</returns>
         public static List<StoredOsmElement> GetPlacesForTile(ImageStats stats, List<StoredOsmElement> source = null, string styleSet = "mapTiles", bool skipTags = false)
         {
-            return GetPlaces(stats.area, source, stats.filterSize, styleSet, skipTags, stats.drawPoints);
+            var dataLoadArea = new GeoArea(stats.area.SouthLatitude - ConstantValues.resolutionCell10, stats.area.WestLongitude - ConstantValues.resolutionCell10, stats.area.NorthLatitude + ConstantValues.resolutionCell10, stats.area.EastLongitude + ConstantValues.resolutionCell10);
+            return GetPlaces(dataLoadArea, source, stats.filterSize, styleSet, skipTags, stats.drawPoints);
         }
 
         /// <summary>

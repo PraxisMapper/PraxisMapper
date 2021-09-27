@@ -49,12 +49,16 @@ namespace PraxisMapper.Controllers
 
                     info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
                     if (zoom >= 15) //Gameplay areas are ~15.
-                       info.filterSize = 0;
+                    {
+                        info.filterSize = 0;
+                        info.drawPoints = true;
+                    }
 
                     var dataLoadArea = new GeoArea(info.area.SouthLatitude - ConstantValues.resolutionCell10, info.area.WestLongitude - ConstantValues.resolutionCell10, info.area.NorthLatitude + ConstantValues.resolutionCell10, info.area.EastLongitude + ConstantValues.resolutionCell10);
                     DateTime expires = DateTime.Now;
                     byte[] results = null;
-                    var places = GetPlacesForTile(info, null, styleSet);
+                    var places = GetPlaces(dataLoadArea, null, info.filterSize, styleSet, false, info.drawPoints);
+                    //var places = GetPlacesForTile(info, null, styleSet); //Image area crops points near boundaries
                     var paintOps = MapTiles.GetPaintOpsForStoredElements(places, styleSet, info);
                     results = MapTiles.DrawAreaAtSize(info, paintOps, TagParser.GetStyleBgColor(styleSet));
                     expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
@@ -105,7 +109,10 @@ namespace PraxisMapper.Controllers
                         return null;
                     info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
                     if (zoom >= 15) //Gameplay areas are ~15.
+                    {
                         info.filterSize = 0;
+                        info.drawPoints = true;
+                    }
 
                     DateTime expires = DateTime.Now;
                     byte[] results = null;
@@ -389,6 +396,7 @@ namespace PraxisMapper.Controllers
                 {
                     //Create this entry
                     var area = OpenLocationCode.DecodeValid(code);
+                    var dataLoadArea = new GeoArea(area.SouthLatitude - ConstantValues.resolutionCell10, area.WestLongitude - ConstantValues.resolutionCell10, area.NorthLatitude + ConstantValues.resolutionCell10, area.EastLongitude + ConstantValues.resolutionCell10);
                     var poly = Converters.GeoAreaToPolygon(area);
                     int imgX = 0, imgY = 0;
                     MapTiles.GetPlusCodeImagePixelSize(code, out imgX, out imgY, true);
@@ -396,7 +404,7 @@ namespace PraxisMapper.Controllers
                     var paintOps = MapTiles.GetPaintOpsForCustomDataPlusCodesFromTagValue(poly, dataKey, styleSet, stats);
                     var results = MapTiles.DrawAreaAtSize(stats, paintOps, TagParser.GetStyleBgColor(styleSet));
                     var expires = DateTime.Now.AddYears(10); //Assuming tile expiration occurs only when needed.
-                    var dataLoadArea = OpenLocationCode.DecodeValid(code);
+                    //var dataLoadArea = OpenLocationCode.DecodeValid(code);
                     if (existingResults == null)
                         db.MapTiles.Add(new MapTile() { PlusCode = code, resolutionScale = 11, CreatedOn = DateTime.Now, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
                     else

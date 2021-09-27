@@ -35,15 +35,23 @@ namespace PraxisCore
                 styles = Singletons.defaultTagParserEntries;
             else
             {
-                //Load TPE entries from DB for app.
-                var db = new PraxisContext();
-                styles = db.TagParserEntries.Include(t => t.TagParserMatchRules).Include(t => t.paintOperations).ToList();
-                if (styles == null || styles.Count() == 0)
-                    styles = Singletons.defaultTagParserEntries;
+                try
+                {
+                    //Load TPE entries from DB for app.
+                    var db = new PraxisContext();
+                    styles = db.TagParserEntries.Include(t => t.TagParserMatchRules).Include(t => t.paintOperations).ToList();
+                    if (styles == null || styles.Count() == 0)
+                        styles = Singletons.defaultTagParserEntries;
 
-                var dbSettings = db.ServerSettings.FirstOrDefault();
-                if (dbSettings != null)
-                    MapTiles.MapTileSizeSquare = dbSettings.SlippyMapTileSizeSquare;
+                    var dbSettings = db.ServerSettings.FirstOrDefault();
+                    if (dbSettings != null)
+                        MapTiles.MapTileSizeSquare = dbSettings.SlippyMapTileSizeSquare;
+                }
+                catch(Exception ex)
+                {
+                    //The database doesn't exist, use defaults.
+                    styles = Singletons.defaultTagParserEntries;
+                }
             }
 
             foreach (var s in styles)
