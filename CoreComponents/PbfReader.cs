@@ -194,6 +194,10 @@ namespace PraxisCore.PbfReader
                     {
                         geomFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".geomInfile", FileMode.OpenOrCreate));
                         tagsFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".tagsInfile", FileMode.OpenOrCreate));
+                        //These make it easier to insert rows with fewer checks for line ends and such later in ProcessFileResults?
+                        //geomFileStream.Write("Dummy\t1\t1\tPOINT (0 0)\t.000125\t00000000-0000-0000-0000-000000000000");
+                        //tagsFileStream.Write("1\t1\tname\tDummy");
+
                     }
                     else if (saveToJson)
                         jsonFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", FileMode.OpenOrCreate));
@@ -721,7 +725,7 @@ namespace PraxisCore.PbfReader
         private OsmSharp.Complete.CompleteWay GetWay(Way way, PrimitiveBlock wayBlock, bool skipUntagged, bool ignoreUnmatched = false)
         {
             try
-            {               
+            {
                 if (skipUntagged && way.keys.Count == 0)
                     return null;
 
@@ -1130,33 +1134,33 @@ namespace PraxisCore.PbfReader
                                 foreach (var n in nodes)
                                     results.Add(n);
 
-                                if (infileProcess)
-                                {
-                                    var convertednodes = nodes.Select(n => GeometrySupport.ConvertOsmEntryToStoredElement(n)).ToList();
-                                    StringBuilder geomSB = new StringBuilder();
-                                    StringBuilder tagsSB = new StringBuilder();
-                                    foreach (var md in convertednodes)
-                                    {
-                                        if (md != null)
-                                        {
-                                            geomSB.Append(md.name).Append("\t").Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(md.elementGeometry.AsText()).Append("\t0.000125\r\n");
-                                            foreach (var t in md.Tags)
-                                                tagsSB.Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(t.Key).Append("\t").Append(t.Value.Replace("\r", "").Replace("\n", "")).Append("\r\n"); //ensure line endings are consistent.
-                                        }
-                                    }
-                                    lock (geomFileLock)
-                                        geomFileStream.Write(geomSB);
-                                    lock (tagsFileLock)
-                                        tagsFileStream.Write(tagsSB);
-                                }
-                                else if (exportNodesToJson)
-                                {
-                                    var convertednodes = nodes.Select(n => GeometrySupport.ConvertOsmEntryToStoredElement(n)).ToList();
-                                    var classForJson = convertednodes.Where(c => c != null).Select(md => new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated)).ToList();
-                                    var textLines = classForJson.Select(c => JsonSerializer.Serialize(c, typeof(StoredOsmElementForJson))).ToList();
-                                    lock (fileLock)
-                                        System.IO.File.AppendAllLines(outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + ".json", textLines);
-                                }
+                                //if (infileProcess)
+                                //{
+                                //    var convertednodes = nodes.Select(n => GeometrySupport.ConvertOsmEntryToStoredElement(n)).ToList();
+                                //    StringBuilder geomSB = new StringBuilder();
+                                //    StringBuilder tagsSB = new StringBuilder();
+                                //    foreach (var md in convertednodes)
+                                //    {
+                                //        if (md != null)
+                                //        {
+                                //            geomSB.Append(md.name).Append("\t").Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(md.elementGeometry.AsText()).Append("\t0.000125").Append(Guid.NewGuid()).Append("\r\n");
+                                //            foreach (var t in md.Tags)
+                                //                tagsSB.Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(t.Key).Append("\t").Append(t.Value.Replace("\r", "").Replace("\n", "")).Append("\r\n"); //ensure line endings are consistent.
+                                //        }
+                                //    }
+                                //    lock (geomFileLock)
+                                //        geomFileStream.Write(geomSB);
+                                //    lock (tagsFileLock)
+                                //        tagsFileStream.Write(tagsSB);
+                                //}
+                                //else if (exportNodesToJson)
+                                //{
+                                //    var convertednodes = nodes.Select(n => GeometrySupport.ConvertOsmEntryToStoredElement(n)).ToList();
+                                //    var classForJson = convertednodes.Where(c => c != null).Select(md => new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated)).ToList();
+                                //    var textLines = classForJson.Select(c => JsonSerializer.Serialize(c, typeof(StoredOsmElementForJson))).ToList();
+                                //    lock (fileLock)
+                                //        System.IO.File.AppendAllLines(outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + ".json", textLines);
+                                //}
                                 return;
                             }
                             catch (Exception ex)
@@ -1431,6 +1435,16 @@ namespace PraxisCore.PbfReader
             if (boundsEntry != null)
                 elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => boundsEntry.Intersects(e.elementGeometry)));
 
+            if (elements.Count == 0)
+                return null;
+
+            //Single check per block to fix points having 0 size.
+            bool fixNodeSize = false;
+            if (elements.First().sourceItemType == 1)
+                foreach (var e in elements)
+                    e.AreaSize = ConstantValues.resolutionCell10;
+                
+
             if (saveToDB)
             {
                 var splits = elements.AsEnumerable().SplitListToMultiple(4);
@@ -1445,69 +1459,45 @@ namespace PraxisCore.PbfReader
             {
                 if (saveToJson)
                 {
-                    //ConcurrentBag<string> results = new ConcurrentBag<string>();
-                    StringBuilder jsonSB = new StringBuilder(50000000); //50MB of JsonData for a block is a good starting buffer.
-                    foreach (var md in elements.Where(e => e != null))
+                    StringBuilder jsonSB = new StringBuilder(10000000); //1MB of JsonData for a block is a good starting buffer.
+                    foreach (var md in elements)
                     {
-                        //relList.Add(Task.Run(() =>
-                        //{
                         var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated);
                         var test = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
                         jsonSB.Append(test).Append(Environment.NewLine);
-                        //}));
                     }
-                    //Task.WaitAll(relList.ToArray());
 
-                    //var monitorTask = System.Threading.Tasks.Task.Run(() =>
-                    //{
-                        try
-                        {
-                            //System.Diagnostics.Stopwatch sw2 = new System.Diagnostics.Stopwatch();
-                            //sw2.Start();
-                            //lock (fileLock)
-                                jsonFileStream.Write(jsonSB);
-
-                            //sw2.Stop();
-                            //Log.WriteLog("Data written to disk in" + sw2.Elapsed);
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.WriteLog("Error writing data to disk:" + ex.Message);
-                        }
-                    //});
-
-                    //return monitorTask;
+                    try
+                    {
+                        jsonFileStream.Write(jsonSB);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.WriteLog("Error writing data to disk:" + ex.Message);
+                    }
                     return null;
                 }
                 else if (saveToInfile)
                 {
-                    //It's much faster to use StringBuilders here than the string arrays that were previously here.
-                    //Starts with 50MB allocated in each 2 stringBuilders to minimize reallocations.
-                    StringBuilder geometryBuilds = new StringBuilder(50000000);
-                    StringBuilder tagBuilds = new StringBuilder(50000000);
-                    //TODO: I might need to assign a PrivacyID at this step, since MariaDB has that saved in the entities as a char(32)
-                    foreach (var md in elements.Where(e => e != null))
+                    //Starts with some data allocated in each 2 stringBuilders to minimize reallocations. These should be reasonable for most blocks.
+                    StringBuilder geometryBuilds = new StringBuilder(4000000); //400k
+                    StringBuilder tagBuilds = new StringBuilder(200000); //20k
+                    foreach (var md in elements)
                     {
-                        geometryBuilds.Append(md.name).Append("\t").Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(md.elementGeometry.AsText()).Append("\t").Append(md.elementGeometry.Length).Append(Environment.NewLine);
+                        geometryBuilds.Append(md.name).Append("\t").Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(md.elementGeometry.AsText()).Append("\t").Append(md.elementGeometry.Length).Append("\t").Append(Guid.NewGuid()).Append("\r\n");
                         foreach (var t in md.Tags)
-                            tagBuilds.Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(t.Key).Append("\t").Append(t.Value.Replace("\r", "").Replace("\n", "")).Append(Environment.NewLine); //Might also need to sanitize / and ' ?
+                            tagBuilds.Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(t.Key).Append("\t").Append(t.Value.Replace("\r", "").Replace("\n", "")).Append("\r\n"); //Might also need to sanitize / and ' ?
                     }
 
-                    //var monitorTask = Task.Run(() =>
-                    //{
-                        try
-                        {
-                            //lock (geomFileLock)
-                                geomFileStream.Write(geometryBuilds);
-                            //lock (tagsFileLock)
-                                tagsFileStream.Write(tagBuilds);
-                            //Log.WriteLog("Data written to disk");
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.WriteLog("Error writing data to disk:" + ex.Message);
-                        }
-                    //});
+                    try
+                    {
+                        geomFileStream.Write(geometryBuilds);
+                        tagsFileStream.Write(tagBuilds);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.WriteLog("Error writing data to disk:" + ex.Message);
+                    }
                 }
 
                 return null; //some invalid options were passed and we didnt run through anything.

@@ -63,11 +63,6 @@ namespace Larry
                 createDb();
             }
             
-            if (args.Any(a => a == "-findServerBounds"))
-            {
-                DBCommands.FindServerBounds();
-            }
-
             if (args.Any(a => a.StartsWith("-getPbf:")))
             {
                 //Wants 3 pieces. Drops in placeholders if some are missing. Giving no parameters downloads Ohio.
@@ -112,9 +107,8 @@ namespace Larry
                 createDb();
                 processPbfs();
                 loadProcessedData();
-                var bounds = DBCommands.FindServerBounds();
-                var boundsArea = new GeoArea(bounds.SouthBound, bounds.WestBound, bounds.NorthBound, bounds.EastBound);
-                MapTiles.PregenMapTilesForArea(boundsArea);
+                var bounds = DBCommands.FindServerBounds(long.Parse(config["UseOneRelationID"]));
+                MapTiles.PregenMapTilesForArea(bounds);
 
                 Log.WriteLog("Server setup complete.");
             }
@@ -174,6 +168,11 @@ namespace Larry
                 autoCreateMapTiles();
             }
 
+            if (args.Any(a => a == "-findServerBounds"))
+            {
+                DBCommands.FindServerBounds(long.Parse(config["UseOneRelationID"]));
+            }
+
             if (args.Any(a => a.StartsWith("-drawOneImage:")))
             {
                 DrawOneImage(args.First(a => a.StartsWith("-drawOneImage:")).Split(":")[1]);
@@ -212,6 +211,7 @@ namespace Larry
 
         private static void loadProcessedData()
         {
+            Log.WriteLog("Starting load from processed files at " + DateTime.Now);
             PraxisContext db = null;
             if (config["KeepElementsInMemory"] != "True")
             {
@@ -228,7 +228,7 @@ namespace Larry
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
                     var mariaPath = jsonFileName.Replace("\\", "\\\\");
-                    db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' INTO TABLE StoredOsmElements fields terminated by '\t' lines terminated by '\r\n' (name, sourceItemID, sourceItemType, @elementGeometry, AreaSize) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
+                    db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' INTO TABLE StoredOsmElements fields terminated by '\t' lines terminated by '\r\n' (name, sourceItemID, sourceItemType, @elementGeometry, AreaSize, privacyId) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
                     sw.Stop();
                     Console.WriteLine("Geometry loaded from " + jsonFileName + " in " + sw.Elapsed);
                     System.IO.File.Move(jsonFileName, jsonFileName + "done");

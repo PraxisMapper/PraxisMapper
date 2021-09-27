@@ -1,4 +1,5 @@
-﻿using PraxisCore;
+﻿using Google.OpenLocationCode;
+using PraxisCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,13 +11,21 @@ namespace Larry
     //DBCommands is where functions that do database work go. This includes reading from JSON files to create/update/delete DB entries.
     public static class DBCommands
     {
-        public static ServerSetting FindServerBounds()
+        public static GeoArea FindServerBounds(long singleArea)
         {
             //This is an important command if you don't want to track data outside of your initial area.
             Log.WriteLog("Detecting server map boundaries from data at " + DateTime.Now);
-            var results = Place.DetectServerBounds(resolutionCell8); //Using 8 for now.
-
             var db = new PraxisContext();
+            GeoArea results = null;
+            if (singleArea != 0)
+            {
+                var area = db.StoredOsmElements.First(e => e.sourceItemID == singleArea);
+                var envelop = area.elementGeometry.EnvelopeInternal;
+                results = new GeoArea(envelop.MinY, envelop.MinX, envelop.MaxY, envelop.MaxX);
+            }
+            else
+                results = Place.DetectServerBounds(resolutionCell8); //Using 8 for now.
+
             var settings = db.ServerSettings.FirstOrDefault();
             settings.NorthBound = results.NorthLatitude;
             settings.SouthBound = results.SouthLatitude;
@@ -24,7 +33,7 @@ namespace Larry
             settings.WestBound = results.WestLongitude;
             db.SaveChanges();
             Log.WriteLog("Server map boundaries found and saved at " + DateTime.Now);
-            return settings;
+            return results;
         }
 
         public static void RemoveDuplicates()
