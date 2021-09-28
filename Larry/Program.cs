@@ -35,7 +35,7 @@ namespace Larry
             .AddJsonFile("Larry.config.json");
             config = builder.Build();
 
-            var memMon = new MemoryMonitor();
+            //var memMon = new MemoryMonitor();
             ApplyConfigValues();
 
             Log.WriteLog("Larry started at " + DateTime.Now);
