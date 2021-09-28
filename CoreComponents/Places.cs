@@ -46,7 +46,7 @@ namespace PraxisCore
             {
                 var location = Converters.GeoAreaToPolygon(area); //Prepared items don't work on a DB lookup.
                 var db = new PraxisCore.PraxisContext();
-                db.Database.SetCommandTimeout(new TimeSpan(0, 2, 0));
+                db.Database.SetCommandTimeout(new TimeSpan(0, 5, 0));
                 if (skipTags) //Should make the load slightly faster if we're parsing existing items that already got tags applied
                 {
                     places = db.StoredOsmElements.Where(md => location.Intersects(md.elementGeometry) && md.AreaSize >= filterSize && (includePoints || md.sourceItemType != 1)).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList();
