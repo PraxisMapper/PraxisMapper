@@ -164,7 +164,7 @@ namespace PraxisCore
             var plusCodePoly = Converters.GeoAreaToPolygon(plusCodeArea);
             var plusCodeData = db.CustomDataPlusCodes.Where(d => plusCodePoly.Intersects(d.geoAreaIndex))
                 .ToList() //Required to run the next Where on the C# side
-                .Where(row => row.expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
+                .Where(row => row.expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now)
                 .Select(d => new CustomDataResult(d.PlusCode, d.dataKey, d.dataValue))
                 .ToList();
 
@@ -182,7 +182,7 @@ namespace PraxisCore
             var poly = Converters.GeoAreaToPolygon(area);
             var plusCodeData = db.CustomDataPlusCodes.Where(d => poly.Intersects(d.geoAreaIndex))
                 .ToList() //Required to run the next Where on the C# side
-                .Where(row => row.expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
+                .Where(row => row.expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now)
                 .Select(d => new CustomDataResult(d.PlusCode, d.dataKey, d.dataValue))
                 .ToList();
 
@@ -200,7 +200,7 @@ namespace PraxisCore
             var poly = Converters.GeoAreaToPolygon(area);
             var data = db.CustomDataOsmElements.Include(d => d.storedOsmElement).Where(d => poly.Intersects(d.storedOsmElement.elementGeometry))
                 .ToList() //Required to run the next Where on the C# side
-                .Where(row => row.expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
+                .Where(row => row.expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now)
                 .Select(d => new CustomDataAreaResult(d.storedOsmElement.privacyId, d.dataKey, d.dataValue))
                 .ToList();
 
@@ -218,7 +218,7 @@ namespace PraxisCore
             var place = db.StoredOsmElements.First(s => s.privacyId == elementId);
             var data = db.CustomDataOsmElements.Where(d => d.storedOsmElement.elementGeometry.Intersects(d.storedOsmElement.elementGeometry))
                 .ToList() //Required to run the next Where on the C# side
-                .Where(row => row.expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
+                .Where(row => row.expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now)
                 .Select(d => new CustomDataAreaResult(place.privacyId, d.dataKey, d.dataValue))
                 .ToList();
 

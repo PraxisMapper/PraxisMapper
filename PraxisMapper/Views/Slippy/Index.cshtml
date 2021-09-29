@@ -29,10 +29,10 @@
         var baseDataTEstV4 = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 });
         var offlineEstimateAreas = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 });
 
-        var baseLayers = {
-            "Base Data": baseData,
-            "Base Data TestV4": baseDataTEstV4,
-        };
+        //var baseLayers = {
+        //    "Base Data": baseData,
+        //    "Base Data TestV4": baseDataTEstV4,
+        //};
         var overlays = {
             "Paint The Town": ptt,
             "Area Control": ac,
@@ -68,7 +68,7 @@
     accessToken: 'none'
     }).addTo(mymap);
 
-        L.control.layers(baseLayers, overlays).addTo(mymap);
+        L.control.layers(overlays).addTo(mymap);
     </script>
 </body>
 </html>
