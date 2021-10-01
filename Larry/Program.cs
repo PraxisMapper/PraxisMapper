@@ -359,7 +359,7 @@ namespace Larry
             TagParser.ApplyTags(memorySource, "mapTiles");
             ImageStats istats = new ImageStats(OpenLocationCode.DecodeValid(code), 1024, 1024);
             var paintOps = MapTiles.GetPaintOpsForStoredElements(memorySource, "mapTiles", istats);
-            System.IO.File.WriteAllBytes(config["JsonMapDataFolder"] +  code + ".png", MapTiles.DrawPlusCode(code, paintOps, "mapTiles", true));
+            System.IO.File.WriteAllBytes(config["JsonMapDataFolder"] +  code + ".png", MapTiles.DrawPlusCode(code, paintOps, "mapTiles"));
             sw.Stop();
             Log.WriteLog("image drawn from memory in " + sw.Elapsed);
         }

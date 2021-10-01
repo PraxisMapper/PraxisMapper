@@ -21,8 +21,15 @@ namespace PraxisCore
     public static class MapTiles
     {
         public static int MapTileSizeSquare = 512; //Default value, updated by PraxisMapper at startup. COvers Slippy tiles, not gameplay tiles.
+        public static double GameTileScale = 2;
+        public static double bufferSize = resolutionCell10; //How much space to add to an area to make sure elements are drawn correctly. Mostly to stop points from being clipped.
         static SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
         static Random r = new Random();
+
+        private static GeoArea MakeBufferedGeoArea(GeoArea original)
+        {
+            return new GeoArea(original.SouthLatitude - bufferSize, original.WestLongitude - bufferSize, original.NorthLatitude + bufferSize, original.EastLongitude + bufferSize);
+        }
 
         /// <summary>
         /// Draw square boxes around each area to approximate how they would behave in an offline app
@@ -295,13 +302,12 @@ namespace PraxisCore
         }
 
         /// <summary>
-        /// A code reference for how big an image would be using 11-character PlusCodes for 1 pixel (or 2x2 if doubleRes is true)
+        /// A code reference for how big an image would be using 11-character PlusCodes for pixels, multiplied by GameGameTileScale (default 2)
         /// </summary>
         /// <param name="code">the code provided to determine image size</param>
         /// <param name="X">out param for image width</param>
         /// <param name="Y">out param for image height</param>
-        /// <param name="doubleRes">if true, each Cell11 in the resulting image will be 2x2 pixels, or 1x1 if false.</param>
-        public static void GetPlusCodeImagePixelSize(string code, out int X, out int Y, bool doubleRes = true)
+        public static void GetPlusCodeImagePixelSize(string code, out int X, out int Y)
         {
             switch (code.Length)
             {
@@ -317,7 +323,7 @@ namespace PraxisCore
                     X = 4 * 20 * 20;
                     Y = 5 * 20 * 20;
                     break;
-                case 4: //This tends to break Skiasharp because of layering bitmaps to draw polygons with holes.
+                case 4: //This is likely to use up more RAM than most PCs have, especially at large scales.
                     X = 4 * 20 * 20 * 20;
                     Y = 5 * 20 * 20 * 20;
                     break;
@@ -326,12 +332,9 @@ namespace PraxisCore
                     Y = 0;
                     break;
             }
+            X = (int)(X *GameTileScale);
+            Y = (int)(Y *GameTileScale);
 
-            if (doubleRes)
-            {
-                X *= 2;
-                Y *= 2;
-            }
         }
 
         /// <summary>
@@ -341,7 +344,7 @@ namespace PraxisCore
         /// <param name="styleSet">the TagParser style set to use when drawing</param>
         /// <param name="doubleRes">treat each Cell11 contained as 2x2 pixels when true, 1x1 when not.</param>
         /// <returns></returns>
-        public static byte[] DrawPlusCode(string area, string styleSet = "mapTiles", bool doubleRes = true)
+        public static byte[] DrawPlusCode(string area, string styleSet = "mapTiles")
         {
             //This might be a cleaner version of my V4 function, for working with CellX sized tiles..
             //This will draw at a Cell11 resolution automatically.
@@ -350,7 +353,7 @@ namespace PraxisCore
             //TODO: make a version that just takes paintOps?
 
             int imgX = 0, imgY = 0;
-            GetPlusCodeImagePixelSize(area, out imgX, out imgY, doubleRes);
+            GetPlusCodeImagePixelSize(area, out imgX, out imgY);
 
             ImageStats info = new ImageStats(OpenLocationCode.DecodeValid(area), imgX, imgY);
             info.drawPoints = true;
@@ -365,9 +368,8 @@ namespace PraxisCore
         /// <param name="area">the PlusCode string to draw. Can be 6-11 digits long</param>
         /// <param name="paintOps">the list of paint operations to run through for drawing</param>
         /// <param name="styleSet">the TagParser style set to use for determining the background color.</param>
-        /// <param name="doubleRes">treat each Cell11 contained as 2x2 pixels when true, 1x1 when not.</param>
         /// <returns>a byte array for the png file of the pluscode image file</returns>
-        public static byte[] DrawPlusCode(string area, List<CompletePaintOp> paintOps, string styleSet = "mapTiles", bool doubleRes = true)
+        public static byte[] DrawPlusCode(string area, List<CompletePaintOp> paintOps, string styleSet = "mapTiles")
         {
             //This might be a cleaner version of my V4 function, for working with CellX sized tiles..
             //This will draw at a Cell11 resolution automatically.
@@ -375,7 +377,7 @@ namespace PraxisCore
             //then get all the area
 
             int imgX = 0, imgY = 0;
-            GetPlusCodeImagePixelSize(area, out imgX, out imgY, doubleRes);
+            GetPlusCodeImagePixelSize(area, out imgX, out imgY);
 
             ImageStats info = new ImageStats(OpenLocationCode.DecodeValid(area), imgX, imgY);
             info.drawPoints = true;
@@ -590,7 +592,7 @@ namespace PraxisCore
                         //    canvas.DrawBitmap(innerBitmap, 0, 0, paint);
                         //}
                         break;
-                    case "MultiPolygon": 
+                    case "MultiPolygon":
                         foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries)
                         {
                             var p2p = p2 as Polygon;
@@ -969,7 +971,7 @@ namespace PraxisCore
                     var plusCode = new OpenLocationCode(y, x, 10);
                     var plusCode8 = plusCode.CodeDigits.Substring(0, 8);
                     var plusCodeArea = OpenLocationCode.DecodeValid(plusCode8);
-                    var paddedArea = new GeoArea(plusCodeArea.SouthLatitude - resolutionCell10, plusCodeArea.WestLongitude - resolutionCell10, plusCodeArea.NorthLatitude + resolutionCell10, plusCodeArea.EastLongitude + resolutionCell10);
+                    var paddedArea = MakeBufferedGeoArea(plusCodeArea);
 
                     var acheck = Converters.GeoAreaToPreparedPolygon(paddedArea); //Fastest search option is one preparedPolygon against a list of normal geometry.
                     var areaList = rowList.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); //Get the list of areas in this maptile.

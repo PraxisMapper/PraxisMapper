@@ -301,7 +301,7 @@ namespace PraxisMapper.Controllers
                 if (!useCache || existingResults == null || existingResults.MapTileId == null || existingResults.ExpireOn < DateTime.Now)
                 {
                     //Create this entry
-                    var results = MapTiles.DrawPlusCode(code, styleSet, true);
+                    var results = MapTiles.DrawPlusCode(code, styleSet);
                     var expires = DateTime.Now.AddYears(10); //Assuming tile expiration occurs only when needed.
                     var dataLoadArea = OpenLocationCode.DecodeValid(code);
                     if (existingResults == null)
@@ -348,7 +348,7 @@ namespace PraxisMapper.Controllers
                     var area = OpenLocationCode.DecodeValid(code);
                     var poly = Converters.GeoAreaToPolygon(area);
                     int imgX = 0, imgY = 0;
-                    MapTiles.GetPlusCodeImagePixelSize(code, out imgX, out imgY, true);
+                    MapTiles.GetPlusCodeImagePixelSize(code, out imgX, out imgY);
                     ImageStats stats = new ImageStats(area, imgX, imgY);
                     var paintOps = MapTiles.GetPaintOpsForCustomDataPlusCodes(poly, dataKey, styleSet, stats);
                     var results = MapTiles.DrawAreaAtSize(stats, paintOps, TagParser.GetStyleBgColor(styleSet));
@@ -399,7 +399,7 @@ namespace PraxisMapper.Controllers
                     var dataLoadArea = new GeoArea(area.SouthLatitude - ConstantValues.resolutionCell10, area.WestLongitude - ConstantValues.resolutionCell10, area.NorthLatitude + ConstantValues.resolutionCell10, area.EastLongitude + ConstantValues.resolutionCell10);
                     var poly = Converters.GeoAreaToPolygon(area);
                     int imgX = 0, imgY = 0;
-                    MapTiles.GetPlusCodeImagePixelSize(code, out imgX, out imgY, true);
+                    MapTiles.GetPlusCodeImagePixelSize(code, out imgX, out imgY);
                     ImageStats stats = new ImageStats(area, imgX, imgY);
                     var paintOps = MapTiles.GetPaintOpsForCustomDataPlusCodesFromTagValue(poly, dataKey, styleSet, stats);
                     var results = MapTiles.DrawAreaAtSize(stats, paintOps, TagParser.GetStyleBgColor(styleSet));
@@ -449,7 +449,7 @@ namespace PraxisMapper.Controllers
                     var area = OpenLocationCode.DecodeValid(code);
                     var poly = Converters.GeoAreaToPolygon(area);
                     int imgX = 0, imgY = 0;
-                    MapTiles.GetPlusCodeImagePixelSize(code, out imgX, out imgY, true);
+                    MapTiles.GetPlusCodeImagePixelSize(code, out imgX, out imgY);
                     ImageStats stats = new ImageStats(area, imgX, imgY);
                     var paintOps = MapTiles.GetPaintOpsForCustomDataElements(poly, dataKey, styleSet, stats);
                     var results = MapTiles.DrawAreaAtSize(stats, paintOps, TagParser.GetStyleBgColor(styleSet));
