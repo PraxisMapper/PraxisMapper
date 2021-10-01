@@ -1,6 +1,6 @@
 ﻿{
   "DbMode": "MariaDB",
-  "DbConnectionString": "server=localhost;database=praxis;user=root;password=asdf;",
+  "DbConnectionString": "server=localhost;database=praxis;user=root;password=root;",
   "ForceSeparateFiles": false,
   "PbfFolder": "C:\\Praxis\\",
   "JsonMapDataFolder": "C:\\Praxis\\",
@@ -12,5 +12,9 @@
   "UseOneRelationID": 0,
   "LogLevel": 1,
   "KeepElementsInMemory": false,
-  "TagParserStyleSet":  "mapTiles"
+  "TagParserStyleSet": "mapTiles",
+  "mapTileScaleFactor": 2,
+  "slippyTileSize": 512, //is in db settings already.
+  "placesAreaBuffer": 0.000125 //1 Cell10
+
 }

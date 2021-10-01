@@ -23,7 +23,7 @@ namespace PraxisCore
         //All elements in the table with Geometry will be valid, and the TagParser rules will determine which ones are game elements
         //this allows it to be customized much easier, and changed on the fly without reloading data.
         //A lot of the current code will need changed to match that new logic, though. And generated areas may remain separate.
-        
+
         /// <summary>
         /// The core for pulling in locations from PraxisMapper. Can do a new search on an existing list of StoredOsmElement or pulls from the database if none is provided.
         /// </summary>
