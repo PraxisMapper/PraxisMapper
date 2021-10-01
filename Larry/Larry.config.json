@@ -11,5 +11,6 @@
   "UseMariaDBInFile": false,
   "UseOneRelationID": 0,
   "LogLevel": 1,
-  "KeepElementsInMemory": false
+  "KeepElementsInMemory": false,
+  "TagParserStyleSet":  "mapTiles"
 }
