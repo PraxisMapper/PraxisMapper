@@ -178,6 +178,12 @@ namespace Larry
                 DrawOneImage(args.First(a => a.StartsWith("-drawOneImage:")).Split(":")[1]);
             }
 
+            if (args.Any(a => a.StartsWith("-processCoastlines:")))
+            {
+                string filename  = args.First(a => a.StartsWith("-processCoastlines:")).Split(":")[1];
+                ReadCoastlineShapefile(filename);
+            }
+
             //This is not currently finished or testing in the current setup. Will return in a future release.
             //if (args.Any(a => a.StartsWith("-populateEmptyArea:")))
             //{
@@ -665,6 +671,25 @@ namespace Larry
             //TODO: set this up to get files with different sub-level counts.
             var wc = new WebClient();
             wc.DownloadFile("http://download.geofabrik.de/" + topLevel + "/" + subLevel1 + "/" + subLevel2 + "-latest.osm.pbf", destinationFolder + subLevel2 + "-latest.osm.pbf");
+        }
+
+        public static void ReadCoastlineShapefile(string shapePath)
+        {
+            StreamWriter sw = new  StreamWriter(config["JsonMapDataFolder"] + "coastlines.json");
+            EGIS.ShapeFileLib.ShapeFile sf = new EGIS.ShapeFileLib.ShapeFile(shapePath);
+            var recordCount = sf.RecordCount;
+            var tagString = "natural:coastline";
+            for (int i = 0; i < recordCount; i++)
+            {
+                var shapeData = sf.GetShapeDataD(i);
+                var poly = Converters.ShapefileRecordToPolygon(shapeData);
+                //Write this to a json file.
+                var jsonData = new StoredOsmElementForJson(i, "coastlinePoly", i, 2, poly.ToString(), tagString, false, false, false);
+                var jsonString = System.Text.Json.JsonSerializer.Serialize(jsonData, typeof(StoredOsmElementForJson));
+                sw.WriteLine(jsonString);
+            }
+            sw.Close();
+            sw.Dispose();
         }
     }
 }

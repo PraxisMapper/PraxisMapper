@@ -6,6 +6,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using static PraxisCore.Singletons;
+using EGIS.ShapeFileLib;
+using System.Collections.ObjectModel;
 
 namespace PraxisCore
 {
@@ -193,6 +195,18 @@ namespace PraxisCore
         {
             double n = Math.PI - 2.0 * Math.PI * y / (double)(1 << z);
             return 180.0 / Math.PI * Math.Atan(0.5 * (Math.Exp(n) - Math.Exp(-n)));
+        }
+
+        /// <summary>
+        /// Takes a Shapefile record as a collection of double-precision points, and converts that to a polygon.
+        /// </summary>
+        /// <param name="shapePoints">The list of points to convert. Expects results from EGIS.ShapeFileLib.ShapeFile.GetShapeDataD() and in WSG84 projection</param>
+        /// <returns>A Polygon composed</returns>
+        public static Polygon ShapefileRecordToPolygon(ReadOnlyCollection<PointD[]> shapePoints)
+        {
+            var coordArray = shapePoints.First().Select(s => new Coordinate(s.X, s.Y)).ToArray();
+            var poly = new Polygon(new LinearRing(coordArray));
+            return poly;
         }
 
         //Incomplete, slippy tiles require some compromises for this to work

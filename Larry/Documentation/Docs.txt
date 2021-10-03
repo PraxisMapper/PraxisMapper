@@ -19,6 +19,9 @@ UseMariaDBInFile: If true, and DbMode is 'MariaDB', will save output files to a 
 UseOneRelationID: If 0, loads all data from the source files to the database. If any other number, loads an OSM Relation with the given number, and only saves data that overlaps with that relation.
 LogLevel: Sets how much data to display on the console window/log file. 0 does no logging, 1 is the default, and 2 includes additional error messages and details not normally relevant to use.
 KeepElementsInMemory: If false, operate normally and efficiently. If true, stores results in memory instead of loading them to a database. Useful for confirming output files are valid and drawing large images without a server running.
+mapTileScaleFactor: Baseline gameplay map tiles are drawing to have 1 pixel == 1 Cell11 plus code, making an 80x100 image. This resolution is multiplied by the scale factor to determine final output size.
+slippyTileSize: determines the square size of slippyMaptiles on your server.
+placesAreaBuffer: Adds this much space when loading places from the database. Requires to draw elements that have drawn components that overlap tiles without the element itself doing so (EX: Points drawn as a circle, or names written as text)
 
 Advanced Commands:
 -createDB --Create an empty PraxisMapper database on the server Larry is configured to connect to.
@@ -31,3 +34,4 @@ Advanced Commands:
 -createStandalonePoint --as previous command, but makes a game for a 6-digit PlusCode cell centered on the given coordinates.
 -autoCreateMapTiles --Searches the database for areas that need map tiles created, skips empty ones. Runs a search on a global scale, but doesn't draw tiles with no data. Intended for very large game areas, not required for a typical server setup.
 -drawOneImage:234567 --given a PlusCode after the colon, draws a PNG file of that PlusCode. Requires KeepElementsInMemory to be true to work.
+-processCoastlines:file.shp --Reads a shapefile to create polygons representing the oceans, which don't usually have elements in OSM to represent them.
