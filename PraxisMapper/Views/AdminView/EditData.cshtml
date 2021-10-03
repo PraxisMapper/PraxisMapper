@@ -1,0 +1,10 @@
+﻿@model PraxisMapper.Models.EditData
+
+Edit Data<br /><br />
+
+Globals:
+<br />
+@Html.DropDownListFor(e => e.currentGlobalKey, Model.globalDataKeys, null, new { @onchange="globalKey.value = this.options[this.selectedIndex].text; globalValue.value = this.value "})<br />
+<input type="text" id="globalKey" /><input type="text" id="globalValue" />
+<input type="button" id="submitGlobal" onclick="fetch('../Data/SetGlobalData/' + globalKey.value + '/' + globalValue.value + '@Model.accessKey');" value="Save Global Value" />
+<br /><br />

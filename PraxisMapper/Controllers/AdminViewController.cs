@@ -5,12 +5,20 @@ using Microsoft.EntityFrameworkCore;
 using PraxisMapper.Classes;
 using System;
 using System.Linq;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.Extensions.Configuration;
 
 namespace PraxisMapper.Controllers
 {
     [Route("[controller]")]
     public class AdminViewController : Controller
     {
+        private readonly IConfiguration Configuration;
+        public AdminViewController(IConfiguration config)
+        {
+            Configuration = config;
+        }
+
         [HttpGet]
         [Route("/[controller]")]
         [Route("/[controller]/Index")]
@@ -112,6 +120,18 @@ namespace PraxisMapper.Controllers
                 return GetPlaceInfo(area.sourceItemID, area.sourceItemType);
 
             return null;
+        }
+
+        [Route("/[controller]/EditData")]
+        public ActionResult EditData()
+        {
+            //TODO: break these out into separate views when ready.
+            Models.EditData model = new Models.EditData();
+            var db = new PraxisContext();
+            model.accessKey = "?PraxisAuthKey=" + Configuration["serverAuthKey"];
+            model.globalDataKeys = db.GlobalDataEntries.Select(g => new SelectListItem(g.dataKey, g.dataValue)).ToList();
+
+            return View(model);
         }
     }
 }
