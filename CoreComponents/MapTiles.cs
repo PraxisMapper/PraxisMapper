@@ -26,7 +26,7 @@ namespace PraxisCore
         static SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
         static Random r = new Random();
 
-        private static GeoArea MakeBufferedGeoArea(GeoArea original)
+        public static GeoArea MakeBufferedGeoArea(GeoArea original)
         {
             return new GeoArea(original.SouthLatitude - bufferSize, original.WestLongitude - bufferSize, original.NorthLatitude + bufferSize, original.EastLongitude + bufferSize);
         }
@@ -332,8 +332,8 @@ namespace PraxisCore
                     Y = 0;
                     break;
             }
-            X = (int)(X *GameTileScale);
-            Y = (int)(Y *GameTileScale);
+            X = (int)(X * GameTileScale);
+            Y = (int)(Y * GameTileScale);
 
         }
 
@@ -901,29 +901,27 @@ namespace PraxisCore
             canvas.Flush();
             canvas.Dispose();
             canvas = null;
-            //var skms = new SKManagedWStream(ms);
             s.Position = 0;
             var svgData = new StreamReader(s).ReadToEnd();
-            //var results = ms.ToArray();
-            //skms.Dispose(); ms.Close(); ms.Dispose();
             return svgData;
         }
 
         /// <summary>
-        /// Creates all gameplay tiles for a given area and saves them to the database.
+        /// Creates all gameplay tiles for a given area and saves them to the database (or files, if that option is set)
         /// </summary>
-        /// <param name="buffered">the GeoArea of the area to create tiles for.</param>
-        public static void PregenMapTilesForArea(GeoArea buffered)
+        /// <param name="areaToDraw">the GeoArea of the area to create tiles for.</param>
+        /// <param name="saveToFiles">If true, writes to files in the output folder. If false, saves to DB.</param>
+        public static void PregenMapTilesForArea(GeoArea areaToDraw, bool saveToFiles = false)
         {
             //There is a very similar function for this in Standalone.cs, but this one writes back to the main DB.
-            var intersectCheck = Converters.GeoAreaToPolygon(buffered);
+            var intersectCheck = Converters.GeoAreaToPolygon(areaToDraw);
             //start drawing maptiles and sorting out data.
             var swCorner = new OpenLocationCode(intersectCheck.EnvelopeInternal.MinY, intersectCheck.EnvelopeInternal.MinX);
             var neCorner = new OpenLocationCode(intersectCheck.EnvelopeInternal.MaxY, intersectCheck.EnvelopeInternal.MaxX);
 
             //declare how many map tiles will be drawn
-            var xTiles = buffered.LongitudeWidth / resolutionCell8;
-            var yTiles = buffered.LatitudeHeight / resolutionCell8;
+            var xTiles = areaToDraw.LongitudeWidth / resolutionCell8;
+            var yTiles = areaToDraw.LatitudeHeight / resolutionCell8;
             var totalTiles = Math.Truncate(xTiles * yTiles);
 
             Log.WriteLog("Starting processing maptiles for " + totalTiles + " Cell8 areas.");
@@ -948,7 +946,7 @@ namespace PraxisCore
                 xVal += resolutionCell8;
             }
 
-            var allPlaces = GetPlaces(buffered);
+            var allPlaces = GetPlaces(areaToDraw);
 
             object listLock = new object();
             DateTime expiration = DateTime.Now.AddYears(10);
@@ -961,7 +959,6 @@ namespace PraxisCore
                 //Add a Cell8 buffer space so all elements are loaded and drawn without needing to loop through the entire area.
                 GeoArea thisRow = new GeoArea(y - ConstantValues.resolutionCell8, xCoords.First() - ConstantValues.resolutionCell8, y + ConstantValues.resolutionCell8 + ConstantValues.resolutionCell8, xCoords.Last() + resolutionCell8);
                 var rowList = GetPlaces(thisRow, allPlaces);
-                //var tilesToSave = new ConcurrentBag<MapTile>();
                 var tilesToSave = new List<MapTile>(xCoords.Count());
 
                 Parallel.ForEach(xCoords, x =>
@@ -981,13 +978,23 @@ namespace PraxisCore
                     var areaPaintOps = MapTiles.GetPaintOpsForStoredElements(areaList, "mapTiles", info);
                     var tile = DrawPlusCode(plusCode8, areaPaintOps, "mapTiles");
 
-                    var thisTile = new MapTile() { tileData = tile, PlusCode = plusCode8, CreatedOn = DateTime.Now, ExpireOn = expiration, areaCovered = acheck.Geometry, resolutionScale = 11, styleSet = "mapTiles" };
-                    lock (listLock)
-                        tilesToSave.Add(thisTile);
+                    if (saveToFiles)
+                    {
+                        File.WriteAllBytes("GameTiles\\" + plusCode8 + ".png", tile);
+                    }
+                    else
+                    {
+                        var thisTile = new MapTile() { tileData = tile, PlusCode = plusCode8, CreatedOn = DateTime.Now, ExpireOn = expiration, areaCovered = acheck.Geometry, resolutionScale = 11, styleSet = "mapTiles" };
+                        lock (listLock)
+                            tilesToSave.Add(thisTile);
+                    }
                 });
                 mapTileCounter += xCoords.Count();
-                db.MapTiles.AddRange(tilesToSave);
-                db.SaveChanges();
+                if (!saveToFiles)
+                {
+                    db.MapTiles.AddRange(tilesToSave);
+                    db.SaveChanges();
+                }
                 Log.WriteLog(mapTileCounter + " tiles processed, " + Math.Round((mapTileCounter / totalTiles) * 100, 2) + "% complete, " + Math.Round(xCoords.Count() / thisRowSW.Elapsed.TotalSeconds, 2) + " tiles per second.");
 
             }//);
