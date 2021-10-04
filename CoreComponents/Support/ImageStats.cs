@@ -19,6 +19,8 @@ namespace PraxisCore.Support
         public double degreesPerPixelY { get; set; }
         public bool drawPoints { get; set; }
         public double filterSize { get; set; }
+        public double pixelsPerDegreeX { get; set; }
+        public double pixelsPerDegreeY { get; set; }
 
         public GeoArea area { get; set; }
         
@@ -38,6 +40,9 @@ namespace PraxisCore.Support
             area = geoArea;
             degreesPerPixelX = area.LongitudeWidth / imageSizeX;
             degreesPerPixelY = area.LatitudeHeight / imageSizeY;
+
+            pixelsPerDegreeX = imageSizeX / area.LongitudeWidth;
+            pixelsPerDegreeY = imageSizeY / area.LatitudeHeight;
         }
 
         /// <summary>
@@ -72,6 +77,9 @@ namespace PraxisCore.Support
 
             degreesPerPixelX = areaWidthDegrees / imageSize;
             degreesPerPixelY = areaHeightDegrees / imageSize;
+
+            pixelsPerDegreeX = imageSize / areaWidthDegrees;
+            pixelsPerDegreeY = imageSize / areaHeightDegrees;
         }
     }
 }
