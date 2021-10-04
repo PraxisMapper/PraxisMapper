@@ -567,30 +567,16 @@ namespace PraxisCore
                 if (w.paintOp.randomize) //To randomize the color on every Draw call.
                     paint.Color = new SKColor((byte)r.Next(0, 255), (byte)r.Next(0, 255), (byte)r.Next(0, 255), 99);
 
+                paint.StrokeWidth = (float)w.lineWidth;
                 var path = new SKPath();
                 switch (w.elementGeometry.GeometryType)
                 {
-                    //Polygons without holes are super easy and fast: draw the path.
-                    //Polygons with holes require their own bitmap to be drawn correctly and then overlaid onto the canvas.
-                    //I want to use paths to fix things for performance reasons, but I have to use Bitmaps because paths apply their blend mode to
-                    //ALL elements already drawn, not just the last one.
                     case "Polygon":
                         var p = w.elementGeometry as Polygon;
                         path.AddPoly(Converters.PolygonToSKPoints(p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                         foreach (var ir in p.Holes)
                             path.AddPoly(Converters.PolygonToSKPoints(ir, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                         canvas.DrawPath(path, paint);
-
-                        //if (p.Holes.Length == 0)
-                        //{
-                        //    path.AddPoly(Converters.PolygonToSKPoints(p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                        //    canvas.DrawPath(path, paint);
-                        //}
-                        //else
-                        //{
-                        //    var innerBitmap = DrawPolygon((Polygon)w.elementGeometry, paint, stats);
-                        //    canvas.DrawBitmap(innerBitmap, 0, 0, paint);
-                        //}
                         break;
                     case "MultiPolygon":
                         foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries)
@@ -600,17 +586,6 @@ namespace PraxisCore
                             foreach (var ir in p2p.Holes)
                                 path.AddPoly(Converters.PolygonToSKPoints(ir, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                             canvas.DrawPath(path, paint);
-
-                            //if (p2p.Holes.Length == 0)
-                            //{
-                            //    path.AddPoly(Converters.PolygonToSKPoints(p2p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                            //    canvas.DrawPath(path, paint);
-                            //}
-                            //else
-                            //{
-                            //    var innerBitmap = DrawPolygon(p2p, paint, stats);
-                            //    canvas.DrawBitmap(innerBitmap, 0, 0, paint);
-                            //}
                         }
                         break;
                     case "LineString":
@@ -683,7 +658,7 @@ namespace PraxisCore
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
                     if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
-                        pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po, ""));
+                        pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po, "", po.LineWidth * stats.pixelsPerDegreeX));
 
             return pass2;
         }
@@ -707,7 +682,7 @@ namespace PraxisCore
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
                     if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
-                        pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po, op.dataValue));
+                        pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po, op.dataValue, po.LineWidth * stats.pixelsPerDegreeX));
 
             return pass2;
         }
@@ -731,7 +706,7 @@ namespace PraxisCore
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
                     if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
-                        pass2.Add(new CompletePaintOp(op.geoAreaIndex, op.Area, po, op.dataValue));
+                        pass2.Add(new CompletePaintOp(op.geoAreaIndex, op.Area, po, op.dataValue, po.LineWidth * stats.pixelsPerDegreeX));
 
             return pass2;
         }
@@ -755,7 +730,7 @@ namespace PraxisCore
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
                     if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
-                        pass2.Add(new CompletePaintOp(op.geoAreaIndex, op.Area, po, op.dataValue));
+                        pass2.Add(new CompletePaintOp(op.geoAreaIndex, op.Area, po, op.dataValue, po.LineWidth * stats.pixelsPerDegreeX));
 
             return pass2;
         }
@@ -803,7 +778,7 @@ namespace PraxisCore
             var pass2 = new List<CompletePaintOp>(drawnItems.Count() * 2);
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
-                    pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po, ""));
+                    pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po, "", po.LineWidth * stats.pixelsPerDegreeX));
 
 
             foreach (var w in pass2.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))
