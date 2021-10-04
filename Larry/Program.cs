@@ -184,6 +184,11 @@ namespace Larry
                 ReadCoastlineShapefile(filename);
             }
 
+            if (args.Any(a => a == "-makePosterImage"))
+            {
+                DrawPosterOfServer();
+            }
+
             //This is not currently finished or testing in the current setup. Will return in a future release.
             //if (args.Any(a => a.StartsWith("-populateEmptyArea:")))
             //{
@@ -368,6 +373,45 @@ namespace Larry
             System.IO.File.WriteAllBytes(config["JsonMapDataFolder"] +  code + ".png", MapTiles.DrawPlusCode(code, paintOps, "mapTiles"));
             sw.Stop();
             Log.WriteLog("image drawn from memory in " + sw.Elapsed);
+        }
+
+        private static void DrawPosterOfServer()
+        {
+            var db = new PraxisContext();
+            var bounds = db.ServerSettings.First();
+
+            var geoArea = new GeoArea(bounds.SouthBound, bounds.WestBound, bounds.NorthBound, bounds.EastBound);
+            //do the math to scale image.
+            //the smaller side is set to 24", the larger size scales up proportionally up to a max of 36"
+            //if the longer side is > 36", scale both down by the difference?
+
+            //36x24 is target poster size, at 300 dpi, our image size will allow for an inch of margin on both axes.
+            var dpi = 300;
+            var maxXSide = 35 * dpi;
+            var maxYSide = 23 * dpi;
+            var xSize = 0;
+            var ySize = 0;
+
+            var heightScale = geoArea.LatitudeHeight / geoArea.LongitudeWidth; //Y pixels per X pixel
+            if (heightScale > 1) // Y axis is longer than X axis
+            {
+                maxXSide = 23 * dpi;
+                maxYSide = 35 * dpi;
+                ySize = maxYSide;
+                xSize = (int)(maxXSide * heightScale);
+            }
+            else
+            {
+                xSize = maxXSide;
+                ySize = (int)(maxYSide * heightScale);
+            }
+
+            var places = GetPlaces(geoArea);
+            var iStats = new ImageStats(geoArea, xSize, ySize);
+            var paintOps = MapTiles.GetPaintOpsForStoredElements(places, "mapTiles", iStats);
+            var image = MapTiles.DrawAreaAtSize(iStats, paintOps, TagParser.GetStyleBgColor("mapTiles"));
+
+            File.WriteAllBytes("ServerPoster.png", image);
         }
 
         private static void populateEmptyAreas(string cell6)

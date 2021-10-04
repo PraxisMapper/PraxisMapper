@@ -25,7 +25,7 @@ namespace PraxisCore
         //A lot of the current code will need changed to match that new logic, though. And generated areas may remain separate.
 
         /// <summary>
-        /// The core for pulling in locations from PraxisMapper. Can do a new search on an existing list of StoredOsmElement or pulls from the database if none is provided.
+        /// The core for pulling in locations from PraxisMapper. Can do a new search on an existing list of StoredOsmElement or pulls from the database if none is provided. Adds padding as set from config automatically.
         /// </summary>
         /// <param name="area">The GeoArea to intersect locations against, and include ones that do. </param>
         /// <param name="source">Null to load from the database, or a List of StoredOsmElements to narrow down</param>
@@ -44,7 +44,8 @@ namespace PraxisCore
             List<StoredOsmElement> places;
             if (source == null)
             {
-                var location = Converters.GeoAreaToPolygon(area); //Prepared items don't work on a DB lookup.
+                var paddedArea = MapTiles.MakeBufferedGeoArea(area);
+                var location = Converters.GeoAreaToPolygon(paddedArea); //Prepared items don't work on a DB lookup.
                 var db = new PraxisCore.PraxisContext();
                 db.Database.SetCommandTimeout(new TimeSpan(0, 5, 0));
                 if (skipTags) //Should make the load slightly faster if we're parsing existing items that already got tags applied
