@@ -55,7 +55,7 @@ namespace PraxisCore
                     new TagParserPaint() { HtmlColorCode = "aad3df", FillOrStroke = "fill", LineWidth=0.0000625F, LinePattern= "solid", layerId = 100 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() {Key = "natural", Value = "water|strait|bay", MatchType = "or"},
+                    new TagParserMatchRule() {Key = "natural", Value = "water|strait|bay|coastline", MatchType = "or"},
                     new TagParserMatchRule() {Key = "waterway", Value ="*", MatchType="or" },
                     new TagParserMatchRule() {Key = "landuse", Value ="basin", MatchType="or" },
                     new TagParserMatchRule() {Key = "leisure", Value ="swimming_pool", MatchType="or" },
