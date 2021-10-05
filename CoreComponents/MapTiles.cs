@@ -26,7 +26,7 @@ namespace PraxisCore
         static SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
         static Random r = new Random();
 
-        private static GeoArea MakeBufferedGeoArea(GeoArea original)
+        public static GeoArea MakeBufferedGeoArea(GeoArea original)
         {
             return new GeoArea(original.SouthLatitude - bufferSize, original.WestLongitude - bufferSize, original.NorthLatitude + bufferSize, original.EastLongitude + bufferSize);
         }
@@ -332,8 +332,8 @@ namespace PraxisCore
                     Y = 0;
                     break;
             }
-            X = (int)(X *GameTileScale);
-            Y = (int)(Y *GameTileScale);
+            X = (int)(X * GameTileScale);
+            Y = (int)(Y * GameTileScale);
 
         }
 
@@ -567,30 +567,16 @@ namespace PraxisCore
                 if (w.paintOp.randomize) //To randomize the color on every Draw call.
                     paint.Color = new SKColor((byte)r.Next(0, 255), (byte)r.Next(0, 255), (byte)r.Next(0, 255), 99);
 
+                paint.StrokeWidth = (float)w.lineWidth;
                 var path = new SKPath();
                 switch (w.elementGeometry.GeometryType)
                 {
-                    //Polygons without holes are super easy and fast: draw the path.
-                    //Polygons with holes require their own bitmap to be drawn correctly and then overlaid onto the canvas.
-                    //I want to use paths to fix things for performance reasons, but I have to use Bitmaps because paths apply their blend mode to
-                    //ALL elements already drawn, not just the last one.
                     case "Polygon":
                         var p = w.elementGeometry as Polygon;
                         path.AddPoly(Converters.PolygonToSKPoints(p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                         foreach (var ir in p.Holes)
                             path.AddPoly(Converters.PolygonToSKPoints(ir, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                         canvas.DrawPath(path, paint);
-
-                        //if (p.Holes.Length == 0)
-                        //{
-                        //    path.AddPoly(Converters.PolygonToSKPoints(p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                        //    canvas.DrawPath(path, paint);
-                        //}
-                        //else
-                        //{
-                        //    var innerBitmap = DrawPolygon((Polygon)w.elementGeometry, paint, stats);
-                        //    canvas.DrawBitmap(innerBitmap, 0, 0, paint);
-                        //}
                         break;
                     case "MultiPolygon":
                         foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries)
@@ -600,17 +586,6 @@ namespace PraxisCore
                             foreach (var ir in p2p.Holes)
                                 path.AddPoly(Converters.PolygonToSKPoints(ir, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                             canvas.DrawPath(path, paint);
-
-                            //if (p2p.Holes.Length == 0)
-                            //{
-                            //    path.AddPoly(Converters.PolygonToSKPoints(p2p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                            //    canvas.DrawPath(path, paint);
-                            //}
-                            //else
-                            //{
-                            //    var innerBitmap = DrawPolygon(p2p, paint, stats);
-                            //    canvas.DrawBitmap(innerBitmap, 0, 0, paint);
-                            //}
                         }
                         break;
                     case "LineString":
@@ -683,7 +658,7 @@ namespace PraxisCore
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
                     if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
-                        pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po, ""));
+                        pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po, "", po.LineWidth * stats.pixelsPerDegreeX));
 
             return pass2;
         }
@@ -707,7 +682,7 @@ namespace PraxisCore
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
                     if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
-                        pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po, op.dataValue));
+                        pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po, op.dataValue, po.LineWidth * stats.pixelsPerDegreeX));
 
             return pass2;
         }
@@ -731,7 +706,7 @@ namespace PraxisCore
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
                     if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
-                        pass2.Add(new CompletePaintOp(op.geoAreaIndex, op.Area, po, op.dataValue));
+                        pass2.Add(new CompletePaintOp(op.geoAreaIndex, op.Area, po, op.dataValue, po.LineWidth * stats.pixelsPerDegreeX));
 
             return pass2;
         }
@@ -755,7 +730,7 @@ namespace PraxisCore
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
                     if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
-                        pass2.Add(new CompletePaintOp(op.geoAreaIndex, op.Area, po, op.dataValue));
+                        pass2.Add(new CompletePaintOp(op.geoAreaIndex, op.Area, po, op.dataValue, po.LineWidth * stats.pixelsPerDegreeX));
 
             return pass2;
         }
@@ -803,7 +778,7 @@ namespace PraxisCore
             var pass2 = new List<CompletePaintOp>(drawnItems.Count() * 2);
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
-                    pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po, ""));
+                    pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po, "", po.LineWidth * stats.pixelsPerDegreeX));
 
 
             foreach (var w in pass2.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))
@@ -901,29 +876,27 @@ namespace PraxisCore
             canvas.Flush();
             canvas.Dispose();
             canvas = null;
-            //var skms = new SKManagedWStream(ms);
             s.Position = 0;
             var svgData = new StreamReader(s).ReadToEnd();
-            //var results = ms.ToArray();
-            //skms.Dispose(); ms.Close(); ms.Dispose();
             return svgData;
         }
 
         /// <summary>
-        /// Creates all gameplay tiles for a given area and saves them to the database.
+        /// Creates all gameplay tiles for a given area and saves them to the database (or files, if that option is set)
         /// </summary>
-        /// <param name="buffered">the GeoArea of the area to create tiles for.</param>
-        public static void PregenMapTilesForArea(GeoArea buffered)
+        /// <param name="areaToDraw">the GeoArea of the area to create tiles for.</param>
+        /// <param name="saveToFiles">If true, writes to files in the output folder. If false, saves to DB.</param>
+        public static void PregenMapTilesForArea(GeoArea areaToDraw, bool saveToFiles = false)
         {
             //There is a very similar function for this in Standalone.cs, but this one writes back to the main DB.
-            var intersectCheck = Converters.GeoAreaToPolygon(buffered);
+            var intersectCheck = Converters.GeoAreaToPolygon(areaToDraw);
             //start drawing maptiles and sorting out data.
             var swCorner = new OpenLocationCode(intersectCheck.EnvelopeInternal.MinY, intersectCheck.EnvelopeInternal.MinX);
             var neCorner = new OpenLocationCode(intersectCheck.EnvelopeInternal.MaxY, intersectCheck.EnvelopeInternal.MaxX);
 
             //declare how many map tiles will be drawn
-            var xTiles = buffered.LongitudeWidth / resolutionCell8;
-            var yTiles = buffered.LatitudeHeight / resolutionCell8;
+            var xTiles = areaToDraw.LongitudeWidth / resolutionCell8;
+            var yTiles = areaToDraw.LatitudeHeight / resolutionCell8;
             var totalTiles = Math.Truncate(xTiles * yTiles);
 
             Log.WriteLog("Starting processing maptiles for " + totalTiles + " Cell8 areas.");
@@ -948,7 +921,7 @@ namespace PraxisCore
                 xVal += resolutionCell8;
             }
 
-            var allPlaces = GetPlaces(buffered);
+            var allPlaces = GetPlaces(areaToDraw);
 
             object listLock = new object();
             DateTime expiration = DateTime.Now.AddYears(10);
@@ -961,7 +934,6 @@ namespace PraxisCore
                 //Add a Cell8 buffer space so all elements are loaded and drawn without needing to loop through the entire area.
                 GeoArea thisRow = new GeoArea(y - ConstantValues.resolutionCell8, xCoords.First() - ConstantValues.resolutionCell8, y + ConstantValues.resolutionCell8 + ConstantValues.resolutionCell8, xCoords.Last() + resolutionCell8);
                 var rowList = GetPlaces(thisRow, allPlaces);
-                //var tilesToSave = new ConcurrentBag<MapTile>();
                 var tilesToSave = new List<MapTile>(xCoords.Count());
 
                 Parallel.ForEach(xCoords, x =>
@@ -981,13 +953,23 @@ namespace PraxisCore
                     var areaPaintOps = MapTiles.GetPaintOpsForStoredElements(areaList, "mapTiles", info);
                     var tile = DrawPlusCode(plusCode8, areaPaintOps, "mapTiles");
 
-                    var thisTile = new MapTile() { tileData = tile, PlusCode = plusCode8, CreatedOn = DateTime.Now, ExpireOn = expiration, areaCovered = acheck.Geometry, resolutionScale = 11, styleSet = "mapTiles" };
-                    lock (listLock)
-                        tilesToSave.Add(thisTile);
+                    if (saveToFiles)
+                    {
+                        File.WriteAllBytes("GameTiles\\" + plusCode8 + ".png", tile);
+                    }
+                    else
+                    {
+                        var thisTile = new MapTile() { tileData = tile, PlusCode = plusCode8, CreatedOn = DateTime.Now, ExpireOn = expiration, areaCovered = acheck.Geometry, resolutionScale = 11, styleSet = "mapTiles" };
+                        lock (listLock)
+                            tilesToSave.Add(thisTile);
+                    }
                 });
                 mapTileCounter += xCoords.Count();
-                db.MapTiles.AddRange(tilesToSave);
-                db.SaveChanges();
+                if (!saveToFiles)
+                {
+                    db.MapTiles.AddRange(tilesToSave);
+                    db.SaveChanges();
+                }
                 Log.WriteLog(mapTileCounter + " tiles processed, " + Math.Round((mapTileCounter / totalTiles) * 100, 2) + "% complete, " + Math.Round(xCoords.Count() / thisRowSW.Elapsed.TotalSeconds, 2) + " tiles per second.");
 
             }//);

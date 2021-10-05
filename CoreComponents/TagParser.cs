@@ -93,6 +93,7 @@ namespace PraxisCore
             else
                 paint.Style = SKPaintStyle.Stroke;
             paint.StrokeWidth = tpe.LineWidth;
+            paint.StrokeCap = SKStrokeCap.Round;
             if (tpe.LinePattern != "solid")
             {
                 float[] linesAndGaps = tpe.LinePattern.Split('|').Select(t => float.Parse(t)).ToArray();
