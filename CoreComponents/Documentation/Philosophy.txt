@@ -2,62 +2,103 @@
 To explain some decisions on features and their inclusion/exclusion
 In no particular order
 
-1) MapTiles are not interesting game features.
-MapTiles make a game look nice, but having vector details small enough to see accurate building shapes is not useful for gameplay.
-It IS useful for players, since it lets them orient themselves on the map, but for gameplay purposes the super-fine detail you see aren't helpful.
+0) What is PraxisMapper meant to do?
+PraxisMapper is a location-based game server, allowing devs create games that use real-world location data with less effort and external services than before.
+
+Practical goals:
+-Be self-contained: All of the elements a game might need should be available from the core server when possible. Highly complicated projects may need to write their own version of PraxisMapper that does more specific logic on the server, or import PraxisCore into another project.
+-Be scalable. PraxisMapper should handle a game of any size, from a park to the planet, on the same codebase (Given sufficient hardware to handle the data load)
+-Be efficient. Optimized code means less hardware demand, which means more people can make and host a game. Economic accessibility is important.
+-Be flexible. Allow customization away from the defaults that allows games to have a unique style.
+-Be simple. Make the process of developing and hosting a location based game as easy as possible. There will be a skill floor, given the complexity of the task, but push it as low as it can go.
+Philosophical goals:
+-Eat your own dogfood. An example set of games should be available, adhere to the principles stated here and elsewhere, and work for anyone hosting their own copy with no more effort than changing the server URL.
+-Encourage smaller games from smaller devs. Not everything needs to be a AAA blockbuster designed to get players to spend more cash than they realize. Let local experiences happen.
+-Be an example. Show that games can exist without the usual predatory behavior seen in so many big commerical games. Show that games can be better from a smaller focused team or individual.
+-Encourage the good. Push for rewarding the creativity of making games. Push for making games encourage exercise and exploration. Push to let games be fun without locking that fun behind thousands of hours of play or a paywall.
+
+1) MapTiles are not interesting game features by themselves.
+I have continually had to shift my position on how important maptiles are to a game. I must admin that they are important, but they are not the game.
+MapTiles make a game look nice, but having vector details small enough to see accurate building shapes is probably not useful for gameplay on a mobile phone.
+It IS useful for players, since it lets them orient themselves spatially and recognize areas immediately. You do not need to be extremely zoomed in, however, and detail at very fine levels is unlikely to be necessary.
 (Notice, on Pokemon Go, how the player's avatar is about 30 feet tall, and how points have a huge, interactable item positioned over a certain point. This partially allows the small details rendered to be plainly irrelevant compared to the in-game interactible objects)
 Phones typically have GPS accurate to about 4 meters (12 feet). That means that area-wise, this is the smallest useful target.
-An 11-digit PlusCode has an area of ~3x3.5 meters at the equator and shrinks vertically as you get farther away. This means a game focused on Cell11 sized maps is the smallest resolution gameplay could use in good conditions. Allowing for imperfect conditions, Cell10 seems better for gameplay.
-A 10-digit PlusCode has an area of ~14x14 meters (same limitations as above). 
+An 11-digit PlusCode has an area of ~3x3.5 meters at the equator and shrinks vertically as you get farther away. This means a game focused on Cell11 sized maps is the smallest resolution gameplay could use in good conditions.
+A 10-digit PlusCode has an area of ~14x14 meters (same limitations as above). Allowing for imperfect conditions, Cell10 seems like a better choice for gameplay.
 For tracking lots of individual points (EX: pieces in an art gallery), an 11-digit PlusCode would be more useful than 10 but the user's position might drift significantly.
 For tracking areas of interest (EX: are you in a park/cemetery/etc) a 10-digit PlusCode is sufficiently accurate, given the typical acccuracy of a phone's GPS.
-PraxisMapper can generate its own maptiles. The flexibility availble for drawing them will increase over time.
-There are a variety of other applications for making maptiles from OSM data. Use one of those to generate prettier graphics if desired, and use this to track interesting things around a player's location.
+PraxisMapper can generate its own maptiles and track them in a database. The database is important because it allows the server to reuse tiles until something were to invalidate them.
+It's probably best you use the built-in maptile generation in PraxisMapper for games. Nothing stops you from drawing your own or using a different provider for map images, but they're free and well optimized, and won't pass user data along to advertisers secretly.
 
 2) Focus on Interesting areas for the map
 Interesting, for our use here, is an algorithm to dig through tags to find places that a player could want to go to.
 Interesting means that a place must be
-A-Publicly accessible. At a minimum, this is the consideration.
+A-Publicly accessible. At a minimum, this is the consideration. Interacting with places up close requires this be respected. Allowing long distances for interaction makes this less important.
 B-Walkable. We do want players to go new places and interact with them in-game, including ones that aren't within walking distance of home, but we don't want players driving around the block for points they should get by walking or exercising.
-C-Spread out. We want the player to move and explore, and to go to new places (or at least a solid variety of nearby familiar places). The smallest interactible distance is going to be one 10Cell (~30feet).
-D-Categorically Permmissable. Larry contains the full rules for which OSM tags constitute 'interesting' and allowed. Not all areas that are possible are good for this. Primary schools are a good example of a place that could be used but is not.
-E-Exists. The app can generate areas, 1 per Cell8 by default, which can be used for gameplay in places where there are no interesting areas according to the game's algorithms. Allows rural players to have an experience without travelling to a city.
+C-Spread out. We want the player to move and explore, and to go to new places (or at least a solid variety of nearby familiar places). The smallest interactible distance is expected be one Cell10 (~30feet).
+D-Categorically Permmissable. PraxisCode contains the full default rules for which OSM tags constitute 'interesting' and allowed. Not all areas that are possible are good for this. Primary schools are a good example of a place that could be used but is not.
+E-Exists? In the future, PraxisMapper can generate areas, which can be used for gameplay in places where there are no interesting areas according to the game's algorithms. Allows rural players to have an experience without travelling to a city, among other possibilities.
+Areas players place on the map are automatically interesting, since someone was interested in creating it, but these are difficult to do without exposing player info.
+If not interacting with drawn map elements, it's possible for elements to be generated by the server and scattered around. Rules for how this should work and be generated are pending.
 
-
-3)The User is the Client. The person using the app is the person to think about when designing how this server and its game behave. This means:
+3)The User is the Client. The person using the app is the person to think about when designing how this server and its game behave. People are not the product. This means:
 -No user tracking. A game is an activity for fun, not another opportunity to gather data and metrics on a user to treat them as the product for advertisers. The server, and my games built on it, will not track your location history on a server.
 (Activities that require data to be stored on the server needs to do so in a way that doesn't identify a single user. Fixed teams is the easiest solution to this, though some solid cryptography might allow individuals to store info the server can't read.)
 -No corporate deals. This game and server are not intended to be a way to provide hidden advertising or change behaviors to increase consumership. Games should build good habits for the player, not sponsors.
-(Retail shops may be interesting places, but we do not want to make actual retail transactions a requirement, nor do we want to bias behavior towards a corporate sponsor by having a corporate sponsor.)
+(Retail shops may be interesting places, but we do not want to make actual retail transactions a requirement, nor do we want to bias behavior towards a corporate sponsor by having a corporate sponsor in the first place.)
 -No forced focusing on monitization, and only 'ethical' monitization. 
-(EX: do not lock the user out of interaction in a tutorial until they visit a shop. No loot boxes or randomized purchases. Donations are the ideal in-app purchase if they must be present.)
+(An exhaustive list of which methods do or do not count is impossible. Generally, loot boxes and converting cash to in-game currency are the worst options. An upfront price, despite being generally frowned upon by mobile customers, is the most reasonable choice. Donations are the ideal in-app purchase if they must be present.)
 -Respect the user's time and attention. Minimize the amount of time a player spends not playing the game (loading screens, transitions, etc.). Consider how passive exploring credits can be made into a background task on mobile.
 -Also, remember that not every user has a top-end phone, and make games that don't demand tons of CPU power or RAM. The server should do most of the heavy lifting when possible.
+The Apache license applied to PraxisMapper means that these are all requests, not legal requirements. I could not legally stop a dev from using loot boxes in a game based on PraxisMapper or a retail company advertising itself through a game, but I could be disgusted by that behavior nonetheless.
 
 4)The server and app should be efficient. Part of making a game that runs on a global scale is handling the data with the fewest resources possible. 
 Pick fast prerequisites. When the server depends on another piece of software, pick the ones that are known to perform well, particularly at scale. Performance test options if they're equally viable and make the results public.
 Understand the useful scope of things. If a typical phone's GPS is only accurate to ~12 feet, don't make features that require dramatically higher accuracy or resolution.
 Functional requirements beat performance on priority, but do your best to optimize within them.
+Optimizing thing for a global scale should mean that smaller, local-scale games benefit in the process, and can run on cheaper hardware just as well. One scope cannot be sacrificed for the other.
     
 5)Everyone is always learning. This means that anyone participating in the development of the server or games around it should be able to read and understand the code involved.
 Comment code thoroughly to help new developers understand what it's doing.
 Keep code open and well organized.
+Document stuff so fewer questions get repeated.
+HOWEVER, be honest. PraxisMapper, at this time, is a poor selection for using in a first coding project. 
+Expecting to make a functioning game around PraxisMapper and Hypothesis, that aren't simply a minor tweak to Paint the Town or Area Tag, are unlikely to succeed with the current level of complexity.
+You need to understand your game's baseline game logic, how to build and publish a mobile game, understand LUA and the Solar2D APIs, understand spatial concerns and social consequences, understand OSM data at least enough to interact with if not how maptiles are drawn, and probably a few other wide concepts I've forgotten.
+That's a lot to handle. I can teach how to use PraxisMapper. I cannot teach all of that in addition.
 
-Security:
+6)Security
 The security model for PraxisMapper is extremely simple: don't save data worth stealing.
-There should be nothing saved in the database, and nothing sent or received by the webserver, that would compromise that user that isn't already available.
+There should be nothing saved in the database, and nothing sent or received by the webserver, that would compromise that user without external information.
 Essentially: the database should only store individual data that the server itself generated (Teams, unique IDs, non-location gameplay elements and statistics). 
-Location data on players shouldn't be stored, and aggregating a player's behavior is questionable on how invasive it is (EX: if a user spends 80% of their time in park areas, and is a member of Team X, is that sufficient to reveal an identity?)
-The server doesn't track user locations over time (though, a mode intended to be hosted personally could in the future), and doesn't track changes to game-state by individuals.
-Connections should use SSL to conceal locations passed as API parameters. 
+Demo 1: if a user spends 80% of their time in park areas, and is a member of Team X, is that sufficient to reveal an identity? 
+No. But if you were at those parks, and had access to the DB, could you figure out who that player is? Yes.
+Demo 2: In-game player-created public locations are clustered in a circle, all tagged as belonging to xXExamplePlayer999Xx. They all make a perfect circle centered on one house. Does this reveal someone's identity? 
+Yes, this narrows down the player to one of the people living in that house, and if they were to interact with others in-game, those other players could easily figure out much more info about them from the game alone.
+Can this be fixed? Not making the account name attached to those buildings stops other players from knowing which player lives there exclusively from in-game info. Making these locations not be publicly available is also a potential fix. Requiring users to spread out these placements would assist in avoiding these situations as well.
+Location data on players shouldn't be stored, and aggregating a player's behavior is questionable on how invasive it is.
+The server doesn't innately track user locations over time, and does it's best to block developers from tying location and players together at any point. 
+Connections should use SSL to conceal locations passed as API parameters. This is effectively a mandatory requirement for Android/iOS games to use network calls anyways. Let's Encrypt makes enabling SSL as easy as possible, and can be done for a server's IP so you don't even need a domain name to enable SSL on your server.
 Identification of an individual user requires additional, external data and not be manageable solely with PraxisMapper.
-Tracking activity by team, assuming population of teams is sufficiently large, should obfuscate individual behaior. 
+Tracking activity by team, assuming population of teams is sufficiently large, should obfuscate individual behaior. Doubly so if players are allowed to freely change teams.
 The single most damaging option for security is enabling PerformanceTracker, which could provide a more thorough view of server activity if the server and/or database are compromised, primarily based on timestamps
 (at which point, an attacker would insert their own malicious code anyways)
-The short rule is: a request cannot include both a location and a unique deviceID. Only one or the other.
+The short rule is: a request cannot include both a location and a unique deviceID. Only one or the other. Anonymous identities/handles do not completely remove the concerns associated with this.
+While lots of parts of the Philosophy section are going to sound like a hard-line stance (and they should, they're philosophical points rather than practical compromises), this security one might seem the least reasonable.
+Essentially, every game in the last 5+ years requires an account to keep track of your data on, and those offer lots of personalization, and a straight reading would say that you shouldn't even make accounts for players, because that could tie them to a location.
+The big reason for this push is because people will want to run a game, probably for a small number of people, and not want to (or properly be able to) manage security perfectly.
+So many small games get data compromised because security is hard. I want to minimize and avoid having that happen to PraxisMapper devs and designers by emphasizing that not storing important data means that important data cannot possibly be stolen.
+Users deserve to know that their games aren't going to leak out a ton of personal information if the worst case data breach happens, and I want to push you to avoid storing that data for their sake.
+It might seem difficult to build a location based game where the server doesn't tie players to locations, but its the direct connection that's the dangerous part (and even worse if you add in time as an element you save and display to everyone)
+A company of sufficient size and resources should be expected to secure their data to a higher degree than the average expected PraxisMapper dev, who will be more concerned with having fun and making games than working on infrastructure.
+The INTERACTION of a player with a location is entirely permissible:
+Paint the Town is OK, because a player colors a Cell10 as they walk. There's no way to tell who colored which cell, or when. 
+Area Tag is OK, because a player claims a Place for their team. Anyone on that team could claim it, and anyone can change teams at any time. 
+(Niantic-created) Ingress attaches a player's account name to a portal when they claim it, and announces it to all players when it happens, AND TEAMS RAN BOTS SPECIFICALLY TO MONITOR THIS AND BLOCK PLAYERS FROM ACHEIVING GOALS.
+It's not the claiming of a portal that's the issue. It's the rest of that, where attaching names to them (and especially pushing that information to a global chat channel) that enabled abusive, stalking behavior only using data acquired in-game.
+THAT is the single best, real-world example of why I push this everywhere in the documentation. Don't do that. Don't let people do that with your game.
 
-
-Server/Code Terms:
+7) Server/Code Terms:
 Plus Code areas will be called Cell#, with # the number of digits in the plus code, throughout the code. Use Cell8, not 8Cell.
 Places are entries in the StoredOsmElements tables. A singular thing you would want to visit or interact with.
 Areas are Plus Code cells used to find Places or map tiles. A space of predefined size. 
