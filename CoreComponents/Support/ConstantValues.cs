@@ -27,5 +27,7 @@
         public const double zoom16DegPerPixelX = 0.000010728836059570312;
         public const double zoom18DegPerPixelX = 0.000002682209014892578;
         public const double zoom20DegPerPixelX = 0.0000006705522537231445;
+
+        public const double maptileLineWidthBase = 0.00000625F; //~1/20th of a Cell10. ~1/5th of a Cell11
     }
 }
