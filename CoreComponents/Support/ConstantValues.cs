@@ -2,7 +2,7 @@
 {
     public static class ConstantValues
     {
-        //the 11th digit uses a 4x5 grid, not a 20x20. They need separate scaling values for X and Y and are rectangular even at the equator.
+        //the 11th+ digit uses a 4x5 grid, not a 20x20. They need separate scaling values for X and Y and are rectangular even at the equator.
         public const double resolutionCell12Lat = .000025 / 5;
         public const double resolutionCell12Lon = .00003125 / 4; //12-digit plus codes are... pretty small.
         public const double resolutionCell11Lat = .000025;
