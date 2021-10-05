@@ -1,13 +1,14 @@
-﻿Licensing information for this entire solution:
+﻿Licensing information for this entire solution: (NOTICE.txt)
 
 Open Location Code library files (PlusCode folder) use the Apache 2.0 license, C# port copyright JonMcPherson, slightly modified in this project by Drake Williams
 S2 library files (S2 folder) use the Apache 2.0 license, C# port copyright Oren Novotny, slightly modified in this project by Drake Williams
 Leaflet.js has its own license, see leaflet.txt
 SkiaSharp library binary is MIT licensed.
+OSMSharp is MIT licensed, and portions of it have been modified, derived, or reworked for PraxisMapper specifically by Drake Williams, and have been notated as such where relevant.
 
 OpenStreetMap data is covered by the Open Data Commons Open Database License (https://www.openstreetmap.org/copyright)
 and © OpenStreetMap contributors 
-(Which means that the MapData entries from Larry and DrawX/LearnX/CalculateX results from the MapDataController logic in PraxisMapper also use that license, as a derivative work)
+(Intermediate data files resulting from Larry's processing commands, and any MapTiles created from code using PraxisCore also use that license, as a derivative work)
 
 All projects in this solution not mentioned above are released under the Apache 2.0 license
 Copyright 2020 Drake Williams
