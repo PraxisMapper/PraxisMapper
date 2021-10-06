@@ -226,6 +226,23 @@ namespace PraxisCore
         }
 
         /// <summary>
+        /// Returns all data attached to a player's device ID
+        /// </summary>
+        /// <param name="deviceID">the device associated with a player</param>
+        /// <returns>List of reuslts with deviceId, keys, and values</returns>
+        public static List<CustomDataPlayerResult> GetAllPlayerData(string deviceID)
+        {
+            var db = new PraxisContext();
+            var data = db.PlayerData.Where(p => p.deviceID == deviceID)
+                .ToList()
+                .Where(row => row.expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now)
+                .Select(d => new CustomDataPlayerResult(d.deviceID, d.dataKey, d.dataValue))
+                .ToList();
+
+            return data;
+        }
+
+        /// <summary>
         /// Loads a key/value pair from the database that isn't attached to anything specific. Global entries do not expire.
         /// </summary>
         /// <param name="key">The key to load data from.</param>

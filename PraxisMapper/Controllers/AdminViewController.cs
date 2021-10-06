@@ -131,6 +131,8 @@ namespace PraxisMapper.Controllers
             model.accessKey = "?PraxisAuthKey=" + Configuration["serverAuthKey"];
             model.globalDataKeys = db.GlobalDataEntries.Select(g => new SelectListItem(g.dataKey, g.dataValue)).ToList();
 
+            model.playerKeys = db.PlayerData.Select(p => p.deviceID).Distinct().Select(g => new SelectListItem(g, g)).ToList();
+
             return View(model);
         }
     }
