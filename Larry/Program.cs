@@ -395,6 +395,7 @@ namespace Larry
             var heightScale = geoArea.LatitudeHeight / geoArea.LongitudeWidth; //Y pixels per X pixel
             if (heightScale > 1) // Y axis is longer than X axis
             {
+                heightScale = geoArea.LongitudeWidth / geoArea.LatitudeHeight;
                 maxXSide = 23 * dpi;
                 maxYSide = 35 * dpi;
                 ySize = maxYSide;
@@ -406,12 +407,16 @@ namespace Larry
                 ySize = (int)(maxYSide * heightScale);
             }
 
+            Log.WriteLog("Loading all places from DB");
             var places = GetPlaces(geoArea);
             var iStats = new ImageStats(geoArea, xSize, ySize);
+            Log.WriteLog("Generating paint operations");
             var paintOps = MapTiles.GetPaintOpsForStoredElements(places, "mapTiles", iStats);
+            Log.WriteLog("Drawing image");
             var image = MapTiles.DrawAreaAtSize(iStats, paintOps, TagParser.GetStyleBgColor("mapTiles"));
 
             File.WriteAllBytes("ServerPoster.png", image);
+            Log.WriteLog("Image saved to disk");
         }
 
         private static void populateEmptyAreas(string cell6)
