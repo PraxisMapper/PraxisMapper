@@ -83,6 +83,18 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
+        [Route("/[controller]/GetAllPlayerData/{deviceId}")]
+        public string GetAllPlayerData(string deviceId)
+        {
+            var data = GenericData.GetAllPlayerData(deviceId);
+            StringBuilder sb = new StringBuilder();
+            foreach (var d in data)
+                sb.Append(d.deviceId).Append("|").Append(d.key).Append("|").AppendLine(d.value);
+
+            return sb.ToString();
+        }
+
+        [HttpGet]
         [Route("/[controller]/GetAllDataInPlusCode/{plusCode}")]
         public string GetAllDataInPlusCode(string plusCode)
         {

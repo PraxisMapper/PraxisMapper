@@ -8,6 +8,8 @@ namespace PraxisMapper.Models
         //The model for the AdminView/EditData page
         public string accessKey;
         public string currentGlobalKey;
+        public string currentPlayerKey;
         public List<SelectListItem> globalDataKeys;
+        public List<SelectListItem> playerKeys;
     }
 }

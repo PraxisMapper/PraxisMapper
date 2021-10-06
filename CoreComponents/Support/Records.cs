@@ -18,4 +18,6 @@ namespace PraxisCore.Support
     public record CustomDataResult(string plusCode, string key, string value);
     public record CustomDataAreaResult(Guid elementId, string key, string value);
 
+    public record CustomDataPlayerResult(string deviceId, string key, string value);
+
 }
