@@ -573,18 +573,30 @@ namespace PraxisCore
                 {
                     case "Polygon":
                         var p = w.elementGeometry as Polygon;
+                        if (p.Envelope.Length < (stats.degreesPerPixelX * 4)) //This poly's perimeter is too small to draw
+                            continue;
                         path.AddPoly(Converters.PolygonToSKPoints(p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                         foreach (var ir in p.Holes)
+                        {
+                            if (ir.Envelope.Length < (w.lineWidth * 4)) //This poly's perimeter is less than 2x2 pixels in size.
+                                continue;
                             path.AddPoly(Converters.PolygonToSKPoints(ir, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                        }
                         canvas.DrawPath(path, paint);
                         break;
                     case "MultiPolygon":
                         foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries)
                         {
+                            if (p2.Envelope.Length < (stats.degreesPerPixelX * 4)) //This poly's perimeter is too small to draw
+                                continue;
                             var p2p = p2 as Polygon;
                             path.AddPoly(Converters.PolygonToSKPoints(p2p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                             foreach (var ir in p2p.Holes)
+                            {
+                                if (ir.Envelope.Length < (stats.degreesPerPixelX * 4)) //This poly's perimeter is too small to draw
+                                    continue;
                                 path.AddPoly(Converters.PolygonToSKPoints(ir, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                            }
                             canvas.DrawPath(path, paint);
                         }
                         break;
@@ -602,10 +614,14 @@ namespace PraxisCore
                                 continue;
                             }
                         }
+                        if (w.lineWidth < 1) //Don't draw lines we can't see.
+                            continue;
                         for (var line = 0; line < points.Length - 1; line++)
                             canvas.DrawLine(points[line], points[line + 1], paint);
                         break;
                     case "MultiLineString":
+                        if (w.lineWidth < 1) //Don't draw lines we can't see.
+                            continue;
                         foreach (var p3 in ((MultiLineString)w.elementGeometry).Geometries)
                         {
                             //TODO: might want to see if I need to move the LineString logic here, or if multiline string are never filled areas.
