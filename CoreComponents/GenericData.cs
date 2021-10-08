@@ -319,6 +319,13 @@ namespace PraxisCore
             return db.SaveChanges() == 1;
         }
 
+        /// <summary>
+        /// Get the value from a key/value pair saved on a PlusCode with a password. Expired values will not be sent over.
+        /// </summary>
+        /// <param name="plusCode">A valid PlusCode, excluding the + symbol.</param>
+        /// <param name="key">The key to load from the database on the PlusCode</param>
+        /// <param name="password">The password used to encrypt the value originally.</param>
+        /// <returns>The value saved to the key, or an empty string if no key/value pair was found or the password is incorrect.</returns>
         public static string GetSecurePlusCodeData(string plusCode, string key, string password)
         {
             var db = new PraxisContext();
@@ -329,7 +336,96 @@ namespace PraxisCore
             return DecryptValue(row.dataValue, password);
         }
 
-        public static string EncryptValue(string value, string password)
+        /// <summary>
+        /// Get the value from a key/value pair saved on a player's deviceId encrypted with the given password. Expired entries will be ignored.
+        /// </summary>
+        /// <param name="playerId">the player-specific ID used. Expected to be a unique DeviceID to identify a phone, per that device's rules.</param>
+        /// <param name="key">The key to load data from for the playerId.</param>
+        /// <param name="password">The password used to encrypt the value originally.</param>
+        /// <returns>The value saved to the key with the password given, or an empty string if no key/value pair was found or the password is incorrect.</returns>
+        public static string GetSecurePlayerData(string playerId, string key, string password)
+        {
+            var db = new PraxisContext();
+            var row = db.PlayerData.FirstOrDefault(p => p.deviceID == playerId && p.dataKey == key);
+            if (row == null || row.expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
+                return "";
+            return DecryptValue(row.dataValue, password);
+        }
+
+        /// <summary>
+        /// Saves a key/value pair to a given player's DeviceID with a password.
+        /// </summary>
+        /// <param name="playerId">the unique ID for the player, expected to be their unique device ID</param>
+        /// <param name="key">The key to save to the database. Keys are unique, and you cannot have multiples of the same key.</param>
+        /// <param name="value">The value to save with the key.</param>
+        /// <param name="password"></param>
+        /// <param name="expiration">If not null, expire this data in this many seconds from now.</param>
+        /// <returns>true if data was saved, false if data was not.</returns>
+        public static bool SetSecurePlayerData(string playerId, string key, string value, string password, double? expiration = null)
+        {
+            string encryptedValue = EncryptValue(value, password);
+
+            var db = new PraxisContext();
+            //An upsert command would be great here, but I dont think the entities do that.
+            var row = db.PlayerData.FirstOrDefault(p => p.deviceID == playerId && p.dataKey == key);
+            if (row == null)
+            {
+                row = new DbTables.PlayerData();
+                row.dataKey = key;
+                row.deviceID = playerId;
+                db.PlayerData.Add(row);
+            }
+            if (expiration.HasValue)
+                row.expiration = DateTime.Now.AddSeconds(expiration.Value);
+            row.dataValue = encryptedValue;
+            return db.SaveChanges() == 1;
+        }
+
+        /// <summary>
+        /// Get the value from a key/value pair saved on a map element. Expired entries will be ignored.
+        /// </summary>
+        /// <param name="elementId">the Guid exposed to clients to identify the map element.</param>
+        /// <param name="key">The key to load from the database. Keys are unique, and you cannot have multiples of the same key.</param>
+        /// <returns>The value saved to the key, or an empty string if no key/value pair was found.</returns>
+        public static string GetSecureElementData(Guid elementId, string key, string password)
+        {
+            var db = new PraxisContext();
+            var row = db.CustomDataOsmElements.Include(p => p.storedOsmElement).FirstOrDefault(p => p.storedOsmElement.privacyId == elementId && p.dataKey == key);
+            if (row == null || row.expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
+                return "";
+            return DecryptValue(row.dataValue, password);
+        }
+
+        /// <summary>
+        /// Saves a key/value pair to a given map element with the given password
+        /// </summary>
+        /// <param name="elementId">the Guid exposed to clients to identify the map element.</param>
+        /// <param name="key">The key to save to the database for the map element.</param>
+        /// <param name="value">The value to save with the key.</param>
+        /// <param name="password">The password to encrypt the value with.</param>
+        /// <param name="expiration">If not null, expire this data in this many seconds from now.</param>
+        /// <returns>true if data was saved, false if data was not.</returns>
+        public static bool SetSecureElementData(Guid elementId, string key, string value,string password, double? expiration = null)
+        {
+            string encryptedValue = EncryptValue(value, password);
+            var db = new PraxisContext();
+            //An upsert command would be great here, but I dont think the entities do that.
+            var row = db.CustomDataOsmElements.Include(p => p.storedOsmElement).FirstOrDefault(p => p.storedOsmElement.privacyId == elementId && p.dataKey == key);
+            if (row == null)
+            {
+                var sourceItem = db.StoredOsmElements.First(p => p.privacyId == elementId);
+                row = new DbTables.CustomDataOsmElement();
+                row.dataKey = key;
+                row.storedOsmElement = sourceItem;
+                db.CustomDataOsmElements.Add(row);
+            }
+            if (expiration.HasValue)
+                row.expiration = DateTime.Now.AddSeconds(expiration.Value);
+            row.dataValue = encryptedValue;
+            return db.SaveChanges() == 1;
+        }
+
+        private static string EncryptValue(string value, string password)
         {
             Aes baseSec = Aes.Create();
             byte[] passwordBytes = password.ToByteArrayUnicode();
@@ -345,7 +441,7 @@ namespace PraxisCore
             return data;
         }
 
-        public static string DecryptValue(string value, string password)
+        private static string DecryptValue(string value, string password)
         {
             string[] pieces = value.Split("|");
             byte[] ivBytes = Convert.FromBase64String(pieces[0]);
