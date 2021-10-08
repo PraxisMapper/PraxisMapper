@@ -10,6 +10,7 @@ using System.Text;
 using static PraxisCore.DbTables;
 using static PraxisCore.Place;
 using System.Linq;
+using Microsoft.EntityFrameworkCore;
 
 namespace PraxisMapper.Controllers
 {
@@ -24,6 +25,7 @@ namespace PraxisMapper.Controllers
         static object globalIncrementLock = new object();
         static object plusCodeIncrementLock = new object();
         static object storedElementIncrementLock = new object();
+        static DateTime lastExpiryPass = DateTime.Now.AddSeconds(-1);
 
         private readonly IConfiguration Configuration;
         private static IMemoryCache cache;
@@ -32,6 +34,15 @@ namespace PraxisMapper.Controllers
         {
             Configuration = configuration;
             cache = memoryCacheSingleton;
+
+            if (lastExpiryPass < DateTime.Now)
+            {
+                var db = new PraxisContext();
+                db.Database.ExecuteSqlRaw("DELETE FROM CustomDataOsmElements WHERE expiration IS NOT NULL AND expiration < NOW()");
+                db.Database.ExecuteSqlRaw("DELETE FROM CustomDataPlusCodes WHERE expiration IS NOT NULL AND expiration < NOW()");
+                db.Database.ExecuteSqlRaw("DELETE FROM PlayerData WHERE expiration IS NOT NULL AND expiration < NOW()");
+                lastExpiryPass = DateTime.Now.AddMinutes(30);
+            }
         }
 
         //TODO: make all Set* values a Put instead of a Get
