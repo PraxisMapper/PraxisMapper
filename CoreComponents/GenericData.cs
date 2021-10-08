@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
+using System.IO;
 
 namespace PraxisCore
 {
@@ -132,7 +134,7 @@ namespace PraxisCore
 
             var db = new PraxisContext();
             Guid tempCheck = new Guid();
-            if ((Guid.TryParse(key, out tempCheck) && db.StoredOsmElements.Any(osm => osm.privacyId == tempCheck)) 
+            if ((Guid.TryParse(key, out tempCheck) && db.StoredOsmElements.Any(osm => osm.privacyId == tempCheck))
                 || (Guid.TryParse(value, out tempCheck) && db.StoredOsmElements.Any(osm => osm.privacyId == tempCheck)))
                 return false; //reject attaching a player to an area
 
@@ -294,41 +296,71 @@ namespace PraxisCore
             return db.SaveChanges() == 1;
         }
 
-        //public static bool SetSecurePlusCodeData(string plusCode, string key, string value, string salt, int? expiration = null)
-        //{
-        //    var db = new PraxisContext();
-        //    //TODO: make a determination if I should still run this check on secure entries
-        //    //if (db.PlayerData.Any(p => p.deviceID == key || p.deviceID == value))
-        //      //  return false;
+        public static bool SetSecurePlusCodeData(string plusCode, string key, string value, string password, double? expiration = null)
+        {
+            var db = new PraxisContext();
 
-        //    //An upsert command would be great here, but I dont think the entities do that.
-        //    var row = db.CustomDataPlusCodes.FirstOrDefault(p => p.PlusCode == plusCode && p.dataKey == key);
-        //    if (row == null)
-        //    {
-        //        row = new DbTables.CustomDataPlusCode();
-        //        row.dataKey = key;
-        //        row.PlusCode = plusCode;
-        //        row.geoAreaIndex = Converters.GeoAreaToPolygon(OpenLocationCode.DecodeValid(plusCode.ToUpper()));
-        //        db.CustomDataPlusCodes.Add(row);
-        //    }
-        //    if (expiration != null)
-        //        row.expiration = expiration;
+            string encryptedValue = EncryptValue(value, password);
 
-        //    CryptSharp.BlowfishCrypter bCrypt = new CryptSharp.BlowfishCrypter();
-        //    var encryptedValue = bCrypt.Crypt(value, salt);
+            //An upsert command would be great here, but I dont think the entities do that.
+            var row = db.CustomDataPlusCodes.FirstOrDefault(p => p.PlusCode == plusCode && p.dataKey == key);
+            if (row == null)
+            {
+                row = new DbTables.CustomDataPlusCode();
+                row.dataKey = key;
+                row.PlusCode = plusCode;
+                row.geoAreaIndex = Converters.GeoAreaToPolygon(OpenLocationCode.DecodeValid(plusCode.ToUpper()));
+                db.CustomDataPlusCodes.Add(row);
+            }
+            if (expiration.HasValue)
+                row.expiration = DateTime.Now.AddSeconds(expiration.Value);
 
-        //    row.dataValue = encryptedValue;
-        //    return db.SaveChanges() == 1;
-        //}
+            row.dataValue = encryptedValue;
+            return db.SaveChanges() == 1;
+        }
 
-        //public static string GetSecurePlusCodeData(string plusCode, string key, string salt)
-        //{
-        //    var db = new PraxisContext();
-        //    var row = db.CustomDataPlusCodes.FirstOrDefault(p => p.PlusCode == plusCode && p.dataKey == key);
-        //    if (row == null || row.expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
-        //        return "";
+        public static string GetSecurePlusCodeData(string plusCode, string key, string password)
+        {
+            var db = new PraxisContext();
+            var row = db.CustomDataPlusCodes.FirstOrDefault(p => p.PlusCode == plusCode && p.dataKey == key);
+            if (row == null || row.expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
+                return "";
 
-                        
-        //}
+            return DecryptValue(row.dataValue, password);
+        }
+
+        public static string EncryptValue(string value, string password)
+        {
+            Aes baseSec = Aes.Create();
+            byte[] passwordBytes = password.ToByteArrayUnicode();
+            var crypter = baseSec.CreateEncryptor(passwordBytes, baseSec.IV);
+            var ms = new MemoryStream();
+            using (CryptoStream cs = new CryptoStream(ms, crypter, CryptoStreamMode.Write))
+            using (StreamWriter sw = new StreamWriter(cs))
+            {
+                sw.Write(value);
+            }
+
+            var data = Convert.ToBase64String(baseSec.IV) + "|" + Convert.ToBase64String(ms.ToArray());
+            return data;
+        }
+
+        public static string DecryptValue(string value, string password)
+        {
+            string[] pieces = value.Split("|");
+            byte[] ivBytes = Convert.FromBase64String(pieces[0]);
+            byte[] encrypedData = Convert.FromBase64String(pieces[1]);
+            Aes baseSec = Aes.Create();
+            byte[] passwordBytes = password.ToByteArrayUnicode();
+            var crypter = baseSec.CreateDecryptor(passwordBytes, ivBytes);
+            string results = "";
+
+            var ms = new MemoryStream();
+            using (CryptoStream cs = new CryptoStream(ms, crypter, CryptoStreamMode.Write))
+                cs.Write(encrypedData);
+
+            results = System.Text.Encoding.UTF8.GetString(ms.ToArray());
+            return results;
+        }
     }
 }
