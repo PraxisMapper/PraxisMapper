@@ -18,9 +18,9 @@ namespace PraxisCore
         /// <param name="plusCode">A valid PlusCode, excluding the + symbol.</param>
         /// <param name="key">The key to save to the database. Keys are unique, and you cannot have multiples of the same key.</param>
         /// <param name="value">The value to save with the key.</param>
-        /// <param name="expiration">Set an optional date to indicate when to ignore the value saved.</param>
+        /// <param name="expiration">If not null, expire this data in this many seconds from now.</param>
         /// <returns>true if data was saved, false if data was not.</returns>
-        public static bool SetPlusCodeData(string plusCode, string key, string value, DateTime? expiration = null)
+        public static bool SetPlusCodeData(string plusCode, string key, string value, double? expiration = null)
         {
             var db = new PraxisContext();
             if (db.PlayerData.Any(p => p.deviceID == key || p.deviceID == value))
@@ -36,8 +36,8 @@ namespace PraxisCore
                 row.geoAreaIndex = Converters.GeoAreaToPolygon(OpenLocationCode.DecodeValid(plusCode.ToUpper()));
                 db.CustomDataPlusCodes.Add(row);
             }
-            if (expiration != null)
-                row.expiration = expiration;
+            if (expiration.HasValue)
+                row.expiration = DateTime.Now.AddSeconds(expiration.Value);
             row.dataValue = value;
             return db.SaveChanges() == 1;
         }
@@ -63,9 +63,9 @@ namespace PraxisCore
         /// <param name="elementId">the Guid exposed to clients to identify the map element.</param>
         /// <param name="key">The key to save to the database for the map element.</param>
         /// <param name="value">The value to save with the key.</param>
-        /// <param name="expiration">Set an optional date to indicate when to ignore the value saved.</param>
+        /// <param name="expiration">If not null, expire this data in this many seconds from now.</param>
         /// <returns>true if data was saved, false if data was not.</returns>
-        public static bool SetStoredElementData(Guid elementId, string key, string value, DateTime? expiration = null)
+        public static bool SetStoredElementData(Guid elementId, string key, string value, double? expiration = null)
         {
             var db = new PraxisContext();
             if (db.PlayerData.Any(p => p.deviceID == key || p.deviceID == value))
@@ -81,8 +81,8 @@ namespace PraxisCore
                 row.storedOsmElement = sourceItem;
                 db.CustomDataOsmElements.Add(row);
             }
-            if(expiration != null)
-                row.expiration = expiration;
+            if (expiration.HasValue)
+                row.expiration = DateTime.Now.AddSeconds(expiration.Value);
             row.dataValue = value;
             return db.SaveChanges() == 1;
         }
@@ -123,9 +123,9 @@ namespace PraxisCore
         /// <param name="playerId"></param>
         /// <param name="key">The key to save to the database. Keys are unique, and you cannot have multiples of the same key.</param>
         /// <param name="value">The value to save with the key.</param>
-        /// <param name="expiration">Set an optional date to indicate when to ignore the value saved.</param>
+        /// <param name="expiration">If not null, expire this data in this many seconds from now.</param>
         /// <returns>true if data was saved, false if data was not.</returns>
-        public static bool SetPlayerData(string playerId, string key, string value, DateTime? expiration = null)
+        public static bool SetPlayerData(string playerId, string key, string value, double? expiration = null)
         {
             if (DataCheck.IsPlusCode(key) || DataCheck.IsPlusCode(value))
                 return false; //Reject attaching a player to a pluscode.
@@ -145,8 +145,8 @@ namespace PraxisCore
                 row.deviceID = playerId;
                 db.PlayerData.Add(row);
             }
-            if (expiration != null)
-                row.expiration = expiration;
+            if (expiration.HasValue)
+                row.expiration = DateTime.Now.AddSeconds(expiration.Value);
             row.dataValue = value;
             return db.SaveChanges() == 1;
         }
@@ -293,5 +293,42 @@ namespace PraxisCore
             row.dataValue = value;
             return db.SaveChanges() == 1;
         }
+
+        //public static bool SetSecurePlusCodeData(string plusCode, string key, string value, string salt, int? expiration = null)
+        //{
+        //    var db = new PraxisContext();
+        //    //TODO: make a determination if I should still run this check on secure entries
+        //    //if (db.PlayerData.Any(p => p.deviceID == key || p.deviceID == value))
+        //      //  return false;
+
+        //    //An upsert command would be great here, but I dont think the entities do that.
+        //    var row = db.CustomDataPlusCodes.FirstOrDefault(p => p.PlusCode == plusCode && p.dataKey == key);
+        //    if (row == null)
+        //    {
+        //        row = new DbTables.CustomDataPlusCode();
+        //        row.dataKey = key;
+        //        row.PlusCode = plusCode;
+        //        row.geoAreaIndex = Converters.GeoAreaToPolygon(OpenLocationCode.DecodeValid(plusCode.ToUpper()));
+        //        db.CustomDataPlusCodes.Add(row);
+        //    }
+        //    if (expiration != null)
+        //        row.expiration = expiration;
+
+        //    CryptSharp.BlowfishCrypter bCrypt = new CryptSharp.BlowfishCrypter();
+        //    var encryptedValue = bCrypt.Crypt(value, salt);
+
+        //    row.dataValue = encryptedValue;
+        //    return db.SaveChanges() == 1;
+        //}
+
+        //public static string GetSecurePlusCodeData(string plusCode, string key, string salt)
+        //{
+        //    var db = new PraxisContext();
+        //    var row = db.CustomDataPlusCodes.FirstOrDefault(p => p.PlusCode == plusCode && p.dataKey == key);
+        //    if (row == null || row.expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
+        //        return "";
+
+                        
+        //}
     }
 }
