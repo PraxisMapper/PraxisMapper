@@ -37,11 +37,12 @@ namespace PraxisMapper.Controllers
         //TODO: make all Set* values a Put instead of a Get
         [HttpGet]
         [Route("/[controller]/SetPlusCodeData/{plusCode}/{key}/{value}")]
-        public bool SetPlusCodeData(string plusCode, string key, string value)
+        [Route("/[controller]/SetPlusCodeData/{plusCode}/{key}/{value}/{expiresIn}")]
+        public bool SetPlusCodeData(string plusCode, string key, string value, double? expiresIn = null)
         {
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return false;
-            return GenericData.SetPlusCodeData(plusCode, key, value);
+            return GenericData.SetPlusCodeData(plusCode, key, value, expiresIn);
         }
 
         [HttpGet]
@@ -56,9 +57,10 @@ namespace PraxisMapper.Controllers
         //TODO: make all Set* values a Put instead of a Get
         [HttpGet]
         [Route("/[controller]/SetPlayerData/{deviceId}/{key}/{value}")]
-        public bool SetPlayerData(string deviceId, string key, string value)
+        [Route("/[controller]/SetPlayerData/{deviceId}/{key}/{value}/{expiresIn}")]
+        public bool SetPlayerData(string deviceId, string key, string value, double? expiresIn = null)
         {
-            return GenericData.SetPlayerData(deviceId, key, value);
+            return GenericData.SetPlayerData(deviceId, key, value, expiresIn);
         }
 
         [HttpGet]
@@ -70,9 +72,10 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/SetElementData/{elementId}/{key}/{value}")]
-        public bool SetStoredElementData(Guid elementId, string key, string value)
+        [Route("/[controller]/SetElementData/{elementId}/{key}/{value}/{expiresIn}")]
+        public bool SetStoredElementData(Guid elementId, string key, string value, double? expiresIn = null)
         {
-            return GenericData.SetStoredElementData(elementId, key, value);
+            return GenericData.SetStoredElementData(elementId, key, value, expiresIn);
         }
 
         [HttpGet]
