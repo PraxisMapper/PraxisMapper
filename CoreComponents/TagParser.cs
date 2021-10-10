@@ -29,7 +29,7 @@ namespace PraxisCore
             name = "outline",
             styleSet = "special",
             paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "000000", FillOrStroke = "stroke", LineWidth=.5f, LinePattern= "solid", layerId = 100 }
+                    new TagParserPaint() { HtmlColorCode = "000000", FillOrStroke = "stroke", LineWidth=2, LinePattern= "solid", layerId = 100 }
                 },
             TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "none" }}
