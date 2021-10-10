@@ -328,106 +328,6 @@ namespace PraxisCore
                 new TagParserMatchRule() { Key = "highway", Value = "tertiary|unclassified|residential|tertiary_link|service|road", MatchType = "any" },
                 new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
             }},
-            //More specific admin-bounds tags, named matching USA values for now.
-            new TagParserEntry() { MatchOrder = 35, name ="country",  minDrawRes = ConstantValues.zoom12DegPerPixelX, styleSet = "mapTiles",
-                paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=0.0000125F, LinePattern= "10|5", layerId = 70 }
-                },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
-                    new TagParserMatchRule() { Key = "admin_level", Value = "2", MatchType = "equals" }
-                }
-            },
-            new TagParserEntry() { MatchOrder = 36, name ="region",  minDrawRes = ConstantValues.zoom12DegPerPixelX, styleSet = "mapTiles",
-                paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=0.0000125F, LinePattern= "10|5", layerId = 70 }
-                },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
-                    new TagParserMatchRule() { Key = "admin_level", Value = "3", MatchType = "equals" }
-                }
-            },
-            new TagParserEntry() { MatchOrder = 37, name ="state",  minDrawRes = ConstantValues.zoom12DegPerPixelX, styleSet = "mapTiles",
-                paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=0.0000125F, LinePattern= "10|5", layerId = 70 }
-                },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
-                    new TagParserMatchRule() { Key = "admin_level", Value = "4", MatchType = "equals" }
-                }
-            },
-            new TagParserEntry() { MatchOrder = 38, name ="admin5",  minDrawRes = ConstantValues.zoom12DegPerPixelX, styleSet = "mapTiles",
-                paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=0.0000125F, LinePattern= "10|5", layerId = 70 }
-                },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
-                    new TagParserMatchRule() { Key = "admin_level", Value = "5", MatchType = "equals" }
-                }
-            },
-            new TagParserEntry() { MatchOrder = 39, name ="county",  minDrawRes = ConstantValues.zoom12DegPerPixelX, styleSet = "mapTiles",
-                paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=0.0000125F, LinePattern= "10|5", layerId = 70 }
-                },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
-                    new TagParserMatchRule() { Key = "admin_level", Value = "6", MatchType = "equals" }
-                }
-            },
-            new TagParserEntry() { MatchOrder = 40, name ="township",  minDrawRes = ConstantValues.zoom12DegPerPixelX, styleSet = "mapTiles",
-                paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=0.0000125F, LinePattern= "10|5", layerId = 70 }
-                },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
-                    new TagParserMatchRule() { Key = "admin_level", Value = "7", MatchType = "equals" }
-                }
-            },
-            new TagParserEntry() { MatchOrder = 41, name ="city",  minDrawRes = ConstantValues.zoom12DegPerPixelX, styleSet = "mapTiles",
-                paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=0.0000125F, LinePattern= "10|5", layerId = 70 }
-                },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
-                    new TagParserMatchRule() { Key = "admin_level", Value = "8", MatchType = "equals" }
-                }
-            },
-            new TagParserEntry() { MatchOrder = 42, name ="ward",  minDrawRes = ConstantValues.zoom12DegPerPixelX, styleSet = "mapTiles",
-                paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=0.0000125F, LinePattern= "10|5", layerId = 70 }
-                },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
-                    new TagParserMatchRule() { Key = "admin_level", Value = "9", MatchType = "equals" }
-                }
-            },
-            new TagParserEntry() { MatchOrder = 43, name ="neighborhood",  minDrawRes = ConstantValues.zoom12DegPerPixelX, styleSet = "mapTiles",
-                paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=0.0000125F, LinePattern= "10|5", layerId = 70 }
-                },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
-                    new TagParserMatchRule() { Key = "admin_level", Value = "10", MatchType = "equals" }
-                }
-            },
-            new TagParserEntry() { MatchOrder = 44, name ="admin11",  minDrawRes = ConstantValues.zoom12DegPerPixelX, styleSet = "mapTiles",
-                paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=0.0000125F, LinePattern= "10|5", layerId = 70 }
-                },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
-                    new TagParserMatchRule() { Key = "admin_level", Value = "11", MatchType = "equals" }
-                }
-            },
-
-            //Special purpose drawing element
-            new TagParserEntry() { MatchOrder = 9998, name ="outline", styleSet = "mapTiles",
-                paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "000000", FillOrStroke = "stroke", LineWidth=.5f, LinePattern= "solid", layerId = 100 }
-                },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "none" }} },
-
             //NOTE: hiding elements of a given type is done by drawing those elements in a transparent color
             //My default set wants to draw things that haven't yet been identified, so I can see what needs improvement or matched by a rule.
             new TagParserEntry() { MatchOrder = 9999, name ="background",  styleSet = "mapTiles",
@@ -443,6 +343,98 @@ namespace PraxisCore
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() { 
                     new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "default" }} 
+            },
+
+            //More specific admin-bounds tags, named matching USA values for now.
+            new TagParserEntry() { MatchOrder = 1, name ="country",  minDrawRes = ConstantValues.zoom12DegPerPixelX, styleSet = "adminBounds",
+                paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=0.000125F, LinePattern= "solid", layerId = 10 }
+                },
+                TagParserMatchRules = new List<TagParserMatchRule>() {
+                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
+                    new TagParserMatchRule() { Key = "admin_level", Value = "2", MatchType = "equals" }
+                }
+            },
+            new TagParserEntry() { MatchOrder = 2, name ="region",  minDrawRes = ConstantValues.zoom12DegPerPixelX, styleSet = "adminBounds", //dot pattern
+                paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=0.0001125F, LinePattern= "10|10", layerId = 20 }
+                },
+                TagParserMatchRules = new List<TagParserMatchRule>() {
+                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
+                    new TagParserMatchRule() { Key = "admin_level", Value = "3", MatchType = "equals" }
+                }
+            },
+            new TagParserEntry() { MatchOrder = 3, name ="state",  minDrawRes = ConstantValues.zoom12DegPerPixelX, styleSet = "adminBounds", //dot pattern
+                paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=0.0001F, LinePattern= "10|10", layerId = 30 }
+                },
+                TagParserMatchRules = new List<TagParserMatchRule>() {
+                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
+                    new TagParserMatchRule() { Key = "admin_level", Value = "4", MatchType = "equals" }
+                }
+            },
+            new TagParserEntry() { MatchOrder = 4, name ="admin5",  minDrawRes = ConstantValues.zoom12DegPerPixelX, styleSet = "adminBounds", //Line pattern is dash-dot-dot
+                paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=0.0000875F, LinePattern= "10|5", layerId = 40 }
+                },
+                TagParserMatchRules = new List<TagParserMatchRule>() {
+                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
+                    new TagParserMatchRule() { Key = "admin_level", Value = "5", MatchType = "equals" }
+                }
+            },
+            new TagParserEntry() { MatchOrder = 5, name ="county",  minDrawRes = ConstantValues.zoom12DegPerPixelX, styleSet = "adminBounds", //dash-dot pattern
+                paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=0.000075F, LinePattern= "10|5", layerId = 50 }
+                },
+                TagParserMatchRules = new List<TagParserMatchRule>() {
+                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
+                    new TagParserMatchRule() { Key = "admin_level", Value = "6", MatchType = "equals" }
+                }
+            },
+            new TagParserEntry() { MatchOrder = 6, name ="township",  minDrawRes = ConstantValues.zoom12DegPerPixelX, styleSet = "adminBounds", //dash
+                paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=0.00000625F, LinePattern= "10|5", layerId = 60 }
+                },
+                TagParserMatchRules = new List<TagParserMatchRule>() {
+                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
+                    new TagParserMatchRule() { Key = "admin_level", Value = "7", MatchType = "equals" }
+                }
+            },
+            new TagParserEntry() { MatchOrder = 7, name ="city",  minDrawRes = ConstantValues.zoom12DegPerPixelX, styleSet = "adminBounds", //dash
+                paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=0.00005F, LinePattern= "10|5", layerId = 70 }
+                },
+                TagParserMatchRules = new List<TagParserMatchRule>() {
+                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
+                    new TagParserMatchRule() { Key = "admin_level", Value = "8", MatchType = "equals" }
+                }
+            },
+            new TagParserEntry() { MatchOrder = 8, name ="ward",  minDrawRes = ConstantValues.zoom12DegPerPixelX, styleSet = "adminBounds", //dot
+                paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=0.0000475F, LinePattern= "10|5", layerId = 80 }
+                },
+                TagParserMatchRules = new List<TagParserMatchRule>() {
+                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
+                    new TagParserMatchRule() { Key = "admin_level", Value = "9", MatchType = "equals" }
+                }
+            },
+            new TagParserEntry() { MatchOrder = 9, name ="neighborhood",  minDrawRes = ConstantValues.zoom12DegPerPixelX, styleSet = "adminBounds", //dot
+                paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=0.000035F, LinePattern= "10|5", layerId = 90 }
+                },
+                TagParserMatchRules = new List<TagParserMatchRule>() {
+                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
+                    new TagParserMatchRule() { Key = "admin_level", Value = "10", MatchType = "equals" }
+                }
+            },
+            new TagParserEntry() { MatchOrder = 10, name ="admin11",  minDrawRes = ConstantValues.zoom12DegPerPixelX, styleSet = "adminBounds", //not rendered
+                paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=0.0000225F, LinePattern= "10|5", layerId = 100 }
+                },
+                TagParserMatchRules = new List<TagParserMatchRule>() {
+                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
+                    new TagParserMatchRule() { Key = "admin_level", Value = "11", MatchType = "equals" }
+                }
             },
         
             //Team Colors now part of the same default list.
@@ -471,13 +463,7 @@ namespace PraxisCore
                     new TagParserMatchRule() {Key = "team", Value = "blue", MatchType = "equals"},
             }},
 
-            //Special purpose drawing element
-            new TagParserEntry() { MatchOrder = 9998, name ="outline",  styleSet = "teamColor",
-                paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "000000", FillOrStroke = "stroke", LineWidth=.5f, LinePattern= "solid", layerId = 100 }
-                },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "none" }} },
+
             //background is a mandatory style entry name, but its transparent here..
             new TagParserEntry() { MatchOrder = 10000, name ="background",  styleSet = "teamColor",
                 paintOperations = new List<TagParserPaint>() {

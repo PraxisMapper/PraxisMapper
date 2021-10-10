@@ -209,6 +209,11 @@ namespace PraxisCore
             return poly;
         }
 
+        public static Point GeometryToCenterPoint(Geometry g)
+        {
+            return g.Centroid;
+        }
+
         //Incomplete, slippy tiles require some compromises for this to work
         //public static void GetSlippyTileForPoint(GeoArea buffered, int zoomLevel)
         //{

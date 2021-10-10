@@ -23,6 +23,19 @@ namespace PraxisCore
         public static Dictionary<string, SKBitmap> cachedBitmaps = new Dictionary<string, SKBitmap>(); //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
         public static Dictionary<string, Dictionary<string, TagParserEntry>> allStyleGroups = new Dictionary<string, Dictionary<string, TagParserEntry>>();
 
+        public static TagParserEntry outlineStyle = new TagParserEntry()
+        {
+            MatchOrder = 9998,
+            name = "outline",
+            styleSet = "special",
+            paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "000000", FillOrStroke = "stroke", LineWidth=.5f, LinePattern= "solid", layerId = 100 }
+                },
+            TagParserMatchRules = new List<TagParserMatchRule>() {
+                    new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "none" }}
+        };
+        public static SKPaint outlinePaint;
+
         /// <summary>
         /// Call once when the server or app is started. Loads all the styles and caches baseline data for later use.
         /// </summary>
@@ -74,6 +87,10 @@ namespace PraxisCore
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "default" }}
             };
+
+            SetPaintForTPP(outlineStyle.paintOperations.First());
+            SetPaintForTPP(defaultStyle.paintOperations.First());
+            outlinePaint = outlineStyle.paintOperations.First().paint;
         }
 
         /// <summary>
