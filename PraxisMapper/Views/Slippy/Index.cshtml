@@ -24,7 +24,7 @@
         //var ptt = L.tileLayer(url, { id: "PaintTown/DrawSlippyTile", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 });
         var ac = L.tileLayer(url, { id: "AreaControl/DrawFactionModeSlippyTile", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 });
         var generated = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 });
-        var adminBounds = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 });
+        var adminBounds = L.tileLayer(url, { id: "MapTile/DrawSlippyTile/adminBounds", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 });
         var adminBounds2 = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 });
         var baseDataTEstV4 = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 });
         var offlineEstimateAreas = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 });
@@ -36,10 +36,10 @@
         var overlays = {
             "Paint The Town": ptt,
             "Area Control": ac,
-            "Server-Generated": generated,
-            "Admin Boundaries": adminBounds,
-            "Other Admin Boundaries": adminBounds2,
-            "Offline Estimates": offlineEstimateAreas
+            //"Server-Generated": generated,
+            "Admin Boundaries": adminBounds
+            //"Other Admin Boundaries": adminBounds2,
+            //"Offline Estimates": offlineEstimateAreas
         };
 
         var startLat = 0;
@@ -68,7 +68,7 @@
     accessToken: 'none'
     }).addTo(mymap);
 
-        L.control.layers(overlays).addTo(mymap);
+        L.control.layers('', overlays).addTo(mymap);
     </script>
 </body>
 </html>
