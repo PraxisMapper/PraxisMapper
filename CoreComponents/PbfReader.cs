@@ -28,7 +28,7 @@ namespace PraxisCore.PbfReader
         //FeatureInterpreter instead of theirs. 
 
         //TODO:
-        //Make some function paramters settings in here, like saveInFile or saveToDb.
+        
 
         static int initialCapacity = 7993; //ConcurrentDictionary says initial capacity shouldn't be divisible by a small prime number, so i picked the prime closes to 8,000 for initial capacity
         static int initialConcurrency = Environment.ProcessorCount;
@@ -40,6 +40,7 @@ namespace PraxisCore.PbfReader
         public bool onlyMatchedAreas = false;
         public string processingMode = "normal"; //normal: use geometry as it exists. Center: save the center point of any geometry provided instead of its actual value.
         public string styleSet = "mapTiles"; //which style set to use when parsing entries
+        public bool keepIndexFiles = false;
 
         public string outputPath = "";
         public string filenameHeader = "";
@@ -196,10 +197,6 @@ namespace PraxisCore.PbfReader
                     {
                         geomFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".geomInfile", FileMode.OpenOrCreate));
                         tagsFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".tagsInfile", FileMode.OpenOrCreate));
-                        //These make it easier to insert rows with fewer checks for line ends and such later in ProcessFileResults?
-                        //geomFileStream.Write("Dummy\t1\t1\tPOINT (0 0)\t.000125\t00000000-0000-0000-0000-000000000000");
-                        //tagsFileStream.Write("1\t1\tname\tDummy");
-
                     }
                     else if (saveToJson)
                         jsonFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", FileMode.OpenOrCreate));
@@ -530,11 +527,11 @@ namespace PraxisCore.PbfReader
             while (min != max && prevCheck != current)
             {
                 var check = primRels[current];
-                if (check.id < relId) //This max is below our way, shift up
+                if (check.id < relId) //This max is below our way, shift min up
                 {
                     min = current;
                 }
-                else if (check.id > relId) //this max is over our way, check previous block if this one is correct OR shift down if not
+                else if (check.id > relId) //this max is over our way, shift max down
                 {
                     max = current;
                 }
@@ -576,7 +573,7 @@ namespace PraxisCore.PbfReader
                     }
                 }
 
-                if (!canProcess || rel.keys.Count == 0) //I cant use untagged areas for anything in PraxisMapper.
+                if (!canProcess)
                     return null;
 
                 //If I only want elements that show up in the map, and exclude areas I don't currently match,
@@ -670,11 +667,11 @@ namespace PraxisCore.PbfReader
             while (min != max && prevCheck != current)
             {
                 var check = primWays[current];
-                if (check.id < wayId) //This max is below our way, shift up
+                if (check.id < wayId) //This max is below our way, shift min up
                 {
                     min = current;
                 }
-                else if (check.id > wayId) //this max is over our way, check previous block if this one is correct OR shift down if not
+                else if (check.id > wayId) //this max is over our way, shift max down
                 {
                     max = current;
                 }
@@ -728,10 +725,6 @@ namespace PraxisCore.PbfReader
         {
             try
             {
-                if (skipUntagged && way.keys.Count == 0)
-                    return null;
-
-                //Now I have the data needed to fill in nodes for a way
                 OsmSharp.Complete.CompleteWay finalway = new OsmSharp.Complete.CompleteWay();
                 finalway.Id = way.id;
                 finalway.Tags = new OsmSharp.Tags.TagsCollection(way.keys.Count());
@@ -753,18 +746,18 @@ namespace PraxisCore.PbfReader
                 long idToFind = 0; //more deltas 
                                    //blockId, nodeID
                 List<Tuple<long, long>> nodesPerBlock = new List<Tuple<long, long>>();
-                List<long> distinctBlockIds = new List<long>(); //Could make this a dictionary and tryAdd instead of add and distinct every time?
+                List<long> hints = new List<long>(); //Could make this a dictionary and tryAdd instead of add and distinct every time?
                 for (int i = 0; i < way.refs.Count; i++)
                 {
                     idToFind += way.refs[i];
-                    var blockID = FindBlockKeyForNode(idToFind, distinctBlockIds);
-                    distinctBlockIds.Add(blockID);
-                    distinctBlockIds = distinctBlockIds.Distinct().ToList();
+                    var blockID = FindBlockKeyForNode(idToFind, hints);
+                    hints.Add(blockID);
+                    hints = hints.Distinct().ToList();
                     nodesPerBlock.Add(Tuple.Create(blockID, idToFind));
                 }
                 var nodesByBlock = nodesPerBlock.ToLookup(k => k.Item1, v => v.Item2);
 
-                List<OsmSharp.Node> nodeList = new List<OsmSharp.Node>();
+                List<OsmSharp.Node> nodeList = new List<OsmSharp.Node>(9); //9 is rough average nodes per way
                 Dictionary<long, OsmSharp.Node> AllNodes = new Dictionary<long, OsmSharp.Node>();
                 foreach (var block in nodesByBlock)
                 {
@@ -809,15 +802,16 @@ namespace PraxisCore.PbfReader
 
             //sort out tags ahead of time.
             int entryCounter = 0;
-            List<Tuple<int, string, string>> idKeyVal = new List<Tuple<int, string, string>>();
+            List<Tuple<int, string, string>> idKeyVal = new List<Tuple<int, string, string>>((dense.keys_vals.Count - 8000) / 2);
             for (int i = 0; i < dense.keys_vals.Count; i++)
             {
                 if (dense.keys_vals[i] == 0)
                 {
+                    //skip to next entry.
                     entryCounter++;
                     continue;
                 }
-                //skip to next entry.
+                
                 idKeyVal.Add(
                     Tuple.Create(entryCounter,
                 System.Text.Encoding.UTF8.GetString(block.stringtable.s[dense.keys_vals[i]]),
@@ -1001,11 +995,11 @@ namespace PraxisCore.PbfReader
             while (min != max)
             {
                 var check = wayFinderList[current];
-                if (check.Item2 < wayId) //This max is below our way, shift up
+                if (check.Item2 < wayId) //This max is below our way, shift min up
                 {
                     min = current;
                 }
-                else if (check.Item2 >= wayId) //this max is over our way, check previous block if this one is correct OR shift down if not
+                else if (check.Item2 >= wayId) //this max is over our way, check previous block if this one is correct OR shift max down if not
                 {
                     if (current == 0 || wayFinderList[current - 1].Item2 < wayId) //our way is below current max, above previous max, this is the block we want
                         return check.Item1;
@@ -1136,33 +1130,6 @@ namespace PraxisCore.PbfReader
                                 foreach (var n in nodes)
                                     results.Add(n);
 
-                                //if (infileProcess)
-                                //{
-                                //    var convertednodes = nodes.Select(n => GeometrySupport.ConvertOsmEntryToStoredElement(n)).ToList();
-                                //    StringBuilder geomSB = new StringBuilder();
-                                //    StringBuilder tagsSB = new StringBuilder();
-                                //    foreach (var md in convertednodes)
-                                //    {
-                                //        if (md != null)
-                                //        {
-                                //            geomSB.Append(md.name).Append("\t").Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(md.elementGeometry.AsText()).Append("\t0.000125").Append(Guid.NewGuid()).Append("\r\n");
-                                //            foreach (var t in md.Tags)
-                                //                tagsSB.Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(t.Key).Append("\t").Append(t.Value.Replace("\r", "").Replace("\n", "")).Append("\r\n"); //ensure line endings are consistent.
-                                //        }
-                                //    }
-                                //    lock (geomFileLock)
-                                //        geomFileStream.Write(geomSB);
-                                //    lock (tagsFileLock)
-                                //        tagsFileStream.Write(tagsSB);
-                                //}
-                                //else if (exportNodesToJson)
-                                //{
-                                //    var convertednodes = nodes.Select(n => GeometrySupport.ConvertOsmEntryToStoredElement(n)).ToList();
-                                //    var classForJson = convertednodes.Where(c => c != null).Select(md => new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated)).ToList();
-                                //    var textLines = classForJson.Select(c => JsonSerializer.Serialize(c, typeof(StoredOsmElementForJson))).ToList();
-                                //    lock (fileLock)
-                                //        System.IO.File.AppendAllLines(outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + ".json", textLines);
-                                //}
                                 return;
                             }
                             catch (Exception ex)
@@ -1356,17 +1323,20 @@ namespace PraxisCore.PbfReader
         {
             try
             {
-                foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.blockinfo"))
-                    System.IO.File.Delete(file);
+                if (!keepIndexFiles)
+                {
+                    foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.blockinfo"))
+                        System.IO.File.Delete(file);
 
-                foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.relationIndex"))
-                    System.IO.File.Delete(file);
+                    foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.relationIndex"))
+                        System.IO.File.Delete(file);
 
-                foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.nodeIndex"))
-                    System.IO.File.Delete(file);
+                    foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.nodeIndex"))
+                        System.IO.File.Delete(file);
 
-                foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.wayIndex"))
-                    System.IO.File.Delete(file);
+                    foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.wayIndex"))
+                        System.IO.File.Delete(file);
+                }
 
                 foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.progress"))
                     System.IO.File.Delete(file);
