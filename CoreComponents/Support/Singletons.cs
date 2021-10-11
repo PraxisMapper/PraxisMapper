@@ -34,7 +34,6 @@ namespace PraxisCore
         //not: this rule must be FALSE for the style to be applied.
         //default: always true.
         //New Layer Rules:
-        //admin bounds 70
         //Roads 90-99
         //default content: 100
         //TODO to consider: set up logic so that elements scale with the zoom level. I'd need a ScalePaintOps() function to apply it to all styles for a single draw call?
@@ -146,6 +145,15 @@ namespace PraxisCore
                     new TagParserMatchRule() {Key="highway", Value="path|bridleway|cycleway|footway|living_street", MatchType="any"},
                     new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"}
             }},
+            //Admin bounds exist here so that they can all be pulled in and potentially parsed by the adminBounds style set later. They match but are transparent on mapTiles
+            //so they get loaded into the DB instead of skipped.
+            new TagParserEntry() { MatchOrder = 13, name ="admin", styleSet = "mapTiles",
+                paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=0.0000125F, LinePattern= "10|5", layerId = 70 }
+                },
+                TagParserMatchRules = new List<TagParserMatchRule>() {
+                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" }} 
+            },
             new TagParserEntry() { MatchOrder = 14, name ="building", styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "d9d0c9", FillOrStroke = "fill", LineWidth=0.0000125F, LinePattern= "solid", layerId = 100 },

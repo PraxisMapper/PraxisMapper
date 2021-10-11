@@ -114,13 +114,38 @@ namespace Larry
             }
 
 
-            //if (args.Any(a => a == "makeWholeServer")) //Not a release 1 feature, but taking notes now.
-            //{
-            //This is the wizard command, try to check and do everything at once.
+            if (args.Any(a => a == "makeWholeServer")) //Not a release 1 feature, but taking notes now.
+            {
+                //This is the wizard command, try to check and do everything at once.
+                Log.WriteLog("Checking for installed DB per config (" + config["DbMode"] + ")");
+                PraxisContext db;
+                try
+                {
+                    db = new PraxisContext();
+                }
+                //Specific exceptions should hint at what to do, a general one covers ones I dont know how to handle.
+                catch(Exception ex)
+                {
+                    Log.WriteLog("Hit an error checking for the existing database that I'm not sure how to handle:" + ex.Message);
+                    return;
+                }
+
+                Log.WriteLog("Creating the Praxis DB per the connection string...");
+                try
+                {
+                    createDb();
+                }
+                catch(Exception ex)
+                {
+                    //figure out why i can't create. Probably account settings?
+                }
+
+
+
             //Check for MariaDB and install/configure if missing (including service account)
             //check for a PBF file and prompt to download one if none found
             //if data files are present, use them. otherwise process the PBF file per settings
-            //Pre-generate gameplay map tiles.
+            //Pre-generate gameplay map tiles, but present it as an option. It's faster to do it ahead of time but uses up more DB space if you aren't gonna need them all immediately.
             //Possible: Grab the Solar2D example app, adjust it to work with the server running on this machine.
             //--check external IP, update .lua source file to point to this pc.
             //Fire up the Kestral exe to get the server working
@@ -131,7 +156,7 @@ namespace Larry
             //if (args.Any(a => a == "-updateDatabase"))
             //{
             //DBCommands.UpdateExistingEntries(config["JsonMapDataFolder"]);
-            //}
+            }
 
             if (args.Any(a => a.StartsWith("-createStandaloneRelation")))
             {
@@ -211,6 +236,8 @@ namespace Larry
                 Log.WriteLog("Loading " + filename + " at " + DateTime.Now);
                 PbfReader r = new PbfReader();
                 r.outputPath = config["JsonMapDataFolder"];
+                r.styleSet = config["TagParserStyleSet"];
+                r.processingMode = "normal"; // TODO: config option to toggle this between normal/center (others?)
                 r.saveToInfile = config["UseMariaDBInFile"] == "True";
                 r.saveToJson = !r.saveToInfile;
                 r.saveToDB = false; //config["UseMariaDBInFile"] != "True";

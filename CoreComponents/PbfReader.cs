@@ -38,6 +38,8 @@ namespace PraxisCore.PbfReader
         public bool saveToJson = true; //Defaults to the common intermediate output.
         //public bool onlyTaggedAreas = false; //This is somewhat redundant, since all ways/relations will be tagged and storing untagged nodes isnt necessary in PM.
         public bool onlyMatchedAreas = false;
+        public string processingMode = "normal"; //normal: use geometry as it exists. Center: save the center point of any geometry provided instead of its actual value.
+        public string styleSet = "mapTiles"; //which style set to use when parsing entries
 
         public string outputPath = "";
         public string filenameHeader = "";
@@ -590,7 +592,7 @@ namespace PraxisCore.PbfReader
 
                 if (ignoreUnmatched)
                 {
-                    var tpe = TagParser.GetStyleForOsmWay(r.Tags);
+                    var tpe = TagParser.GetStyleForOsmWay(r.Tags, styleSet);
                     if (tpe.name == TagParser.defaultStyle.name)
                         return null; //This is 'unmatched', skip processing this entry.
                 }
@@ -740,7 +742,7 @@ namespace PraxisCore.PbfReader
 
                 if (ignoreUnmatched)
                 {
-                    if (TagParser.GetStyleForOsmWay(finalway.Tags).name == TagParser.defaultStyle.name)
+                    if (TagParser.GetStyleForOsmWay(finalway.Tags, styleSet).name == TagParser.defaultStyle.name)
                         return null; //don't process this one, we said not to load entries that aren't already in our style list.
                 }
 
@@ -846,7 +848,7 @@ namespace PraxisCore.PbfReader
 
                 if (ignoreUnmatched)
                 {
-                    if (TagParser.GetStyleForOsmWay(tc) == TagParser.defaultStyle)
+                    if (TagParser.GetStyleForOsmWay(tc, styleSet) == TagParser.defaultStyle)
                         continue;
                 }
 
@@ -1430,7 +1432,7 @@ namespace PraxisCore.PbfReader
             relList = new ConcurrentBag<Task>();
 
             if (onlyMatchedAreas)
-                elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => TagParser.GetStyleForOsmWay(e.Tags).name != TagParser.defaultStyle.name));
+                elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => TagParser.GetStyleForOsmWay(e.Tags, styleSet).name != TagParser.defaultStyle.name));
 
             if (boundsEntry != null)
                 elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => boundsEntry.Intersects(e.elementGeometry)));
@@ -1442,7 +1444,10 @@ namespace PraxisCore.PbfReader
             if (elements.First().sourceItemType == 1)
                 foreach (var e in elements)
                     e.AreaSize = ConstantValues.resolutionCell10;
-                
+
+            if (processingMode == "center")
+                foreach (var e in elements)
+                    e.elementGeometry = e.elementGeometry.Centroid;
 
             if (saveToDB)
             {
