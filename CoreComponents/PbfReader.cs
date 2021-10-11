@@ -637,7 +637,7 @@ namespace PraxisCore.PbfReader
                             break;
                         case Relation.MemberType.WAY:
                             if (!loadedWays.ContainsKey(idToFind))
-                                loadedWays.Add(idToFind, GetWay(idToFind, false, wayBlocks, false));
+                                loadedWays.Add(idToFind, GetWay(idToFind, wayBlocks, false));
                             c.Member = loadedWays[idToFind];
                             break;
                     }
@@ -688,11 +688,10 @@ namespace PraxisCore.PbfReader
         /// Processes the requested way from the currently open file into an OSMSharp CompleteWay
         /// </summary>
         /// <param name="wayId">the way Id to process</param>
-        /// <param name="skipUntagged">if true, skip this entry if it doesn't have any tags applied to it</param>
         /// <param name="hints">a list of currently loaded blocks to check before doing a full BTree search for entries</param>
         /// <param name="ignoreUnmatched">if true, returns null if this element's tags only match the default style.</param>
         /// <returns>the CompleteWay object requested, or null if skipUntagged or ignoreUnmatched checks skip this elements, or if there is an error processing the way</returns>
-        private OsmSharp.Complete.CompleteWay GetWay(long wayId, bool skipUntagged, List<long> hints = null, bool ignoreUnmatched = false)
+        private OsmSharp.Complete.CompleteWay GetWay(long wayId, List<long> hints = null, bool ignoreUnmatched = false)
         {
             try
             {
@@ -705,7 +704,7 @@ namespace PraxisCore.PbfReader
                     return null; //way wasn't in the block it was supposed to be in.
                                  //finally have the core item
 
-                return GetWay(way, wayBlock, skipUntagged, ignoreUnmatched);
+                return GetWay(way, wayBlock, ignoreUnmatched);
             }
             catch (Exception ex)
             {
@@ -718,10 +717,9 @@ namespace PraxisCore.PbfReader
         /// Processes the requested way from the currently open file into an OSMSharp CompleteWay
         /// </summary>
         /// <param name="way">the way, in PBF form</param>
-        /// <param name="skipUntagged">if true, skip this entry if it doesn't have any tags applied to it</param>
         /// <param name="ignoreUnmatched">if true, returns null if this element's tags only match the default style.</param>
         /// <returns>the CompleteWay object requested, or null if skipUntagged or ignoreUnmatched checks skip this elements, or if there is an error processing the way</returns>
-        private OsmSharp.Complete.CompleteWay GetWay(Way way, PrimitiveBlock wayBlock, bool skipUntagged, bool ignoreUnmatched = false)
+        private OsmSharp.Complete.CompleteWay GetWay(Way way, PrimitiveBlock wayBlock, bool ignoreUnmatched = false)
         {
             try
             {
@@ -1114,7 +1112,7 @@ namespace PraxisCore.PbfReader
                         List<long> hint = new List<long>() { blockId };
                         foreach (var r in primgroup.ways.OrderByDescending(w => w.refs.Count())) //Ordering should help consistency in runtime, though it offers little other benefit.
                         {
-                            relList.Add(Task.Run(() => results.Add(GetWay(r, block, true, onlyTagMatchedEntries))));
+                            relList.Add(Task.Run(() => results.Add(GetWay(r, block, onlyTagMatchedEntries))));
                         }
                     }
                     else
@@ -1548,7 +1546,7 @@ namespace PraxisCore.PbfReader
                 if (displayStatus)
                     ShowWaitInfo();
 
-                var way = GetWay(wayId, false);
+                var way = GetWay(wayId, ignoreUnmatched: false);
                 Close();
                 sw.Stop();
                 Log.WriteLog("Processing completed at " + DateTime.Now + ", session lasted " + sw.Elapsed);
