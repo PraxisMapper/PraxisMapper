@@ -29,9 +29,11 @@ ACCEPTABLE EXAMPLES: Set a Place's color to a player's team. Increment a 'total 
 UNACCEPTABLE EXAMPLES: Set a Place as a player's 'Home Base', save a PlusCode on game start as a player's starting location, displaying which PlusCode or Place a player last interacted with. Annoucing which player defeated a monster to all players.
 All of the unacceptable examples are fine for a game, ONLY IF that data is on the acting player's device and not the server.
 All Get* endpoints return a blank string is a value is not present in the server's database.
+elementId will always be a Guid for the items privacyId in the DB.
 
 GetAllDataInPlusCode/{plusCode} - Loads all key/value pairs attached to a given PlusCode. Results are 1 entry per line, in "PlusCode|key|value" format
 GetAllDataInOsmElement/{elementId} - Loads all key/value pairs attached to a given Place. Results are 1 entry per line, in "PlaceId|key|value" format
+GetDistanceToPlace/{elementId}/{lat}/{lon} - Return the distance in degrees from the given lat/lon pair to the requested element.
 GetElementData/{elementId}/{key} - Loads the value for a given key attached to a Place
 GetGlobalData/{key} - Loads the value for a given key from the global set.
 GetPlayerData/{deviceId}/{key} - Loads the value for a given key attached to a player.
