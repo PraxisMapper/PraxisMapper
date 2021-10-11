@@ -268,5 +268,15 @@ namespace PraxisMapper.Controllers
         {
             return ScoreData.GetScoreForSinglePlace(elementId);
         }
+
+        [HttpGet]
+        [Route("/[controller]/GetDistanceToPlace/{elementId}/{lat}/{lon}")]
+        public double GetDistanceToPlace(Guid elementId, double lat, double lon)
+        {
+            var db = new PraxisContext();
+            var place = db.StoredOsmElements.FirstOrDefault(e => e.privacyId == elementId);
+            if (place == null) return 0;
+            return place.elementGeometry.Distance(new NetTopologySuite.Geometries.Point(lon, lat));
+        }
     }
 }
