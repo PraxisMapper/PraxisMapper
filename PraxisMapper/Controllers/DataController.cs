@@ -278,5 +278,16 @@ namespace PraxisMapper.Controllers
             if (place == null) return 0;
             return place.elementGeometry.Distance(new NetTopologySuite.Geometries.Point(lon, lat));
         }
+
+        [HttpGet]
+        [Route("/[controller]/GetCenterOfPlace/{elementId}")]
+        public string GetCenterOfPlace(Guid elementId)
+        {
+            var db = new PraxisContext();
+            var place = db.StoredOsmElements.FirstOrDefault(e => e.privacyId == elementId);
+            if (place == null) return "0|0";
+            var center = place.elementGeometry.Centroid;
+            return center.Y.ToString() + "|" + center.X.ToString();        
+        }
     }
 }

@@ -33,6 +33,7 @@ elementId will always be a Guid for the items privacyId in the DB.
 
 GetAllDataInPlusCode/{plusCode} - Loads all key/value pairs attached to a given PlusCode. Results are 1 entry per line, in "PlusCode|key|value" format
 GetAllDataInOsmElement/{elementId} - Loads all key/value pairs attached to a given Place. Results are 1 entry per line, in "PlaceId|key|value" format
+GetCenterOfPlace/{elementId} - Returns the center point of the requested element as a lat/lon pair, separated by a pipe character.
 GetDistanceToPlace/{elementId}/{lat}/{lon} - Return the distance in degrees from the given lat/lon pair to the requested element.
 GetElementData/{elementId}/{key} - Loads the value for a given key attached to a Place
 GetGlobalData/{key} - Loads the value for a given key from the global set.
