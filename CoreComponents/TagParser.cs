@@ -268,7 +268,7 @@ namespace PraxisCore
                         if (!possibleValues.Contains(actualValue))
                             return false;
                         break;
-                    case "or": //Or rules don't fail early, since only one of them needs to match. Otherwise is the same as ANY logic.
+                    case "or": //Or rules must be counted, but we can skip checking once we have a match, since only one of them needs to match. Otherwise is the same as ANY logic.
                         orRuleCount++;
                         if (!tags.Any(t => t.Key == entry.Key) || OrMatched)
                             continue;
