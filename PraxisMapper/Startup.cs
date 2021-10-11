@@ -26,7 +26,7 @@ namespace PraxisMapper
             PraxisHeaderCheck.ServerAuthKey = Configuration.GetValue<string>("serverAuthKey");
             //AdminController.adminPwd = Configuration.GetValue<string>("adminPwd"); This pulls it directly from the configuration object in AdminController.
 
-            TagParser.Initialize(false); //set to true when debugging new style rules without resetting the database entries.
+            TagParser.Initialize(Configuration.GetValue<bool>("ForceTagParserDefaults")); //set to true when debugging new style rules without resetting the database entries.
         }
 
         public IConfiguration Configuration { get; }
