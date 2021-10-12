@@ -27,9 +27,10 @@ PraxisMapper strongly suggests not attaching a player and a location together on
 Interactions are acceptable, but you should avoid having enough data on the server to track a specific individual's movement. Do not connect a player and a location on the server.
 ACCEPTABLE EXAMPLES: Set a Place's color to a player's team. Increment a 'total visits' counter for a place, Adding to a player's score for visiting a certain type of place. Removing a defeated monster from the map.
 UNACCEPTABLE EXAMPLES: Set a Place as a player's 'Home Base', save a PlusCode on game start as a player's starting location, displaying which PlusCode or Place a player last interacted with. Annoucing which player defeated a monster to all players.
-All of the unacceptable examples are fine for a game, ONLY IF that data is on the acting player's device and not the server.
+All of the unacceptable examples are fine for a game, ONLY IF that data is on the acting player's device and not the server OR you use the SecureData controller instead.
 All Get* endpoints return a blank string is a value is not present in the server's database.
 elementId will always be a Guid for the items privacyId in the DB.
+{expiresIn} is optional on the Set* endpoints, its a number of seconds for data to remain valid. If absent, data is permanent until replaced.
 
 GetAllDataInPlusCode/{plusCode} - Loads all key/value pairs attached to a given PlusCode. Results are 1 entry per line, in "PlusCode|key|value" format
 GetAllDataInOsmElement/{elementId} - Loads all key/value pairs attached to a given Place. Results are 1 entry per line, in "PlaceId|key|value" format
@@ -43,10 +44,10 @@ GetPlusCodeTerrainData/{plusCode} - For each Cell10 in the given PlusCode, gets 
 GetPlusCodeTerrainDataFull/{plusCode} - For each Cell10 in the given PlusCode, gets the info on all intersecting Elements. 1 line per Element per Cell10, format "Cell10|PlaceName|gameElementName|privacyID". 
 GetScoreForArea/{elementId} - Calculates a default score for a Place, which is the # of Cell10s it is long (for a line) or covers in surface area. (for a closed shape).
 GetServerBounds/ - Loads the boundaries of the gameplay area for a server as pipe separated doubles in a string, format "south|west|north|east". The server will reject requests from outside this area. The value is set during database creation, and is a rectangle covering all OSM Elements in the database.
-SetElementData/{elementId}/{key}/{value} -Saves a key/value pair to the server attached to a Place. Cannot be a player's deviceId.
+SetElementData/{elementId}/{key}/{value}/{expiresIn} -Saves a key/value pair to the server attached to a Place. Cannot be a player's deviceId.
 SetGlobalData/{key}/{value} - Saves a key/value pair to the server's global set without reference to anything else. Cannot be a combination of a player's deviceId and a PlusCode or a PlaceId.
-SetPlusCodeData/{plusCode}/{key}/{value} -  Saves a key/value pair to the server attached to a PlusCode. Cannot be a player's deviceId.
-SetPlayerData/{deviceId}/{key}/{value} - Saves a key/value pair to the server attached to a player's deviceId. Cannot be a PlusCode or a Place's ID.
+SetPlusCodeData/{plusCode}/{key}/{value}/{expiresIn} -  Saves a key/value pair to the server attached to a PlusCode. Cannot be a player's deviceId.
+SetPlayerData/{deviceId}/{key}/{value}/{expiresIn} - Saves a key/value pair to the server attached to a player's deviceId. Cannot be a PlusCode or a Place's ID.
 IncrementElementData/{elementId}/{key}/{changeAmount} - For a Place's key/value pair, change the numerical value by changeAmount. Ensures that all simultaneous requests to Increment this value will be applied correctly.
 IncrementGlobalData/{key}/{changeAmount} - For a global key/value pair, change the numerical value by changeAmount. Ensures that all simultaneous requests to Increment this value will be applied correctly.
 IncrementPlayerData/{deviceId}/{key}/{changeAmount} - For a players key/value pair, change the numerical value by changeAmount. Ensures that all simultaneous requests to Increment this value will be applied correctly.
@@ -66,6 +67,20 @@ DrawSlippyTileCustomElements/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png - Returns t
 DrawSlippyTileCustomPlusCodes/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png - Returns the SlippyMap tile for the given zoom/x/y coordinates, for data stored in the PlusCodes key-value pair requested by dataKey, according to the styleSet drawing rules. This will be a grid of squares, since this draws PlusCodes. The .png ending is required per SlippyMap convention.
 DrawSlippyTileCustomPlusCodesByTag/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png - Returns the SlippyMap tile for the given zoom/x/y coordinates, loading the color stored in the PlusCodes key-value pair requested by dataKey. Requires the style set to have a "tag" member set with the fromTag property set to true. This will be a grid of squares, since this draws PlusCodes. The .png ending is required per SlippyMap convention.
 ExpireTiles/{elementId}/{styleSet} - Expires all map tiles drawn in the given style set that contain the given Place. Must be called by the client as necessary when interacting with an element, as the server does not know which key-value pairs are used to draw map tiles.
+
+SecureData:
+This controller works similar to the Data controller, but values passed in here are encryped with a password (provided to the function from the client)
+If you must attach a player to a location somehow, use the SecureData endpoints to do that. It's still better that you avoid storing that data for security and privacy reasons, but this will slow down an attacker in the event of a database breach.
+{expiresIn} is optional on the endpoints with it, is a number of seconds for data to remain valid. If null or absent, data is permanent until replaced.
+
+CheckPassword/{devicedId}/{password} - Check to see if a password is correct for a given deviceId.
+EncryptUserPassword/{devicedId}/{password} - Set the password for a deviceId using a stronger algorithm than the other SetSecure*Data functions. Writes to the 'password' key for the given deviceId. Intended to be used as a login method if you want to use accounts instead of hardwareIds to validate a player.
+GetSecureElementData/{elementId}/{key}/{password} - Load a key from the element given if the password is correct.
+GetSecurePlayerData/{deviceId}/{key}/{password} - Load a key from the playerId given if the password is correct. Note that this is not sufficiently secure for an account password.
+GetSecurePlusCodeData/{plusCode}/{key}/{password} - Load a key from the PlusCode given if the password is correct.
+SetSecureElementData/{elementId}/{key}/{value}/{password}/{expiresIn} - Save a key value pair to the given element, with the supplied password to read it later. If expiresIn is set, data will not be relayed to clients after that many seconds have passed.
+SetSecurePlayerData/{deviceId}/{key}/{value}/{password}/{expiresIn} - Save a key value pair to the given playerID, with the supplied password to read it later. If expiresIn is set, data will not be relayed to clients after that many seconds have passed. This endpoint is not sufficiently secure for establishing or storing an account password, use "EncryptUserPassword" for that instead.
+SetSecurePlusCodeData/{plusCode}/{key}/{value}/{password}/{expiresIn} - Save a key value pair to the given PlusCode, with the supplied password to read it later. If expiresIn is set, data will not be relayed to clients after that many seconds have passed.
 
 Slippy:
 Slippy controller handles the webpages with a Slippymap viewer (Leaflet.js). These can be useful for visualizing data on the server. Admin access only.

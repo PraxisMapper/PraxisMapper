@@ -10,6 +10,7 @@ using System.Text;
 using static PraxisCore.DbTables;
 using static PraxisCore.Place;
 using System.Linq;
+using CryptSharp;
 
 namespace PraxisMapper.Controllers
 {
@@ -75,9 +76,29 @@ namespace PraxisMapper.Controllers
             return GenericData.GetSecurePlusCodeData(plusCode, key, password);
         }
 
+        [HttpGet]
+        [Route("/[controller]/EncryptUserPassword/{devicedId}/{password}")]
+        public bool EncryptUserPassword(string deviceId, string password)
+        {
+            var options = new CrypterOptions() {
+                { CrypterOption.Rounds, Configuration["PasswordRounds"]}
+            };
+            BlowfishCrypter crypter = new BlowfishCrypter();
+            var salt = crypter.GenerateSalt();
+            var results = crypter.Crypt(password, salt);
+            GenericData.SetPlayerData(deviceId, "password", results);
+            return true;
+        }
 
-        //Reminder: BCrypt is for passwords, and is a one-way hash. This can't retreive an unknown value. Need a symmetric crypto plan for that.
-
+        [HttpGet]
+        [Route("/[controller]/CheckPassword/{devicedId}/{password}")]
+        public bool CheckPassword(string deviceId, string password)
+        {
+            BlowfishCrypter crypter = new BlowfishCrypter();
+            string existingPassword = GenericData.GetPlayerData(deviceId, "password");
+            string checkedPassword = crypter.Crypt(password, existingPassword);
+            return existingPassword == checkedPassword;
+        }
 
     }
 }
