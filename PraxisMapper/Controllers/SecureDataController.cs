@@ -99,6 +99,5 @@ namespace PraxisMapper.Controllers
             string checkedPassword = crypter.Crypt(password, existingPassword);
             return existingPassword == checkedPassword;
         }
-
     }
 }
