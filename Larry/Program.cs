@@ -114,7 +114,7 @@ namespace Larry
             }
 
 
-            if (args.Any(a => a == "makeWholeServer")) //Not a release 1 feature, but taking notes now.
+            if (args.Any(a => a == "-makeWholeServer")) //Not a release 1 feature, but taking notes now.
             {
                 //This is the wizard command, try to check and do everything at once.
                 Log.WriteLog("Checking for installed DB per config (" + config["DbMode"] + ")");
