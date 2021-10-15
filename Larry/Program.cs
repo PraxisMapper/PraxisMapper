@@ -85,11 +85,10 @@ namespace Larry
                 FileCommands.ResetFiles(config["JsonMapDataFolder"]);
             }
 
-            //if (args.Any(a => a == "drawFromPbf:")) //Conceptual, not completed.
-            //{
-                //get area and all things contained in area to RAM.
-                //Draw stuff from RAM.
-            //}
+            if (args.Any(a => a == "-resetStyles"))
+            {
+                ResetStyles();
+            }
 
             if (args.Any(a => a == "-processPbfs"))
             {
@@ -388,6 +387,21 @@ namespace Larry
 
             foreach (var cell2 in Cell2s)
                 DetectMapTilesRecursive(cell2, skip);
+        }
+
+        private static void ResetStyles()
+        {
+            Log.WriteLog("Replacing current styles with default ones");
+            var db = new PraxisContext();
+            var styles = Singletons.defaultTagParserEntries.Select(t => t.styleSet).Distinct().ToList();
+
+            var toRemove = db.TagParserEntries.Where(t => styles.Contains(t.styleSet)).ToList();
+            db.TagParserEntries.RemoveRange(toRemove);
+            db.SaveChanges();
+
+            db.TagParserEntries.AddRange(Singletons.defaultTagParserEntries);
+            db.SaveChanges();
+            Log.WriteLog("Styles restored to PraxisMapper defaults");
         }
 
         private static void DrawOneImage(string code)
