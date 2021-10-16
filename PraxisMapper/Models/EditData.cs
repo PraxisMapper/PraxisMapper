@@ -11,5 +11,7 @@ namespace PraxisMapper.Models
         public string currentPlayerKey;
         public List<SelectListItem> globalDataKeys;
         public List<SelectListItem> playerKeys;
+        public string currentStylesetKey;
+        public List<SelectListItem> stylesetKeys;
     }
 }

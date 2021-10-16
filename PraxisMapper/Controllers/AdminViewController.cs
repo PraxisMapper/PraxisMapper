@@ -130,8 +130,10 @@ namespace PraxisMapper.Controllers
             var db = new PraxisContext();
             model.accessKey = "?PraxisAuthKey=" + Configuration["serverAuthKey"];
             model.globalDataKeys = db.GlobalDataEntries.Select(g => new SelectListItem(g.dataKey, g.dataValue)).ToList();
-
             model.playerKeys = db.PlayerData.Select(p => p.deviceID).Distinct().Select(g => new SelectListItem(g, g)).ToList();
+
+            model.stylesetKeys = db.TagParserEntries.Select(t => t.styleSet).Distinct().Select(t => new SelectListItem(t, t)).ToList();
+            model.stylesetKeys.Insert(0, new SelectListItem("", ""));
 
             return View(model);
         }
