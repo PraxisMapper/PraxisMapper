@@ -1,97 +1,169 @@
 ﻿@model PraxisMapper.Models.EditData
 <script type="text/javascript">
-function setPlayerKeys()
-{
-    playerSelectedKey.length = 0;
-    fetch('../Data/GetAllPlayerData/' + currentPlayerKey.value)
-    .then(response => response.text())
-    .then(data => {
-        var lines = data.split('\r\n'); 
-        var blank = document.createElement('option'); 
-        blank.text = "";
-        playerSelectedKey.add(blank);
-        lines.forEach(l => 
-            {
-                var vals = l.split('|'); 
-                if (vals.length == 3){
-                var newOpt =  document.createElement('option'); 
-                newOpt.text = vals[1]; 
-                newOpt.value = vals[2]; 
-                playerSelectedKey.add(newOpt);
-                }
-            });
-    });
-}
+    //NOTE: might need authKey here.
+    function setPlayerKeys()
+    {
+        playerSelectedKey.length = 0;
+        fetch('../Data/GetAllPlayerData/' + currentPlayerKey.value)
+        .then(response => response.text())
+        .then(data => {
+            var lines = data.split('\r\n');
+            var blank = document.createElement('option');
+            blank.text = "";
+            playerSelectedKey.add(blank);
+            lines.forEach(l =>
+                {
+                    var vals = l.split('|');
+                    if (vals.length == 3){
+                    var newOpt =  document.createElement('option');
+                    newOpt.text = vals[1];
+                    newOpt.value = vals[2];
+                    playerSelectedKey.add(newOpt);
+                    }
+                });
+        });
+    }
 
-function setPlusCodeKeys()
-{
-    plusCodeSelectedKey.length = 0;
-    fetch('../Data/GetAllDataInPlusCode/' + plusCode.value)
-    .then(response => response.text())
-    .then(data => {
-        var lines = data.split('\r\n'); 
-        var blank = document.createElement('option'); 
-        blank.text = "";
-        plusCodeSelectedKey.add(blank);
-        lines.forEach(l => 
-            {
-                var vals = l.split('|'); 
-                if (vals.length == 3){
-                var newOpt =  document.createElement('option'); 
-                newOpt.text = vals[1]; 
-                newOpt.value = vals[2]; 
-                plusCodeSelectedKey.add(newOpt);
-                }
-            });
-    });
+    function setPlusCodeKeys()
+    {
+        plusCodeSelectedKey.length = 0;
+        fetch('../Data/GetAllDataInPlusCode/' + plusCode.value)
+        .then(response => response.text())
+        .then(data => {
+            var lines = data.split('\r\n');
+            var blank = document.createElement('option');
+            blank.text = "";
+            plusCodeSelectedKey.add(blank);
+            lines.forEach(l =>
+                {
+                    var vals = l.split('|');
+                    if (vals.length == 3){
+                    var newOpt =  document.createElement('option');
+                    newOpt.text = vals[1];
+                    newOpt.value = vals[2];
+                    plusCodeSelectedKey.add(newOpt);
+                    }
+                });
+        });
+    }
 
-function setPlaceKeys()
-{
-    placeSelectedKey.length = 0;
-    fetch('../Data/GetAllDataInOSMElement/' + placeId.value)
-    .then(response => response.text())
-    .then(data => {
-        var lines = data.split('\r\n'); 
-        var blank = document.createElement('option'); 
-        blank.text = "";
-        placeSelectedKey.add(blank);
-        lines.forEach(l => 
-            {
-                var vals = l.split('|'); 
-                if (vals.length == 3){
-                var newOpt =  document.createElement('option'); 
-                newOpt.text = vals[1]; 
-                newOpt.value = vals[2]; 
-                placeSelectedKey.add(newOpt);
-                }
-            });
-    });
-}
-}
+    function setPlaceKeys()
+    {
+        placeSelectedKey.length = 0;
+        fetch('../Data/GetAllDataInOSMElement/' + placeId.value)
+        .then(response => response.text())
+        .then(data => {
+            var lines = data.split('\r\n');
+            var blank = document.createElement('option');
+            blank.text = "";
+            placeSelectedKey.add(blank);
+            lines.forEach(l =>
+                {
+                    var vals = l.split('|');
+                    if (vals.length == 3){
+                    var newOpt =  document.createElement('option');
+                    newOpt.text = vals[1];
+                    newOpt.value = vals[2];
+                    placeSelectedKey.add(newOpt);
+                    }
+                });
+        });
+    }
+
+    function setStyleEntryKeys()
+    {
+        styleSetSelectedEntry.length = 0;
+        matchOrder.value = '';
+        styleEntryName.value = '';
+        isGameElement.value = '';
+        minDrawRes.value = '';
+        maxDrawRes.value = '';
+        fetch('../StyleData/GetStyleSetEntryNames/' + currentStylesetKey.value)
+        .then(response => response.text())
+        .then(data => {
+            var blank = document.createElement('option');
+            blank.text = "";
+            styleSetSelectedEntry.add(blank);
+            var entries = data.split('|')
+            entries.forEach(l =>
+                {
+                    var newOpt =  document.createElement('option');
+                    newOpt.text = l;
+                    newOpt.value = l;
+                    styleSetSelectedEntry.add(newOpt);
+                });
+        });
+    }
+
+    function setStyleEntryData()
+    {
+        fetch('../StyleData/GetStyleSetEntryValues/' + currentStylesetKey.value + '/' + styleSetSelectedEntry.value)
+        .then(response => response.text())
+        .then(data => {
+            var entries = data.split('|');
+            matchOrder.value = entries[0];
+            styleEntryName.value = entries[1];
+            isGameElement.value = entries[2];
+            minDrawRes.value = entries[3];
+            maxDrawRes.value = entries[4];
+        });
+    }
 
 
 </script>
-Edit Data<br /><br />
+Edit Data
+<br />
+<br />
 
 Globals:
 <br />
-@Html.DropDownListFor(e => e.currentGlobalKey, Model.globalDataKeys, null, new { @onchange="globalKey.value = this.options[this.selectedIndex].text; globalValue.value = this.value "})<br />
-<input type="text" id="globalKey" /><input type="text" id="globalValue" />
+@Html.DropDownListFor(e => e.currentGlobalKey, Model.globalDataKeys, null, new { @onchange="globalKey.value = this.options[this.selectedIndex].text; globalValue.value = this.value "})
+<br />
+<input type="text" id="globalKey" />
+<input type="text" id="globalValue" />
 <input type="button" id="submitGlobal" onclick="fetch('../Data/SetGlobalData/' + globalKey.value + '/' + globalValue.value + '@Model.accessKey');" value="Save Global Value" />
-<br /><br />
+<br />
+<br />
 Player Data:
 <br />
 PlayerIds:
-@Html.DropDownListFor(e => e.currentPlayerKey, Model.playerKeys, null, new { @onchange="setPlayerKeys()"} );<br />
+@Html.DropDownListFor(e => e.currentPlayerKey, Model.playerKeys, null, new { @onchange="setPlayerKeys()"} );
+<br />
 Player Keys:
 <select id="playerSelectedKey" name="playerSelectedKey" onchange="{playerKey.value = this.options[this.selectedIndex].text; playerValue.value = this.value;}"></select>
-<input type="text" id="playerKey" /><input type="text" id="playerValue" />
-<input type="button" id="submitPlayer" onclick="fetch('../Data/SetPlayerData/' + currentPlayerKey.value + '/' + playerKey.value + '/' + playerValue.value + '@Model.accessKey');" value="Save Player Value" /> 
-<br /><br />
+<input type="text" id="playerKey" />
+<input type="text" id="playerValue" />
+<input type="button" id="submitPlayer" onclick="fetch('../Data/SetPlayerData/' + currentPlayerKey.value + '/' + playerKey.value + '/' + playerValue.value + '@Model.accessKey');" value="Save Player Value" />
+<br />
+<br />
 PlusCodes:
-<input type="text" id="plusCode" oninput="setPlusCodeKeys();" /><br />
-<select id="plusCodeSelectedKey" name="plusCodeSelectedKey" onchange="{plusCodeKey.value = this.options[this.selectedIndex].text; plusCodeValue.value = this.value;}"></select><input type="text" id="plusCodeKey" /><input type="text" id="plusCodeValue" /> <input type="button" id="submitPlusCode" onclick="fetch('../Data/SetPlusCodeData/' + plusCode.value + '/' + plusCodeKey.value + '/' + plusCodeValue.value + '@Model.accessKey');" value="Save PlusCode Value" /> 
-<br /><br />
+<input type="text" id="plusCode" oninput="setPlusCodeKeys();" />
+<br />
+<select id="plusCodeSelectedKey" name="plusCodeSelectedKey" onchange="{plusCodeKey.value = this.options[this.selectedIndex].text; plusCodeValue.value = this.value;}"></select>
+<input type="text" id="plusCodeKey" />
+<input type="text" id="plusCodeValue" />
+<input type="button" id="submitPlusCode" onclick="fetch('../Data/SetPlusCodeData/' + plusCode.value + '/' + plusCodeKey.value + '/' + plusCodeValue.value + '@Model.accessKey');" value="Save PlusCode Value" />
+<br />
+<br />
 Places: (Use PrivacyID)
-<input type="text" id="placeId" oninput="setPlaceKeys();" /><br />
-<select id="placeSelectedKey" name="placeSelectedKey" onchange="{placeKey.value = this.options[this.selectedIndex].text; placeValue.value = this.value;}"></select><input type="text" id="placeKey" /><input type="text" id="placeValue" /><input type="button" id="submitPlace" onclick="fetch('../Data/SetStoredElementData/' + placeId.value + '/' + placeKey.value + '/' + placeValue.value + '@Model.accessKey');" value="Save Place Value" /> 
+<input type="text" id="placeId" oninput="setPlaceKeys();" />
+<br />
+<select id="placeSelectedKey" name="placeSelectedKey" onchange="{placeKey.value = this.options[this.selectedIndex].text; placeValue.value = this.value;}"></select>
+<input type="text" id="placeKey" />
+<input type="text" id="placeValue" />
+<input type="button" id="submitPlace" onclick="fetch('../Data/SetStoredElementData/' + placeId.value + '/' + placeKey.value + '/' + placeValue.value + '@Model.accessKey');" value="Save Place Value" />
+<br />
+<br />
+Styles:
+@Html.DropDownListFor(e => e.currentStylesetKey, Model.stylesetKeys, null, new { @onchange="setStyleEntryKeys()"} ); <br />
+<br />
+Entry:
+<select id="styleSetSelectedEntry" name="styleSetSelectedEntry" onchange="setStyleEntryData()"></select>
+<input type="number" id="matchOrder" />
+<input type="text" id="styleEntryName" />
+<input type="checkbox" id="isGameElement" />
+<input type="number" id="minDrawRes" />
+<input type="number" id="maxDrawRes" />
+<!-- paint ops-->
+<!-- match rules-->
+<input type="button" id="submitStyle" onclick="" value="Save Style" />
