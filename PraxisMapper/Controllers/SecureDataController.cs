@@ -84,7 +84,7 @@ namespace PraxisMapper.Controllers
                 { CrypterOption.Rounds, Configuration["PasswordRounds"]}
             };
             BlowfishCrypter crypter = new BlowfishCrypter();
-            var salt = crypter.GenerateSalt();
+            var salt = crypter.GenerateSalt(options);
             var results = crypter.Crypt(password, salt);
             GenericData.SetPlayerData(deviceId, "password", results);
             return true;

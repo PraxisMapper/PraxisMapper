@@ -17,6 +17,7 @@ using static PraxisCore.StandaloneDbTables;
 using PraxisCore.PbfReader;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using CryptSharp;
 
 
 //TODO: look into using Span<T> instead of lists? This might be worth looking at performance differences. (and/or Memory<T>, which might be a parent for Spans)
@@ -62,7 +63,7 @@ namespace Larry
             {
                 createDb();
             }
-            
+
             if (args.Any(a => a.StartsWith("-getPbf:")))
             {
                 //Wants 3 pieces. Drops in placeholders if some are missing. Giving no parameters downloads Ohio.
@@ -123,7 +124,7 @@ namespace Larry
                     db = new PraxisContext();
                 }
                 //Specific exceptions should hint at what to do, a general one covers ones I dont know how to handle.
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     Log.WriteLog("Hit an error checking for the existing database that I'm not sure how to handle:" + ex.Message);
                     return;
@@ -134,28 +135,45 @@ namespace Larry
                 {
                     createDb();
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     //figure out why i can't create. Probably account settings?
                 }
 
+                Log.WriteLog("Determining the correct value for Rounds on this computer for saving passwords...");
+                System.Diagnostics.Stopwatch encryptTimer = new System.Diagnostics.Stopwatch();
+                int rounds = 6;
+                while (encryptTimer.ElapsedMilliseconds < 250)
+                {
+                    rounds += 2;
+                    var options = new CrypterOptions() {
+                        { CrypterOption.Rounds, rounds}
+                    };
+                    encryptTimer.Restart();
+                    BlowfishCrypter crypter = new BlowfishCrypter();
+                    var salt = crypter.GenerateSalt(options);
+                    var results = crypter.Crypt("anythingWillDo", salt);
+                    encryptTimer.Stop();
+
+                }
+                Log.WriteLog("Suggestion: Set the PasswordRounds configuration variable to " + rounds + " in PraxisMapper's appsettings.json file");
 
 
-            //Check for MariaDB and install/configure if missing (including service account)
-            //check for a PBF file and prompt to download one if none found
-            //if data files are present, use them. otherwise process the PBF file per settings
-            //Pre-generate gameplay map tiles, but present it as an option. It's faster to do it ahead of time but uses up more DB space if you aren't gonna need them all immediately.
-            //Possible: Grab the Solar2D example app, adjust it to work with the server running on this machine.
-            //--check external IP, update .lua source file to point to this pc.
-            //Fire up the Kestral exe to get the server working
-            //Open up a browser to the adminview slippytile page.
-            //}
+                //Check for MariaDB and install/configure if missing (including service account)
+                //check for a PBF file and prompt to download one if none found
+                //if data files are present, use them. otherwise process the PBF file per settings
+                //Pre-generate gameplay map tiles, but present it as an option. It's faster to do it ahead of time but uses up more DB space if you aren't gonna need them all immediately.
+                //Possible: Grab the Solar2D example app, adjust it to work with the server running on this machine.
+                //--check external IP, update .lua source file to point to this pc.
+                //Fire up the Kestral exe to get the server working
+                //Open up a browser to the adminview slippytile page.
+                //}
+            }
 
             //TODO: rework Update process to handle the mulitple data files that could be used.
             //if (args.Any(a => a == "-updateDatabase"))
             //{
             //DBCommands.UpdateExistingEntries(config["JsonMapDataFolder"]);
-            }
 
             if (args.Any(a => a.StartsWith("-createStandaloneRelation")))
             {
@@ -204,7 +222,7 @@ namespace Larry
 
             if (args.Any(a => a.StartsWith("-processCoastlines:")))
             {
-                string filename  = args.First(a => a.StartsWith("-processCoastlines:")).Split(":")[1];
+                string filename = args.First(a => a.StartsWith("-processCoastlines:")).Split(":")[1];
                 ReadCoastlineShapefile(filename);
             }
 
@@ -411,7 +429,7 @@ namespace Larry
             TagParser.ApplyTags(memorySource, "mapTiles");
             ImageStats istats = new ImageStats(OpenLocationCode.DecodeValid(code), 1024, 1024);
             var paintOps = MapTiles.GetPaintOpsForStoredElements(memorySource, "mapTiles", istats);
-            System.IO.File.WriteAllBytes(config["JsonMapDataFolder"] +  code + ".png", MapTiles.DrawPlusCode(code, paintOps, "mapTiles"));
+            System.IO.File.WriteAllBytes(config["JsonMapDataFolder"] + code + ".png", MapTiles.DrawPlusCode(code, paintOps, "mapTiles"));
             sw.Stop();
             Log.WriteLog("image drawn from memory in " + sw.Elapsed);
         }
@@ -733,8 +751,8 @@ namespace Larry
             var neCorner = new OpenLocationCode(intersectCheck.EnvelopeInternal.MaxY, intersectCheck.EnvelopeInternal.MaxX);
             //insert default entries for a new player.
             sqliteDb.PlayerStats.Add(new PlayerStats() { timePlayed = 0, distanceWalked = 0, score = 0 });
-            sqliteDb.Bounds.Add(new Bounds() { EastBound = neCorner.Decode().EastLongitude, NorthBound = neCorner.Decode().NorthLatitude, SouthBound = swCorner.Decode().SouthLatitude, WestBound = swCorner.Decode().WestLongitude, commonCodeLetters = commonStart, BestIdleCompletionTime = 0, LastPlayedOn =0, StartedCurrentIdleRun = 0 });
-            sqliteDb.IdleStats.Add(new IdleStats() { emptySpacePerSecond =0, emptySpaceTotal=0, graveyardSpacePerSecond=0, graveyardSpaceTotal=0, natureReserveSpacePerSecond=0, natureReserveSpaceTotal=0, parkSpacePerSecond=0, parkSpaceTotal=0, touristSpacePerSecond=0, touristSpaceTotal=0, trailSpacePerSecond=0, trailSpaceTotal=0 });
+            sqliteDb.Bounds.Add(new Bounds() { EastBound = neCorner.Decode().EastLongitude, NorthBound = neCorner.Decode().NorthLatitude, SouthBound = swCorner.Decode().SouthLatitude, WestBound = swCorner.Decode().WestLongitude, commonCodeLetters = commonStart, BestIdleCompletionTime = 0, LastPlayedOn = 0, StartedCurrentIdleRun = 0 });
+            sqliteDb.IdleStats.Add(new IdleStats() { emptySpacePerSecond = 0, emptySpaceTotal = 0, graveyardSpacePerSecond = 0, graveyardSpaceTotal = 0, natureReserveSpacePerSecond = 0, natureReserveSpaceTotal = 0, parkSpacePerSecond = 0, parkSpaceTotal = 0, touristSpacePerSecond = 0, touristSpaceTotal = 0, trailSpacePerSecond = 0, trailSpaceTotal = 0 });
             sqliteDb.SaveChanges();
 
             //now we have the list of places we need to be concerned with. 
@@ -765,7 +783,7 @@ namespace Larry
 
         public static void ReadCoastlineShapefile(string shapePath)
         {
-            StreamWriter sw = new  StreamWriter(config["JsonMapDataFolder"] + "coastlines.json");
+            StreamWriter sw = new StreamWriter(config["JsonMapDataFolder"] + "coastlines.json");
             EGIS.ShapeFileLib.ShapeFile sf = new EGIS.ShapeFileLib.ShapeFile(shapePath);
             var recordCount = sf.RecordCount;
             var tagString = "natural:coastline";
