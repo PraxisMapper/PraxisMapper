@@ -413,7 +413,10 @@ namespace Larry
             var db = new PraxisContext();
             var styles = Singletons.defaultTagParserEntries.Select(t => t.styleSet).Distinct().ToList();
 
-            var toRemove = db.TagParserEntries.Where(t => styles.Contains(t.styleSet)).ToList();
+            var toRemove = db.TagParserEntries.Include(t => t.paintOperations).Where(t => styles.Contains(t.styleSet)).ToList();
+            var toRemovePaints = toRemove.SelectMany(t => t.paintOperations).ToList();
+            db.TagParserPaints.RemoveRange(toRemovePaints);
+            db.SaveChanges();
             db.TagParserEntries.RemoveRange(toRemove);
             db.SaveChanges();
 
