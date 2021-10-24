@@ -26,6 +26,7 @@ namespace PraxisCore
         public DbSet<CustomDataOsmElement> CustomDataOsmElements { get; set; }
         public DbSet<CustomDataPlusCode> CustomDataPlusCodes { get; set; }
         public DbSet<GlobalDataEntries> GlobalDataEntries { get; set; }
+        public DbSet<TagParserStyleBitmap> TagParserStyleBitmaps { get; set; }
 
         public static string connectionString = "Data Source=localhost\\SQLDEV;UID=PraxisService;PWD=lamepassword;Initial Catalog=Praxis;"; //Needs a default value.
         public static string serverMode = "SQLServer";
@@ -169,6 +170,17 @@ namespace PraxisCore
                 db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT TagParserEntries OFF;");
                 db.Database.CommitTransaction();
             }
+
+            foreach(var file in System.IO.Directory.EnumerateFiles("MapPatterns"))
+            {
+                db.TagParserStyleBitmaps.Add(new TagParserStyleBitmap() { 
+                    filename = System.IO.Path.GetFileName(file), 
+                    data = System.IO.File.ReadAllBytes(file) 
+                });
+            }
+            db.SaveChanges();
+
+
         }
     }
 }

@@ -284,6 +284,13 @@ namespace PraxisCore
             public string dataValue { get; set; }
             public DateTime? expiration { get; set; } //optional.
         }
+
+        public class TagParserStyleBitmap
+        {
+            public long id { get; set; }
+            public string filename { get; set; }
+            public byte[] data { get; set; }
+        }
     }
 }
 

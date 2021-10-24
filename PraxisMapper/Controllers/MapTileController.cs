@@ -57,7 +57,7 @@ namespace PraxisMapper.Controllers
                     var dataLoadArea = new GeoArea(info.area.SouthLatitude - ConstantValues.resolutionCell10, info.area.WestLongitude - ConstantValues.resolutionCell10, info.area.NorthLatitude + ConstantValues.resolutionCell10, info.area.EastLongitude + ConstantValues.resolutionCell10);
                     DateTime expires = DateTime.Now;
                     byte[] results = null;
-                    var places = GetPlaces(dataLoadArea, null, info.filterSize, styleSet, false, info.drawPoints);
+                    var places = GetPlaces(dataLoadArea, null, info.filterSize, styleSet, false, info.drawPoints); 
                     //var places = GetPlacesForTile(info, null, styleSet); //Image area crops points near boundaries
                     var paintOps = MapTiles.GetPaintOpsForStoredElements(places, styleSet, info);
                     results = MapTiles.DrawAreaAtSize(info, paintOps, TagParser.GetStyleBgColor(styleSet));

@@ -15,7 +15,7 @@ namespace PraxisCore
     /// <summary>
     /// Places are StoredOsmElements 
     /// </summary>
-    public static class Place 
+    public static class Place
     {
         //for now, anything that does a query on StoredOsmElement or a list of StoredOsmElement entries
         //Places will be the name for interactible or important areas on the map. Was not previously a fixed name for that.
@@ -114,7 +114,7 @@ namespace PraxisCore
                 var db = new PraxisContext();
                 places = db.StoredOsmElements.Any(md => md.elementGeometry.Intersects(location));
                 //if (includeGenerated)
-                    //places = places; // || db.GeneratedMapData.Any(md => md.place.Intersects(location));
+                //places = places; // || db.GeneratedMapData.Any(md => md.place.Intersects(location));
                 return places;
             }
             else
@@ -269,7 +269,7 @@ namespace PraxisCore
             //Auto-detect what the boundaries are for the database's data set.
             //NOTE: with the Aleutian islands, the USA is considered as wide as the entire map. These sit on both sides of the meridian.
             //These 2 start in the opposite corners, to make sure the replacements are correctly detected.
-            double SouthLimit = 360; 
+            double SouthLimit = 360;
             double NorthLimit = -360;
             double WestLimit = 360;
             double EastLimit = -360;
@@ -277,7 +277,7 @@ namespace PraxisCore
             double scanRes = 1; //1 degree.
             //This is now a 2-step process for speed. The first pass runs at 1 degree intervals for speed, then drops to the given resolution for precision.
             var northscanner = new GeoArea(new GeoPoint(90 - scanRes, -180), new GeoPoint(90, 180));
-            while(!DoPlacesExist(northscanner))
+            while (!DoPlacesExist(northscanner))
                 northscanner = new GeoArea(new GeoPoint(northscanner.SouthLatitude - scanRes, -180), new GeoPoint(northscanner.NorthLatitude - scanRes, 180));
             northscanner = new GeoArea(new GeoPoint(northscanner.SouthLatitude - resolution, -180), new GeoPoint(northscanner.NorthLatitude - resolution, 180));
             while (!DoPlacesExist(northscanner))
@@ -310,7 +310,7 @@ namespace PraxisCore
 
             return new GeoArea(new GeoPoint(SouthLimit, WestLimit), new GeoPoint(NorthLimit, EastLimit));
         }
-        
+
         //This is for getting all places that have a specific TagParser style/match. Admin boundaries, parks, etc.
         /// <summary>
         /// Pull in all elements from a list that have a given style. 
@@ -324,6 +324,23 @@ namespace PraxisCore
             if (places == null)
                 places = GetPlaces(area);
             return places.Where(p => p.GameElementName == type).ToList();
+        }
+
+        public static List<Tuple<double, StoredOsmElement>> GetNearbyPlacesAtDistance(string type, string plusCode, double distanceMid)
+        {
+            //TODO: test this out for performance. Spatial index should work for Distance but calculating it 3 times might not be very fast
+            var db = new PraxisContext();
+            var geopoint = OpenLocationCode.DecodeValid(plusCode).Center;
+            var ntsPoint = new Point(geopoint.Longitude, geopoint.Latitude);
+            var distanceMin = distanceMid / 2;
+            var distanceMax = distanceMid + distanceMin;
+            List<Tuple<double, StoredOsmElement>> results = db.StoredOsmElements
+                .Where(o => distanceMin < o.elementGeometry.Distance(ntsPoint) && o.elementGeometry.Distance(ntsPoint) < distanceMax)
+                .OrderByDescending(o => Math.Abs(distanceMid - o.elementGeometry.Distance(ntsPoint)))
+                .Select(o => Tuple.Create(o.elementGeometry.Distance(ntsPoint), o))
+                .ToList();
+
+            return results;
         }
     }
 }

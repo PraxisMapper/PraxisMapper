@@ -119,7 +119,8 @@ namespace PraxisCore
             }
             if (!string.IsNullOrEmpty(tpe.fileName))
             {
-                byte[] fileData = System.IO.File.ReadAllBytes(tpe.fileName);
+                //byte[] fileData = System.IO.File.ReadAllBytes(tpe.fileName);
+                byte[] fileData = new PraxisContext().TagParserStyleBitmaps.FirstOrDefault(f => f.filename == tpe.fileName).data;
                 SKBitmap fillPattern = SKBitmap.Decode(fileData);
                 cachedBitmaps.TryAdd(tpe.fileName, fillPattern); //For icons.
                 SKShader tiling = SKShader.CreateBitmap(fillPattern, SKShaderTileMode.Repeat, SKShaderTileMode.Repeat); //For fill patterns.
