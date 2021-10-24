@@ -24,16 +24,16 @@ namespace PraxisMapper.Controllers
         {
             var db = new PraxisContext();
             var data = db.TagParserEntries.FirstOrDefault(t => t.styleSet == styleSet && t.name == entryName);
-            return data.MatchOrder + "|" + data.name + "|" + data.IsGameElement + "|" + data.minDrawRes + "|" + data.maxDrawRes;
+            return data.MatchOrder + "|" + data.name + "|" + data.IsGameElement + "|" + data.minDrawRes + "|" + data.maxDrawRes + "|" + data.id;
         }
 
         [HttpGet]
-        [Route("/[controller]/UpdateStyleSetEntryValues/{styleSet}/{matchOrder}/{entryName}/{isGameElement}/{minDrawRes}/{maxDrawRes}")]
-        public void UpdateStyleSetEntryValues(string styleSet, int matchOrder, string entryName, bool isGameElement, double minDrawRes, double maxDrawRes)
+        [Route("/[controller]/UpdateStyleSetEntryValues/{styleSet}/{id}/{matchOrder}/{entryName}/{isGameElement}/{minDrawRes}/{maxDrawRes}")]
+        public void UpdateStyleSetEntryValues(string styleSet, long id, int matchOrder, string entryName, bool isGameElement, double minDrawRes, double maxDrawRes)
         {
             //Hasnt yet been tested.
             var db = new PraxisContext();
-            var data = db.TagParserEntries.FirstOrDefault(t => t.styleSet == styleSet && t.name == entryName);
+            var data = db.TagParserEntries.FirstOrDefault(t => t.id == id);
             data.MatchOrder = matchOrder;
             data.name = entryName;
             data.IsGameElement = isGameElement;
