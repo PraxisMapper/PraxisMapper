@@ -106,6 +106,7 @@
             isGameElement.value = entries[2];
             minDrawRes.value = entries[3];
             maxDrawRes.value = entries[4];
+            styleId.value = entries[5];
         });
     }
 
@@ -159,11 +160,16 @@ Styles:
 <br />
 Entry:
 <select id="styleSetSelectedEntry" name="styleSetSelectedEntry" onchange="setStyleEntryData()"></select>
+<input type="hidden" id="styleId" />
 <input type="number" id="matchOrder" />
 <input type="text" id="styleEntryName" />
 <input type="checkbox" id="isGameElement" />
 <input type="number" id="minDrawRes" />
 <input type="number" id="maxDrawRes" />
+<input type="button" id="submitStyle" onclick="fetch(../StyleData/UpdateStyleSetEntryValues/' + currentStylesetKey.value + '/' + styleId.value + '/' + matchOrder.value + '/' + styleEntryName.value + '/' + isGameElement.value + '/' + minDrawRes.value + '/' + maxDrawRes.value)" value="Save Style" />
 <!-- paint ops-->
+<br /> <br />
+Paint Ops for style:
 <!-- match rules-->
-<input type="button" id="submitStyle" onclick="" value="Save Style" />
+<br /> <br />
+Match rules for style:
