@@ -453,18 +453,6 @@ namespace PraxisCore
                         foreach (var hole in p.InteriorRings)
                             path.AddPoly(Converters.PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                         canvas.DrawPath(path, paint);
-
-                        //Old, slower code. Commented out pending further testing to confirm the new logic doesn't create new issues.
-                        //if (p.Holes.Length == 0)
-                        //{
-                        //    path.AddPoly(Converters.PolygonToSKPoints(p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                        //    canvas.DrawPath(path, paint);
-                        //}
-                        //else
-                        //{
-                        //    var innerBitmap = DrawPolygon(p, paint, stats);
-                        //    canvas.DrawBitmap(innerBitmap, 0, 0, paint);
-                        //}
                         break;
                     case "MultiPolygon":
                         foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries)
@@ -474,18 +462,6 @@ namespace PraxisCore
                             foreach (var hole in p2p.InteriorRings)
                                 path.AddPoly(Converters.PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                             canvas.DrawPath(path, paint);
-
-                            //Old, slower code. Commented out pending further testing to confirm the new logic doesn't create new issues.
-                            //if (p.Holes.Length == 0)
-                            //{
-                            //    path.AddPoly(Converters.PolygonToSKPoints(p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                            //    canvas.DrawPath(path, paint);
-                            //}
-                            //else
-                            //{
-                            //    var innerBitmap = DrawPolygon(p, paint, stats);
-                            //    canvas.DrawBitmap(innerBitmap, 0, 0, paint);
-                            //}
                         }
                         break;
                     case "LineString":
@@ -818,31 +794,19 @@ namespace PraxisCore
                         var p = w.elementGeometry as Polygon;
 
                         path.AddPoly(Converters.PolygonToSKPoints(p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                        canvas.DrawPath(path, paint);
-
                         foreach (var hole in p.InteriorRings)
-                        {
-                            path = new SKPath();
                             path.AddPoly(Converters.PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                            canvas.DrawPath(path, eraser);
-                        }
+                        canvas.DrawPath(path, paint);
 
                         break;
                     case "MultiPolygon":
                         foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries)
                         {
                             var p2p = p2 as Polygon;
-
                             path.AddPoly(Converters.PolygonToSKPoints(p2p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                            canvas.DrawPath(path, paint);
-
                             foreach (var hole in p2p.InteriorRings)
-                            {
-                                path = new SKPath();
                                 path.AddPoly(Converters.PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                                canvas.DrawPath(path, eraser);
-                            }
-
+                            canvas.DrawPath(path, paint);
                         }
                         break;
                     case "LineString":
