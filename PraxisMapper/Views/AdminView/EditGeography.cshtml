@@ -1,0 +1,52 @@
+﻿<html>
+<head>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+              integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+              crossorigin="" />
+        <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+                integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
+                crossorigin=""></script>
+
+    @* Local resource links, but I have yet to correctly get these to load and run.
+        <link rel="stylesheet" href="~/Content/leaflet.css" />
+        <script src="~/Scripts/leaflet.js"></script> *@
+</head>
+<body>
+    <div id="mapid" style="width: 512px; height:512px;">
+
+    </div>
+    <script type="text/javascript">
+    var serverKey = "testingKey"; //TODO: lock this page to only localhost or find an alternate way to obfuscate this.
+        var baseSite = window.location.href.split("/adminview")[0];
+        var url = baseSite + '/{id}/{z}/{x}/{y}.png?PraxisAuthKey=' + serverKey;
+        var baseData = L.tileLayer(url, {id: "MapTile/DrawSlippyTile", tileSize:512, maxZoom: 20, minZoom: 9, zoomOffset: -1 });
+       
+       
+        var startLat = 0;
+        var startLon = 0;
+        var mymap = L.map('mapid'); 
+        fetch(baseSite +  "/Data/GetServerBounds", {headers : {'PraxisAuthKey':serverKey}})
+        .then(b =>
+            b.text().then(bb => {
+                var points = bb.split("|"); 
+                for(var i = 0; i < 4; i++)
+                    points[i] = points[i] * 1; //quick conversion to numbers from strings.
+                startLat = points[0] + (points[2] - points[0]) / 2; 
+                startLon = points[1] + (points[3] - points[1]) / 2;
+                mymap.setView([startLat, startLon], 15);
+            })
+        );
+        
+    L.tileLayer(baseSite + '/MapTile/DrawSlippyTile/mapTiles/{z}/{x}/{y}.png?PraxisAuthKey=' + serverKey, {
+    maxZoom: 20,
+    minZoom: 9,
+    zoom: 15,
+    id: 'mapTiles',
+    tileSize: 512,
+    zoomOffset: -1,
+    attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Imagery via <a href= "https://github.com/drakewill-crl/PraxisMapper">PraxisMapper</a>',
+    accessToken: 'none'
+    }).addTo(mymap);
+    </script>
+</body>
+</html>
