@@ -207,7 +207,8 @@ namespace Larry
 
             if (args.Any(a => a == "-autoCreateMapTiles")) //better for letting the app decide which tiles to create than manually calling out Cell6 names.
             {
-                autoCreateMapTiles();
+                var bounds = DBCommands.FindServerBounds(long.Parse(config["UseOneRelationID"]));
+                MapTiles.PregenMapTilesForArea(bounds);
             }
 
             if (args.Any(a => a == "-findServerBounds"))
@@ -385,7 +386,7 @@ namespace Larry
             //Search for all areas that needs a map tile created.
             List<string> Cell2s = new List<string>();
 
-            //Cell2 detection loop: 22-CV. All others are 22-XX.
+            //Cell2 detection loop: 22-CV (162). All others are 22-XX (400 sub-entries). 
             for (var pos1 = 0; pos1 <= OpenLocationCode.CodeAlphabet.IndexOf('C'); pos1++)
                 for (var pos2 = 0; pos2 <= OpenLocationCode.CodeAlphabet.IndexOf('V'); pos2++)
                 {

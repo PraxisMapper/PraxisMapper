@@ -137,5 +137,11 @@ namespace PraxisMapper.Controllers
 
             return View(model);
         }
+
+        [Route("/[controller]/EditGeography")]
+        public ActionResult EditGeography()
+        {
+            return View();
+        }
     }
 }
