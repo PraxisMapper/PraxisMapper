@@ -174,11 +174,20 @@ namespace PraxisCore.PbfReader
                 }
                 else
                 {
-                    nextBlockId = FindLastCompletedBlock() - 1;
+                    var lastBlock = FindLastCompletedBlock();
+                    if (lastBlock == -1)
+                    {
+                        nextBlockId = BlockCount() - 1;
+                        SaveCurrentBlock(BlockCount());
+                    }
+                    else
+                        nextBlockId = lastBlock - 1;
                 }
 
                 if (displayStatus)
                     ShowWaitInfo();
+
+                filenameHeader += styleSet + "-";
 
                 if (relationId != 0)
                 {
@@ -1309,9 +1318,16 @@ namespace PraxisCore.PbfReader
         //Loads the most recently completed block from a file to resume without doing duplicate work.
         private long FindLastCompletedBlock()
         {
-            string filename = outputPath + fi.Name + ".progress";
-            long blockID = long.Parse(System.IO.File.ReadAllText(filename));
-            return blockID;
+            try
+            {
+                string filename = outputPath + fi.Name + ".progress";
+                long blockID = long.Parse(System.IO.File.ReadAllText(filename));
+                return blockID;
+            }
+            catch(Exception ex)
+            {
+                return -1;
+            }
         }
 
         /// <summary>
