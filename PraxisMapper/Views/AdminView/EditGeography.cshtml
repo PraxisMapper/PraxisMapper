@@ -1,26 +1,32 @@
 ﻿<html>
 <head>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+    @*<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
               integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
               crossorigin="" />
         <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
                 integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
-                crossorigin=""></script>
+                crossorigin=""></script>*@
 
-    @* Local resource links, but I have yet to correctly get these to load and run.
+     @*Local resource links *@
         <link rel="stylesheet" href="~/Content/leaflet.css" />
-        <script src="~/Scripts/leaflet.js"></script> *@
+        <script src="~/Content/Scripts/leaflet.js"></script> 
 </head>
 <body>
     <div id="mapid" style="width: 512px; height:512px;">
-
     </div>
+    <br /><br />
+    Points: <br />
+    <div id="pointlist"></div><br />
+    Name: <input type="text" id="GeogName" name="GeogName" /><br />
+    <input type="button" onclick="saveNewGeography();" value="Save New Geography"/>
+
     <script type="text/javascript">
-    var serverKey = "testingKey"; //TODO: lock this page to only localhost or find an alternate way to obfuscate this.
+        var serverKey = "testingKey"; //TODO: lock this page to only localhost or find an alternate way to obfuscate this.
         var baseSite = window.location.href.split("/adminview")[0];
         var url = baseSite + '/{id}/{z}/{x}/{y}.png?PraxisAuthKey=' + serverKey;
         var baseData = L.tileLayer(url, {id: "MapTile/DrawSlippyTile", tileSize:512, maxZoom: 20, minZoom: 9, zoomOffset: -1 });
        
+        var points = []; //to use to generate the geography later        
        
         var startLat = 0;
         var startLon = 0;
@@ -37,16 +43,34 @@
             })
         );
         
-    L.tileLayer(baseSite + '/MapTile/DrawSlippyTile/mapTiles/{z}/{x}/{y}.png?PraxisAuthKey=' + serverKey, {
-    maxZoom: 20,
-    minZoom: 9,
-    zoom: 15,
-    id: 'mapTiles',
-    tileSize: 512,
-    zoomOffset: -1,
-    attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Imagery via <a href= "https://github.com/drakewill-crl/PraxisMapper">PraxisMapper</a>',
-    accessToken: 'none'
-    }).addTo(mymap);
+        L.tileLayer(baseSite + '/MapTile/DrawSlippyTile/mapTiles/{z}/{x}/{y}.png?PraxisAuthKey=' + serverKey, {
+        maxZoom: 20,
+        minZoom: 9,
+        zoom: 15,
+        id: 'mapTiles',
+        tileSize: 512,
+        zoomOffset: -1,
+        attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Imagery via <a href= "https://github.com/drakewill-crl/PraxisMapper">PraxisMapper</a>',
+        accessToken: 'none'
+        }).addTo(mymap);
+
+        //might want to use a GeoJSON layer instead of just markers?
+        //can use Polyline function to draw stuff on the map?
+        //onclick for a marker, if its not the same point as the last marker in the array, add its latlng to the array again and make it a closed shape
+        //(might keep it open and let you add more still, or might close it so you can add inner holes or other shapes like a multipolygon?)
+        mymap.on('click', function(event) {
+            points.push(event.latlng);
+            var marker = L.marker(event.latlng);
+            marker.bindPopup('Coords: ' + event.latlng);
+            marker.addTo(mymap);
+        });
+
+        var jsonLayer = L.geoJSON().addTo(mymap);
+
+        function saveNewGeography()
+        {
+
+        }
     </script>
 </body>
 </html>
