@@ -45,7 +45,7 @@ namespace PraxisCore
         /// <summary>
         /// The list of tags that normally indicate an area unless specified otherwise.
         /// </summary>
-        static List<string> areaTags = new List<string>() { "building", "landuse", "amenity", "harbour", "historic", "leisure", "man_made", "military", "natural", "office",
+        readonly static List<string> areaTags = new List<string>() { "building", "landuse", "amenity", "harbour", "historic", "leisure", "man_made", "military", "natural", "office",
                     "place", "public_transport", "shop", "sport", "tourism", "waterway", "wetland", "water", "aeroway"};
 
         /// <summary>
