@@ -289,5 +289,17 @@ namespace PraxisMapper.Controllers
             var center = place.elementGeometry.Centroid;
             return center.Y.ToString() + "|" + center.X.ToString();        
         }
+
+        [HttpGet]
+        [Route("/[controller]/DeleteUser/{deviceId}")]
+        public int DeleteUser(string deviceId)
+        {
+            //GDPR compliance requires this to exist and be available to the user. 
+            //Custom games that attach players to locations may need additional logic to fully meet legal requirements.
+            var db = new PraxisContext();
+            var removing = db.PlayerData.Where(p => p.deviceID == deviceId).ToArray();
+            db.PlayerData.RemoveRange(removing);
+            return db.SaveChanges();
+        }
     }
 }
