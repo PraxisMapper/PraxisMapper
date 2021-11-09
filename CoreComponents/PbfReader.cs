@@ -46,8 +46,7 @@ namespace PraxisCore.PbfReader
         public string filenameHeader = "";
 
         public bool lowResourceMode = false;
-
-        Task waitInfoTask;
+        public bool readJsonFile = false; //if true, we load JSON data from a previous run and re-process that by the rules.
 
         //Primary function:
         //ProcessFile(filename) should do everything automatically and allow resuming if you stop the app.
@@ -152,6 +151,40 @@ namespace PraxisCore.PbfReader
             EndWaitInfoTask();
         }
 
+        //Currently only converts items to center points.
+        public void ProcessJsonFile(string filename, long relationId = 0)
+        {
+            //load up each line of a JSON file from a previous run, and then re-process it according to the current settings.
+            System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+            Log.WriteLog("Loading " + filename + " for processing at " + DateTime.Now);
+            var fr = File.OpenRead(filename);
+            var sr = new StreamReader(fr);
+            List<ICompleteOsmGeo> pendingData = new List<ICompleteOsmGeo>(4);
+            sw.Start();
+            jsonFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + "-reprocessed.json", FileMode.OpenOrCreate));
+
+            while (!sr.EndOfStream)
+            {
+                pendingData.Clear();
+                string entry = sr.ReadLine();
+                StoredOsmElement md = GeometrySupport.ConvertSingleJsonStoredElement(entry);
+                //ICompleteOsmGeo temp = (ICompleteOsmGeo)stored.elementGeometry;
+                //foreach (var t in stored.Tags)
+                //temp.Tags.Add(t.Key, t.Value);
+
+                if (bounds != null && (!bounds.Intersects(md.elementGeometry.EnvelopeInternal)))
+                    continue;
+
+                //TODO: work this into ProcessReaderResults better so that function doesn't overwrite the one we're working on.
+                if (processingMode == "center")
+                    md.elementGeometry = md.elementGeometry.Centroid;
+
+                var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated);
+                var test = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
+                jsonFileStream.WriteLine(test);
+            }
+        }
+
         /// <summary>
         /// Runs through the entire process to convert a PBF file into usable PraxisMapper data. The server bounds for this process must be identified via other functions.
         /// </summary>
@@ -161,6 +194,12 @@ namespace PraxisCore.PbfReader
         {
             try
             {
+                if (readJsonFile)
+                {
+                    ProcessJsonFile(filename);
+                    return;
+                }
+
                 System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                 sw.Start();
 
@@ -1410,7 +1449,7 @@ namespace PraxisCore.PbfReader
         /// </summary>
         public void ShowWaitInfo()
         {
-            waitInfoTask = Task.Run(() =>
+            Task.Run(() =>
             {
                 while (!token.IsCancellationRequested)
                 {
