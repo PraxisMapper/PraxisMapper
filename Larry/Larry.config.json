@@ -15,6 +15,8 @@
   "TagParserStyleSet": "mapTiles",
   "mapTileScaleFactor": 2,
   "slippyTileSize": 512, //is in db settings already.
-  "placesAreaBuffer": 0.000125 //1 Cell10
+  "placesAreaBuffer": 0.000125, //1 Cell10
+  "processingMode": "normal", //normal: use item geography. center: save only item's center point.
+  "reprocessJson": false //false: only read PBF files. true: load a JSON file and follow normal processing rules on it, then re-do output. Only converts items to center points at this time.
 
 }
