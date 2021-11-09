@@ -9,6 +9,8 @@ using System.Text.Json;
 using static PraxisCore.ConstantValues;
 using static PraxisCore.DbTables;
 using static PraxisCore.Singletons;
+using System.Collections.Concurrent;
+using System.Threading.Tasks;
 
 namespace PraxisCore
 {
@@ -239,6 +241,35 @@ namespace PraxisCore
         }
 
         /// <summary>
+        /// Loads up JSON data into RAM for use on multiple threads.
+        /// </summary>
+        /// <param name="filename">the JSON file to parse. </param>
+        /// <returns>a list of storedOSMelements</returns>
+        public static ConcurrentBag<StoredOsmElement> ReadStoredElementsFileToMemoryThreaded(string filename)
+        {
+            StreamReader sr = new StreamReader(filename);
+            ConcurrentBag<StoredOsmElement> lm = new ConcurrentBag<StoredOsmElement>();
+            JsonSerializerOptions jso = new JsonSerializerOptions();
+            jso.AllowTrailingCommas = true;
+
+            while (!sr.EndOfStream)
+            {
+                string line = sr.ReadLine();
+                Task.Run(() => {
+                    var sw = ConvertSingleJsonStoredElement(line);
+                    lm.Add(sw);
+                });
+            }
+
+            if (lm.Count() == 0)
+                Log.WriteLog("No entries for " + filename + "? why?");
+
+            sr.Close(); sr.Dispose();
+            Log.WriteLog("EOF Reached for " + filename + " at " + DateTime.Now);
+            return lm;
+        }
+
+        /// <summary>
         /// Turns a JSON string into a StoredOSMElement
         /// </summary>
         /// <param name="sw">the json string to parse</param>
@@ -278,6 +309,7 @@ namespace PraxisCore
                 temp.elementGeometry = mp;
             }
             temp.AreaSize = temp.elementGeometry.Length > 0 ? temp.elementGeometry.Length : resolutionCell10;
+            temp.privacyId = Guid.NewGuid(); //TODO: confirm if this is OK or if I need to create this guid when saving to JSON instead of loading.
             return temp;
         }
     }
