@@ -255,11 +255,12 @@ namespace Larry
                 PbfReader r = new PbfReader();
                 r.outputPath = config["JsonMapDataFolder"];
                 r.styleSet = config["TagParserStyleSet"];
-                r.processingMode = "normal"; // TODO: config option to toggle this between normal/center (others?)
+                r.processingMode = config["processingMode"]; // "normal" and "center" allowed
                 r.saveToInfile = config["UseMariaDBInFile"] == "True";
                 r.saveToJson = !r.saveToInfile;
                 r.saveToDB = false; //config["UseMariaDBInFile"] != "True";
                 r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
+                r.readJsonFile = config["reprocessJson"] == "True";
                 r.ProcessFile(filename, long.Parse(config["UseOneRelationID"]));
                 File.Move(filename, filename + "done");
             }

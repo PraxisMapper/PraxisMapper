@@ -152,7 +152,7 @@ namespace PraxisCore.PbfReader
         }
 
         //Currently only converts items to center points.
-        public void ProcessJsonFile(string filename, long relationId = 0)
+        private void ProcessJsonFile(string filename, long relationId = 0)
         {
             //load up each line of a JSON file from a previous run, and then re-process it according to the current settings.
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
