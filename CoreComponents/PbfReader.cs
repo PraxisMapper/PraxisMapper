@@ -576,13 +576,12 @@ namespace PraxisCore.PbfReader
         /// <returns>the PrimitiveBlock requested</returns>
         private PrimitiveBlock GetBlockFromFile(long blockId)
         {
-            byte[] thisblob1;
+            long pos1 = blockPositions[blockId];
+            int size1 = blockSizes[blockId];
+            byte[] thisblob1 = new byte[size1];
             lock (msLock)
             {
-                long pos1 = blockPositions[blockId];
-                int size1 = blockSizes[blockId];
                 fs.Seek(pos1, SeekOrigin.Begin);
-                thisblob1 = new byte[size1];
                 fs.Read(thisblob1, 0, size1);
             }
 
