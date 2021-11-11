@@ -25,8 +25,7 @@
 
   <ItemGroup>
     <PackageReference Include="CryptSharpOfficial" Version="2.1.0" />
-    <PackageReference Include="DotNetZip" Version="1.15.0" />
-    <PackageReference Include="EFCore.BulkExtensions" Version="5.4.0" />
+    <PackageReference Include="EFCore.BulkExtensions" Version="6.0.1" />
     <PackageReference Include="Huitian.EGIS.ShapeFileLib" Version="4.5.6" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="6.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="6.0.0">
@@ -43,15 +42,15 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="6.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="6.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="6.0.0-preview7" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL.NetTopologySuite" Version="6.0.0-preview7" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="6.0.0" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL.NetTopologySuite" Version="6.0.0" />
     <PackageReference Include="OsmSharp" Version="7.0.0-pre014" />
     <PackageReference Include="OsmSharp.Geo" Version="7.0.0-pre014" />
-    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="6.0.0-rc.1" />
-    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql.NetTopologySuite" Version="6.0.0-rc.1" />
+    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="6.0.0" />
+    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql.NetTopologySuite" Version="6.0.0" />
     <PackageReference Include="protobuf-net" Version="3.0.101" />
     <PackageReference Include="SkiaSharp" Version="2.88.0-preview.155" />
-    <PackageReference Include="Z.EntityFramework.Extensions.EFCore" Version="6.0.0-preview.7.21378.4" />
+    <PackageReference Include="Z.EntityFramework.Extensions.EFCore" Version="6.13.0" />
   </ItemGroup>
 
 </Project>
