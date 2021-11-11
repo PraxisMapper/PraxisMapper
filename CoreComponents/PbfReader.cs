@@ -1,5 +1,4 @@
 ﻿using ProtoBuf;
-using Ionic.Zlib;
 using System.Collections.Concurrent;
 using static PraxisCore.DbTables;
 using PraxisCore.Support;
@@ -15,6 +14,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Linq;
 using System.Threading;
+using System.IO.Compression;
 
 namespace PraxisCore.PbfReader
 {
@@ -589,7 +589,7 @@ namespace PraxisCore.PbfReader
             var ms2 = new MemoryStream(thisblob1);
             var b2 = Serializer.Deserialize<Blob>(ms2);
             var ms3 = new MemoryStream(b2.zlib_data);
-            var dms2 = new ZlibStream(ms3, CompressionMode.Decompress);
+            var dms2 = new ZLibStream(ms3, CompressionMode.Decompress);
             var pulledBlock = Serializer.Deserialize<PrimitiveBlock>(dms2);
             return pulledBlock;
         }
@@ -604,7 +604,7 @@ namespace PraxisCore.PbfReader
             var ms2 = new MemoryStream(blockBytes);
             var b2 = Serializer.Deserialize<Blob>(ms2);
             var ms3 = new MemoryStream(b2.zlib_data);
-            var dms2 = new ZlibStream(ms3, CompressionMode.Decompress);
+            var dms2 = new ZLibStream(ms3, CompressionMode.Decompress);
 
             var pulledBlock = Serializer.Deserialize<PrimitiveBlock>(dms2);
             return pulledBlock;
