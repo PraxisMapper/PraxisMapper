@@ -11,6 +11,7 @@ using static PraxisCore.DbTables;
 using static PraxisCore.Place;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Concurrent;
 
 namespace PraxisMapper.Controllers
 {
@@ -21,10 +22,8 @@ namespace PraxisMapper.Controllers
     [ApiController]
     public class DataController : Controller
     {
-        static object playerIncrementLock = new object();
-        static object globalIncrementLock = new object();
-        static object plusCodeIncrementLock = new object();
-        static object storedElementIncrementLock = new object();
+        static ConcurrentDictionary<string, string> incrementLock = new ConcurrentDictionary<string, string>();
+        static string dictValue = "1";
         static DateTime lastExpiryPass = DateTime.Now.AddSeconds(-1);
 
         private readonly IConfiguration Configuration;
@@ -161,7 +160,9 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/IncrementPlayerData/{deviceId}/{key}/{changeAmount}")]
         public void IncrementPlayerData(string deviceId, string key, double changeAmount)
         {
-            lock (playerIncrementLock)
+            string lockKey = deviceId + key;
+            incrementLock.TryAdd(lockKey, dictValue);
+            lock (incrementLock[lockKey])
             {
                 var data = GenericData.GetPlayerData(deviceId, key);
                 double val = 0;
@@ -169,13 +170,15 @@ namespace PraxisMapper.Controllers
                 val += changeAmount;
                 GenericData.SetPlayerData(deviceId, key, val.ToString());
             }
+            incrementLock.TryRemove(lockKey,out dictValue);
         }
 
         [HttpGet]
         [Route("/[controller]/IncrementGlobalData/{key}/{changeAmount}")]
         public void IncrementGlobalData(string key, double changeAmount)
         {
-            lock (globalIncrementLock)
+            incrementLock.TryAdd(key, dictValue);
+            lock (incrementLock[key])
             {
                 var data = GenericData.GetGlobalData(key);
                 double val = 0;
@@ -183,6 +186,7 @@ namespace PraxisMapper.Controllers
                 val += changeAmount;
                 GenericData.SetGlobalData(key, val.ToString());
             }
+            incrementLock.TryRemove(key, out dictValue);
         }
 
         [HttpGet]
@@ -191,7 +195,9 @@ namespace PraxisMapper.Controllers
         {
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return;
-            lock (plusCodeIncrementLock)
+            string lockKey = plusCode + key;
+            incrementLock.TryAdd(dictValue, dictValue);
+            lock (incrementLock[lockKey])
             {
                 var data = GenericData.GetPlusCodeData(plusCode, key);
                 double val = 0;
@@ -199,13 +205,16 @@ namespace PraxisMapper.Controllers
                 val += changeAmount;
                 GenericData.SetPlusCodeData(plusCode, key, val.ToString());
             }
+            incrementLock.TryRemove(lockKey, out dictValue);
         }
 
         [HttpGet]
         [Route("/[controller]/IncrementElementData/{elementId}/{key}/{changeAmount}")]
         public void IncrementElementData(Guid elementId, string key, double changeAmount)
         {
-            lock (storedElementIncrementLock)
+            string lockKey = elementId.ToString() + key;
+            incrementLock.TryAdd(lockKey, dictValue);
+            lock (incrementLock[lockKey])
             {
                 var data = GenericData.GetElementData(elementId,key);
                 double val = 0;
@@ -213,6 +222,7 @@ namespace PraxisMapper.Controllers
                 val += changeAmount;
                 GenericData.SetStoredElementData(elementId, key, val.ToString());
             }
+            incrementLock.TryRemove(lockKey, out dictValue);
         }
 
         [HttpGet]
