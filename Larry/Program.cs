@@ -116,6 +116,11 @@ namespace Larry
 
             if (args.Any(a => a == "-makeWholeServer")) //Not a release 1 feature, but taking notes now.
             {
+                Log.WriteLog("Setting preferred NET 6 environment variables for performance. A restart may be required for them to apply.");
+                System.Environment.SetEnvironmentVariable("DOTNET_CLI_TELEMETRY_OPTOUT", "1", EnvironmentVariableTarget.Machine);
+                System.Environment.SetEnvironmentVariable("COMPlus_TieredCompilation", "1", EnvironmentVariableTarget.Machine);
+                System.Environment.SetEnvironmentVariable("DOTNET_TieredPGO", "1", EnvironmentVariableTarget.Machine);
+
                 //This is the wizard command, try to check and do everything at once.
                 Log.WriteLog("Checking for installed DB per config (" + config["DbMode"] + ")");
                 PraxisContext db;
