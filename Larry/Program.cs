@@ -116,10 +116,7 @@ namespace Larry
 
             if (args.Any(a => a == "-makeWholeServer")) //Not a release 1 feature, but taking notes now.
             {
-                Log.WriteLog("Setting preferred NET 6 environment variables for performance. A restart may be required for them to apply.");
-                System.Environment.SetEnvironmentVariable("DOTNET_CLI_TELEMETRY_OPTOUT", "1", EnvironmentVariableTarget.Machine);
-                System.Environment.SetEnvironmentVariable("COMPlus_TieredCompilation", "1", EnvironmentVariableTarget.Machine);
-                System.Environment.SetEnvironmentVariable("DOTNET_TieredPGO", "1", EnvironmentVariableTarget.Machine);
+                SetEnvValues();
 
                 //This is the wizard command, try to check and do everything at once.
                 Log.WriteLog("Checking for installed DB per config (" + config["DbMode"] + ")");
@@ -145,23 +142,7 @@ namespace Larry
                     //figure out why i can't create. Probably account settings?
                 }
 
-                Log.WriteLog("Determining the correct value for Rounds on this computer for saving passwords...");
-                System.Diagnostics.Stopwatch encryptTimer = new System.Diagnostics.Stopwatch();
-                int rounds = 6;
-                while (encryptTimer.ElapsedMilliseconds < 250)
-                {
-                    rounds += 2;
-                    var options = new CrypterOptions() {
-                        { CrypterOption.Rounds, rounds}
-                    };
-                    encryptTimer.Restart();
-                    BlowfishCrypter crypter = new BlowfishCrypter();
-                    var salt = crypter.GenerateSalt(options);
-                    var results = crypter.Crypt("anythingWillDo", salt);
-                    encryptTimer.Stop();
-
-                }
-                Log.WriteLog("Suggestion: Set the PasswordRounds configuration variable to " + rounds + " in PraxisMapper's appsettings.json file");
+                PwdSpeedTest();
 
 
                 //Check for MariaDB and install/configure if missing (including service account)
@@ -237,11 +218,51 @@ namespace Larry
                 DrawPosterOfServer();
             }
 
+            if (args.Any(a => a == "-pwdSpeedTest"))
+            {
+                PwdSpeedTest();
+            }
+
+            if (args.Any(a => a == "-setEnvValues"))
+            {
+                SetEnvValues();
+            }
+
             //This is not currently finished or testing in the current setup. Will return in a future release.
             //if (args.Any(a => a.StartsWith("-populateEmptyArea:")))
             //{
             //    populateEmptyAreas(args.First(a => a.StartsWith("-populateEmptyArea:")).Split(":")[1]);
             //}
+        }
+
+        private static void SetEnvValues()
+        {
+            Log.WriteLog("Setting preferred NET 6 environment variables for performance. A restart may be required for them to apply.");
+            System.Environment.SetEnvironmentVariable("DOTNET_CLI_TELEMETRY_OPTOUT", "1", EnvironmentVariableTarget.Machine);
+            System.Environment.SetEnvironmentVariable("COMPlus_TieredCompilation", "1", EnvironmentVariableTarget.Machine);
+            System.Environment.SetEnvironmentVariable("DOTNET_TieredPGO", "1", EnvironmentVariableTarget.Machine);
+        }
+
+        private static void PwdSpeedTest()
+        {
+            Log.WriteLog("Determining the correct value for Rounds on this computer for saving passwords...");
+            System.Diagnostics.Stopwatch encryptTimer = new System.Diagnostics.Stopwatch();
+            int rounds = 6;
+            while (encryptTimer.ElapsedMilliseconds < 250)
+            {
+                rounds++;
+                var options = new CrypterOptions() {
+                        { CrypterOption.Rounds, rounds}
+                    };
+                encryptTimer.Restart();
+                BlowfishCrypter crypter = new BlowfishCrypter();
+                var salt = crypter.GenerateSalt(options);
+                var results = crypter.Crypt("anythingWillDo", salt);
+                encryptTimer.Stop();
+                Console.WriteLine("Time with Rounds:" + rounds + ": " + encryptTimer.ElapsedMilliseconds + "ms");
+
+            }
+            Log.WriteLog("Suggestion: Set the PasswordRounds configuration variable to " + rounds + " in PraxisMapper's appsettings.json file");
         }
 
         private static void createDb()
