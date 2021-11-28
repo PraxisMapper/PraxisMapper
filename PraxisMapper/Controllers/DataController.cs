@@ -22,6 +22,7 @@ namespace PraxisMapper.Controllers
     [ApiController]
     public class DataController : Controller
     {
+        //TODO: check this logic in a busy test state. These might need to be some kind of SlimReadWriteLock or equivalent that counts requests, and get removed at 0 instead of after every call
         static ConcurrentDictionary<string, string> incrementLock = new ConcurrentDictionary<string, string>();
         static string dictValue = "1";
         static DateTime lastExpiryPass = DateTime.Now.AddSeconds(-1);
