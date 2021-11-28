@@ -2,6 +2,9 @@
 The central shared library for PraxisMapper. Contains most of the common functions used for map or game work.
 You can use it in your own projects if you want, though it's tailored to PraxisMapper's purposes.
 
+NOTE: NET 6 requires opt-in for Profile Guided Optimization. Set these environment variables for the preferred PraxisMapper config: (add these to Larry's make-whole-server command)
+DOTNET_TieredPGO=1
+
 Requirements: 16+GB RAM 
 
 Important Things to Remember:
