@@ -18,10 +18,6 @@ namespace PraxisCore
     /// <summary>
     /// All functions related to generating or expiring map tiles. Both PlusCode sized tiles for gameplay or SlippyMap tiles for a webview.
     /// </summary>
-    /// 
-    
-    
-    //TODO: replace this class with the separate DLLs that use different underlying drawing libraries.
     public static class MapTiles
     {
         public static int MapTileSizeSquare = 512; //Default value, updated by PraxisMapper at startup. COvers Slippy tiles, not gameplay tiles.
@@ -29,6 +25,11 @@ namespace PraxisCore
         public static double bufferSize = resolutionCell10; //How much space to add to an area to make sure elements are drawn correctly. Mostly to stop points from being clipped.
         static SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
         static Random r = new Random();
+
+        public static GeoArea MakeBufferedGeoArea(GeoArea original)
+        {
+            return new GeoArea(original.SouthLatitude - bufferSize, original.WestLongitude - bufferSize, original.NorthLatitude + bufferSize, original.EastLongitude + bufferSize);
+        }
 
         /// <summary>
         /// Draw square boxes around each area to approximate how they would behave in an offline app
@@ -923,7 +924,7 @@ namespace PraxisCore
                     var plusCode = new OpenLocationCode(y, x, 10);
                     var plusCode8 = plusCode.CodeDigits.Substring(0, 8);
                     var plusCodeArea = OpenLocationCode.DecodeValid(plusCode8);
-                    var paddedArea = GeometrySupport.MakeBufferedGeoArea(plusCodeArea, ConstantValues.resolutionCell10);
+                    var paddedArea = MakeBufferedGeoArea(plusCodeArea);
 
                     var acheck = Converters.GeoAreaToPreparedPolygon(paddedArea); //Fastest search option is one preparedPolygon against a list of normal geometry.
                     var areaList = rowList.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); //Get the list of areas in this maptile.

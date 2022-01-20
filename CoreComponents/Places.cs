@@ -44,7 +44,7 @@ namespace PraxisCore
             List<StoredOsmElement> places;
             if (source == null)
             {
-                var paddedArea = MapTiles.MakeBufferedGeoArea(area);
+                var paddedArea = GeometrySupport.MakeBufferedGeoArea(area, resolutionCell10);
                 var location = Converters.GeoAreaToPolygon(paddedArea); //Prepared items don't work on a DB lookup.
                 var db = new PraxisCore.PraxisContext();
                 db.Database.SetCommandTimeout(new TimeSpan(0, 5, 0));

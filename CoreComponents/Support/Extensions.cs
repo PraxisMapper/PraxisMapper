@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 
 namespace PraxisCore
@@ -137,7 +138,7 @@ namespace PraxisCore
         }
 
         /// <summary>
-        /// Take a single list of OSM elements and split it into a given number of sub-lists.
+        /// Take a single list of OSM elements and split it into a given number of sub-lists. [This can be replaced with .Chunk(this.Count() % splitIntoLists)]
         /// </summary>
         /// <param name="mainlist">the source list</param>
         /// <param name="splitIntoCount">how many new lists to create</param>
