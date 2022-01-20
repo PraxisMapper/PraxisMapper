@@ -11,6 +11,7 @@ using static PraxisCore.DbTables;
 using static PraxisCore.Singletons;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
+using Google.OpenLocationCode;
 
 namespace PraxisCore
 {
@@ -24,7 +25,12 @@ namespace PraxisCore
         private static NetTopologySuite.IO.WKTReader geomTextReader = new NetTopologySuite.IO.WKTReader() {DefaultSRID = 4326 };
         private static JsonSerializerOptions jso = new JsonSerializerOptions() { };
         private static PMFeatureInterpreter featureInterpreter = new PMFeatureInterpreter();
-        
+
+        public static GeoArea MakeBufferedGeoArea(GeoArea original, double bufferSize)
+        {
+            return new GeoArea(original.SouthLatitude - bufferSize, original.WestLongitude - bufferSize, original.NorthLatitude + bufferSize, original.EastLongitude + bufferSize);
+        }
+
         /// <summary>
         /// Forces a Polygon to run counter-clockwise, and inner holes to run clockwise, which is important for NTS geometry. SQL Server rejects objects that aren't CCW.
         /// </summary>
