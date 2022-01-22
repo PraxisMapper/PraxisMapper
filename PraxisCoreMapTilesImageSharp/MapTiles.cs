@@ -19,7 +19,7 @@ namespace PraxisCore
     /// <summary>
     /// All functions related to generating or expiring map tiles. Both PlusCode sized tiles for gameplay or SlippyMap tiles for a webview.
     /// </summary>
-    public static class MapTiles
+    public class MapTiles : IMapTiles
     {
         public static int MapTileSizeSquare = 512; //Default value, updated by PraxisMapper at startup. COvers Slippy tiles, not gameplay tiles.
         public static double GameTileScale = 2;
@@ -27,7 +27,7 @@ namespace PraxisCore
         //static SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
         static Random r = new Random();
 
-        public static GeoArea MakeBufferedGeoArea(GeoArea original)
+        public GeoArea MakeBufferedGeoArea(GeoArea original)
         {
             return new GeoArea(original.SouthLatitude - bufferSize, original.WestLongitude - bufferSize, original.NorthLatitude + bufferSize, original.EastLongitude + bufferSize);
         }
@@ -38,7 +38,7 @@ namespace PraxisCore
         /// <param name="info">the image information for drawing</param>
         /// <param name="items">the elements to draw.</param>
         /// <returns>byte array of the generated .png tile image</returns>
-        public static byte[] DrawOfflineEstimatedAreas(ImageStats info, List<StoredOsmElement> items)
+        public byte[] DrawOfflineEstimatedAreas(ImageStats info, List<StoredOsmElement> items)
         {
             throw new NotImplementedException();
             //SKBitmap bitmap = new SKBitmap(info.imageSizeX, info.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);

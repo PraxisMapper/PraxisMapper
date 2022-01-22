@@ -10,12 +10,14 @@ using NetTopologySuite.Geometries.Prepared;
 using PraxisMapper.Classes;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System;
 
 namespace PraxisMapper
 {
     public class Startup
     {
-        public Startup(IConfiguration configuration)  //can't use MemoryCache here, have to wait utnil Configure for services and DI
+        public Startup(IConfiguration configuration)  //can't use MemoryCache here, have to wait until Configure for services and DI
         {
             Configuration = configuration;
             PerformanceTracker.EnableLogging = Configuration.GetValue<bool>("enablePerformanceTracker");
@@ -38,6 +40,25 @@ namespace PraxisMapper
             services.AddMvc();
             services.AddCoreComponentServiceCollection(); //injects the DbContext and other services into this collection. (Eventually, still working on that)
             services.AddMemoryCache(); //AddMvc calls this quietly, but I'm calling it explicitly here anyways.
+
+            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+            Type maptiles;
+            if (true)
+            {
+                Assembly.LoadFrom(@".\bin\Debug\net6.0\PraxisMapTilesSkiaSharp.dll"); //works in debug. path isn't gonna work in publish.
+                assemblies = AppDomain.CurrentDomain.GetAssemblies();
+                var asm = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.GetType("PraxisCore.MapTiles") != null).GetType("PraxisCore.MapTiles");
+                //maptiles = asm.GetType();
+                var mapTiles = Activator.CreateInstance(asm);
+                //services.AddScoped<IMapTiles>(); //compiles
+                //services.AddScoped<asm.GetType(), IMapTiles>(); //refuses
+                //services.AddScoped<IMapTiles, mapTiles.GetType()>();
+
+                services.AddSingleton(typeof(IMapTiles), mapTiles); //compiles
+
+            }
+            else
+                Assembly.Load("PraxisMapTilesImageSharp");
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -69,7 +90,7 @@ namespace PraxisMapper
             var serverBounds = Converters.GeoAreaToPreparedPolygon(new Google.OpenLocationCode.GeoArea(settings.SouthBound, settings.WestBound, settings.NorthBound, settings.EastBound));
             cache.Set<IPreparedGeometry>("serverBounds", serverBounds, entryOptions);
             cache.Set("caching", settings.enableMapTileCaching); //convenience entry
-            MapTiles.MapTileSizeSquare = settings.SlippyMapTileSizeSquare; //TODO: set in config instead of static value?
+            IMapTiles.MapTileSizeSquare = settings.SlippyMapTileSizeSquare; //TODO: set in config instead of static value?
         }
     }
 }

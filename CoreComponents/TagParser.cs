@@ -23,6 +23,8 @@ namespace PraxisCore
         public static Dictionary<string, SKBitmap> cachedBitmaps = new Dictionary<string, SKBitmap>(); //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
         public static Dictionary<string, Dictionary<string, TagParserEntry>> allStyleGroups = new Dictionary<string, Dictionary<string, TagParserEntry>>();
 
+        private static IMapTiles MapTiles; //TODO: can I dependency-inject this? THat might be the best way to do this.
+
         public static TagParserEntry outlineStyle = new TagParserEntry()
         {
             MatchOrder = 9998,
@@ -42,6 +44,17 @@ namespace PraxisCore
         /// <param name="onlyDefaults">if true, skip loading the styles from the DB and use Praxismapper's defaults </param>
         public static void Initialize(bool onlyDefaults = false)
         {
+            var inMemoryAssembles = AppDomain.CurrentDomain.GetAssemblies();
+            foreach (var a in inMemoryAssembles)
+            {
+                if (a.GetTypes().Any(a => a.Name == "MapTiles"))
+                {
+                    var type = a.GetType("MapTiles");
+                    object instance = Activator.CreateInstance(type);
+                    MapTiles = (IMapTiles)instance;
+                }
+            }
+
             List<TagParserEntry> styles;
 
             if (onlyDefaults)
@@ -57,8 +70,8 @@ namespace PraxisCore
                         styles = Singletons.defaultTagParserEntries;
 
                     var dbSettings = db.ServerSettings.FirstOrDefault();
-                    if (dbSettings != null)
-                        MapTiles.MapTileSizeSquare = dbSettings.SlippyMapTileSizeSquare;
+                    //if (dbSettings != null)
+                        //MapTiles.MapTileSizeSquare = dbSettings.SlippyMapTileSizeSquare;
                 }
                 catch(Exception ex)
                 {
@@ -119,8 +132,8 @@ namespace PraxisCore
             }
             if (!string.IsNullOrEmpty(tpe.fileName))
             {
-                //byte[] fileData = System.IO.File.ReadAllBytes(tpe.fileName);
-                byte[] fileData = new PraxisContext().TagParserStyleBitmaps.FirstOrDefault(f => f.filename == tpe.fileName).data;
+                byte[] fileData = System.IO.File.ReadAllBytes(tpe.fileName);
+                //byte[] fileData = new PraxisContext().TagParserStyleBitmaps.FirstOrDefault(f => f.filename == tpe.fileName).data;
                 SKBitmap fillPattern = SKBitmap.Decode(fileData);
                 cachedBitmaps.TryAdd(tpe.fileName, fillPattern); //For icons.
                 SKShader tiling = SKShader.CreateBitmap(fillPattern, SKShaderTileMode.Repeat, SKShaderTileMode.Repeat); //For fill patterns.
@@ -243,7 +256,6 @@ namespace PraxisCore
         /// <returns>true if this TagParserEntry applies to this StoredOsmElement's tags, or false if it does not.</returns>
         public static bool MatchOnTags(TagParserEntry tpe, ICollection<ElementTags> tags)
         {
-            //Changing this to return as soon as any entry fails makes it run about twice as fast.
             bool OrMatched = false;
             int orRuleCount = 0;
 
@@ -318,8 +330,6 @@ namespace PraxisCore
         /// <returns>true if this rule entry matches against the place's tags, or false if not.</returns>
         public static bool MatchOnTags(TagParserEntry tpe, Dictionary<string, string> tags)
         {
-            //TODO: performance test this against the default MatchOnTags setup, including converting tags to dictionary beforehand.
-            //Changing this to return as soon as any entry fails makes it run about twice as fast.
             bool OrMatched = false;
             int orRuleCount = 0;
 

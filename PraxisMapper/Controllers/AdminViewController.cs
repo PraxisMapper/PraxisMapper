@@ -14,9 +14,11 @@ namespace PraxisMapper.Controllers
     public class AdminViewController : Controller
     {
         private readonly IConfiguration Configuration;
-        public AdminViewController(IConfiguration config)
+        private IMapTiles MapTiles;
+        public AdminViewController(IConfiguration config, IMapTiles mapTiles)
         {
             Configuration = config;
+            MapTiles = mapTiles;
         }
 
         [HttpGet]
@@ -45,7 +47,7 @@ namespace PraxisMapper.Controllers
         public ActionResult GetMapTileInfo(int x, int y, int zoom) //This should have a view.
         {
             //Draw the map tile, with extra info to send over.
-            ImageStats istats = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare);
+            ImageStats istats = new ImageStats(zoom, x, y, IMapTiles.MapTileSizeSquare);
 
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
             sw.Start();
