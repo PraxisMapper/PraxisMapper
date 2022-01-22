@@ -11,9 +11,12 @@ namespace PraxisCore
         {
             //create services? 
 
+            //This might be the best place to handle loading different variant DLLs on startup to pass them in to classes.
             services.AddDbContext<PraxisContext>(ServiceLifetime.Scoped, ServiceLifetime.Scoped);
-            //Add other services here.
 
+            if (true)
+
+            //Add other services here.
             return services;
         }
         

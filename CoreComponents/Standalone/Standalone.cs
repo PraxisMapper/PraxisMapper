@@ -151,7 +151,7 @@ namespace PraxisCore.Standalone
 
                     //Create the maptile first, so if we save it to the DB/a file we can call the lock once per loop.
                     var info = new ImageStats(areaForTile, 80, 100); //Each pixel is a Cell11, we're drawing a Cell8. For Cell6 testing this is 1600x2000, just barely within android limits
-                    var tile = MapTiles.DrawAreaAtSize(info, areaList);
+                    byte[] tile = null; // MapTiles.DrawAreaAtSize(info, areaList);
                     if (tile == null)
                     {
                         Log.WriteLog("Tile at " + x + "," + y + "Failed to draw!");

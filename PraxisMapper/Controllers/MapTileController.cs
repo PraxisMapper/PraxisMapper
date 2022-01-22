@@ -19,11 +19,13 @@ namespace PraxisMapper.Controllers
     {
         private readonly IConfiguration Configuration;
         private static IMemoryCache cache;
+        private IMapTiles MapTiles;
 
-        public MapTileController(IConfiguration configuration, IMemoryCache memoryCacheSingleton)
+        public MapTileController(IConfiguration configuration, IMemoryCache memoryCacheSingleton, IMapTiles mapTile)
         {
             Configuration = configuration;
             cache = memoryCacheSingleton;
+            MapTiles = mapTile;
         }
 
         [HttpGet]
@@ -43,7 +45,7 @@ namespace PraxisMapper.Controllers
                 if (!useCache || existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
                 {
                     //Create this entry
-                    var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare);
+                    var info = new ImageStats(zoom, x, y, IMapTiles.MapTileSizeSquare);
                     if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
                         return null;
 
@@ -60,7 +62,7 @@ namespace PraxisMapper.Controllers
                     var places = GetPlaces(dataLoadArea, null, info.filterSize, styleSet, false, info.drawPoints); 
                     //var places = GetPlacesForTile(info, null, styleSet); //Image area crops points near boundaries
                     var paintOps = MapTiles.GetPaintOpsForStoredElements(places, styleSet, info);
-                    results = MapTiles.DrawAreaAtSize(info, paintOps, TagParser.GetStyleBgColor(styleSet));
+                    results = MapTiles.DrawAreaAtSize(info, paintOps); //, TagParser.GetStyleBgColor(styleSet));
                     expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                     if (existingResults == null)
                         db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, CreatedOn = DateTime.Now, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
@@ -104,7 +106,7 @@ namespace PraxisMapper.Controllers
                 if (!useCache || existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
                 {
                     //Create this entry
-                    var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare);
+                    var info = new ImageStats(zoom, x, y, IMapTiles.MapTileSizeSquare);
                     if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
                         return null;
                     info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
@@ -118,7 +120,7 @@ namespace PraxisMapper.Controllers
                     byte[] results = null;
                     var places = GetPlacesForTile(info, null, styleSet);
                     var paintOps = MapTiles.GetPaintOpsForCustomDataElements(Converters.GeoAreaToPolygon(info.area), dataKey, styleSet, info);
-                    results = MapTiles.DrawAreaAtSize(info, paintOps, TagParser.GetStyleBgColor(styleSet));
+                    results = MapTiles.DrawAreaAtSize(info, paintOps); //, TagParser.GetStyleBgColor(styleSet));
                     expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                     if (existingResults == null)
                         db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, CreatedOn = DateTime.Now, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(info.area) });
@@ -162,7 +164,7 @@ namespace PraxisMapper.Controllers
                 if (!useCache || existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
                 {
                     //Create this entry
-                    var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare);
+                    var info = new ImageStats(zoom, x, y, IMapTiles.MapTileSizeSquare);
                     if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
                         return null;
                     info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
@@ -176,7 +178,7 @@ namespace PraxisMapper.Controllers
                     //results = MapTiles.DrawAreaAtSize(info, places, styleSet, true);
                     var places = GetPlacesForTile(info, null, styleSet);
                     var paintOps = MapTiles.GetPaintOpsForCustomDataPlusCodes(Converters.GeoAreaToPolygon(info.area), dataKey, styleSet, info);
-                    results = MapTiles.DrawAreaAtSize(info, paintOps, TagParser.GetStyleBgColor(styleSet));
+                    results = MapTiles.DrawAreaAtSize(info, paintOps); //, TagParser.GetStyleBgColor(styleSet));
                     expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                     if (existingResults == null)
                         db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, CreatedOn = DateTime.Now, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(info.area) });
@@ -220,7 +222,7 @@ namespace PraxisMapper.Controllers
                 if (!useCache || existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
                 {
                     //Create this entry
-                    var info = new ImageStats(zoom, x, y, MapTiles.MapTileSizeSquare);
+                    var info = new ImageStats(zoom, x, y, IMapTiles.MapTileSizeSquare);
                     if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
                         return null;
                     info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
@@ -234,7 +236,7 @@ namespace PraxisMapper.Controllers
                     //results = MapTiles.DrawAreaAtSize(info, places, styleSet, true);
                     var places = GetPlacesForTile(info, null, styleSet);
                     var paintOps = MapTiles.GetPaintOpsForCustomDataPlusCodesFromTagValue(Converters.GeoAreaToPolygon(info.area), dataKey, styleSet, info);
-                    results = MapTiles.DrawAreaAtSize(info, paintOps, TagParser.GetStyleBgColor(styleSet));
+                    results = MapTiles.DrawAreaAtSize(info, paintOps); //, TagParser.GetStyleBgColor(styleSet));
                     expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                     if (existingResults == null)
                         db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, CreatedOn = DateTime.Now, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(info.area) });
@@ -351,7 +353,7 @@ namespace PraxisMapper.Controllers
                     MapTiles.GetPlusCodeImagePixelSize(code, out imgX, out imgY);
                     ImageStats stats = new ImageStats(area, imgX, imgY);
                     var paintOps = MapTiles.GetPaintOpsForCustomDataPlusCodes(poly, dataKey, styleSet, stats);
-                    var results = MapTiles.DrawAreaAtSize(stats, paintOps, TagParser.GetStyleBgColor(styleSet));
+                    var results = MapTiles.DrawAreaAtSize(stats, paintOps); //, TagParser.GetStyleBgColor(styleSet));
                     var expires = DateTime.Now.AddYears(10); //Assuming tile expiration occurs only when needed.
                     var dataLoadArea = OpenLocationCode.DecodeValid(code);
                     if (existingResults == null)
@@ -402,7 +404,7 @@ namespace PraxisMapper.Controllers
                     MapTiles.GetPlusCodeImagePixelSize(code, out imgX, out imgY);
                     ImageStats stats = new ImageStats(area, imgX, imgY);
                     var paintOps = MapTiles.GetPaintOpsForCustomDataPlusCodesFromTagValue(poly, dataKey, styleSet, stats);
-                    var results = MapTiles.DrawAreaAtSize(stats, paintOps, TagParser.GetStyleBgColor(styleSet));
+                    var results = MapTiles.DrawAreaAtSize(stats, paintOps); //, TagParser.GetStyleBgColor(styleSet));
                     var expires = DateTime.Now.AddYears(10); //Assuming tile expiration occurs only when needed.
                     //var dataLoadArea = OpenLocationCode.DecodeValid(code);
                     if (existingResults == null)
@@ -452,7 +454,7 @@ namespace PraxisMapper.Controllers
                     MapTiles.GetPlusCodeImagePixelSize(code, out imgX, out imgY);
                     ImageStats stats = new ImageStats(area, imgX, imgY);
                     var paintOps = MapTiles.GetPaintOpsForCustomDataElements(poly, dataKey, styleSet, stats);
-                    var results = MapTiles.DrawAreaAtSize(stats, paintOps, TagParser.GetStyleBgColor(styleSet));
+                    var results = MapTiles.DrawAreaAtSize(stats, paintOps); //, TagParser.GetStyleBgColor(styleSet));
                     var expires = DateTime.Now.AddYears(10); //Assuming tile expiration occurs only when needed.
                     var dataLoadArea = OpenLocationCode.DecodeValid(code);
                     if (existingResults == null)
