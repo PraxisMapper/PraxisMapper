@@ -26,11 +26,6 @@ namespace PraxisCore
         static SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
         static Random r = new Random();
 
-        public MapTiles()
-        {
-
-        }
-
         public GeoArea MakeBufferedGeoArea(GeoArea original)
         {
             return new GeoArea(original.SouthLatitude - bufferSize, original.WestLongitude - bufferSize, original.NorthLatitude + bufferSize, original.EastLongitude + bufferSize);
