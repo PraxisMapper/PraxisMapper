@@ -18,6 +18,7 @@ using PraxisCore.PbfReader;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using CryptSharp;
+using System.Reflection;
 
 
 //TODO: look into using Span<T> instead of lists? This might be worth looking at performance differences. (and/or Memory<T>, which might be a parent for Spans)
@@ -30,6 +31,8 @@ namespace Larry
     {
         static IConfigurationRoot config;
         static List<StoredOsmElement> memorySource;
+        static IMapTiles MapTiles;
+        
         static void Main(string[] args)
         {
             var builder = new ConfigurationBuilder()
@@ -38,6 +41,17 @@ namespace Larry
 
             //var memMon = new MemoryMonitor();
             ApplyConfigValues();
+
+            if (true)
+            {
+                var asm = Assembly.LoadFrom(@".\bin\Debug\net6.0\PraxisMapTilesSkiaSharp.dll"); //works in debug. path isn't gonna work in publish.
+                var mapTiles = Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
+            }   
+            else
+            {
+
+            }
+
 
             Log.WriteLog("Larry started at " + DateTime.Now);
 
@@ -503,7 +517,7 @@ namespace Larry
             Log.WriteLog("Generating paint operations");
             var paintOps = MapTiles.GetPaintOpsForStoredElements(places, "mapTiles", iStats);
             Log.WriteLog("Drawing image");
-            var image = MapTiles.DrawAreaAtSize(iStats, paintOps, TagParser.GetStyleBgColor("mapTiles"));
+            var image = MapTiles.DrawAreaAtSize(iStats, paintOps); //, TagParser.GetStyleBgColor("mapTiles"));
 
             File.WriteAllBytes("ServerPoster.png", image);
             Log.WriteLog("Image saved to disk");
