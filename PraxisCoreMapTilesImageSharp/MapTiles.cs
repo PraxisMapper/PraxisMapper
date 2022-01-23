@@ -13,6 +13,9 @@ using PraxisCore.Support;
 using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using System.Threading.Tasks;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Drawing.Processing;
 
 namespace PraxisCore
 {
@@ -26,11 +29,6 @@ namespace PraxisCore
         public double bufferSize = resolutionCell10; //How much space to add to an area to make sure elements are drawn correctly. Mostly to stop points from being clipped.
         //static SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
         static Random r = new Random();
-
-        public GeoArea MakeBufferedGeoArea(GeoArea original)
-        {
-            return new GeoArea(original.SouthLatitude - bufferSize, original.WestLongitude - bufferSize, original.NorthLatitude + bufferSize, original.EastLongitude + bufferSize);
-        }
 
         /// <summary>
         /// Draw square boxes around each area to approximate how they would behave in an offline app
@@ -205,64 +203,7 @@ namespace PraxisCore
             //return results;
         }
 
-        /// <summary>
-        /// Force gameplay maptiles to expire and be redrawn on next access. Can be limited to a specific style set or run on all tiles.
-        /// </summary>
-        /// <param name="g">the area to expire intersecting maptiles with</param>
-        /// <param name="styleSet">which set of maptiles to expire. All tiles if this is an empty string</param>
-        public void ExpireMapTiles(Geometry g, string styleSet = "")
-        {
-            //If this would be faster as raw SQL, see function below for a template on how to write that.
-            //TODO: test this logic, should be faster but 
-            var db = new PraxisContext();
-            //MariaDB SQL, should be functional
-            string SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, ST_GEOMFROMTEXT('" + g.AsText() + "'))";
-            db.Database.ExecuteSqlRaw(SQL);
-        }
-
-        /// <summary>
-        /// Force gameplay maptiles to expire and be redrawn on next access. Can be limited to a specific style set or run on all tiles.
-        /// </summary>
-        /// <param name="elementId">the privacyID of a storedOsmElement to expire intersecting tiles for.</param>
-        /// <param name="styleSet">which set of maptiles to expire. All tiles if this is an empty string</param>
-        public void ExpireMapTiles(Guid elementId, string styleSet = "")
-        {
-            //If this would be faster as raw SQL, see function below for a template on how to write that.
-            //TODO: test this logic, should be faster but 
-            var db = new PraxisContext();
-            //MariaDB SQL, should be functional
-            string SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM StoredOsmElements WHERE privacyId = '" + elementId + "'))";
-            db.Database.ExecuteSqlRaw(SQL);
-        }
-
-        /// <summary>
-        /// Force SlippyMap tiles to expire and be redrawn on next access. Can be limited to a specific style set or run on all tiles.
-        /// </summary>
-        /// <param name="g">the area to expire intersecting maptiles with</param>
-        /// <param name="styleSet">which set of SlippyMap tiles to expire. All tiles if this is an empty string</param>
-        public void ExpireSlippyMapTiles(Geometry g, string styleSet = "")
-        {
-            //If this would be faster as raw SQL, see function below for a template on how to write that.
-            //TODO: test this logic, should be faster but 
-            var db = new PraxisContext();
-            //MariaDB SQL, should be functional
-            string SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, ST_GEOMFROMTEXT('" + g.AsText() + "'))";
-            db.Database.ExecuteSqlRaw(SQL);
-        }
-
-        /// <summary>
-        /// Force SlippyMap tiles to expire and be redrawn on next access. Can be limited to a specific style set or run on all tiles.
-        /// </summary>
-        /// <param name="elementId">the privacyID of a storedOsmElement to expire intersecting tiles for.</param>
-        /// <param name="styleSet">which set of maptiles to expire. All tiles if this is an empty string</param>
-        public void ExpireSlippyMapTiles(Guid elementId, string styleSet = "")
-        {
-            //Might this be better off as raw SQL? If I expire, say, an entire state, that could be a lot of map tiles to pull into RAM just for a date to change.
-            //var raw = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE ST_INTERSECTS(areaCovered, ST_GeomFromText(" + g.AsText() + "))";
-            var db = new PraxisContext();
-            string SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet = '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM StoredOsmElements WHERE privacyId = '" + elementId + "'))";
-            db.Database.ExecuteSqlRaw(SQL);
-        }
+        
 
         /// <summary>
         /// Take a path provided by a user, draw it as a maptile. Potentially useful for exercise trackers. Resulting file must not be saved to the server as that would be user tracking.
@@ -351,21 +292,20 @@ namespace PraxisCore
         /// <returns></returns>
         public byte[] DrawPlusCode(string area, string styleSet = "mapTiles")
         {
-            throw new NotImplementedException();
             //This might be a cleaner version of my V4 function, for working with CellX sized tiles..
             //This will draw at a Cell11 resolution automatically.
             //Split it into a few functions.
             //then get all the area
             //TODO: make a version that just takes paintOps?
 
-            //int imgX = 0, imgY = 0;
-            //GetPlusCodeImagePixelSize(area, out imgX, out imgY);
+            int imgX = 0, imgY = 0;
+            GetPlusCodeImagePixelSize(area, out imgX, out imgY);
 
-            //ImageStats info = new ImageStats(OpenLocationCode.DecodeValid(area), imgX, imgY);
-            //info.drawPoints = true;
-            //var places = GetPlacesForTile(info);
-            //var paintOps = GetPaintOpsForStoredElements(places, styleSet, info);
-            //return DrawAreaAtSize(info, paintOps, TagParser.GetStyleBgColor(styleSet));
+            ImageStats info = new ImageStats(OpenLocationCode.DecodeValid(area), imgX, imgY);
+            info.drawPoints = true;
+            var places = GetPlacesForTile(info);
+            var paintOps = GetPaintOpsForStoredElements(places, styleSet, info);
+            return DrawAreaAtSize(info, paintOps);
         }
 
         /// <summary>
@@ -377,18 +317,17 @@ namespace PraxisCore
         /// <returns>a byte array for the png file of the pluscode image file</returns>
         public byte[] DrawPlusCode(string area, List<CompletePaintOp> paintOps, string styleSet = "mapTiles")
         {
-            throw new NotImplementedException();
             //This might be a cleaner version of my V4 function, for working with CellX sized tiles..
             //This will draw at a Cell11 resolution automatically.
             //Split it into a few functions.
             //then get all the area
 
-            //int imgX = 0, imgY = 0;
-            //GetPlusCodeImagePixelSize(area, out imgX, out imgY);
+            int imgX = 0, imgY = 0;
+            GetPlusCodeImagePixelSize(area, out imgX, out imgY);
 
-            //ImageStats info = new ImageStats(OpenLocationCode.DecodeValid(area), imgX, imgY);
-            //info.drawPoints = true;
-            //return DrawAreaAtSize(info, paintOps, TagParser.GetStyleBgColor(styleSet));
+            ImageStats info = new ImageStats(OpenLocationCode.DecodeValid(area), imgX, imgY);
+            info.drawPoints = true;
+            return DrawAreaAtSize(info, paintOps);
         }
 
 
@@ -404,128 +343,126 @@ namespace PraxisCore
         /// <returns></returns>
         public byte[] DrawAreaAtSize(ImageStats stats, List<StoredOsmElement> drawnItems = null, string styleSet = null, bool filterSmallAreas = true)
         {
-            throw new NotImplementedException();
             //This is the new core drawing function. Takes in an area, the items to draw, and the size of the image to draw. 
             //The drawn items get their paint pulled from the TagParser's list. If I need multiple match lists, I'll need to make a way
             //to pick which list of tagparser rules to use.
             //This can work for user data by using the linked StoredOsmElements from the items in CustomDataStoredElement.
             //I need a slightly different function for using CustomDataPlusCode, or another optional parameter here
 
-            //Dictionary<string, TagParserEntry> styles;
-            //if (styleSet != null)
-            //    styles = TagParser.allStyleGroups[styleSet];
-            //else
-            //    styles = TagParser.allStyleGroups.First().Value;
+            Dictionary<string, TagParserEntry> styles;
+            if (styleSet != null)
+                styles = TagParser.allStyleGroups[styleSet];
+            else
+                styles = TagParser.allStyleGroups.First().Value;
 
-            //double minimumSize = 0;
-            //double minSizeSquared = 0;
-            //if (filterSmallAreas)
-            //{
-            //    minimumSize = stats.degreesPerPixelX * 8; //don't draw small elements. THis runs on perimeter/length
-            //    minSizeSquared = minimumSize * minimumSize;
-            //}
+            double minimumSize = 0;
+            double minSizeSquared = 0;
+            if (filterSmallAreas)
+            {
+                minimumSize = stats.degreesPerPixelX * 8; //don't draw small elements. THis runs on perimeter/length
+                minSizeSquared = minimumSize * minimumSize;
+            }
 
-            ////Single points are excluded separately so that small areas or lines can still be drawn when points aren't.
-            //bool includePoints = true;
-            //if (stats.degreesPerPixelX > ConstantValues.zoom14DegPerPixelX)
-            //    includePoints = false;
+            //Single points are excluded separately so that small areas or lines can still be drawn when points aren't.
+            bool includePoints = true;
+            if (stats.degreesPerPixelX > ConstantValues.zoom14DegPerPixelX)
+                includePoints = false;
 
-            //var db = new PraxisContext();
-            //var geo = Converters.GeoAreaToPolygon(stats.area);
-            //if (drawnItems == null)
-            //    drawnItems = GetPlaces(stats.area, filterSize: minimumSize, includePoints: includePoints);
+            var db = new PraxisContext();
+            var geo = Converters.GeoAreaToPolygon(stats.area);
+            if (drawnItems == null)
+                drawnItems = GetPlaces(stats.area, filterSize: minimumSize, includePoints: includePoints);
 
-            ////baseline image data stuff           
+            //baseline image data stuff           
+            var image = new Image<Rgba32>(stats.imageSizeX, stats.imageSizeY);
             //SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
             //SKCanvas canvas = new SKCanvas(bitmap);
-            //var bgColor = styles["background"].paintOperations.FirstOrDefault().paint; //Backgound is a named style, unmatched will be the last entry and transparent.
+            var bgColor = Rgba32.ParseHex(styles["background"].paintOperations.FirstOrDefault().HtmlColorCode); //Backgound is a named style, unmatched will be the last entry and transparent.
             //canvas.Clear(bgColor.Color);
             //canvas.Scale(1, -1, stats.imageSizeX / 2, stats.imageSizeY / 2);
             //SKPaint paint = new SKPaint();
 
-            //var paintOps = GetPaintOpsForStoredElements(drawnItems, "mapTiles", stats);
+            var paintOps = GetPaintOpsForStoredElements(drawnItems, "mapTiles", stats);
 
-            //foreach (var w in paintOps.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))
-            //{
-            //    paint = w.paintOp.paint;
-            //    if (paint.Color.Alpha == 0)
-            //        continue; //This area is transparent, skip drawing it entirely.
+            foreach (var w in paintOps.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))
+            {
+                var color = Rgba32.ParseHex(w.paintOp.HtmlColorCode);
+                if (color.A == 0)
+                    continue; //This area is transparent, skip drawing it entirely.
 
-            //    var path = new SKPath();
-            //    path.FillType = SKPathFillType.EvenOdd;
-            //    switch (w.elementGeometry.GeometryType)
-            //    {
-            //        case "Polygon":
-            //            var p = w.elementGeometry as Polygon;
-            //            path.AddPoly(Converters.PolygonToSKPoints(p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-            //            foreach (var hole in p.InteriorRings)
-            //                path.AddPoly(Converters.PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-            //            canvas.DrawPath(path, paint);
-            //            break;
-            //        case "MultiPolygon":
-            //            foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries)
-            //            {
-            //                var p2p = p2 as Polygon;
-            //                path.AddPoly(Converters.PolygonToSKPoints(p2p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-            //                foreach (var hole in p2p.InteriorRings)
-            //                    path.AddPoly(Converters.PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-            //                canvas.DrawPath(path, paint);
-            //            }
-            //            break;
-            //        case "LineString":
-            //            var firstPoint = w.elementGeometry.Coordinates.First();
-            //            var lastPoint = w.elementGeometry.Coordinates.Last();
-            //            var points = Converters.PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
-            //            if (firstPoint.Equals(lastPoint))
-            //            {
-            //                //This is a closed shape. Check to see if it's supposed to be filled in.
-            //                if (paint.Style == SKPaintStyle.Fill)
-            //                {
-            //                    path.AddPoly(points);
-            //                    canvas.DrawPath(path, paint);
-            //                    continue;
-            //                }
-            //            }
-            //            for (var line = 0; line < points.Length - 1; line++)
-            //                canvas.DrawLine(points[line], points[line + 1], paint);
-            //            break;
-            //        case "MultiLineString":
-            //            foreach (var p3 in ((MultiLineString)w.elementGeometry).Geometries)
-            //            {
-            //                //TODO: might want to see if I need to move the LineString logic here, or if multiline string are never filled areas.
-            //                var points2 = Converters.PolygonToSKPoints(p3, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
-            //                for (var line = 0; line < points2.Length - 1; line++)
-            //                    canvas.DrawLine(points2[line], points2[line + 1], paint);
-            //            }
-            //            break;
-            //        case "Point":
-            //            var convertedPoint = Converters.PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
-            //            //If this type has an icon, use it. Otherwise draw a circle in that type's color.
-            //            if (!string.IsNullOrEmpty(w.paintOp.fileName))
-            //            {
-            //                SKBitmap icon = TagParser.cachedBitmaps[w.paintOp.fileName];
-            //                canvas.DrawBitmap(icon, convertedPoint[0]);
-            //            }
-            //            else
-            //            {
-            //                var circleRadius = (float)(ConstantValues.resolutionCell10 / stats.degreesPerPixelX / 2); //I want points to be drawn as 1 Cell10 in diameter.
-            //                canvas.DrawCircle(convertedPoint[0], circleRadius, paint);
-            //                canvas.DrawCircle(convertedPoint[0], circleRadius, styles["outline"].paintOperations.First().paint); //TODO: this forces an outline style to be present in the list or this crashes.
-            //            }
-            //            break;
-            //        default:
-            //            Log.WriteLog("Unknown geometry type found, not drawn.");
-            //            break;
-            //    }
-            //}
-            ////}
+                //var path = new SKPath();
+                //path.FillType = SKPathFillType.EvenOdd;
+                switch (w.elementGeometry.GeometryType)
+                {
+                    case "Polygon":
+                        var drawThis = PolygonToDrawingPolygon(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                        if (w.paintOp.FillOrStroke == "fill")
+                            image.Mutate(x => x.Fill(color, drawThis));
+                        else
+                            image.Mutate(x => x.Draw(color, w.paintOp.LineWidth, drawThis));
+                        break;
+                    case "MultiPolygon":
+                        var lines = new List<LinearLineSegment>();
+                        foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries)
+                        {
+                            var drawThis1 = PolygonToDrawingLine(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                            lines.Add(drawThis1);
+                        }
+                        var mp = new SixLabors.ImageSharp.Drawing.Polygon(lines);
+                        //TODO: check this, consider switching shape options to OddEven if it doesn't draw holes right?
+                        if (w.paintOp.FillOrStroke == "fill")
+                            image.Mutate(x => x.Fill(color, mp));
+                        else
+                            image.Mutate(x => x.Draw(color, w.paintOp.LineWidth, mp));
+                        break;
+                    case "LineString":
+                        var firstPoint = w.elementGeometry.Coordinates.First();
+                        var lastPoint = w.elementGeometry.Coordinates.Last();
+                        var line = LineToDrawingLine(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
 
-            //var ms = new MemoryStream();
-            //var skms = new SKManagedWStream(ms);
-            //bitmap.Encode(skms, SKEncodedImageFormat.Png, 100);
-            //var results = ms.ToArray();
-            //skms.Dispose(); ms.Close(); ms.Dispose();
-            //return results;
+                        if (firstPoint.Equals(lastPoint) && w.paintOp.FillOrStroke == "fill")
+                            image.Mutate(x => x.Fill(color, new SixLabors.ImageSharp.Drawing.Polygon(new LinearLineSegment(line))));
+                        else
+                            image.Mutate(x => x.DrawLines(color, w.paintOp.LineWidth, line));
+                        break;
+                    case "MultiLineString":
+                        foreach (var p3 in ((MultiLineString)w.elementGeometry).Geometries)
+                        {
+                            var line2 = LineToDrawingLine(p3, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                            image.Mutate(x => x.DrawLines(color, w.paintOp.LineWidth, line2));
+                        }
+                        break;
+                    case "Point":
+                        var convertedPoint = PointToPointF(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                        //If this type has an icon, use it. Otherwise draw a circle in that type's color.
+                        if (!string.IsNullOrEmpty(w.paintOp.fileName))
+                        {
+                            //TODO bitmaps on bitmaps in ImageSharp
+                            //SKBitmap icon = TagParser.cachedBitmaps[w.paintOp.fileName];
+                            //canvas.DrawBitmap(icon, convertedPoint[0]);
+                        }
+                        else
+                        {
+                            var circleRadius = (float)(ConstantValues.resolutionCell10 / stats.degreesPerPixelX / 2); //I want points to be drawn as 1 Cell10 in diameter.
+                            var shape = new SixLabors.ImageSharp.Drawing.EllipsePolygon(
+                                PointToPointF(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY), 
+                                new SizeF(circleRadius, circleRadius)); 
+                            image.Mutate(x => x.Fill(color, shape));
+                            image.Mutate(x => x.Draw(Color.Black, 1, shape)); //TODO: double check colors and sizes for outlines
+
+                            //canvas.DrawCircle(convertedPoint[0], circleRadius, styles["outline"].paintOperations.First().paint); //TODO: this forces an outline style to be present in the list or this crashes.
+                        }
+                        break;
+                    default:
+                        Log.WriteLog("Unknown geometry type found, not drawn.");
+                        break;
+                }
+            }
+
+            image.Mutate(x => x.Flip(FlipMode.Vertical)); //Plus codes are south-to-north, so invert the image to make it correct.
+            var ms = new MemoryStream();
+            image.SaveAsPng(ms);
+            return ms.ToArray();
         }
 
         public byte[] DrawAreaAtSize(ImageStats stats, List<CompletePaintOp> paintOps) //, SKColor bgColor)
@@ -934,8 +871,8 @@ namespace PraxisCore
                     var plusCode = new OpenLocationCode(y, x, 10);
                     var plusCode8 = plusCode.CodeDigits.Substring(0, 8);
                     var plusCodeArea = OpenLocationCode.DecodeValid(plusCode8);
-                    var paddedArea = MakeBufferedGeoArea(plusCodeArea);
-
+                    var paddedArea = GeometrySupport.MakeBufferedGeoArea(plusCodeArea, ConstantValues.resolutionCell10);
+                    
                     var acheck = Converters.GeoAreaToPreparedPolygon(paddedArea); //Fastest search option is one preparedPolygon against a list of normal geometry.
                     var areaList = rowList.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); //Get the list of areas in this maptile.
 
@@ -1056,6 +993,49 @@ namespace PraxisCore
             var output = ms.ToArray();
             skms.Dispose(); ms.Close(); ms.Dispose();
             return output;
+        }
+
+        /// <summary>
+        /// Get the background color from a style set
+        /// </summary>
+        /// <param name="styleSet">the name of the style set to pull the background color from</param>
+        /// <returns>the SKColor saved into the requested background paint object.</returns>
+        //public SKColor GetStyleBgColor(string styleSet)
+        //{
+            //return TagParser.allStyleGroups[styleSet]["background"].paintOperations.First().paint.Color;
+        //}
+
+        public Rgba32 GetStyleBgColorString(string styleSet)
+        {
+            return Rgba32.ParseHex(TagParser.allStyleGroups[styleSet]["background"].paintOperations.First().HtmlColorCode);
+        }
+
+        public SixLabors.ImageSharp.Drawing.Polygon PolygonToDrawingPolygon(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
+        {
+            var typeConvertedPoints = place.Coordinates.Select(o => new SixLabors.ImageSharp.PointF((float)((o.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / resolutionY))));
+            SixLabors.ImageSharp.Drawing.LinearLineSegment part = new SixLabors.ImageSharp.Drawing.LinearLineSegment(typeConvertedPoints.ToArray());
+            var output = new SixLabors.ImageSharp.Drawing.Polygon(part);
+            return output;
+        }
+
+        public SixLabors.ImageSharp.Drawing.LinearLineSegment PolygonToDrawingLine(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
+        {
+            //TODO: does this handle holes nicely? It should if I add them to the path.
+            var typeConvertedPoints = place.Coordinates.Select(o => new SixLabors.ImageSharp.PointF((float)((o.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / resolutionY))));
+            SixLabors.ImageSharp.Drawing.LinearLineSegment part = new SixLabors.ImageSharp.Drawing.LinearLineSegment(typeConvertedPoints.ToArray());
+            return part;
+        }
+
+        public SixLabors.ImageSharp.PointF[] LineToDrawingLine(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
+        {
+            var typeConvertedPoints = place.Coordinates.Select(o => new SixLabors.ImageSharp.PointF((float)((o.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / resolutionY)))).ToList();
+            return typeConvertedPoints.ToArray();
+        }
+
+        public SixLabors.ImageSharp.PointF PointToPointF(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
+        {
+            var coord = place.Coordinate;
+            return new SixLabors.ImageSharp.PointF((float)((coord.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((coord.Y - drawingArea.SouthLatitude) * (1 / resolutionY)));
         }
     }
 }

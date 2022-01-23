@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using NetTopologySuite.Geometries;
 using System;
 using static PraxisCore.DbTables;
 
@@ -179,8 +180,65 @@ namespace PraxisCore
                 });
             }
             db.SaveChanges();
+        }
 
+        /// <summary>
+        /// Force gameplay maptiles to expire and be redrawn on next access. Can be limited to a specific style set or run on all tiles.
+        /// </summary>
+        /// <param name="g">the area to expire intersecting maptiles with</param>
+        /// <param name="styleSet">which set of maptiles to expire. All tiles if this is an empty string</param>
+        public void ExpireMapTiles(Geometry g, string styleSet = "")
+        {
+            //If this would be faster as raw SQL, see function below for a template on how to write that.
+            //TODO: test this logic, should be faster but 
+            var db = new PraxisContext();
+            //MariaDB SQL, should be functional
+            string SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, ST_GEOMFROMTEXT('" + g.AsText() + "'))";
+            db.Database.ExecuteSqlRaw(SQL);
+        }
 
+        /// <summary>
+        /// Force gameplay maptiles to expire and be redrawn on next access. Can be limited to a specific style set or run on all tiles.
+        /// </summary>
+        /// <param name="elementId">the privacyID of a storedOsmElement to expire intersecting tiles for.</param>
+        /// <param name="styleSet">which set of maptiles to expire. All tiles if this is an empty string</param>
+        public void ExpireMapTiles(Guid elementId, string styleSet = "")
+        {
+            //If this would be faster as raw SQL, see function below for a template on how to write that.
+            //TODO: test this logic, should be faster but 
+            var db = new PraxisContext();
+            //MariaDB SQL, should be functional
+            string SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM StoredOsmElements WHERE privacyId = '" + elementId + "'))";
+            db.Database.ExecuteSqlRaw(SQL);
+        }
+
+        /// <summary>
+        /// Force SlippyMap tiles to expire and be redrawn on next access. Can be limited to a specific style set or run on all tiles.
+        /// </summary>
+        /// <param name="g">the area to expire intersecting maptiles with</param>
+        /// <param name="styleSet">which set of SlippyMap tiles to expire. All tiles if this is an empty string</param>
+        public void ExpireSlippyMapTiles(Geometry g, string styleSet = "")
+        {
+            //If this would be faster as raw SQL, see function below for a template on how to write that.
+            //TODO: test this logic, should be faster but 
+            var db = new PraxisContext();
+            //MariaDB SQL, should be functional
+            string SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, ST_GEOMFROMTEXT('" + g.AsText() + "'))";
+            db.Database.ExecuteSqlRaw(SQL);
+        }
+
+        /// <summary>
+        /// Force SlippyMap tiles to expire and be redrawn on next access. Can be limited to a specific style set or run on all tiles.
+        /// </summary>
+        /// <param name="elementId">the privacyID of a storedOsmElement to expire intersecting tiles for.</param>
+        /// <param name="styleSet">which set of maptiles to expire. All tiles if this is an empty string</param>
+        public void ExpireSlippyMapTiles(Guid elementId, string styleSet = "")
+        {
+            //Might this be better off as raw SQL? If I expire, say, an entire state, that could be a lot of map tiles to pull into RAM just for a date to change.
+            //var raw = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE ST_INTERSECTS(areaCovered, ST_GeomFromText(" + g.AsText() + "))";
+            var db = new PraxisContext();
+            string SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet = '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM StoredOsmElements WHERE privacyId = '" + elementId + "'))";
+            db.Database.ExecuteSqlRaw(SQL);
         }
     }
 }

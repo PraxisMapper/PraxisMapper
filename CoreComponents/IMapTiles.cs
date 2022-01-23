@@ -15,15 +15,9 @@ namespace PraxisCore
         public static int MapTileSizeSquare;
         public static double GameTileScale;
         public static double bufferSize;
-
-        public GeoArea MakeBufferedGeoArea(GeoArea original);
         public byte[] DrawOfflineEstimatedAreas(ImageStats info, List<StoredOsmElement> items);
         public byte[] DrawCell8GridLines(GeoArea totalArea);
         public byte[] DrawCell10GridLines(GeoArea totalArea);
-        public void ExpireMapTiles(Geometry g, string styleSet = "");
-        public void ExpireMapTiles(Guid elementId, string styleSet = "");
-        public void ExpireSlippyMapTiles(Geometry g, string styleSet = "");
-        public void ExpireSlippyMapTiles(Guid elementId, string styleSet = "");
         public byte[] DrawUserPath(string pointListAsString);
         public void GetPlusCodeImagePixelSize(string code, out int X, out int Y); //could be in a different class since this isnt drawing specific
         public byte[] DrawPlusCode(string area, string styleSet = "mapTiles");

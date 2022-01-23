@@ -238,17 +238,6 @@ namespace PraxisCore
         }
 
         /// <summary>
-        /// Get the background color from a style set
-        /// </summary>
-        /// <param name="styleSet">the name of the style set to pull the background color from</param>
-        /// <returns>the SKColor saved into the requested background paint object.</returns>
-        public static SKColor GetStyleBgColor(string styleSet)
-        {
-            return allStyleGroups[styleSet]["background"].paintOperations.First().paint.Color;
-        }
-
-
-        /// <summary>
         /// Determine if this TagParserEntry matches or not against a StoredOsmElement's tags.
         /// </summary>
         /// <param name="tpe">The TagParserEntry to check</param>

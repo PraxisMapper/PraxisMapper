@@ -1,9 +1,9 @@
 ﻿using NetTopologySuite.Geometries;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using SkiaSharp; //TODO remove this 
 
 namespace PraxisCore
 {
@@ -101,7 +101,7 @@ namespace PraxisCore
             public string LinePattern { get; set; } //solid, dashed, other varieties? //If blank, solid line. If not, split string into float[] on |
             public string fileName { get; set; } //A path to an image file that will be used as a repeating pattern. Null for solid colors.
             [NotMapped]
-            public SKPaint paint { get; set; } //Fill in on app start.
+            public SKPaint paint { get; set; } //Fill in on app start. //TODO: replacing this will be tricky with a universal option/lookup
             public double minDrawRes { get; set; } = 0;//skip drawing this item if  resPerPixelX is below this value. (what doesn't draw zoomed in on OSM? name text?
             public double maxDrawRes { get; set; } = 4; //skip drawing this item if resPerPixelX is above this value. (EX: tertiary roads don't draw at distant zooms
             public bool randomize { get; set; } //if true, assign a random color at draw-time.

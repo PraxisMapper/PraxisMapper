@@ -484,7 +484,8 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/ExpireTiles/{elementId}/{styleSet}")]
         public void ExpireTiles(Guid elementId, string styleSet)
         {
-            MapTiles.ExpireMapTiles(elementId, styleSet);
+            var db = new PraxisContext();
+            db.ExpireMapTiles(elementId, styleSet);
         }
 
     }
