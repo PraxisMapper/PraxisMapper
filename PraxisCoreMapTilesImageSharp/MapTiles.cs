@@ -592,8 +592,10 @@ namespace PraxisCore
         public List<CompletePaintOp> GetPaintOpsForStoredElements(List<StoredOsmElement> elements, string styleSet, ImageStats stats)
         {
             var styles = TagParser.allStyleGroups[styleSet];
+            var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, new TagParserPaint() { FillOrStroke = "fill", paint = styles["background"].paintOperations.FirstOrDefault().paint }, "", 1);
             var pass1 = elements.Select(d => new { d.AreaSize, d.elementGeometry, paintOp = styles[d.GameElementName].paintOperations });
             var pass2 = new List<CompletePaintOp>(elements.Count() * 2); //assuming each element will have a Fill and a Stroke operation.
+            pass2.Add(bgOp);
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
                     if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
