@@ -72,69 +72,6 @@ namespace PraxisCore
         }
 
         /// <summary>
-        /// Converts an NTS Polygon into a SkiaSharp SKPoint array so that it can be drawn in SkiaSharp.
-        /// </summary>
-        /// <param name="place">Polygon object to be converted/drawn</param>
-        /// <param name="drawingArea">GeoArea representing the image area being drawn. Usually passed from an ImageStats object</param>
-        /// <param name="degreesPerPixelX">Width of each pixel in degrees</param>
-        /// <param name="degreesPerPixelY">Height of each pixel in degrees</param>
-        /// <returns>Array of SkPoints for the image information provided.</returns>
-        public static SkiaSharp.SKPoint[] PolygonToSKPoints(Geometry place, GeoArea drawingArea, double degreesPerPixelX, double degreesPerPixelY)
-        {
-            SkiaSharp.SKPoint[] points = place.Coordinates.Select(o => new SkiaSharp.SKPoint((float)((o.X - drawingArea.WestLongitude) * (1 / degreesPerPixelX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / degreesPerPixelY)))).ToArray();
-            return points;
-        }
-
-        public static SkiaSharp.SKPoint PlaceInfoToSKPoint(PraxisCore.StandaloneDbTables.PlaceInfo2 pi, ImageStats imgstats)
-        {
-            SkiaSharp.SKPoint point = new SkiaSharp.SKPoint();
-            point.X = (float)((pi.lonCenter - imgstats.area.WestLongitude) * (1 / imgstats.degreesPerPixelX));
-            point.Y =(float)((pi.latCenter - imgstats.area.SouthLatitude) * (1 / imgstats.degreesPerPixelY));
-            return point;
-        }
-
-        public static SkiaSharp.SKPoint[] PlaceInfoToSKPoints(PraxisCore.StandaloneDbTables.PlaceInfo2 pi, ImageStats info)
-        {
-            float heightMod = (float)pi.height / 2;
-            float widthMod = (float)pi.width / 2;
-            var points = new SkiaSharp.SKPoint[5];
-            points[0] = new SkiaSharp.SKPoint((float)(pi.lonCenter + widthMod), (float)(pi.latCenter + heightMod)); //upper right corner
-            points[1] = new SkiaSharp.SKPoint((float)(pi.lonCenter + widthMod), (float)(pi.latCenter - heightMod)); //lower right
-            points[2] = new SkiaSharp.SKPoint((float)(pi.lonCenter - widthMod), (float)(pi.latCenter - heightMod)); //lower left
-            points[3] = new SkiaSharp.SKPoint((float)(pi.lonCenter - widthMod), (float)(pi.latCenter + heightMod)); //upper left
-            points[4] = new SkiaSharp.SKPoint((float)(pi.lonCenter + widthMod), (float)(pi.latCenter + heightMod)); //upper right corner again for a closed shape.
-
-            //points is now a geometric area. Convert to image area
-            points = points.Select(p => new SkiaSharp.SKPoint((float)((p.X - info.area.WestLongitude) * (1 / info.degreesPerPixelX)), (float)((p.Y - info.area.SouthLatitude) * (1 / info.degreesPerPixelY)))).ToArray();
-
-            return points;
-        }
-
-        /// <summary>
-        /// Converts the offline-standalone PlaceInfo entries into SKRects for drawing on a SlippyMap. Used to visualize the offline mode beahvior of areas.
-        /// </summary>
-        /// <param name="pi">PlaceInfo object to convert</param>
-        /// <param name="info">ImageStats for the resulting map tile</param>
-        /// <returns>The SKRect representing the standaloneDb size of the PlaceInfo</returns>
-        public static SkiaSharp.SKRect PlaceInfoToRect(PraxisCore.StandaloneDbTables.PlaceInfo2 pi, ImageStats info)
-        {
-            SkiaSharp.SKRect r = new SkiaSharp.SKRect();
-            float heightMod = (float)pi.height / 2;
-            float widthMod = (float)pi.width / 2;
-            r.Left = (float)pi.lonCenter - widthMod;
-            r.Left = (float)(r.Left - info.area.WestLongitude) * (float)(1/info.degreesPerPixelX);
-            r.Right =(float) pi.lonCenter + widthMod;
-            r.Right = (float)(r.Right - info.area.WestLongitude) * (float)(1 / info.degreesPerPixelX);
-            r.Top = (float)pi.latCenter + heightMod;
-            r.Top = (float)(r.Top - info.area.SouthLatitude) * (float)(1 / info.degreesPerPixelY);
-            r.Bottom = (float)pi.latCenter - heightMod;
-            r.Bottom = (float)(r.Bottom - info.area.SouthLatitude) * (float)(1 / info.degreesPerPixelY);
-
-
-            return r;
-        }
-
-        /// <summary>
         /// Converts an NTS Geometry object into a GeoArea object matching the Geometry's internal envelope.
         /// </summary>
         /// <param name="g">The NTS Geometry object to convert</param>

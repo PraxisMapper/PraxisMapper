@@ -62,7 +62,7 @@ namespace PraxisCore
             //this is for rectangles.
             foreach (var pi in placeInfo)
             {
-                var rect = Converters.PlaceInfoToRect(pi, info);
+                var rect = PlaceInfoToRect(pi, info);
                 fillpaint.Color = TagParser.PickStaticColorForArea(pi.Name);
                 canvas.DrawRect(rect, fillpaint);
                 canvas.DrawRect(rect, strokePaint);
@@ -71,7 +71,7 @@ namespace PraxisCore
             canvas.Scale(1, -1, info.imageSizeX / 2, info.imageSizeY / 2); //inverts the inverted image again!
             foreach (var pi in placeInfo)
             {
-                var rect = Converters.PlaceInfoToRect(pi, info);
+                var rect = PlaceInfoToRect(pi, info);
                 canvas.DrawText(pi.Name, rect.MidX, info.imageSizeY - rect.MidY, strokePaint);
             }
 
@@ -120,7 +120,7 @@ namespace PraxisCore
             while (lonLineTrackerDegrees <= totalArea.EastLongitude + resolutionCell8) //This means we should always draw at least 2 lines, even if they're off-canvas.
             {
                 var geoLine = new LineString(new Coordinate[] { new Coordinate(lonLineTrackerDegrees, 90), new Coordinate(lonLineTrackerDegrees, -90) });
-                var points = Converters.PolygonToSKPoints(geoLine, totalArea, degreesPerPixelX, degreesPerPixelY);
+                var points = PolygonToSKPoints(geoLine, totalArea, degreesPerPixelX, degreesPerPixelY);
                 canvas.DrawLine(points[0], points[1], paint);
                 lonLineTrackerDegrees += resolutionCell8;
             }
@@ -129,7 +129,7 @@ namespace PraxisCore
             while (latLineTrackerDegrees <= totalArea.NorthLatitude + resolutionCell8) //This means we should always draw at least 2 lines, even if they're off-canvas.
             {
                 var geoLine = new LineString(new Coordinate[] { new Coordinate(180, latLineTrackerDegrees), new Coordinate(-180, latLineTrackerDegrees) });
-                var points = Converters.PolygonToSKPoints(geoLine, totalArea, degreesPerPixelX, degreesPerPixelY);
+                var points = PolygonToSKPoints(geoLine, totalArea, degreesPerPixelX, degreesPerPixelY);
                 canvas.DrawLine(points[0], points[1], paint);
                 latLineTrackerDegrees += resolutionCell8;
             }
@@ -179,7 +179,7 @@ namespace PraxisCore
             while (lonLineTrackerDegrees <= totalArea.EastLongitude + resolutionCell10) //This means we should always draw at least 2 lines, even if they're off-canvas.
             {
                 var geoLine = new LineString(new Coordinate[] { new Coordinate(lonLineTrackerDegrees, 90), new Coordinate(lonLineTrackerDegrees, -90) });
-                var points = Converters.PolygonToSKPoints(geoLine, totalArea, degreesPerPixelX, degreesPerPixelY);
+                var points = PolygonToSKPoints(geoLine, totalArea, degreesPerPixelX, degreesPerPixelY);
                 canvas.DrawLine(points[0], points[1], paint);
                 lonLineTrackerDegrees += resolutionCell10;
             }
@@ -188,7 +188,7 @@ namespace PraxisCore
             while (latLineTrackerDegrees <= totalArea.NorthLatitude + resolutionCell10) //This means we should always draw at least 2 lines, even if they're off-canvas.
             {
                 var geoLine = new LineString(new Coordinate[] { new Coordinate(180, latLineTrackerDegrees), new Coordinate(-180, latLineTrackerDegrees) });
-                var points = Converters.PolygonToSKPoints(geoLine, totalArea, degreesPerPixelX, degreesPerPixelY);
+                var points = PolygonToSKPoints(geoLine, totalArea, degreesPerPixelX, degreesPerPixelY);
                 canvas.DrawLine(points[0], points[1], paint);
                 latLineTrackerDegrees += resolutionCell10;
             }
@@ -199,65 +199,6 @@ namespace PraxisCore
             var results = ms.ToArray();
             skms.Dispose(); ms.Close(); ms.Dispose();
             return results;
-        }
-
-        /// <summary>
-        /// Force gameplay maptiles to expire and be redrawn on next access. Can be limited to a specific style set or run on all tiles.
-        /// </summary>
-        /// <param name="g">the area to expire intersecting maptiles with</param>
-        /// <param name="styleSet">which set of maptiles to expire. All tiles if this is an empty string</param>
-        public void ExpireMapTiles(Geometry g, string styleSet = "")
-        {
-            //If this would be faster as raw SQL, see function below for a template on how to write that.
-            //TODO: test this logic, should be faster but 
-            var db = new PraxisContext();
-            //MariaDB SQL, should be functional
-            string SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, ST_GEOMFROMTEXT('" + g.AsText() + "'))";
-            db.Database.ExecuteSqlRaw(SQL);
-        }
-
-        /// <summary>
-        /// Force gameplay maptiles to expire and be redrawn on next access. Can be limited to a specific style set or run on all tiles.
-        /// </summary>
-        /// <param name="elementId">the privacyID of a storedOsmElement to expire intersecting tiles for.</param>
-        /// <param name="styleSet">which set of maptiles to expire. All tiles if this is an empty string</param>
-        public void ExpireMapTiles(Guid elementId, string styleSet = "")
-        {
-            //If this would be faster as raw SQL, see function below for a template on how to write that.
-            //TODO: test this logic, should be faster but 
-            var db = new PraxisContext();
-            //MariaDB SQL, should be functional
-            string SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM StoredOsmElements WHERE privacyId = '" + elementId + "'))";
-            db.Database.ExecuteSqlRaw(SQL);
-        }
-
-        /// <summary>
-        /// Force SlippyMap tiles to expire and be redrawn on next access. Can be limited to a specific style set or run on all tiles.
-        /// </summary>
-        /// <param name="g">the area to expire intersecting maptiles with</param>
-        /// <param name="styleSet">which set of SlippyMap tiles to expire. All tiles if this is an empty string</param>
-        public void ExpireSlippyMapTiles(Geometry g, string styleSet = "")
-        {
-            //If this would be faster as raw SQL, see function below for a template on how to write that.
-            //TODO: test this logic, should be faster but 
-            var db = new PraxisContext();
-            //MariaDB SQL, should be functional
-            string SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, ST_GEOMFROMTEXT('" + g.AsText() + "'))";
-            db.Database.ExecuteSqlRaw(SQL);
-        }
-
-        /// <summary>
-        /// Force SlippyMap tiles to expire and be redrawn on next access. Can be limited to a specific style set or run on all tiles.
-        /// </summary>
-        /// <param name="elementId">the privacyID of a storedOsmElement to expire intersecting tiles for.</param>
-        /// <param name="styleSet">which set of maptiles to expire. All tiles if this is an empty string</param>
-        public void ExpireSlippyMapTiles(Guid elementId, string styleSet = "")
-        {
-            //Might this be better off as raw SQL? If I expire, say, an entire state, that could be a lot of map tiles to pull into RAM just for a date to change.
-            //var raw = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE ST_INTERSECTS(areaCovered, ST_GeomFromText(" + g.AsText() + "))";
-            var db = new PraxisContext();
-            string SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet = '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM StoredOsmElements WHERE privacyId = '" + elementId + "'))";
-            db.Database.ExecuteSqlRaw(SQL);
         }
 
         /// <summary>
@@ -278,7 +219,7 @@ namespace PraxisCore
             ImageStats info = new ImageStats(mapToDraw, 1024, 1024);
 
             LineString line = new LineString(coords.ToArray());
-            var drawableLine = Converters.PolygonToSKPoints(line, mapToDraw, info.degreesPerPixelX, info.degreesPerPixelY);
+            var drawableLine = PolygonToSKPoints(line, mapToDraw, info.degreesPerPixelX, info.degreesPerPixelY);
 
             //Now, draw that path on the map.
             var places = GetPlaces(mapToDraw); //, null, false, false, degreesPerPixelX * 4 ///TODO: restore item filtering
@@ -449,25 +390,25 @@ namespace PraxisCore
                 {
                     case "Polygon":
                         var p = w.elementGeometry as Polygon;
-                        path.AddPoly(Converters.PolygonToSKPoints(p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                        path.AddPoly(PolygonToSKPoints(p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                         foreach (var hole in p.InteriorRings)
-                            path.AddPoly(Converters.PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                            path.AddPoly(PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                         canvas.DrawPath(path, paint);
                         break;
                     case "MultiPolygon":
                         foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries)
                         {
                             var p2p = p2 as Polygon;
-                            path.AddPoly(Converters.PolygonToSKPoints(p2p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                            path.AddPoly(PolygonToSKPoints(p2p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                             foreach (var hole in p2p.InteriorRings)
-                                path.AddPoly(Converters.PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                                path.AddPoly(PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                             canvas.DrawPath(path, paint);
                         }
                         break;
                     case "LineString":
                         var firstPoint = w.elementGeometry.Coordinates.First();
                         var lastPoint = w.elementGeometry.Coordinates.Last();
-                        var points = Converters.PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                        var points = PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                         if (firstPoint.Equals(lastPoint))
                         {
                             //This is a closed shape. Check to see if it's supposed to be filled in.
@@ -485,13 +426,13 @@ namespace PraxisCore
                         foreach (var p3 in ((MultiLineString)w.elementGeometry).Geometries)
                         {
                             //TODO: might want to see if I need to move the LineString logic here, or if multiline string are never filled areas.
-                            var points2 = Converters.PolygonToSKPoints(p3, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                            var points2 = PolygonToSKPoints(p3, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                             for (var line = 0; line < points2.Length - 1; line++)
                                 canvas.DrawLine(points2[line], points2[line + 1], paint);
                         }
                         break;
                     case "Point":
-                        var convertedPoint = Converters.PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                        var convertedPoint = PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                         //If this type has an icon, use it. Otherwise draw a circle in that type's color.
                         if (!string.IsNullOrEmpty(w.paintOp.fileName))
                         {
@@ -551,12 +492,12 @@ namespace PraxisCore
                         var p = w.elementGeometry as Polygon;
                         //if (p.Envelope.Length < (stats.degreesPerPixelX * 4)) //This poly's perimeter is too small to draw
                         //continue;
-                        path.AddPoly(Converters.PolygonToSKPoints(p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                        path.AddPoly(PolygonToSKPoints(p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                         foreach (var ir in p.Holes)
                         {
                             //if (ir.Envelope.Length < (w.lineWidth * 4)) //This poly's perimeter is less than 2x2 pixels in size.
                             //continue;
-                            path.AddPoly(Converters.PolygonToSKPoints(ir, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                            path.AddPoly(PolygonToSKPoints(ir, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                         }
                         canvas.DrawPath(path, paint);
                         break;
@@ -566,12 +507,12 @@ namespace PraxisCore
                             //if (p2.Envelope.Length < (stats.degreesPerPixelX * 4)) //This poly's perimeter is too small to draw
                             //continue;
                             var p2p = p2 as Polygon;
-                            path.AddPoly(Converters.PolygonToSKPoints(p2p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                            path.AddPoly(PolygonToSKPoints(p2p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                             foreach (var ir in p2p.Holes)
                             {
                                 //if (ir.Envelope.Length < (stats.degreesPerPixelX * 4)) //This poly's perimeter is too small to draw
                                 // continue;
-                                path.AddPoly(Converters.PolygonToSKPoints(ir, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                                path.AddPoly(PolygonToSKPoints(ir, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                             }
                             canvas.DrawPath(path, paint);
                         }
@@ -579,7 +520,7 @@ namespace PraxisCore
                     case "LineString":
                         var firstPoint = w.elementGeometry.Coordinates.First();
                         var lastPoint = w.elementGeometry.Coordinates.Last();
-                        var points = Converters.PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                        var points = PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                         if (firstPoint.Equals(lastPoint))
                         {
                             //This is a closed shape. Check to see if it's supposed to be filled in.
@@ -601,13 +542,13 @@ namespace PraxisCore
                         foreach (var p3 in ((MultiLineString)w.elementGeometry).Geometries)
                         {
                             //TODO: might want to see if I need to move the LineString logic here, or if multiline string are never filled areas.
-                            var points2 = Converters.PolygonToSKPoints(p3, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                            var points2 = PolygonToSKPoints(p3, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                             for (var line = 0; line < points2.Length - 1; line++)
                                 canvas.DrawLine(points2[line], points2[line + 1], paint);
                         }
                         break;
                     case "Point":
-                        var convertedPoint = Converters.PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                        var convertedPoint = PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                         //If this type has an icon, use it. Otherwise draw a circle in that type's color.
                         if (!string.IsNullOrEmpty(w.paintOp.fileName))
                         {
@@ -646,8 +587,11 @@ namespace PraxisCore
         public List<CompletePaintOp> GetPaintOpsForStoredElements(List<StoredOsmElement> elements, string styleSet, ImageStats stats)
         {
             var styles = TagParser.allStyleGroups[styleSet];
+            var bgOp = new CompletePaintOp( Converters.GeoAreaToPolygon(stats.area), 1, new TagParserPaint() { FillOrStroke = "fill", paint = styles[styleSet].paintOperations.FirstOrDefault().paint }, "", 1);
             var pass1 = elements.Select(d => new { d.AreaSize, d.elementGeometry, paintOp = styles[d.GameElementName].paintOperations });
             var pass2 = new List<CompletePaintOp>(elements.Count() * 2); //assuming each element will have a Fill and a Stroke operation.
+            pass2.Add(bgOp);
+            //pop BG in front of pass2 before filling in actual commands.
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
                     if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
@@ -793,9 +737,9 @@ namespace PraxisCore
                     case "Polygon":
                         var p = w.elementGeometry as Polygon;
 
-                        path.AddPoly(Converters.PolygonToSKPoints(p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                        path.AddPoly(PolygonToSKPoints(p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                         foreach (var hole in p.InteriorRings)
-                            path.AddPoly(Converters.PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                            path.AddPoly(PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                         canvas.DrawPath(path, paint);
 
                         break;
@@ -803,16 +747,16 @@ namespace PraxisCore
                         foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries)
                         {
                             var p2p = p2 as Polygon;
-                            path.AddPoly(Converters.PolygonToSKPoints(p2p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                            path.AddPoly(PolygonToSKPoints(p2p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                             foreach (var hole in p2p.InteriorRings)
-                                path.AddPoly(Converters.PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                                path.AddPoly(PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                             canvas.DrawPath(path, paint);
                         }
                         break;
                     case "LineString":
                         var firstPoint = w.elementGeometry.Coordinates.First();
                         var lastPoint = w.elementGeometry.Coordinates.Last();
-                        var points = Converters.PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                        var points = PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                         if (firstPoint.Equals(lastPoint))
                         {
                             //This is a closed shape. Check to see if it's supposed to be filled in.
@@ -830,13 +774,13 @@ namespace PraxisCore
                         foreach (var p3 in ((MultiLineString)w.elementGeometry).Geometries)
                         {
                             //TODO: might want to see if I need to move the LineString logic here, or if multiline string are never filled areas.
-                            var points2 = Converters.PolygonToSKPoints(p3, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                            var points2 = PolygonToSKPoints(p3, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                             for (var line = 0; line < points2.Length - 1; line++)
                                 canvas.DrawLine(points2[line], points2[line + 1], paint);
                         }
                         break;
                     case "Point":
-                        var convertedPoint = Converters.PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                        var convertedPoint = PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                         //If this type has an icon, use it. Otherwise draw a circle in that type's color.
                         if (!string.IsNullOrEmpty(w.paintOp.fileName))
                         {
@@ -1046,6 +990,84 @@ namespace PraxisCore
             var output = ms.ToArray();
             skms.Dispose(); ms.Close(); ms.Dispose();
             return output;
+        }
+
+        /// <summary>
+        /// Get the background color from a style set
+        /// </summary>
+        /// <param name="styleSet">the name of the style set to pull the background color from</param>
+        /// <returns>the SKColor saved into the requested background paint object.</returns>
+        public SKColor GetStyleBgColor(string styleSet)
+        {
+            return TagParser.allStyleGroups[styleSet]["background"].paintOperations.First().paint.Color;
+        }
+
+        public string GetStyleBgColorString(string styleSet)
+        {
+            return TagParser.allStyleGroups[styleSet]["background"].paintOperations.First().HtmlColorCode;
+        }
+
+        /// <summary>
+        /// Converts an NTS Polygon into a SkiaSharp SKPoint array so that it can be drawn in SkiaSharp.
+        /// </summary>
+        /// <param name="place">Polygon object to be converted/drawn</param>
+        /// <param name="drawingArea">GeoArea representing the image area being drawn. Usually passed from an ImageStats object</param>
+        /// <param name="degreesPerPixelX">Width of each pixel in degrees</param>
+        /// <param name="degreesPerPixelY">Height of each pixel in degrees</param>
+        /// <returns>Array of SkPoints for the image information provided.</returns>
+        public SkiaSharp.SKPoint[] PolygonToSKPoints(Geometry place, GeoArea drawingArea, double degreesPerPixelX, double degreesPerPixelY)
+        {
+            SkiaSharp.SKPoint[] points = place.Coordinates.Select(o => new SkiaSharp.SKPoint((float)((o.X - drawingArea.WestLongitude) * (1 / degreesPerPixelX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / degreesPerPixelY)))).ToArray();
+            return points;
+        }
+
+        public SkiaSharp.SKPoint PlaceInfoToSKPoint(PraxisCore.StandaloneDbTables.PlaceInfo2 pi, ImageStats imgstats)
+        {
+            SkiaSharp.SKPoint point = new SkiaSharp.SKPoint();
+            point.X = (float)((pi.lonCenter - imgstats.area.WestLongitude) * (1 / imgstats.degreesPerPixelX));
+            point.Y = (float)((pi.latCenter - imgstats.area.SouthLatitude) * (1 / imgstats.degreesPerPixelY));
+            return point;
+        }
+
+        public SkiaSharp.SKPoint[] PlaceInfoToSKPoints(PraxisCore.StandaloneDbTables.PlaceInfo2 pi, ImageStats info)
+        {
+            float heightMod = (float)pi.height / 2;
+            float widthMod = (float)pi.width / 2;
+            var points = new SkiaSharp.SKPoint[5];
+            points[0] = new SkiaSharp.SKPoint((float)(pi.lonCenter + widthMod), (float)(pi.latCenter + heightMod)); //upper right corner
+            points[1] = new SkiaSharp.SKPoint((float)(pi.lonCenter + widthMod), (float)(pi.latCenter - heightMod)); //lower right
+            points[2] = new SkiaSharp.SKPoint((float)(pi.lonCenter - widthMod), (float)(pi.latCenter - heightMod)); //lower left
+            points[3] = new SkiaSharp.SKPoint((float)(pi.lonCenter - widthMod), (float)(pi.latCenter + heightMod)); //upper left
+            points[4] = new SkiaSharp.SKPoint((float)(pi.lonCenter + widthMod), (float)(pi.latCenter + heightMod)); //upper right corner again for a closed shape.
+
+            //points is now a geometric area. Convert to image area
+            points = points.Select(p => new SkiaSharp.SKPoint((float)((p.X - info.area.WestLongitude) * (1 / info.degreesPerPixelX)), (float)((p.Y - info.area.SouthLatitude) * (1 / info.degreesPerPixelY)))).ToArray();
+
+            return points;
+        }
+
+        /// <summary>
+        /// Converts the offline-standalone PlaceInfo entries into SKRects for drawing on a SlippyMap. Used to visualize the offline mode beahvior of areas.
+        /// </summary>
+        /// <param name="pi">PlaceInfo object to convert</param>
+        /// <param name="info">ImageStats for the resulting map tile</param>
+        /// <returns>The SKRect representing the standaloneDb size of the PlaceInfo</returns>
+        public SkiaSharp.SKRect PlaceInfoToRect(PraxisCore.StandaloneDbTables.PlaceInfo2 pi, ImageStats info)
+        {
+            SkiaSharp.SKRect r = new SkiaSharp.SKRect();
+            float heightMod = (float)pi.height / 2;
+            float widthMod = (float)pi.width / 2;
+            r.Left = (float)pi.lonCenter - widthMod;
+            r.Left = (float)(r.Left - info.area.WestLongitude) * (float)(1 / info.degreesPerPixelX);
+            r.Right = (float)pi.lonCenter + widthMod;
+            r.Right = (float)(r.Right - info.area.WestLongitude) * (float)(1 / info.degreesPerPixelX);
+            r.Top = (float)pi.latCenter + heightMod;
+            r.Top = (float)(r.Top - info.area.SouthLatitude) * (float)(1 / info.degreesPerPixelY);
+            r.Bottom = (float)pi.latCenter - heightMod;
+            r.Bottom = (float)(r.Bottom - info.area.SouthLatitude) * (float)(1 / info.degreesPerPixelY);
+
+
+            return r;
         }
     }
 }
