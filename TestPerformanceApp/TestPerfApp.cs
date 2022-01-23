@@ -22,6 +22,7 @@ using static PraxisCore.GeometrySupport;
 using static PraxisCore.Place;
 using static PraxisCore.Singletons;
 using SkiaSharp;
+using System.Reflection;
 
 namespace PerformanceTestApp
 {
@@ -33,11 +34,16 @@ namespace PerformanceTestApp
         static string cell4 = "8FW4";
         //static string cell2 = "8F";
 
+        static IMapTiles MapTiles;
+
         //a test structure, is slower than not using it.
         public record MapDataAbbreviated(string name, string type, Geometry place);
 
         static void Main(string[] args)
         {
+            var asm = Assembly.LoadFrom(@".\bin\Debug\net6.0\PraxisMapTilesSkiaSharp.dll"); //works in debug. path isn't gonna work in publish.
+            var MapTiles = Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
+
             //PraxisContext.serverMode = "SQLServer";
             //PraxisContext.connectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;";
 
@@ -69,12 +75,12 @@ namespace PerformanceTestApp
             //TestRasterVsVectorCell8();
             //TestRasterVsVectorCell10();
             //TestImageSharpVsSkiaSharp(); //imagesharp was removed for being vastly slower.
-            //TestTagParser();
+            TestTagParser();
             //TestCropVsNoCropDraw("86HWPM");
             //TestCropVsNoCropDraw("86HW");
             //TestCustomPbfReader();
             //TestDrawingHoles();
-            TestPbfParsing();
+            //TestPbfParsing();
 
             //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
             //These cannot all be enabled in one run. You must comment/uncomment each one separately.
@@ -1264,7 +1270,7 @@ namespace PerformanceTestApp
             sw.Stop();
             Log.WriteLog("loaded 1 random tile via index in : " + sw.Elapsed);
             sw.Restart();
-            MapTiles.ExpireSlippyMapTiles(randomTileArea, "mapTiles");
+            //MapTiles.ExpireSlippyMapTiles(randomTileArea, "mapTiles");
             sw.Stop();
             Log.WriteLog("Expired 1 random map tile in:" + sw.Elapsed);
 
@@ -1554,16 +1560,34 @@ namespace PerformanceTestApp
                 foreach (var style in TagParser.allStyleGroups.First().Value)
                     TagParser.GetStyleForOsmWay(searchDict);
             sw.Stop();
-            Log.WriteLog("100000 8-tag match-water dicts run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
+            Log.WriteLog("100000 8-tag match-default dicts run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
 
-            searchDict = biglist2.ToDictionary(k => k.Key, v => v.Value);
-
+            searchDict.Add("waterway", "natural");
             sw.Restart();
             for (var i = 0; i < 100000; i++)
                 foreach (var style in TagParser.allStyleGroups.First().Value)
                     TagParser.GetStyleForOsmWay(searchDict);
             sw.Stop();
-            Log.WriteLog("100000 48-tag match-water dicts run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
+            Log.WriteLog("100000 9-tag match-water dicts run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
+
+            searchDict = biglist2.ToDictionary(k => k.Key, v => v.Value);
+            sw.Restart();
+            for (var i = 0; i < 100000; i++)
+                foreach (var style in TagParser.allStyleGroups.First().Value)
+                    TagParser.GetStyleForOsmWay(searchDict);
+            sw.Stop();
+            Log.WriteLog("100000 45-tag match-default dicts run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
+
+            
+            searchDict.Add("waterway", "natural");
+            sw.Restart();
+            for (var i = 0; i < 100000; i++)
+                foreach (var style in TagParser.allStyleGroups.First().Value)
+                    TagParser.GetStyleForOsmWay(searchDict);
+            sw.Stop();
+            Log.WriteLog("100000 46-tag match-water dicts run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
+
+            
 
 
 
@@ -1695,10 +1719,10 @@ namespace PerformanceTestApp
             var path2 = new SKPath();
             path2.FillType = SKPathFillType.EvenOdd;
             var p2 = NTSelement.elementGeometry as Polygon;
-            path2.AddPoly(Converters.PolygonToSKPoints(p2.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+            //path2.AddPoly(PolygonToSKPoints(p2.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
             foreach (var hole in p2.InteriorRings)
             {
-                path2.AddPoly(Converters.PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                //path2.AddPoly(PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
             }
             canvas2.DrawPath(path2, paint2);
             

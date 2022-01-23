@@ -207,19 +207,22 @@ Cropped tile drawn in 7463ms
 Conclusion: Cropping geometry objects is no longer a performance boost. I think this changed with the swap from ImageSharp to SkiaSharp for drawing logic.
 
 TagParser benchmarks with conversion to dictionary:
-100000 empty lists run in 1429138 ticks with default (0.00142ms avg)
-100000 single entry default-match lists run in 81173612 ticks (0.08117ms avg)
-100000 8-tag match-water lists run in 88640029 ticks(0.08864ms avg)
-100000 8-tag default match lists run in 88807375 ticks(0.0888ms avg)
-100000 48-tag default match lists run in 125077100 ticks(0.12507ms avg)
+perf-testing tag parser options
+100000 empty lists run in 931941 ticks with default (0.00093ms avg)
+100000 single entry default-match lists run in 80838617 ticks (0.08083ms avg)
+100000 8-tag match-water lists run in 20490744 ticks(0.02049ms avg)
+100000 8-tag default match lists run in 85084616 ticks(0.08508ms avg)
+100000 48-tag default match lists run in 128137788 ticks(0.12813ms avg)
 Using dictionary instead of list:
-100000 empty dicts run in 563652 ticks with default (0.00056ms avg)
-100000 single entry default-matchdicts run in 71128259 ticks (0.07112ms avg)
-100000 8-tag match-water dicts run in 73975693 ticks(0.07397ms avg)
-100000 48-tag match-water dicts run in 72337510 ticks(0.07233ms avg)
+100000 empty dicts run in 611362 ticks with default (0.00061ms avg)
+100000 single entry default-matchdicts run in 76445437 ticks (0.07644ms avg)
+100000 8-tag match-default dicts run in 75155828 ticks(0.07515ms avg)
+100000 9-tag match-water dicts run in 8077064 ticks(0.00807ms avg)
+100000 45-tag match-default dicts run in 71670868 ticks(0.07167ms avg)
+100000 46-tag match-water dicts run in 7806726 ticks(0.0078ms avg)
 Conclusion: The new codepath is much faster than the original for over 8 tags. Factoring in time converting a list to a dictionary, it looks like this breaks even at worse.
 The average # of tags per element is ~3 per https://taginfo.openstreetmap.org/reports/database_statistics
-On average, single-tag entries are twice as fast, and longer lists of tags are faster still.
+On average, all entries are faster by at least 10%. Some are 2x faster.
 
 Comparing my PBF reader versus OSMSharp stock (Lake Erie):
 Starting to load one relation from file.
