@@ -44,12 +44,13 @@ namespace Larry
 
             if (true)
             {
-                var asm = Assembly.LoadFrom(@".\bin\Debug\net6.0\PraxisMapTilesSkiaSharp.dll"); //works in debug. path isn't gonna work in publish.
-                var mapTiles = Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
+                var asm = Assembly.LoadFrom(@"PraxisMapTilesSkiaSharp.dll");
+                MapTiles = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
             }   
             else
             {
-
+                var asm2 = Assembly.LoadFrom(@"PraxisMapTilesImageSharp.dll"); //works in debug. path isn't gonna work in publish.
+                MapTiles = (IMapTiles)Activator.CreateInstance(asm2.GetType("PraxisCore.MapTiles"));
             }
 
 
@@ -122,7 +123,7 @@ namespace Larry
                 processPbfs();
                 loadProcessedData();
                 var bounds = DBCommands.FindServerBounds(long.Parse(config["UseOneRelationID"]));
-                MapTiles.PregenMapTilesForArea(bounds);
+                MapTileSupport.PregenMapTilesForArea(bounds);
 
                 Log.WriteLog("Server setup complete.");
             }
@@ -208,7 +209,7 @@ namespace Larry
             if (args.Any(a => a == "-autoCreateMapTiles")) //better for letting the app decide which tiles to create than manually calling out Cell6 names.
             {
                 var bounds = DBCommands.FindServerBounds(long.Parse(config["UseOneRelationID"]));
-                MapTiles.PregenMapTilesForArea(bounds);
+                MapTileSupport.PregenMapTilesForArea(bounds);
             }
 
             if (args.Any(a => a == "-findServerBounds"))
@@ -473,8 +474,8 @@ namespace Larry
             sw.Start();
             TagParser.ApplyTags(memorySource, "mapTiles");
             ImageStats istats = new ImageStats(OpenLocationCode.DecodeValid(code), 1024, 1024);
-            var paintOps = MapTiles.GetPaintOpsForStoredElements(memorySource, "mapTiles", istats);
-            System.IO.File.WriteAllBytes(config["JsonMapDataFolder"] + code + ".png", MapTiles.DrawPlusCode(code, paintOps, "mapTiles"));
+            var paintOps = MapTileSupport.GetPaintOpsForStoredElements(memorySource, "mapTiles", istats);
+            System.IO.File.WriteAllBytes(config["JsonMapDataFolder"] + code + ".png", MapTileSupport.DrawPlusCode(code, paintOps, "mapTiles"));
             sw.Stop();
             Log.WriteLog("image drawn from memory in " + sw.Elapsed);
         }
@@ -515,7 +516,7 @@ namespace Larry
             var places = GetPlaces(geoArea);
             var iStats = new ImageStats(geoArea, xSize, ySize);
             Log.WriteLog("Generating paint operations");
-            var paintOps = MapTiles.GetPaintOpsForStoredElements(places, "mapTiles", iStats);
+            var paintOps = MapTileSupport.GetPaintOpsForStoredElements(places, "mapTiles", iStats);
             Log.WriteLog("Drawing image");
             var image = MapTiles.DrawAreaAtSize(iStats, paintOps); //, TagParser.GetStyleBgColor("mapTiles"));
 
@@ -569,7 +570,7 @@ namespace Larry
                     break;
             }
 
-            TagParser.Initialize(config["ForceTagParserDefaults"] == "True"); //Do this after the DB values are parsed.
+            TagParser.Initialize(config["ForceTagParserDefaults"] == "True", MapTiles); //Do this after the DB values are parsed.
         }
 
         public static void DetectMapTilesRecursive(string parentCell, bool skipExisting) //This was off slightly at one point, but I didn't document how much or why. Should be correct now.

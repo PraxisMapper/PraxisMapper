@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using OsmSharp.Tags;
-using SkiaSharp;
+using SkiaSharp; //TODO remove this, move everything into MapTiles dlls
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,10 +20,11 @@ namespace PraxisCore
     public static class TagParser
     {
         public static TagParserEntry defaultStyle; //background color must be last if I want un-matched areas to be hidden, its own color if i want areas with no ways at all to show up.
+        //this one below has been ported over to libraries.
         public static Dictionary<string, SKBitmap> cachedBitmaps = new Dictionary<string, SKBitmap>(); //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
         public static Dictionary<string, Dictionary<string, TagParserEntry>> allStyleGroups = new Dictionary<string, Dictionary<string, TagParserEntry>>();
 
-        private static IMapTiles MapTiles; //TODO: can I dependency-inject this? THat might be the best way to do this.
+        private static IMapTiles MapTiles; 
 
         public static TagParserEntry outlineStyle = new TagParserEntry()
         {
@@ -42,18 +43,19 @@ namespace PraxisCore
         /// Call once when the server or app is started. Loads all the styles and caches baseline data for later use.
         /// </summary>
         /// <param name="onlyDefaults">if true, skip loading the styles from the DB and use Praxismapper's defaults </param>
-        public static void Initialize(bool onlyDefaults = false)
+        public static void Initialize(bool onlyDefaults = false, IMapTiles mapTiles = null)
         {
-            var inMemoryAssembles = AppDomain.CurrentDomain.GetAssemblies();
-            foreach (var a in inMemoryAssembles)
-            {
-                if (a.GetTypes().Any(a => a.Name == "MapTiles"))
-                {
-                    var type = a.GetType("MapTiles");
-                    object instance = Activator.CreateInstance(type);
-                    MapTiles = (IMapTiles)instance;
-                }
-            }
+            MapTiles = mapTiles;
+            //var inMemoryAssembles = AppDomain.CurrentDomain.GetAssemblies(); //This could just be passed in as a parameter.
+            //foreach (var a in inMemoryAssembles)
+            //{
+            //    if (a.GetTypes().Any(a => a.Name == "PraxisCore.MapTiles"))
+            //    {
+            //        var type = a.GetType("MapTiles");
+            //        object instance = Activator.CreateInstance(type);
+            //        MapTiles = (IMapTiles)instance;
+            //    }
+            //}
 
             List<TagParserEntry> styles;
 
@@ -104,6 +106,8 @@ namespace PraxisCore
             SetPaintForTPP(outlineStyle.paintOperations.First());
             SetPaintForTPP(defaultStyle.paintOperations.First());
             outlinePaint = outlineStyle.paintOperations.First().paint;
+
+            MapTiles.Initialize();
         }
 
         /// <summary>
@@ -134,7 +138,7 @@ namespace PraxisCore
             {
                 byte[] fileData = System.IO.File.ReadAllBytes(tpe.fileName);
                 //byte[] fileData = new PraxisContext().TagParserStyleBitmaps.FirstOrDefault(f => f.filename == tpe.fileName).data;
-                SKBitmap fillPattern = SKBitmap.Decode(fileData);
+                SKBitmap fillPattern = SKBitmap.Decode(fileData); //TODO: remove this, replace with raw byte data. let Maptile library deal with converting it to formats.
                 cachedBitmaps.TryAdd(tpe.fileName, fillPattern); //For icons.
                 SKShader tiling = SKShader.CreateBitmap(fillPattern, SKShaderTileMode.Repeat, SKShaderTileMode.Repeat); //For fill patterns.
                 paint.Shader = tiling;
