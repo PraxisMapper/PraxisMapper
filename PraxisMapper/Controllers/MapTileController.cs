@@ -40,7 +40,7 @@ namespace PraxisMapper.Controllers
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var db = new PraxisContext();
                 var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.styleSet == styleSet);
-                bool useCache = true;
+                bool useCache = false;
                 cache.TryGetValue("caching", out useCache);
                 if (!useCache || existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
                 {
@@ -119,7 +119,7 @@ namespace PraxisMapper.Controllers
                     DateTime expires = DateTime.Now;
                     byte[] results = null;
                     var places = GetPlacesForTile(info, null, styleSet);
-                    var paintOps = MapTiles.GetPaintOpsForCustomDataElements(Converters.GeoAreaToPolygon(info.area), dataKey, styleSet, info);
+                    var paintOps = MapTileSupport.GetPaintOpsForCustomDataElements(Converters.GeoAreaToPolygon(info.area), dataKey, styleSet, info);
                     results = MapTiles.DrawAreaAtSize(info, paintOps); //, TagParser.GetStyleBgColor(styleSet));
                     expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                     if (existingResults == null)
@@ -177,7 +177,7 @@ namespace PraxisMapper.Controllers
                     //var places = GetPlaces(dataLoadArea, filterSize: info.filterSize); //includeGenerated: false, filterSize: filterSize  //NOTE: in this case, we want generated areas to be their own slippy layer, so the config setting is ignored here.
                     //results = MapTiles.DrawAreaAtSize(info, places, styleSet, true);
                     var places = GetPlacesForTile(info, null, styleSet);
-                    var paintOps = MapTiles.GetPaintOpsForCustomDataPlusCodes(Converters.GeoAreaToPolygon(info.area), dataKey, styleSet, info);
+                    var paintOps = MapTileSupport.GetPaintOpsForCustomDataPlusCodes(Converters.GeoAreaToPolygon(info.area), dataKey, styleSet, info);
                     results = MapTiles.DrawAreaAtSize(info, paintOps); //, TagParser.GetStyleBgColor(styleSet));
                     expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                     if (existingResults == null)
@@ -235,7 +235,7 @@ namespace PraxisMapper.Controllers
                     //var places = GetPlaces(dataLoadArea, filterSize: info.filterSize); //includeGenerated: false, filterSize: filterSize  //NOTE: in this case, we want generated areas to be their own slippy layer, so the config setting is ignored here.
                     //results = MapTiles.DrawAreaAtSize(info, places, styleSet, true);
                     var places = GetPlacesForTile(info, null, styleSet);
-                    var paintOps = MapTiles.GetPaintOpsForCustomDataPlusCodesFromTagValue(Converters.GeoAreaToPolygon(info.area), dataKey, styleSet, info);
+                    var paintOps = MapTileSupport.GetPaintOpsForCustomDataPlusCodesFromTagValue(Converters.GeoAreaToPolygon(info.area), dataKey, styleSet, info);
                     results = MapTiles.DrawAreaAtSize(info, paintOps); //, TagParser.GetStyleBgColor(styleSet));
                     expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                     if (existingResults == null)
@@ -352,7 +352,7 @@ namespace PraxisMapper.Controllers
                     int imgX = 0, imgY = 0;
                     MapTileSupport.GetPlusCodeImagePixelSize(code, out imgX, out imgY);
                     ImageStats stats = new ImageStats(area, imgX, imgY);
-                    var paintOps = MapTiles.GetPaintOpsForCustomDataPlusCodes(poly, dataKey, styleSet, stats);
+                    var paintOps = MapTileSupport.GetPaintOpsForCustomDataPlusCodes(poly, dataKey, styleSet, stats);
                     var results = MapTiles.DrawAreaAtSize(stats, paintOps); //, TagParser.GetStyleBgColor(styleSet));
                     var expires = DateTime.Now.AddYears(10); //Assuming tile expiration occurs only when needed.
                     var dataLoadArea = OpenLocationCode.DecodeValid(code);
@@ -403,7 +403,7 @@ namespace PraxisMapper.Controllers
                     int imgX = 0, imgY = 0;
                     MapTileSupport.GetPlusCodeImagePixelSize(code, out imgX, out imgY);
                     ImageStats stats = new ImageStats(area, imgX, imgY);
-                    var paintOps = MapTiles.GetPaintOpsForCustomDataPlusCodesFromTagValue(poly, dataKey, styleSet, stats);
+                    var paintOps = MapTileSupport.GetPaintOpsForCustomDataPlusCodesFromTagValue(poly, dataKey, styleSet, stats);
                     var results = MapTiles.DrawAreaAtSize(stats, paintOps); //, TagParser.GetStyleBgColor(styleSet));
                     var expires = DateTime.Now.AddYears(10); //Assuming tile expiration occurs only when needed.
                     //var dataLoadArea = OpenLocationCode.DecodeValid(code);
@@ -453,7 +453,7 @@ namespace PraxisMapper.Controllers
                     int imgX = 0, imgY = 0;
                     MapTileSupport.GetPlusCodeImagePixelSize(code, out imgX, out imgY);
                     ImageStats stats = new ImageStats(area, imgX, imgY);
-                    var paintOps = MapTiles.GetPaintOpsForCustomDataElements(poly, dataKey, styleSet, stats);
+                    var paintOps = MapTileSupport.GetPaintOpsForCustomDataElements(poly, dataKey, styleSet, stats);
                     var results = MapTiles.DrawAreaAtSize(stats, paintOps); //, TagParser.GetStyleBgColor(styleSet));
                     var expires = DateTime.Now.AddYears(10); //Assuming tile expiration occurs only when needed.
                     var dataLoadArea = OpenLocationCode.DecodeValid(code);
