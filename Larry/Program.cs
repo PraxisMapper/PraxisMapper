@@ -35,6 +35,7 @@ namespace Larry
         
         static void Main(string[] args)
         {
+            Console.WriteLine("PGO is " + System.Environment.GetEnvironmentVariable("DOTNET_TieredPGO"));
             var builder = new ConfigurationBuilder()
             .AddJsonFile("Larry.config.json");
             config = builder.Build();

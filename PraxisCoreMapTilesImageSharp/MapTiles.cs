@@ -16,6 +16,7 @@ using System.Threading.Tasks;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.Drawing.Processing;
+using SixLabors.Fonts;
 
 namespace PraxisCore
 {
@@ -44,49 +45,41 @@ namespace PraxisCore
         /// <returns>byte array of the generated .png tile image</returns>
         public byte[] DrawOfflineEstimatedAreas(ImageStats info, List<StoredOsmElement> items)
         {
-            throw new NotImplementedException();
-            //SKBitmap bitmap = new SKBitmap(info.imageSizeX, info.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
-            //SKCanvas canvas = new SKCanvas(bitmap);
-            //var bgColor = SKColors.Transparent;
-            //canvas.Clear(bgColor);
-            //canvas.Scale(1, -1, info.imageSizeX / 2, info.imageSizeY / 2);
-            //SKPaint fillpaint = new SKPaint();
-            //fillpaint.IsAntialias = true;
-            //fillpaint.Style = SKPaintStyle.Fill;
-            //var strokePaint = new SKPaint();
-            //strokePaint.Color = SKColors.Black;
-            //strokePaint.TextSize = 32;
-            //strokePaint.StrokeWidth = 3;
-            //strokePaint.Style = SKPaintStyle.Stroke;
-            //strokePaint.TextAlign = SKTextAlign.Center;
-            ////TagParser.ApplyTags(items);
+            //TODO retest this.
+            var image = new Image<Rgba32>(info.imageSizeX, info.imageSizeY);
+            var bgColor = Rgba32.ParseHex("00000000");
+            image.Mutate(x => x.Fill(bgColor));
+            var fillColor = Rgba32.ParseHex("000000");
+            var strokeColor = Rgba32.ParseHex("000000");
 
-            //var placeInfo = PraxisCore.Standalone.Standalone.GetPlaceInfo(items.Where(i =>
-            //i.IsGameElement
-            //).ToList());
+            var placeInfo = PraxisCore.Standalone.Standalone.GetPlaceInfo(items.Where(i =>
+            i.IsGameElement
+            ).ToList());
 
-            ////this is for rectangles.
-            //foreach (var pi in placeInfo)
-            //{
-            //    var rect = Converters.PlaceInfoToRect(pi, info);
-            //    fillpaint.Color = TagParser.PickStaticColorForArea(pi.Name);
-            //    canvas.DrawRect(rect, fillpaint);
-            //    canvas.DrawRect(rect, strokePaint);
-            //}
+            //this is for rectangles.
+            foreach (var pi in placeInfo)
+            {
+                var rect = PlaceInfoToRect(pi, info);
+                fillColor = Rgba32.ParseHex(TagParser.PickStaticColorForArea(pi.Name));
+                image.Mutate(x => x.Fill(fillColor, rect));
+                image.Mutate(x => x.Draw(strokeColor, 3, rect));
+            }
 
-            //canvas.Scale(1, -1, info.imageSizeX / 2, info.imageSizeY / 2); //inverts the inverted image again!
-            //foreach (var pi in placeInfo)
-            //{
-            //    var rect = Converters.PlaceInfoToRect(pi, info);
-            //    canvas.DrawText(pi.Name, rect.MidX, info.imageSizeY - rect.MidY, strokePaint);
-            //}
+            image.Mutate(x => x.Flip(FlipMode.Vertical)); ; //inverts the inverted image again!
+            foreach (var pi in placeInfo)
+            {
+                //NOTE: would be better to load fonts once and share that for the app's lifetime.
+                var fonts = new SixLabors.Fonts.FontCollection();
+                var family = fonts.Install("fontHere.ttf");
+                var font = family.CreateFont(12, FontStyle.Regular);
+                var rect = PlaceInfoToRect(pi, info);
+                image.Mutate(x => x.DrawText(pi.Name, font, strokeColor, new PointF((float)(pi.lonCenter * info.pixelsPerDegreeX), (float)(pi.latCenter * info.pixelsPerDegreeY))));
+            }
 
-            //var ms = new MemoryStream();
-            //var skms = new SkiaSharp.SKManagedWStream(ms);
-            //bitmap.Encode(skms, SkiaSharp.SKEncodedImageFormat.Png, 100);
-            //var results = ms.ToArray();
-            //skms.Dispose(); ms.Close(); ms.Dispose();
-            //return results;
+            image.Mutate(x => x.Flip(FlipMode.Vertical)); //Plus codes are south-to-north, so invert the image to make it correct.
+            var ms = new MemoryStream();
+            image.SaveAsPng(ms);
+            return ms.ToArray();
         }
 
         /// <summary>
@@ -197,39 +190,31 @@ namespace PraxisCore
         /// <returns>the png file with the path drawn over the mapdata in the area.</returns>
         public byte[] DrawUserPath(string pointListAsString)
         {
-            throw new NotImplementedException();
-            ////String is formatted as Lat,Lon~Lat,Lon~ repeating. Characters chosen to not be percent-encoded if submitted as part of the URL.
-            ////first, convert this to a list of latlon points
-            //string[] pointToConvert = pointListAsString.Split("|");
-            //List<Coordinate> coords = pointToConvert.Select(p => new Coordinate(double.Parse(p.Split(',')[0]), double.Parse(p.Split(',')[1]))).ToList();
+            //String is formatted as Lat,Lon~Lat,Lon~ repeating. Characters chosen to not be percent-encoded if submitted as part of the URL.
+            //first, convert this to a list of latlon points
+            string[] pointToConvert = pointListAsString.Split("|");
+            List<Coordinate> coords = pointToConvert.Select(p => new Coordinate(double.Parse(p.Split(',')[0]), double.Parse(p.Split(',')[1]))).ToList();
 
-            //var mapBuffer = resolutionCell8 / 2; //Leave some area around the edges of where they went.
-            //GeoArea mapToDraw = new GeoArea(coords.Min(c => c.Y) - mapBuffer, coords.Min(c => c.X) - mapBuffer, coords.Max(c => c.Y) + mapBuffer, coords.Max(c => c.X) + mapBuffer);
+            var mapBuffer = resolutionCell8 / 2; //Leave some area around the edges of where they went.
+            GeoArea mapToDraw = new GeoArea(coords.Min(c => c.Y) - mapBuffer, coords.Min(c => c.X) - mapBuffer, coords.Max(c => c.Y) + mapBuffer, coords.Max(c => c.X) + mapBuffer);
 
-            //ImageStats info = new ImageStats(mapToDraw, 1024, 1024);
+            ImageStats info = new ImageStats(mapToDraw, 1024, 1024);
 
-            //LineString line = new LineString(coords.ToArray());
-            //var drawableLine = Converters.PolygonToSKPoints(line, mapToDraw, info.degreesPerPixelX, info.degreesPerPixelY);
+            LineString line = new LineString(coords.ToArray());
+            var drawableLine = PolygonToDrawingLine(line, mapToDraw, info.degreesPerPixelX, info.degreesPerPixelY);
 
-            ////Now, draw that path on the map.
-            //var places = GetPlaces(mapToDraw); //, null, false, false, degreesPerPixelX * 4 ///TODO: restore item filtering
-            //var baseImage = DrawAreaAtSize(info, places);
+            //Now, draw that path on the map.
+            var places = GetPlaces(mapToDraw); //, null, false, false, degreesPerPixelX * 4 ///TODO: restore item filtering
+            var baseImage = DrawAreaAtSize(info, places);
 
-            //SKBitmap sKBitmap = SKBitmap.Decode(baseImage);
-            //SKCanvas canvas = new SKCanvas(sKBitmap);
-            //SKPaint paint = new SKPaint();
-            //paint.Style = SKPaintStyle.Stroke;
-            //paint.StrokeWidth = 4; //Larger than normal lines at any zoom level.
-            //paint.Color = new SKColor(0, 0, 0); //Pure black, for maximum visibility.
-            //for (var x = 0; x < drawableLine.Length - 1; x++)
-            //    canvas.DrawLine(drawableLine[x], drawableLine[x + 1], paint);
-
-            //var ms = new MemoryStream();
-            //var skms = new SKManagedWStream(ms);
-            //sKBitmap.Encode(skms, SKEncodedImageFormat.Png, 100);
-            //var results = ms.ToArray();
-            //skms.Dispose(); ms.Close(); ms.Dispose();
-            //return results;
+            Image<Rgba32> image = new Image<Rgba32>(info.imageSizeX, info.imageSizeY);
+            Rgba32 strokeColor = Rgba32.ParseHex("000000");
+            image.Mutate(x => x.Draw(strokeColor, 4, new SixLabors.ImageSharp.Drawing.Path(drawableLine)));
+            
+            image.Mutate(x => x.Flip(FlipMode.Vertical)); //Plus codes are south-to-north, so invert the image to make it correct.
+            var ms = new MemoryStream();
+            image.SaveAsPng(ms);
+            return ms.ToArray();
         }
 
         //Optional parameter allows you to pass in different stuff that the DB alone has, possibly for manual or one-off changes to styling
@@ -416,6 +401,20 @@ namespace PraxisCore
         {
             var coord = place.Coordinate;
             return new SixLabors.ImageSharp.PointF((float)((coord.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((coord.Y - drawingArea.SouthLatitude) * (1 / resolutionY)));
+        }
+
+        public Rectangle PlaceInfoToRect(PraxisCore.StandaloneDbTables.PlaceInfo2 pi, ImageStats info)
+        {
+            //TODO test this.
+            Rectangle r = new Rectangle();
+            float heightMod = (float)pi.height / 2;
+            float widthMod = (float)pi.width / 2;
+            r.Width = (int)(pi.width * info.pixelsPerDegreeX);
+            r.Height = (int)(pi.height * info.pixelsPerDegreeY);
+            r.X = (int)(pi.lonCenter * info.pixelsPerDegreeX);
+            r.Y = (int)(pi.latCenter * info.pixelsPerDegreeY);
+
+            return r;
         }
     }
 }
