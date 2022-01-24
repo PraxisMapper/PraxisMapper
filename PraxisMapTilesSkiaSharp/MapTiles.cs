@@ -101,7 +101,7 @@ namespace PraxisCore
             foreach (var pi in placeInfo)
             {
                 var rect = PlaceInfoToRect(pi, info);
-                fillpaint.Color = TagParser.PickStaticColorForArea(pi.Name);
+                fillpaint.Color =  SKColor.Parse(TagParser.PickStaticColorForArea(pi.Name));
                 canvas.DrawRect(rect, fillpaint);
                 canvas.DrawRect(rect, strokePaint);
             }
@@ -667,7 +667,6 @@ namespace PraxisCore
             r.Top = (float)(r.Top - info.area.SouthLatitude) * (float)(1 / info.degreesPerPixelY);
             r.Bottom = (float)pi.latCenter - heightMod;
             r.Bottom = (float)(r.Bottom - info.area.SouthLatitude) * (float)(1 / info.degreesPerPixelY);
-
 
             return r;
         }

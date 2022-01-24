@@ -493,14 +493,14 @@ namespace PraxisCore
         /// Pull a static, but practically randomized, color for an area based on the MD5 hash of its name. All identically named areas will get the same color.
         /// </summary>
         /// <param name="areaname">the name of the area to generate a color for</param>
-        /// <returns>an SKColor value based on the area's name.</returns>
-        public static SKColor PickStaticColorForArea(string areaname)
+        /// <returns>a string with the hex value for the color based on the area's name.</returns>
+        public static string PickStaticColorForArea(string areaname)
         {
+            //TODO TEST
             var hasher = System.Security.Cryptography.MD5.Create();
             var value = areaname.ToByteArrayUnicode();
             var hash = hasher.ComputeHash(value);
-
-            SKColor results = new SKColor(hash[0], hash[1], hash[2], Convert.ToByte(32)); //all have the same transparency level
+            string results = BitConverter.ToString(hash, 0, 3);
             return results;
         }
     }
