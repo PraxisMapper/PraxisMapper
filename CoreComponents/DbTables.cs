@@ -95,13 +95,11 @@ namespace PraxisCore
             //Layer note: it's still pretty possible that a lot of elements all get drawn on one layer, and only a few use multiple layers, like the outlined roads.
             public int layerId { get; set; } //All paint operations should be done on their own layer, then all merged together? smaller ID are on top, bigger IDs on bottom. Layer 1 hides 2 hides 3 etc.
             //The below are copied from the original object.These get used to create the SKPaint object once at startup, then that paint object is used from then on.
-            public string HtmlColorCode { get; set; }
+            public string HtmlColorCode { get; set; } //This STARTS with the alpha color.
             public string FillOrStroke { get; set; }
             public float LineWidth { get; set; } //Todo ponder: should this be pixels, or degrees? or scale based on degreesperpixelx?
             public string LinePattern { get; set; } //solid, dashed, other varieties? //If blank, solid line. If not, split string into float[] on |
             public string fileName { get; set; } //A path to an image file that will be used as a repeating pattern. Null for solid colors.
-            [NotMapped]
-            public SKPaint paint { get; set; } //Fill in on app start. //TODO: replacing this will be tricky with a universal option/lookup
             public double minDrawRes { get; set; } = 0;//skip drawing this item if  resPerPixelX is below this value. (what doesn't draw zoomed in on OSM? name text?
             public double maxDrawRes { get; set; } = 4; //skip drawing this item if resPerPixelX is above this value. (EX: tertiary roads don't draw at distant zooms
             public bool randomize { get; set; } //if true, assign a random color at draw-time.

@@ -36,7 +36,7 @@ namespace PraxisCore
         /// Create the SKPaint object for each style and store it in the requested object.
         /// </summary>
         /// <param name="tpe">the TagParserPaint object to populate</param>
-        private static void SetPaintForTPP(TagParserPaint tpe)
+        private static SKPaint SetPaintForTPP(TagParserPaint tpe)
         {
             //TODO: juggle this around to save paints in-memory here instead of in TagParser.
             var paint = new SKPaint();
@@ -66,7 +66,8 @@ namespace PraxisCore
                 SKShader tiling = SKShader.CreateBitmap(fillPattern, SKShaderTileMode.Repeat, SKShaderTileMode.Repeat); //For fill patterns.
                 paint.Shader = tiling;
             }
-            tpe.paint = paint;
+            //tpe.paint = paint;
+            return paint;
         }
 
         /// <summary>
@@ -329,7 +330,7 @@ namespace PraxisCore
 
             foreach (var w in paintOps.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))
             {
-                paint = w.paintOp.paint;
+                paint = SetPaintForTPP(w.paintOp); // w.paintOp.paint;
 
                 if (w.paintOp.fromTag) //FromTag is for when you are saving color data directly to each element, instead of tying it to a styleset.
                     paint.Color = SKColor.Parse(w.tagValue);
@@ -415,7 +416,8 @@ namespace PraxisCore
                         {
                             var circleRadius = (float)(ConstantValues.resolutionCell10 / stats.degreesPerPixelX / 2); //I want points to be drawn as 1 Cell10 in diameter.
                             canvas.DrawCircle(convertedPoint[0], circleRadius, paint);
-                            canvas.DrawCircle(convertedPoint[0], circleRadius, TagParser.outlinePaint);
+                            //TODO re-add outline paint to this DLL not TagParser.
+                            //canvas.DrawCircle(convertedPoint[0], circleRadius, TagParser.outlinePaint); 
                         }
                         break;
                     default:
@@ -466,8 +468,9 @@ namespace PraxisCore
             MemoryStream s = new MemoryStream();
             SKCanvas canvas = SKSvgCanvas.Create(bounds, s); //output not guaranteed to be complete until the canvas is deleted?!?
             //SKCanvas canvas = new SKCanvas(bitmap);
-            var bgColor = styles["background"].paintOperations.FirstOrDefault().paint; //Backgound is a named style, unmatched will be the last entry and transparent.
-            canvas.Clear(bgColor.Color);
+            var bgColor = SKColor.Parse(styles["background"].paintOperations.First().HtmlColorCode);
+            //Backgound is a named style, unmatched will be the last entry and transparent.
+            canvas.Clear(bgColor);
             canvas.Scale(1, -1, stats.imageSizeX / 2, stats.imageSizeY / 2);
             SKPaint paint = new SKPaint();
 
@@ -481,7 +484,7 @@ namespace PraxisCore
 
             foreach (var w in pass2.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))
             {
-                paint = w.paintOp.paint;
+                paint = SetPaintForTPP(w.paintOp);
                 if (paint.Color.Alpha == 0)
                     continue; //This area is transparent, skip drawing it entirely.
 
@@ -601,13 +604,14 @@ namespace PraxisCore
         /// <returns>the SKColor saved into the requested background paint object.</returns>
         public SKColor GetStyleBgColor(string styleSet)
         {
-            return TagParser.allStyleGroups[styleSet]["background"].paintOperations.First().paint.Color;
+            var color = SKColor.Parse(TagParser.allStyleGroups[styleSet]["background"].paintOperations.First().HtmlColorCode);
+            return color;
         }
 
-        public string GetStyleBgColorString(string styleSet)
-        {
-            return TagParser.allStyleGroups[styleSet]["background"].paintOperations.First().HtmlColorCode;
-        }
+        //public string GetStyleBgColorString(string styleSet)
+        //{
+            //return TagParser.allStyleGroups[styleSet]["background"].paintOperations.First().HtmlColorCode;
+        //}
 
         /// <summary>
         /// Converts an NTS Polygon into a SkiaSharp SKPoint array so that it can be drawn in SkiaSharp.
