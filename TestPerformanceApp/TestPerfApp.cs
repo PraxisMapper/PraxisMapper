@@ -1758,7 +1758,26 @@ namespace PerformanceTestApp
             var osmComplete = pbfO.Where(p => p.Id == 4039900 && p.Type == OsmGeoType.Relation).ToComplete().FirstOrDefault();
             sw.Stop();
             Log.WriteLog("Original PBF reader loaded 1 area in " + sw.Elapsed);
+        }
 
+        public static void TestMaptileDrawing(string mode)
+        {
+            Log.WriteLog("Testing Maptile drawing");
+            var db = new PraxisContext();
+            IMapTiles mt;
+
+            if (mode == "skia")
+            {
+                var asm = Assembly.LoadFrom(@"PraxisMapTilesSkiaSharp.dll");
+                mt = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
+                Log.WriteLog("Using SkiaSharp:");
+            }
+            else
+            {
+                var asm = Assembly.LoadFrom(@"PraxisMapTilesImageSharp.dll");
+                mt = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
+                Log.WriteLog("Using ImageSharp:");
+            }
 
 
         }

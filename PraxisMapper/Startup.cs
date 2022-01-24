@@ -31,8 +31,6 @@ namespace PraxisMapper
             //AdminController.adminPwd = Configuration.GetValue<string>("adminPwd"); This pulls it directly from the configuration object in AdminController.
 
             mapTilesEngine = Configuration.GetValue<string>("MapTilesEngine");
-
-            TagParser.Initialize(Configuration.GetValue<bool>("ForceTagParserDefaults")); //set to true when debugging new style rules without resetting the database entries.
         }
 
         public IConfiguration Configuration { get; }
@@ -45,18 +43,22 @@ namespace PraxisMapper
             //services.AddCoreComponentServiceCollection(); //injects the DbContext and other services into this collection. (Eventually, still working on that)
             services.AddMemoryCache(); //AddMvc calls this quietly, but I'm calling it explicitly here anyways.
 
+            IMapTiles mapTiles = null;
+
             if (mapTilesEngine == "SkiaSharp")
             {
                 var asm = Assembly.LoadFrom(@".\bin\Debug\net6.0\PraxisMapTilesSkiaSharp.dll"); //works in debug. path isn't gonna work in publish.
-                var mapTiles = Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
+                mapTiles = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
                 services.AddSingleton(typeof(IMapTiles), mapTiles); //compiles
             }
             else if (mapTilesEngine == "ImageSharp")
             {
                 var asm = Assembly.LoadFrom(@".\bin\Debug\net6.0\PraxisMapTilesImageSharp.dll"); //works in debug. path isn't gonna work in publish.
-                var mapTiles = Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
+                mapTiles = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
                 services.AddSingleton(typeof(IMapTiles), mapTiles);
             }
+
+            TagParser.Initialize(Configuration.GetValue<bool>("ForceTagParserDefaults"), mapTiles); //set to true when debugging new style rules without resetting the database entries.
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
