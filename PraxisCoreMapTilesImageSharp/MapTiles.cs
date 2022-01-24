@@ -261,37 +261,74 @@ namespace PraxisCore
             var image = new Image<Rgba32>(stats.imageSizeX, stats.imageSizeY);
             foreach (var w in paintOps.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))
             {
-                var color = Rgba32.ParseHex(w.paintOp.HtmlColorCode);
+                string htmlColor = w.paintOp.HtmlColorCode;
+                if (htmlColor.Length == 8)
+                    htmlColor = htmlColor.Substring(2, 6) + htmlColor.Substring(0, 2);
+                var color = Rgba32.ParseHex(htmlColor);
                 if (color.A == 0)
                     continue; //This area is transparent, skip drawing it entirely.
 
-                switch (w.elementGeometry.GeometryType)
+                //NOTE TODO: 
+                //paintOps should be setting the linewidth to be thick enough to paint, but it looks like it isn't.
+                //and that seems to be why lines aren't drawing here, they're 3* 10^-5 pixels thick or so.
+                //but that value works fine in SkiaSharp for some reason?
+
+                //ImageSharp is just not fast enough on big areas, so we have to crop them down here. Maybe. Causes other issues.
+                //var thisGeometry = w.elementGeometry.Intersection(Converters.GeoAreaToPolygon(stats.area)); //for testing performance improvements. Causes other issues.
+                var thisGeometry = w.elementGeometry; //For testing at regular speed. 
+
+                //Potential logic fix:
+                //for geometries, clamp all points to the current tile's bounds
+                //if its the same location as the previous point after clamping, remove it from the list of points.
+                //Or try and be clever: if any point is beyond the tile bounds in 2 directions, set 1 point at the corner (or just outside of it)
+                //and erase all points beyond it?
+                
+                switch (thisGeometry.GeometryType)
                 {
                     case "Polygon":
-                        var drawThis = PolygonToDrawingPolygon(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
-                        if (w.paintOp.FillOrStroke == "fill")
-                            image.Mutate(x => x.Fill(color, drawThis));
-                        else
-                            image.Mutate(x => x.Draw(color, w.paintOp.LineWidth, drawThis));
+                        //after trimming this might not work out as well. Don't draw broken/partial polygons? or only as lines?
+                        if (thisGeometry.Coordinates.Length > 2)
+                        {
+                            var drawThis = PolygonToDrawingPolygon(thisGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                            if (w.paintOp.FillOrStroke == "fill")
+                                image.Mutate(x => x.Fill(color, drawThis));
+                            else
+                                image.Mutate(x => x.Draw(color, w.paintOp.LineWidth, drawThis));
+                        }
                         break;
                     case "MultiPolygon":
                         var lines = new List<LinearLineSegment>();
-                        foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries)
+                        foreach (var p2 in ((MultiPolygon)thisGeometry).Geometries)
                         {
-                            var drawThis1 = PolygonToDrawingLine(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
-                            lines.Add(drawThis1);
+                            var drawThis2 = PolygonToDrawingPolygon(p2, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                            if (w.paintOp.FillOrStroke == "fill")
+                                image.Mutate(x => x.Fill(color, drawThis2));
+                            else
+                                image.Mutate(x => x.Draw(color, w.paintOp.LineWidth, drawThis2));
+
+
+                            //var drawThis1 = PolygonToDrawingLine(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                            //lines.Add(drawThis1);
+
+                            //foreach (var hole in ((NetTopologySuite.Geometries.Polygon)p2).InteriorRings)
+                            //{
+                            //    var drawthis2 = PolygonToDrawingLine(hole);
+                            //    lineSegmentList.Add(drawthis2);
+                            //}
                         }
-                        var mp = new SixLabors.ImageSharp.Drawing.Polygon(lines);
+                        //var mp = new SixLabors.ImageSharp.Drawing.Polygon(lines);
+                        //var drawOpts = new DrawingOptions();
+                        //drawOpts.ShapeOptions.IntersectionRule = IntersectionRule.OddEven;
                         //TODO: check this, consider switching shape options to OddEven if it doesn't draw holes right?
-                        if (w.paintOp.FillOrStroke == "fill")
-                            image.Mutate(x => x.Fill(color, mp));
-                        else
-                            image.Mutate(x => x.Draw(color, w.paintOp.LineWidth, mp));
+                        //if (w.paintOp.FillOrStroke == "fill")
+                            //image.Mutate(x => x.Fill(drawOpts, color, mp));
+                        //else
+                            //image.Mutate(x => x.Draw(color, w.paintOp.LineWidth, mp));
                         break;
                     case "LineString":
-                        var firstPoint = w.elementGeometry.Coordinates.First();
-                        var lastPoint = w.elementGeometry.Coordinates.Last();
-                        var line = LineToDrawingLine(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                        var firstPoint = thisGeometry.Coordinates.First();
+                        var lastPoint = thisGeometry.Coordinates.Last();
+                        var line = LineToDrawingLine(thisGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
 
                         if (firstPoint.Equals(lastPoint) && w.paintOp.FillOrStroke == "fill")
                             image.Mutate(x => x.Fill(color, new SixLabors.ImageSharp.Drawing.Polygon(new LinearLineSegment(line))));
@@ -299,14 +336,14 @@ namespace PraxisCore
                             image.Mutate(x => x.DrawLines(color, w.paintOp.LineWidth, line));
                         break;
                     case "MultiLineString":
-                        foreach (var p3 in ((MultiLineString)w.elementGeometry).Geometries)
+                        foreach (var p3 in ((MultiLineString)thisGeometry).Geometries)
                         {
                             var line2 = LineToDrawingLine(p3, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                             image.Mutate(x => x.DrawLines(color, w.paintOp.LineWidth, line2));
                         }
                         break;
                     case "Point":
-                        var convertedPoint = PointToPointF(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                        var convertedPoint = PointToPointF(thisGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                         //If this type has an icon, use it. Otherwise draw a circle in that type's color.
                         if (!string.IsNullOrEmpty(w.paintOp.fileName))
                         {
@@ -321,7 +358,7 @@ namespace PraxisCore
                         {
                             var circleRadius = (float)(ConstantValues.resolutionCell10 / stats.degreesPerPixelX / 2); //I want points to be drawn as 1 Cell10 in diameter.
                             var shape = new SixLabors.ImageSharp.Drawing.EllipsePolygon(
-                                PointToPointF(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY),
+                                PointToPointF(thisGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY),
                                 new SizeF(circleRadius, circleRadius));
                             image.Mutate(x => x.Fill(color, shape));
                             image.Mutate(x => x.Draw(Color.Black, 1, shape)); //TODO: double check colors and sizes for outlines
@@ -370,16 +407,27 @@ namespace PraxisCore
         /// </summary>
         /// <param name="styleSet">the name of the style set to pull the background color from</param>
         /// <returns>the Rgba32 saved into the requested background paint object.</returns>
-        //public Rgba32 GetStyleBgColorString(string styleSet)
-        //{
-        //    return Rgba32.ParseHex(TagParser.allStyleGroups[styleSet]["background"].paintOperations.First().HtmlColorCode);
-        //}
+        public Rgba32 GetStyleBgColorString(string styleSet)
+        {
+            var color = Rgba32.ParseHex(TagParser.allStyleGroups[styleSet]["background"].paintOperations.First().HtmlColorCode);
+            return color;
+        }
 
         public SixLabors.ImageSharp.Drawing.Polygon PolygonToDrawingPolygon(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
         {
-            var typeConvertedPoints = place.Coordinates.Select(o => new SixLabors.ImageSharp.PointF((float)((o.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / resolutionY))));
-            SixLabors.ImageSharp.Drawing.LinearLineSegment part = new SixLabors.ImageSharp.Drawing.LinearLineSegment(typeConvertedPoints.ToArray());
-            var output = new SixLabors.ImageSharp.Drawing.Polygon(part);
+            var lineSegmentList = new List<LinearLineSegment>();
+            NetTopologySuite.Geometries.Polygon p = (NetTopologySuite.Geometries.Polygon)place;
+            var typeConvertedPoints = p.ExteriorRing.Coordinates.Select(o => new SixLabors.ImageSharp.PointF((float)((o.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / resolutionY))));
+            //SixLabors.ImageSharp.Drawing.LinearLineSegment part = new SixLabors.ImageSharp.Drawing.LinearLineSegment(typeConvertedPoints.ToArray());
+            lineSegmentList.Add(new LinearLineSegment(typeConvertedPoints.ToArray()));
+
+            foreach (var hole in p.InteriorRings)
+            {
+                typeConvertedPoints = p.ExteriorRing.Coordinates.Select(o => new SixLabors.ImageSharp.PointF((float)((o.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / resolutionY))));
+                lineSegmentList.Add(new LinearLineSegment(typeConvertedPoints.ToArray()));
+            }
+
+            var output = new SixLabors.ImageSharp.Drawing.Polygon(lineSegmentList);
             return output;
         }
 

@@ -37,7 +37,8 @@ namespace PraxisCore
             TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "none" }}
         };
-        public static SKPaint outlinePaint;
+        
+        //public static SKPaint outlinePaint;
 
         /// <summary>
         /// Call once when the server or app is started. Loads all the styles and caches baseline data for later use.
@@ -82,9 +83,10 @@ namespace PraxisCore
                 }
             }
 
-            foreach (var s in styles)
-                foreach(var p in s.paintOperations)
-                    SetPaintForTPP(p);
+            //TODO: this should be moved to the initialize command of each drawing engine dll
+            //foreach (var s in styles)
+                //foreach(var p in s.paintOperations)
+                    //SetPaintForTPP(p);
 
             var groups = styles.GroupBy(s => s.styleSet);
             foreach (var g in groups)
@@ -103,9 +105,10 @@ namespace PraxisCore
                     new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "default" }}
             };
 
-            SetPaintForTPP(outlineStyle.paintOperations.First());
-            SetPaintForTPP(defaultStyle.paintOperations.First());
-            outlinePaint = outlineStyle.paintOperations.First().paint;
+            //TODO: these also probably need moved to the drawing engine dlls.
+            //SetPaintForTPP(outlineStyle.paintOperations.First());
+            //SetPaintForTPP(defaultStyle.paintOperations.First());
+            //outlinePaint = outlineStyle.paintOperations.First().paint;
 
             MapTiles.Initialize();
         }
@@ -114,38 +117,38 @@ namespace PraxisCore
         /// Create the SKPaint object for each style and store it in the requested object.
         /// </summary>
         /// <param name="tpe">the TagParserPaint object to populate</param>
-        private static void SetPaintForTPP(TagParserPaint tpe)
-        {
-            //TODO: remove this here, run this logic from MapTiles.Initialize().
-            var paint = new SKPaint();
-            //TODO: enable a style to use static-random colors.
+        //private static void SetPaintForTPP(TagParserPaint tpe)
+        //{
+        //    //TODO: remove this here, run this logic from MapTiles.Initialize().
+        //    var paint = new SKPaint();
+        //    //TODO: enable a style to use static-random colors.
 
-            paint.StrokeJoin = SKStrokeJoin.Round;
-            paint.IsAntialias = true;
-            paint.Color = SKColor.Parse(tpe.HtmlColorCode);
-            if (tpe.FillOrStroke == "fill")
-                paint.Style = SKPaintStyle.StrokeAndFill;
-            else
-                paint.Style = SKPaintStyle.Stroke;
-            paint.StrokeWidth = tpe.LineWidth;
-            paint.StrokeCap = SKStrokeCap.Round;
-            if (tpe.LinePattern != "solid")
-            {
-                float[] linesAndGaps = tpe.LinePattern.Split('|').Select(t => float.Parse(t)).ToArray();
-                paint.PathEffect = SKPathEffect.CreateDash(linesAndGaps, 0);
-                paint.StrokeCap = SKStrokeCap.Butt;
-            }
-            if (!string.IsNullOrEmpty(tpe.fileName))
-            {
-                byte[] fileData = System.IO.File.ReadAllBytes(tpe.fileName);
-                //byte[] fileData = new PraxisContext().TagParserStyleBitmaps.FirstOrDefault(f => f.filename == tpe.fileName).data;
-                SKBitmap fillPattern = SKBitmap.Decode(fileData); //TODO: remove this, replace with raw byte data. let Maptile library deal with converting it to formats.
-                cachedBitmaps.TryAdd(tpe.fileName, fillPattern); //For icons.
-                SKShader tiling = SKShader.CreateBitmap(fillPattern, SKShaderTileMode.Repeat, SKShaderTileMode.Repeat); //For fill patterns.
-                paint.Shader = tiling;
-            }
-            tpe.paint = paint;
-        }
+        //    paint.StrokeJoin = SKStrokeJoin.Round;
+        //    paint.IsAntialias = true;
+        //    paint.Color = SKColor.Parse(tpe.HtmlColorCode);
+        //    if (tpe.FillOrStroke == "fill")
+        //        paint.Style = SKPaintStyle.StrokeAndFill;
+        //    else
+        //        paint.Style = SKPaintStyle.Stroke;
+        //    paint.StrokeWidth = tpe.LineWidth;
+        //    paint.StrokeCap = SKStrokeCap.Round;
+        //    if (tpe.LinePattern != "solid")
+        //    {
+        //        float[] linesAndGaps = tpe.LinePattern.Split('|').Select(t => float.Parse(t)).ToArray();
+        //        paint.PathEffect = SKPathEffect.CreateDash(linesAndGaps, 0);
+        //        paint.StrokeCap = SKStrokeCap.Butt;
+        //    }
+        //    if (!string.IsNullOrEmpty(tpe.fileName))
+        //    {
+        //        byte[] fileData = System.IO.File.ReadAllBytes(tpe.fileName);
+        //        //byte[] fileData = new PraxisContext().TagParserStyleBitmaps.FirstOrDefault(f => f.filename == tpe.fileName).data;
+        //        SKBitmap fillPattern = SKBitmap.Decode(fileData); //TODO: remove this, replace with raw byte data. let Maptile library deal with converting it to formats.
+        //        cachedBitmaps.TryAdd(tpe.fileName, fillPattern); //For icons.
+        //        SKShader tiling = SKShader.CreateBitmap(fillPattern, SKShaderTileMode.Repeat, SKShaderTileMode.Repeat); //For fill patterns.
+        //        paint.Shader = tiling;
+        //    }
+        //    tpe.paint = paint;
+        //}
 
         /// <summary>
         /// Returns the style to use on an element given its tags and a styleset to search against.
