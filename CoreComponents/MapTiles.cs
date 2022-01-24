@@ -116,7 +116,7 @@ namespace PraxisCore
         public static List<CompletePaintOp> GetPaintOpsForStoredElements(List<StoredOsmElement> elements, string styleSet, ImageStats stats)
         {
             var styles = TagParser.allStyleGroups[styleSet];
-            var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, new TagParserPaint() { FillOrStroke = "fill", layerId = 100, paint = styles["background"].paintOperations.First().paint }, "", 1);
+            var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].paintOperations.First(), "background", 1);
             var pass1 = elements.Select(d => new { d.AreaSize, d.elementGeometry, paintOp = styles[d.GameElementName].paintOperations });
             var pass2 = new List<CompletePaintOp>(elements.Count() * 2); //assuming each element will have a Fill and a Stroke operation.
             pass2.Add(bgOp);
@@ -142,8 +142,10 @@ namespace PraxisCore
             var db = new PraxisContext();
             var elements = db.CustomDataOsmElements.Include(d => d.storedOsmElement).Where(d => d.dataKey == dataKey && area.Intersects(d.storedOsmElement.elementGeometry)).ToList();
             var styles = TagParser.allStyleGroups[styleSet];
+            var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, new TagParserPaint() { FillOrStroke = "fill", layerId = 100, paint = styles["background"].paintOperations.First().paint }, "", 1);
             var pass1 = elements.Select(d => new { d.storedOsmElement.AreaSize, d.storedOsmElement.elementGeometry, paintOp = styles[d.dataValue].paintOperations, d.dataValue });
             var pass2 = new List<CompletePaintOp>(elements.Count() * 2); //assume each element has a Fill and Stroke op separately
+            pass2.Add(bgOp);
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
                     if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
@@ -166,8 +168,10 @@ namespace PraxisCore
             var db = new PraxisContext();
             var elements = db.CustomDataPlusCodes.Where(d => d.dataKey == dataKey && area.Intersects(d.geoAreaIndex)).ToList();
             var styles = TagParser.allStyleGroups[styleSet];
+            var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, new TagParserPaint() { FillOrStroke = "fill", layerId = 100, paint = styles["background"].paintOperations.First().paint }, "", 1);
             var pass1 = elements.Select(d => new { d.geoAreaIndex.Area, d.geoAreaIndex, paintOp = styles[d.dataValue].paintOperations, d.dataValue });
             var pass2 = new List<CompletePaintOp>(elements.Count() * 2); //assuming each element has a Fill and Stroke op separately
+            pass2.Add(bgOp);
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
                     if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
@@ -190,8 +194,10 @@ namespace PraxisCore
             var db = new PraxisContext();
             var elements = db.CustomDataPlusCodes.Where(d => d.dataKey == dataKey && area.Intersects(d.geoAreaIndex)).ToList();
             var styles = TagParser.allStyleGroups[styleSet];
+            var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, new TagParserPaint() { FillOrStroke = "fill", layerId = 100, paint = styles["background"].paintOperations.First().paint }, "", 1);
             var pass1 = elements.Select(d => new { d.geoAreaIndex.Area, d.geoAreaIndex, paintOp = styles["tag"].paintOperations, d.dataValue });
             var pass2 = new List<CompletePaintOp>(elements.Count() * 2); //assuming each element has a Fill and Stroke op separately
+            pass2.Add(bgOp);
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
                     if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.

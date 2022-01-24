@@ -33,6 +33,43 @@ namespace PraxisCore
         }
 
         /// <summary>
+        /// Create the SKPaint object for each style and store it in the requested object.
+        /// </summary>
+        /// <param name="tpe">the TagParserPaint object to populate</param>
+        private static void SetPaintForTPP(TagParserPaint tpe)
+        {
+            //TODO: juggle this around to save paints in-memory here instead of in TagParser.
+            var paint = new SKPaint();
+            //TODO: enable a style to use static-random colors.
+
+            paint.StrokeJoin = SKStrokeJoin.Round;
+            paint.IsAntialias = true;
+            paint.Color = SKColor.Parse(tpe.HtmlColorCode);
+            if (tpe.FillOrStroke == "fill")
+                paint.Style = SKPaintStyle.StrokeAndFill;
+            else
+                paint.Style = SKPaintStyle.Stroke;
+            paint.StrokeWidth = tpe.LineWidth;
+            paint.StrokeCap = SKStrokeCap.Round;
+            if (tpe.LinePattern != "solid")
+            {
+                float[] linesAndGaps = tpe.LinePattern.Split('|').Select(t => float.Parse(t)).ToArray();
+                paint.PathEffect = SKPathEffect.CreateDash(linesAndGaps, 0);
+                paint.StrokeCap = SKStrokeCap.Butt;
+            }
+            if (!string.IsNullOrEmpty(tpe.fileName))
+            {
+                byte[] fileData = System.IO.File.ReadAllBytes(tpe.fileName);
+                //byte[] fileData = new PraxisContext().TagParserStyleBitmaps.FirstOrDefault(f => f.filename == tpe.fileName).data;
+                SKBitmap fillPattern = SKBitmap.Decode(fileData); //TODO: remove this, replace with raw byte data. let Maptile library deal with converting it to formats.
+                cachedBitmaps.TryAdd(tpe.fileName, fillPattern); //For icons.
+                SKShader tiling = SKShader.CreateBitmap(fillPattern, SKShaderTileMode.Repeat, SKShaderTileMode.Repeat); //For fill patterns.
+                paint.Shader = tiling;
+            }
+            tpe.paint = paint;
+        }
+
+        /// <summary>
         /// Draw square boxes around each area to approximate how they would behave in an offline app
         /// </summary>
         /// <param name="info">the image information for drawing</param>
@@ -253,7 +290,7 @@ namespace PraxisCore
         /// <param name="styleSet">the style rules to use when drawing</param>
         /// <param name="filterSmallAreas">if true, removes elements from the drawing that take up fewer than 8 pixels.</param>
         /// <returns></returns>
-        public byte[] DrawAreaAtSize(ImageStats stats, List<StoredOsmElement> drawnItems = null, string styleSet = null, bool filterSmallAreas = true)
+        public byte[] DrawAreaAtSize(ImageStats stats, List<StoredOsmElement> drawnItems = null, string styleSet = "mapTiles", bool filterSmallAreas = true)
         {
             //This is the new core drawing function. Takes in an area, the items to draw, and the size of the image to draw. 
             //The drawn items get their paint pulled from the TagParser's list. If I need multiple match lists, I'll need to make a way
@@ -261,18 +298,10 @@ namespace PraxisCore
             //This can work for user data by using the linked StoredOsmElements from the items in CustomDataStoredElement.
             //I need a slightly different function for using CustomDataPlusCode, or another optional parameter here
 
-            Dictionary<string, TagParserEntry> styles;
-            if (styleSet != null)
-                styles = TagParser.allStyleGroups[styleSet];
-            else
-                styles = TagParser.allStyleGroups.First().Value;
-
             double minimumSize = 0;
-            double minSizeSquared = 0;
             if (filterSmallAreas)
             {
                 minimumSize = stats.degreesPerPixelX * 8; //don't draw small elements. THis runs on perimeter/length
-                minSizeSquared = minimumSize * minimumSize;
             }
 
             //Single points are excluded separately so that small areas or lines can still be drawn when points aren't.
@@ -280,103 +309,13 @@ namespace PraxisCore
             if (stats.degreesPerPixelX > ConstantValues.zoom14DegPerPixelX)
                 includePoints = false;
 
-            var db = new PraxisContext();
-            var geo = Converters.GeoAreaToPolygon(stats.area);
             if (drawnItems == null)
                 drawnItems = GetPlaces(stats.area, filterSize: minimumSize, includePoints: includePoints);
 
-            //baseline image data stuff           
-            SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
-            SKCanvas canvas = new SKCanvas(bitmap);
-            var bgColor = styles["background"].paintOperations.FirstOrDefault().paint; //Backgound is a named style, unmatched will be the last entry and transparent.
-            canvas.Clear(bgColor.Color);
-            canvas.Scale(1, -1, stats.imageSizeX / 2, stats.imageSizeY / 2);
-            SKPaint paint = new SKPaint();
-
             var paintOps = MapTileSupport.GetPaintOpsForStoredElements(drawnItems, "mapTiles", stats);
-
-            foreach (var w in paintOps.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))
-            {
-                paint = w.paintOp.paint;
-                if (paint.Color.Alpha == 0)
-                    continue; //This area is transparent, skip drawing it entirely.
-
-                var path = new SKPath();
-                path.FillType = SKPathFillType.EvenOdd;
-                switch (w.elementGeometry.GeometryType)
-                {
-                    case "Polygon":
-                        var p = w.elementGeometry as Polygon;
-                        path.AddPoly(PolygonToSKPoints(p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                        foreach (var hole in p.InteriorRings)
-                            path.AddPoly(PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                        canvas.DrawPath(path, paint);
-                        break;
-                    case "MultiPolygon":
-                        foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries)
-                        {
-                            var p2p = p2 as Polygon;
-                            path.AddPoly(PolygonToSKPoints(p2p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                            foreach (var hole in p2p.InteriorRings)
-                                path.AddPoly(PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                            canvas.DrawPath(path, paint);
-                        }
-                        break;
-                    case "LineString":
-                        var firstPoint = w.elementGeometry.Coordinates.First();
-                        var lastPoint = w.elementGeometry.Coordinates.Last();
-                        var points = PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
-                        if (firstPoint.Equals(lastPoint))
-                        {
-                            //This is a closed shape. Check to see if it's supposed to be filled in.
-                            if (paint.Style == SKPaintStyle.Fill)
-                            {
-                                path.AddPoly(points);
-                                canvas.DrawPath(path, paint);
-                                continue;
-                            }
-                        }
-                        for (var line = 0; line < points.Length - 1; line++)
-                            canvas.DrawLine(points[line], points[line + 1], paint);
-                        break;
-                    case "MultiLineString":
-                        foreach (var p3 in ((MultiLineString)w.elementGeometry).Geometries)
-                        {
-                            //TODO: might want to see if I need to move the LineString logic here, or if multiline string are never filled areas.
-                            var points2 = PolygonToSKPoints(p3, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
-                            for (var line = 0; line < points2.Length - 1; line++)
-                                canvas.DrawLine(points2[line], points2[line + 1], paint);
-                        }
-                        break;
-                    case "Point":
-                        var convertedPoint = PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
-                        //If this type has an icon, use it. Otherwise draw a circle in that type's color.
-                        if (!string.IsNullOrEmpty(w.paintOp.fileName))
-                        {
-                            SKBitmap icon = TagParser.cachedBitmaps[w.paintOp.fileName];
-                            canvas.DrawBitmap(icon, convertedPoint[0]);
-                        }
-                        else
-                        {
-                            var circleRadius = (float)(ConstantValues.resolutionCell10 / stats.degreesPerPixelX / 2); //I want points to be drawn as 1 Cell10 in diameter.
-                            canvas.DrawCircle(convertedPoint[0], circleRadius, paint);
-                            canvas.DrawCircle(convertedPoint[0], circleRadius, styles["outline"].paintOperations.First().paint); //TODO: this forces an outline style to be present in the list or this crashes.
-                        }
-                        break;
-                    default:
-                        Log.WriteLog("Unknown geometry type found, not drawn.");
-                        break;
-                }
-            }
-            //}
-
-            var ms = new MemoryStream();
-            var skms = new SKManagedWStream(ms);
-            bitmap.Encode(skms, SKEncodedImageFormat.Png, 100);
-            var results = ms.ToArray();
-            skms.Dispose(); ms.Close(); ms.Dispose();
-            return results;
+            return DrawAreaAtSize(stats, paintOps);
         }
+
 
         public byte[] DrawAreaAtSize(ImageStats stats, List<CompletePaintOp> paintOps)
         {
@@ -492,78 +431,6 @@ namespace PraxisCore
             var results = ms.ToArray();
             skms.Dispose(); ms.Close(); ms.Dispose();
             return results;
-        }
-
-        /// <summary>
-        /// Creates the list of paint commands for the elements intersecting the given area, with the given data key attached to OSM elements and style set, for the image.
-        /// </summary>
-        /// <param name="area">a Polygon covering the area to draw. Intended to match the ImageStats GeoArea. May be removed in favor of using the ImageStats GeoArea later. </param>
-        /// <param name="dataKey">the key to pull data from attached to any Osm Elements intersecting the area</param>
-        /// <param name="styleSet">the style set to use when drawing the intersecting elements</param>
-        /// <param name="stats">the info on the resulting image for calculating ops.</param>
-        /// <returns>a list of CompletePaintOps to be passed into a DrawArea function</returns>
-        public List<CompletePaintOp> GetPaintOpsForCustomDataElements(Geometry area, string dataKey, string styleSet, ImageStats stats)
-        {
-            //NOTE: styleSet must == dataKey for this to work. Or should I just add that to this function?
-            var db = new PraxisContext();
-            var elements = db.CustomDataOsmElements.Include(d => d.storedOsmElement).Where(d => d.dataKey == dataKey && area.Intersects(d.storedOsmElement.elementGeometry)).ToList();
-            var styles = TagParser.allStyleGroups[styleSet];
-            var pass1 = elements.Select(d => new { d.storedOsmElement.AreaSize, d.storedOsmElement.elementGeometry, paintOp = styles[d.dataValue].paintOperations, d.dataValue });
-            var pass2 = new List<CompletePaintOp>(elements.Count() * 2); //assume each element has a Fill and Stroke op separately
-            foreach (var op in pass1)
-                foreach (var po in op.paintOp)
-                    if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
-                        pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po, op.dataValue, po.LineWidth * stats.pixelsPerDegreeX));
-
-            return pass2;
-        }
-
-        //This function only works if all the dataValue entries are a key in styles
-        /// <summary>
-        /// Creates the list of paint commands for the PlusCode cells intersecting the given area, with the given data key and style set, for the image.
-        /// </summary>
-        /// <param name="area">a Polygon covering the area to draw. Intended to match the ImageStats GeoArea. May be removed in favor of using the ImageStats GeoArea later. </param>
-        /// <param name="dataKey">the key to pull data from attached to any Osm Elements intersecting the area</param>
-        /// <param name="styleSet">the style set to use when drawing the intersecting elements</param>
-        /// <param name="stats">the info on the resulting image for calculating ops.</param>
-        /// <returns>a list of CompletePaintOps to be passed into a DrawArea function</returns>
-        public List<CompletePaintOp> GetPaintOpsForCustomDataPlusCodes(Geometry area, string dataKey, string styleSet, ImageStats stats)
-        {
-            var db = new PraxisContext();
-            var elements = db.CustomDataPlusCodes.Where(d => d.dataKey == dataKey && area.Intersects(d.geoAreaIndex)).ToList();
-            var styles = TagParser.allStyleGroups[styleSet];
-            var pass1 = elements.Select(d => new { d.geoAreaIndex.Area, d.geoAreaIndex, paintOp = styles[d.dataValue].paintOperations, d.dataValue });
-            var pass2 = new List<CompletePaintOp>(elements.Count() * 2); //assuming each element has a Fill and Stroke op separately
-            foreach (var op in pass1)
-                foreach (var po in op.paintOp)
-                    if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
-                        pass2.Add(new CompletePaintOp(op.geoAreaIndex, op.Area, po, op.dataValue, po.LineWidth * stats.pixelsPerDegreeX));
-
-            return pass2;
-        }
-
-        //Allows for 1 style to pull a color from the custom data value.
-        /// <summary>
-        /// Creates the list of paint commands for the PlusCode cells intersecting the given area, with the given data key and style set, for the image. In this case, the color will be the tag's value.
-        /// </summary>
-        /// <param name="area">a Polygon covering the area to draw. Intended to match the ImageStats GeoArea. May be removed in favor of using the ImageStats GeoArea later. </param>
-        /// <param name="dataKey">the key to pull data from attached to any Osm Elements intersecting the area</param>
-        /// <param name="styleSet">the style set to use when drawing the intersecting elements</param>
-        /// <param name="stats">the info on the resulting image for calculating ops.</param>
-        /// <returns>a list of CompletePaintOps to be passed into a DrawArea function</returns>
-        public List<CompletePaintOp> GetPaintOpsForCustomDataPlusCodesFromTagValue(Geometry area, string dataKey, string styleSet, ImageStats stats)
-        {
-            var db = new PraxisContext();
-            var elements = db.CustomDataPlusCodes.Where(d => d.dataKey == dataKey && area.Intersects(d.geoAreaIndex)).ToList();
-            var styles = TagParser.allStyleGroups[styleSet];
-            var pass1 = elements.Select(d => new { d.geoAreaIndex.Area, d.geoAreaIndex, paintOp = styles["tag"].paintOperations, d.dataValue });
-            var pass2 = new List<CompletePaintOp>(elements.Count() * 2); //assuming each element has a Fill and Stroke op separately
-            foreach (var op in pass1)
-                foreach (var po in op.paintOp)
-                    if (stats.degreesPerPixelX < po.maxDrawRes && stats.degreesPerPixelX > po.minDrawRes) //dppX should be between max and min draw range.
-                        pass2.Add(new CompletePaintOp(op.geoAreaIndex, op.Area, po, op.dataValue, po.LineWidth * stats.pixelsPerDegreeX));
-
-            return pass2;
         }
 
         /// <summary>

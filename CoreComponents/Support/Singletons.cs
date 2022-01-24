@@ -332,7 +332,7 @@ namespace PraxisCore
             //My default set wants to draw things that haven't yet been identified, so I can see what needs improvement or matched by a rule.
             new TagParserEntry() { MatchOrder = 9999, name ="background",  styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "F2EFE9", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", layerId = 100 }
+                    new TagParserPaint() { HtmlColorCode = "F2EFE9", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", layerId = 101 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() { 
                     new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "none" }} },
@@ -439,7 +439,7 @@ namespace PraxisCore
             },
             new TagParserEntry() { MatchOrder = 9999, name ="background",  styleSet = "adminBounds",
                 paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00F2EFE9", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", layerId = 100 }
+                    new TagParserPaint() { HtmlColorCode = "00F2EFE9", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", layerId = 101 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "none" }} },
@@ -478,11 +478,10 @@ namespace PraxisCore
                     new TagParserMatchRule() {Key = "team", Value = "blue", MatchType = "equals"},
             }},
 
-
             //background is a mandatory style entry name, but its transparent here..
             new TagParserEntry() { MatchOrder = 10000, name ="background",  styleSet = "teamColor",
                 paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", layerId = 100 }
+                    new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", layerId = 101 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() {Key = "*", Value = "*", MatchType = "default"},
@@ -499,7 +498,7 @@ namespace PraxisCore
             //background is a mandatory style entry name, but its transparent here..
             new TagParserEntry() { MatchOrder = 10000, name ="background",  styleSet = "paintTown",
                 paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", layerId = 100 }
+                    new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", layerId = 101 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() {Key = "*", Value = "*", MatchType = "default"},

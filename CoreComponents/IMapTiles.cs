@@ -22,11 +22,8 @@ namespace PraxisCore
         public byte[] DrawCell10GridLines(GeoArea totalArea);
         public byte[] DrawUserPath(string pointListAsString);
         public byte[] DrawAreaAtSize(ImageStats stats, List<StoredOsmElement> drawnItems = null, string styleSet = null, bool filterSmallAreas = true);
-        public byte[] DrawAreaAtSize(ImageStats stats, List<CompletePaintOp> paintOps); //, SKColor bgColor);
-        public List<CompletePaintOp> GetPaintOpsForCustomDataElements(Geometry area, string dataKey, string styleSet, ImageStats stats);
-        public List<CompletePaintOp> GetPaintOpsForCustomDataPlusCodes(Geometry area, string dataKey, string styleSet, ImageStats stats);
-        public List<CompletePaintOp> GetPaintOpsForCustomDataPlusCodesFromTagValue(Geometry area, string dataKey, string styleSet, ImageStats stats);
+        public byte[] DrawAreaAtSize(ImageStats stats, List<CompletePaintOp> paintOps);
         public string DrawAreaAtSizeSVG(ImageStats stats, List<StoredOsmElement> drawnItems = null, Dictionary<string, TagParserEntry> styles = null, bool filterSmallAreas = true);
-        public byte[] LayerTiles(ImageStats info, byte[] bottomTile, byte[] topTile); //DOES belong here, since this does work in the image library
+        public byte[] LayerTiles(ImageStats info, byte[] bottomTile, byte[] topTile);
     }
 }

@@ -32,7 +32,7 @@ namespace PraxisCore
             name = "outline",
             styleSet = "special",
             paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "000000", FillOrStroke = "stroke", LineWidth=2, LinePattern= "solid", layerId = 100 }
+                    new TagParserPaint() { HtmlColorCode = "000000", FillOrStroke = "stroke", LineWidth=2, LinePattern= "solid", layerId = 101 }
                 },
             TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "none" }}
@@ -97,7 +97,7 @@ namespace PraxisCore
                 name = "unmatched",
                 styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 100 }
+                    new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 101 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "default" }}
@@ -116,6 +116,7 @@ namespace PraxisCore
         /// <param name="tpe">the TagParserPaint object to populate</param>
         private static void SetPaintForTPP(TagParserPaint tpe)
         {
+            //TODO: remove this here, run this logic from MapTiles.Initialize().
             var paint = new SKPaint();
             //TODO: enable a style to use static-random colors.
 
