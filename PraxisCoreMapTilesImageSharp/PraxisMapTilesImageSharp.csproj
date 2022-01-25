@@ -8,8 +8,8 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="6.0.1" />
-    <PackageReference Include="SixLabors.ImageSharp" Version="1.0.4" />
-    <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="1.0.0-beta13" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="2.0.0-alpha.0.159" />
+    <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="1.0.0-beta13.19" />
   </ItemGroup>
 
   <ItemGroup>

@@ -70,7 +70,7 @@ namespace PraxisCore
             {
                 //NOTE: would be better to load fonts once and share that for the app's lifetime.
                 var fonts = new SixLabors.Fonts.FontCollection();
-                var family = fonts.Install("fontHere.ttf");
+                var family = fonts.Add("fontHere.ttf");
                 var font = family.CreateFont(12, FontStyle.Regular);
                 var rect = PlaceInfoToRect(pi, info);
                 image.Mutate(x => x.DrawText(pi.Name, font, strokeColor, new PointF((float)(pi.lonCenter * info.pixelsPerDegreeX), (float)(pi.latCenter * info.pixelsPerDegreeY))));
@@ -293,7 +293,7 @@ namespace PraxisCore
                             if (w.paintOp.FillOrStroke == "fill")
                                 image.Mutate(x => x.Fill(color, drawThis));
                             else
-                                image.Mutate(x => x.Draw(color, w.paintOp.LineWidth, drawThis));
+                                image.Mutate(x => x.Draw(color, (float)w.lineWidth, drawThis));
                         }
                         break;
                     case "MultiPolygon":
@@ -304,7 +304,7 @@ namespace PraxisCore
                             if (w.paintOp.FillOrStroke == "fill")
                                 image.Mutate(x => x.Fill(color, drawThis2));
                             else
-                                image.Mutate(x => x.Draw(color, w.paintOp.LineWidth, drawThis2));
+                                image.Mutate(x => x.Draw(color, (float)w.lineWidth, drawThis2));
 
 
                             //var drawThis1 = PolygonToDrawingLine(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
@@ -333,13 +333,13 @@ namespace PraxisCore
                         if (firstPoint.Equals(lastPoint) && w.paintOp.FillOrStroke == "fill")
                             image.Mutate(x => x.Fill(color, new SixLabors.ImageSharp.Drawing.Polygon(new LinearLineSegment(line))));
                         else
-                            image.Mutate(x => x.DrawLines(color, w.paintOp.LineWidth, line));
+                            image.Mutate(x => x.DrawLines(color, (float)w.lineWidth, line));
                         break;
                     case "MultiLineString":
                         foreach (var p3 in ((MultiLineString)thisGeometry).Geometries)
                         {
                             var line2 = LineToDrawingLine(p3, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
-                            image.Mutate(x => x.DrawLines(color, w.paintOp.LineWidth, line2));
+                            image.Mutate(x => x.DrawLines(color, (float)w.lineWidth, line2));
                         }
                         break;
                     case "Point":
