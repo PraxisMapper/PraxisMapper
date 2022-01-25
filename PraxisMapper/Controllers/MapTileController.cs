@@ -74,7 +74,7 @@ namespace PraxisMapper.Controllers
                     }
                     if (useCache)
                         db.SaveChanges();
-                    pt.Stop(tileKey + "|" + styleSet);
+                    pt.Stop(tileKey + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
                     return File(results, "image/png");
                 }
 
@@ -132,7 +132,7 @@ namespace PraxisMapper.Controllers
                     }
                     if (useCache)
                         db.SaveChanges();
-                    pt.Stop(tileKey + "|" + styleSet);
+                    pt.Stop(tileKey + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
                     return File(results, "image/png");
                 }
 
@@ -190,7 +190,7 @@ namespace PraxisMapper.Controllers
                     }
                     if (useCache)
                         db.SaveChanges();
-                    pt.Stop(tileKey + "|" + styleSet);
+                    pt.Stop(tileKey + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
                     return File(results, "image/png");
                 }
 
@@ -248,7 +248,7 @@ namespace PraxisMapper.Controllers
                     }
                     if (useCache)
                         db.SaveChanges();
-                    pt.Stop(tileKey + "|" + styleSet);
+                    pt.Stop(tileKey + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
                     return File(results, "image/png");
                 }
 
@@ -315,7 +315,7 @@ namespace PraxisMapper.Controllers
                         existingResults.tileData = results;
                     }
                     db.SaveChanges();
-                    pt.Stop(code + "|" + styleSet);
+                    pt.Stop(code + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
                     return File(results, "image/png");
                 }
 
@@ -365,7 +365,7 @@ namespace PraxisMapper.Controllers
                         existingResults.tileData = results;
                     }
                     db.SaveChanges();
-                    pt.Stop(code + "|" + styleSet);
+                    pt.Stop(code + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
                     return File(results, "image/png");
                 }
 
@@ -416,7 +416,7 @@ namespace PraxisMapper.Controllers
                         existingResults.tileData = results;
                     }
                     db.SaveChanges();
-                    pt.Stop(code + "|" + styleSet);
+                    pt.Stop(code + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
                     return File(results, "image/png");
                 }
 
@@ -466,7 +466,7 @@ namespace PraxisMapper.Controllers
                         existingResults.tileData = results;
                     }
                     db.SaveChanges();
-                    pt.Stop(code + "|" + styleSet);
+                    pt.Stop(code + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
                     return File(results, "image/png");
                 }
 
