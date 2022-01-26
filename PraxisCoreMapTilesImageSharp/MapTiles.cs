@@ -31,10 +31,50 @@ namespace PraxisCore
         //static SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
         static Random r = new Random();
         public static Dictionary<string, Image> cachedBitmaps = new Dictionary<string, Image>(); //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
+        public static Dictionary<long, IBrush> cachedPaints = new Dictionary<long, IBrush>();
+
+        static DrawingOptions dOpts;
 
         public void Initialize()
         {
-            //TODO: replace TagParser optimizations here.
+            //foreach (var b in TagParser.cachedBitmaps)
+                //cachedBitmaps.Add(b.Key, Image.Load(b.Value));
+
+            foreach (var g in TagParser.allStyleGroups)
+                foreach (var s in g.Value)
+                    foreach (var p in s.Value.paintOperations)
+                        cachedPaints.Add(p.id, SetPaintForTPP(p)); //this fails if loaded from defaults since all IDs are 0.
+
+            dOpts = new DrawingOptions();
+            ShapeOptions so = new ShapeOptions();
+            so.IntersectionRule = IntersectionRule.OddEven; //already the default;
+            GraphicsOptions go = new GraphicsOptions();
+            go.Antialias = true;
+            go.AntialiasSubpixelDepth = 16; //defaults to 16, would 4 improve speed? would 25 or 64 improve quality? (not visible so from early testing.)
+            //go.AlphaCompositionMode = PixelAlphaCompositionMode.SrcOver; //most of these make nothing render.
+            dOpts.GraphicsOptions = go;
+            dOpts.ShapeOptions = so;
+        }
+
+        /// <summary>
+        /// Create the Brush object for each style and store it for later use.
+        /// </summary>
+        /// <param name="tpe">the TagParserPaint object to populate</param>
+        private static IBrush SetPaintForTPP(TagParserPaint tpe)
+        {
+            //SkiaSharp options not found in ImageSharp:
+            //Rounding line ends.
+
+            //It's possible that I want pens instead of brushes for lines with patterns?
+            string htmlColor = tpe.HtmlColorCode;
+            if (htmlColor.Length == 8)
+                htmlColor = htmlColor.Substring(2, 6) + htmlColor.Substring(0, 2);
+            IBrush paint = new SolidBrush(Rgba32.ParseHex(htmlColor));
+
+            //if (!string.IsNullOrEmpty(tpe.fileName))
+                //paint = new ImageBrush(cachedBitmaps[tpe.fileName]);
+
+            return paint;
         }
 
         /// <summary>
@@ -261,21 +301,22 @@ namespace PraxisCore
             var image = new Image<Rgba32>(stats.imageSizeX, stats.imageSizeY);
             foreach (var w in paintOps.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))
             {
-                string htmlColor = w.paintOp.HtmlColorCode;
-                if (htmlColor.Length == 8)
-                    htmlColor = htmlColor.Substring(2, 6) + htmlColor.Substring(0, 2);
-                var color = Rgba32.ParseHex(htmlColor);
-                if (color.A == 0)
-                    continue; //This area is transparent, skip drawing it entirely.
+                var paint = cachedPaints[w.paintOp.id];
+                //TODO: pull in color and skip if transparent.
+                //string htmlColor = w.paintOp.HtmlColorCode;
+                //if (htmlColor.Length == 8)
+                //htmlColor = htmlColor.Substring(2, 6) + htmlColor.Substring(0, 2);
+                //var color = Rgba32.ParseHex(htmlColor);
+                //if (paint.color.A == 0)
+                //continue; //This area is transparent, skip drawing it entirely.
 
-                //NOTE TODO: 
-                //paintOps should be setting the linewidth to be thick enough to paint, but it looks like it isn't.
-                //and that seems to be why lines aren't drawing here, they're 3* 10^-5 pixels thick or so.
-                //but that value works fine in SkiaSharp for some reason?
 
                 //ImageSharp is just not fast enough on big areas, so we have to crop them down here. Maybe. Causes other issues.
                 //var thisGeometry = w.elementGeometry.Intersection(Converters.GeoAreaToPolygon(stats.area)); //for testing performance improvements. Causes other issues.
                 var thisGeometry = w.elementGeometry; //For testing at regular speed. 
+
+                //Potential speed fix #2 by removing points that are less than 1 pixel apart from another point.
+                thisGeometry = NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(thisGeometry, stats.degreesPerPixelX);
 
                 //Potential logic fix:
                 //for geometries, clamp all points to the current tile's bounds
@@ -291,39 +332,20 @@ namespace PraxisCore
                         {
                             var drawThis = PolygonToDrawingPolygon(thisGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                             if (w.paintOp.FillOrStroke == "fill")
-                                image.Mutate(x => x.Fill(color, drawThis));
+                                image.Mutate(x => x.Fill(dOpts, paint, drawThis));
                             else
-                                image.Mutate(x => x.Draw(color, (float)w.lineWidth, drawThis));
+                                image.Mutate(x => x.Draw(dOpts, paint, (float)w.lineWidth, drawThis));
                         }
                         break;
                     case "MultiPolygon":
-                        var lines = new List<LinearLineSegment>();
                         foreach (var p2 in ((MultiPolygon)thisGeometry).Geometries)
                         {
                             var drawThis2 = PolygonToDrawingPolygon(p2, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                             if (w.paintOp.FillOrStroke == "fill")
-                                image.Mutate(x => x.Fill(color, drawThis2));
+                                image.Mutate(x => x.Fill(dOpts, paint, drawThis2));
                             else
-                                image.Mutate(x => x.Draw(color, (float)w.lineWidth, drawThis2));
-
-
-                            //var drawThis1 = PolygonToDrawingLine(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
-                            //lines.Add(drawThis1);
-
-                            //foreach (var hole in ((NetTopologySuite.Geometries.Polygon)p2).InteriorRings)
-                            //{
-                            //    var drawthis2 = PolygonToDrawingLine(hole);
-                            //    lineSegmentList.Add(drawthis2);
-                            //}
+                                image.Mutate(x => x.Draw(dOpts, paint, (float)w.lineWidth, drawThis2));
                         }
-                        //var mp = new SixLabors.ImageSharp.Drawing.Polygon(lines);
-                        //var drawOpts = new DrawingOptions();
-                        //drawOpts.ShapeOptions.IntersectionRule = IntersectionRule.OddEven;
-                        //TODO: check this, consider switching shape options to OddEven if it doesn't draw holes right?
-                        //if (w.paintOp.FillOrStroke == "fill")
-                            //image.Mutate(x => x.Fill(drawOpts, color, mp));
-                        //else
-                            //image.Mutate(x => x.Draw(color, w.paintOp.LineWidth, mp));
                         break;
                     case "LineString":
                         var firstPoint = thisGeometry.Coordinates.First();
@@ -331,15 +353,15 @@ namespace PraxisCore
                         var line = LineToDrawingLine(thisGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
 
                         if (firstPoint.Equals(lastPoint) && w.paintOp.FillOrStroke == "fill")
-                            image.Mutate(x => x.Fill(color, new SixLabors.ImageSharp.Drawing.Polygon(new LinearLineSegment(line))));
+                            image.Mutate(x => x.Fill(dOpts, paint, new SixLabors.ImageSharp.Drawing.Polygon(new LinearLineSegment(line))));
                         else
-                            image.Mutate(x => x.DrawLines(color, (float)w.lineWidth, line));
+                            image.Mutate(x => x.DrawLines(dOpts, paint, (float)w.lineWidth, line));
                         break;
                     case "MultiLineString":
                         foreach (var p3 in ((MultiLineString)thisGeometry).Geometries)
                         {
                             var line2 = LineToDrawingLine(p3, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
-                            image.Mutate(x => x.DrawLines(color, (float)w.lineWidth, line2));
+                            image.Mutate(x => x.DrawLines(dOpts, paint, (float)w.lineWidth, line2));
                         }
                         break;
                     case "Point":
@@ -347,12 +369,9 @@ namespace PraxisCore
                         //If this type has an icon, use it. Otherwise draw a circle in that type's color.
                         if (!string.IsNullOrEmpty(w.paintOp.fileName))
                         {
-                            //this needs another Image TODO work out icon logic for ImageSharp.
-                            Image i2 = Image.Load(w.paintOp.fileName);
-                            //image.Mutate(x => x.DrawImage(w.paintOp.fileName, 1);
-                            //TODO bitmaps on bitmaps in ImageSharp
-                            //SKBitmap icon = TagParser.cachedBitmaps[w.paintOp.fileName];
-                            //canvas.DrawBitmap(icon, convertedPoint[0]);
+                            //TODO test that this draws in correct position.
+                            Image i2 = cachedBitmaps[w.paintOp.fileName];
+                            image.Mutate(x => x.DrawImage(i2, (SixLabors.ImageSharp.Point)convertedPoint, 1));
                         }
                         else
                         {
@@ -360,8 +379,8 @@ namespace PraxisCore
                             var shape = new SixLabors.ImageSharp.Drawing.EllipsePolygon(
                                 PointToPointF(thisGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY),
                                 new SizeF(circleRadius, circleRadius));
-                            image.Mutate(x => x.Fill(color, shape));
-                            image.Mutate(x => x.Draw(Color.Black, 1, shape)); //TODO: double check colors and sizes for outlines
+                            image.Mutate(x => x.Fill(dOpts, paint, shape));
+                            image.Mutate(x => x.Draw(dOpts, Color.Black, 1, shape)); //NOTE: this gets overlapped by other elements in the same (or higher) layers, maybe outlines should be their own layer again.
                         }
                         break;
                     default:
