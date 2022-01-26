@@ -26,10 +26,17 @@ namespace PraxisCore
         static SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
         static Random r = new Random();
         static Dictionary<string, SKBitmap> cachedBitmaps = new Dictionary<string, SKBitmap>(); //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
+        static Dictionary<long, SKPaint> cachedPaints = new Dictionary<long, SKPaint>(); 
 
         public void Initialize()
         {
-            //TODO: replace TagParser optimizations here.
+            foreach (var b in TagParser.cachedBitmaps)
+                cachedBitmaps.Add(b.Key, SKBitmap.Decode(b.Value));
+
+            foreach (var g in TagParser.allStyleGroups)
+                foreach(var s in g.Value)
+                    foreach(var p in s.Value.paintOperations)
+                        cachedPaints.Add(p.id, SetPaintForTPP(p));
         }
 
         /// <summary>
@@ -38,9 +45,7 @@ namespace PraxisCore
         /// <param name="tpe">the TagParserPaint object to populate</param>
         private static SKPaint SetPaintForTPP(TagParserPaint tpe)
         {
-            //TODO: juggle this around to save paints in-memory here instead of in TagParser.
             var paint = new SKPaint();
-            //TODO: enable a style to use static-random colors.
 
             paint.StrokeJoin = SKStrokeJoin.Round;
             paint.IsAntialias = true;
@@ -59,14 +64,14 @@ namespace PraxisCore
             }
             if (!string.IsNullOrEmpty(tpe.fileName))
             {
-                byte[] fileData = System.IO.File.ReadAllBytes(tpe.fileName);
+                //TODO restore bitmap paints
+                //byte[] fileData = System.IO.File.ReadAllBytes(tpe.fileName);
                 //byte[] fileData = new PraxisContext().TagParserStyleBitmaps.FirstOrDefault(f => f.filename == tpe.fileName).data;
-                SKBitmap fillPattern = SKBitmap.Decode(fileData); //TODO: remove this, replace with raw byte data. let Maptile library deal with converting it to formats.
-                cachedBitmaps.TryAdd(tpe.fileName, fillPattern); //For icons.
-                SKShader tiling = SKShader.CreateBitmap(fillPattern, SKShaderTileMode.Repeat, SKShaderTileMode.Repeat); //For fill patterns.
-                paint.Shader = tiling;
+                //SKBitmap fillPattern = cachedBitmaps[tpe.fileName];// SKBitmap.Decode(fileData); //TODO: remove this, replace with raw byte data. let Maptile library deal with converting it to formats.
+                //cachedBitmaps.TryAdd(tpe.fileName, fillPattern); //For icons.
+                //SKShader tiling = SKShader.CreateBitmap(fillPattern, SKShaderTileMode.Repeat, SKShaderTileMode.Repeat); //For fill patterns.
+                //paint.Shader = tiling;
             }
-            //tpe.paint = paint;
             return paint;
         }
 
@@ -330,7 +335,7 @@ namespace PraxisCore
 
             foreach (var w in paintOps.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))
             {
-                paint = SetPaintForTPP(w.paintOp); // w.paintOp.paint;
+                paint = cachedPaints[w.paintOp.id]; //SetPaintForTPP(w.paintOp); // w.paintOp.paint;
 
                 if (w.paintOp.fromTag) //FromTag is for when you are saving color data directly to each element, instead of tying it to a styleset.
                     paint.Color = SKColor.Parse(w.tagValue);
@@ -409,7 +414,7 @@ namespace PraxisCore
                         //If this type has an icon, use it. Otherwise draw a circle in that type's color.
                         if (!string.IsNullOrEmpty(w.paintOp.fileName))
                         {
-                            SKBitmap icon = TagParser.cachedBitmaps[w.paintOp.fileName];
+                            SKBitmap icon = SKBitmap.Decode(TagParser.cachedBitmaps[w.paintOp.fileName]); //TODO optimize by making icons in Initialize.
                             canvas.DrawBitmap(icon, convertedPoint[0]);
                         }
                         else
@@ -484,7 +489,7 @@ namespace PraxisCore
 
             foreach (var w in pass2.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))
             {
-                paint = SetPaintForTPP(w.paintOp);
+                paint = cachedPaints[w.paintOp.id]; //SetPaintForTPP(w.paintOp);
                 if (paint.Color.Alpha == 0)
                     continue; //This area is transparent, skip drawing it entirely.
 
@@ -548,7 +553,7 @@ namespace PraxisCore
                         //If this type has an icon, use it. Otherwise draw a circle in that type's color.
                         if (!string.IsNullOrEmpty(w.paintOp.fileName))
                         {
-                            SKBitmap icon = TagParser.cachedBitmaps[w.paintOp.fileName];
+                            SKBitmap icon = SKBitmap.Decode(TagParser.cachedBitmaps[w.paintOp.fileName]); //TODO optimize by creating in Initialize
                             canvas.DrawBitmap(icon, convertedPoint[0]);
                         }
                         else

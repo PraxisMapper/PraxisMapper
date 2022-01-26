@@ -1,6 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using OsmSharp.Tags;
-using SkiaSharp; //TODO remove this, move everything into MapTiles dlls
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -21,7 +20,7 @@ namespace PraxisCore
     {
         public static TagParserEntry defaultStyle; //background color must be last if I want un-matched areas to be hidden, its own color if i want areas with no ways at all to show up.
         //this one below has been ported over to libraries.
-        public static Dictionary<string, SKBitmap> cachedBitmaps = new Dictionary<string, SKBitmap>(); //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
+        public static Dictionary<string, byte[]> cachedBitmaps = new Dictionary<string, byte[]>(); //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
         public static Dictionary<string, Dictionary<string, TagParserEntry>> allStyleGroups = new Dictionary<string, Dictionary<string, TagParserEntry>>();
 
         private static IMapTiles MapTiles; 
@@ -37,8 +36,6 @@ namespace PraxisCore
             TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "none" }}
         };
-        
-        //public static SKPaint outlinePaint;
 
         /// <summary>
         /// Call once when the server or app is started. Loads all the styles and caches baseline data for later use.
@@ -47,21 +44,18 @@ namespace PraxisCore
         public static void Initialize(bool onlyDefaults = false, IMapTiles mapTiles = null)
         {
             MapTiles = mapTiles;
-            //var inMemoryAssembles = AppDomain.CurrentDomain.GetAssemblies(); //This could just be passed in as a parameter.
-            //foreach (var a in inMemoryAssembles)
-            //{
-            //    if (a.GetTypes().Any(a => a.Name == "PraxisCore.MapTiles"))
-            //    {
-            //        var type = a.GetType("MapTiles");
-            //        object instance = Activator.CreateInstance(type);
-            //        MapTiles = (IMapTiles)instance;
-            //    }
-            //}
-
             List<TagParserEntry> styles;
 
             if (onlyDefaults)
+            {
                 styles = Singletons.defaultTagParserEntries;
+                //cachedBitmaps.Add(b.filename, b.data);
+
+                long i = 1;
+                foreach(var s in styles)
+                    foreach (var p in s.paintOperations)
+                        p.id = i++;
+            }
             else
             {
                 try
@@ -72,21 +66,22 @@ namespace PraxisCore
                     if (styles == null || styles.Count() == 0)
                         styles = Singletons.defaultTagParserEntries;
 
-                    var dbSettings = db.ServerSettings.FirstOrDefault();
+                    var bitmaps = db.TagParserStyleBitmaps.ToList();
+                    foreach (var b in bitmaps)
+                    {
+                        cachedBitmaps.Add(b.filename, b.data);
+                    }
+
+                    //var dbSettings = db.ServerSettings.FirstOrDefault();
                     //if (dbSettings != null)
-                        //MapTiles.MapTileSizeSquare = dbSettings.SlippyMapTileSizeSquare;
+                    //MapTiles.MapTileSizeSquare = dbSettings.SlippyMapTileSizeSquare;
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     //The database doesn't exist, use defaults.
                     styles = Singletons.defaultTagParserEntries;
                 }
             }
-
-            //TODO: this should be moved to the initialize command of each drawing engine dll
-            //foreach (var s in styles)
-                //foreach(var p in s.paintOperations)
-                    //SetPaintForTPP(p);
 
             var groups = styles.GroupBy(s => s.styleSet);
             foreach (var g in groups)
@@ -105,50 +100,9 @@ namespace PraxisCore
                     new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "default" }}
             };
 
-            //TODO: these also probably need moved to the drawing engine dlls.
-            //SetPaintForTPP(outlineStyle.paintOperations.First());
-            //SetPaintForTPP(defaultStyle.paintOperations.First());
-            //outlinePaint = outlineStyle.paintOperations.First().paint;
-
+            //TODO: load bitmaps from the database and/or files before this.
             MapTiles.Initialize();
         }
-
-        /// <summary>
-        /// Create the SKPaint object for each style and store it in the requested object.
-        /// </summary>
-        /// <param name="tpe">the TagParserPaint object to populate</param>
-        //private static void SetPaintForTPP(TagParserPaint tpe)
-        //{
-        //    //TODO: remove this here, run this logic from MapTiles.Initialize().
-        //    var paint = new SKPaint();
-        //    //TODO: enable a style to use static-random colors.
-
-        //    paint.StrokeJoin = SKStrokeJoin.Round;
-        //    paint.IsAntialias = true;
-        //    paint.Color = SKColor.Parse(tpe.HtmlColorCode);
-        //    if (tpe.FillOrStroke == "fill")
-        //        paint.Style = SKPaintStyle.StrokeAndFill;
-        //    else
-        //        paint.Style = SKPaintStyle.Stroke;
-        //    paint.StrokeWidth = tpe.LineWidth;
-        //    paint.StrokeCap = SKStrokeCap.Round;
-        //    if (tpe.LinePattern != "solid")
-        //    {
-        //        float[] linesAndGaps = tpe.LinePattern.Split('|').Select(t => float.Parse(t)).ToArray();
-        //        paint.PathEffect = SKPathEffect.CreateDash(linesAndGaps, 0);
-        //        paint.StrokeCap = SKStrokeCap.Butt;
-        //    }
-        //    if (!string.IsNullOrEmpty(tpe.fileName))
-        //    {
-        //        byte[] fileData = System.IO.File.ReadAllBytes(tpe.fileName);
-        //        //byte[] fileData = new PraxisContext().TagParserStyleBitmaps.FirstOrDefault(f => f.filename == tpe.fileName).data;
-        //        SKBitmap fillPattern = SKBitmap.Decode(fileData); //TODO: remove this, replace with raw byte data. let Maptile library deal with converting it to formats.
-        //        cachedBitmaps.TryAdd(tpe.fileName, fillPattern); //For icons.
-        //        SKShader tiling = SKShader.CreateBitmap(fillPattern, SKShaderTileMode.Repeat, SKShaderTileMode.Repeat); //For fill patterns.
-        //        paint.Shader = tiling;
-        //    }
-        //    tpe.paint = paint;
-        //}
 
         /// <summary>
         /// Returns the style to use on an element given its tags and a styleset to search against.
