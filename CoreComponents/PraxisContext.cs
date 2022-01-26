@@ -148,7 +148,7 @@ namespace PraxisCore
             db.SaveChanges();
         }
 
-        public static void InsertDefaultStyle()
+        public void InsertDefaultStyle()
         {
             var db = new PraxisContext();
             //Remove any existing entries, in case I'm refreshing the rules on an existing entry.
