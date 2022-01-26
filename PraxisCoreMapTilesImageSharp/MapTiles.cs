@@ -37,8 +37,8 @@ namespace PraxisCore
 
         public void Initialize()
         {
-            //foreach (var b in TagParser.cachedBitmaps)
-                //cachedBitmaps.Add(b.Key, Image.Load(b.Value));
+            foreach (var b in TagParser.cachedBitmaps)
+                cachedBitmaps.Add(b.Key, Image.Load(b.Value));
 
             foreach (var g in TagParser.allStyleGroups)
                 foreach (var s in g.Value)
@@ -71,8 +71,8 @@ namespace PraxisCore
                 htmlColor = htmlColor.Substring(2, 6) + htmlColor.Substring(0, 2);
             IBrush paint = new SolidBrush(Rgba32.ParseHex(htmlColor));
 
-            //if (!string.IsNullOrEmpty(tpe.fileName))
-                //paint = new ImageBrush(cachedBitmaps[tpe.fileName]);
+            if (!string.IsNullOrEmpty(tpe.fileName))
+                paint = new ImageBrush(cachedBitmaps[tpe.fileName]);
 
             return paint;
         }

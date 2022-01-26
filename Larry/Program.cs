@@ -40,9 +40,6 @@ namespace Larry
             .AddJsonFile("Larry.config.json");
             config = builder.Build();
 
-            //var memMon = new MemoryMonitor();
-            ApplyConfigValues();
-
             if (true)
             {
                 var asm = Assembly.LoadFrom(@"PraxisMapTilesSkiaSharp.dll");
@@ -54,7 +51,7 @@ namespace Larry
                 MapTiles = (IMapTiles)Activator.CreateInstance(asm2.GetType("PraxisCore.MapTiles"));
             }
 
-
+            ApplyConfigValues();
             Log.WriteLog("Larry started at " + DateTime.Now);
 
             if (args.Count() == 0)
@@ -459,13 +456,17 @@ namespace Larry
 
             var toRemove = db.TagParserEntries.Include(t => t.paintOperations).Where(t => styles.Contains(t.styleSet)).ToList();
             var toRemovePaints = toRemove.SelectMany(t => t.paintOperations).ToList();
+            var toRemoveImages = db.TagParserStyleBitmaps.ToList();
             db.TagParserPaints.RemoveRange(toRemovePaints);
             db.SaveChanges();
             db.TagParserEntries.RemoveRange(toRemove);
             db.SaveChanges();
 
-            db.TagParserEntries.AddRange(Singletons.defaultTagParserEntries);
+            db.TagParserStyleBitmaps.RemoveRange(toRemoveImages);
             db.SaveChanges();
+
+            db.InsertDefaultStyle();
+
             Log.WriteLog("Styles restored to PraxisMapper defaults");
         }
 
