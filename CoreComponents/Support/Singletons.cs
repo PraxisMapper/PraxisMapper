@@ -99,7 +99,7 @@ namespace PraxisCore
             },
             new TagParserEntry() {IsGameElement = true, MatchOrder = 7, name ="cemetery", styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "AACBAF", FillOrStroke = "fill", fileName="MapPatterns\\Landuse-cemetery.png", LineWidth=0.0000125F, LinePattern= "solid", layerId = 100 }
+                    new TagParserPaint() { HtmlColorCode = "AACBAF", FillOrStroke = "fill", fileName="Landuse-cemetery.png", LineWidth=0.0000125F, LinePattern= "solid", layerId = 100 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "landuse", Value = "cemetery", MatchType = "or" },
