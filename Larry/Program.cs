@@ -40,14 +40,14 @@ namespace Larry
             .AddJsonFile("Larry.config.json");
             config = builder.Build();
 
-            if (true)
+            if (config["MapTilesEngine"] == "SkiaSharp")
             {
                 var asm = Assembly.LoadFrom(@"PraxisMapTilesSkiaSharp.dll");
                 MapTiles = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
             }   
-            else
+            else if (config["MapTilesEngine"] == "ImageSharp")
             {
-                var asm2 = Assembly.LoadFrom(@"PraxisMapTilesImageSharp.dll"); //works in debug. path isn't gonna work in publish.
+                var asm2 = Assembly.LoadFrom(@"PraxisMapTilesImageSharp.dll");
                 MapTiles = (IMapTiles)Activator.CreateInstance(asm2.GetType("PraxisCore.MapTiles"));
             }
 
