@@ -302,6 +302,8 @@ namespace PraxisCore
             foreach (var w in paintOps.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))
             {
                 var paint = cachedPaints[w.paintOp.id];
+                //if (w.paintOp.HtmlColorCode.Length == 8 && w.paintOp.HtmlColorCode.StartsWith("00"))
+                    //continue; //this is transparent, don't bother even processing this. //should be done in MapTileSupport
                 //TODO: pull in color and skip if transparent.
                 //string htmlColor = w.paintOp.HtmlColorCode;
                 //if (htmlColor.Length == 8)
@@ -311,12 +313,13 @@ namespace PraxisCore
                 //continue; //This area is transparent, skip drawing it entirely.
 
 
-                //ImageSharp is just not fast enough on big areas, so we have to crop them down here. Maybe. Causes other issues.
-                //var thisGeometry = w.elementGeometry.Intersection(Converters.GeoAreaToPolygon(stats.area)); //for testing performance improvements. Causes other issues.
-                var thisGeometry = w.elementGeometry; //For testing at regular speed. 
+                //ImageSharp is just not fast enough on big areas, so we have to crop them down here. Maybe. Causes other issues sometimes?
+                var thisGeometry = w.elementGeometry.Intersection(Converters.GeoAreaToPolygon(stats.area)); //Worked on perf-testing with large and small areas.
+                //var thisGeometry = w.elementGeometry; //For testing at regular speed.
 
                 //Potential speed fix #2 by removing points that are less than 1 pixel apart from another point.
-                thisGeometry = NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(thisGeometry, stats.degreesPerPixelX);
+                //This actually hurts average runtime when run on everything.
+                //thisGeometry = NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(thisGeometry, stats.degreesPerPixelX);
 
                 //Potential logic fix:
                 //for geometries, clamp all points to the current tile's bounds

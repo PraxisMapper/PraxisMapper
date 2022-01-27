@@ -339,6 +339,7 @@ namespace PraxisCore
                 if (w.paintOp.fromTag) //FromTag is for when you are saving color data directly to each element, instead of tying it to a styleset.
                     paint.Color = SKColor.Parse(w.tagValue);
 
+                //should be done in make paint ops
                 if (paint.Color.Alpha == 0)
                     continue; //This area is transparent, skip drawing it entirely.
 
