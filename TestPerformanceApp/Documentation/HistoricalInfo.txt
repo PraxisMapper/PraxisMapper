@@ -145,7 +145,7 @@ Decision: The new vector logic draws prettier tiles faster at essentially every 
 I'll switch over to it. I may want to figure out some styling rules that can be defined in code (probably on AreaType class) that will let my maps become more flexible.
 And I wouldn't have to be limited to drawing to a PlusCode size for pixels.
 
-ImageSharpVsSkiaShapr 3/4/21:
+ImageSharpVsSkiaSharp 3/4/21:
 (zoom 12)
 Loading data for ImageSharp vs SkiaSharp performance test
 ImageSharp performance:1262ms
@@ -238,3 +238,20 @@ Customized PBF reader loaded 1 area in 00:00:11.2660481
 Original PBF reader loaded 1 area in 00:00:51.5567605
 Conclusion: Even with indexing, my code is much faster. I knew it was, but I wanted to see a difference. 5x faster for a single area.
 Doing multiple areas would reduce that gap, but my code uses much less RAM in that case.
+
+Rematch: Imagesharp vs Skia: 1/27/22, Release builds, 260 tiles from downtown.
+Average Skia time:0.06538461538461539
+Average ImageSharp time:7.046153846153846
+(using JPEG instead of PNG):
+Average Skia time:0.15384615384615385
+Average ImageSharp time:6.415384615384616
+(removing transparent areas in MapTileSupport)
+Average Skia time:0.20384615384615384
+Average ImageSharp time:1.0076923076923077
+(repeat of above)
+Average Skia time:0.057692307692307696
+Average ImageSharp time:0.8884615384615384
+(removed transparent areas, with Lake Erie):
+Conclusion: this is very swing-y, but confirms ImageSharp is slower. BUT on a scale that's entirely acceptable.
+This probably means most of the actual time for making a maptile is done elsewhere in my code, and adding 7ms per tile (in the worst general case) to that is probably not awful by itself
+

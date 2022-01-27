@@ -41,7 +41,7 @@ namespace PerformanceTestApp
 
         static void Main(string[] args)
         {
-            var asm = Assembly.LoadFrom(@".\bin\Debug\net6.0\PraxisMapTilesSkiaSharp.dll"); //works in debug. path isn't gonna work in publish.
+            var asm = Assembly.LoadFrom(@"PraxisMapTilesSkiaSharp.dll");
             var MapTiles = Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
 
             //PraxisContext.serverMode = "SQLServer";
@@ -75,12 +75,13 @@ namespace PerformanceTestApp
             //TestRasterVsVectorCell8();
             //TestRasterVsVectorCell10();
             //TestImageSharpVsSkiaSharp(); //imagesharp was removed for being vastly slower.
-            TestTagParser();
+            //TestTagParser();
             //TestCropVsNoCropDraw("86HWPM");
             //TestCropVsNoCropDraw("86HW");
             //TestCustomPbfReader();
             //TestDrawingHoles();
             //TestPbfParsing();
+            TestMaptileDrawing();
 
             //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
             //These cannot all be enabled in one run. You must comment/uncomment each one separately.
@@ -1760,26 +1761,58 @@ namespace PerformanceTestApp
             Log.WriteLog("Original PBF reader loaded 1 area in " + sw.Elapsed);
         }
 
-        public static void TestMaptileDrawing(string mode)
+        public static void TestMaptileDrawing()
         {
             Log.WriteLog("Testing Maptile drawing");
             var db = new PraxisContext();
-            IMapTiles mt;
+            IMapTiles mtSkia;
+            IMapTiles mtImage;
+            var asm = Assembly.LoadFrom(@"PraxisMapTilesSkiaSharp.dll");
+            mtSkia = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
 
-            if (mode == "skia")
-            {
-                var asm = Assembly.LoadFrom(@"PraxisMapTilesSkiaSharp.dll");
-                mt = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
-                Log.WriteLog("Using SkiaSharp:");
-            }
-            else
-            {
-                var asm = Assembly.LoadFrom(@"PraxisMapTilesImageSharp.dll");
-                mt = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
-                Log.WriteLog("Using ImageSharp:");
-            }
+            var asm2 = Assembly.LoadFrom(@"PraxisMapTilesImageSharp.dll");
+            mtImage = (IMapTiles)Activator.CreateInstance(asm2.GetType("PraxisCore.MapTiles"));
 
+            Log.WriteLog("Both engines loaded.");
 
+            TagParser.Initialize(false, mtSkia);
+            mtImage.Initialize(); //also needs called since it's not initialized yet.
+
+            List<long> skiaDurations = new List<long>();
+            List<long> imageDurations = new List<long>();
+            //Get an area from the DB, draw some map tiles with each.
+            var mapData = db.StoredOsmElements.ToList(); //pull them all into RAM to skip DB perf issue.
+
+            string startPoint = "86HWF5"; //add 4 chars to draw cell8 tiles.
+                                          //string endPoint = "86HW99"; //15 Cell6 blocks to draw, so 400 * 15 tiles for testing.
+
+            for (int pos1 = 0; pos1 < 20; pos1++) //13 on this test blows up on lake erie, takes 2.5 minutes to draw in ImageSharp
+                for (int pos2 = 0; pos2 < 20; pos2++)
+                {
+                    string cellToCheck = startPoint + OpenLocationCode.CodeAlphabet[pos1].ToString() + OpenLocationCode.CodeAlphabet[pos2].ToString();
+                    var area = new OpenLocationCode(cellToCheck).Decode();
+                    ImageStats stats = new ImageStats(area, 80, 100);
+                    var places = GetPlaces(area, mapData, 0, "mapTiles");
+                    var drawOps = MapTileSupport.GetPaintOpsForStoredElements(places, "mapTiles", stats);
+
+                    Stopwatch swSkia = new Stopwatch();
+                    Stopwatch swImage = new Stopwatch();
+                    swSkia.Start();
+                    //draw tile
+                    mtSkia.DrawAreaAtSize(stats, drawOps);
+                    swSkia.Stop();
+                    skiaDurations.Add(swSkia.ElapsedMilliseconds);
+                    swImage.Start();
+                    //draw tile
+                    mtImage.DrawAreaAtSize(stats, drawOps);
+                    swImage.Stop();
+                    imageDurations.Add(swImage.ElapsedMilliseconds);
+
+                    Console.WriteLine(cellToCheck + ": " + swSkia.Elapsed + " vs " + swImage.Elapsed);
+                }
+
+            Console.WriteLine("Average Skia time:" + skiaDurations.Average());
+            Console.WriteLine("Average ImageSharp time:" + imageDurations.Average());
         }
     }
 }
