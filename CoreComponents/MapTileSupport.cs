@@ -124,7 +124,7 @@ namespace PraxisCore
                 foreach (var po in op.paintOp)
                     if (stats.degreesPerPixelX < po.maxDrawRes 
                         && stats.degreesPerPixelX > po.minDrawRes //dppX should be between max and min draw range.
-                        //&& !(po.HtmlColorCode.Length == 8 && po.HtmlColorCode.StartsWith("00")) //color is NOT transparent.
+                        && !(po.HtmlColorCode.Length == 8 && po.HtmlColorCode.StartsWith("00")) //color is NOT transparent.
                         ) 
                         pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po, "", po.LineWidth * stats.pixelsPerDegreeX));
 
