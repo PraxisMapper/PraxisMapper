@@ -302,20 +302,13 @@ namespace PraxisCore
             foreach (var w in paintOps.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))
             {
                 var paint = cachedPaints[w.paintOp.id];
-                //if (w.paintOp.HtmlColorCode.Length == 8 && w.paintOp.HtmlColorCode.StartsWith("00"))
-                    //continue; //this is transparent, don't bother even processing this. //should be done in MapTileSupport
-                //TODO: pull in color and skip if transparent.
-                //string htmlColor = w.paintOp.HtmlColorCode;
-                //if (htmlColor.Length == 8)
-                //htmlColor = htmlColor.Substring(2, 6) + htmlColor.Substring(0, 2);
-                //var color = Rgba32.ParseHex(htmlColor);
-                //if (paint.color.A == 0)
-                //continue; //This area is transparent, skip drawing it entirely.
 
-
-                //ImageSharp is just not fast enough on big areas, so we have to crop them down here. Maybe. Causes other issues sometimes?
-                var thisGeometry = w.elementGeometry.Intersection(Converters.GeoAreaToPolygon(stats.area)); //Worked on perf-testing with large and small areas.
-                //var thisGeometry = w.elementGeometry; //For testing at regular speed.
+                //ImageSharp doesn;t like humungous areas (16k+ nodes takes a couple minutes), so we have to crop them down here. Maybe. Cropping Causes other issues sometimes?
+                Geometry thisGeometry;
+                //if (w.elementGeometry.Coordinates.Length < 800)
+                    thisGeometry = w.elementGeometry; //default
+                //else
+                    //thisGeometry = w.elementGeometry.Intersection(Converters.GeoAreaToPolygon(stats.area));
 
                 //Potential speed fix #2 by removing points that are less than 1 pixel apart from another point.
                 //This actually hurts average runtime when run on everything.
@@ -326,7 +319,7 @@ namespace PraxisCore
                 //if its the same location as the previous point after clamping, remove it from the list of points.
                 //Or try and be clever: if any point is beyond the tile bounds in 2 directions, set 1 point at the corner (or just outside of it)
                 //and erase all points beyond it?
-                
+
                 switch (thisGeometry.GeometryType)
                 {
                     case "Polygon":
@@ -393,6 +386,7 @@ namespace PraxisCore
             }
 
             image.Mutate(x => x.Flip(FlipMode.Vertical)); //Plus codes are south-to-north, so invert the image to make it correct.
+            image.Mutate(x => x.BoxBlur(1)); //This does help smooth out some of the rough edges on the game tiles. 
             var ms = new MemoryStream();
             image.SaveAsPng(ms);
             return ms.ToArray();

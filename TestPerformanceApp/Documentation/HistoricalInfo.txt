@@ -251,7 +251,9 @@ Average ImageSharp time:1.0076923076923077
 (repeat of above)
 Average Skia time:0.057692307692307696
 Average ImageSharp time:0.8884615384615384
-(removed transparent areas, with Lake Erie):
-Conclusion: this is very swing-y, but confirms ImageSharp is slower. BUT on a scale that's entirely acceptable.
+(not cropping areas to maptile):
+Average Skia time:0.075
+Average ImageSharp time:0.485
+Conclusion: this is very swing-y, but confirms ImageSharp is slower. BUT on a scale that's entirely acceptable. Best performance is 5x slower
 This probably means most of the actual time for making a maptile is done elsewhere in my code, and adding 7ms per tile (in the worst general case) to that is probably not awful by itself
 
