@@ -176,7 +176,7 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/IncrementGlobalData/{key}/{changeAmount}")]
-        public void IncrementGlobalData(string key, double changeAmount
+        public void IncrementGlobalData(string key, double changeAmount)
         {
             incrementLock.TryAdd(key, dictValue);
             lock (incrementLock[key])
