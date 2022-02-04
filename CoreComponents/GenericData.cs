@@ -167,7 +167,7 @@ namespace PraxisCore
             var plusCodeData = db.CustomDataPlusCodes.Where(d => plusCodePoly.Intersects(d.geoAreaIndex))
                 .ToList() //Required to run the next Where on the C# side
                 .Where(row => row.expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now)
-                .Select(d => new CustomDataResult(d.PlusCode, d.dataKey, d.dataValue))
+                .Select(d => new CustomDataResult(d.PlusCode, d.dataKey, d.dataValue.Length > 512 ? "truncated" : d.dataValue))
                 .ToList();
 
             return plusCodeData;
@@ -185,7 +185,7 @@ namespace PraxisCore
             var plusCodeData = db.CustomDataPlusCodes.Where(d => poly.Intersects(d.geoAreaIndex))
                 .ToList() //Required to run the next Where on the C# side
                 .Where(row => row.expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now)
-                .Select(d => new CustomDataResult(d.PlusCode, d.dataKey, d.dataValue))
+                .Select(d => new CustomDataResult(d.PlusCode, d.dataKey, d.dataValue.Length > 512? "truncated" : d.dataValue))
                 .ToList();
 
             return plusCodeData;
@@ -203,7 +203,7 @@ namespace PraxisCore
             var data = db.CustomDataOsmElements.Include(d => d.storedOsmElement).Where(d => poly.Intersects(d.storedOsmElement.elementGeometry))
                 .ToList() //Required to run the next Where on the C# side
                 .Where(row => row.expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now)
-                .Select(d => new CustomDataAreaResult(d.storedOsmElement.privacyId, d.dataKey, d.dataValue))
+                .Select(d => new CustomDataAreaResult(d.storedOsmElement.privacyId, d.dataKey, d.dataValue.Length > 512 ? "truncated" : d.dataValue))
                 .ToList();
 
             return data;
@@ -221,7 +221,7 @@ namespace PraxisCore
             var data = db.CustomDataOsmElements.Where(d => d.storedOsmElement.elementGeometry.Intersects(d.storedOsmElement.elementGeometry))
                 .ToList() //Required to run the next Where on the C# side
                 .Where(row => row.expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now)
-                .Select(d => new CustomDataAreaResult(place.privacyId, d.dataKey, d.dataValue))
+                .Select(d => new CustomDataAreaResult(place.privacyId, d.dataKey, d.dataValue.Length > 512 ? "truncated" : d.dataValue))
                 .ToList();
 
             return data;
@@ -238,7 +238,7 @@ namespace PraxisCore
             var data = db.PlayerData.Where(p => p.deviceID == deviceID)
                 .ToList()
                 .Where(row => row.expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now)
-                .Select(d => new CustomDataPlayerResult(d.deviceID, d.dataKey, d.dataValue))
+                .Select(d => new CustomDataPlayerResult(d.deviceID, d.dataKey, d.dataValue.Length > 512 ? "truncated" : d.dataValue))
                 .ToList();
 
             return data;
