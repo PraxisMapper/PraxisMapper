@@ -30,6 +30,10 @@ namespace PraxisCore
 
         public void Initialize()
         {
+            IMapTiles.GameTileScale = GameTileScale;
+            IMapTiles.MapTileSizeSquare = MapTileSizeSquare;
+            IMapTiles.bufferSize = bufferSize;
+
             foreach (var b in TagParser.cachedBitmaps)
                 cachedBitmaps.Add(b.Key, SKBitmap.Decode(b.Value));
 
@@ -328,7 +332,7 @@ namespace PraxisCore
             //baseline image data stuff           
             SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
             SKCanvas canvas = new SKCanvas(bitmap);
-            //canvas.Clear(bgColor);
+            canvas.Clear(eraser.Color);
             canvas.Scale(1, -1, stats.imageSizeX / 2, stats.imageSizeY / 2);
             SKPaint paint = new SKPaint();
 
@@ -338,10 +342,6 @@ namespace PraxisCore
 
                 if (w.paintOp.fromTag) //FromTag is for when you are saving color data directly to each element, instead of tying it to a styleset.
                     paint.Color = SKColor.Parse(w.tagValue);
-
-                //should be done in make paint ops
-                if (paint.Color.Alpha == 0)
-                    continue; //This area is transparent, skip drawing it entirely.
 
                 if (w.paintOp.randomize) //To randomize the color on every Draw call.
                     paint.Color = new SKColor((byte)r.Next(0, 255), (byte)r.Next(0, 255), (byte)r.Next(0, 255), 99);

@@ -37,6 +37,10 @@ namespace PraxisCore
 
         public void Initialize()
         {
+            IMapTiles.GameTileScale = GameTileScale;
+            IMapTiles.MapTileSizeSquare = MapTileSizeSquare;
+            IMapTiles.bufferSize = bufferSize;
+
             foreach (var b in TagParser.cachedBitmaps)
                 cachedBitmaps.Add(b.Key, Image.Load(b.Value));
 
