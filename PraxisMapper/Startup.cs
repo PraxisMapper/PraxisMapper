@@ -59,6 +59,7 @@ namespace PraxisMapper
             }
 
             TagParser.Initialize(Configuration.GetValue<bool>("ForceTagParserDefaults"), mapTiles); //set to true when debugging new style rules without resetting the database entries.
+            MapTileSupport.MapTiles = mapTiles;
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

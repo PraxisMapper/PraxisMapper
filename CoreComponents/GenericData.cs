@@ -22,6 +22,9 @@ namespace PraxisCore
         /// <param name="value">The value to save with the key.</param>
         /// <param name="expiration">If not null, expire this data in this many seconds from now.</param>
         /// <returns>true if data was saved, false if data was not.</returns>
+        /// 
+        public static Aes baseSec = Aes.Create();
+
         public static bool SetPlusCodeData(string plusCode, string key, string value, double? expiration = null)
         {
             var db = new PraxisContext();
@@ -427,7 +430,6 @@ namespace PraxisCore
 
         private static string EncryptValue(string value, string password)
         {
-            Aes baseSec = Aes.Create();
             byte[] passwordBytes = password.ToByteArrayUnicode();
             var crypter = baseSec.CreateEncryptor(passwordBytes, baseSec.IV);
             var ms = new MemoryStream();
@@ -437,16 +439,16 @@ namespace PraxisCore
                 sw.Write(value);
             }
 
-            var data = Convert.ToBase64String(baseSec.IV) + "|" + Convert.ToBase64String(ms.ToArray());
+            var data = Convert.ToBase64String(ms.ToArray()); //Convert.ToBase64String(baseSec.IV) + "|" + 
             return data;
         }
 
         private static string DecryptValue(string value, string password)
         {
             string[] pieces = value.Split("|");
-            byte[] ivBytes = Convert.FromBase64String(pieces[0]);
+            byte[] ivBytes = baseSec.IV; //Convert.FromBase64String(pieces[0]);
             byte[] encrypedData = Convert.FromBase64String(pieces[1]);
-            Aes baseSec = Aes.Create();
+
             byte[] passwordBytes = password.ToByteArrayUnicode();
             var crypter = baseSec.CreateDecryptor(passwordBytes, ivBytes);
             string results = "";
