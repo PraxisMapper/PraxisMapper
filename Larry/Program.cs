@@ -52,6 +52,14 @@ namespace Larry
             }
 
             ApplyConfigValues();
+            //If multiple args are supplied, run them in the order that make sense, not the order the args are supplied.
+            if (args.Any(a => a == "-createDB")) //setup the destination database
+            {
+                createDb();
+            }
+            
+            TagParser.Initialize(config["ForceTagParserDefaults"] == "True", MapTiles); //Do this after the DB values are parsed.
+
             Log.WriteLog("Larry started at " + DateTime.Now);
 
             if (args.Count() == 0)
@@ -69,12 +77,6 @@ namespace Larry
             {
                 Console.WriteLine("You set a MariaDB-only option on and aren't using MariaDB! Fix the configs to use MariaDB or disable the InFile setting and run again.");
                 return;
-            }
-
-            //If multiple args are supplied, run them in the order that make sense, not the order the args are supplied.
-            if (args.Any(a => a == "-createDB")) //setup the destination database
-            {
-                createDb();
             }
 
             if (args.Any(a => a.StartsWith("-getPbf:")))
@@ -571,8 +573,6 @@ namespace Larry
                     Log.Verbosity = Log.VerbosityLevels.High;
                     break;
             }
-
-            TagParser.Initialize(config["ForceTagParserDefaults"] == "True", MapTiles); //Do this after the DB values are parsed.
         }
 
         public static void DetectMapTilesRecursive(string parentCell, bool skipExisting) //This was off slightly at one point, but I didn't document how much or why. Should be correct now.

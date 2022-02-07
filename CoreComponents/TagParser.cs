@@ -99,8 +99,6 @@ namespace PraxisCore
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "default" }}
             };
-
-            //TODO: load bitmaps from the database and/or files before this.
             MapTiles.Initialize();
         }
 

@@ -38,8 +38,8 @@ namespace PraxisCore
                     Y = 5;
                     break;
                 case 8:
-                    X = 80;
-                    Y = 100;
+                    X = 4 * 20;
+                    Y = 5 * 20;
                     break;
                 case 6:
                     X = 4 * 20 * 20;
@@ -56,7 +56,6 @@ namespace PraxisCore
             }
             X = (int)(X * IMapTiles.GameTileScale);
             Y = (int)(Y * IMapTiles.GameTileScale);
-
         }
 
         /// <summary>
