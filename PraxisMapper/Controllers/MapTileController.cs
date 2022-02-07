@@ -59,7 +59,7 @@ namespace PraxisMapper.Controllers
                     var dataLoadArea = new GeoArea(info.area.SouthLatitude - ConstantValues.resolutionCell10, info.area.WestLongitude - ConstantValues.resolutionCell10, info.area.NorthLatitude + ConstantValues.resolutionCell10, info.area.EastLongitude + ConstantValues.resolutionCell10);
                     DateTime expires = DateTime.Now;
                     byte[] results = null;
-                    var places = GetPlaces(dataLoadArea, null, info.filterSize, styleSet, false, info.drawPoints); 
+                    var places = GetPlaces(dataLoadArea, null, info.filterSize, styleSet, false, info.drawPoints);
                     //var places = GetPlacesForTile(info, null, styleSet); //Image area crops points near boundaries
                     var paintOps = MapTileSupport.GetPaintOpsForStoredElements(places, styleSet, info);
                     results = MapTiles.DrawAreaAtSize(info, paintOps); //, TagParser.GetStyleBgColor(styleSet));
@@ -71,6 +71,7 @@ namespace PraxisMapper.Controllers
                         existingResults.CreatedOn = DateTime.Now;
                         existingResults.ExpireOn = expires;
                         existingResults.tileData = results;
+                        existingResults.generationID++;
                     }
                     if (useCache)
                         db.SaveChanges();
@@ -129,6 +130,7 @@ namespace PraxisMapper.Controllers
                         existingResults.CreatedOn = DateTime.Now;
                         existingResults.ExpireOn = expires;
                         existingResults.tileData = results;
+                        existingResults.generationID++;
                     }
                     if (useCache)
                         db.SaveChanges();
@@ -187,6 +189,7 @@ namespace PraxisMapper.Controllers
                         existingResults.CreatedOn = DateTime.Now;
                         existingResults.ExpireOn = expires;
                         existingResults.tileData = results;
+                        existingResults.generationID++;
                     }
                     if (useCache)
                         db.SaveChanges();
@@ -245,6 +248,7 @@ namespace PraxisMapper.Controllers
                         existingResults.CreatedOn = DateTime.Now;
                         existingResults.ExpireOn = expires;
                         existingResults.tileData = results;
+                        existingResults.generationID++;
                     }
                     if (useCache)
                         db.SaveChanges();
@@ -270,7 +274,7 @@ namespace PraxisMapper.Controllers
             //I think, what I actually need, is the CreatedOn, and if it's newer than the client's tile, replace it.
             PerformanceTracker pt = new PerformanceTracker("CheckTileExpiration");
             var db = new PraxisContext();
-            var mapTileExp = db.MapTiles.FirstOrDefault(m => m.PlusCode == PlusCode && m.styleSet == styleSet ).ExpireOn;
+            var mapTileExp = db.MapTiles.FirstOrDefault(m => m.PlusCode == PlusCode && m.styleSet == styleSet).ExpireOn;
             pt.Stop();
             return mapTileExp.ToShortDateString();
         }
@@ -313,6 +317,7 @@ namespace PraxisMapper.Controllers
                         existingResults.CreatedOn = DateTime.Now;
                         existingResults.ExpireOn = expires;
                         existingResults.tileData = results;
+                        existingResults.generationID++;
                     }
                     db.SaveChanges();
                     pt.Stop(code + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
@@ -363,6 +368,7 @@ namespace PraxisMapper.Controllers
                         existingResults.CreatedOn = DateTime.Now;
                         existingResults.ExpireOn = expires;
                         existingResults.tileData = results;
+                        existingResults.generationID++;
                     }
                     db.SaveChanges();
                     pt.Stop(code + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
@@ -414,6 +420,7 @@ namespace PraxisMapper.Controllers
                         existingResults.CreatedOn = DateTime.Now;
                         existingResults.ExpireOn = expires;
                         existingResults.tileData = results;
+                        existingResults.generationID++;
                     }
                     db.SaveChanges();
                     pt.Stop(code + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
@@ -464,6 +471,7 @@ namespace PraxisMapper.Controllers
                         existingResults.CreatedOn = DateTime.Now;
                         existingResults.ExpireOn = expires;
                         existingResults.tileData = results;
+                        existingResults.generationID++;
                     }
                     db.SaveChanges();
                     pt.Stop(code + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
@@ -486,6 +494,85 @@ namespace PraxisMapper.Controllers
         {
             var db = new PraxisContext();
             db.ExpireMapTiles(elementId, styleSet);
+        }
+
+        [HttpGet]
+        [Route("/[controller]/GetTileExpiration/{plusCode}/{styleSet}")]
+        public static long GetTileExpiration(string plusCode, string styleSet)
+        {
+            //Returns seconds remaining on this tile's lifetime in the server.
+            //if value is *more* than previous value, client should refres it.
+            //if value is less than previous value, tile has not changed and ticks forward.
+            try
+            {
+                PerformanceTracker pt = new PerformanceTracker("GetTileExpiration");
+                var db = new PraxisContext();
+                var tileDate = db.MapTiles
+                    .Where(m => m.PlusCode == plusCode && m.styleSet == styleSet)
+                    .Select(m => m.ExpireOn)
+                    .FirstOrDefault();
+
+                var results = (long)(tileDate - DateTime.Now).TotalSeconds;
+                pt.Stop();
+                return results;
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex);
+                return -1; //negative answers will be treated as an expiration.
+            }
+        }
+        
+        [HttpGet]
+        [Route("/[controller]/GetTileGenerationId/{plusCode}/{styleSet}")]
+        public static long GetTileGenerationId(string plusCode, string styleSet)
+        {
+            //Returns generationID on the tile on the server
+            //if value is *more* than previous value, client should refresh it.
+            //if value is equal to previous value, tile has not changed.
+            try
+            {
+                PerformanceTracker pt = new PerformanceTracker("GetTileGenerationId");
+                var db = new PraxisContext();
+                var tileGenId = db.MapTiles
+                    .Where(m => m.PlusCode == plusCode && m.styleSet == styleSet)
+                    .Select(m => m.generationID)
+                    .FirstOrDefault();
+
+                pt.Stop();
+                return tileGenId;
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex);
+                return -1; //negative answers will be treated as an expiration.
+            }
+        }
+
+        [HttpGet]
+        [Route("/[controller]/GetSlippyTileGenerationId/{x}/{y}/{zoom}/{styleSet}")]
+        public static long GetSlippyTileGenerationId(string x, string y, string zoom, string styleSet)
+        {
+            //Returns generationID on the tile on the server
+            //if value is *more* than previous value, client should refresh it.
+            //if value is equal to previous value, tile has not changed.
+            try
+            {
+                PerformanceTracker pt = new PerformanceTracker("GetTileGenerationId");
+                var db = new PraxisContext();
+                var tileGenId = db.SlippyMapTiles
+                    .Where(m => m.Values == x + "|" + y + "|" + zoom && m.styleSet == styleSet)
+                    .Select(m => m.generationID)
+                    .FirstOrDefault();
+
+                pt.Stop();
+                return tileGenId;
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex);
+                return -1; //negative answers will be treated as an expiration.
+            }
         }
 
     }

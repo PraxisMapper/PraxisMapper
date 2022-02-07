@@ -44,6 +44,7 @@ namespace PraxisCore
             [Column(TypeName = "geography")]
             [Required]
             public Geometry areaCovered { get; set; } //This lets us find and expire map tiles if the data under them changes.
+            public long generationID { get; set; } = 0; //How many times this tile has been redrawn. Used by client to know when to get new tiles.
         }
 
         public class ErrorLog
@@ -132,6 +133,7 @@ namespace PraxisCore
             [Column(TypeName = "geography")]
             [Required]
             public Geometry areaCovered { get; set; } //This lets us find and expire map tiles if the data under them changes.
+            public long generationID { get; set; } = 0; //How many times this tile has been redrawn. Used by client to know when to get new tiles.
         }
 
         public class ZztGame //TODO rename
