@@ -445,9 +445,9 @@ namespace PraxisCore
 
         private static string DecryptValue(string value, string password)
         {
-            string[] pieces = value.Split("|");
+            //string[] pieces = value.Split("|");
             byte[] ivBytes = baseSec.IV; //Convert.FromBase64String(pieces[0]);
-            byte[] encrypedData = Convert.FromBase64String(pieces[1]);
+            byte[] encrypedData = Convert.FromBase64String(value);
 
             byte[] passwordBytes = password.ToByteArrayUnicode();
             var crypter = baseSec.CreateDecryptor(passwordBytes, ivBytes);
