@@ -11,6 +11,8 @@ using static PraxisCore.DbTables;
 using static PraxisCore.Place;
 using System.Linq;
 using CryptSharp;
+using System.IO.Pipelines;
+using System.Threading.Tasks;
 
 namespace PraxisMapper.Controllers
 {
@@ -58,12 +60,18 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
+        [Route("/[controller]/SetSecurePlusCodeData/{plusCode}/{key}/{password}")] //for when value is part of the body
         [Route("/[controller]/SetSecurePlusCodeData/{plusCode}/{key}/{value}/{password}")]
         [Route("/[controller]/SetSecurePlusCodeData/{plusCode}/{key}/{value}/{password}/{expiresIn}")]
-        public bool SetSecurePlusCodeData(string plusCode, string key, string value, string password, double? expiresIn = null)
+        public async Task<bool> SetSecurePlusCodeDataAsync(string plusCode, string key, string value, string password, double? expiresIn = null)
         {
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return false;
+            if (value == null)
+            {
+                var sr = new System.IO.StreamReader(Request.Body);
+                value = await sr.ReadToEndAsync();
+            }
             return GenericData.SetSecurePlusCodeData(plusCode, key, value, password, expiresIn);
         }
 
