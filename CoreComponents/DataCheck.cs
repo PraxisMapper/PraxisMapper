@@ -10,6 +10,8 @@ namespace PraxisCore
     /// </summary>
     public static class DataCheck
     {
+        public static bool DisableBoundsCheck = true;
+
         /// <summary>
         /// Determine if a GeoArea (presumably from a PlusCode) intersects with the data contained in the server.
         /// </summary>
@@ -18,7 +20,7 @@ namespace PraxisCore
         /// <returns>true if the 2 parameters intersect, or false if they do not.</returns>
         public static bool IsInBounds(IPreparedGeometry bounds, GeoArea place)
         {
-            if (bounds.Intersects(Converters.GeoAreaToPolygon(place)))
+            if (DisableBoundsCheck || bounds.Intersects(Converters.GeoAreaToPolygon(place)))
                 return true;
 
             return false;
@@ -32,7 +34,7 @@ namespace PraxisCore
         /// <returns>true if the 2 parameters intersect, or false if they do not.</returns>
         public static bool IsInBounds(IPreparedGeometry bounds, Polygon place)
         {
-            if (bounds.Intersects(place))
+            if (DisableBoundsCheck || bounds.Intersects(place))
                 return true;
 
             return false;
@@ -59,7 +61,7 @@ namespace PraxisCore
         public static bool IsInBounds(IPreparedGeometry bounds, double lat, double lon)
         {
             Point p = new Point(lon, lat);
-            if (bounds.Intersects(p))
+            if (DisableBoundsCheck || bounds.Intersects(p))
                 return true;
 
             return false;
