@@ -29,6 +29,7 @@ namespace PraxisMapper
             PraxisHeaderCheck.enableAuthCheck = Configuration.GetValue<bool>("enableAuthCheck");
             PraxisHeaderCheck.ServerAuthKey = Configuration.GetValue<string>("serverAuthKey");
             //AdminController.adminPwd = Configuration.GetValue<string>("adminPwd"); This pulls it directly from the configuration object in AdminController.
+            DataCheck.DisableBoundsCheck = Configuration.GetValue<bool>("DisableBoundsCheck");
 
             mapTilesEngine = Configuration.GetValue<string>("MapTilesEngine");
         }
