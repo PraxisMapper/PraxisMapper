@@ -322,6 +322,29 @@ namespace PraxisCore
             return db.SaveChanges() == 1;
         }
 
+        public static bool SetSecurePlusCodeData(string plusCode, string key, byte[] value, string password, double? expiration = null)
+        {
+            var db = new PraxisContext();
+
+            string encryptedValue = EncryptValue(value, password);
+
+            //An upsert command would be great here, but I dont think the entities do that.
+            var row = db.CustomDataPlusCodes.FirstOrDefault(p => p.PlusCode == plusCode && p.dataKey == key);
+            if (row == null)
+            {
+                row = new DbTables.CustomDataPlusCode();
+                row.dataKey = key;
+                row.PlusCode = plusCode;
+                row.geoAreaIndex = Converters.GeoAreaToPolygon(OpenLocationCode.DecodeValid(plusCode.ToUpper()));
+                db.CustomDataPlusCodes.Add(row);
+            }
+            if (expiration.HasValue)
+                row.expiration = DateTime.Now.AddSeconds(expiration.Value);
+
+            row.dataValue = encryptedValue;
+            return db.SaveChanges() == 1;
+        }
+
         /// <summary>
         /// Get the value from a key/value pair saved on a PlusCode with a password. Expired values will not be sent over.
         /// </summary>
@@ -338,6 +361,16 @@ namespace PraxisCore
 
             return DecryptValue(row.dataValue, password);
         }
+
+        //public static byte[] GetSecurePlusCodeDataBytes(string plusCode, string key, string password)
+        //{
+        //    var db = new PraxisContext();
+        //    var row = db.CustomDataPlusCodes.FirstOrDefault(p => p.PlusCode == plusCode && p.dataKey == key);
+        //    if (row == null || row.expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
+        //        return null;
+
+        //    return DecryptValueBytes(row.dataValue, password);
+        //}
 
         /// <summary>
         /// Get the value from a key/value pair saved on a player's deviceId encrypted with the given password. Expired entries will be ignored.
@@ -431,6 +464,7 @@ namespace PraxisCore
         private static string EncryptValue(string value, string password)
         {
             byte[] passwordBytes = password.ToByteArrayUnicode();
+            byte[] iv = baseSec.IV; //This changes every run, so we do need to save this alongside the data itself.
             var crypter = baseSec.CreateEncryptor(passwordBytes, baseSec.IV);
             var ms = new MemoryStream();
             using (CryptoStream cs = new CryptoStream(ms, crypter, CryptoStreamMode.Write))
@@ -439,26 +473,46 @@ namespace PraxisCore
                 sw.Write(value);
             }
 
-            var data = Convert.ToBase64String(ms.ToArray()); //Convert.ToBase64String(baseSec.IV) + "|" + 
+            var data = Convert.ToBase64String(iv) + "|" + Convert.ToBase64String(ms.ToArray());
+            return data;
+        }
+
+        private static string EncryptValue(byte[] value, string password)
+        {
+            byte[] passwordBytes = password.ToByteArrayUnicode();
+            byte[] iv = baseSec.IV; //This changes every run, so we do need to save this alongside the data itself.
+            var crypter = baseSec.CreateEncryptor(passwordBytes, baseSec.IV);
+            var ms = new MemoryStream();
+            using (CryptoStream cs = new CryptoStream(ms, crypter, CryptoStreamMode.Write))
+            using (StreamWriter sw = new StreamWriter(cs))
+            {
+                sw.Write(value);
+            }
+
+            var data = Convert.ToBase64String(iv) + "|" + Convert.ToBase64String(ms.ToArray());
             return data;
         }
 
         private static string DecryptValue(string value, string password)
         {
-            //string[] pieces = value.Split("|");
-            byte[] ivBytes = baseSec.IV; //Convert.FromBase64String(pieces[0]);
-            byte[] encrypedData = Convert.FromBase64String(value);
+            var results = System.Text.Encoding.UTF8.GetString(DecryptValueBytes(value, password));
+            return results; //974bytes here, 
+        }
+
+        private static byte[] DecryptValueBytes(string value, string password)
+        {
+            string[] pieces = value.Split("|");
+            byte[] ivBytes = Convert.FromBase64String(pieces[0]);
+            byte[] encrypedData = Convert.FromBase64String(pieces[1]);
 
             byte[] passwordBytes = password.ToByteArrayUnicode();
             var crypter = baseSec.CreateDecryptor(passwordBytes, ivBytes);
-            string results = "";
 
             var ms = new MemoryStream();
             using (CryptoStream cs = new CryptoStream(ms, crypter, CryptoStreamMode.Write))
                 cs.Write(encrypedData);
 
-            results = System.Text.Encoding.UTF8.GetString(ms.ToArray());
-            return results;
+            return ms.ToArray();
         }
     }
 }

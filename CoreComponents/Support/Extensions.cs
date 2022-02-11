@@ -118,6 +118,16 @@ namespace PraxisCore
         }
 
         /// <summary>
+        /// Convert a string to its Unicode byte format.
+        /// </summary>
+        /// <param name="s">input string</param>
+        /// <returns>byte array of unicode values for the string</returns>
+        public static byte[] ToByteArrayUTF8(this string s)
+        {
+            return Encoding.UTF8.GetBytes(s);
+        }
+
+        /// <summary>
         /// Convert a string to its ASCII byte format
         /// </summary>
         /// <param name="s">input string</param>
