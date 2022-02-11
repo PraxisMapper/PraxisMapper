@@ -49,6 +49,8 @@ namespace PraxisMapper.Controllers
         [HttpGet]
         [Route("/[controller]/SetPlusCodeData/{plusCode}/{key}/{value}")]
         [Route("/[controller]/SetPlusCodeData/{plusCode}/{key}/{value}/{expiresIn}")]
+        [Route("/[controller]/SetPlusCode/{plusCode}/{key}/{value}")]
+        [Route("/[controller]/SetPlusCode/{plusCode}/{key}/{value}/{expiresIn}")]
         public bool SetPlusCodeData(string plusCode, string key, string value, double? expiresIn = null)
         {
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
@@ -58,6 +60,7 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/GetPlusCodeData/{plusCode}/{key}")]
+        [Route("/[controller]/GetPlusCode/{plusCode}/{key}")]
         public string GetPlusCodeData(string plusCode, string key)
         {
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
@@ -69,6 +72,8 @@ namespace PraxisMapper.Controllers
         [HttpGet]
         [Route("/[controller]/SetPlayerData/{deviceId}/{key}/{value}")]
         [Route("/[controller]/SetPlayerData/{deviceId}/{key}/{value}/{expiresIn}")]
+        [Route("/[controller]/SetPlayer/{deviceId}/{key}/{value}")]
+        [Route("/[controller]/SetPlayer/{deviceId}/{key}/{value}/{expiresIn}")]
         public bool SetPlayerData(string deviceId, string key, string value, double? expiresIn = null)
         {
             return GenericData.SetPlayerData(deviceId, key, value, expiresIn);
@@ -76,6 +81,7 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/GetPlayerData/{deviceId}/{key}")]
+        [Route("/[controller]/GetPlayer/{deviceId}/{key}")]
         public string GetPlayerData(string deviceId, string key)
         {
             return GenericData.GetPlayerData(deviceId, key);
@@ -84,6 +90,8 @@ namespace PraxisMapper.Controllers
         [HttpGet]
         [Route("/[controller]/SetElementData/{elementId}/{key}/{value}")]
         [Route("/[controller]/SetElementData/{elementId}/{key}/{value}/{expiresIn}")]
+        [Route("/[controller]/SetElement/{elementId}/{key}/{value}")]
+        [Route("/[controller]/SetElement/{elementId}/{key}/{value}/{expiresIn}")]
         public bool SetStoredElementData(Guid elementId, string key, string value, double? expiresIn = null)
         {
             return GenericData.SetStoredElementData(elementId, key, value, expiresIn);
@@ -91,6 +99,7 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/GetElementData/{elementId}/{key}")]
+        [Route("/[controller]/GetElement/{elementId}/{key}")]
         public string GetElementData(Guid elementId, string key)
         {
             return GenericData.GetElementData(elementId, key);
@@ -229,6 +238,7 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/GetPlusCodeTerrainData/{plusCode}")]
+        [Route("/[controller]/Terrain/{plusCode}")]
         public string GetPlusCodeTerrainData(string plusCode)
         {
             //This function returns 1 line per Cell10, the smallest (and therefore highest priority) item intersecting that cell10.
@@ -252,6 +262,7 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/GetPlusCodeTerrainDataFull/{plusCode}")]
+        [Route("/[controller]/TerrainFull/{plusCode}")]
         public string GetPlusCodeTerrainDataFull(string plusCode)
         {
             //This function returns 1 line per Cell10 per intersecting element. For an app that needs to know all things in all points.

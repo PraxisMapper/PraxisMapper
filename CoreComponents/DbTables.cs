@@ -270,6 +270,7 @@ namespace PraxisCore
             public DateTime? expiration { get; set; } //optional.
             [Required]
             public Geometry geoAreaIndex { get; set; } //PlusCode listed as a geometry object for index/search purposes.
+            public byte[] fileDataValue { get; set; }
         }
 
         public class CustomDataOsmElement
@@ -282,6 +283,7 @@ namespace PraxisCore
             public string dataKey { get; set; }
             public string dataValue { get; set; }
             public DateTime? expiration { get; set; } //optional.
+            public byte[] fileDataValue { get; set; }
         }
 
         public class TagParserStyleBitmap

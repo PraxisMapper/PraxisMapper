@@ -525,7 +525,8 @@ namespace PraxisMapper.Controllers
         
         [HttpGet]
         [Route("/[controller]/GetTileGenerationId/{plusCode}/{styleSet}")]
-        public static long GetTileGenerationId(string plusCode, string styleSet)
+        [Route("/[controller]/Generation/{plusCode}/{styleSet}")]
+        public long GetTileGenerationId(string plusCode, string styleSet)
         {
             //Returns generationID on the tile on the server
             //if value is *more* than previous value, client should refresh it.
@@ -535,10 +536,8 @@ namespace PraxisMapper.Controllers
                 PerformanceTracker pt = new PerformanceTracker("GetTileGenerationId");
                 var db = new PraxisContext();
                 var tileGenId = db.MapTiles
-                    .Where(m => m.PlusCode == plusCode && m.styleSet == styleSet)
-                    .Select(m => m.generationID)
-                    .FirstOrDefault();
-
+                    .FirstOrDefault(m => m.PlusCode == plusCode && m.styleSet == styleSet)
+                    .generationID; 
                 pt.Stop();
                 return tileGenId;
             }
@@ -551,7 +550,8 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/GetSlippyTileGenerationId/{x}/{y}/{zoom}/{styleSet}")]
-        public static long GetSlippyTileGenerationId(string x, string y, string zoom, string styleSet)
+        [Route("/[controller]/Generation/{zoom}/{x}/{y}/{styleSet}")]
+        public long GetSlippyTileGenerationId(string x, string y, string zoom, string styleSet)
         {
             //Returns generationID on the tile on the server
             //if value is *more* than previous value, client should refresh it.
@@ -561,10 +561,8 @@ namespace PraxisMapper.Controllers
                 PerformanceTracker pt = new PerformanceTracker("GetTileGenerationId");
                 var db = new PraxisContext();
                 var tileGenId = db.SlippyMapTiles
-                    .Where(m => m.Values == x + "|" + y + "|" + zoom && m.styleSet == styleSet)
-                    .Select(m => m.generationID)
-                    .FirstOrDefault();
-
+                    .FirstOrDefault(m => m.Values == x + "|" + y + "|" + zoom && m.styleSet == styleSet)
+                    .generationID;
                 pt.Stop();
                 return tileGenId;
             }
@@ -574,6 +572,5 @@ namespace PraxisMapper.Controllers
                 return -1; //negative answers will be treated as an expiration.
             }
         }
-
     }
 }
