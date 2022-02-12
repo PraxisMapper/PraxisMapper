@@ -47,7 +47,7 @@ namespace PraxisMapper.Controllers
                     //Create this entry
                     var info = new ImageStats(zoom, x, y, IMapTiles.MapTileSizeSquare);
                     if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
-                        return null;
+                        return File(new byte[0], "text/text");
 
                     info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
                     if (zoom >= 15) //Gameplay areas are ~15.
@@ -85,7 +85,7 @@ namespace PraxisMapper.Controllers
             catch (Exception ex)
             {
                 ErrorLogger.LogError(ex);
-                return null;
+                return File(new byte[0], "text/text");
             }
         }
 
@@ -109,7 +109,7 @@ namespace PraxisMapper.Controllers
                     //Create this entry
                     var info = new ImageStats(zoom, x, y, IMapTiles.MapTileSizeSquare);
                     if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
-                        return null;
+                        return File(new byte[0], "text/text");
                     info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
                     if (zoom >= 15) //Gameplay areas are ~15.
                     {
@@ -144,7 +144,7 @@ namespace PraxisMapper.Controllers
             catch (Exception ex)
             {
                 ErrorLogger.LogError(ex);
-                return null;
+                return File(new byte[0], "text/text");
             }
         }
 
@@ -168,7 +168,7 @@ namespace PraxisMapper.Controllers
                     //Create this entry
                     var info = new ImageStats(zoom, x, y, IMapTiles.MapTileSizeSquare);
                     if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
-                        return null;
+                        return File(new byte[0], "text/text");
                     info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
                     if (zoom >= 15) //Gameplay areas are ~15.
                         info.filterSize = 0;
@@ -203,7 +203,7 @@ namespace PraxisMapper.Controllers
             catch (Exception ex)
             {
                 ErrorLogger.LogError(ex);
-                return null;
+                return File(new byte[0], "text/text");
             }
         }
 
@@ -227,7 +227,7 @@ namespace PraxisMapper.Controllers
                     //Create this entry
                     var info = new ImageStats(zoom, x, y, IMapTiles.MapTileSizeSquare);
                     if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
-                        return null;
+                        return File(new byte[0], "text/text");
                     info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
                     if (zoom >= 15) //Gameplay areas are ~15.
                         info.filterSize = 0;
@@ -262,7 +262,7 @@ namespace PraxisMapper.Controllers
             catch (Exception ex)
             {
                 ErrorLogger.LogError(ex);
-                return null;
+                return File(new byte[0], "text/text");
             }
         }
 
@@ -297,7 +297,7 @@ namespace PraxisMapper.Controllers
             {
                 PerformanceTracker pt = new PerformanceTracker("DrawPlusCode");
                 if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(code)))
-                    return null;
+                    return File(new byte[0], "text/text");
                 code = code.ToUpper();
                 string tileKey = code + "|" + styleSet;
                 var db = new PraxisContext();
@@ -330,7 +330,7 @@ namespace PraxisMapper.Controllers
             catch (Exception ex)
             {
                 ErrorLogger.LogError(ex);
-                return null;
+                return File(new byte[0], "text/text");
             }
         }
 
@@ -342,7 +342,7 @@ namespace PraxisMapper.Controllers
             {
                 PerformanceTracker pt = new PerformanceTracker("DrawPlusCodeCustomData");
                 if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(code)))
-                    return null;
+                    return File(new byte[0], "text/text");
                 code = code.ToUpper();
                 string tileKey = code + "|" + styleSet + "|" + dataKey;
                 var db = new PraxisContext();
@@ -381,7 +381,7 @@ namespace PraxisMapper.Controllers
             catch (Exception ex)
             {
                 ErrorLogger.LogError(ex);
-                return null;
+                return File(new byte[0], "text/text");
             }
         }
 
@@ -393,7 +393,7 @@ namespace PraxisMapper.Controllers
             {
                 PerformanceTracker pt = new PerformanceTracker("DrawPlusCodeCustomData");
                 if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(code)))
-                    return null;
+                    return File(new byte[0], "text/text");
                 code = code.ToUpper();
                 string tileKey = code + "|" + styleSet + "|" + dataKey;
                 var db = new PraxisContext();
@@ -433,7 +433,7 @@ namespace PraxisMapper.Controllers
             catch (Exception ex)
             {
                 ErrorLogger.LogError(ex);
-                return null;
+                return File(new byte[0], "text/text");
             }
         }
 
@@ -484,7 +484,7 @@ namespace PraxisMapper.Controllers
             catch (Exception ex)
             {
                 ErrorLogger.LogError(ex);
-                return null;
+                return File(new byte[0], "text/text");
             }
         }
 
