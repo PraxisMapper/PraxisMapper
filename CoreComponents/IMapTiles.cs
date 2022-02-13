@@ -21,7 +21,7 @@ namespace PraxisCore
         public byte[] DrawCell8GridLines(GeoArea totalArea);
         public byte[] DrawCell10GridLines(GeoArea totalArea);
         public byte[] DrawUserPath(string pointListAsString);
-        public byte[] DrawAreaAtSize(ImageStats stats, List<StoredOsmElement> drawnItems = null, string styleSet = null, bool filterSmallAreas = true);
+        public byte[] DrawAreaAtSize(ImageStats stats, List<StoredOsmElement> drawnItems = null, string styleSet = "mapTiles", bool filterSmallAreas = true);
         public byte[] DrawAreaAtSize(ImageStats stats, List<CompletePaintOp> paintOps);
         public string DrawAreaAtSizeSVG(ImageStats stats, List<StoredOsmElement> drawnItems = null, Dictionary<string, TagParserEntry> styles = null, bool filterSmallAreas = true);
         public byte[] LayerTiles(ImageStats info, byte[] bottomTile, byte[] topTile);
