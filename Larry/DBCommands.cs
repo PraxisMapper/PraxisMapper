@@ -81,7 +81,7 @@ namespace Larry
             {
                 try
                 {
-                    //Similar to the load process, but replaces existing entries instead of only inserting.
+                    //Similar to the load process, but updates existing entries instead of only inserting.
                     var db = new PraxisContext();
                     Log.WriteLog("Loading " + filename);
                     var entries = GeometrySupport.ReadStoredElementsFileToMemory(filename);
@@ -91,33 +91,51 @@ namespace Larry
                     int updateTotal = 0;
                     foreach (var entry in entries)
                     {
-                        updateCounter++;
-                        updateTotal++;
-                        var query = db.StoredOsmElements.AsQueryable();
-                        if (entry.sourceItemID != null)
-                            query = query.Where(md => md.sourceItemID == entry.sourceItemID && md.sourceItemType == entry.sourceItemType);
-
-                        var existingData = query.ToList();
-                        if (existingData.Count() > 0)
+                        //check existing entry, see if it requires being updated
+                        var existingData = db.StoredOsmElements.FirstOrDefault(md => md.sourceItemID == entry.sourceItemID && md.sourceItemType == entry.sourceItemType);
+                        if (existingData != null)
                         {
-                            foreach (var item in existingData)
+                            if (existingData.AreaSize != entry.AreaSize) existingData.AreaSize = entry.AreaSize;
+                            if (existingData.GameElementName != entry.GameElementName) existingData.GameElementName = entry.GameElementName;
+                            if (existingData.IsGameElement != entry.IsGameElement) existingData.IsGameElement = entry.IsGameElement;
+                            if (existingData.name != entry.name) existingData.name = entry.name;
+
+                            bool expireTiles = false;
+
+                            if (!existingData.elementGeometry.EqualsTopologically(entry.elementGeometry))
                             {
-                                item.AreaSize = entry.AreaSize;
-                                item.GameElementName = entry.GameElementName;
-                                item.IsGameElement = entry.IsGameElement;
-                                item.name = entry.name;
-                                item.elementGeometry = entry.elementGeometry;
-                                item.Tags = entry.Tags;
+                                //update the geometry for this object.
+                                existingData.elementGeometry = entry.elementGeometry;
+                                expireTiles = true;
                             }
+                            if (!existingData.Tags.SequenceEqual(entry.Tags))
+                            {
+                                existingData.Tags = entry.Tags;
+                                expireTiles = true;
+                            }
+
+                            if (expireTiles)
+                            {
+                                db.ExpireMapTiles(entry.elementGeometry, "mapTiles");
+                                db.ExpireSlippyMapTiles(entry.elementGeometry, "mapTiles");
+                            }
+                            //db.SaveChanges(); 
                         }
                         else
                         {
+                            //We don't have this item, add it.
                             db.StoredOsmElements.Add(entry);
+                            db.ExpireMapTiles(entry.elementGeometry, "mapTiles");
+                            db.ExpireSlippyMapTiles(entry.elementGeometry, "mapTiles");
+                            //db.SaveChanges();
                         }
+
+                        updateCounter++;
+                        updateTotal++;
 
                         if (updateCounter > 1000)
                         {
-                            db.SaveChanges();
+                            db.SaveChanges(); //should only update columns that actually changed, saving a bunch of time versus a full update to each column. Run every 1000 entries to avoid memory leaks.
                             db = new PraxisContext();
                             updateCounter = 0;
                             Log.WriteLog(updateTotal + " entries updated to DB");
@@ -140,7 +158,7 @@ namespace Larry
             PraxisContext db = new PraxisContext();
             var toFix = db.StoredOsmElements.Where(m => m.AreaSize == null).ToList();
             //var toFix = db.MapData.Where(m => m.MapDataId == 2500925).ToList();
-            foreach(var fix in toFix)
+            foreach (var fix in toFix)
                 fix.AreaSize = fix.elementGeometry.Length;
             db.SaveChanges();
             Log.WriteLog("AreaSizes updated at  " + DateTime.Now);

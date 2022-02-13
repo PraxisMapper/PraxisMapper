@@ -171,10 +171,10 @@ namespace Larry
                 //}
             }
 
-            //TODO: rework Update process to handle the mulitple data files that could be used.
-            //if (args.Any(a => a == "-updateDatabase"))
-            //{
-            //DBCommands.UpdateExistingEntries(config["JsonMapDataFolder"]);
+            if (args.Any(a => a == "-updateDatabase"))
+            {
+                DBCommands.UpdateExistingEntries(config["JsonMapDataFolder"]);
+            }
 
             if (args.Any(a => a.StartsWith("-createStandaloneRelation")))
             {

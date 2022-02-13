@@ -51,7 +51,7 @@ namespace PraxisCore
 
             dOpts = new DrawingOptions();
             ShapeOptions so = new ShapeOptions();
-            so.IntersectionRule = IntersectionRule.OddEven; //already the default;
+            so.IntersectionRule =  IntersectionRule.OddEven; //already the default;
             GraphicsOptions go = new GraphicsOptions();
             go.Antialias = true;
             go.AntialiasSubpixelDepth = 16; //defaults to 16, would 4 improve speed? would 25 or 64 improve quality? (not visible so from early testing.)
@@ -66,8 +66,8 @@ namespace PraxisCore
         /// <param name="tpe">the TagParserPaint object to populate</param>
         private static IBrush SetPaintForTPP(TagParserPaint tpe)
         {
-            //SkiaSharp options not found in ImageSharp:
-            //Rounding line ends.
+            //SkiaSharp now implements rounding line ends, but they're only for Pens
+            //(which only work on lines), and my stuff all currently uses a Brush.
 
             //It's possible that I want pens instead of brushes for lines with patterns?
             string htmlColor = tpe.HtmlColorCode;
@@ -156,7 +156,7 @@ namespace PraxisCore
             while (lonLineTrackerDegrees <= totalArea.EastLongitude + resolutionCell8) //This means we should always draw at least 2 lines, even if they're off-canvas.
             {
                 var geoLine = new LineString(new Coordinate[] { new Coordinate(lonLineTrackerDegrees, 90), new Coordinate(lonLineTrackerDegrees, -90) });
-                var points = PolygonToDrawingLine(geoLine, totalArea, degreesPerPixelX, degreesPerPixelY);
+                var points =  PolygonToDrawingLine(geoLine, totalArea, degreesPerPixelX, degreesPerPixelY);
                 image.Mutate(x => x.Draw(lineColor, StrokeWidth, new SixLabors.ImageSharp.Drawing.Path(points)));
                 lonLineTrackerDegrees += resolutionCell8;
             }
@@ -254,7 +254,7 @@ namespace PraxisCore
             Image<Rgba32> image = new Image<Rgba32>(info.imageSizeX, info.imageSizeY);
             Rgba32 strokeColor = Rgba32.ParseHex("000000");
             image.Mutate(x => x.Draw(strokeColor, 4, new SixLabors.ImageSharp.Drawing.Path(drawableLine)));
-            
+
             image.Mutate(x => x.Flip(FlipMode.Vertical)); //Plus codes are south-to-north, so invert the image to make it correct.
             var ms = new MemoryStream();
             image.SaveAsPng(ms);
@@ -308,11 +308,10 @@ namespace PraxisCore
                 var paint = cachedPaints[w.paintOp.id];
 
                 //ImageSharp doesn;t like humungous areas (16k+ nodes takes a couple minutes), so we have to crop them down here. Maybe. Cropping Causes other issues sometimes?
-                Geometry thisGeometry;
-                //if (w.elementGeometry.Coordinates.Length < 800)
-                    thisGeometry = w.elementGeometry; //default
-                //else
-                    //thisGeometry = w.elementGeometry.Intersection(Converters.GeoAreaToPolygon(stats.area));
+                Geometry thisGeometry = w.elementGeometry; //default
+                //This block below is fairly imporant because of Path.Clip() performance. I would still prefer to do this over the original way of handling holes in paths (draw bitmap of outer polygons, erase holes with eraser paint, draw that bitmap over maptile)
+                if (w.elementGeometry.Coordinates.Length > 800)
+                    thisGeometry = w.elementGeometry.Intersection(Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(stats.area, resolutionCell10)));
 
                 //Potential speed fix #2 by removing points that are less than 1 pixel apart from another point.
                 //This actually hurts average runtime when run on everything.
@@ -338,7 +337,7 @@ namespace PraxisCore
                         }
                         break;
                     case "MultiPolygon":
-                        foreach (var p2 in ((MultiPolygon)thisGeometry).Geometries)
+                        foreach (NetTopologySuite.Geometries.Polygon p2 in ((MultiPolygon)thisGeometry).Geometries)
                         {
                             var drawThis2 = PolygonToDrawingPolygon(p2, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                             if (w.paintOp.FillOrStroke == "fill")
@@ -433,22 +432,21 @@ namespace PraxisCore
             return color;
         }
 
-        public SixLabors.ImageSharp.Drawing.Polygon PolygonToDrawingPolygon(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
+        public SixLabors.ImageSharp.Drawing.IPath PolygonToDrawingPolygon(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
         {
             var lineSegmentList = new List<LinearLineSegment>();
             NetTopologySuite.Geometries.Polygon p = (NetTopologySuite.Geometries.Polygon)place;
             var typeConvertedPoints = p.ExteriorRing.Coordinates.Select(o => new SixLabors.ImageSharp.PointF((float)((o.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / resolutionY))));
-            //SixLabors.ImageSharp.Drawing.LinearLineSegment part = new SixLabors.ImageSharp.Drawing.LinearLineSegment(typeConvertedPoints.ToArray());
-            lineSegmentList.Add(new LinearLineSegment(typeConvertedPoints.ToArray()));
-
+            //lineSegmentList.Add(new LinearLineSegment(typeConvertedPoints.ToArray()));
+            var path = new SixLabors.ImageSharp.Drawing.Path(new LinearLineSegment(typeConvertedPoints.ToArray())).AsClosedPath();
+            
             foreach (var hole in p.InteriorRings)
-            {
-                typeConvertedPoints = p.ExteriorRing.Coordinates.Select(o => new SixLabors.ImageSharp.PointF((float)((o.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / resolutionY))));
-                lineSegmentList.Add(new LinearLineSegment(typeConvertedPoints.ToArray()));
+            {   
+                typeConvertedPoints = hole.Coordinates.Select(o => new SixLabors.ImageSharp.PointF((float)((o.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / resolutionY))));
+                var tempHole = new SixLabors.ImageSharp.Drawing.Path(new LinearLineSegment(typeConvertedPoints.ToArray())).AsClosedPath();
+                path = path.Clip(tempHole);
             }
-
-            var output = new SixLabors.ImageSharp.Drawing.Polygon(lineSegmentList);
-            return output;
+            return path;
         }
 
         public SixLabors.ImageSharp.Drawing.LinearLineSegment PolygonToDrawingLine(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
@@ -456,6 +454,7 @@ namespace PraxisCore
             //TODO: does this handle holes nicely? It should if I add them to the path.
             var typeConvertedPoints = place.Coordinates.Select(o => new SixLabors.ImageSharp.PointF((float)((o.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / resolutionY))));
             SixLabors.ImageSharp.Drawing.LinearLineSegment part = new SixLabors.ImageSharp.Drawing.LinearLineSegment(typeConvertedPoints.ToArray());
+            var x = new SixLabors.ImageSharp.Drawing.Path();
             return part;
         }
 
