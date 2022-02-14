@@ -18,6 +18,7 @@ namespace PraxisMapper
         {
             var host = CreateHostBuilder(args).Build();
             host.Run();
+            Console.WriteLine("PraxisMapper closing.");
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
