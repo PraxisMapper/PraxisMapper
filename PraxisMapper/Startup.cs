@@ -48,13 +48,21 @@ namespace PraxisMapper
 
             if (mapTilesEngine == "SkiaSharp")
             {
-                var asm = Assembly.LoadFrom(@".\bin\Debug\net6.0\PraxisMapTilesSkiaSharp.dll"); //works in debug. path isn't gonna work in publish.
+                Assembly asm;
+                if (System.Diagnostics.Debugger.IsAttached) //Folders vary, when debugging in IIS run path and local folder aren't the same so we check here.
+                    asm = Assembly.LoadFrom(@".\bin\Debug\net6.0\PraxisMapTilesSkiaSharp.dll");
+                else
+                    asm = Assembly.LoadFrom(@"PraxisMapTilesSkiaSharp.dll");
                 mapTiles = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
                 services.AddSingleton(typeof(IMapTiles), mapTiles); //compiles
             }
             else if (mapTilesEngine == "ImageSharp")
             {
-                var asm = Assembly.LoadFrom(@".\bin\Debug\net6.0\PraxisMapTilesImageSharp.dll"); //works in debug. path isn't gonna work in publish.
+                Assembly asm;
+                if (System.Diagnostics.Debugger.IsAttached)
+                    asm = Assembly.LoadFrom(@".\bin\Debug\net6.0\PraxisMapTilesImageSharp.dll");
+                else
+                    asm = Assembly.LoadFrom(@"PraxisMapTilesImageSharp.dll");
                 mapTiles = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
                 services.AddSingleton(typeof(IMapTiles), mapTiles);
             }
@@ -93,6 +101,8 @@ namespace PraxisMapper
             cache.Set<IPreparedGeometry>("serverBounds", serverBounds, entryOptions);
             cache.Set("caching", settings.enableMapTileCaching); //convenience entry
             IMapTiles.MapTileSizeSquare = settings.SlippyMapTileSizeSquare; //TODO: set in config instead of static value?
+
+            Console.WriteLine("PraxisMapper configured and running.");
         }
     }
 }
