@@ -12,6 +12,7 @@ using static PraxisCore.Place;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Concurrent;
+using System.Threading;
 
 namespace PraxisMapper.Controllers
 {
@@ -22,10 +23,8 @@ namespace PraxisMapper.Controllers
     [ApiController]
     public class DataController : Controller
     {
-        //TODO: check this logic in a busy test state. These might need to be some kind of SlimReadWriteLock or equivalent that counts requests, and get removed at 0 instead of after every call
-        static ConcurrentDictionary<string, string> incrementLock = new ConcurrentDictionary<string, string>();
-        static string dictValue = "1";
         static DateTime lastExpiryPass = DateTime.Now.AddSeconds(-1);
+        static ConcurrentDictionary<string, ReaderWriterLockSlim> locks = new ConcurrentDictionary<string, ReaderWriterLockSlim>();
 
         private readonly IConfiguration Configuration;
         private static IMemoryCache cache;
@@ -170,33 +169,43 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/IncrementPlayerData/{deviceId}/{key}/{changeAmount}")]
         public void IncrementPlayerData(string deviceId, string key, double changeAmount, double? expirationTimer = null)
         {
+            PerformanceTracker pt = new PerformanceTracker("IncrementPlayerData");
             string lockKey = deviceId + key;
-            incrementLock.TryAdd(lockKey, dictValue);
-            lock (incrementLock[lockKey])
-            {
+            locks.TryAdd(lockKey, new ReaderWriterLockSlim());
+            var thisLock = locks[lockKey];
+            thisLock.EnterWriteLock();
                 var data = GenericData.GetPlayerData(deviceId, key);
                 double val = 0;
                 Double.TryParse(data, out val);
                 val += changeAmount;
                 GenericData.SetPlayerData(deviceId, key, val.ToString(), expirationTimer);
-            }
-            incrementLock.TryRemove(lockKey,out dictValue);
+            thisLock.ExitWriteLock();
+
+            if (thisLock.WaitingWriteCount == 0)
+                locks.TryRemove(lockKey, out thisLock);
+
+            pt.Stop();
         }
 
         [HttpGet]
         [Route("/[controller]/IncrementGlobalData/{key}/{changeAmount}")]
         public void IncrementGlobalData(string key, double changeAmount)
         {
-            incrementLock.TryAdd(key, dictValue);
-            lock (incrementLock[key])
-            {
+            PerformanceTracker pt = new PerformanceTracker("IncrementGlobalData");
+            locks.TryAdd(key, new ReaderWriterLockSlim());
+            var thisLock = locks[key];
+            thisLock.EnterWriteLock();
                 var data = GenericData.GetGlobalData(key);
                 double val = 0;
                 Double.TryParse(data, out val);
                 val += changeAmount;
                 GenericData.SetGlobalData(key, val.ToString());
-            }
-            incrementLock.TryRemove(key, out dictValue);
+            thisLock.ExitWriteLock();
+
+            if (thisLock.WaitingWriteCount == 0)
+                locks.TryRemove(key, out thisLock);
+
+            pt.Stop();
         }
 
         [HttpGet]
@@ -205,35 +214,45 @@ namespace PraxisMapper.Controllers
         {
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return;
+            
+            PerformanceTracker pt = new PerformanceTracker("IncrementPlusCodeData");
             string lockKey = plusCode + key;
-            incrementLock.TryAdd(lockKey, dictValue);
-            lock (incrementLock[lockKey])
-            {
+            locks.TryAdd(lockKey, new ReaderWriterLockSlim());
+            var thisLock = locks[lockKey];
+            thisLock.EnterWriteLock();
                 var data = GenericData.GetPlusCodeData(plusCode, key);
                 double val = 0;
                 Double.TryParse(data, out val);
                 val += changeAmount;
                 GenericData.SetPlusCodeData(plusCode, key, val.ToString(), expirationTimer);
-            }
-            
-            incrementLock.TryRemove(lockKey, out dictValue);
+            thisLock.ExitWriteLock();
+
+            if (thisLock.WaitingWriteCount == 0)
+                locks.TryRemove(lockKey, out thisLock);
+
+            pt.Stop();
         }
 
         [HttpGet]
         [Route("/[controller]/IncrementElementData/{elementId}/{key}/{changeAmount}")]
         public void IncrementElementData(Guid elementId, string key, double changeAmount, double? expirationTimer = null)
         {
+            PerformanceTracker pt = new PerformanceTracker("IncrementElementData");
             string lockKey = elementId.ToString() + key;
-            incrementLock.TryAdd(lockKey, dictValue);
-            lock (incrementLock[lockKey])
-            {
-                var data = GenericData.GetElementData(elementId,key);
+            locks.TryAdd(lockKey, new ReaderWriterLockSlim());
+            var thisLock = locks[lockKey];
+            thisLock.EnterWriteLock();
+                var data = GenericData.GetElementData(elementId, key);
                 double val = 0;
                 Double.TryParse(data, out val);
                 val += changeAmount;
                 GenericData.SetStoredElementData(elementId, key, val.ToString(), expirationTimer);
-            }
-            incrementLock.TryRemove(lockKey, out dictValue);
+            thisLock.ExitWriteLock();
+
+            if (thisLock.WaitingWriteCount == 0)
+                locks.TryRemove(lockKey, out thisLock);
+
+            pt.Stop();
         }
 
         [HttpGet]
