@@ -1786,7 +1786,7 @@ namespace PerformanceTestApp
             string startPoint = "86HWF5"; //add 4 chars to draw cell8 tiles.
                                           //string endPoint = "86HW99"; //15 Cell6 blocks to draw, so 400 * 15 tiles for testing.
 
-            for (int pos1 = 0; pos1 < 20; pos1++) //13 on this test blows up on lake erie, takes 2.5 minutes to draw in ImageSharp
+            for (int pos1 = 0; pos1 < 20; pos1++) 
                 for (int pos2 = 0; pos2 < 20; pos2++)
                 {
                     string cellToCheck = startPoint + OpenLocationCode.CodeAlphabet[pos1].ToString() + OpenLocationCode.CodeAlphabet[pos2].ToString();
@@ -1801,18 +1801,20 @@ namespace PerformanceTestApp
                     //draw tile
                     mtSkia.DrawAreaAtSize(stats, drawOps);
                     swSkia.Stop();
-                    skiaDurations.Add(swSkia.ElapsedMilliseconds);
+                    skiaDurations.Add(swSkia.ElapsedTicks);
                     swImage.Start();
                     //draw tile
                     mtImage.DrawAreaAtSize(stats, drawOps);
                     swImage.Stop();
-                    imageDurations.Add(swImage.ElapsedMilliseconds);
+                    imageDurations.Add(swImage.ElapsedTicks);
 
                     Console.WriteLine(cellToCheck + ": " + swSkia.Elapsed + " vs " + swImage.Elapsed);
                 }
-
+            Console.WriteLine("Note: tick is " + Stopwatch.Frequency + " per second");
             Console.WriteLine("Average Skia time:" + skiaDurations.Average());
+            Console.WriteLine("Average Skia tiles per second:" + Stopwatch.Frequency / skiaDurations.Average());
             Console.WriteLine("Average ImageSharp time:" + imageDurations.Average());
+            Console.WriteLine("Average ImageSharp tiles per second:" + Stopwatch.Frequency / imageDurations.Average());
         }
     }
 }

@@ -239,7 +239,7 @@ Original PBF reader loaded 1 area in 00:00:51.5567605
 Conclusion: Even with indexing, my code is much faster. I knew it was, but I wanted to see a difference. 5x faster for a single area.
 Doing multiple areas would reduce that gap, but my code uses much less RAM in that case.
 
-Rematch: Imagesharp vs Skia: 1/27/22, Release builds, 260 tiles from downtown.
+Rematch: Imagesharp vs Skia: 1/27/22, Release builds, 260 tiles from downtown. (Tablet)
 Average Skia time:0.06538461538461539
 Average ImageSharp time:7.046153846153846
 (using JPEG instead of PNG):
@@ -257,3 +257,20 @@ Average ImageSharp time:0.485
 Conclusion: this is very swing-y, but confirms ImageSharp is slower. BUT on a scale that's entirely acceptable. Best performance is 5x slower
 This probably means most of the actual time for making a maptile is done elsewhere in my code, and adding 7ms per tile (in the worst general case) to that is probably not awful by itself
 
+Re-Rematch: Imagesharp vs Skia: 2/13/22, Release builds, 260 tiles from downtown. (PC, not Tablet)
+(NOTE: now in ticks not ms, for more reasonable comparison results.)
+Average Skia time:4656.496153846154
+Average Skia tiles per second:2147.5374765939064
+Average ImageSharp time:16564.580769230768
+Average ImageSharp tiles per second:603.6977415435298
+(back to all 400 tiles in the Cell6 selected.)
+Average Skia time:4530.435
+Average Skia tiles per second:2207.2935601106733
+Average ImageSharp time:12359.52
+Average ImageSharp tiles per second:809.0929097570132
+(repeat)
+Average Skia time:4631.085
+Average Skia tiles per second:2159.3211957888916
+Average ImageSharp time:12598.73
+Average ImageSharp tiles per second:793.7307966755379
+Summary: ImageSharp is 2.75x slower (40% of Skiasharp's speed), which is totally reasonable compared to the best-case of 5x above. I need to get it on a T4G instance to see how perf works out.
