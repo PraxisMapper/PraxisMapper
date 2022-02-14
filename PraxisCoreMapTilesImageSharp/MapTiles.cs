@@ -310,6 +310,7 @@ namespace PraxisCore
                 //ImageSharp doesn;t like humungous areas (16k+ nodes takes a couple minutes), so we have to crop them down here. Maybe. Cropping Causes other issues sometimes?
                 Geometry thisGeometry = w.elementGeometry; //default
                 //This block below is fairly imporant because of Path.Clip() performance. I would still prefer to do this over the original way of handling holes in paths (draw bitmap of outer polygons, erase holes with eraser paint, draw that bitmap over maptile)
+                //it doesn't ALWAYS cause problems if I skip this, but when it does it takes forever to draw some tiles. Keep this in even if it only seems to happen with debug mode on.
                 if (w.elementGeometry.Coordinates.Length > 800)
                     thisGeometry = w.elementGeometry.Intersection(Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(stats.area, resolutionCell10)));
 
