@@ -111,37 +111,41 @@ namespace Larry
                             if (!existingData.Tags.SequenceEqual(entry.Tags))
                             {
                                 existingData.Tags = entry.Tags;
-                                expireTiles = true;
+                                var styleA = TagParser.GetStyleForOsmWay(existingData.Tags);
+                                var styleB = TagParser.GetStyleForOsmWay(entry.Tags);
+                                if (styleA != styleB)
+                                    expireTiles = true; //don't force a redraw on tags unless we change our drawing rules.
                             }
-
-                            if (expireTiles)
+                            
+                            if (expireTiles) //geometry or style has to change, otherwise we can skip this step
                             {
+                                db.SaveChanges(); //save before expiring, so the next redraw absolutely has the latest data. Can't catch it mid-command if we do this first.
                                 db.ExpireMapTiles(entry.elementGeometry, "mapTiles");
                                 db.ExpireSlippyMapTiles(entry.elementGeometry, "mapTiles");
                             }
-                            //db.SaveChanges(); 
                         }
                         else
                         {
                             //We don't have this item, add it.
                             db.StoredOsmElements.Add(entry);
+                            db.SaveChanges(); //again, necessary here to get tiles to draw correctly after expiring.
                             db.ExpireMapTiles(entry.elementGeometry, "mapTiles");
                             db.ExpireSlippyMapTiles(entry.elementGeometry, "mapTiles");
-                            //db.SaveChanges();
                         }
 
                         updateCounter++;
                         updateTotal++;
 
+                        //This resets the entity's internal graph to minimize memory growth over time.
                         if (updateCounter > 1000)
                         {
-                            db.SaveChanges(); //should only update columns that actually changed, saving a bunch of time versus a full update to each column. Run every 1000 entries to avoid memory leaks.
+                            db.SaveChanges(); // catch any changes that haven't been saved yet
                             db = new PraxisContext();
                             updateCounter = 0;
                             Log.WriteLog(updateTotal + " entries updated to DB");
                         }
                     }
-                    db.SaveChanges();
+                    db.SaveChanges(); //final one for anything not yet persisted.
                     System.IO.File.Move(filename, filename + "Done");
                     Log.WriteLog(filename + " completed at " + DateTime.Now);
                 }
