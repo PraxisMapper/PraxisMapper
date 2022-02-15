@@ -77,10 +77,10 @@ namespace PraxisCore
             }},
             new TagParserEntry() { IsGameElement = true, MatchOrder = 4, name ="beach", styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "F5E9C6", FillOrStroke = "fill", LineWidth=0.0000125F, LinePattern= "solid", layerId = 100 }
+                    new TagParserPaint() { HtmlColorCode = "fff1ba", FillOrStroke = "fill", LineWidth=0.0000125F, LinePattern= "solid", layerId = 100 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() {Key = "natural", Value = "beach", MatchType = "or" },
+                    new TagParserMatchRule() {Key = "natural", Value = "beach|shoal", MatchType = "or" },
                     new TagParserMatchRule() {Key = "leisure", Value="beach_resort", MatchType="or"}
             } },
             new TagParserEntry() { IsGameElement = true, MatchOrder = 5, name ="university", styleSet = "mapTiles",
@@ -171,7 +171,7 @@ namespace PraxisCore
             //New generic entries for mapping by color
             new TagParserEntry() { MatchOrder = 18, name ="greenspace",  styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "C8FACC", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", layerId = 100 }
+                    new TagParserPaint() { HtmlColorCode = "cdebb0", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", layerId = 100 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "landuse", Value = "grass|farmland|farmyard|meadow|vineyard|recreation_ground|village_green", MatchType = "or" },
@@ -328,6 +328,35 @@ namespace PraxisCore
                 new TagParserMatchRule() { Key = "highway", Value = "tertiary|unclassified|residential|tertiary_link|service|road", MatchType = "any" },
                 new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
             }},
+
+            //additional areas that I can work out info on go here, though they may not necessarily be the most interesting areas to handle.
+            //single color terrains:
+            //Aeroway:apron: dbdbe1
+            //aeroway:runway: bbbbcc
+            //aeroway:taxiway: bbbbcc
+            //aeroway:terminal: c5b7ad
+            //highway:raceway: ffc0cb (might also be a line)
+            //landuse:farmland: eef0d5 (currently a subtype of Greenspace) (also landuse:greenhouse_horticulture)
+            //landuse:farmyard: f5dcba (currently a subtype of Greenspace)
+            //landuse:garages dfddce
+            //@scrub: #c8d7ab;  (currently Greenspace)
+            //@orchard: #aedfa3; // also vineyard, plant_nursery
+            //@military: #f55;
+            //@place_of_worship: #d0d0d0; // also landuse_religious
+            //@pitch: #aae0cb;    sports pitch/track, also golf_green
+            //@campsite: #def6c0; // also caravan_site, picnic_site, golf_course
+            //most golf features are 'grass' by color.
+            //landuse:landfill  b6b592
+            //landuse:railway ebdbe8 (same color as industrial, space people shouldnt be in.)
+            //bridges are 'black' but thats not #000000 on the actual rendering.
+            //manmade:clearcut: grass (requires forest to be darker green)
+            //allotments: c9e1bf
+            //natural:tree : greenspace color, but a single marker, 30x30pc at zoom 20 (TODO: calc that to my lineWidth value in lat/lng degrees.
+
+
+            //line info:
+
+
             //NOTE: hiding elements of a given type is done by drawing those elements in a transparent color
             //My default set wants to draw things that haven't yet been identified, so I can see what needs improvement or matched by a rule.
             new TagParserEntry() { MatchOrder = 9999, name ="background",  styleSet = "mapTiles",
