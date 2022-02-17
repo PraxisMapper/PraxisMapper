@@ -533,6 +533,32 @@ namespace PraxisCore
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() {Key = "*", Value = "*", MatchType = "default"},
             }},
+
+            //new style to allow only outlines of ALL entries.
+            new TagParserEntry() { MatchOrder = 1, name ="1",  styleSet = "outlines",
+                paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "000000", FillOrStroke = "stroke", LineWidth=0.0000125F, LinePattern= "solid", layerId = 100 }
+                },
+                TagParserMatchRules = new List<TagParserMatchRule>() {
+                    new TagParserMatchRule() {Key = "*", Value = "*", MatchType = "default"},
+            }},
+            //background is a mandatory style entry name, but its transparent here..
+            new TagParserEntry() { MatchOrder = 10000, name ="background",  styleSet = "outlines",
+                paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", layerId = 101 }
+                },
+                TagParserMatchRules = new List<TagParserMatchRule>() {
+                    new TagParserMatchRule() {Key = "bg", Value = "bg", MatchType = "equals"}, //this one only gets called by name anyways.
+            }},
+            //this name needs to exist because of the default style using this name.
+            new TagParserEntry() { MatchOrder = 10001, name ="unmatched",  styleSet = "outlines",
+                paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", layerId = 100 }
+                },
+                TagParserMatchRules = new List<TagParserMatchRule>() {
+                    new TagParserMatchRule() { Key = "a", Value = "s", MatchType = "equals" }}
+            },
+
         };
 
         //Short counter by type. Ideally would like 4+ of each type, whatever types may end up being.

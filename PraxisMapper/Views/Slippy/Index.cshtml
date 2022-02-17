@@ -28,6 +28,7 @@
         var adminBounds2 = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 });
         var baseDataTEstV4 = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 });
         var offlineEstimateAreas = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 });
+        var outlineAll = L.tileLayer(url, { id: "MapTile/DrawSlippyTile/outlines", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 });
 
         //var baseLayers = {
         //    "Base Data": baseData,
@@ -37,7 +38,8 @@
             "Paint The Town": ptt,
             "Area Control": ac,
             //"Server-Generated": generated,
-            "Admin Boundaries": adminBounds
+            "Admin Boundaries": adminBounds,
+            "Outline All Items": outlineAll
             //"Other Admin Boundaries": adminBounds2,
             //"Offline Estimates": offlineEstimateAreas
         };
