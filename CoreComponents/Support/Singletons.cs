@@ -378,7 +378,7 @@ namespace PraxisCore
             //NOTE: Line patterns don't seem to play particularly well with my current logic for some reason.
             new TagParserEntry() { MatchOrder = 1, name ="country",  styleSet = "adminBounds",
                 paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "E31010", FillOrStroke = "stroke", LineWidth=0.000125F, LinePattern= "solid", layerId = 10 }
+                    new TagParserPaint() { HtmlColorCode = "E31010", FillOrStroke = "stroke", LineWidth=0.000125F, LinePattern= "solid", layerId = 100 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
@@ -387,7 +387,7 @@ namespace PraxisCore
             },
             new TagParserEntry() { MatchOrder = 2, name ="region",  styleSet = "adminBounds", //dot pattern
                 paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "CC8A58", FillOrStroke = "stroke", LineWidth=0.0001125F, LinePattern= "10|10", layerId = 20 }
+                    new TagParserPaint() { HtmlColorCode = "CC8A58", FillOrStroke = "stroke", LineWidth=0.0001125F, LinePattern= "10|10", layerId = 90 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
@@ -396,7 +396,7 @@ namespace PraxisCore
             },
             new TagParserEntry() { MatchOrder = 3, name ="state",   styleSet = "adminBounds", //dot pattern
                 paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "FFE30D", FillOrStroke = "stroke", LineWidth=0.0001F, LinePattern= "10|10", layerId = 30 }
+                    new TagParserPaint() { HtmlColorCode = "FFE30D", FillOrStroke = "stroke", LineWidth=0.0001F, LinePattern= "10|10", layerId = 80 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
@@ -405,7 +405,7 @@ namespace PraxisCore
             },
             new TagParserEntry() { MatchOrder = 4, name ="admin5", styleSet = "adminBounds", //Line pattern is dash-dot-dot
                 paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "369670", FillOrStroke = "stroke", LineWidth=0.0000875F, LinePattern= "20|10|10|10|10|10", layerId = 40 }
+                    new TagParserPaint() { HtmlColorCode = "369670", FillOrStroke = "stroke", LineWidth=0.0000875F, LinePattern= "20|10|10|10|10|10", layerId = 70 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
@@ -414,7 +414,7 @@ namespace PraxisCore
             },
             new TagParserEntry() { MatchOrder = 5, name ="county",  styleSet = "adminBounds", //dash-dot pattern
                 paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "3E8A25", FillOrStroke = "stroke", LineWidth=0.000075F, LinePattern= "20|10|10|10", layerId = 50 }
+                    new TagParserPaint() { HtmlColorCode = "3E8A25", FillOrStroke = "stroke", LineWidth=0.000075F, LinePattern= "20|10|10|10", layerId = 60 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
@@ -423,7 +423,7 @@ namespace PraxisCore
             },
             new TagParserEntry() { MatchOrder = 6, name ="township",  styleSet = "adminBounds", //dash
                 paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "32FCF6", FillOrStroke = "stroke", LineWidth=0.0000625F, LinePattern= "20|0", layerId = 60 }
+                    new TagParserPaint() { HtmlColorCode = "32FCF6", FillOrStroke = "stroke", LineWidth=0.0000625F, LinePattern= "20|0", layerId = 50 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
@@ -432,7 +432,7 @@ namespace PraxisCore
             },
             new TagParserEntry() { MatchOrder = 7, name ="city",  styleSet = "adminBounds", //dash
                 paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "0F34BA", FillOrStroke = "stroke", LineWidth=0.00005F, LinePattern= "20|0", layerId = 70 }
+                    new TagParserPaint() { HtmlColorCode = "0F34BA", FillOrStroke = "stroke", LineWidth=0.00005F, LinePattern= "20|0", layerId = 40 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
@@ -441,7 +441,7 @@ namespace PraxisCore
             },
             new TagParserEntry() { MatchOrder = 8, name ="ward",  styleSet = "adminBounds", //dot
                 paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "A46DFC", FillOrStroke = "stroke", LineWidth=0.0000475F, LinePattern= "10|10", layerId = 80 }
+                    new TagParserPaint() { HtmlColorCode = "A46DFC", FillOrStroke = "stroke", LineWidth=0.0000475F, LinePattern= "10|10", layerId = 30 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
@@ -450,7 +450,7 @@ namespace PraxisCore
             },
             new TagParserEntry() { MatchOrder = 9, name ="neighborhood",  styleSet = "adminBounds", //dot
                 paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "B811B5", FillOrStroke = "stroke", LineWidth=0.000035F, LinePattern= "10|10", layerId = 90 }
+                    new TagParserPaint() { HtmlColorCode = "B811B5", FillOrStroke = "stroke", LineWidth=0.000035F, LinePattern= "10|10", layerId = 20 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
@@ -459,7 +459,7 @@ namespace PraxisCore
             },
             new TagParserEntry() { MatchOrder = 10, name ="admin11", styleSet = "adminBounds", //not rendered
                 paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=0.0000225F, LinePattern= "solid", layerId = 100 }
+                    new TagParserPaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=0.0000225F, LinePattern= "solid", layerId = 10 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
