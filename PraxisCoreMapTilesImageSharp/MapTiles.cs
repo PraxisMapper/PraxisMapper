@@ -32,6 +32,7 @@ namespace PraxisCore
         static Random r = new Random();
         public static Dictionary<string, Image> cachedBitmaps = new Dictionary<string, Image>(); //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
         public static Dictionary<long, IBrush> cachedPaints = new Dictionary<long, IBrush>();
+        public static Dictionary<long, IPen> cachedGameTilePens = new Dictionary<long, IPen>();
 
         static DrawingOptions dOpts;
 
@@ -80,6 +81,22 @@ namespace PraxisCore
 
             return paint;
         }
+
+        //private static IPen SetPenForTPPGameTile(TagParserPaint tpe)
+        //{
+        //    //These pens are saved with a fixed drawing with for using a Cell11 as a pixel (modified by tile scale value)
+        //    var widthMod = resolutionCell11Lon * IMapTiles.GameTileScale;
+
+        //    string htmlColor = tpe.HtmlColorCode;
+        //    if (htmlColor.Length == 8)
+        //        htmlColor = htmlColor.Substring(2, 6) + htmlColor.Substring(0, 2);
+
+
+            
+        //    //Pen p = new Pen(Rgba32.ParseHex(htmlColor), tpe.LineWidth * widthMod )
+
+        //    //return paint;
+        //}
 
         /// <summary>
         /// Draw square boxes around each area to approximate how they would behave in an offline app
@@ -313,6 +330,8 @@ namespace PraxisCore
                 //it doesn't ALWAYS cause problems if I skip this, but when it does it takes forever to draw some tiles. Keep this in even if it only seems to happen with debug mode on.
                 if (w.elementGeometry.Coordinates.Length > 800)
                     thisGeometry = w.elementGeometry.Intersection(Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(stats.area, resolutionCell10)));
+                if (thisGeometry.Coordinates.Length == 0) //After trimming, linestrings may not have any points in the drawing area.
+                    continue;
 
                 //Potential speed fix #2 by removing points that are less than 1 pixel apart from another point.
                 //This actually hurts average runtime when run on everything.
