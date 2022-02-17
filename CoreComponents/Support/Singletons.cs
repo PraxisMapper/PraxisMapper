@@ -374,6 +374,7 @@ namespace PraxisCore
                     new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "default" }} 
             },
 
+            //TODO: these need their sizes adjusted to be wider. Right now, in degrees, the overlap is nearly invisible unless you're at zoom 20.
             //More specific admin-bounds tags, named matching USA values for now.
             //NOTE: Line patterns don't seem to play particularly well with my current logic for some reason.
             new TagParserEntry() { MatchOrder = 1, name ="country",  styleSet = "adminBounds",
