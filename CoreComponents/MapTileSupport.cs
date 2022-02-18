@@ -24,7 +24,7 @@ namespace PraxisCore
         public static IMapTiles MapTiles; //This needs set at startup.
 
         /// <summary>
-        /// A code reference for how big an image would be using 11-character PlusCodes for pixels, multiplied by GameGameTileScale (default 2)
+        /// A code reference for how big an image would be using 11-character PlusCodes for pixels, multiplied by GameTileScale (default 2)
         /// </summary>
         /// <param name="code">the code provided to determine image size</param>
         /// <param name="X">out param for image width</param>
@@ -284,7 +284,9 @@ namespace PraxisCore
                     var acheck = Converters.GeoAreaToPreparedPolygon(paddedArea); //Fastest search option is one preparedPolygon against a list of normal geometry.
                     var areaList = rowList.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); //Get the list of areas in this maptile.
 
-                    var info = new ImageStats(plusCodeArea, 160, 200);
+                    int imgX = 0, imgY = 0;
+                    MapTileSupport.GetPlusCodeImagePixelSize(plusCode8, out imgX, out imgY);
+                    var info = new ImageStats(plusCodeArea, imgX, imgY);
                     //new setup.
                     var areaPaintOps = MapTileSupport.GetPaintOpsForStoredElements(areaList, "mapTiles", info);
                     var tile = DrawPlusCode(plusCode8, areaPaintOps, "mapTiles");
