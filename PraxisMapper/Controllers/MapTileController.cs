@@ -30,7 +30,7 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/DrawSlippyTile/{styleSet}/{zoom}/{x}/{y}.png")] //slippy map conventions.
-        public FileContentResult DrawSlippyTile(int x, int y, int zoom, string styleSet)
+        public ActionResult DrawSlippyTile(int x, int y, int zoom, string styleSet)
         {
             //slippymaps don't use coords. They use a grid from -180W to 180E, 85.0511N to -85.0511S (they might also use radians, not degrees, for an additional conversion step)
             //Remember to invert Y to match PlusCodes going south to north.
@@ -47,7 +47,7 @@ namespace PraxisMapper.Controllers
                     //Create this entry
                     var info = new ImageStats(zoom, x, y, IMapTiles.MapTileSizeSquare);
                     if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
-                        return File(new byte[0], "text/text");
+                        return StatusCode(500);
 
                     info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
                     if (zoom >= 15) //Gameplay areas are ~15.
@@ -85,14 +85,14 @@ namespace PraxisMapper.Controllers
             catch (Exception ex)
             {
                 ErrorLogger.LogError(ex);
-                return File(new byte[0], "text/text");
+                return StatusCode(500);
             }
         }
 
         [HttpGet]
         [Route("/[controller]/DrawSlippyTileCustomElements/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
 
-        public FileContentResult DrawSlippyTileCustomElements(int x, int y, int zoom, string styleSet, string dataKey)
+        public ActionResult DrawSlippyTileCustomElements(int x, int y, int zoom, string styleSet, string dataKey)
         {
             //slippymaps don't use coords. They use a grid from -180W to 180E, 85.0511N to -85.0511S (they might also use radians, not degrees, for an additional conversion step)
             //Remember to invert Y to match PlusCodes going south to north.
@@ -109,7 +109,7 @@ namespace PraxisMapper.Controllers
                     //Create this entry
                     var info = new ImageStats(zoom, x, y, IMapTiles.MapTileSizeSquare);
                     if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
-                        return File(new byte[0], "text/text");
+                        return StatusCode(400);
                     info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
                     if (zoom >= 15) //Gameplay areas are ~15.
                     {
@@ -144,14 +144,14 @@ namespace PraxisMapper.Controllers
             catch (Exception ex)
             {
                 ErrorLogger.LogError(ex);
-                return File(new byte[0], "text/text");
+                return StatusCode(500);
             }
         }
 
         [HttpGet]
         [Route("/[controller]/DrawSlippyTileCustomPlusCodes/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
 
-        public FileContentResult DrawSlippyTileCustomPlusCodes(int x, int y, int zoom, string styleSet, string dataKey)
+        public ActionResult DrawSlippyTileCustomPlusCodes(int x, int y, int zoom, string styleSet, string dataKey)
         {
             //slippymaps don't use coords. They use a grid from -180W to 180E, 85.0511N to -85.0511S (they might also use radians, not degrees, for an additional conversion step)
             //Remember to invert Y to match PlusCodes going south to north.
@@ -168,7 +168,7 @@ namespace PraxisMapper.Controllers
                     //Create this entry
                     var info = new ImageStats(zoom, x, y, IMapTiles.MapTileSizeSquare);
                     if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
-                        return File(new byte[0], "text/text");
+                        return StatusCode(400);
                     info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
                     if (zoom >= 15) //Gameplay areas are ~15.
                         info.filterSize = 0;
@@ -203,14 +203,14 @@ namespace PraxisMapper.Controllers
             catch (Exception ex)
             {
                 ErrorLogger.LogError(ex);
-                return File(new byte[0], "text/text");
+                return StatusCode(500);
             }
         }
 
         [HttpGet]
         [Route("/[controller]/DrawSlippyTileCustomPlusCodesByTag/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
 
-        public FileContentResult DrawSlippyTileCustomPlusCodesByTag(int x, int y, int zoom, string styleSet, string dataKey)
+        public ActionResult DrawSlippyTileCustomPlusCodesByTag(int x, int y, int zoom, string styleSet, string dataKey)
         {
             //slippymaps don't use coords. They use a grid from -180W to 180E, 85.0511N to -85.0511S (they might also use radians, not degrees, for an additional conversion step)
             //Remember to invert Y to match PlusCodes going south to north.
@@ -227,7 +227,7 @@ namespace PraxisMapper.Controllers
                     //Create this entry
                     var info = new ImageStats(zoom, x, y, IMapTiles.MapTileSizeSquare);
                     if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
-                        return File(new byte[0], "text/text");
+                        return StatusCode(400);
                     info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
                     if (zoom >= 15) //Gameplay areas are ~15.
                         info.filterSize = 0;
@@ -262,7 +262,7 @@ namespace PraxisMapper.Controllers
             catch (Exception ex)
             {
                 ErrorLogger.LogError(ex);
-                return File(new byte[0], "text/text");
+                return StatusCode(500);
             }
         }
 
@@ -291,13 +291,13 @@ namespace PraxisMapper.Controllers
         [HttpGet]
         [Route("/[controller]/DrawPlusCode/{code}/{styleSet}")]
         [Route("/[controller]/DrawPlusCode/{code}")]
-        public FileContentResult DrawPlusCode(string code, string styleSet = "mapTiles")
+        public ActionResult DrawPlusCode(string code, string styleSet = "mapTiles")
         {
             try
             {
                 PerformanceTracker pt = new PerformanceTracker("DrawPlusCode");
                 if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(code)))
-                    return File(new byte[0], "text/text");
+                    return StatusCode(400);
                 code = code.ToUpper();
                 string tileKey = code + "|" + styleSet;
                 var db = new PraxisContext();
@@ -330,19 +330,19 @@ namespace PraxisMapper.Controllers
             catch (Exception ex)
             {
                 ErrorLogger.LogError(ex);
-                return File(new byte[0], "text/text");
+                return StatusCode(500);
             }
         }
 
         [HttpGet]
         [Route("/[controller]/DrawPlusCodeCustomData/{code}/{styleSet}/{dataKey}")]
-        public FileContentResult DrawPlusCodeCustomData(string code, string styleSet, string dataKey)
+        public ActionResult DrawPlusCodeCustomData(string code, string styleSet, string dataKey)
         {
             try
             {
                 PerformanceTracker pt = new PerformanceTracker("DrawPlusCodeCustomData");
                 if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(code)))
-                    return File(new byte[0], "text/text");
+                    return StatusCode(400);
                 code = code.ToUpper();
                 string tileKey = code + "|" + styleSet + "|" + dataKey;
                 var db = new PraxisContext();
@@ -381,19 +381,19 @@ namespace PraxisMapper.Controllers
             catch (Exception ex)
             {
                 ErrorLogger.LogError(ex);
-                return File(new byte[0], "text/text");
+                return StatusCode(500);
             }
         }
 
         [HttpGet]
         [Route("/[controller]/DrawPlusCodeCustomDataByTag/{code}/{styleSet}/{dataKey}")]
-        public FileContentResult DrawPlusCodeCustomDataByTag(string code, string styleSet, string dataKey)
+        public ActionResult DrawPlusCodeCustomDataByTag(string code, string styleSet, string dataKey)
         {
             try
             {
                 PerformanceTracker pt = new PerformanceTracker("DrawPlusCodeCustomData");
                 if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(code)))
-                    return File(new byte[0], "text/text");
+                    return StatusCode(400);
                 code = code.ToUpper();
                 string tileKey = code + "|" + styleSet + "|" + dataKey;
                 var db = new PraxisContext();
@@ -433,19 +433,19 @@ namespace PraxisMapper.Controllers
             catch (Exception ex)
             {
                 ErrorLogger.LogError(ex);
-                return File(new byte[0], "text/text");
+                return StatusCode(500);
             }
         }
 
         [HttpGet]
         [Route("/[controller]/DrawPlusCodeCustomElements/{code}/{styleSet}/{dataKey}")]
-        public FileContentResult DrawPlusCodeCustomElements(string code, string styleSet, string dataKey)
+        public ActionResult DrawPlusCodeCustomElements(string code, string styleSet, string dataKey)
         {
             try
             {
                 PerformanceTracker pt = new PerformanceTracker("DrawPlusCodeCustomElements");
                 if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(code)))
-                    return File(new byte[0], "text/text");
+                    return StatusCode(400);
                 code = code.ToUpper();
                 string tileKey = code + "|" + styleSet + "|" + dataKey;
                 var db = new PraxisContext();
@@ -484,7 +484,7 @@ namespace PraxisMapper.Controllers
             catch (Exception ex)
             {
                 ErrorLogger.LogError(ex);
-                return File(new byte[0], "text/text");
+                return StatusCode(500);
             }
         }
 
