@@ -52,7 +52,7 @@ namespace PraxisCore
 
             dOpts = new DrawingOptions();
             ShapeOptions so = new ShapeOptions();
-            so.IntersectionRule =  IntersectionRule.OddEven; //already the default;
+            so.IntersectionRule = IntersectionRule.OddEven; //already the default;
             GraphicsOptions go = new GraphicsOptions();
             go.Antialias = true;
             go.AntialiasSubpixelDepth = 16; //defaults to 16, would 4 improve speed? would 25 or 64 improve quality? (not visible so from early testing.)
@@ -92,7 +92,7 @@ namespace PraxisCore
         //        htmlColor = htmlColor.Substring(2, 6) + htmlColor.Substring(0, 2);
 
 
-            
+
         //    //Pen p = new Pen(Rgba32.ParseHex(htmlColor), tpe.LineWidth * widthMod )
 
         //    //return paint;
@@ -173,7 +173,7 @@ namespace PraxisCore
             while (lonLineTrackerDegrees <= totalArea.EastLongitude + resolutionCell8) //This means we should always draw at least 2 lines, even if they're off-canvas.
             {
                 var geoLine = new LineString(new Coordinate[] { new Coordinate(lonLineTrackerDegrees, 90), new Coordinate(lonLineTrackerDegrees, -90) });
-                var points =  PolygonToDrawingLine(geoLine, totalArea, degreesPerPixelX, degreesPerPixelY);
+                var points = PolygonToDrawingLine(geoLine, totalArea, degreesPerPixelX, degreesPerPixelY);
                 image.Mutate(x => x.Draw(lineColor, StrokeWidth, new SixLabors.ImageSharp.Drawing.Path(points)));
                 lonLineTrackerDegrees += resolutionCell8;
             }
@@ -322,9 +322,20 @@ namespace PraxisCore
             var image = new Image<Rgba32>(stats.imageSizeX, stats.imageSizeY);
             foreach (var w in paintOps.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))
             {
+                //I need paints for fill commands and images. 
                 var paint = cachedPaints[w.paintOp.id];
 
-                //ImageSharp doesn;t like humungous areas (16k+ nodes takes a couple minutes), so we have to crop them down here. Maybe. Cropping Causes other issues sometimes?
+                //TODO: use stats to see if this image is scaled to gameTile values, and if so then use cached pre-made pens?
+                Pen pen;
+                if (String.IsNullOrWhiteSpace(w.paintOp.LinePattern))
+                    pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), w.paintOp.LineWidth);
+                else
+                {
+                    float[] linesAndGaps = w.paintOp.LinePattern.Split('|').Select(t => float.Parse(t)).ToArray();
+                    pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), w.paintOp.LineWidth, linesAndGaps);
+                }
+
+                //ImageSharp doesn;t like humungous areas (16k+ nodes takes a couple minutes), so we have to crop them down here
                 Geometry thisGeometry = w.elementGeometry; //default
                 //This block below is fairly imporant because of Path.Clip() performance. I would still prefer to do this over the original way of handling holes in paths (draw bitmap of outer polygons, erase holes with eraser paint, draw that bitmap over maptile)
                 //it doesn't ALWAYS cause problems if I skip this, but when it does it takes forever to draw some tiles. Keep this in even if it only seems to happen with debug mode on.
@@ -332,16 +343,6 @@ namespace PraxisCore
                     thisGeometry = w.elementGeometry.Intersection(Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(stats.area, resolutionCell10)));
                 if (thisGeometry.Coordinates.Length == 0) //After trimming, linestrings may not have any points in the drawing area.
                     continue;
-
-                //Potential speed fix #2 by removing points that are less than 1 pixel apart from another point.
-                //This actually hurts average runtime when run on everything.
-                //thisGeometry = NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(thisGeometry, stats.degreesPerPixelX);
-
-                //Potential logic fix:
-                //for geometries, clamp all points to the current tile's bounds
-                //if its the same location as the previous point after clamping, remove it from the list of points.
-                //Or try and be clever: if any point is beyond the tile bounds in 2 directions, set 1 point at the corner (or just outside of it)
-                //and erase all points beyond it?
 
                 switch (thisGeometry.GeometryType)
                 {
@@ -353,7 +354,7 @@ namespace PraxisCore
                             if (w.paintOp.FillOrStroke == "fill")
                                 image.Mutate(x => x.Fill(dOpts, paint, drawThis));
                             else
-                                image.Mutate(x => x.Draw(dOpts, paint, (float)w.lineWidth, drawThis));
+                                image.Mutate(x => x.Draw(dOpts, pen, drawThis));
                         }
                         break;
                     case "MultiPolygon":
@@ -363,7 +364,7 @@ namespace PraxisCore
                             if (w.paintOp.FillOrStroke == "fill")
                                 image.Mutate(x => x.Fill(dOpts, paint, drawThis2));
                             else
-                                image.Mutate(x => x.Draw(dOpts, paint, (float)w.lineWidth, drawThis2));
+                                image.Mutate(x => x.Draw(dOpts, pen, drawThis2));
                         }
                         break;
                     case "LineString":
@@ -374,13 +375,13 @@ namespace PraxisCore
                         if (firstPoint.Equals(lastPoint) && w.paintOp.FillOrStroke == "fill")
                             image.Mutate(x => x.Fill(dOpts, paint, new SixLabors.ImageSharp.Drawing.Polygon(new LinearLineSegment(line))));
                         else
-                            image.Mutate(x => x.DrawLines(dOpts, paint, (float)w.lineWidth, line));
+                            image.Mutate(x => x.DrawLines(dOpts, pen, line));
                         break;
                     case "MultiLineString":
                         foreach (var p3 in ((MultiLineString)thisGeometry).Geometries)
                         {
                             var line2 = LineToDrawingLine(p3, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
-                            image.Mutate(x => x.DrawLines(dOpts, paint, (float)w.lineWidth, line2));
+                            image.Mutate(x => x.DrawLines(dOpts, pen, line2));
                         }
                         break;
                     case "Point":
@@ -394,7 +395,7 @@ namespace PraxisCore
                         }
                         else
                         {
-                            var circleRadius = (float)(ConstantValues.resolutionCell10 / stats.degreesPerPixelX / 2); //I want points to be drawn as 1 Cell10 in diameter.
+                            var circleRadius = (float)w.lineWidth; //(float)(ConstantValues.resolutionCell10 / stats.degreesPerPixelX / 2); //I want points to be drawn as 1 Cell10 in diameter.
                             var shape = new SixLabors.ImageSharp.Drawing.EllipsePolygon(
                                 PointToPointF(thisGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY),
                                 new SizeF(circleRadius, circleRadius));
@@ -408,7 +409,7 @@ namespace PraxisCore
                 }
             }
 
-            image.Mutate(x => x.Flip(FlipMode.Vertical)); //Plus codes are south-to-north, so invert the image to make it correct.
+            image.Mutate(x => x.Flip(FlipMode.Vertical)); //Plus codes are south-to-north, so invert the image to make it correct. TODO: could I use the matrix to skip this step?
             image.Mutate(x => x.BoxBlur(1)); //This does help smooth out some of the rough edges on the game tiles. 
             var ms = new MemoryStream();
             image.SaveAsPng(ms);
@@ -459,9 +460,9 @@ namespace PraxisCore
             var typeConvertedPoints = p.ExteriorRing.Coordinates.Select(o => new SixLabors.ImageSharp.PointF((float)((o.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / resolutionY))));
             //lineSegmentList.Add(new LinearLineSegment(typeConvertedPoints.ToArray()));
             var path = new SixLabors.ImageSharp.Drawing.Path(new LinearLineSegment(typeConvertedPoints.ToArray())).AsClosedPath();
-            
+
             foreach (var hole in p.InteriorRings)
-            {   
+            {
                 typeConvertedPoints = hole.Coordinates.Select(o => new SixLabors.ImageSharp.PointF((float)((o.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / resolutionY))));
                 var tempHole = new SixLabors.ImageSharp.Drawing.Path(new LinearLineSegment(typeConvertedPoints.ToArray())).AsClosedPath();
                 path = path.Clip(tempHole);
