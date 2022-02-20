@@ -264,7 +264,7 @@ namespace PraxisCore.PbfReader
                         //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
                         if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
                         {
-                            ProcessReaderResults(geoData);
+                            ProcessReaderResults(geoData, block);
                             //if (wt != null)
                             //writeTasks.Add(wt);
                         }
@@ -291,7 +291,7 @@ namespace PraxisCore.PbfReader
                                 var relListOfOne = new List<ICompleteOsmGeo>();
                                 Log.WriteLog("Loading relation with " + relId.memids.Count() + " members");
                                 relListOfOne.Add(GetRelation(relId.id, onlyMatchedAreas));
-                                ProcessReaderResults(relListOfOne);
+                                ProcessReaderResults(relListOfOne, block);
                                 activeBlocks.Clear();
                             }
                         }
@@ -301,14 +301,14 @@ namespace PraxisCore.PbfReader
                             {
                                 var wayListOfOne = new List<ICompleteOsmGeo>();
                                 wayListOfOne.Add(GetWay(wayId.id, null, onlyMatchedAreas));
-                                ProcessReaderResults(wayListOfOne);
+                                ProcessReaderResults(wayListOfOne, block);
                                 activeBlocks.Clear();
                             }
                         }
                         else if (thisBlock.primitivegroup[0].nodes.Count() > 0)
                         {
                             var nodes = GetTaggedNodesFromBlock(thisBlock, onlyMatchedAreas);
-                            ProcessReaderResults(nodes);
+                            ProcessReaderResults(nodes, block);
                         }
                         SaveCurrentBlock(block);
                     }
@@ -383,7 +383,7 @@ namespace PraxisCore.PbfReader
                     else
                         Log.WriteLog("Node Block " + block);
                     var geoData = GetGeometryFromBlock(block, false).Where(g => g != null).ToList();
-                    ProcessReaderResults(geoData);
+                    ProcessReaderResults(geoData, block);
                 }
                 //Task.WaitAll(writeTasks.ToArray());
                 Close();
@@ -1455,7 +1455,7 @@ namespace PraxisCore.PbfReader
                     Log.WriteLog("Current stats:");
                     Log.WriteLog("Blocks completed this run: " + timeList.Count());
                     Log.WriteLog("Long-running/writing pending: " + writeTasks.Where(w => !w.IsCompleted).Count());
-                    Log.WriteLog("Processing tasks: " + relList.Where(r => !r.IsCompleted).Count());
+                    Log.WriteLog("Processing tasks: " + relList.Count(r => !r.IsCompleted));
                     if (timeList.Count > 0)
                     {
                         Log.WriteLog("Average time per block: " + timeList.Average(t => t.TotalSeconds) + " seconds");
@@ -1478,10 +1478,10 @@ namespace PraxisCore.PbfReader
         /// <param name="saveToDb">If true, insert the items directly to the database instead of exporting to a file as JSON elements.</param>
         /// <param name="onlyTagMatchedElements">if true, only loads in elements that dont' match the default entry for a TagParser style set</param>
         /// <returns>the Task handling the conversion process</returns>
-        public void ProcessReaderResults(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items)
+        public void ProcessReaderResults(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, long blockId)
         {
             //This one is easy, we just dump the geodata to the file.
-            string saveFilename = outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + ".json";
+            string saveFilename = outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + "-" + blockId + ".json";
             ConcurrentBag<StoredOsmElement> elements = new ConcurrentBag<StoredOsmElement>();
             DateTime startedProcess = DateTime.Now;
 
@@ -1539,7 +1539,8 @@ namespace PraxisCore.PbfReader
 
                     try
                     {
-                        jsonFileStream.Write(jsonSB);
+                        //jsonFileStream.Write(jsonSB);
+                        System.IO.File.WriteAllText(saveFilename, jsonSB.ToString());
                     }
                     catch (Exception ex)
                     {
@@ -1561,8 +1562,10 @@ namespace PraxisCore.PbfReader
 
                     try
                     {
-                        geomFileStream.Write(geometryBuilds);
-                        tagsFileStream.Write(tagBuilds);
+                        System.IO.File.WriteAllText(saveFilename + ".geomInfile", geometryBuilds.ToString());
+                        System.IO.File.WriteAllText(saveFilename + "tagsInfile", tagBuilds.ToString());
+                        //geomFileStream.Write(geometryBuilds);
+                        //tagsFileStream.Write(tagBuilds);
                     }
                     catch (Exception ex)
                     {
