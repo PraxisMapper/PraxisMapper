@@ -179,7 +179,7 @@ namespace PraxisCore.PbfReader
                 if (processingMode == "center")
                     md.elementGeometry = md.elementGeometry.Centroid;
 
-                var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated);
+                var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated, md.version);
                 var test = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
                 jsonFileStream.WriteLine(test);
             }
@@ -1133,7 +1133,7 @@ namespace PraxisCore.PbfReader
                         Log.WriteLog("Error: relation " + relation.Id + " failed to convert to StoredOSmElement");
                         return;
                     }
-                    var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated);
+                    var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated, md.version);
                     if (recordVersion == null)
                     {
                         Log.WriteLog("Error: relation " + relation.Id + " failed to convert to StoredOSmElementForJson");
@@ -1533,7 +1533,7 @@ namespace PraxisCore.PbfReader
                     StringBuilder jsonSB = new StringBuilder(10000000); //1MB of JsonData for a block is a good starting buffer.
                     foreach (var md in elements)
                     {
-                        var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated);
+                        var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated, md.version);
                         var test = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
                         jsonSB.Append(test).Append(Environment.NewLine);
                     }
@@ -1556,7 +1556,7 @@ namespace PraxisCore.PbfReader
                     StringBuilder tagBuilds = new StringBuilder(200000); //20k
                     foreach (var md in elements)
                     {
-                        geometryBuilds.Append(md.name).Append("\t").Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(md.elementGeometry.AsText()).Append("\t").Append(md.AreaSize).Append("\t").Append(Guid.NewGuid()).Append("\r\n");
+                        geometryBuilds.Append(md.name).Append("\t").Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(md.elementGeometry.AsText()).Append("\t").Append(md.AreaSize).Append("\t").Append(Guid.NewGuid()).Append("\t").Append(md.version).Append("\r\n");
                         foreach (var t in md.Tags)
                             tagBuilds.Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(t.Key).Append("\t").Append(t.Value.Replace("\r", "").Replace("\n", "")).Append("\r\n"); //Might also need to sanitize / and ' ?
                     }
