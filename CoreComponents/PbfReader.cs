@@ -734,7 +734,6 @@ namespace PraxisCore.PbfReader
                     crms.Add(c);
                 }
                 r.Members = crms.ToArray();
-                r.Version = rel.info.version;
 
                 //Some memory cleanup slightly early, in an attempt to free up RAM faster.
                 loadedWays.Clear();
@@ -865,7 +864,6 @@ namespace PraxisCore.PbfReader
                 }
 
                 finalway.Nodes = nodeList.ToArray();
-                finalway.Version = way.info.version;
                 return finalway;
             }
             catch (Exception ex)
