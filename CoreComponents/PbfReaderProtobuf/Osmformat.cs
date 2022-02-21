@@ -344,55 +344,48 @@ namespace PraxisCore.PbfReader
             set { _version = value; }
         }
 
-        [ProtoBuf.ProtoIgnore]
         private int _timestamp = default(int);
         /// <summary>
         /// 
         /// </summary>
         [global::ProtoBuf.ProtoMember(2, IsRequired = false, Name = @"timestamp", DataFormat = global::ProtoBuf.DataFormat.TwosComplement)]
         [global::System.ComponentModel.DefaultValue(default(int))]
-        [ProtoBuf.ProtoIgnore]
         public int timestamp
         {
             get { return _timestamp; }
             set { _timestamp = value; }
         }
-        [ProtoBuf.ProtoIgnore]
+
         private long _changeset = default(long);
         /// <summary>
         /// 
         /// </summary>
         [global::ProtoBuf.ProtoMember(3, IsRequired = false, Name = @"changeset", DataFormat = global::ProtoBuf.DataFormat.TwosComplement)]
         [global::System.ComponentModel.DefaultValue(default(long))]
-        [ProtoBuf.ProtoIgnore]
         public long changeset
         {
             get { return _changeset; }
             set { _changeset = value; }
         }
 
-        [ProtoBuf.ProtoIgnore]
         private int _uid = default(int);
         /// <summary>
         /// 
         /// </summary>
         [global::ProtoBuf.ProtoMember(4, IsRequired = false, Name = @"uid", DataFormat = global::ProtoBuf.DataFormat.TwosComplement)]
         [global::System.ComponentModel.DefaultValue(default(int))]
-        [ProtoBuf.ProtoIgnore]
         public int uid
         {
             get { return _uid; }
             set { _uid = value; }
         }
 
-        [ProtoBuf.ProtoIgnore]
         private int _user_sid = default(int);
         /// <summary>
         /// 
         /// </summary>
         [global::ProtoBuf.ProtoMember(5, IsRequired = false, Name = @"user_sid", DataFormat = global::ProtoBuf.DataFormat.TwosComplement)]
         [global::System.ComponentModel.DefaultValue(default(int))]
-        [ProtoBuf.ProtoIgnore]
         public int user_sid
         {
             get { return _user_sid; }
@@ -768,12 +761,14 @@ namespace PraxisCore.PbfReader
             get { return _vals; }
         }
 
+        [ProtoBuf.ProtoIgnore]
         private Info _info = null;
         /// <summary>
         /// 
         /// </summary>
         [global::ProtoBuf.ProtoMember(4, IsRequired = false, Name = @"info", DataFormat = global::ProtoBuf.DataFormat.Default)]
         [global::System.ComponentModel.DefaultValue(null)]
+        [ProtoBuf.ProtoIgnore]
         public Info info
         {
             get { return _info; }
@@ -835,13 +830,14 @@ namespace PraxisCore.PbfReader
             get { return _vals; }
         }
 
+        [ProtoBuf.ProtoIgnore]
         private Info _info = null;
         /// <summary>
         /// 
         /// </summary>
         [global::ProtoBuf.ProtoMember(4, IsRequired = false, Name = @"info", DataFormat = global::ProtoBuf.DataFormat.Default)]
         [global::System.ComponentModel.DefaultValue(null)]
-
+        [ProtoBuf.ProtoIgnore]
         public Info info
         {
             get { return _info; }
