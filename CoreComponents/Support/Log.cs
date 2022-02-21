@@ -33,14 +33,13 @@ namespace PraxisCore
         /// <param name="outputLevel">What level of alert this log is. Will not be displayed/written if Verbosity is lower than this value.</param>
         public static void WriteLog(string message, VerbosityLevels outputLevel = VerbosityLevels.Normal)
         {
-            if ((int)Verbosity < (int)outputLevel)
+            if (Verbosity < outputLevel)
                 return;
 
             Console.WriteLine(message);
             if (WriteToFile)
                 lock (fileLock)
-                    System.IO.File.WriteAllText(filename, message + Environment.NewLine);
-                    //sw.WriteLine(message);
+                    System.IO.File.AppendAllText(filename, message + Environment.NewLine);
         }
 
     }
