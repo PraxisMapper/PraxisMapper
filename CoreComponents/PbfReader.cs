@@ -650,10 +650,9 @@ namespace PraxisCore.PbfReader
 
                 var relPrimGroup = relationBlock.primitivegroup[0];
                 var rel = findRelationInBlockList(relPrimGroup.relations, relationId);
-
+                bool canProcess = false;
                 //sanity check - if this relation doesn't have inner or outer role members,
                 //its not one i can process.
-                bool canProcess = false;
                 foreach (var role in rel.roles_sid)
                 {
                     string roleType = System.Text.Encoding.UTF8.GetString(relationBlock.stringtable.s[role]);
@@ -735,6 +734,7 @@ namespace PraxisCore.PbfReader
                     crms.Add(c);
                 }
                 r.Members = crms.ToArray();
+                r.Version = rel.info.version;
 
                 //Some memory cleanup slightly early, in an attempt to free up RAM faster.
                 loadedWays.Clear();
@@ -865,6 +865,7 @@ namespace PraxisCore.PbfReader
                 }
 
                 finalway.Nodes = nodeList.ToArray();
+                finalway.Version = way.info.version;
                 return finalway;
             }
             catch (Exception ex)
