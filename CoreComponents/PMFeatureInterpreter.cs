@@ -275,7 +275,7 @@ namespace PraxisCore
             var firstShape = shapeList.FirstOrDefault();
             if (firstShape == null)
             {
-                Log.WriteLog("shapelist has 0 ways in shapelist?", Log.VerbosityLevels.High);
+                Log.WriteLog("shapelist has 0 ways in shapelist?", Log.VerbosityLevels.Errors);
                 return null;
             }
 
@@ -311,7 +311,7 @@ namespace PraxisCore
 
             if (currentShape.Count <= 3)
             {
-                Log.WriteLog("Didn't find enough points to turn into a polygon. Probably an error in the source data.", Log.VerbosityLevels.High);
+                Log.WriteLog("Didn't find enough points to turn into a polygon. Probably an error in the source data.", Log.VerbosityLevels.Errors);
                 return null;
             }
 
@@ -319,7 +319,7 @@ namespace PraxisCore
             poly = GeometrySupport.CCWCheck(poly);
             if (poly == null)
             {
-                Log.WriteLog("Found a shape that isn't CCW either way. Error.", Log.VerbosityLevels.High);
+                Log.WriteLog("Found a shape that isn't CCW either way. Error.", Log.VerbosityLevels.Errors);
                 return null;
             }
             return poly;

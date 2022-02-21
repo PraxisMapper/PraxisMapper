@@ -152,7 +152,7 @@ namespace PraxisCore
                 var geometry = featureInterpreter.Interpret(g); 
                 if (geometry == null)
                 {
-                    Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + " didn't interpret into a Geometry object", Log.VerbosityLevels.High);
+                    Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + " didn't interpret into a Geometry object", Log.VerbosityLevels.Errors);
                     return null;
                 }
                 var sw = new StoredOsmElement();
@@ -162,7 +162,7 @@ namespace PraxisCore
                 var geo = GeometrySupport.SimplifyArea(geometry);
                 if (geo == null)
                 {
-                    Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + " didn't simplify for some reason.", Log.VerbosityLevels.High);
+                    Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + " didn't simplify for some reason.", Log.VerbosityLevels.Errors);
                     return null;
                 }
                 geo.SRID = 4326;//Required for SQL Server to accept data this way.
@@ -314,6 +314,12 @@ namespace PraxisCore
                 }
                 temp.elementGeometry = mp;
             }
+            if (temp.elementGeometry == null) //it failed the CCWCheck logic and couldn;t be correctly oriented.
+            {
+                Log.WriteLog("NOTE: Item " + temp.sourceItemID + " | " + temp.name + " - Failed to create valid geometry", Log.VerbosityLevels.Errors);
+                return null;
+            }
+
             temp.AreaSize = temp.elementGeometry.Length > 0 ? temp.elementGeometry.Length : resolutionCell10;
             temp.privacyId = Guid.NewGuid(); //TODO: confirm if this is OK or if I need to create this guid when saving to JSON instead of loading.
             return temp;

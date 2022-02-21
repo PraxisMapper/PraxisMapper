@@ -102,7 +102,7 @@ namespace PraxisMapper
             cache.Set("caching", settings.enableMapTileCaching); //convenience entry
             IMapTiles.MapTileSizeSquare = settings.SlippyMapTileSizeSquare; //TODO: set in config instead of static value?
 
-            Console.WriteLine("PraxisMapper configured and running.");
+            Log.WriteLog("PraxisMapper configured and running.");
         }
     }
 }

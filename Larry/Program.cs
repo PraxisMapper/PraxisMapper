@@ -64,7 +64,7 @@ namespace Larry
 
             if (args.Count() == 0)
             {
-                Console.WriteLine("You must pass an arguement to this application");
+                Log.WriteLog("You must pass an arguement to this application", Log.VerbosityLevels.High);
                 //TODO: list valid commands or point at the docs file
                 return;
             }
@@ -75,7 +75,7 @@ namespace Larry
             //Sanity check some values.
             if (config["UseMariaDBInFile"] == "True" && config["DbMode"] != "MariaDB")
             {
-                Console.WriteLine("You set a MariaDB-only option on and aren't using MariaDB! Fix the configs to use MariaDB or disable the InFile setting and run again.");
+                Log.WriteLog("You set a MariaDB-only option on and aren't using MariaDB! Fix the configs to use MariaDB or disable the InFile setting and run again.", Log.VerbosityLevels.High);
                 return;
             }
 
@@ -274,7 +274,7 @@ namespace Larry
                 var salt = crypter.GenerateSalt(options);
                 var results = crypter.Crypt("anythingWillDo", salt);
                 encryptTimer.Stop();
-                Console.WriteLine("Time with Rounds:" + rounds + ": " + encryptTimer.ElapsedMilliseconds + "ms");
+                Log.WriteLog("Time with Rounds:" + rounds + ": " + encryptTimer.ElapsedMilliseconds + "ms");
 
             }
             Log.WriteLog("Suggestion: Set the PasswordRounds configuration variable to " + rounds + " in PraxisMapper's appsettings.json file");
@@ -282,7 +282,7 @@ namespace Larry
 
         private static void createDb()
         {
-            Console.WriteLine("Creating database with current database settings.");
+            Log.WriteLog("Creating database with current database settings.");
             var db = new PraxisContext();
             db.MakePraxisDB();
         }
@@ -328,7 +328,7 @@ namespace Larry
                     var mariaPath = jsonFileName.Replace("\\", "\\\\");
                     db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' IGNORE INTO TABLE StoredOsmElements fields terminated by '\t' lines terminated by '\r\n' (name, sourceItemID, sourceItemType, @elementGeometry, AreaSize, privacyId) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
                     sw.Stop();
-                    Console.WriteLine("Geometry loaded from " + jsonFileName + " in " + sw.Elapsed);
+                    Log.WriteLog("Geometry loaded from " + jsonFileName + " in " + sw.Elapsed);
                     System.IO.File.Move(jsonFileName, jsonFileName + "done");
                 }
 
@@ -340,7 +340,7 @@ namespace Larry
                     var mariaPath = jsonFileName.Replace("\\", "\\\\");
                     db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' IGNORE INTO TABLE ElementTags fields terminated by '\t' lines terminated by '\r\n' (SourceItemId, SourceItemType, `key`, `value`)");
                     sw.Stop();
-                    Console.WriteLine("Tags loaded from " + jsonFileName + " in " + sw.Elapsed);
+                    Log.WriteLog("Tags loaded from " + jsonFileName + " in " + sw.Elapsed);
                     System.IO.File.Move(jsonFileName, jsonFileName + "done");
                 }
             }
@@ -373,9 +373,9 @@ namespace Larry
             else //typical Json files
             {
                 List<string> filenames = System.IO.Directory.EnumerateFiles(config["JsonMapDataFolder"], "*.json").ToList();
-                long entryCounter = 0;
                 foreach (var jsonFileName in filenames)
                 {
+                    long entryCounter = 0;
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     Log.WriteLog("Loading " + jsonFileName + " to database at " + DateTime.Now);
                     var fr = File.OpenRead(jsonFileName);
@@ -387,7 +387,8 @@ namespace Larry
                         //NOTE: the slowest part of getting a server going now is inserting into the DB. 
                         string entry = sr.ReadLine();
                         StoredOsmElement stored = GeometrySupport.ConvertSingleJsonStoredElement(entry);
-                        pendingData.Add(stored);
+                        if (stored != null)
+                            pendingData.Add(stored);
 
                         entryCounter++;
                         if (entryCounter >= 10000)
