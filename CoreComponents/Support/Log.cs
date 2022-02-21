@@ -21,9 +21,9 @@ namespace PraxisCore
         public enum VerbosityLevels
         {
             Off = 1, //No calls to WriteLog pass Off as their verbosity level.
+            Errors,
             Normal,
             High
-                //TODO: add ErrorsOnly, between Off and Normal?
         }
 
         /// <summary>
