@@ -52,7 +52,7 @@ namespace PraxisCore
         {
             //Create indexes here.
             model.Entity<PlayerData>().HasIndex(p => p.deviceID);
-            model.Entity<PlayerData>().HasIndex(p => p.dataKey); 
+            model.Entity<PlayerData>().HasIndex(p => p.dataKey);
 
             model.Entity<StoredOsmElement>().HasIndex(m => m.AreaSize); //Enables server-side sorting on biggest-to-smallest draw order.
             model.Entity<StoredOsmElement>().HasIndex(m => m.sourceItemID);
@@ -89,26 +89,33 @@ namespace PraxisCore
         public static string GeneratedMapDataValidTriggerMSSQL = "CREATE TRIGGER dbo.GenereatedMapDataMakeValid ON dbo.GeneratedMapData AFTER INSERT AS BEGIN UPDATE dbo.GeneratedMapData SET place = place.MakeValid() WHERE GeneratedMapDataId in (SELECT GeneratedMapDataId from inserted) END";
 
         //An index that I don't think EFCore can create correctly automatically.
-        //public static string GeneratedMapDataIndex = "CREATE SPATIAL INDEX GeneratedMapDataSpatialIndex ON GeneratedMapData(place)";
         public static string MapTileIndex = "CREATE SPATIAL INDEX MapTileSpatialIndex ON MapTiles(areaCovered)";
         public static string SlippyMapTileIndex = "CREATE SPATIAL INDEX SlippyMapTileSpatialIndex ON SlippyMapTiles(areaCovered)";
         public static string StoredElementsIndex = "CREATE SPATIAL INDEX StoredOsmElementsIndex ON StoredOsmElements(elementGeometry)";
         public static string customDataPlusCodesIndex = "CREATE SPATIAL INDEX customDataPlusCodeSpatialIndex ON CustomDataPlusCodes(geoAreaIndex)";
 
         //PostgreSQL uses its own CREATE INDEX syntax
-        //public static string GeneratedMapDataIndexPG = "CREATE INDEX generatedmapdata_geom_idx ON public.\"GeneratedMapData\" USING GIST(place)";
         public static string MapTileIndexPG = "CREATE INDEX maptiles_geom_idx ON public.\"MapTiles\" USING GIST(\"areaCovered\")";
         public static string SlippyMapTileIndexPG = "CREATE INDEX slippmayptiles_geom_idx ON public.\"SlippyMapTiles\" USING GIST(\"areaCovered\")";
         public static string StoredElementsIndexPG = "CREATE INDEX storedOsmElements_geom_idx ON public.\"StoredOsmElements\" USING GIST(\"elementGeometry\")";
 
+        //Adding these as helper values for large use cases. When inserting large amounts of data, it's probably worth removing indexes for the insert and re-adding them later.
+        //(On a North-America file insert, this keeps insert speeds at about 2-3 seconds per block, whereas it creeps up consistently while indexes are updated per block.
+        //Though, I also see better results there droping the single-column indexes as well, which would need re-created manually since those one are automatic.
+        public static string DropMapTileIndex = "DROP INDEX MapTileSpatialIndex";
+        public static string DropSlippyMapTileIndex = "DROP INDEX SlippyMapTileSpatialIndex";
+        public static string DropStoredElementsIndex = "DROP INDEX StoredOsmElementsIndex";
+        public static string DropcustomDataPlusCodesIndex = "DROP INDEX customDataPlusCodeSpatialIndex";
+
+
         //This doesn't appear to be any faster. The query isn't the slow part. Keeping this code as a reference for how to precompile queries.
         //public static Func<PraxisContext, Geometry, IEnumerable<MapData>> compiledIntersectQuery =
-          //  EF.CompileQuery((PraxisContext context, Geometry place) => context.MapData.Where(md => md.place.Intersects(place)));
+        //  EF.CompileQuery((PraxisContext context, Geometry place) => context.MapData.Where(md => md.place.Intersects(place)));
 
         public void MakePraxisDB()
         {
-            PraxisContext db = new PraxisContext();
-            if (!db.Database.EnsureCreated()) //all the automatic stuff EF does for us
+            //PraxisContext db = new PraxisContext();
+            if (!Database.EnsureCreated()) //all the automatic stuff EF does for us
                 return;
 
             //Not automatic entries executed below:
@@ -116,41 +123,41 @@ namespace PraxisCore
             if (serverMode == "PostgreSQL")
             {
                 //db.Database.ExecuteSqlRaw(GeneratedMapDataIndexPG);
-                db.Database.ExecuteSqlRaw(MapTileIndexPG);
-                db.Database.ExecuteSqlRaw(SlippyMapTileIndexPG);
-                db.Database.ExecuteSqlRaw(StoredElementsIndexPG);
+                Database.ExecuteSqlRaw(MapTileIndexPG);
+                Database.ExecuteSqlRaw(SlippyMapTileIndexPG);
+                Database.ExecuteSqlRaw(StoredElementsIndexPG);
             }
             else //SQL Server and MariaDB share the same syntax here
             {
                 //db.Database.ExecuteSqlRaw(GeneratedMapDataIndex);
-                db.Database.ExecuteSqlRaw(MapTileIndex);
-                db.Database.ExecuteSqlRaw(SlippyMapTileIndex);
-                db.Database.ExecuteSqlRaw(StoredElementsIndex);
+                Database.ExecuteSqlRaw(MapTileIndex);
+                Database.ExecuteSqlRaw(SlippyMapTileIndex);
+                Database.ExecuteSqlRaw(StoredElementsIndex);
             }
 
             if (serverMode == "SQLServer")
             {
-                db.Database.ExecuteSqlRaw(GeneratedMapDataValidTriggerMSSQL);
+                Database.ExecuteSqlRaw(GeneratedMapDataValidTriggerMSSQL);
             }
             if (serverMode == "MariaDB")
             {
-                db.Database.ExecuteSqlRaw("SET collation_server = 'utf8mb4_unicode_ci'; SET character_set_server = 'utf8mb4'"); //MariaDB defaults to latin2_swedish, we need Unicode.
+                Database.ExecuteSqlRaw("SET collation_server = 'utf8mb4_unicode_ci'; SET character_set_server = 'utf8mb4'"); //MariaDB defaults to latin2_swedish, we need Unicode.
             }
 
             InsertDefaultServerConfig();
             InsertDefaultStyle();
         }
 
-        public static void InsertDefaultServerConfig()
+        public void InsertDefaultServerConfig()
         {
-            var db = new PraxisContext();
-            db.ServerSettings.Add(new ServerSetting() {id =1, NorthBound = 90, SouthBound = -90, EastBound = 180, WestBound = -180, SlippyMapTileSizeSquare = 512 });
-            db.SaveChanges();
+            //var db = new PraxisContext();
+            ServerSettings.Add(new ServerSetting() { id = 1, NorthBound = 90, SouthBound = -90, EastBound = 180, WestBound = -180, SlippyMapTileSizeSquare = 512 });
+            SaveChanges();
         }
 
         public void InsertDefaultStyle()
         {
-            var db = new PraxisContext();
+            //var db = new PraxisContext();
             //Remove any existing entries, in case I'm refreshing the rules on an existing entry.
             if (serverMode != "PostgreSQL") //PostgreSQL has stricter requirements on its syntax.
             {
@@ -161,25 +168,57 @@ namespace PraxisCore
 
             if (serverMode == "SQLServer")
             {
-                db.Database.BeginTransaction();
-                db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT TagParserEntries ON;");
+                Database.BeginTransaction();
+                Database.ExecuteSqlRaw("SET IDENTITY_INSERT TagParserEntries ON;");
             }
-            db.TagParserEntries.AddRange(Singletons.defaultTagParserEntries);
-            db.SaveChanges();
+            TagParserEntries.AddRange(Singletons.defaultTagParserEntries);
+            SaveChanges();
             if (serverMode == "SQLServer")
             {
-                db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT TagParserEntries OFF;");
-                db.Database.CommitTransaction();
+                Database.ExecuteSqlRaw("SET IDENTITY_INSERT TagParserEntries OFF;");
+                Database.CommitTransaction();
             }
 
-            foreach(var file in System.IO.Directory.EnumerateFiles("MapPatterns"))
+            foreach (var file in System.IO.Directory.EnumerateFiles("MapPatterns"))
             {
-                db.TagParserStyleBitmaps.Add(new TagParserStyleBitmap() { 
-                    filename = System.IO.Path.GetFileName(file), 
-                    data = System.IO.File.ReadAllBytes(file) 
+                TagParserStyleBitmaps.Add(new TagParserStyleBitmap() {
+                    filename = System.IO.Path.GetFileName(file),
+                    data = System.IO.File.ReadAllBytes(file)
                 });
             }
-            db.SaveChanges();
+            SaveChanges();
+        }
+
+        public void RecreateIndexes()
+        {
+            //Only run this after running DropIndexes, since these should all exist on DB creation.
+            
+            //PostgreSQL will make automatic spatial indexes
+            if (serverMode == "PostgreSQL")
+            {
+                //db.Database.ExecuteSqlRaw(GeneratedMapDataIndexPG);
+                Database.ExecuteSqlRaw(MapTileIndexPG);
+                Database.ExecuteSqlRaw(SlippyMapTileIndexPG);
+                Database.ExecuteSqlRaw(StoredElementsIndexPG);
+            }
+            else //SQL Server and MariaDB share the same syntax here
+            {
+                //db.Database.ExecuteSqlRaw(GeneratedMapDataIndex);
+                Database.ExecuteSqlRaw(MapTileIndex);
+                Database.ExecuteSqlRaw(SlippyMapTileIndex);
+                Database.ExecuteSqlRaw(StoredElementsIndex);
+            }
+
+            //now also add the automatic ones we took out in DropIndexes.
+            //TODO: confirm correct automatic names and strings, TODO postgresql block.
+        }
+
+        public void DropIndexes()
+        {
+            Database.ExecuteSqlRaw(DropMapTileIndex);
+            Database.ExecuteSqlRaw(DropStoredElementsIndex);
+            Database.ExecuteSqlRaw(DropSlippyMapTileIndex);
+            Database.ExecuteSqlRaw(DropcustomDataPlusCodesIndex);
         }
 
         /// <summary>
@@ -191,10 +230,10 @@ namespace PraxisCore
         {
             //If this would be faster as raw SQL, see function below for a template on how to write that.
             //TODO: test this logic, should be faster but 
-            var db = new PraxisContext();
+            //var db = new PraxisContext();
             //MariaDB SQL, should be functional
             string SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, ST_GEOMFROMTEXT('" + g.AsText() + "'))";
-            db.Database.ExecuteSqlRaw(SQL);
+            Database.ExecuteSqlRaw(SQL);
         }
 
         /// <summary>
@@ -206,10 +245,10 @@ namespace PraxisCore
         {
             //If this would be faster as raw SQL, see function below for a template on how to write that.
             //TODO: test this logic, should be faster but 
-            var db = new PraxisContext();
+            //var db = new PraxisContext();
             //MariaDB SQL, should be functional
             string SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM StoredOsmElements WHERE privacyId = '" + elementId + "'))";
-            db.Database.ExecuteSqlRaw(SQL);
+            Database.ExecuteSqlRaw(SQL);
         }
 
         /// <summary>
@@ -221,10 +260,10 @@ namespace PraxisCore
         {
             //If this would be faster as raw SQL, see function below for a template on how to write that.
             //TODO: test this logic, should be faster but 
-            var db = new PraxisContext();
+            //var db = new PraxisContext();
             //MariaDB SQL, should be functional
             string SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, ST_GEOMFROMTEXT('" + g.AsText() + "'))";
-            db.Database.ExecuteSqlRaw(SQL);
+            Database.ExecuteSqlRaw(SQL);
         }
 
         /// <summary>
@@ -236,9 +275,9 @@ namespace PraxisCore
         {
             //Might this be better off as raw SQL? If I expire, say, an entire state, that could be a lot of map tiles to pull into RAM just for a date to change.
             //var raw = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE ST_INTERSECTS(areaCovered, ST_GeomFromText(" + g.AsText() + "))";
-            var db = new PraxisContext();
+            //var db = new PraxisContext();
             string SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet = '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM StoredOsmElements WHERE privacyId = '" + elementId + "'))";
-            db.Database.ExecuteSqlRaw(SQL);
+            Database.ExecuteSqlRaw(SQL);
         }
     }
 }
