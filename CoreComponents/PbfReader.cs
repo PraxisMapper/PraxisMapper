@@ -241,37 +241,47 @@ namespace PraxisCore.PbfReader
                     boundsEntry = pgf.Create(NTSrelation.elementGeometry);
                 }
 
-                if (!saveToDB)
-                {
-                    if (saveToInfile)
-                    {
-                        geomFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".geomInfile", FileMode.OpenOrCreate));
-                        tagsFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".tagsInfile", FileMode.OpenOrCreate));
-                    }
-                    else if (saveToJson)
-                        jsonFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", FileMode.OpenOrCreate));
-                }
+                //This is unused as now I write every block to its own file.
+                //if (!saveToDB)
+                //{
+                //    if (saveToInfile)
+                //    {
+                //        geomFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".geomInfile", FileMode.OpenOrCreate));
+                //        tagsFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".tagsInfile", FileMode.OpenOrCreate));
+                //    }
+                //    else if (saveToJson)
+                //        jsonFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", FileMode.OpenOrCreate));
+                //}
 
                 if (!lowResourceMode) //typical path
                 {
                     for (var block = nextBlockId; block > 0; block--)
                     {
-                        System.Diagnostics.Stopwatch swBlock = new System.Diagnostics.Stopwatch();
-                        swBlock.Start();
-                        long thisBlockId = block;
-                        var geoData = GetGeometryFromBlock(thisBlockId, onlyMatchedAreas);
-                        //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
-                        //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
-                        if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
+                        try
                         {
-                            ProcessReaderResults(geoData, block);
-                            //if (wt != null)
-                            //writeTasks.Add(wt);
+                            System.Diagnostics.Stopwatch swBlock = new System.Diagnostics.Stopwatch();
+                            swBlock.Start();
+                            long thisBlockId = block;
+                            var geoData = GetGeometryFromBlock(thisBlockId, onlyMatchedAreas);
+                            //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
+                            //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
+                            if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
+                            {
+                                ProcessReaderResults(geoData, block);
+                                //if (wt != null)
+                                //writeTasks.Add(wt);
+                            }
+                            SaveCurrentBlock(block);
+                            swBlock.Stop();
+                            timeList.Add(swBlock.Elapsed);
+                            Log.WriteLog("Block " + block + " processed in " + swBlock.Elapsed);
                         }
-                        SaveCurrentBlock(block);
-                        swBlock.Stop();
-                        timeList.Add(swBlock.Elapsed);
-                        Log.WriteLog("Block " + block + " processed in " + swBlock.Elapsed);
+                        catch (Exception ex)
+                        {
+                            Log.WriteLog("Failed to process block " + block + " normally, trying the low-resourse option", Log.VerbosityLevels.Errors);
+                            System.Threading.Thread.Sleep(3000); //Not necessary, but I want to give the GC a chance to clean up stuff before we pick back up.
+                            LastChanceRead(block);
+                        }
                     }
                 }
                 else
@@ -280,37 +290,7 @@ namespace PraxisCore.PbfReader
                     //run each entry one at a time, save to disk immediately, don't multithread.
                     for (var block = nextBlockId; block > 0; block--)
                     {
-                        System.Diagnostics.Stopwatch swBlock = new System.Diagnostics.Stopwatch();
-                        swBlock.Start();
-                        var thisBlock = GetBlock(block);
-
-                        if (thisBlock.primitivegroup[0].relations.Count() > 0)
-                        {
-                            foreach (var relId in thisBlock.primitivegroup[0].relations)
-                            {
-                                var relListOfOne = new List<ICompleteOsmGeo>();
-                                Log.WriteLog("Loading relation with " + relId.memids.Count() + " members");
-                                relListOfOne.Add(GetRelation(relId.id, onlyMatchedAreas));
-                                ProcessReaderResults(relListOfOne, block);
-                                activeBlocks.Clear();
-                            }
-                        }
-                        else if (thisBlock.primitivegroup[0].ways.Count() > 0)
-                        {
-                            foreach (var wayId in thisBlock.primitivegroup[0].ways)
-                            {
-                                var wayListOfOne = new List<ICompleteOsmGeo>();
-                                wayListOfOne.Add(GetWay(wayId.id, null, onlyMatchedAreas));
-                                ProcessReaderResults(wayListOfOne, block);
-                                activeBlocks.Clear();
-                            }
-                        }
-                        else if (thisBlock.primitivegroup[0].nodes.Count() > 0)
-                        {
-                            var nodes = GetTaggedNodesFromBlock(thisBlock, onlyMatchedAreas);
-                            ProcessReaderResults(nodes, block);
-                        }
-                        SaveCurrentBlock(block);
+                        LastChanceRead(block);
                     }
                 }
 
@@ -342,6 +322,41 @@ namespace PraxisCore.PbfReader
                     ex = ex.InnerException;
                 Log.WriteLog("Error processing file: " + ex.Message + ex.StackTrace);
             }
+        }
+
+        public static void LastChanceRead(long blockId)
+        {
+            System.Diagnostics.Stopwatch swBlock = new System.Diagnostics.Stopwatch();
+            swBlock.Start();
+            var thisBlock = GetBlock(block);
+
+            if (thisBlock.primitivegroup[0].relations.Count() > 0)
+            {
+                foreach (var relId in thisBlock.primitivegroup[0].relations)
+                {
+                    var relListOfOne = new List<ICompleteOsmGeo>();
+                    Log.WriteLog("Loading relation with " + relId.memids.Count() + " members");
+                    relListOfOne.Add(GetRelation(relId.id, onlyMatchedAreas));
+                    ProcessReaderResults(relListOfOne, block);
+                    activeBlocks.Clear();
+                }
+            }
+            else if (thisBlock.primitivegroup[0].ways.Count() > 0)
+            {
+                foreach (var wayId in thisBlock.primitivegroup[0].ways)
+                {
+                    var wayListOfOne = new List<ICompleteOsmGeo>();
+                    wayListOfOne.Add(GetWay(wayId.id, null, onlyMatchedAreas));
+                    ProcessReaderResults(wayListOfOne, block);
+                    activeBlocks.Clear();
+                }
+            }
+            else if (thisBlock.primitivegroup[0].nodes.Count() > 0)
+            {
+                var nodes = GetTaggedNodesFromBlock(thisBlock, onlyMatchedAreas);
+                ProcessReaderResults(nodes, block);
+            }
+            SaveCurrentBlock(block);
         }
 
         /// <summary>
@@ -1543,7 +1558,7 @@ namespace PraxisCore.PbfReader
                     }
                     catch (Exception ex)
                     {
-                        Log.WriteLog("Error writing data to disk:" + ex.Message);
+                        Log.WriteLog("Error writing data to disk:" + ex.Message, Log.VerbosityLevels.Errors);
                     }
                     return;
                 }
@@ -1568,7 +1583,7 @@ namespace PraxisCore.PbfReader
                     }
                     catch (Exception ex)
                     {
-                        Log.WriteLog("Error writing data to disk:" + ex.Message);
+                        Log.WriteLog("Error writing data to disk:" + ex.Message, Log.VerbosityLevels.Errors);
                     }
                 }
 
