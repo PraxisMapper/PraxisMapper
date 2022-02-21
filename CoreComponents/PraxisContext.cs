@@ -93,6 +93,12 @@ namespace PraxisCore
         public static string SlippyMapTileIndex = "CREATE SPATIAL INDEX SlippyMapTileSpatialIndex ON SlippyMapTiles(areaCovered)";
         public static string StoredElementsIndex = "CREATE SPATIAL INDEX StoredOsmElementsIndex ON StoredOsmElements(elementGeometry)";
         public static string customDataPlusCodesIndex = "CREATE SPATIAL INDEX customDataPlusCodeSpatialIndex ON CustomDataPlusCodes(geoAreaIndex)";
+        public static string areaSizeIndex = "CREATE OR REPLACE INDEX IX_StoredOsmElements_AreaSize on StoredOsmElements (AreaSize)";
+        public static string privacyIdIndex = "CREATE OR REPLACE INDEX IX_StoredOsmElements_privacyId on StoredOsmElements (privacyId)";
+        public static string sourceItemIdIndex = "CREATE OR REPLACE INDEX IX_StoredOsmElements_sourceItemID on StoredOsmElements (sourceItemID)";
+        public static string sourceItemTypeIndex = "CREATE OR REPLACE INDEX IX_StoredOsmElements_sourceItemType on StoredOsmElements (sourceItemType)";
+        public static string tagKeyIndex = "CREATE OR REPLACE INDEX IX_ElementTags_Key on ElementTags (`Key`)";
+
 
         //PostgreSQL uses its own CREATE INDEX syntax
         public static string MapTileIndexPG = "CREATE INDEX maptiles_geom_idx ON public.\"MapTiles\" USING GIST(\"areaCovered\")";
@@ -106,6 +112,12 @@ namespace PraxisCore
         public static string DropSlippyMapTileIndex = "DROP INDEX SlippyMapTileSpatialIndex";
         public static string DropStoredElementsIndex = "DROP INDEX StoredOsmElementsIndex";
         public static string DropcustomDataPlusCodesIndex = "DROP INDEX customDataPlusCodeSpatialIndex";
+        public static string DropStoredElementsAreaSizeIndex = "DROP INDEX IX_StoredOsmElements_AreaSize";
+        public static string DropStoredElementsPrivacyIdIndex = "DROP INDEX IX_StoredOsmElements_privacyId";
+        public static string DropStoredElementsSourceItemIdIndex = "DROP INDEX IX_StoredOsmElements_sourceItemID";
+        public static string DropStoredElementsSourceItemTypeIndex = "DROP INDEX IX_StoredOsmElements_sourceItemType";
+        public static string DropTagKeyIndex = "DROP INDEX IX_ElementTags_Key";
+
 
 
         //This doesn't appear to be any faster. The query isn't the slow part. Keeping this code as a reference for how to precompile queries.
@@ -207,10 +219,14 @@ namespace PraxisCore
                 Database.ExecuteSqlRaw(MapTileIndex);
                 Database.ExecuteSqlRaw(SlippyMapTileIndex);
                 Database.ExecuteSqlRaw(StoredElementsIndex);
-            }
 
-            //now also add the automatic ones we took out in DropIndexes.
-            //TODO: confirm correct automatic names and strings, TODO postgresql block.
+                //now also add the automatic ones we took out in DropIndexes.
+                Database.ExecuteSqlRaw(areaSizeIndex);
+                Database.ExecuteSqlRaw(sourceItemIdIndex);
+                Database.ExecuteSqlRaw(sourceItemTypeIndex);
+                Database.ExecuteSqlRaw(tagKeyIndex);
+                Database.ExecuteSqlRaw(privacyIdIndex);
+            }
         }
 
         public void DropIndexes()
@@ -219,6 +235,11 @@ namespace PraxisCore
             Database.ExecuteSqlRaw(DropStoredElementsIndex);
             Database.ExecuteSqlRaw(DropSlippyMapTileIndex);
             Database.ExecuteSqlRaw(DropcustomDataPlusCodesIndex);
+            Database.ExecuteSqlRaw(DropStoredElementsAreaSizeIndex);
+            Database.ExecuteSqlRaw(DropStoredElementsPrivacyIdIndex);
+            Database.ExecuteSqlRaw(DropStoredElementsSourceItemTypeIndex);
+            Database.ExecuteSqlRaw(DropStoredElementsSourceItemIdIndex);
+            Database.ExecuteSqlRaw(DropTagKeyIndex);
         }
 
         /// <summary>
