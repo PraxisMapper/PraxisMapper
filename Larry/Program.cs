@@ -843,7 +843,7 @@ namespace Larry
                 var shapeData = sf.GetShapeDataD(i);
                 var poly = Converters.ShapefileRecordToPolygon(shapeData);
                 //Write this to a json file.
-                var jsonData = new StoredOsmElementForJson(i, "coastlinePoly", i, 2, poly.ToString(), tagString, false, false, false);
+                var jsonData = new StoredOsmElementForJson(i, "coastlinePoly", i, 2, poly.ToString(), tagString, false, false, false, 1);
                 var jsonString = System.Text.Json.JsonSerializer.Serialize(jsonData, typeof(StoredOsmElementForJson));
                 sw.WriteLine(jsonString);
             }
