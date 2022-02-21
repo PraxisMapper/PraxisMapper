@@ -276,7 +276,7 @@ namespace PraxisCore.PbfReader
                             timeList.Add(swBlock.Elapsed);
                             Log.WriteLog("Block " + block + " processed in " + swBlock.Elapsed);
                         }
-                        catch (Exception ex)
+                        catch
                         {
                             Log.WriteLog("Failed to process block " + block + " normally, trying the low-resourse option", Log.VerbosityLevels.Errors);
                             System.Threading.Thread.Sleep(3000); //Not necessary, but I want to give the GC a chance to clean up stuff before we pick back up.
@@ -324,31 +324,30 @@ namespace PraxisCore.PbfReader
             }
         }
 
-        public static void LastChanceRead(long blockId)
+        public void LastChanceRead(long block)
         {
-            System.Diagnostics.Stopwatch swBlock = new System.Diagnostics.Stopwatch();
-            swBlock.Start();
             var thisBlock = GetBlock(block);
 
+            var geoListOfOne = new List<ICompleteOsmGeo>();
             if (thisBlock.primitivegroup[0].relations.Count() > 0)
             {
                 foreach (var relId in thisBlock.primitivegroup[0].relations)
                 {
-                    var relListOfOne = new List<ICompleteOsmGeo>();
                     Log.WriteLog("Loading relation with " + relId.memids.Count() + " members");
-                    relListOfOne.Add(GetRelation(relId.id, onlyMatchedAreas));
-                    ProcessReaderResults(relListOfOne, block);
+                    geoListOfOne.Add(GetRelation(relId.id, onlyMatchedAreas));
+                    ProcessReaderResults(geoListOfOne, block);
                     activeBlocks.Clear();
+                    geoListOfOne.Clear();
                 }
             }
             else if (thisBlock.primitivegroup[0].ways.Count() > 0)
             {
                 foreach (var wayId in thisBlock.primitivegroup[0].ways)
                 {
-                    var wayListOfOne = new List<ICompleteOsmGeo>();
-                    wayListOfOne.Add(GetWay(wayId.id, null, onlyMatchedAreas));
-                    ProcessReaderResults(wayListOfOne, block);
+                    geoListOfOne.Add(GetWay(wayId.id, null, onlyMatchedAreas));
+                    ProcessReaderResults(geoListOfOne, block);
                     activeBlocks.Clear();
+                    geoListOfOne.Clear();
                 }
             }
             else if (thisBlock.primitivegroup[0].nodes.Count() > 0)
@@ -1554,7 +1553,7 @@ namespace PraxisCore.PbfReader
                     try
                     {
                         //jsonFileStream.Write(jsonSB);
-                        System.IO.File.WriteAllText(saveFilename, jsonSB.ToString());
+                        System.IO.File.AppendAllText(saveFilename, jsonSB.ToString());
                     }
                     catch (Exception ex)
                     {
@@ -1576,8 +1575,8 @@ namespace PraxisCore.PbfReader
 
                     try
                     {
-                        System.IO.File.WriteAllText(saveFilename + ".geomInfile", geometryBuilds.ToString());
-                        System.IO.File.WriteAllText(saveFilename + "tagsInfile", tagBuilds.ToString());
+                        System.IO.File.AppendAllText(saveFilename + ".geomInfile", geometryBuilds.ToString());
+                        System.IO.File.AppendAllText(saveFilename + "tagsInfile", tagBuilds.ToString());
                         //geomFileStream.Write(geometryBuilds);
                         //tagsFileStream.Write(tagBuilds);
                     }
