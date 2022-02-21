@@ -175,7 +175,6 @@ namespace PraxisCore
                     sw.elementGeometry = poly;
                 }
                 sw.AreaSize = sw.elementGeometry.Length > 0 ? sw.elementGeometry.Length : resolutionCell10;
-                sw.version = g.Version;
                 return sw;
             }
             catch(Exception ex)
@@ -196,7 +195,7 @@ namespace PraxisCore
             foreach (var md in mapdata)
                 if (md != null) //null can be returned from the functions that convert OSM entries to StoredElement
                 {
-                    var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated, md.version);
+                    var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated);
                     var test = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
                     results.Add(test);
                 }
@@ -213,7 +212,7 @@ namespace PraxisCore
         {
             if (md != null) //null can be returned from the functions that convert OSM entries to StoredElement
             {
-                var recordVersion = new PraxisCore.Support.StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement,md.IsUserProvided, md.IsGenerated, md.version);
+                var recordVersion = new PraxisCore.Support.StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement,md.IsUserProvided, md.IsGenerated);
                 var test = JsonSerializer.Serialize(recordVersion, typeof(PraxisCore.Support.StoredOsmElementForJson));
                 File.AppendAllText(filename, test + Environment.NewLine);
             }
