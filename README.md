@@ -46,6 +46,6 @@ At this time, you are expected to have some programming experience to use Praxis
 * Install and configure IIS for ASP.NET Core, creating an application for PraxisMapper
 * Publish the PraxisMapper project from VS 2022 and copy the output to your IIS application
 
-#Scale Changes
+# Scale Changes
 It is entirely feasible for small games to run the entire server on a single PC, with surprisingly low resources. A US county is often an entirely viable space for a local game, particularly in a testing phase of development.
 Huge games will require some manual work to set up. Continent-sized servers, or countries that take up most of a continent, will require deleting indexes after creating the database schema, processing and importing data, then re-creating indexes after import in order to remove a few days from that initial load time.
