@@ -320,6 +320,7 @@ namespace Larry
 
             if (config["UseMariaDBInFile"] == "True")
             {
+                //TODO: detect when this will work, since you need a specific connection string and ssl enabled for this to work.
                 List<string> filenames = System.IO.Directory.EnumerateFiles(config["JsonMapDataFolder"], "*.geomInfile").ToList();
                 foreach (var jsonFileName in filenames)
                 {
@@ -330,6 +331,26 @@ namespace Larry
                     sw.Stop();
                     Log.WriteLog("Geometry loaded from " + jsonFileName + " in " + sw.Elapsed);
                     System.IO.File.Move(jsonFileName, jsonFileName + "done");
+
+                    //alt path: TODO enable
+                    if (false)
+                    {
+                        var lines = System.IO.File.ReadAllLines(jsonFileName);
+                        foreach (var line in lines)
+                        {
+                            var parts = line.Split('\t');
+                            StoredOsmElement entry = new StoredOsmElement();
+                            entry.name = parts[0];
+                            entry.sourceItemID = parts[1].ToLong();
+                            entry.sourceItemType = parts[2].ToInt();
+                            entry.elementGeometry = GeometrySupport.GeometryFromWKT(parts[3]);
+                            entry.AreaSize = parts[4].ToDouble();
+                            entry.privacyId = Guid.Parse(parts[5]);
+                            db.StoredOsmElements.Add(entry);
+                        }
+                        db.SaveChanges();
+                    }
+
                 }
 
                 filenames = System.IO.Directory.EnumerateFiles(config["JsonMapDataFolder"], "*.tagsInfile").ToList();
@@ -342,6 +363,23 @@ namespace Larry
                     sw.Stop();
                     Log.WriteLog("Tags loaded from " + jsonFileName + " in " + sw.Elapsed);
                     System.IO.File.Move(jsonFileName, jsonFileName + "done");
+
+                    //alt path: TODO enable
+                    if (false)
+                    {
+                        var lines = System.IO.File.ReadAllLines(jsonFileName);
+                        foreach (var line in lines)
+                        {
+                            var parts = line.Split('\t');
+                            ElementTags entry = new ElementTags();
+                            entry.SourceItemId = parts[0].ToLong();
+                            entry.SourceItemType = parts[1].ToInt();
+                            entry.Key = parts[2];
+                            entry.Value = parts[3];
+                            db.ElementTags.Add(entry);
+                        }
+                        db.SaveChanges();
+                    }
                 }
             }
             else if (config["KeepElementsInMemory"] == "True")
