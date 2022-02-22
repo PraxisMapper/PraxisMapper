@@ -33,9 +33,9 @@ namespace PraxisCore.PbfReader
         static int initialCapacity = 7993; //ConcurrentDictionary says initial capacity shouldn't be divisible by a small prime number, so i picked the prime closes to 8,000 for initial capacity
         static int initialConcurrency = Environment.ProcessorCount;
 
-        public bool saveToInfile = false;
+        public bool saveToTsv = true;//Defaults to the common intermediate output.
         public bool saveToDB = false;
-        public bool saveToJson = true; //Defaults to the common intermediate output.
+        public bool saveToJson = false; 
         //public bool onlyTaggedAreas = false; //This is somewhat redundant, since all ways/relations will be tagged and storing untagged nodes isnt necessary in PM.
         public bool onlyMatchedAreas = false;
         public string processingMode = "normal"; //normal: use geometry as it exists. Center: save the center point of any geometry provided instead of its actual value.
@@ -297,14 +297,15 @@ namespace PraxisCore.PbfReader
                 Log.WriteLog("Waiting on " + writeTasks.Where(w => !w.IsCompleted).Count() + " additional tasks");
                 Task.WaitAll(writeTasks.ToArray());
                 Close();
-                if (saveToInfile)
+                if (saveToTsv)
                 {
-                    geomFileStream.Flush();
-                    geomFileStream.Close();
-                    geomFileStream.Dispose();
-                    tagsFileStream.Flush();
-                    tagsFileStream.Close();
-                    tagsFileStream.Dispose();
+                    //unused since we now just write each block to its own file.
+                    //geomFileStream.Flush();
+                    //geomFileStream.Close();
+                    //geomFileStream.Dispose();
+                    //tagsFileStream.Flush();
+                    //tagsFileStream.Close();
+                    //tagsFileStream.Dispose();
                 }
                 if (saveToJson)
                 {
@@ -1561,7 +1562,7 @@ namespace PraxisCore.PbfReader
                     }
                     return;
                 }
-                else if (saveToInfile)
+                else if (saveToTsv)
                 {
                     //Starts with some data allocated in each 2 stringBuilders to minimize reallocations. These should be reasonable for most blocks.
                     StringBuilder geometryBuilds = new StringBuilder(4000000); //400k
