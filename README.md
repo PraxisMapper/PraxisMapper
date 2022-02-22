@@ -13,8 +13,8 @@ Source code for a test application, Hypothesis, is available at https://github.c
 * .NET 6.0
 * MariaDB 10.6+ (Recommended) OR SQL Server 2016+ OR PostgreSQL
 * System resources may vary with content.
-** Running a county-sized game (500 square miles/1200 square kilometers)? A server can run with as little as 1GB RAM and storage space, with the webserver and DB on the same box.
-** Running a server for a continent? You'll want at least 64GB of RAM on the DB server, and 200GB+ of storage space to handle map data and drawn tiles.
+* * Running a county-sized game (500 square miles/1200 square kilometers)? A server can run with as little as 1GB RAM and storage space, with the webserver and DB on the same box.
+* * Running a server for a continent? You'll want at least 64GB of RAM on the DB server, and 200GB+ of storage space to handle map data and drawn tiles.
 
 # Features
 * Simple API handles all the baseline needs for a location based game. It handles locations, map tiles, and interactions, you can focus on the gameplay.
@@ -46,6 +46,6 @@ At this time, you are expected to have some programming experience to use Praxis
 * Install and configure IIS for ASP.NET Core, creating an application for PraxisMapper
 * Publish the PraxisMapper project from VS 2022 and copy the output to your IIS application
 
-Scale Changes
+#Scale Changes
 It is entirely feasible for small games to run the entire server on a single PC, with surprisingly low resources. A US county is often an entirely viable space for a local game, particularly in a testing phase of development.
 Huge games will require some manual work to set up. Continent-sized servers, or countries that take up most of a continent, will require deleting indexes after creating the database schema, processing and importing data, then re-creating indexes after import in order to remove a few days from that initial load time.
