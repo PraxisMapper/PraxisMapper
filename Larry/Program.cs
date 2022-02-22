@@ -40,6 +40,8 @@ namespace Larry
             .AddJsonFile("Larry.config.json");
             config = builder.Build();
 
+            Log.Verbosity = (Log.VerbosityLevels)config["LogLevel"].ToInt();
+
             if (config["MapTilesEngine"] == "SkiaSharp")
             {
                 var asm = Assembly.LoadFrom(@"PraxisMapTilesSkiaSharp.dll");
