@@ -32,7 +32,7 @@ namespace Larry
         static IConfigurationRoot config;
         static List<StoredOsmElement> memorySource;
         static IMapTiles MapTiles;
-        
+
         static void Main(string[] args)
         {
             Console.WriteLine("PGO is " + System.Environment.GetEnvironmentVariable("DOTNET_TieredPGO"));
@@ -44,7 +44,7 @@ namespace Larry
             {
                 var asm = Assembly.LoadFrom(@"PraxisMapTilesSkiaSharp.dll");
                 MapTiles = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
-            }   
+            }
             else if (config["MapTilesEngine"] == "ImageSharp")
             {
                 var asm2 = Assembly.LoadFrom(@"PraxisMapTilesImageSharp.dll");
@@ -57,7 +57,7 @@ namespace Larry
             {
                 createDb();
             }
-            
+
             TagParser.Initialize(config["ForceTagParserDefaults"] == "True", MapTiles); //Do this after the DB values are parsed.
 
             Log.WriteLog("Larry started at " + DateTime.Now);
@@ -297,8 +297,8 @@ namespace Larry
                 r.outputPath = config["JsonMapDataFolder"];
                 r.styleSet = config["TagParserStyleSet"];
                 r.processingMode = config["processingMode"]; // "normal" and "center" allowed
-                r.saveToInfile = config["UseMariaDBInFile"] == "True";
-                r.saveToJson = !r.saveToInfile;
+                r.saveToTsv = config["UseTsvOutput"] == "True"; //rename value.
+                r.saveToJson = !r.saveToTsv;
                 r.saveToDB = false; //config["UseMariaDBInFile"] != "True";
                 r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
                 r.readJsonFile = config["reprocessJson"] == "True";
@@ -318,7 +318,7 @@ namespace Larry
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
             }
 
-            if (config["UseMariaDBInFile"] == "True")
+            if (config["UseMariaDBInFile"] == "True" && config["UseTsvOutput"] == "True")
             {
                 //TODO: detect when this will work, since you need a specific connection string and ssl enabled for this to work.
                 List<string> filenames = System.IO.Directory.EnumerateFiles(config["JsonMapDataFolder"], "*.geomInfile").ToList();
@@ -331,26 +331,6 @@ namespace Larry
                     sw.Stop();
                     Log.WriteLog("Geometry loaded from " + jsonFileName + " in " + sw.Elapsed);
                     System.IO.File.Move(jsonFileName, jsonFileName + "done");
-
-                    //alt path: TODO enable
-                    if (false)
-                    {
-                        var lines = System.IO.File.ReadAllLines(jsonFileName);
-                        foreach (var line in lines)
-                        {
-                            var parts = line.Split('\t');
-                            StoredOsmElement entry = new StoredOsmElement();
-                            entry.name = parts[0];
-                            entry.sourceItemID = parts[1].ToLong();
-                            entry.sourceItemType = parts[2].ToInt();
-                            entry.elementGeometry = GeometrySupport.GeometryFromWKT(parts[3]);
-                            entry.AreaSize = parts[4].ToDouble();
-                            entry.privacyId = Guid.Parse(parts[5]);
-                            db.StoredOsmElements.Add(entry);
-                        }
-                        db.SaveChanges();
-                    }
-
                 }
 
                 filenames = System.IO.Directory.EnumerateFiles(config["JsonMapDataFolder"], "*.tagsInfile").ToList();
@@ -364,23 +344,55 @@ namespace Larry
                     Log.WriteLog("Tags loaded from " + jsonFileName + " in " + sw.Elapsed);
                     System.IO.File.Move(jsonFileName, jsonFileName + "done");
 
-                    //alt path: TODO enable
-                    if (false)
-                    {
-                        var lines = System.IO.File.ReadAllLines(jsonFileName);
-                        foreach (var line in lines)
-                        {
-                            var parts = line.Split('\t');
-                            ElementTags entry = new ElementTags();
-                            entry.SourceItemId = parts[0].ToLong();
-                            entry.SourceItemType = parts[1].ToInt();
-                            entry.Key = parts[2];
-                            entry.Value = parts[3];
-                            db.ElementTags.Add(entry);
-                        }
-                        db.SaveChanges();
-                    }
                 }
+            }
+            else if (config["UseTsvOutput"] == "True") //intended future main path, smaller than JSON.
+            {
+                List<string> filenames = Directory.EnumerateFiles(config["JsonMapDataFolder"], "*.geomInfile").ToList();
+                foreach (var jsonFileName in filenames)
+                {
+                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                    sw.Start();
+                    var lines = System.IO.File.ReadAllLines(jsonFileName);
+                    foreach (var line in lines)
+                    {
+                        var parts = line.Split('\t'); //TODO: span potential?
+                        StoredOsmElement entry = new StoredOsmElement();
+                        entry.name = parts[0];
+                        entry.sourceItemID = parts[1].ToLong();
+                        entry.sourceItemType = parts[2].ToInt();
+                        entry.elementGeometry = GeometrySupport.GeometryFromWKT(parts[3]);
+                        entry.AreaSize = parts[4].ToDouble();
+                        entry.privacyId = Guid.Parse(parts[5]);
+                        db.StoredOsmElements.Add(entry);
+                    }
+                    db.SaveChanges();
+                    sw.Stop();
+                    Log.WriteLog("Geometry loaded from " + jsonFileName + " in " + sw.Elapsed);
+                    System.IO.File.Move(jsonFileName, jsonFileName + "done");
+                }
+                filenames = System.IO.Directory.EnumerateFiles(config["JsonMapDataFolder"], "*.tagsInfile").ToList();
+                foreach (var jsonFileName in filenames)
+                {
+                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                    sw.Start();
+                    var lines = System.IO.File.ReadAllLines(jsonFileName);
+                    foreach (var line in lines)
+                    {
+                        var parts = line.Split('\t');
+                        ElementTags entry = new ElementTags();
+                        entry.SourceItemId = parts[0].ToLong();
+                        entry.SourceItemType = parts[1].ToInt();
+                        entry.Key = parts[2];
+                        entry.Value = parts[3];
+                        db.ElementTags.Add(entry);
+                    }
+                    db.SaveChanges();
+                    sw.Stop();
+                    Log.WriteLog("Tags loaded from " + jsonFileName + " in " + sw.Elapsed);
+                    System.IO.File.Move(jsonFileName, jsonFileName + "done");
+                }
+                
             }
             else if (config["KeepElementsInMemory"] == "True")
             {
@@ -652,9 +664,9 @@ namespace Larry
                     MapTileSupport.GetPlusCodeImagePixelSize(cellToCheck, out imgX, out imgY);
                     ImageStats info = new ImageStats(area, imgX, imgY);
                     if (cellToCheck.Length == 8) //We don't want to do the DoPlacesExist check here, since we'll want empty tiles for empty areas at this l
-                    {
+            {
                         var places = GetPlaces(area, cell6Data); //These are cloned in GetPlaces, so we aren't intersecting areas twice and breaking drawing. //, false, false, 0
-                        var tileData = MapTiles.DrawAreaAtSize(info, places);
+                var tileData = MapTiles.DrawAreaAtSize(info, places);
                         tilesGenerated.Add(new MapTile() { CreatedOn = DateTime.Now, styleSet = "mapTiles", tileData = tileData, resolutionScale = 11, PlusCode = cellToCheck });
                         Log.WriteLog("Cell " + cellToCheck + " Drawn", Log.VerbosityLevels.High);
                     }
