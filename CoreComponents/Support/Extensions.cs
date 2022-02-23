@@ -160,7 +160,7 @@ namespace PraxisCore
                 results[i] = new List<DbTables.StoredOsmElement>(2600);
 
             int splitCount = 0;
-            foreach(var i in mainlist)
+            foreach (var i in mainlist)
             {
                 results[splitCount % splitIntoCount].Add(i);
                 splitCount++;
@@ -176,6 +176,23 @@ namespace PraxisCore
         public static double ToRadians(this double val)
         {
             return (Math.PI / 180) * val;
+        }
+
+        public static ReadOnlySpan<char> SplitNext(this ref ReadOnlySpan<char> span, char seperator)
+        {
+            int pos = span.IndexOf(seperator);
+            if (pos > -1)
+            {
+                var part = span.Slice(0, pos);
+                span = span.Slice(pos + 1);
+                return part;
+            }
+            else
+            {
+                var part = span;
+                span = span.Slice(span.Length);
+                return part;
+            }
         }
     }
 }

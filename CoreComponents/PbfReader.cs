@@ -255,7 +255,7 @@ namespace PraxisCore.PbfReader
 
                 if (!lowResourceMode) //typical path
                 {
-                    for (var block = nextBlockId; block > 0; block--)
+                    for (var block = nextBlockId; block > firstWayBlock; block--)
                     {
                         try
                         {
@@ -283,6 +283,8 @@ namespace PraxisCore.PbfReader
                             LastChanceRead(block);
                         }
                     }
+                    Log.WriteLog("Processing all node blocks....");
+                    ProcessAllNodeBlocks(firstWayBlock);
                 }
                 else
                 {
@@ -358,6 +360,19 @@ namespace PraxisCore.PbfReader
             }
             SaveCurrentBlock(block);
         }
+
+        public void ProcessAllNodeBlocks(long maxNodeBlock)
+        {
+            //Throw each node block into its own thread.
+            Parallel.For(1, maxNodeBlock, (block) => {
+                var blockData = GetBlock(block);
+                var geoData = GetTaggedNodesFromBlock(blockData, onlyMatchedAreas);
+                //var geoData = GetGeometryFromBlock(block, onlyMatchedAreas);
+                if (geoData != null)
+                    ProcessReaderResults(geoData, block);
+            });
+        }
+
 
         /// <summary>
         /// Given a filename and a relation's ID from OpenStreetMap, processes all elements that intersect the given relation directly to the database.
@@ -849,27 +864,27 @@ namespace PraxisCore.PbfReader
                 long idToFind = 0; //more deltas 
                                    //blockId, nodeID
                 List<Tuple<long, long>> nodesPerBlock = new List<Tuple<long, long>>();
-                List<long> hints = new List<long>(); //Could make this a dictionary and tryAdd instead of add and distinct every time?
+                List<long> hints = new List<long>(nodeHintsMax); //Could make this a dictionary and tryAdd instead of add and distinct every time?
                 for (int i = 0; i < way.refs.Count; i++)
                 {
                     idToFind += way.refs[i];
                     var blockID = FindBlockKeyForNode(idToFind, hints);
-                    hints.Add(blockID);
-                    hints = hints.Distinct().ToList();
+                    if (!hints.Contains(blockID))
+                        hints.Add(blockID);
+                    //hints = hints.Distinct().ToList();
                     nodesPerBlock.Add(Tuple.Create(blockID, idToFind));
                 }
                 var nodesByBlock = nodesPerBlock.ToLookup(k => k.Item1, v => v.Item2);
 
-                List<OsmSharp.Node> nodeList = new List<OsmSharp.Node>(9); //9 is rough average nodes per way
-                Dictionary<long, OsmSharp.Node> AllNodes = new Dictionary<long, OsmSharp.Node>();
-                foreach (var block in nodesByBlock)
+                List<OsmSharp.Node> nodeList = new List<OsmSharp.Node>(way.refs.Count());
+                ConcurrentDictionary<long, OsmSharp.Node> AllNodes = new ConcurrentDictionary<long, OsmSharp.Node>(Environment.ProcessorCount, way.refs.Count());
+                //foreach (var block in nodesByBlock)
+                Parallel.ForEach(nodesByBlock, (block) =>
                 {
                     var someNodes = GetAllNeededNodesInBlock(block.Key, block.Distinct().OrderBy(b => b).ToArray());
-                    if (someNodes == null)
-                        return null; //throw new Exception("Couldn't load all nodes from a block");
                     foreach (var n in someNodes)
-                        AllNodes.Add(n.Key, n.Value);
-                }
+                        AllNodes.TryAdd(n.Key, n.Value);
+                });
 
                 idToFind = 0;
                 foreach (var node in way.refs)
@@ -899,13 +914,13 @@ namespace PraxisCore.PbfReader
             List<OsmSharp.Node> taggedNodes = new List<OsmSharp.Node>(40); //2% of nodes have tags, on averages this is a reasonable starting capacity.
             var dense = block.primitivegroup[0].dense;
 
-            //Shortcut: if dense.keys.count == 8000, there's no tagged nodes at all here (0 means 'no keys', and 8000 0's means every entry has no keys)
-            if (dense.keys_vals.Count == 8000)
+            //Shortcut: if dense.keys.count == dense.id.count, there's no tagged nodes at all here (0 means 'no keys', and all 0's means every entry has no keys)
+            if (dense.keys_vals.Count == dense.id.Count)
                 return taggedNodes;
 
             //sort out tags ahead of time.
             int entryCounter = 0;
-            List<Tuple<int, string, string>> idKeyVal = new List<Tuple<int, string, string>>((dense.keys_vals.Count - 8000) / 2);
+            List<Tuple<int, string, string>> idKeyVal = new List<Tuple<int, string, string>>((dense.keys_vals.Count - dense.id.Count()) / 2);
             for (int i = 0; i < dense.keys_vals.Count; i++)
             {
                 if (dense.keys_vals[i] == 0)
@@ -939,9 +954,9 @@ namespace PraxisCore.PbfReader
                     continue;
 
                 //now, start loading keys/values
-                OsmSharp.Tags.TagsCollection tc = new OsmSharp.Tags.TagsCollection();
-                foreach (var t in decodedTags[index].ToList())
-                    tc.Add(t);
+                OsmSharp.Tags.TagsCollection tc = new OsmSharp.Tags.TagsCollection(decodedTags[index]);
+                //foreach (var t in decodedTags[index])
+                    //tc.Add(t);
 
                 if (ignoreUnmatched)
                 {
@@ -969,7 +984,6 @@ namespace PraxisCore.PbfReader
         /// <param name="blockId">the block to pull nodes out of</param>
         /// <param name="nodeIds">the IDs of nodes to load from this block</param>
         /// <returns>a Dictionary of the node ID and corresponding values.</returns>
-        /// <exception cref="Exception">If a node isn't found in the expected block, an exception is thrown.</exception>
         private Dictionary<long, OsmSharp.Node> GetAllNeededNodesInBlock(long blockId, long[] nodeIds)
         {
             Dictionary<long, OsmSharp.Node> results = new Dictionary<long, OsmSharp.Node>(nodeIds.Length);
@@ -985,18 +999,17 @@ namespace PraxisCore.PbfReader
             var denseIds = group.id;
             var dLat = group.lat;
             var dLon = group.lon;
-            while (results.Count < nodeIds.Length)
+            var nodeToFind = nodeIds[arrayIndex];
+            while (arrayIndex < 8000)
             {
                 index++;
-                if (index == 8000)
-                    throw new Exception("Node not found in indexed node!");
-                //We didn't find all the nodes we were looking for.
 
                 nodeCounter += denseIds[index];
                 latDelta += dLat[index];
                 lonDelta += dLon[index];
 
-                if (nodeIds[arrayIndex] == nodeCounter)
+                //if (nodeIds[arrayIndex] == nodeCounter)
+                if(nodeToFind == nodeCounter)
                 {
                     OsmSharp.Node filled = new OsmSharp.Node();
                     filled.Id = nodeCounter;
@@ -1004,6 +1017,9 @@ namespace PraxisCore.PbfReader
                     filled.Longitude = DecodeLatLon(lonDelta, block.lon_offset, block.granularity);
                     results.Add(nodeCounter, filled);
                     arrayIndex++;
+                    if (arrayIndex == nodeIds.Length)
+                        return results;
+                    nodeToFind = nodeIds[arrayIndex];
                 }
             }
             return results;
@@ -1576,8 +1592,11 @@ namespace PraxisCore.PbfReader
 
                     try
                     {
-                        System.IO.File.AppendAllText(saveFilename + ".geomInfile", geometryBuilds.ToString());
-                        System.IO.File.AppendAllText(saveFilename + "tagsInfile", tagBuilds.ToString());
+                        System.Threading.Tasks.Parallel.Invoke(
+                            () => System.IO.File.AppendAllText(saveFilename + ".geomInfile", geometryBuilds.ToString()), 
+                            () => System.IO.File.AppendAllText(saveFilename + "tagsInfile", tagBuilds.ToString())
+                        );
+                        
                         //geomFileStream.Write(geometryBuilds);
                         //tagsFileStream.Write(tagBuilds);
                     }

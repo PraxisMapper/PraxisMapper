@@ -75,13 +75,14 @@ namespace PerformanceTestApp
             //TestRasterVsVectorCell8();
             //TestRasterVsVectorCell10();
             //TestImageSharpVsSkiaSharp(); //imagesharp was removed for being vastly slower.
-            //TestTagParser();
+            TestTagParser();
             //TestCropVsNoCropDraw("86HWPM");
             //TestCropVsNoCropDraw("86HW");
             //TestCustomPbfReader();
             //TestDrawingHoles();
             //TestPbfParsing();
-            TestMaptileDrawing();
+            //TestMaptileDrawing();
+            //TestTagParsers();
 
             //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
             //These cannot all be enabled in one run. You must comment/uncomment each one separately.
@@ -161,15 +162,15 @@ namespace PerformanceTestApp
             //~900 minutes = 15 hours
             var skipCount = 0;
             Log.WriteLog("starting data Load at " + DateTime.Now);
-        //    for (var block = reader.BlockCount() - 1 - skipCount; block > 0; block--)
-        //    {
-        //        var x = reader.GetGeometryFromBlock(block);
-        //        if (x != null) //Task this, so I can process the next block while writing these results.
-        //            System.Threading.Tasks.Task.Run(() => 
-        //            //PraxisCore.PbfFileParser.ProcessPMPBFResults(x, "testFile-ohio.json")
-        //            //ProcessPMPBFResults(x, @"D:\Projects\PraxisMapper Files\Trimmed JSON Files\testFile-ohio.json")
-        //            );
-        //}
+            //    for (var block = reader.BlockCount() - 1 - skipCount; block > 0; block--)
+            //    {
+            //        var x = reader.GetGeometryFromBlock(block);
+            //        if (x != null) //Task this, so I can process the next block while writing these results.
+            //            System.Threading.Tasks.Task.Run(() => 
+            //            //PraxisCore.PbfFileParser.ProcessPMPBFResults(x, "testFile-ohio.json")
+            //            //ProcessPMPBFResults(x, @"D:\Projects\PraxisMapper Files\Trimmed JSON Files\testFile-ohio.json")
+            //            );
+            //}
             sw.Stop();
             Log.WriteLog("All Ohio blocks processed in " + sw.Elapsed);
             Log.WriteLog("process test completed at " + DateTime.Now);
@@ -1004,7 +1005,7 @@ namespace PerformanceTestApp
             var relations = source.AsParallel()
             .ToComplete()
             .Where(p => p.Type == OsmGeoType.Relation);
-            foreach (var r in relations) 
+            foreach (var r in relations)
             {
                 var convertedRelation = ConvertOsmEntryToStoredWay(r);
                 if (convertedRelation == null)
@@ -1062,7 +1063,7 @@ namespace PerformanceTestApp
                 sw.sourceItemType = (g.Type == OsmGeoType.Relation ? 3 : g.Type == OsmGeoType.Way ? 2 : 1);
                 var geo = SimplifyArea(feature.First().Geometry);
                 if (geo == null)
-                return null;
+                    return null;
                 geo.SRID = 4326;//Required for SQL Server to accept data this way.
                 sw.elementGeometry = geo;
                 sw.Tags = TagParser.getFilteredTags(g.Tags);
@@ -1225,7 +1226,7 @@ namespace PerformanceTestApp
         //    var areaHeightDegrees = lat_degree_n - lat_degree_s;
         //    var areaWidthDegrees = 360 / n;
 
-            
+
         //    var places = GetPlacesMapDAta(relevantArea, includeGenerated: false);
         //    var places2 = places.Select(p => p.Clone()).ToList(); //Trimming occurs in the draw functions, so we need a copy to make the test fair.
         //    Stopwatch sw = new Stopwatch();
@@ -1293,7 +1294,7 @@ namespace PerformanceTestApp
                 db.Database.ExecuteSqlRaw(PraxisContext.MapTileIndexPG);
                 db.Database.ExecuteSqlRaw(PraxisContext.SlippyMapTileIndexPG);
                 db.Database.ExecuteSqlRaw(PraxisContext.StoredElementsIndexPG);
-                
+
             }
             else
             {
@@ -1413,7 +1414,9 @@ namespace PerformanceTestApp
             //alt is the code checked in with this change. over 1,000 loops its faster on all the scenarios tested
             //usually running in about half the time.
             Log.WriteLog("perf-testing tag parser options");
-            TagParser.Initialize(true);
+            var asm2 = Assembly.LoadFrom(@"PraxisMapTilesImageSharp.dll");
+            var mtImage = (IMapTiles)Activator.CreateInstance(asm2.GetType("PraxisCore.MapTiles")); //Not actually used to draw, but I need to initialize TagParser.
+            TagParser.Initialize(false, mtImage);
             System.Threading.Thread.Sleep(100);
             List<ElementTags> emptyList = new List<ElementTags>();
             Stopwatch sw = new Stopwatch();
@@ -1421,7 +1424,7 @@ namespace PerformanceTestApp
             for (var i = 0; i < 100000; i++)
                 foreach (var style in TagParser.allStyleGroups.First().Value)
                     TagParser.GetStyleForOsmWay(emptyList);
-                    //TagParser.MatchOnTags(style, emptyList);
+            //TagParser.MatchOnTags(style, emptyList);
             sw.Stop();
             Log.WriteLog("100000 empty lists run in " + sw.ElapsedTicks + " ticks with default (" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
 
@@ -1440,9 +1443,9 @@ namespace PerformanceTestApp
             for (var i = 0; i < 100000; i++)
                 foreach (var style in TagParser.allStyleGroups.First().Value)
                     TagParser.GetStyleForOsmWay(defaultSingle);
-                    //TagParser.MatchOnTags(style, defaultSingle);
+            //TagParser.MatchOnTags(style, defaultSingle);
             sw.Stop();
-            Log.WriteLog("100000 single entry default-match lists run in " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds / 100000.0 +"ms avg)");
+            Log.WriteLog("100000 single entry default-match lists run in " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
 
             //sw.Restart();
             //for (var i = 0; i < 1000; i++)
@@ -1467,7 +1470,7 @@ namespace PerformanceTestApp
             for (var i = 0; i < 100000; i++)
                 foreach (var style in TagParser.allStyleGroups.First().Value)
                     TagParser.GetStyleForOsmWay(biglist);
-                    //TagParser.MatchOnTags(style, defaultSingle);
+            //TagParser.MatchOnTags(style, defaultSingle);
             sw.Stop();
             Log.WriteLog("100000 8-tag match-water lists run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
 
@@ -1579,7 +1582,7 @@ namespace PerformanceTestApp
             sw.Stop();
             Log.WriteLog("100000 45-tag match-default dicts run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
 
-            
+
             searchDict.Add("waterway", "natural");
             sw.Restart();
             for (var i = 0; i < 100000; i++)
@@ -1588,7 +1591,7 @@ namespace PerformanceTestApp
             sw.Stop();
             Log.WriteLog("100000 46-tag match-water dicts run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
 
-            
+
 
 
 
@@ -1726,7 +1729,7 @@ namespace PerformanceTestApp
                 //path2.AddPoly(PolygonToSKPoints(hole, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
             }
             canvas2.DrawPath(path2, paint2);
-            
+
             var ms2 = new MemoryStream();
             var skms2 = new SKManagedWStream(ms2);
             bitmap2.Encode(skms2, SKEncodedImageFormat.Png, 100);
@@ -1786,7 +1789,7 @@ namespace PerformanceTestApp
             string startPoint = "86HWF5"; //add 4 chars to draw cell8 tiles.
                                           //string endPoint = "86HW99"; //15 Cell6 blocks to draw, so 400 * 15 tiles for testing.
 
-            for (int pos1 = 0; pos1 < 20; pos1++) 
+            for (int pos1 = 0; pos1 < 20; pos1++)
                 for (int pos2 = 0; pos2 < 20; pos2++)
                 {
                     string cellToCheck = startPoint + OpenLocationCode.CodeAlphabet[pos1].ToString() + OpenLocationCode.CodeAlphabet[pos2].ToString();
@@ -1815,6 +1818,361 @@ namespace PerformanceTestApp
             Console.WriteLine("Average Skia tiles per second:" + Stopwatch.Frequency / skiaDurations.Average());
             Console.WriteLine("Average ImageSharp time:" + imageDurations.Average());
             Console.WriteLine("Average ImageSharp tiles per second:" + Stopwatch.Frequency / imageDurations.Average());
+        }
+
+        public static void TestTagParsers()
+        {
+            var asm2 = Assembly.LoadFrom(@"PraxisMapTilesImageSharp.dll");
+            var mtImage = (IMapTiles)Activator.CreateInstance(asm2.GetType("PraxisCore.MapTiles")); //Not actually used to draw, but I need to initialize TagParser.
+            TagParser.Initialize(false, mtImage);
+
+            //create collection of tags.
+            List<ElementTags> biglist = new List<ElementTags>();
+            biglist.Add(new ElementTags() { Key = "badEntry", Value = "nothing" });
+            biglist.Add(new ElementTags() { Key = "place", Value = "neighborhood" });
+            biglist.Add(new ElementTags() { Key = "natual", Value = "hill" });
+            biglist.Add(new ElementTags() { Key = "lanes", Value = "7" });
+            biglist.Add(new ElementTags() { Key = "placeholder", Value = "stuff" });
+            biglist.Add(new ElementTags() { Key = "screensize", Value = "small" });
+            biglist.Add(new ElementTags() { Key = "twoMore", Value = "entries" });
+            biglist.Add(new ElementTags() { Key = "andHere", Value = "WeGo" });
+            biglist.Add(new ElementTags() { Key = "waterway", Value = "river" });
+
+            for (var l = 0; l < 5; l++)
+            {
+                var sw = new Stopwatch();
+                sw.Start();
+                for (var i = 0; i < 100000; i++)
+                    foreach (var style in TagParser.allStyleGroups.First().Value)
+                        MatchOnTags(style.Value, biglist);
+                sw.Stop();
+                Console.WriteLine("Ran normal matchOnTags in \r\n" + sw.ElapsedTicks + " ticks");
+
+                var firstTicks = sw.ElapsedTicks;
+
+                sw.Restart();
+                for (var i = 0; i < 100000; i++)
+                    foreach (var style in TagParser.allStyleGroups.First().Value)
+                        MatchOnTagsSpans(style.Value, biglist);
+                sw.Stop();
+                Console.WriteLine("Ran matchOnTagsSpan in \r\n" + sw.ElapsedTicks + " ticks");
+
+                var secondTicks = sw.ElapsedTicks;
+                Console.WriteLine("Performance Difference: Second runs in " + ((double)secondTicks / (double)firstTicks) * 100.0 + "% of the time.");
+
+                sw.Restart();
+                for (var i = 0; i < 100000; i++)
+                    foreach (var style in TagParser.allStyleGroups.First().Value)
+                        MatchOnTags(style.Value, biglist.ToDictionary(k => k.Key, v => v.Value));
+                sw.Stop();
+                Console.WriteLine("Ran matchOnTags via dictionary in \r\n" + sw.ElapsedTicks + " ticks");
+                
+                var thirdTicks = sw.ElapsedTicks;
+                Console.WriteLine("Performance Difference: Third runs in " + ((double)thirdTicks / (double)firstTicks) * 100.0 + "% of the time.");
+
+
+                sw.Restart();
+                for (var i = 0; i < 100000; i++)
+                    foreach (var style in TagParser.allStyleGroups.First().Value)
+                        MatchOnTagsDictstyle(style.Value, biglist);
+                sw.Stop();
+                Console.WriteLine("Ran matchOnTags with dictstyle logic in \r\n" + sw.ElapsedTicks + " ticks");
+
+                var fourthTicks = sw.ElapsedTicks;
+                Console.WriteLine("Performance Difference: fourth runs in " + ((double)fourthTicks / (double)firstTicks) * 100.0 + "% of the time.");
+            }
+
+        }
+
+        public static bool MatchOnTags(TagParserEntry tpe, ICollection<ElementTags> tags)
+        {
+            bool OrMatched = false;
+            int orRuleCount = 0;
+
+            //Step 1: check all the rules against these tags.
+            //The * value is required for all the rules, so check it first.
+            for (var i = 0; i < tpe.TagParserMatchRules.Count(); i++)
+            {
+                var entry = tpe.TagParserMatchRules.ElementAt(i);
+                if (entry.Value == "*") //The Key needs to exist, but any value counts.
+                {
+                    if (tags.Any(t => t.Key == entry.Key))
+                        continue;
+                }
+
+                switch (entry.MatchType)
+                {
+                    case "any":
+                        if (!tags.Any(t => t.Key == entry.Key))
+                            return false;
+
+                        var possibleValues = entry.Value.Split("|");
+                        var actualValue = tags.FirstOrDefault(t => t.Key == entry.Key).Value;
+                        if (!possibleValues.Contains(actualValue))
+                            return false;
+                        break;
+                    case "or": //Or rules must be counted, but we can skip checking once we have a match, since only one of them needs to match. Otherwise is the same as ANY logic.
+                        orRuleCount++;
+                        if (!tags.Any(t => t.Key == entry.Key) || OrMatched)
+                            continue;
+
+                        var possibleValuesOr = entry.Value.Split("|");
+                        var actualValueOr = tags.FirstOrDefault(t => t.Key == entry.Key).Value;
+                        if (possibleValuesOr.Contains(actualValueOr))
+                            OrMatched = true;
+                        break;
+                    case "not":
+                        if (!tags.Any(t => t.Key == entry.Key))
+                            continue;
+
+                        var possibleValuesNot = entry.Value.Split("|");
+                        var actualValueNot = tags.FirstOrDefault(t => t.Key == entry.Key).Value;
+                        if (possibleValuesNot.Contains(actualValueNot))
+                            return false; //Not does not want to match this.
+                        break;
+                    case "equals": //for single possible values, EQUALS is slightly faster than ANY
+                        if (!tags.Any(t => t.Key == entry.Key))
+                            return false;
+                        if (tags.FirstOrDefault(t => t.Key == entry.Key).Value != entry.Value)
+                            return false;
+                        break;
+                    case "none":
+                        //never matches anything. Useful for background color or other special styles that need to exist but don't want to appear normally.
+                        return false;
+                    case "default":
+                        //Always matches. Can only be on one entry, which is the last entry and the default color
+                        return true;
+                }
+            }
+
+            //Now, we should have bailed out if any mandatory thing didn't match. Should only be on whether or not any of our Or checks passsed.
+            if (OrMatched || orRuleCount == 0)
+                return true;
+
+            return false;
+        }
+
+        public static bool MatchOnTagsSpans(TagParserEntry tpe, List<ElementTags> tags)
+        {
+            bool OrMatched = false;
+            int orRuleCount = 0;
+
+            //Step 1: check all the rules against these tags.
+            //The * value is required for all the rules, so check it first.
+            for (var i = 0; i < tpe.TagParserMatchRules.Count(); i++)
+            {
+                var entry = tpe.TagParserMatchRules.ElementAt(i);
+                if (entry.Value == "*") //The Key needs to exist, but any value counts.
+                {
+                    if (tags.Any(t => t.Key == entry.Key))
+                        continue;
+                }
+
+                switch (entry.MatchType)
+                {
+                    case "any":
+                        if (!tags.Any(t => t.Key == entry.Key))
+                            return false;
+                        var desc = entry.Value.AsSpan();
+                        var actualValue = tags.FirstOrDefault(t => t.Key == entry.Key).Value;
+                        bool hasMatch = false;
+                        while (desc.Length > 0)
+                        {
+                            var nextvalue = desc.SplitNext('|');
+                            if (nextvalue.Equals(actualValue, StringComparison.Ordinal))
+                            {
+                                hasMatch = true;
+                                break;
+                            }
+                        }
+                        if (!hasMatch) return false;
+                        break;
+                    case "or": //Or rules must be counted, but we can skip checking once we have a match, since only one of them needs to match. Otherwise is the same as ANY logic.
+                        orRuleCount++;
+                        if (!tags.Any(t => t.Key == entry.Key) || OrMatched)
+                            continue;
+
+                        var actualValueOr = tags.FirstOrDefault(t => t.Key == entry.Key).Value;
+                        var descOr = entry.Value.AsSpan();
+                        while (descOr.Length > 0)
+                        {
+                            var nextvalue = descOr.SplitNext('|');
+                            if (nextvalue.Equals(actualValueOr, StringComparison.Ordinal))
+                            {
+                                OrMatched = true;
+                                break;
+                            }
+                        }
+                        break;
+                    case "not":
+                        if (!tags.Any(t => t.Key == entry.Key))
+                            continue;
+
+                        var descNot = entry.Value.AsSpan();
+                        var actualValueNot = tags.FirstOrDefault(t => t.Key == entry.Key).Value;
+                        while (descNot.Length > 0)
+                        {
+                            var nextvalue = descNot.SplitNext('|');
+                            if (nextvalue.Equals(actualValueNot, StringComparison.Ordinal))
+                                return false; //nots fail out.
+                        }
+                        break;
+                    case "equals": //for single possible values, EQUALS is slightly faster than ANY
+                        if (!tags.Any(t => t.Key == entry.Key))
+                            return false;
+                        if (tags.FirstOrDefault(t => t.Key == entry.Key).Value != entry.Value)
+                            return false;
+                        break;
+                    case "none":
+                        //never matches anything. Useful for background color or other special styles that need to exist but don't want to appear normally.
+                        return false;
+                    case "default":
+                        //Always matches. Can only be on one entry, which is the last entry and the default color
+                        return true;
+                }
+            }
+
+            //Now, we should have bailed out if any mandatory thing didn't match. Should only be on whether or not any of our Or checks passsed.
+            if (OrMatched || orRuleCount == 0)
+                return true;
+
+            return false;
+        }
+
+        public static bool MatchOnTags(TagParserEntry tpe, Dictionary<string, string> tags)
+        {
+            bool OrMatched = false;
+            int orRuleCount = 0;
+
+            TagParserMatchRule entry;
+
+            //Step 1: check all the rules against these tags.
+            //The * value is required for all the rules, so check it first.
+            for (var i = 0; i < tpe.TagParserMatchRules.Count(); i++)
+            {
+                entry = tpe.TagParserMatchRules.ElementAt(i);
+
+                string actualvalue = "";
+                bool isPresent = tags.TryGetValue(entry.Key, out actualvalue);
+
+                switch (entry.MatchType)
+                {
+                    case "any":
+                        if (!isPresent)
+                            return false;
+
+                        if (entry.Value == "*")
+                            continue;
+
+                        if (!entry.Value.Contains(actualvalue))
+                            return false;
+                        break;
+                    case "or": //Or rules don't fail early, since only one of them needs to match. Otherwise is the same as ANY logic.
+                        orRuleCount++;
+                        if (!isPresent || OrMatched) //Skip checking the actual value if we already matched on an OR rule.
+                            continue;
+
+                        if (entry.Value == "*" || entry.Value.Contains(actualvalue))
+                            OrMatched = true;
+                        break;
+                    case "not":
+                        if (!isPresent)
+                            continue;
+
+                        if (entry.Value.Contains(actualvalue) || entry.Value == "*")
+                            return false; //Not does not want to match this.
+                        break;
+                    case "equals": //for single possible values, EQUALS is slightly faster than ANY
+                        if (entry.Value == "*" && isPresent)
+                            continue;
+
+                        if (!isPresent || actualvalue != entry.Value)
+                            return false;
+                        break;
+                    case "none":
+                        //never matches anything. Useful for background color or other special styles that need to exist but don't want to appear normally.
+                        return false;
+                    case "default":
+                        //Always matches. Can only be on one entry, which is the last entry and the default color
+                        return true;
+                }
+            }
+
+            //Now, we should have bailed out if any mandatory thing didn't match. Now make sure that we either had 0 OR checks or matched on any OR rule provided.
+            if (OrMatched || orRuleCount == 0)
+                return true;
+
+            //We did not match an OR clause, so this TPE is not a match.
+            return false;
+        }
+
+        public static bool MatchOnTagsDictstyle(TagParserEntry tpe, List<ElementTags> tags)
+        {
+            bool OrMatched = false;
+            int orRuleCount = 0;
+
+            TagParserMatchRule entry;
+
+            //Step 1: check all the rules against these tags.
+            //The * value is required for all the rules, so check it first.
+            for (var i = 0; i < tpe.TagParserMatchRules.Count(); i++)
+            {
+                entry = tpe.TagParserMatchRules.ElementAt(i);
+                
+                var thisTag = tags.FirstOrDefault(t => t.Key == entry.Key);
+                string thisValue = null;
+                if (thisTag != null)
+                    thisValue = thisTag.Value;
+
+                switch (entry.MatchType)
+                {
+                    case "any":
+                        if (thisValue == null)
+                            return false;
+
+                        if (entry.Value == "*")
+                            continue;
+
+                        if (!entry.Value.Contains(thisValue))
+                            return false;
+                        break;
+                    case "or": //Or rules don't fail early, since only one of them needs to match. Otherwise is the same as ANY logic.
+                        orRuleCount++;
+                        if (thisValue == null || OrMatched) //Skip checking the actual value if we already matched on an OR rule.
+                            continue;
+
+                        if (entry.Value == "*" || entry.Value.Contains(thisValue))
+                            OrMatched = true;
+                        break;
+                    case "not":
+                        if (thisValue == null)
+                            continue;
+
+                        if (entry.Value.Contains(thisValue) || entry.Value == "*")
+                            return false; //Not does not want to match this.
+                        break;
+                    case "equals": //for single possible values, EQUALS is slightly faster than ANY
+                        if (entry.Value == "*" && thisValue != null)
+                            continue;
+
+                        if (thisValue == null || thisValue != entry.Value)
+                            return false;
+                        break;
+                    case "none":
+                        //never matches anything. Useful for background color or other special styles that need to exist but don't want to appear normally.
+                        return false;
+                    case "default":
+                        //Always matches. Can only be on one entry, which is the last entry and the default color
+                        return true;
+                }
+            }
+
+            //Now, we should have bailed out if any mandatory thing didn't match. Now make sure that we either had 0 OR checks or matched on any OR rule provided.
+            if (OrMatched || orRuleCount == 0)
+                return true;
+
+            //We did not match an OR clause, so this TPE is not a match.
+            return false;
         }
     }
 }
