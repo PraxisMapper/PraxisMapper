@@ -205,70 +205,8 @@ namespace PraxisCore
         /// <returns>true if this TagParserEntry applies to this StoredOsmElement's tags, or false if it does not.</returns>
         public static bool MatchOnTags(TagParserEntry tpe, ICollection<ElementTags> tags)
         {
-            bool OrMatched = false;
-            int orRuleCount = 0;
-
-            //Step 1: check all the rules against these tags.
-            //The * value is required for all the rules, so check it first.
-            for (var i = 0; i < tpe.TagParserMatchRules.Count(); i++)
-            {
-                var entry = tpe.TagParserMatchRules.ElementAt(i);
-                if (entry.Value == "*") //The Key needs to exist, but any value counts.
-                {
-                    if (tags.Any(t => t.Key == entry.Key))
-                        continue;
-                }
-
-                switch (entry.MatchType)
-                {
-                    case "any":
-                        if (!tags.Any(t => t.Key == entry.Key))
-                            return false;
-
-                        var possibleValues = entry.Value.Split("|");
-                        var actualValue = tags.FirstOrDefault(t => t.Key == entry.Key).Value;
-                        if (!possibleValues.Contains(actualValue))
-                            return false;
-                        break;
-                    case "or": //Or rules must be counted, but we can skip checking once we have a match, since only one of them needs to match. Otherwise is the same as ANY logic.
-                        orRuleCount++;
-                        if (!tags.Any(t => t.Key == entry.Key) || OrMatched)
-                            continue;
-
-                        var possibleValuesOr = entry.Value.Split("|");
-                        var actualValueOr = tags.FirstOrDefault(t => t.Key == entry.Key).Value;
-                        if (possibleValuesOr.Contains(actualValueOr))
-                            OrMatched = true;
-                        break;
-                    case "not":
-                        if (!tags.Any(t => t.Key == entry.Key))
-                            continue;
-
-                        var possibleValuesNot = entry.Value.Split("|");
-                        var actualValueNot = tags.FirstOrDefault(t => t.Key == entry.Key).Value;
-                        if (possibleValuesNot.Contains(actualValueNot))
-                            return false; //Not does not want to match this.
-                        break;
-                    case "equals": //for single possible values, EQUALS is slightly faster than ANY
-                        if (!tags.Any(t => t.Key == entry.Key))
-                            return false;
-                        if (tags.FirstOrDefault(t => t.Key == entry.Key).Value != entry.Value)
-                            return false;
-                        break;
-                    case "none":
-                        //never matches anything. Useful for background color or other special styles that need to exist but don't want to appear normally.
-                        return false;
-                    case "default":
-                        //Always matches. Can only be on one entry, which is the last entry and the default color
-                        return true;
-                }
-            }
-
-            //Now, we should have bailed out if any mandatory thing didn't match. Should only be on whether or not any of our Or checks passsed.
-            if (OrMatched || orRuleCount == 0)
-                return true;
-
-            return false;
+            //NOTE: this cast make this path slightly slower (.01ms), but I don't have to maintain 2 version of this functions full code.
+            return MatchOnTags(tpe, tags.ToDictionary(k => k.Key, v => v.Value));
         }
 
         /// <summary>
@@ -375,6 +313,7 @@ namespace PraxisCore
                 !t.Key.StartsWith("maxspeed") &&
                 !t.Key.StartsWith("mtb:") &&
                 !t.Key.StartsWith("nist:") &&
+                !t.Key.StartsWith("node") &&
                 !t.Key.StartsWith("not:") &&
                 !t.Key.StartsWith("old_name:") &&
                 !t.Key.StartsWith("parking:") &&
@@ -451,7 +390,6 @@ namespace PraxisCore
         /// <returns>a string with the hex value for the color based on the area's name.</returns>
         public static string PickStaticColorForArea(string areaname)
         {
-            //TODO TEST
             var hasher = System.Security.Cryptography.MD5.Create();
             var value = areaname.ToByteArrayUnicode();
             var hash = hasher.ComputeHash(value);
