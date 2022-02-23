@@ -43,7 +43,7 @@ namespace PraxisCore
             //This one return all entries, for a game mode that might need all of them.
             var results = new List<TerrainData>(entriesHere.Count());
             foreach (var e in entriesHere)
-                results.Add(new TerrainData() { Name = e.name, areaType = e.GameElementName, StoredOsmElementId = e.privacyId });
+                results.Add(new TerrainData() { Name = TagParser.GetPlaceName(e.Tags), areaType = e.GameElementName, StoredOsmElementId = e.privacyId });
             return results;
         }
 
@@ -58,7 +58,7 @@ namespace PraxisCore
             //This one only returns the smallest entry, for games that only need to check the most interesting area in a cell.
             //var entry = SortGameElements(entriesHere).First(); //Entries should already be sorted biggest to smallest, so just get the last one.
             var entry = entriesHere.Last();
-            return new TerrainData() { Name = entry.name, areaType = entry.GameElementName, StoredOsmElementId = entry.privacyId };
+            return new TerrainData() { Name = TagParser.GetPlaceName(entry.Tags), areaType = entry.GameElementName, StoredOsmElementId = entry.privacyId };
         }
 
         /// <summary>

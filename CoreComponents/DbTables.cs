@@ -159,7 +159,7 @@ namespace PraxisCore
         public class StoredOsmElement
         {
             public long id { get; set; } //Internal primary key, don't pass this to clients.
-            public string name { get; set; }
+            //public string name { get; set; } //this could be removed, since its mostly a convenience value. 
             public long sourceItemID { get; set; } //Try to use PrivacyId instead of this where possible to avoid connecting players to locations.
             public int sourceItemType { get; set; } //1: node, 2: way, 3: relation
             [Column(TypeName = "geography")]
@@ -176,7 +176,7 @@ namespace PraxisCore
             public Guid privacyId { get; set; } = Guid.NewGuid(); //Pass this Id to clients, so we can attempt to block attaching players to locations in the DB.
             public override string ToString()
             {
-                return (sourceItemType == 3 ? "Relation " : sourceItemType == 2 ? "Way " : "Node ") +  sourceItemID.ToString() + ":" + name;
+                return (sourceItemType == 3 ? "Relation " : sourceItemType == 2 ? "Way " : "Node ") +  sourceItemID.ToString() + TagParser.GetPlaceName(Tags);
             }
 
             public StoredOsmElement Clone()
