@@ -144,7 +144,8 @@ namespace PraxisCore
         /// <returns>the StoredOsmElement ready to save to the DB</returns>
         public static StoredOsmElement ConvertOsmEntryToStoredElement(OsmSharp.Complete.ICompleteOsmGeo g)
         {
-            if (g.Tags == null || g.Tags.Count() == 0)
+            var tags = TagParser.getFilteredTags(g.Tags);
+            if (tags == null || tags.Count() == 0)
                 return null; //For nodes, don't store every untagged node.
 
             try
@@ -152,7 +153,7 @@ namespace PraxisCore
                 var geometry = featureInterpreter.Interpret(g); 
                 if (geometry == null)
                 {
-                    Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + " didn't interpret into a Geometry object", Log.VerbosityLevels.Errors);
+                    Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + "-" + TagParser.GetPlaceName(g.Tags) + " didn't interpret into a Geometry object", Log.VerbosityLevels.Errors);
                     return null;
                 }
                 var sw = new StoredOsmElement();
@@ -167,7 +168,7 @@ namespace PraxisCore
                 }
                 geo.SRID = 4326;//Required for SQL Server to accept data this way.
                 sw.elementGeometry = geo;
-                sw.Tags = TagParser.getFilteredTags(g.Tags);
+                sw.Tags = tags; //TagParser.getFilteredTags(g.Tags);
                 if (sw.elementGeometry.GeometryType == "LinearRing" || (sw.elementGeometry.GeometryType == "LineString" && sw.elementGeometry.Coordinates.First() == sw.elementGeometry.Coordinates.Last()))
                 {
                     //I want to update all LinearRings to Polygons, and let the style determine if they're Filled or Stroked.
