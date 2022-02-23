@@ -355,6 +355,9 @@ namespace Larry
                 {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
+                    db = new PraxisContext();
+                    db.Database.SetCommandTimeout(Int32.MaxValue);
+                    db.ChangeTracker.AutoDetectChangesEnabled = false;
                     var lines = System.IO.File.ReadAllLines(jsonFileName);
                     foreach (var line in lines)
                     {
@@ -378,6 +381,9 @@ namespace Larry
                 {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
+                    db = new PraxisContext();
+                    db.Database.SetCommandTimeout(Int32.MaxValue);
+                    db.ChangeTracker.AutoDetectChangesEnabled = false;
                     var lines = System.IO.File.ReadAllLines(jsonFileName);
                     foreach (var line in lines)
                     {
@@ -430,6 +436,9 @@ namespace Larry
                     long entryCounter = 0;
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     Log.WriteLog("Loading " + jsonFileName + " to database at " + DateTime.Now);
+                    db = new PraxisContext();
+                    db.Database.SetCommandTimeout(Int32.MaxValue);
+                    db.ChangeTracker.AutoDetectChangesEnabled = false;
                     var fr = File.OpenRead(jsonFileName);
                     var sr = new StreamReader(fr);
                     List<StoredOsmElement> pendingData = new List<StoredOsmElement>(10050);
