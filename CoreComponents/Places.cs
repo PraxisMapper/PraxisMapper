@@ -201,7 +201,7 @@ namespace PraxisCore
                 if (polygon != null)
                 {
                     StoredOsmElement gmd = new StoredOsmElement();
-                    gmd.name = ""; //not using this on this level. 
+                    //gmd.name = ""; //not using this on this level. 
                     gmd.elementGeometry = polygon;
                     gmd.GameElementName = "generated";
                     gmd.IsGenerated = true;
@@ -246,7 +246,7 @@ namespace PraxisCore
             {
                 var shape = entry.elementGeometry;
 
-                results += "Name: " + entry.name + Environment.NewLine;
+                results += "Name: " + TagParser.GetPlaceName(entry.Tags) + Environment.NewLine;
                 results += "Game Type: " + TagParser.GetAreaType(entry.Tags.ToList()) + Environment.NewLine;
                 results += "Geometry Type: " + shape.GeometryType + Environment.NewLine;
                 results += "OSM Type: " + entry.sourceItemType + Environment.NewLine;

@@ -31,7 +31,7 @@ namespace PraxisCore.Standalone
                 //Circular radius was replaced with square envelope. it's 1 extra double to store per row to do the envelope check this way, and looks more reasonable.
                 //var calcRadius = (place.elementGeometry.EnvelopeInternal.Width + place.elementGeometry.EnvelopeInternal.Height) / 4;
                 var pi = new PlaceInfo2() {
-                    Name = place.name,
+                    Name = TagParser.GetPlaceName(place.Tags),
                     areaType = place.GameElementName,
                     latCenter = center.Y,
                     lonCenter = center.X,
@@ -58,7 +58,7 @@ namespace PraxisCore.Standalone
         {
             //TODO: This is going to need updated for the new TagParser rules. testing at the minimum
             var results = new List<ScavengerHuntStandalone>();
-            var wikiList = allPlaces.Where(a => a.Tags.Any(t => t.Key == "wikipedia") && a.name != "").Select(a => a.name).Distinct().ToList();
+            var wikiList = allPlaces.Where(a => a.Tags.Any(t => t.Key == "wikipedia") && TagParser.GetPlaceName(a.Tags) != "").Select(a => TagParser.GetPlaceName(a.Tags)).Distinct().ToList();
             //Create automatic scavenger hunt entries.
             Dictionary<string, List<string>> scavengerHunts = new Dictionary<string, List<string>>();
 
@@ -71,7 +71,7 @@ namespace PraxisCore.Standalone
             //fill in gameElement lists.
             foreach (var gameElementTags in TagParser.allStyleGroups.First().Value.Where(s => s.Value.IsGameElement))
             {
-                var foundElements = allPlaces.Where(a => TagParser.MatchOnTags(gameElementTags.Value, a.Tags) && !string.IsNullOrWhiteSpace(a.name)).Select(a => a.name).Distinct().ToList();
+                var foundElements = allPlaces.Where(a => TagParser.MatchOnTags(gameElementTags.Value, a.Tags) && !string.IsNullOrWhiteSpace(TagParser.GetPlaceName(a.Tags))).Select(a => TagParser.GetPlaceName(a.Tags)).Distinct().ToList();
                 scavengerHunts.Add(gameElementTags.Value.name, foundElements);
                 Log.WriteLog(foundElements.Count() + " " + gameElementTags.Value.name + " items found for scavenger hunt.");
             }

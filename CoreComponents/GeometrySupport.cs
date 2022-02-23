@@ -157,7 +157,7 @@ namespace PraxisCore
                     return null;
                 }
                 var sw = new StoredOsmElement();
-                sw.name = TagParser.GetPlaceName(g.Tags);
+                //sw.name = TagParser.GetPlaceName(g.Tags);
                 sw.sourceItemID = g.Id;
                 sw.sourceItemType = (g.Type == OsmGeoType.Relation ? 3 : g.Type == OsmGeoType.Way ? 2 : 1);
                 var geo = GeometrySupport.SimplifyArea(geometry);
@@ -196,7 +196,7 @@ namespace PraxisCore
             foreach (var md in mapdata)
                 if (md != null) //null can be returned from the functions that convert OSM entries to StoredElement
                 {
-                    var recordVersion = new StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated);
+                    var recordVersion = new StoredOsmElementForJson(md.id, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated);
                     var test = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
                     results.Add(test);
                 }
@@ -213,7 +213,7 @@ namespace PraxisCore
         {
             if (md != null) //null can be returned from the functions that convert OSM entries to StoredElement
             {
-                var recordVersion = new PraxisCore.Support.StoredOsmElementForJson(md.id, md.name, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement,md.IsUserProvided, md.IsGenerated);
+                var recordVersion = new PraxisCore.Support.StoredOsmElementForJson(md.id, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement,md.IsUserProvided, md.IsGenerated);
                 var test = JsonSerializer.Serialize(recordVersion, typeof(PraxisCore.Support.StoredOsmElementForJson));
                 File.AppendAllText(filename, test + Environment.NewLine);
             }
@@ -284,7 +284,7 @@ namespace PraxisCore
         public static StoredOsmElement ConvertSingleJsonStoredElement(string sw)
         {
             StoredOsmElementForJson j = (StoredOsmElementForJson)JsonSerializer.Deserialize(sw, typeof(StoredOsmElementForJson), jso);
-            var temp = new StoredOsmElement() { id = j.id, name = j.name, sourceItemID = j.sourceItemID, sourceItemType = j.sourceItemType, elementGeometry = geomTextReader.Read(j.elementGeometry), IsGameElement = j.IsGameElement, Tags = new List<ElementTags>(), IsGenerated = j.isGenerated, IsUserProvided = j.isUserProvided };
+            var temp = new StoredOsmElement() { id = j.id, sourceItemID = j.sourceItemID, sourceItemType = j.sourceItemType, elementGeometry = geomTextReader.Read(j.elementGeometry), IsGameElement = j.IsGameElement, Tags = new List<ElementTags>(), IsGenerated = j.isGenerated, IsUserProvided = j.isUserProvided };
             if (!string.IsNullOrWhiteSpace(j.WayTags))
             {
                 var tagData = j.WayTags.Split("~");
@@ -317,7 +317,7 @@ namespace PraxisCore
             }
             if (temp.elementGeometry == null) //it failed the CCWCheck logic and couldn;t be correctly oriented.
             {
-                Log.WriteLog("NOTE: Item " + temp.sourceItemID + " | " + temp.name + " - Failed to create valid geometry", Log.VerbosityLevels.Errors);
+                Log.WriteLog("NOTE: Item " + temp.sourceItemID +  " - Failed to create valid geometry", Log.VerbosityLevels.Errors);
                 return null;
             }
 

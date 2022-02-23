@@ -11,7 +11,7 @@ namespace PraxisCore.Support
 
     public record CoordPair(float lat, float lon); //Used only in TestPerfApp
 
-    public record StoredOsmElementForJson(long id, string name, long sourceItemID, int sourceItemType, string elementGeometry, string WayTags, bool IsGameElement, bool isUserProvided, bool isGenerated);
+    public record StoredOsmElementForJson(long id, long sourceItemID, int sourceItemType, string elementGeometry, string WayTags, bool IsGameElement, bool isUserProvided, bool isGenerated);
 
     public record CompletePaintOp(Geometry elementGeometry, double areaSize, TagParserPaint paintOp, string tagValue, double lineWidth);
 

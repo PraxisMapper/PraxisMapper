@@ -36,7 +36,7 @@ namespace PraxisCore
 
             for (int i = 0; i < items.Count(); i++)
             {
-                outputData[i] = items[i].name + "\t" + items[i].sourceItemID + "\t" + items[i].sourceItemType + "\t" + items[i].elementGeometry.AsText(); // + "\t" + (items[i].IsGameElement ? 1 :0) + "\t" + items[i].AreaSize + "\t" + (items[i].IsGenerated ? 1 : 0) + "\t" + items[i].IsUserProvided ? 1 : 0) //Commented section is not going to apply to osm data.
+                outputData[i] = items[i].sourceItemID + "\t" + items[i].sourceItemType + "\t" + items[i].elementGeometry.AsText(); // + "\t" + (items[i].IsGameElement ? 1 :0) + "\t" + items[i].AreaSize + "\t" + (items[i].IsGenerated ? 1 : 0) + "\t" + items[i].IsUserProvided ? 1 : 0) //Commented section is not going to apply to osm data.
                 foreach(var t in items[i].Tags)
                 {
                     outputTags.Add(t.storedOsmElement.id + "\t" + t.Key + "\t" + t.Value);
@@ -82,8 +82,8 @@ namespace PraxisCore
             //var sridByteString = "0000" + BitConverter.GetBytes(item.elementGeometry.SRID).ToByteString(); //Might need some padding to hit 4 bytes.
             //string rawSql = "UPDATE StoredOsmElements SET elementGeometry = _binary 0x" + sridByteString + geoStored.ToBinary().ToByteString() + " WHERE id = " + item.id;
             //string rawSql = "UPDATE StoredOsmElements SET elementGeometry = ST_GeomFromWKB('" + geoStored.ToBinary().ToByteString() + "', " + item.elementGeometry.SRID + ") WHERE id = " + item.id; //Might be better than the FromText conversion automatically occurring?
-            string rawSql = "INSERT INTO StoredOsmElements(name, sourceItemId, sourceItemType, elementGeometry, isGameElement, AreaSize, LineLength, IsGenerated, IsUserProvided) VALUES ('"
-                + item.name.Replace("'", "''") + "', " + item.sourceItemID + "," + item.sourceItemType + ", ST_GeomFromWKB(X'" + geoStored.ToBinary().ToByteString() + "', " + geoStored.SRID + "), " + item.IsGameElement + "," 
+            string rawSql = "INSERT INTO StoredOsmElements(sourceItemId, sourceItemType, elementGeometry, isGameElement, AreaSize, LineLength, IsGenerated, IsUserProvided) VALUES ("
+                + item.sourceItemID + "," + item.sourceItemType + ", ST_GeomFromWKB(X'" + geoStored.ToBinary().ToByteString() + "', " + geoStored.SRID + "), " + item.IsGameElement + "," 
                 + geoStored.Area + "," + geoStored.Length + ", " + item.IsGenerated + "," + item.IsUserProvided + ")";
             db.Database.ExecuteSqlRaw(rawSql);
         }
@@ -109,16 +109,16 @@ namespace PraxisCore
             sb.AppendLine("/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;");
             sb.AppendLine("/*!40000 ALTER TABLE `StoredOsmElements` DISABLE KEYS */;");
 
-            sb.AppendLine("INSERT IGNORE INTO `StoredOsmElements` (`name`, `sourceItemId`, `sourceItemType`, `elementGeometry`, `AreaSize`, `IsGenerated`, `IsUserProvided`) VALUES");
+            sb.AppendLine("INSERT IGNORE INTO `StoredOsmElements` (`sourceItemId`, `sourceItemType`, `elementGeometry`, `AreaSize`, `IsGenerated`, `IsUserProvided`) VALUES");
 
             var e1 = elements.First();
-            sb.AppendLine("('" + e1.name + "', " + e1.sourceItemID + ", " + e1.sourceItemType + ", _binary 0x" + e1.elementGeometry.ToBinary().ToByteString() + ", " + e1.elementGeometry.Area + ", " + (e1.IsGenerated ? "1" : "0") + ", " + (e1.IsUserProvided ? "1" : "0") + ")");
+            sb.AppendLine("(" +  e1.sourceItemID + ", " + e1.sourceItemType + ", _binary 0x" + e1.elementGeometry.ToBinary().ToByteString() + ", " + e1.elementGeometry.Area + ", " + (e1.IsGenerated ? "1" : "0") + ", " + (e1.IsUserProvided ? "1" : "0") + ")");
 
             //HeidiSQL likes to keep inserts at 1MB or less when possible. Attempt to duplicate that?
             foreach (var e in elements.Skip(1))
             {
                 //Geometry elements are handled as "_binary 0xFFEEFFDDEEFF" so I want the WKB for each element.
-                sb.AppendLine(",('" + e.name + "', " + e.sourceItemID + ", " + e.sourceItemType + ", _binary 0x" + e.elementGeometry.ToBinary().ToByteString() + ", " + e.elementGeometry.Area + ", " + (e.IsGenerated ? "1" : "0") + ", " + (e.IsUserProvided ? "1" : "0") + ")");
+                sb.AppendLine(",(" + e.sourceItemID + ", " + e.sourceItemType + ", _binary 0x" + e.elementGeometry.ToBinary().ToByteString() + ", " + e.elementGeometry.Area + ", " + (e.IsGenerated ? "1" : "0") + ", " + (e.IsUserProvided ? "1" : "0") + ")");
             }
 
 

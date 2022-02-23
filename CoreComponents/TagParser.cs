@@ -352,6 +352,22 @@ namespace PraxisCore
         }
 
         /// <summary>
+        /// Search the tags of a CompleteGeo object for a name value
+        /// </summary>
+        /// <param name="tagsO">the tags to search</param>
+        /// <returns>a Name value if one is found, or an empty string if not</returns>
+        public static string GetPlaceName(ICollection<ElementTags> tagsO)
+        {
+            if (tagsO.Count() == 0)
+                return "";
+            var retVal = tagsO.FirstOrDefault(t => t.Key == "name");
+            if (retVal == null)
+                return "";
+
+            return retVal.Value;
+        }
+
+        /// <summary>
         /// Get a link to a StoredOsmElement's wikipedia page, if tagged with a wiki tag.
         /// </summary>
         /// <param name="element">the StoredOsmElement with tags to check</param>

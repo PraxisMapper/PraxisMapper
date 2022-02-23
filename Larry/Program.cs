@@ -329,7 +329,7 @@ namespace Larry
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
                     var mariaPath = jsonFileName.Replace("\\", "\\\\");
-                    db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' IGNORE INTO TABLE StoredOsmElements fields terminated by '\t' lines terminated by '\r\n' (name, sourceItemID, sourceItemType, @elementGeometry, AreaSize, privacyId) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
+                    db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' IGNORE INTO TABLE StoredOsmElements fields terminated by '\t' lines terminated by '\r\n' (sourceItemID, sourceItemType, @elementGeometry, AreaSize, privacyId) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
                     sw.Stop();
                     Log.WriteLog("Geometry loaded from " + jsonFileName + " in " + sw.Elapsed);
                     System.IO.File.Move(jsonFileName, jsonFileName + "done");
@@ -360,12 +360,12 @@ namespace Larry
                     {
                         var parts = line.Split('\t'); //TODO: span potential?
                         StoredOsmElement entry = new StoredOsmElement();
-                        entry.name = parts[0];
-                        entry.sourceItemID = parts[1].ToLong();
-                        entry.sourceItemType = parts[2].ToInt();
-                        entry.elementGeometry = GeometrySupport.GeometryFromWKT(parts[3]);
-                        entry.AreaSize = parts[4].ToDouble();
-                        entry.privacyId = Guid.Parse(parts[5]);
+                        //entry.name = parts[0];
+                        entry.sourceItemID = parts[0].ToLong();
+                        entry.sourceItemType = parts[1].ToInt();
+                        entry.elementGeometry = GeometrySupport.GeometryFromWKT(parts[2]);
+                        entry.AreaSize = parts[3].ToDouble();
+                        entry.privacyId = Guid.Parse(parts[4]);
                         db.StoredOsmElements.Add(entry);
                     }
                     db.SaveChanges();
@@ -770,10 +770,10 @@ namespace Larry
             }
             string commonStart = minCode.Substring(0, removableLetters);
 
-            var wikiList = allPlaces.Where(a => a.Tags.Any(t => t.Key == "wikipedia") && a.name != "").Select(a => a.name).Distinct().ToList();
+            var wikiList = allPlaces.Where(a => a.Tags.Any(t => t.Key == "wikipedia") && TagParser.GetPlaceName(a.Tags) != "").Select(a => TagParser.GetPlaceName(a.Tags)).Distinct().ToList();
             //Leaving this nearly wide open, since it's not the main driver of DB size.
-            var basePlaces = allPlaces.Where(a => a.name != "" || a.GameElementName != "unmatched").ToList(); //.Where(a => a.name != "").ToList();// && (a.IsGameElement || wikiList.Contains(a.name))).ToList();
-            var distinctNames = basePlaces.Select(p => p.name).Distinct().ToList();//This distinct might be causing things in multiple pieces to only detect one of them, not all of them?
+            var basePlaces = allPlaces.Where(a => TagParser.GetPlaceName(a.Tags) != "" || a.GameElementName != "unmatched").ToList(); //.Where(a => a.name != "").ToList();// && (a.IsGameElement || wikiList.Contains(a.name))).ToList();
+            var distinctNames = basePlaces.Select(p => TagParser.GetPlaceName(p.Tags)).Distinct().ToList();//This distinct might be causing things in multiple pieces to only detect one of them, not all of them?
 
             var placeInfo = PraxisCore.Standalone.Standalone.GetPlaceInfo(basePlaces);
             //Remove trails later.
@@ -812,7 +812,7 @@ namespace Larry
                 if (skipEntries.Contains(trail.sourceItemID))
                     continue; //Don't per-cell index this one, we shifted it's envelope to handle it instead.
 
-                if (trail.name == "")
+                if (TagParser.GetPlaceName(trail.Tags) == "")
                     continue; //So sorry, but there's too damn many roads without names inflating DB size without being useful as-is.
 
                 //var pis = placeInfo.Where(p => p.OsmElementId == trail.sourceItemID).ToList();
@@ -826,14 +826,14 @@ namespace Larry
                 var overlapped = AreaTypeInfo.SearchArea(ref thisPath, ref oneEntry);
                 if (overlapped.Count() > 0)
                 {
-                    tdSmalls.TryAdd(trail.name, new TerrainDataSmall() { Name = trail.name, areaType = trail.GameElementName });
+                    tdSmalls.TryAdd(TagParser.GetPlaceName(trail.Tags), new TerrainDataSmall() { Name = TagParser.GetPlaceName(trail.Tags), areaType = trail.GameElementName });
                 }
                 foreach (var o in overlapped)
                 {
                     var ti = new TerrainInfo();
                     ti.PlusCode = o.Key.Substring(removableLetters, 10 - removableLetters);
                     ti.TerrainDataSmall = new List<TerrainDataSmall>();
-                    ti.TerrainDataSmall.Add(tdSmalls[trail.name]);
+                    ti.TerrainDataSmall.Add(tdSmalls[o.Value.Name]);
                     sqliteDb.TerrainInfo.Add(ti);
                 }
                 sqliteDb.SaveChanges();
@@ -895,7 +895,7 @@ namespace Larry
                 var shapeData = sf.GetShapeDataD(i);
                 var poly = Converters.ShapefileRecordToPolygon(shapeData);
                 //Write this to a json file.
-                var jsonData = new StoredOsmElementForJson(i, "coastlinePoly", i, 2, poly.ToString(), tagString, false, false, false);
+                var jsonData = new StoredOsmElementForJson(i, i, 2, poly.ToString(), tagString, false, false, false);
                 var jsonString = System.Text.Json.JsonSerializer.Serialize(jsonData, typeof(StoredOsmElementForJson));
                 sw.WriteLine(jsonString);
             }

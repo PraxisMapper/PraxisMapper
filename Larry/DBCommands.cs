@@ -98,11 +98,11 @@ namespace Larry
                             if (existingData.AreaSize != entry.AreaSize) existingData.AreaSize = entry.AreaSize;
                             if (existingData.GameElementName != entry.GameElementName) existingData.GameElementName = entry.GameElementName;
                             if (existingData.IsGameElement != entry.IsGameElement) existingData.IsGameElement = entry.IsGameElement;
-                            if (existingData.name != entry.name) existingData.name = entry.name;
+                            //if (existingData.name != entry.name) existingData.name = entry.name;
 
                             bool expireTiles = false;
 
-                            if (!existingData.elementGeometry.EqualsTopologically(entry.elementGeometry))
+                            if (!existingData.elementGeometry.EqualsTopologically(entry.elementGeometry)) //TODO: this might need to be EqualsExact?
                             {
                                 //update the geometry for this object.
                                 existingData.elementGeometry = entry.elementGeometry;

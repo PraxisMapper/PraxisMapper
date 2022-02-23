@@ -70,7 +70,7 @@ namespace PraxisMapper.Controllers
                 return View();
 
             TagParser.ApplyTags(new System.Collections.Generic.List<DbTables.StoredOsmElement>() { area }, "mapTiles");
-            ViewBag.areaname = area.name;
+            ViewBag.areaname = TagParser.GetPlaceName(area.Tags);
             ViewBag.type = area.GameElementName;
             ViewBag.isGenerated = area.IsGenerated;
             ViewBag.isUserProvided = area.IsUserProvided;
