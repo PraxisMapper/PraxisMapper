@@ -1511,7 +1511,7 @@ namespace PraxisCore.PbfReader
         public void ProcessReaderResults(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, long blockId)
         {
             //This one is easy, we just dump the geodata to the file.
-            string saveFilename = outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + "-" + blockId + ".json";
+            string saveFilename = outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + "-" + blockId;
             ConcurrentBag<StoredOsmElement> elements = new ConcurrentBag<StoredOsmElement>();
             DateTime startedProcess = DateTime.Now;
 
@@ -1570,7 +1570,7 @@ namespace PraxisCore.PbfReader
                     try
                     {
                         //jsonFileStream.Write(jsonSB);
-                        System.IO.File.AppendAllText(saveFilename, jsonSB.ToString());
+                        System.IO.File.AppendAllText(saveFilename + ".json", jsonSB.ToString());
                     }
                     catch (Exception ex)
                     {
@@ -1594,7 +1594,7 @@ namespace PraxisCore.PbfReader
                     {
                         System.Threading.Tasks.Parallel.Invoke(
                             () => System.IO.File.AppendAllText(saveFilename + ".geomInfile", geometryBuilds.ToString()), 
-                            () => System.IO.File.AppendAllText(saveFilename + "tagsInfile", tagBuilds.ToString())
+                            () => System.IO.File.AppendAllText(saveFilename + ".tagsInfile", tagBuilds.ToString())
                         );
                         
                         //geomFileStream.Write(geometryBuilds);
