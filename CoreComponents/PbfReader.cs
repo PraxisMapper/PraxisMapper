@@ -730,8 +730,9 @@ namespace PraxisCore.PbfReader
                             //The FeatureInterpreter doesn't use nodes from a relation
                             break;
                         case Relation.MemberType.WAY:
-                            wayBlocks.Add(FindBlockKeyForWay(idToFind, wayBlocks));
-                            wayBlocks = wayBlocks.Distinct().ToList();
+                            var wayKey = FindBlockKeyForWay(idToFind, wayBlocks);
+                            if (!wayBlocks.Contains(wayKey))
+                                wayBlocks.Add(wayKey);
                             break;
                         case Relation.MemberType.RELATION: //ignore meta-relations
                                                            //neededBlocks.Add(relationFinder[idToFind].Item1);
@@ -1204,34 +1205,36 @@ namespace PraxisCore.PbfReader
         public ConcurrentBag<OsmSharp.Complete.ICompleteOsmGeo> GetGeometryFromBlock(long blockId, bool onlyTagMatchedEntries = false)
         {
             //This grabs the chosen block, populates everything in it to an OsmSharp.Complete object and returns that list
+            ConcurrentBag<OsmSharp.Complete.ICompleteOsmGeo> results = new ConcurrentBag<OsmSharp.Complete.ICompleteOsmGeo>();
             try
             {
                 var block = GetBlock(blockId);
-                ConcurrentBag<OsmSharp.Complete.ICompleteOsmGeo> results = new ConcurrentBag<OsmSharp.Complete.ICompleteOsmGeo>();
+                results.Clear();
                 //Attempting to clear up some memory slightly faster, but this should be redundant.
                 relList.Clear();
-                relList = null;
-                relList = new ConcurrentBag<Task>();
+                //relList = null;
+                //relList = new ConcurrentBag<Task>();
                 foreach (var primgroup in block.primitivegroup)
                 {
                     if (primgroup.relations != null && primgroup.relations.Count() > 0)
                     {
                         //Some relation blocks can hit 22GB of RAM on their own. Dividing relation blocks into 4 pieces to help minimize that.
-                        var splitcount = primgroup.relations.Count() / 4;
-                        for (int i = 0; i < 5; i++) //5 means we won't miss any, just in case splitcount leaves us with 3 remainder entries.
-                        {
-                            var toProcess = primgroup.relations.Skip(splitcount * i).Take(splitcount).ToList();
-                            foreach (var r in toProcess)
+                        //var splitcount = primgroup.relations.Count() / 4;
+                        //for (int i = 0; i < 5; i++) //5 means we won't miss any, just in case splitcount leaves us with 3 remainder entries.
+                        //{
+                            //var toProcess = primgroup.relations.Skip(splitcount * i).Take(splitcount).ToList();
+                            //foreach (var r in toProcess)
+                            foreach(var r in primgroup.relations)
                                 relList.Add(Task.Run(() => results.Add(GetRelation(r.id, onlyTagMatchedEntries))));
 
                             Task.WaitAll(relList.ToArray());
-                            activeBlocks.Clear(); //Dump them all out of RAM, see how this affects performance. At most a block gets read 3 times more than it would have before.
-                        }
+                            //activeBlocks.Clear();
+                        //}
                     }
                     else if (primgroup.ways != null && primgroup.ways.Count() > 0)
                     {
                         List<long> hint = new List<long>() { blockId };
-                        foreach (var r in primgroup.ways.OrderByDescending(w => w.refs.Count())) //Ordering should help consistency in runtime, though it offers little other benefit.
+                        foreach (var r in primgroup.ways) //.OrderByDescending(w => w.refs.Count())) //Ordering should help consistency in runtime, though it offers little other benefit.
                         {
                             relList.Add(Task.Run(() => results.Add(GetWay(r, block, onlyTagMatchedEntries))));
                         }
@@ -1272,16 +1275,17 @@ namespace PraxisCore.PbfReader
                 }
                 accessedBlocks.Clear();
 
-                var count = (block.primitivegroup[0].relations?.Count > 0 ? block.primitivegroup[0].relations.Count :
-                    block.primitivegroup[0].ways?.Count > 0 ? block.primitivegroup[0].ways.Count :
-                    block.primitivegroup[0].dense.id.Count);
+                //var count = (block.primitivegroup[0].relations?.Count > 0 ? block.primitivegroup[0].relations.Count :
+                //    block.primitivegroup[0].ways?.Count > 0 ? block.primitivegroup[0].ways.Count :
+                //    block.primitivegroup[0].dense.id.Count);
 
                 return results;
             }
             catch (Exception ex)
             {
                 Log.WriteLog("error getting geometry: " + ex.Message);
-                return null;
+                throw ex; //In order to reprocess this block in last-chance mode.
+                //return null;
             }
         }
 
