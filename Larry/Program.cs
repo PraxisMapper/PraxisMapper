@@ -312,7 +312,10 @@ namespace Larry
         private static void loadProcessedData()
         {
             Log.WriteLog("Starting load from processed files at " + DateTime.Now);
-            PraxisContext db = null;
+            System.Diagnostics.Stopwatch fullProcess = new System.Diagnostics.Stopwatch();
+            fullProcess.Start();
+            PraxisContext db = new PraxisContext();
+            //db.Database.ExecuteSqlRaw("SET @@global.innodb_autoinc_lock_mode = 2"); //Fastest mode, breaks statement-based replication (which im not doing)
             if (config["KeepElementsInMemory"] != "True")
             {
                 db = new PraxisContext();
@@ -351,11 +354,12 @@ namespace Larry
             else if (config["UseTsvOutput"] == "True") //intended future main path, smaller than JSON.
             {
                 List<string> filenames = Directory.EnumerateFiles(config["JsonMapDataFolder"], "*.geomInfile").ToList();
-                foreach (var jsonFileName in filenames)
+                //foreach (var jsonFileName in filenames)
+                Parallel.ForEach(filenames, jsonFileName => 
                 {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
-                    db = new PraxisContext();
+                    var db = new PraxisContext();
                     db.Database.SetCommandTimeout(Int32.MaxValue);
                     db.ChangeTracker.AutoDetectChangesEnabled = false;
                     var lines = System.IO.File.ReadAllLines(jsonFileName);
@@ -375,13 +379,14 @@ namespace Larry
                     sw.Stop();
                     Log.WriteLog("Geometry loaded from " + jsonFileName + " in " + sw.Elapsed);
                     System.IO.File.Move(jsonFileName, jsonFileName + "done");
-                }
+                });
                 filenames = System.IO.Directory.EnumerateFiles(config["JsonMapDataFolder"], "*.tagsInfile").ToList();
-                foreach (var jsonFileName in filenames)
+                //foreach (var jsonFileName in filenames)
+                Parallel.ForEach(filenames, jsonFileName =>
                 {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
-                    db = new PraxisContext();
+                    var db = new PraxisContext();
                     db.Database.SetCommandTimeout(Int32.MaxValue);
                     db.ChangeTracker.AutoDetectChangesEnabled = false;
                     var lines = System.IO.File.ReadAllLines(jsonFileName);
@@ -399,7 +404,7 @@ namespace Larry
                     sw.Stop();
                     Log.WriteLog("Tags loaded from " + jsonFileName + " in " + sw.Elapsed);
                     System.IO.File.Move(jsonFileName, jsonFileName + "done");
-                }
+                });
                 
             }
             else if (config["KeepElementsInMemory"] == "True")
@@ -479,6 +484,9 @@ namespace Larry
                     File.Move(jsonFileName, jsonFileName + "done");
                 }
             }
+            //db.Database.ExecuteSqlRaw("SET @@global.innodb_autoinc_lock_mode = 1"); //default mode
+            fullProcess.Stop();
+            Log.WriteLog("Files loaded to database in " + fullProcess.Elapsed);
         }
         private static void autoCreateMapTiles()
         {
