@@ -255,7 +255,7 @@ namespace PraxisCore.PbfReader
 
                 if (!lowResourceMode) //typical path
                 {
-                    for (var block = nextBlockId; block > firstWayBlock; block--)
+                    for (var block = nextBlockId; block >= firstWayBlock; block--)
                     {
                         try
                         {
