@@ -108,15 +108,15 @@ namespace PraxisCore
         //Adding these as helper values for large use cases. When inserting large amounts of data, it's probably worth removing indexes for the insert and re-adding them later.
         //(On a North-America file insert, this keeps insert speeds at about 2-3 seconds per block, whereas it creeps up consistently while indexes are updated per block.
         //Though, I also see better results there droping the single-column indexes as well, which would need re-created manually since those one are automatic.
-        public static string DropMapTileIndex = "DROP INDEX MapTileSpatialIndex";
-        public static string DropSlippyMapTileIndex = "DROP INDEX SlippyMapTileSpatialIndex";
-        public static string DropStoredElementsIndex = "DROP INDEX StoredOsmElementsIndex";
-        public static string DropcustomDataPlusCodesIndex = "DROP INDEX customDataPlusCodeSpatialIndex";
-        public static string DropStoredElementsAreaSizeIndex = "DROP INDEX IX_StoredOsmElements_AreaSize";
-        public static string DropStoredElementsPrivacyIdIndex = "DROP INDEX IX_StoredOsmElements_privacyId";
-        public static string DropStoredElementsSourceItemIdIndex = "DROP INDEX IX_StoredOsmElements_sourceItemID";
-        public static string DropStoredElementsSourceItemTypeIndex = "DROP INDEX IX_StoredOsmElements_sourceItemType";
-        public static string DropTagKeyIndex = "DROP INDEX IX_ElementTags_Key";
+        public static string DropMapTileIndex = "DROP INDEX IF EXISTS MapTileSpatialIndex on MapTiles";
+        public static string DropSlippyMapTileIndex = "DROP INDEX IF EXISTS SlippyMapTileSpatialIndex on SlippyMapTiles";
+        public static string DropStoredElementsIndex = "DROP INDEX IF EXISTS StoredOsmElementsIndex on StoredOsmElements";
+        public static string DropcustomDataPlusCodesIndex = "DROP INDEX IF EXISTS customDataPlusCodeSpatialIndex on CustomDataPlusCodes";
+        public static string DropStoredElementsAreaSizeIndex = "DROP INDEX IF EXISTS IX_StoredOsmElements_AreaSize on StoredOsmElements";
+        public static string DropStoredElementsPrivacyIdIndex = "DROP INDEX IF EXISTS IX_StoredOsmElements_privacyId on StoredOsmElements";
+        public static string DropStoredElementsSourceItemIdIndex = "DROP INDEX IF EXISTS IX_StoredOsmElements_sourceItemID on StoredOsmElements";
+        public static string DropStoredElementsSourceItemTypeIndex = "DROP INDEX IF EXISTS IX_StoredOsmElements_sourceItemType on StoredOsmElements";
+        public static string DropTagKeyIndex = "DROP INDEX IF EXISTS IX_ElementTags_Key on ElementTags";
 
 
 
@@ -226,6 +226,7 @@ namespace PraxisCore
                 Database.ExecuteSqlRaw(sourceItemTypeIndex);
                 Database.ExecuteSqlRaw(tagKeyIndex);
                 Database.ExecuteSqlRaw(privacyIdIndex);
+                Database.ExecuteSqlRaw(customDataPlusCodesIndex);
             }
         }
 

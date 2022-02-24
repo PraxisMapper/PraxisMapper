@@ -316,6 +316,8 @@ namespace Larry
             fullProcess.Start();
             PraxisContext db = new PraxisContext();
             //db.Database.ExecuteSqlRaw("SET @@global.innodb_autoinc_lock_mode = 2"); //Fastest mode, breaks statement-based replication (which im not doing)
+            //innodb doesnt do enable/disable keys, so something else has to happen here to toggle off indexes.
+            db.DropIndexes();
             if (config["KeepElementsInMemory"] != "True")
             {
                 db = new PraxisContext();
@@ -487,6 +489,11 @@ namespace Larry
             //db.Database.ExecuteSqlRaw("SET @@global.innodb_autoinc_lock_mode = 1"); //default mode
             fullProcess.Stop();
             Log.WriteLog("Files loaded to database in " + fullProcess.Elapsed);
+            fullProcess.Restart();
+            //innodb doesnt allow enable/disable keys.
+            db.RecreateIndexes();
+            fullProcess.Stop();
+            Log.WriteLog("Indexes generated in " + fullProcess.Elapsed);
         }
         private static void autoCreateMapTiles()
         {
