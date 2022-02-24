@@ -16,6 +16,7 @@ namespace PraxisMapper
     {
         public static void Main(string[] args)
         {
+            Log.WriteLog("PraxisMapper starting.");
             var host = CreateHostBuilder(args).Build();
             host.Run();
             Log.WriteLog("PraxisMapper closing.");
@@ -26,6 +27,7 @@ namespace PraxisMapper
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.UseStartup<Startup>();
+                    webBuilder.UseUrls("http://0.0.0.0:5000", "https://0.0.0.0:5001");
                 });
     }
 }
