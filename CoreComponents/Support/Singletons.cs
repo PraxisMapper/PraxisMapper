@@ -49,7 +49,28 @@ namespace PraxisCore
         /// </summary>
         public static List<TagParserEntry> defaultTagParserEntries = new List<TagParserEntry>()
         {
-            new TagParserEntry() { MatchOrder = 1, name ="water", styleSet = "mapTiles",
+            //NOTE: a rough analysis suggests that about 1/3 of entries are 'tertiary' roads and another third are 'building'
+            //So moving those 2 entires up to match 1st and 2nd should reduce the amount of time checking through entries in most cases.
+            //(Unmatched is 3rd, and that one has to be last by definition.)
+            //Roads of varying sizes and colors to match OSM colors
+            new TagParserEntry() { MatchOrder = 1, name ="tertiary", maxDrawRes = (float)ConstantValues.zoom8DegPerPixelX / 2, styleSet = "mapTiles",
+                paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "ffffff", FillOrStroke = "stroke", LineWidth=0.0000125F, LinePattern= "solid", layerId = 98, maxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new TagParserPaint() { HtmlColorCode = "8f8f8f", FillOrStroke = "stroke", LineWidth=0.0000375F, LinePattern= "solid", layerId = 99, maxDrawRes = ConstantValues.zoom10DegPerPixelX / 2}
+                },
+                TagParserMatchRules = new List<TagParserMatchRule>()
+            {
+                new TagParserMatchRule() { Key = "highway", Value = "tertiary|unclassified|residential|tertiary_link|service|road", MatchType = "any" },
+                new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
+            }},
+            new TagParserEntry() { MatchOrder = 2, name ="building", styleSet = "mapTiles",
+                paintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "d9d0c9", FillOrStroke = "fill", LineWidth=0.0000125F, LinePattern= "solid", layerId = 100 },
+                    new TagParserPaint() { HtmlColorCode = "B8A89C", FillOrStroke = "stroke", LineWidth=0.00000625F, LinePattern= "solid", layerId = 99 }
+                },
+                TagParserMatchRules = new List<TagParserMatchRule>() {
+                    new TagParserMatchRule() { Key = "building", Value = "*", MatchType = "equals" }} },
+            new TagParserEntry() { MatchOrder = 14, name ="water", styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "aad3df", FillOrStroke = "fill", LineWidth=0.0000625F, LinePattern= "solid", layerId = 100 }
                 },
@@ -60,7 +81,7 @@ namespace PraxisCore
                     new TagParserMatchRule() {Key = "leisure", Value ="swimming_pool", MatchType="or" },
                     new TagParserMatchRule() {Key = "place", Value ="sea", MatchType="or" }, //stupid Labrador sea value.
                 }},
-            new TagParserEntry() { MatchOrder = 2, name ="wetland", styleSet = "mapTiles",
+            new TagParserEntry() { MatchOrder = 34, name ="wetland", styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "0C4026", FillOrStroke = "fill", LineWidth=0.0000125F, LinePattern= "solid", layerId = 100 }
                 },
@@ -154,13 +175,6 @@ namespace PraxisCore
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" }} 
             },
-            new TagParserEntry() { MatchOrder = 14, name ="building", styleSet = "mapTiles",
-                paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "d9d0c9", FillOrStroke = "fill", LineWidth=0.0000125F, LinePattern= "solid", layerId = 100 },
-                    new TagParserPaint() { HtmlColorCode = "B8A89C", FillOrStroke = "stroke", LineWidth=0.00000625F, LinePattern= "solid", layerId = 99 }
-                },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "building", Value = "*", MatchType = "equals" }} },
             new TagParserEntry() { MatchOrder = 17, name ="parking", minDrawRes = ConstantValues.zoom12DegPerPixelX, styleSet = "mapTiles",
                 paintOperations = new List<TagParserPaint>() {
                     new TagParserPaint() { HtmlColorCode = "EEEEEE", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", layerId = 100 }
@@ -316,17 +330,6 @@ namespace PraxisCore
                 new TagParserMatchRule() { Key = "highway", Value = "tertiary|unclassified|residential|tertiary_link|service|road", MatchType = "any" },
                 new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
                 new TagParserMatchRule() { Key="area", Value="yes", MatchType="equals"}
-            }},
-            //Roads of varying sizes and colors to match OSM colors
-            new TagParserEntry() { MatchOrder = 34, name ="tertiary", maxDrawRes = (float)ConstantValues.zoom8DegPerPixelX / 2, styleSet = "mapTiles",
-                paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "ffffff", FillOrStroke = "stroke", LineWidth=0.0000125F, LinePattern= "solid", layerId = 98, maxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
-                    new TagParserPaint() { HtmlColorCode = "8f8f8f", FillOrStroke = "stroke", LineWidth=0.0000375F, LinePattern= "solid", layerId = 99, maxDrawRes = ConstantValues.zoom10DegPerPixelX / 2}
-                },
-                TagParserMatchRules = new List<TagParserMatchRule>()
-            {
-                new TagParserMatchRule() { Key = "highway", Value = "tertiary|unclassified|residential|tertiary_link|service|road", MatchType = "any" },
-                new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
             }},
 
             //additional areas that I can work out info on go here, though they may not necessarily be the most interesting areas to handle.
