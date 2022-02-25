@@ -331,8 +331,9 @@ namespace PraxisCore
                     pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), w.paintOp.LineWidth);
                 else
                 {
-                    float[] linesAndGaps = w.paintOp.LinePattern.Split('|').Select(t => float.Parse(t)).ToArray();
-                    pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), w.paintOp.LineWidth, linesAndGaps);
+                    //TODO: test and fix this parsing line
+                    //float[] linesAndGaps = w.paintOp.LinePattern.Split('|').Select(t => float.Parse(t)).ToArray();
+                    pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), w.paintOp.LineWidth); //, linesAndGaps);
                 }
 
                 //ImageSharp doesn;t like humungous areas (16k+ nodes takes a couple minutes), so we have to crop them down here
