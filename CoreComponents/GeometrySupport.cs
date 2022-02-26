@@ -276,6 +276,29 @@ namespace PraxisCore
             return lm;
         }
 
+        public static StoredOsmElement ConvertSingleTsvStoredElement(string sw)
+        {
+            var parts = sw.Split('\t'); //TODO: possibly a span use here?
+            StoredOsmElement entry = new StoredOsmElement();
+            entry.sourceItemID = parts[0].ToLong();
+            entry.sourceItemType = parts[1].ToInt();
+            entry.elementGeometry = GeometrySupport.GeometryFromWKT(parts[2]);
+            entry.AreaSize = parts[3].ToDouble();
+            entry.privacyId = Guid.Parse(parts[4]);
+            return entry;
+        }
+
+        public static ElementTags ConvertSingleTsvTag(string sw)
+        {
+            var parts = sw.Split('\t'); //TODO: span this up for a tiny optimization?
+            ElementTags entry = new ElementTags();
+            entry.SourceItemId = parts[0].ToLong();
+            entry.SourceItemType = parts[1].ToInt();
+            entry.Key = parts[2];
+            entry.Value = parts[3];
+            return entry;
+        }
+
         /// <summary>
         /// Turns a JSON string into a StoredOSMElement
         /// </summary>

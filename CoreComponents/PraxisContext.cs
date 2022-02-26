@@ -1,6 +1,9 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Google.OpenLocationCode;
+using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using static PraxisCore.DbTables;
 
 namespace PraxisCore
@@ -193,7 +196,8 @@ namespace PraxisCore
 
             foreach (var file in System.IO.Directory.EnumerateFiles("MapPatterns"))
             {
-                TagParserStyleBitmaps.Add(new TagParserStyleBitmap() {
+                TagParserStyleBitmaps.Add(new TagParserStyleBitmap()
+                {
                     filename = System.IO.Path.GetFileName(file),
                     data = System.IO.File.ReadAllBytes(file)
                 });
@@ -204,7 +208,7 @@ namespace PraxisCore
         public void RecreateIndexes()
         {
             //Only run this after running DropIndexes, since these should all exist on DB creation.
-            
+
             //PostgreSQL will make automatic spatial indexes
             if (serverMode == "PostgreSQL")
             {
@@ -300,6 +304,94 @@ namespace PraxisCore
             //var db = new PraxisContext();
             string SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet = '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM StoredOsmElements WHERE privacyId = '" + elementId + "'))";
             Database.ExecuteSqlRaw(SQL);
+        }
+
+        public GeoArea SetServerBounds(long singleArea)
+        {
+            //This is an important command if you don't want to track data outside of your initial area.
+            GeoArea results = null;
+            if (singleArea != 0)
+            {
+                var area = StoredOsmElements.First(e => e.sourceItemID == singleArea);
+                var envelop = area.elementGeometry.EnvelopeInternal;
+                results = new GeoArea(envelop.MinY, envelop.MinX, envelop.MaxY, envelop.MaxX);
+            }
+            else
+                results = Place.DetectServerBounds(ConstantValues.resolutionCell8);
+
+            var settings = ServerSettings.FirstOrDefault();
+            settings.NorthBound = results.NorthLatitude;
+            settings.SouthBound = results.SouthLatitude;
+            settings.EastBound = results.EastLongitude;
+            settings.WestBound = results.WestLongitude;
+            SaveChanges();
+            return results;
+        }
+
+        public void UpdateExistingEntries(List<StoredOsmElement> entries)
+        {
+            foreach (var entry in entries)
+            {
+                //check existing entry, see if it requires being updated
+                var existingData = StoredOsmElements.FirstOrDefault(md => md.sourceItemID == entry.sourceItemID && md.sourceItemType == entry.sourceItemType);
+                if (existingData != null)
+                {
+                    if (existingData.AreaSize != entry.AreaSize) existingData.AreaSize = entry.AreaSize;
+                    if (existingData.GameElementName != entry.GameElementName) existingData.GameElementName = entry.GameElementName;
+                    if (existingData.IsGameElement != entry.IsGameElement) existingData.IsGameElement = entry.IsGameElement;
+
+                    bool expireTiles = false;
+                    if (!existingData.elementGeometry.EqualsTopologically(entry.elementGeometry)) //TODO: this might need to be EqualsExact?
+                    {
+                        //update the geometry for this object.
+                        existingData.elementGeometry = entry.elementGeometry;
+                        expireTiles = true;
+                    }
+                    if (!existingData.Tags.OrderBy(t => t.Key).SequenceEqual(entry.Tags.OrderBy(t => t.Key)))
+                    {
+                        existingData.Tags = entry.Tags;
+                        var styleA = TagParser.GetStyleForOsmWay(existingData.Tags);
+                        var styleB = TagParser.GetStyleForOsmWay(entry.Tags);
+                        if (styleA != styleB)
+                            expireTiles = true; //don't force a redraw on tags unless we change our drawing rules.
+                    }
+
+                    if (expireTiles) //geometry or style has to change, otherwise we can skip expiring values.
+                    {
+                        SaveChanges(); //save before expiring, so the next redraw absolutely has the latest data. Can't catch it mid-command if we do this first.
+                        ExpireMapTiles(entry.elementGeometry, "mapTiles");
+                        ExpireSlippyMapTiles(entry.elementGeometry, "mapTiles");
+                    }
+                }
+                else
+                {
+                    //We don't have this item, add it.
+                    StoredOsmElements.Add(entry);
+                    SaveChanges(); //again, necessary here to get tiles to draw correctly after expiring.
+                    ExpireMapTiles(entry.elementGeometry, "mapTiles");
+                    ExpireSlippyMapTiles(entry.elementGeometry, "mapTiles");
+                }
+            }
+            SaveChanges(); //final one for anything not yet persisted.
+        }
+
+        public void ResetStyles()
+        {
+            Log.WriteLog("Replacing current styles with default ones");
+            var styles = Singletons.defaultTagParserEntries.Select(t => t.styleSet).Distinct().ToList();
+
+            var toRemove = TagParserEntries.Include(t => t.paintOperations).Where(t => styles.Contains(t.styleSet)).ToList();
+            var toRemovePaints = toRemove.SelectMany(t => t.paintOperations).ToList();
+            var toRemoveImages = TagParserStyleBitmaps.ToList();
+            TagParserPaints.RemoveRange(toRemovePaints);
+            SaveChanges();
+            TagParserEntries.RemoveRange(toRemove);
+            SaveChanges();
+            TagParserStyleBitmaps.RemoveRange(toRemoveImages);
+            SaveChanges();
+
+            InsertDefaultStyle();
+            Log.WriteLog("Styles restored to PraxisMapper defaults");
         }
     }
 }
