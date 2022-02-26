@@ -274,3 +274,8 @@ Average Skia tiles per second:2159.3211957888916
 Average ImageSharp time:12598.73
 Average ImageSharp tiles per second:793.7307966755379
 Summary: ImageSharp is 2.75x slower (40% of Skiasharp's speed), which is totally reasonable compared to the best-case of 5x above. I need to get it on a T4G instance to see how perf works out.
+
+Testing Span.SplitNext() vs String.Split():
+Average string.split() results: 64.66112
+Average span() results: 29.59288
+Summary: Spans are about twice as fast on average. It's a trivial difference since we're measuring it in ticks, but I call those functions enough that it may become noticeable.

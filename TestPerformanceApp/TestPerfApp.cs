@@ -75,7 +75,7 @@ namespace PerformanceTestApp
             //TestRasterVsVectorCell8();
             //TestRasterVsVectorCell10();
             //TestImageSharpVsSkiaSharp(); //imagesharp was removed for being vastly slower.
-            TestTagParser();
+            //TestTagParser();
             //TestCropVsNoCropDraw("86HWPM");
             //TestCropVsNoCropDraw("86HW");
             //TestCustomPbfReader();
@@ -83,6 +83,8 @@ namespace PerformanceTestApp
             //TestPbfParsing();
             //TestMaptileDrawing();
             //TestTagParsers();
+            //TestSpanOnEntry("754866354	2	LINESTRING (-82.110422 40.975346, -82.1113778 40.9753544)	0.0009558369107748833	2028a47f-4119-4426-b40f-a8715d67f962");
+            TestSpanOnEntry("945909899	1	POINT (-84.1416403 39.7111214)	0.000125	5b9f9899-09dc-4b53-ba1a-5799fe6f992b");
 
             //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
             //These cannot all be enabled in one run. You must comment/uncomment each one separately.
@@ -91,13 +93,9 @@ namespace PerformanceTestApp
             //TestDBPerformance("MariaDB");
             //TestDBPerformance("PostgreSQL");
 
-
             //Sample code for later, I will want to make sure these indexes work as expected.
             //PraxisCore.MapTiles.ExpireSlippyMapTiles(Converters.GeoAreaToPolygon(OpenLocationCode.DecodeValid("86HWHHFF")));
             //TestMapTileIndexSpeed();
-
-            //TODO: consider pulling 4-cell worth of places into memory, querying against that instead of a DB lookup every time?
-            //tests app performance this way instead of db performance/network latency.
         }
 
         private static void TestCustomPbfReader()
@@ -608,7 +606,6 @@ namespace PerformanceTestApp
         //Another TestPerf only functoin.
         //public static List<MapData> GetPlacesNoTrack(GeoArea area, List<MapData> source = null)
         //{
-        //    //TODO: this seems to have a lot of warmup time that I would like to get rid of. Would be a huge performance improvement.
         //    //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
         //    //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
         //    var coordSeq = Converters.GeoAreaToCoordArray(area);
@@ -847,7 +844,6 @@ namespace PerformanceTestApp
 
             //lets do lookup VS dictionary vs concurrentdictionary. This eats a lot more RAM with nodes.
             var list = progress2.Where(p => p.Type == OsmGeoType.Way).Select(p => (OsmSharp.Way)p).ToList();
-            //TODO: time populating these entreis.
             var lookup = list.ToLookup(k => k.Id, v => v);
             var dictionary = list.ToDictionary(k => k.Id, v => v);
             var conDict = new ConcurrentDictionary<long, OsmSharp.Way>();
@@ -925,7 +921,6 @@ namespace PerformanceTestApp
         //    sw.Stop();
         //    Log.WriteLog("Searched and built Cell10Info Record response in " + sw.ElapsedMilliseconds);
 
-        //    //todo: also check parsing record results to string for api endpoint
         //    StringBuilder sb2 = new StringBuilder();
         //    sw.Restart();
         //    foreach (var place in info.Select(i => i.placeName).Distinct())
@@ -1098,7 +1093,6 @@ namespace PerformanceTestApp
         //        //if (entireCode)
         //        olc = new OpenLocationCode(y, x).CodeDigits;
         //        //else
-        //        //TODO: decide on passing in a value for the split instead of a bool so this can be reused a little more
         //        //olc = new OpenLocationCode(y, x).CodeDigits.Substring(6, 4); //This takes lat, long, Coordinate takes X, Y. This line is correct.
         //        // olc = new OpenLocationCode(y, x).CodeDigits.Substring(8, 2); //This takes lat, long, Coordinate takes X, Y. This line is correct.
         //        return new Cell10Info(area.name, olc, area.sourceItemType); //TODO: set this up later to hold gameplay area type.
@@ -1110,7 +1104,6 @@ namespace PerformanceTestApp
         {
             Log.WriteLog("Loading data for Intersect performance test.");
             var pgf = new PreparedGeometryFactory();
-            //TODO: pick a cell or cells. 86HWG855 has 41 items. Could do a Cell6 for bigger testing?
             //Compare intersects speed (as the app will do them): one Area from a Cell8 against a list of MapData places. 
             //Switch up which ones are prepared, which ones aren't and test with none prepared.
             GeoArea Cell6 = OpenLocationCode.DecodeValid("86HW");
@@ -2173,6 +2166,41 @@ namespace PerformanceTestApp
 
             //We did not match an OR clause, so this TPE is not a match.
             return false;
+        }
+
+        public static void TestSpanOnEntry(string sw)
+        {
+            Stopwatch timer = new Stopwatch();
+            List<long> splitParse = new List<long>();
+            List<long> spanParse = new List<long>();
+
+            for (int i = 0; i < 100000; i++)
+            {
+                timer.Start();
+                var parts = sw.Split('\t');
+                StoredOsmElement entry = new StoredOsmElement();
+                entry.sourceItemID = parts[0].ToLong();
+                entry.sourceItemType = parts[1].ToInt();
+                entry.elementGeometry = GeometrySupport.GeometryFromWKT(parts[2]);
+                entry.AreaSize = parts[3].ToDouble();
+                entry.privacyId = Guid.Parse(parts[4]);
+                timer.Stop();
+                splitParse.Add(timer.ElapsedTicks);
+                timer.Restart();
+
+                var source = sw.AsSpan();
+                StoredOsmElement e2 = new StoredOsmElement();
+                e2.sourceItemID = source.SplitNext('\t').ToLong();
+                e2.sourceItemType = source.SplitNext('\t').ToInt();
+                e2.elementGeometry = GeometryFromWKT(source.SplitNext('\t').ToString());
+                e2.AreaSize = source.SplitNext('\t').ToDouble();
+                e2.privacyId = Guid.Parse(source);
+                timer.Stop();
+                spanParse.Add(timer.ElapsedTicks);
+            }
+
+            Console.WriteLine("Average string.split() results: " + splitParse.Average());
+            Console.WriteLine("Average span() results: " + spanParse.Average());
         }
     }
 }

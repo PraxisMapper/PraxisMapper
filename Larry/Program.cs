@@ -100,6 +100,7 @@ namespace Larry
                 SetEnvValues();
                 var db = new PraxisContext();
                 createDb();
+                db.DropIndexes();
                 processPbfs();
                 loadProcessedData();
                 db.SetServerBounds(long.Parse(config["UseOneRelationID"]));
@@ -331,7 +332,7 @@ namespace Larry
                 }
                 return;
             }
-            else if (config["UseMariaDBInFile"] == "True" && config["UseTsvOutput"] == "True") //Use the LOAD DATA INFILE command to skip the EF for loading.
+            else if (config["UseMariaDBInFile"] == "True") //Use the LOAD DATA INFILE command to skip the EF for loading.
             {
                 foreach (var fileName in geomFilenames)
                 {
@@ -355,7 +356,7 @@ namespace Larry
                     File.Move(fileName, fileName + "done");
                 }
             }
-            else if (config["UseTsvOutput"] == "True") //Main path.
+            else //Main path.
             {
                 Parallel.ForEach(geomFilenames, fileName => 
                 {
@@ -364,7 +365,7 @@ namespace Larry
                     var db = new PraxisContext();
                     db.Database.SetCommandTimeout(Int32.MaxValue);
                     db.ChangeTracker.AutoDetectChangesEnabled = false;
-                    var lines = File.ReadAllLines(fileName);
+                    var lines = File.ReadAllLines(fileName); //Might be faster to use streams and dodge the memory allocation?
                     foreach (var line in lines)
                     {
                         db.StoredOsmElements.Add(GeometrySupport.ConvertSingleTsvStoredElement(line));
@@ -548,7 +549,7 @@ namespace Larry
 
         public static void UpdateExistingEntries(string path)
         {
-            List<string> filenames = Directory.EnumerateFiles(path, "*.json").ToList();
+            List<string> filenames = Directory.EnumerateFiles(path, "*.geomData").ToList();
             ParallelOptions po = new ParallelOptions();
             Parallel.ForEach(filenames, po, (filename) =>
             {
@@ -556,7 +557,7 @@ namespace Larry
                 {
                     var db = new PraxisContext();
                     Log.WriteLog("Loading " + filename);
-                    var entries = GeometrySupport.ReadStoredElementsFileToMemory(filename);
+                    var entries = GeometrySupport.ReadStoredElementsFileToMemory(filename); //tagsData file loaded automatically here.
                     Log.WriteLog(entries.Count() + " entries to update in database for " + filename);
                     db.UpdateExistingEntries(entries);
                     File.Move(filename, filename + "Done");

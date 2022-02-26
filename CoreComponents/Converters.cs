@@ -1,13 +1,12 @@
-﻿using PraxisCore.Support;
+﻿using EGIS.ShapeFileLib;
 using Google.OpenLocationCode;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Prepared;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using static PraxisCore.Singletons;
-using EGIS.ShapeFileLib;
-using System.Collections.ObjectModel;
 
 namespace PraxisCore
 {
@@ -62,8 +61,7 @@ namespace PraxisCore
             if (w == null)
                 return null;
 
-            List<Coordinate> results = new List<Coordinate>();
-            results.Capacity = w.Nodes.Count();
+            List<Coordinate> results = new List<Coordinate>(w.Nodes.Count());
 
             foreach (var node in w.Nodes)
                 results.Add(new Coordinate(node.Longitude.Value, node.Latitude.Value));
