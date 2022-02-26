@@ -1,14 +1,12 @@
 ﻿{
   "DbMode": "MariaDB",
   "DbConnectionString": "server=localhost;database=praxis;user=root;password=root;",
-  "ForceSeparateFiles": false,
   "PbfFolder": "C:\\Praxis\\",
-  "JsonMapDataFolder": "C:\\Praxis\\",
+  "OutputDataFolder": "C:\\Praxis\\",
   "Solar2dExportFolder": "",
   "UseHighAccuracy": true,
   "OnlyTaggedAreas": false,
   "ForceTagParserDefaults": false,
-  "UseTsvOutput": true,
   "UseMariaDBInFile": false,
   "UseOneRelationID": 0,
   "LogLevel": 3,
@@ -18,7 +16,7 @@
   "slippyTileSize": 512, //is in db settings already.
   "placesAreaBuffer": 0.000125, //1 Cell10
   "processingMode": "normal", //normal: use item geography. center: save only item's center point.
-  "reprocessJson": false, //false: only read PBF files. true: load a JSON file and follow normal processing rules on it, then re-do output. Only converts items to center points at this time.
+  "reprocessFiles": false, //false: only read PBF files. true: load a JSON file and follow normal processing rules on it, then re-do output. Only converts items to center points at this time.
   "singleStyle": "", //if not blank, pull out one named style from the default styleSet and use that in place of the default styleset this run.
   "MapTilesEngine": "SkiaSharp"
 }

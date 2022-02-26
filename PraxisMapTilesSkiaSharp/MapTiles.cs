@@ -20,7 +20,7 @@ namespace PraxisCore
     /// </summary>
     public class MapTiles : IMapTiles
     {
-        public static int MapTileSizeSquare = 512; //Default value, updated by PraxisMapper at startup. COvers Slippy tiles, not gameplay tiles.
+        public static int MapTileSizeSquare = 512; //Default value, updated by PraxisMapper at startup. Covers Slippy tiles, not gameplay tiles.
         public static double GameTileScale = 2;
         public static double bufferSize = resolutionCell10; //How much space to add to an area to make sure elements are drawn correctly. Mostly to stop points from being clipped.
         static SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.

@@ -35,7 +35,7 @@ namespace PraxisCore.PbfReader
 
         public bool saveToTsv = true;//Defaults to the common intermediate output.
         public bool saveToDB = false;
-        public bool saveToJson = false; 
+        //public bool saveToJson = false; 
         //public bool onlyTaggedAreas = false; //This is somewhat redundant, since all ways/relations will be tagged and storing untagged nodes isnt necessary in PM.
         public bool onlyMatchedAreas = false;
         public string processingMode = "normal"; //normal: use geometry as it exists. Center: save the center point of any geometry provided instead of its actual value.
@@ -246,8 +246,8 @@ namespace PraxisCore.PbfReader
                 //{
                 //    if (saveToInfile)
                 //    {
-                //        geomFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".geomInfile", FileMode.OpenOrCreate));
-                //        tagsFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".tagsInfile", FileMode.OpenOrCreate));
+                //        geomFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".geomData", FileMode.OpenOrCreate));
+                //        tagsFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".tagsData", FileMode.OpenOrCreate));
                 //    }
                 //    else if (saveToJson)
                 //        jsonFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", FileMode.OpenOrCreate));
@@ -309,12 +309,12 @@ namespace PraxisCore.PbfReader
                     //tagsFileStream.Close();
                     //tagsFileStream.Dispose();
                 }
-                if (saveToJson)
-                {
-                    jsonFileStream.Flush();
-                    jsonFileStream.Close();
-                    jsonFileStream.Dispose();
-                }
+                //if (saveToJson)
+                //{
+                //    jsonFileStream.Flush();
+                //    jsonFileStream.Close();
+                //    jsonFileStream.Dispose();
+                //}
                 CleanupFiles();
                 sw.Stop();
                 Log.WriteLog("File completed at " + DateTime.Now + ", session lasted " + sw.Elapsed);
@@ -1494,6 +1494,12 @@ namespace PraxisCore.PbfReader
                     {
                         Log.WriteLog("Average time per block: " + timeList.Average(t => t.TotalSeconds) + " seconds");
                     }
+
+                    var slowBlocksLeft = blockSizes.Count() - firstWayBlock - timeList.Count();
+                    var estimatedTimeLeft = slowBlocksLeft > 0 ? (timeList.Average(t => t.TotalSeconds) * slowBlocksLeft) : 0;
+                    estimatedTimeLeft += nodeFinderTotal * .05; //very loose estimate on node duration
+                    TimeSpan t = new TimeSpan((long)estimatedTimeLeft * 100 * 100);
+                    Log.WriteLog("Estimated Time Remaining: " +  t);
                     System.Threading.Thread.Sleep(60000);
                 }
             }, token);
@@ -1549,40 +1555,38 @@ namespace PraxisCore.PbfReader
                 foreach (var e in elements)
                     e.elementGeometry = e.elementGeometry.Centroid;
 
-            if (saveToDB)
+            if (saveToDB) //IF this is on, we skip the file-writing part and send this data directly to the DB. Single threaded, but doesn't waste disk space with intermediate files.
             {
-                var splits = elements.AsEnumerable().SplitListToMultiple(4);
-                List<Task> lt = new List<Task>();
-                foreach (var list in splits)
-                    lt.Add(Task.Run(() => { var db = new PraxisContext(); db.ChangeTracker.AutoDetectChangesEnabled = false; db.StoredOsmElements.AddRange(list); db.SaveChanges(); }));
-                Task.WaitAll(lt.ToArray());
-
+                var db = new PraxisContext(); 
+                db.ChangeTracker.AutoDetectChangesEnabled = false; 
+                db.StoredOsmElements.AddRange(elements); 
+                db.SaveChanges();
                 return;
             }
             else
             {
-                if (saveToJson)
-                {
-                    StringBuilder jsonSB = new StringBuilder(10000000); //1MB of JsonData for a block is a good starting buffer.
-                    foreach (var md in elements)
-                    {
-                        var recordVersion = new StoredOsmElementForJson(md.id, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated);
-                        var test = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
-                        jsonSB.Append(test).Append(Environment.NewLine);
-                    }
+                //if (saveToJson)
+                //{
+                //    StringBuilder jsonSB = new StringBuilder(10000000); //1MB of JsonData for a block is a good starting buffer.
+                //    foreach (var md in elements)
+                //    {
+                //        var recordVersion = new StoredOsmElementForJson(md.id, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated);
+                //        var test = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
+                //        jsonSB.Append(test).Append(Environment.NewLine);
+                //    }
 
-                    try
-                    {
-                        //jsonFileStream.Write(jsonSB);
-                        System.IO.File.AppendAllText(saveFilename + ".json", jsonSB.ToString());
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.WriteLog("Error writing data to disk:" + ex.Message, Log.VerbosityLevels.Errors);
-                    }
-                    return;
-                }
-                else if (saveToTsv)
+                //    try
+                //    {
+                //        //jsonFileStream.Write(jsonSB);
+                //        System.IO.File.AppendAllText(saveFilename + ".json", jsonSB.ToString());
+                //    }
+                //    catch (Exception ex)
+                //    {
+                //        Log.WriteLog("Error writing data to disk:" + ex.Message, Log.VerbosityLevels.Errors);
+                //    }
+                //    return;
+                //} else
+                if (saveToTsv)
                 {
                     //Starts with some data allocated in each 2 stringBuilders to minimize reallocations. These should be reasonable for most blocks.
                     StringBuilder geometryBuilds = new StringBuilder(4000000); //400k
@@ -1597,8 +1601,8 @@ namespace PraxisCore.PbfReader
                     try
                     {
                         System.Threading.Tasks.Parallel.Invoke(
-                            () => System.IO.File.AppendAllText(saveFilename + ".geomInfile", geometryBuilds.ToString()), 
-                            () => System.IO.File.AppendAllText(saveFilename + ".tagsInfile", tagBuilds.ToString())
+                            () => System.IO.File.AppendAllText(saveFilename + ".geomData", geometryBuilds.ToString()), 
+                            () => System.IO.File.AppendAllText(saveFilename + ".tagsData", tagBuilds.ToString())
                         );
                         
                         //geomFileStream.Write(geometryBuilds);
