@@ -20,7 +20,6 @@ using static PraxisCore.DbTables;
 using static PraxisCore.Place;
 using static PraxisCore.Singletons;
 
-//TODO: look into using Span<T> instead of lists? This might be worth looking at performance differences. (and/or Memory<T>, which might be a parent for Spans)
 //TODO: Ponder using https://download.bbbike.org/osm/ as a data source to get a custom extract of an area (for when users want a local-focused app, probably via a wizard GUI)
 //OR could use an additional input for filterbox.
 
@@ -276,11 +275,10 @@ namespace Larry
                 r.outputPath = config["OutputDataFolder"];
                 r.styleSet = config["TagParserStyleSet"];
                 r.processingMode = config["processingMode"]; // "normal" and "center" allowed
-                r.saveToTsv = config["UseTsvOutput"] == "True"; //rename value.
-                //r.saveToJson = !r.saveToTsv;
-                r.saveToDB = false; //config["UseMariaDBInFile"] != "True";
+                r.saveToTsv = config["UseTsvOutput"] == "True";
+                r.saveToDB = false; //This is slower than doing both steps separately because loading to the DB is single-threaded this way.
                 r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
-                r.readJsonFile = config["reprocessFiles"] == "True"; //TODO: rework to use TSV data.
+                r.reprocessFile = config["reprocessFiles"] == "True";
                 r.ProcessFile(filename, long.Parse(config["UseOneRelationID"]));
                 File.Move(filename, filename + "done");
             }
@@ -288,22 +286,54 @@ namespace Larry
 
         private static void loadProcessedData()
         {
-            //TODO: rewrite this to minimize size. check for modes inside the 'foreach file; loop rather than repeating the same code 4 times.
             Log.WriteLog("Starting load from processed files at " + DateTime.Now);
             System.Diagnostics.Stopwatch fullProcess = new System.Diagnostics.Stopwatch();
             fullProcess.Start();
             PraxisContext db = new PraxisContext();
-            if (config["KeepElementsInMemory"] != "True")
-            {
-                db = new PraxisContext();
-                db.Database.SetCommandTimeout(Int32.MaxValue);
-                db.ChangeTracker.AutoDetectChangesEnabled = false;
-            }
+            db.Database.SetCommandTimeout(Int32.MaxValue);
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
 
-            if (config["UseMariaDBInFile"] == "True" && config["UseTsvOutput"] == "True")
+            List<string> geomFilenames = Directory.EnumerateFiles(config["OutputDataFolder"], "*.geomData").ToList();
+            List<string> tagsFilenames = Directory.EnumerateFiles(config["OutputDataFolder"], "*.tagsData").ToList();
+
+            if (config["KeepElementsInMemory"] == "True") //ignore DB, doing some one-off operation.
             {
-                List<string> filenames = Directory.EnumerateFiles(config["OutputDataFolder"], "*.geomData").ToList();
-                foreach (var fileName in filenames)
+                //Skip database work. Use an in-memory list for a temporary operation.
+                foreach (var fileName in geomFilenames)
+                {
+                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                    Log.WriteLog("Loading " + fileName + " to memory at " + DateTime.Now);
+                    var entries = File.ReadAllLines(fileName);
+                    foreach (var entry in entries)
+                    {
+                        StoredOsmElement stored = GeometrySupport.ConvertSingleTsvStoredElement(entry);
+                        memorySource.Add(stored);
+                    }
+
+                    Log.WriteLog("File loaded to memory in " + sw.Elapsed);
+                    sw.Stop();
+                }
+                foreach (var fileName in tagsFilenames)
+                {
+                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                    Log.WriteLog("Loading " + fileName + " to memory at " + DateTime.Now);
+                    var entries = File.ReadAllLines(fileName);
+                    foreach (var entry in entries)
+                    {
+                        ElementTags stored = GeometrySupport.ConvertSingleTsvTag(entry);
+                        var taggedGeo = memorySource.First(m => m.sourceItemType == stored.SourceItemType && m.sourceItemID == stored.SourceItemId);
+                        //MemorySource will need to be a more efficient collection for searching if this is to be a major feature, but this functions.
+                        taggedGeo.Tags.Add(stored);
+                    }
+
+                    Log.WriteLog("File applied to memory in " + sw.Elapsed);
+                    sw.Stop();
+                }
+                return;
+            }
+            else if (config["UseMariaDBInFile"] == "True" && config["UseTsvOutput"] == "True") //Use the LOAD DATA INFILE command to skip the EF for loading.
+            {
+                foreach (var fileName in geomFilenames)
                 {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
@@ -314,8 +344,7 @@ namespace Larry
                     File.Move(fileName, fileName + "done");
                 }
 
-                filenames = Directory.EnumerateFiles(config["OutputDataFolder"], "*.tagsData").ToList();
-                foreach (var fileName in filenames)
+                foreach (var fileName in tagsFilenames)
                 {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
@@ -328,8 +357,7 @@ namespace Larry
             }
             else if (config["UseTsvOutput"] == "True") //Main path.
             {
-                List<string> filenames = Directory.EnumerateFiles(config["OutputDataFolder"], "*.geomData").ToList();
-                Parallel.ForEach(filenames, fileName => 
+                Parallel.ForEach(geomFilenames, fileName => 
                 {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
@@ -346,8 +374,7 @@ namespace Larry
                     Log.WriteLog("Geometry loaded from " + fileName + " in " + sw.Elapsed);
                     File.Move(fileName, fileName + "done");
                 });
-                filenames = Directory.EnumerateFiles(config["OutputDataFolder"], "*.tagsData").ToList();
-                Parallel.ForEach(filenames, fileName =>
+                Parallel.ForEach(tagsFilenames, fileName =>
                 {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
@@ -364,36 +391,10 @@ namespace Larry
                     Log.WriteLog("Tags loaded from " + fileName + " in " + sw.Elapsed);
                     File.Move(fileName, fileName + "done");
                 });
-                
             }
-            else if (config["KeepElementsInMemory"] == "True")
-            {
-                //TODO: update this to use TSV files.
-                //Read stuff to RAM to use for testing or special cases for drawing without setting up a whole DB 
-                List<string> filenames = Directory.EnumerateFiles(config["OutputDataFolder"], "*.json").ToList();
-                foreach (var jsonFileName in filenames)
-                {
-                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-                    Log.WriteLog("Loading " + jsonFileName + " to database at " + DateTime.Now);
-                    var fr = File.OpenRead(jsonFileName);
-                    var sr = new StreamReader(fr);
-                    List<StoredOsmElement> pendingData = new List<StoredOsmElement>(10050);
-                    sw.Start();
-                    while (!sr.EndOfStream)
-                    {
-                        string entry = sr.ReadLine();
-                        StoredOsmElement stored = GeometrySupport.ConvertSingleJsonStoredElement(entry);
-                        memorySource.Add(stored);
-                    }
 
-                    Log.WriteLog("Files loaded to memory in " + sw.Elapsed);
-                    sw.Stop();
-                    sr.Close(); sr.Dispose();
-                    fr.Close(); fr.Dispose();
-                }
-            }
             fullProcess.Stop();
-            Log.WriteLog("Files loaded to database in " + fullProcess.Elapsed);
+            Log.WriteLog("Files processed in " + fullProcess.Elapsed);
             fullProcess.Restart();
             db.RecreateIndexes();
             fullProcess.Stop();

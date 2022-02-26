@@ -27,9 +27,6 @@ namespace PraxisCore.PbfReader
         //doesn't depend on OsmSharp for reading the raw data now. OsmSharp's still used for object types now that there's our own
         //FeatureInterpreter instead of theirs. 
 
-        //TODO:
-        //finish low-resource mode. run items one at a time, dont persist blocks.
-
         static int initialCapacity = 7993; //ConcurrentDictionary says initial capacity shouldn't be divisible by a small prime number, so i picked the prime closes to 8,000 for initial capacity
         static int initialConcurrency = Environment.ProcessorCount;
 
@@ -46,7 +43,7 @@ namespace PraxisCore.PbfReader
         public string filenameHeader = "";
 
         public bool lowResourceMode = false;
-        public bool readJsonFile = false; //if true, we load JSON data from a previous run and re-process that by the rules.
+        public bool reprocessFile = false; //if true, we load JSON data from a previous run and re-process that by the rules.
 
         //Primary function:
         //ProcessFile(filename) should do everything automatically and allow resuming if you stop the app.
@@ -109,7 +106,7 @@ namespace PraxisCore.PbfReader
 
         StreamWriter geomFileStream;
         StreamWriter tagsFileStream;
-        StreamWriter jsonFileStream;
+        StreamWriter reprocFileStream;
 
         CancellationTokenSource tokensource = new CancellationTokenSource();
         CancellationToken token;
@@ -152,36 +149,30 @@ namespace PraxisCore.PbfReader
         }
 
         //Currently only converts items to center points.
-        private void ProcessJsonFile(string filename, long relationId = 0)
+        private void ReprocessFileToCenters(string filename, long relationId = 0)
         {
-            //load up each line of a JSON file from a previous run, and then re-process it according to the current settings.
+            //load up each line of a file from a previous run, and then re-process it according to the current settings.
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
             Log.WriteLog("Loading " + filename + " for processing at " + DateTime.Now);
             var fr = File.OpenRead(filename);
             var sr = new StreamReader(fr);
-            List<ICompleteOsmGeo> pendingData = new List<ICompleteOsmGeo>(4);
             sw.Start();
-            jsonFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + "-reprocessed.json", FileMode.OpenOrCreate));
+            reprocFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + Path.GetFileNameWithoutExtension(filename) + "-reprocessed.geomData", FileMode.OpenOrCreate));
 
             while (!sr.EndOfStream)
             {
-                pendingData.Clear();
+                StringBuilder sb = new StringBuilder();
                 string entry = sr.ReadLine();
                 StoredOsmElement md = GeometrySupport.ConvertSingleJsonStoredElement(entry);
-                //ICompleteOsmGeo temp = (ICompleteOsmGeo)stored.elementGeometry;
-                //foreach (var t in stored.Tags)
-                //temp.Tags.Add(t.Key, t.Value);
 
                 if (bounds != null && (!bounds.Intersects(md.elementGeometry.EnvelopeInternal)))
                     continue;
 
-                //TODO: work this into ProcessReaderResults better so that function doesn't overwrite the one we're working on.
                 if (processingMode == "center")
                     md.elementGeometry = md.elementGeometry.Centroid;
 
-                var recordVersion = new StoredOsmElementForJson(md.id,md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated);
-                var test = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
-                jsonFileStream.WriteLine(test);
+                sb.Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(md.elementGeometry.AsText()).Append("\t").Append(md.AreaSize).Append("\t").Append(md.privacyId).Append("\r\n");
+                reprocFileStream.WriteLine(sb.ToString());
             }
         }
 
@@ -194,9 +185,9 @@ namespace PraxisCore.PbfReader
         {
             try
             {
-                if (readJsonFile)
+                if (reprocessFile)
                 {
-                    ProcessJsonFile(filename);
+                    ReprocessFileToCenters(filename);
                     return;
                 }
 

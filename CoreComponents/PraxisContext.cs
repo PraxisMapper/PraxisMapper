@@ -254,10 +254,6 @@ namespace PraxisCore
         /// <param name="styleSet">which set of maptiles to expire. All tiles if this is an empty string</param>
         public void ExpireMapTiles(Geometry g, string styleSet = "")
         {
-            //If this would be faster as raw SQL, see function below for a template on how to write that.
-            //TODO: test this logic, should be faster but 
-            //var db = new PraxisContext();
-            //MariaDB SQL, should be functional
             string SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, ST_GEOMFROMTEXT('" + g.AsText() + "'))";
             Database.ExecuteSqlRaw(SQL);
         }
@@ -269,10 +265,6 @@ namespace PraxisCore
         /// <param name="styleSet">which set of maptiles to expire. All tiles if this is an empty string</param>
         public void ExpireMapTiles(Guid elementId, string styleSet = "")
         {
-            //If this would be faster as raw SQL, see function below for a template on how to write that.
-            //TODO: test this logic, should be faster but 
-            //var db = new PraxisContext();
-            //MariaDB SQL, should be functional
             string SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM StoredOsmElements WHERE privacyId = '" + elementId + "'))";
             Database.ExecuteSqlRaw(SQL);
         }
@@ -284,10 +276,6 @@ namespace PraxisCore
         /// <param name="styleSet">which set of SlippyMap tiles to expire. All tiles if this is an empty string</param>
         public void ExpireSlippyMapTiles(Geometry g, string styleSet = "")
         {
-            //If this would be faster as raw SQL, see function below for a template on how to write that.
-            //TODO: test this logic, should be faster but 
-            //var db = new PraxisContext();
-            //MariaDB SQL, should be functional
             string SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, ST_GEOMFROMTEXT('" + g.AsText() + "'))";
             Database.ExecuteSqlRaw(SQL);
         }

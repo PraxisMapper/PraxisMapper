@@ -14,11 +14,21 @@ namespace PraxisCore
         /// </summary>
         /// <param name="s">the string .ToInt() is called on</param>
         /// <returns>An integer form of s, or 0 if TryParse failed </returns>
-        public static int ToInt(this string s)
+        public static int ToTryInt(this string s)
         {
             int temp = 0;
             Int32.TryParse(s, out temp);
             return temp;
+        }
+
+        public static int ToInt(this string s)
+        {
+            return Int32.Parse(s);
+        }
+
+        public static int ToInt(this ReadOnlySpan<char> s)
+        {
+            return Int32.Parse(s);
         }
 
         /// <summary>
@@ -26,7 +36,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="s">the string .ToDecimal() is called on</param>
         /// <returns>A decimal form of s, or 0 if TryParse failed </returns>
-        public static decimal ToDecimal(this string s)
+        public static decimal ToTryDecimal(this string s)
         {
             decimal temp = 0;
             Decimal.TryParse(s, out temp);
@@ -34,29 +44,32 @@ namespace PraxisCore
         }
 
         /// <summary>
-        /// Turns a string into a double using TryParse.
+        /// Turns a string into a double using Parse.
         /// </summary>
         /// <param name="s">the string .ToDouble() is called on</param>
-        /// <returns>A double form of s, or 0 if TryParse failed </returns>
+        /// <returns>A double form of s</returns>
         public static double ToDouble(this string s)
         {
-            //This function uses a full 10% of the CPU time with TryParse. Switching to regular parse for speed.
-            //double temp = 0;
             return Double.Parse(s);
-            //return temp;
+        }
+        public static double ToDouble(this ReadOnlySpan<char> s)
+        {
+            return Double.Parse(s);
         }
 
         /// <summary>
-        /// Turns a string into a long using TryParse.
+        /// Turns a string into a long using Parse.
         /// </summary>
         /// <param name="s">the string .ToLong() is called on</param>
-        /// <returns>A long form of s, or 0 if TryParse failed </returns>
+        /// <returns>A long form of s</returns>
         public static long ToLong(this string s)
         {
-            //Additional small speed improvement
-            //long temp = 0;
-            //long.TryParse(s, out temp);
             return long.Parse(s);  //temp;
+        }
+
+        public static long ToLong(this ReadOnlySpan<char> s)
+        {
+            return long.Parse(s);
         }
 
         /// <summary>

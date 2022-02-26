@@ -37,7 +37,7 @@ namespace PraxisCore
                 var areaCell10Count = GetScoreForSinglePlace(containedArea);
                 areaSizes.Add(new Tuple<string, long, Guid>(TagParser.GetPlaceName(md.Tags), areaCell10Count, md.privacyId));
             }
-            return string.Join(Environment.NewLine, areaSizes.Select(a => a.Item1 + "|" + a.Item2 + "|" + a.Item3));
+            return string.Join("\r\n", areaSizes.Select(a => a.Item1 + "|" + a.Item2 + "|" + a.Item3));
         }
 
         /// <summary>
@@ -53,7 +53,7 @@ namespace PraxisCore
             {
                 areaSizes.Add(Tuple.Create(TagParser.GetPlaceName(place.Tags), GetScoreForSinglePlace(place.elementGeometry), place.privacyId));
             }
-            return string.Join(Environment.NewLine, areaSizes.Select(a => a.Item1 + "|" + a.Item2 + "|" + a.Item3));
+            return string.Join("\r\n", areaSizes.Select(a => a.Item1 + "|" + a.Item2 + "|" + a.Item3));
         }
 
         /// <summary>
