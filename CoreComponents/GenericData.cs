@@ -1,11 +1,11 @@
-﻿using PraxisCore.Support;
-using Google.OpenLocationCode;
+﻿using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
+using PraxisCore.Support;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
-using System.IO;
 
 namespace PraxisCore
 {
@@ -31,7 +31,6 @@ namespace PraxisCore
             if (db.PlayerData.Any(p => p.deviceID == key || p.deviceID == value))
                 return false;
 
-            //An upsert command would be great here, but I dont think the entities do that.
             var row = db.CustomDataPlusCodes.FirstOrDefault(p => p.PlusCode == plusCode && p.dataKey == key);
             if (row == null)
             {
@@ -75,14 +74,13 @@ namespace PraxisCore
             var db = new PraxisContext();
             if (db.PlayerData.Any(p => p.deviceID == key || p.deviceID == value))
                 return false;
-            //An upsert command would be great here, but I dont think the entities do that.
+
             var row = db.CustomDataOsmElements.Include(p => p.storedOsmElement).FirstOrDefault(p => p.storedOsmElement.privacyId == elementId && p.dataKey == key);
             if (row == null)
             {
                 var sourceItem = db.StoredOsmElements.First(p => p.privacyId == elementId);
                 row = new DbTables.CustomDataOsmElement();
                 row.dataKey = key;
-                //row.StoredOsmElementId = sourceItem.id;
                 row.storedOsmElement = sourceItem;
                 db.CustomDataOsmElements.Add(row);
             }
@@ -141,7 +139,6 @@ namespace PraxisCore
                 || (Guid.TryParse(value, out tempCheck) && db.StoredOsmElements.Any(osm => osm.privacyId == tempCheck)))
                 return false; //reject attaching a player to an area
 
-            //An upsert command would be great here, but I dont think the entities do that.
             var row = db.PlayerData.FirstOrDefault(p => p.deviceID == playerId && p.dataKey == key);
             if (row == null)
             {
@@ -302,10 +299,8 @@ namespace PraxisCore
         public static bool SetSecurePlusCodeData(string plusCode, string key, string value, string password, double? expiration = null)
         {
             var db = new PraxisContext();
-
             string encryptedValue = EncryptValue(value, password);
 
-            //An upsert command would be great here, but I dont think the entities do that.
             var row = db.CustomDataPlusCodes.FirstOrDefault(p => p.PlusCode == plusCode && p.dataKey == key);
             if (row == null)
             {
@@ -325,10 +320,8 @@ namespace PraxisCore
         public static bool SetSecurePlusCodeData(string plusCode, string key, byte[] value, string password, double? expiration = null)
         {
             var db = new PraxisContext();
-
             string encryptedValue = EncryptValue(value, password);
 
-            //An upsert command would be great here, but I dont think the entities do that.
             var row = db.CustomDataPlusCodes.FirstOrDefault(p => p.PlusCode == plusCode && p.dataKey == key);
             if (row == null)
             {
@@ -445,7 +438,7 @@ namespace PraxisCore
         {
             string encryptedValue = EncryptValue(value, password);
             var db = new PraxisContext();
-            //An upsert command would be great here, but I dont think the entities do that.
+
             var row = db.CustomDataOsmElements.Include(p => p.storedOsmElement).FirstOrDefault(p => p.storedOsmElement.privacyId == elementId && p.dataKey == key);
             if (row == null)
             {
@@ -496,14 +489,14 @@ namespace PraxisCore
         private static string DecryptValue(string value, string password)
         {
             var results = System.Text.Encoding.UTF8.GetString(DecryptValueBytes(value, password));
-            return results; //974bytes here, 
+            return results;
         }
 
         private static byte[] DecryptValueBytes(string value, string password)
         {
-            string[] pieces = value.Split("|");
-            byte[] ivBytes = Convert.FromBase64String(pieces[0]);
-            byte[] encrypedData = Convert.FromBase64String(pieces[1]);
+            var spanVal = value.AsSpan();
+            byte[] ivBytes = Convert.FromBase64String(spanVal.SplitNext('|').ToString());
+            byte[] encrypedData = Convert.FromBase64String(spanVal.ToString());
 
             byte[] passwordBytes = password.ToByteArrayUnicode();
             var crypter = baseSec.CreateDecryptor(passwordBytes, ivBytes);

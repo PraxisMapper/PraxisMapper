@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Text;
 
 namespace PraxisCore
@@ -12,7 +10,7 @@ namespace PraxisCore
         /// <summary>
         /// Turns a string into an integer using TryParse.
         /// </summary>
-        /// <param name="s">the string .ToInt() is called on</param>
+        /// <param name="s">the string Int32.TryParse() is called on</param>
         /// <returns>An integer form of s, or 0 if TryParse failed </returns>
         public static int ToTryInt(this string s)
         {
@@ -21,11 +19,21 @@ namespace PraxisCore
             return temp;
         }
 
+        /// <summary>
+        /// Turns a string into a int using Parse.
+        /// </summary>
+        /// <param name="s">the string Int32.Parse() is called on</param>
+        /// <returns>An integer form of s</returns>
         public static int ToInt(this string s)
         {
             return Int32.Parse(s);
         }
 
+        /// <summary>
+        /// Turns a Span into a Int using Parse.
+        /// </summary>
+        /// <param name="s">the span Int32.Parse() is called on</param>
+        /// <returns>An Int form of s</returns>
         public static int ToInt(this ReadOnlySpan<char> s)
         {
             return Int32.Parse(s);
@@ -46,12 +54,18 @@ namespace PraxisCore
         /// <summary>
         /// Turns a string into a double using Parse.
         /// </summary>
-        /// <param name="s">the string .ToDouble() is called on</param>
+        /// <param name="s">the string Double.Parse() is called on</param>
         /// <returns>A double form of s</returns>
         public static double ToDouble(this string s)
         {
             return Double.Parse(s);
         }
+
+        /// <summary>
+        /// Turns a Span into a Double using Parse.
+        /// </summary>
+        /// <param name="s">the span Double.Parse() is called on</param>
+        /// <returns>a double form of s</returns>
         public static double ToDouble(this ReadOnlySpan<char> s)
         {
             return Double.Parse(s);
@@ -67,6 +81,11 @@ namespace PraxisCore
             return long.Parse(s);  //temp;
         }
 
+        /// <summary>
+        /// Turns a Span into a Long using Parse.
+        /// </summary>
+        /// <param name="s">the span Long.Parse() is called on</param>
+        /// <returns>A long form of s</returns>
         public static long ToLong(this ReadOnlySpan<char> s)
         {
             return long.Parse(s);
@@ -121,7 +140,7 @@ namespace PraxisCore
         }
 
         /// <summary>
-        /// Convert a string to its Unicode byte format.
+        /// Convert a string to its Unicode(UTF-16) byte format.
         /// </summary>
         /// <param name="s">input string</param>
         /// <returns>byte array of unicode values for the string</returns>
@@ -131,10 +150,10 @@ namespace PraxisCore
         }
 
         /// <summary>
-        /// Convert a string to its Unicode byte format.
+        /// Convert a string to its UTF8 byte format.
         /// </summary>
         /// <param name="s">input string</param>
-        /// <returns>byte array of unicode values for the string</returns>
+        /// <returns>byte array of UTF8 values for the string</returns>
         public static byte[] ToByteArrayUTF8(this string s)
         {
             return Encoding.UTF8.GetBytes(s);
@@ -166,20 +185,20 @@ namespace PraxisCore
         /// <param name="mainlist">the source list</param>
         /// <param name="splitIntoCount">how many new lists to create</param>
         /// <returns>a List of arrays of OSM elements</returns>
-        public static IEnumerable<DbTables.StoredOsmElement>[] SplitListToMultiple(this IEnumerable<DbTables.StoredOsmElement> mainlist, int splitIntoCount)
-        {
-            List<DbTables.StoredOsmElement>[] results = new List<DbTables.StoredOsmElement>[splitIntoCount];
-            for (int i = 0; i < splitIntoCount; i++)
-                results[i] = new List<DbTables.StoredOsmElement>(2600);
+        //public static IEnumerable<DbTables.StoredOsmElement>[] SplitListToMultiple(this IEnumerable<DbTables.StoredOsmElement> mainlist, int splitIntoCount)
+        //{
+        //    List<DbTables.StoredOsmElement>[] results = new List<DbTables.StoredOsmElement>[splitIntoCount];
+        //    for (int i = 0; i < splitIntoCount; i++)
+        //        results[i] = new List<DbTables.StoredOsmElement>(2600);
 
-            int splitCount = 0;
-            foreach (var i in mainlist)
-            {
-                results[splitCount % splitIntoCount].Add(i);
-                splitCount++;
-            }
-            return results;
-        }
+        //    int splitCount = 0;
+        //    foreach (var i in mainlist)
+        //    {
+        //        results[splitCount % splitIntoCount].Add(i);
+        //        splitCount++;
+        //    }
+        //    return results;
+        //}
 
         /// <summary>
         /// Convert degrees to radians
@@ -191,6 +210,12 @@ namespace PraxisCore
             return (Math.PI / 180) * val;
         }
 
+        /// <summary>
+        /// Returns the part of a Span between the start and the presence of the next separator character. Is roughly twice as fast as String.Split(char) and allocates no memory. Removes the found part from the original span.
+        /// </summary>
+        /// <param name="span"> the ReadOnlySpan to work on.</param>
+        /// <param name="seperator">The separator character to use as the split indicator.</param>
+        /// <returns></returns>
         public static ReadOnlySpan<char> SplitNext(this ref ReadOnlySpan<char> span, char seperator)
         {
             int pos = span.IndexOf(seperator);

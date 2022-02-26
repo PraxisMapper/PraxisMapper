@@ -1,6 +1,7 @@
-﻿using PraxisCore.Support;
+﻿using Google.OpenLocationCode;
 using NetTopologySuite.Geometries;
 using OsmSharp;
+using PraxisCore.Support;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -9,9 +10,6 @@ using System.Text.Json;
 using static PraxisCore.ConstantValues;
 using static PraxisCore.DbTables;
 using static PraxisCore.Singletons;
-using System.Collections.Concurrent;
-using System.Threading.Tasks;
-using Google.OpenLocationCode;
 
 namespace PraxisCore
 {
@@ -108,7 +106,7 @@ namespace PraxisCore
             }
 
             //Note: SimplifyArea CAN reverse a polygon's orientation, especially in a multi-polygon, so don't do CheckCCW until after
-            var simplerPlace = NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(place, resolutionCell10); //This cuts storage space for files by 30-50%
+            var simplerPlace = NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(place, resolutionCell10); //This cuts storage space for files by 30-50% but makes maps look pretty bad.
             if (simplerPlace is Polygon)
             {
                 simplerPlace = CCWCheck((Polygon)simplerPlace);
@@ -133,8 +131,6 @@ namespace PraxisCore
 
             }
             return null; //some of the outer shells aren't compatible. Should alert this to the user if possible.
-            //}
-            //return simplerPlace;
         }
 
         /// <summary>
@@ -168,7 +164,7 @@ namespace PraxisCore
                 }
                 geo.SRID = 4326;//Required for SQL Server to accept data this way.
                 sw.elementGeometry = geo;
-                sw.Tags = tags; //TagParser.getFilteredTags(g.Tags);
+                sw.Tags = tags; 
                 if (sw.elementGeometry.GeometryType == "LinearRing" || (sw.elementGeometry.GeometryType == "LineString" && sw.elementGeometry.Coordinates.First() == sw.elementGeometry.Coordinates.Last()))
                 {
                     //I want to update all LinearRings to Polygons, and let the style determine if they're Filled or Stroked.
@@ -186,92 +182,40 @@ namespace PraxisCore
         }
 
         /// <summary>
-        /// Dump a list of Stored OSM Elements to a JSON file.
+        /// Loads up TSV data into RAM for use.
         /// </summary>
-        /// <param name="filename"> path to save data to</param>
-        /// <param name="mapdata">the list of elements to save</param>
-        public static void WriteStoredElementListToFile(string filename, ref List<StoredOsmElement> mapdata)
-        {
-            List<string> results = new List<string>(mapdata.Count());
-            foreach (var md in mapdata)
-                if (md != null) //null can be returned from the functions that convert OSM entries to StoredElement
-                {
-                    var recordVersion = new StoredOsmElementForJson(md.id, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated);
-                    var test = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
-                    results.Add(test);
-                }
-            File.AppendAllLines(filename, results);
-            Log.WriteLog("All StoredElement entries were serialized individually and saved to file at " + DateTime.Now, Log.VerbosityLevels.High);
-        }
-
-        /// <summary>
-        /// Add one stored OSM element to the end of a file.
-        /// </summary>
-        /// <param name="filename">path to save data to</param>
-        /// <param name="md">the element to save</param>
-        public static void WriteSingleStoredElementToFile(string filename, StoredOsmElement md)
-        {
-            if (md != null) //null can be returned from the functions that convert OSM entries to StoredElement
-            {
-                var recordVersion = new PraxisCore.Support.StoredOsmElementForJson(md.id, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement,md.IsUserProvided, md.IsGenerated);
-                var test = JsonSerializer.Serialize(recordVersion, typeof(PraxisCore.Support.StoredOsmElementForJson));
-                File.AppendAllText(filename, test + Environment.NewLine);
-            }
-        }
-
-        /// <summary>
-        /// Loads up JSON data into RAM for use.
-        /// </summary>
-        /// <param name="filename">the JSON file to parse. </param>
+        /// <param name="filename">the geomData file to parse. Matching .tagsData file is assumed.</param>
         /// <returns>a list of storedOSMelements</returns>
         public static List<StoredOsmElement> ReadStoredElementsFileToMemory(string filename)
         {
-            StreamReader sr = new StreamReader(filename);
-            List<StoredOsmElement> lm = new List<StoredOsmElement>();
-            lm.Capacity = 100000;
-            JsonSerializerOptions jso = new JsonSerializerOptions();
-            jso.AllowTrailingCommas = true;
+            StreamReader srGeo = new StreamReader(filename);
+            StreamReader srTags = new StreamReader(filename.Replace(".geomData", ".tagsData"));
 
-            while (!sr.EndOfStream)
+            List<StoredOsmElement> lm = new List<StoredOsmElement>(8000);
+            List<ElementTags> tagsTemp = new List<ElementTags>(8000);
+            ILookup<long, ElementTags> tagDict;
+
+            while (!srTags.EndOfStream)
             {
-                string line = sr.ReadLine();
-                var sw = ConvertSingleJsonStoredElement(line);
+                string line = srTags.ReadLine();
+                ElementTags tag = ConvertSingleTsvTag(line);
+                tagsTemp.Add(tag);
+            }
+            srTags.Close(); srTags.Dispose();
+            tagDict = tagsTemp.ToLookup(k => k.SourceItemId, v => v);
+
+            while (!srGeo.EndOfStream)
+            {
+                string line = srGeo.ReadLine();
+                var sw = ConvertSingleTsvStoredElement(line);
+                sw.Tags = tagDict[sw.sourceItemID].ToList();
                 lm.Add(sw);
             }
+            srGeo.Close(); srGeo.Dispose();
 
             if (lm.Count() == 0)
                 Log.WriteLog("No entries for " + filename + "? why?");
 
-            sr.Close(); sr.Dispose();
-            Log.WriteLog("EOF Reached for " + filename + " at " + DateTime.Now);
-            return lm;
-        }
-
-        /// <summary>
-        /// Loads up JSON data into RAM for use on multiple threads.
-        /// </summary>
-        /// <param name="filename">the JSON file to parse. </param>
-        /// <returns>a list of storedOSMelements</returns>
-        public static ConcurrentBag<StoredOsmElement> ReadStoredElementsFileToMemoryThreaded(string filename)
-        {
-            StreamReader sr = new StreamReader(filename);
-            ConcurrentBag<StoredOsmElement> lm = new ConcurrentBag<StoredOsmElement>();
-            JsonSerializerOptions jso = new JsonSerializerOptions();
-            jso.AllowTrailingCommas = true;
-
-            while (!sr.EndOfStream)
-            {
-                string line = sr.ReadLine();
-                Task.Run(() => {
-                    var sw = ConvertSingleJsonStoredElement(line);
-                    lm.Add(sw);
-                });
-            }
-
-            if (lm.Count() == 0)
-                Log.WriteLog("No entries for " + filename + "? why?");
-
-            sr.Close(); sr.Dispose();
             Log.WriteLog("EOF Reached for " + filename + " at " + DateTime.Now);
             return lm;
         }
@@ -284,7 +228,25 @@ namespace PraxisCore
             entry.sourceItemType = source.SplitNext('\t').ToInt();
             entry.elementGeometry = GeometryFromWKT(source.SplitNext('\t').ToString());
             entry.AreaSize = source.SplitNext('\t').ToDouble();
-            entry.privacyId = Guid.Parse(source.SplitNext('\t'));
+            entry.privacyId = Guid.Parse(source);
+
+            if (entry.elementGeometry is Polygon)
+                entry.elementGeometry = GeometrySupport.CCWCheck((Polygon)entry.elementGeometry);
+
+            if (entry.elementGeometry is MultiPolygon)
+            {
+                MultiPolygon mp = (MultiPolygon)entry.elementGeometry;
+                for (int i = 0; i < mp.Geometries.Count(); i++)
+                {
+                    mp.Geometries[i] = GeometrySupport.CCWCheck((Polygon)mp.Geometries[i]);
+                }
+                entry.elementGeometry = mp;
+            }
+            if (entry.elementGeometry == null) //it failed the CCWCheck logic and couldn;t be correctly oriented.
+            {
+                Log.WriteLog("NOTE: Item " + entry.sourceItemID + " - Failed to create valid geometry", Log.VerbosityLevels.Errors);
+                return null;
+            }
 
             return entry;
         }
@@ -296,58 +258,8 @@ namespace PraxisCore
             entry.SourceItemId = source.SplitNext('\t').ToLong();
             entry.SourceItemType = source.SplitNext('\t').ToInt();
             entry.Key = source.SplitNext('\t').ToString();
-            entry.Value = source.SplitNext('\t').ToString();
+            entry.Value = source.ToString();
             return entry;
-        }
-
-        /// <summary>
-        /// Turns a JSON string into a StoredOSMElement
-        /// </summary>
-        /// <param name="sw">the json string to parse</param>
-        /// <returns>the StoredOsmElement</returns>
-        public static StoredOsmElement ConvertSingleJsonStoredElement(string sw)
-        {
-            StoredOsmElementForJson j = (StoredOsmElementForJson)JsonSerializer.Deserialize(sw, typeof(StoredOsmElementForJson), jso);
-            var temp = new StoredOsmElement() { id = j.id, sourceItemID = j.sourceItemID, sourceItemType = j.sourceItemType, elementGeometry = geomTextReader.Read(j.elementGeometry), IsGameElement = j.IsGameElement, Tags = new List<ElementTags>(), IsGenerated = j.isGenerated, IsUserProvided = j.isUserProvided };
-            if (!string.IsNullOrWhiteSpace(j.WayTags))
-            {
-                var tagData = j.WayTags.Split("~");
-                if (tagData.Count() > 0)
-                    foreach (var tag in tagData)
-                    {
-                        var elements = tag.Split("|");
-                        if (elements.Length == 2)
-                        {
-                            ElementTags wt = new ElementTags();
-                            wt.storedOsmElement = temp;
-                            wt.Key = elements[0];
-                            wt.Value = elements[1];
-                            temp.Tags.Add(wt);
-                        }
-                    }
-            }
-
-            if (temp.elementGeometry is Polygon)
-                temp.elementGeometry = GeometrySupport.CCWCheck((Polygon)temp.elementGeometry);
-
-            if (temp.elementGeometry is MultiPolygon)
-            {
-                MultiPolygon mp = (MultiPolygon)temp.elementGeometry;
-                for (int i = 0; i < mp.Geometries.Count(); i++)
-                {
-                    mp.Geometries[i] = GeometrySupport.CCWCheck((Polygon)mp.Geometries[i]);
-                }
-                temp.elementGeometry = mp;
-            }
-            if (temp.elementGeometry == null) //it failed the CCWCheck logic and couldn;t be correctly oriented.
-            {
-                Log.WriteLog("NOTE: Item " + temp.sourceItemID +  " - Failed to create valid geometry", Log.VerbosityLevels.Errors);
-                return null;
-            }
-
-            temp.AreaSize = temp.elementGeometry.Length > 0 ? temp.elementGeometry.Length : resolutionCell10;
-            temp.privacyId = Guid.NewGuid();
-            return temp;
         }
     }
 }

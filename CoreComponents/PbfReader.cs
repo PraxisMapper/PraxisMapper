@@ -149,6 +149,7 @@ namespace PraxisCore.PbfReader
         }
 
         //Currently only converts items to center points.
+        //TODO: update to  TSV data files.
         private void ReprocessFileToCenters(string filename, long relationId = 0)
         {
             //load up each line of a file from a previous run, and then re-process it according to the current settings.
@@ -163,7 +164,7 @@ namespace PraxisCore.PbfReader
             {
                 StringBuilder sb = new StringBuilder();
                 string entry = sr.ReadLine();
-                StoredOsmElement md = GeometrySupport.ConvertSingleJsonStoredElement(entry);
+                StoredOsmElement md = GeometrySupport.ConvertSingleTsvStoredElement(entry);
 
                 if (bounds != null && (!bounds.Intersects(md.elementGeometry.EnvelopeInternal)))
                     continue;
@@ -355,7 +356,8 @@ namespace PraxisCore.PbfReader
         public void ProcessAllNodeBlocks(long maxNodeBlock)
         {
             //Throw each node block into its own thread.
-            Parallel.For(1, maxNodeBlock, (block) => {
+            Parallel.For(1, maxNodeBlock, (block) =>
+            {
                 var blockData = GetBlock(block);
                 var geoData = GetTaggedNodesFromBlock(blockData, onlyMatchedAreas);
                 //var geoData = GetGeometryFromBlock(block, onlyMatchedAreas);
@@ -948,7 +950,7 @@ namespace PraxisCore.PbfReader
                 //now, start loading keys/values
                 OsmSharp.Tags.TagsCollection tc = new OsmSharp.Tags.TagsCollection(decodedTags[index]);
                 //foreach (var t in decodedTags[index])
-                    //tc.Add(t);
+                //tc.Add(t);
 
                 if (ignoreUnmatched)
                 {
@@ -1001,7 +1003,7 @@ namespace PraxisCore.PbfReader
                 lonDelta += dLon[index];
 
                 //if (nodeIds[arrayIndex] == nodeCounter)
-                if(nodeToFind == nodeCounter)
+                if (nodeToFind == nodeCounter)
                 {
                     OsmSharp.Node filled = new OsmSharp.Node();
                     filled.Id = nodeCounter;
@@ -1213,13 +1215,13 @@ namespace PraxisCore.PbfReader
                         //var splitcount = primgroup.relations.Count() / 4;
                         //for (int i = 0; i < 5; i++) //5 means we won't miss any, just in case splitcount leaves us with 3 remainder entries.
                         //{
-                            //var toProcess = primgroup.relations.Skip(splitcount * i).Take(splitcount).ToList();
-                            //foreach (var r in toProcess)
-                            foreach(var r in primgroup.relations)
-                                relList.Add(Task.Run(() => results.Add(GetRelation(r.id, onlyTagMatchedEntries))));
+                        //var toProcess = primgroup.relations.Skip(splitcount * i).Take(splitcount).ToList();
+                        //foreach (var r in toProcess)
+                        foreach (var r in primgroup.relations)
+                            relList.Add(Task.Run(() => results.Add(GetRelation(r.id, onlyTagMatchedEntries))));
 
-                            Task.WaitAll(relList.ToArray());
-                            //activeBlocks.Clear();
+                        Task.WaitAll(relList.ToArray());
+                        //activeBlocks.Clear();
                         //}
                     }
                     else if (primgroup.ways != null && primgroup.ways.Count() > 0)
@@ -1490,7 +1492,7 @@ namespace PraxisCore.PbfReader
                     var estimatedTimeLeft = slowBlocksLeft > 0 ? (timeList.Average(t => t.TotalSeconds) * slowBlocksLeft) : 0;
                     estimatedTimeLeft += nodeFinderTotal * .05; //very loose estimate on node duration
                     TimeSpan t = new TimeSpan((long)estimatedTimeLeft * 100 * 100);
-                    Log.WriteLog("Estimated Time Remaining: " +  t);
+                    Log.WriteLog("Estimated Time Remaining: " + t);
                     System.Threading.Thread.Sleep(60000);
                 }
             }, token);
@@ -1548,65 +1550,37 @@ namespace PraxisCore.PbfReader
 
             if (saveToDB) //IF this is on, we skip the file-writing part and send this data directly to the DB. Single threaded, but doesn't waste disk space with intermediate files.
             {
-                var db = new PraxisContext(); 
-                db.ChangeTracker.AutoDetectChangesEnabled = false; 
-                db.StoredOsmElements.AddRange(elements); 
+                var db = new PraxisContext();
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
+                db.StoredOsmElements.AddRange(elements);
                 db.SaveChanges();
                 return;
             }
             else
             {
-                //if (saveToJson)
-                //{
-                //    StringBuilder jsonSB = new StringBuilder(10000000); //1MB of JsonData for a block is a good starting buffer.
-                //    foreach (var md in elements)
-                //    {
-                //        var recordVersion = new StoredOsmElementForJson(md.id, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated);
-                //        var test = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
-                //        jsonSB.Append(test).Append(Environment.NewLine);
-                //    }
-
-                //    try
-                //    {
-                //        //jsonFileStream.Write(jsonSB);
-                //        System.IO.File.AppendAllText(saveFilename + ".json", jsonSB.ToString());
-                //    }
-                //    catch (Exception ex)
-                //    {
-                //        Log.WriteLog("Error writing data to disk:" + ex.Message, Log.VerbosityLevels.Errors);
-                //    }
-                //    return;
-                //} else
-                if (saveToTsv)
+                //Starts with some data allocated in each 2 stringBuilders to minimize reallocations. In my test setup, 10kb is the median value for all files, and 100kb is enough for 90% of blocks
+                StringBuilder geometryBuilds = new StringBuilder(100000); //100kb
+                StringBuilder tagBuilds = new StringBuilder(40000); //40kb, tags are usually smaller than geometry.
+                foreach (var md in elements)
                 {
-                    //Starts with some data allocated in each 2 stringBuilders to minimize reallocations. These should be reasonable for most blocks.
-                    StringBuilder geometryBuilds = new StringBuilder(4000000); //400k
-                    StringBuilder tagBuilds = new StringBuilder(200000); //20k
-                    foreach (var md in elements)
-                    {
-                        geometryBuilds.Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(md.elementGeometry.AsText()).Append("\t").Append(md.AreaSize).Append("\t").Append(Guid.NewGuid()).Append("\r\n");
-                        foreach (var t in md.Tags)
-                            tagBuilds.Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(t.Key).Append("\t").Append(t.Value.Replace("\r", "").Replace("\n", "")).Append("\r\n"); //Might also need to sanitize / and ' ?
-                    }
-
-                    try
-                    {
-                        System.Threading.Tasks.Parallel.Invoke(
-                            () => System.IO.File.AppendAllText(saveFilename + ".geomData", geometryBuilds.ToString()), 
-                            () => System.IO.File.AppendAllText(saveFilename + ".tagsData", tagBuilds.ToString())
-                        );
-                        
-                        //geomFileStream.Write(geometryBuilds);
-                        //tagsFileStream.Write(tagBuilds);
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.WriteLog("Error writing data to disk:" + ex.Message, Log.VerbosityLevels.Errors);
-                    }
+                    geometryBuilds.Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(md.elementGeometry.AsText()).Append("\t").Append(md.AreaSize).Append("\t").Append(Guid.NewGuid()).Append("\r\n");
+                    foreach (var t in md.Tags)
+                        tagBuilds.Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(t.Key).Append("\t").Append(t.Value.Replace("\r", "").Replace("\n", "")).Append("\r\n"); //Might also need to sanitize / and ' ?
                 }
-
-                return; //some invalid options were passed and we didnt run through anything.
+                try
+                {
+                    System.Threading.Tasks.Parallel.Invoke(
+                        () => System.IO.File.AppendAllText(saveFilename + ".geomData", geometryBuilds.ToString()),
+                        () => System.IO.File.AppendAllText(saveFilename + ".tagsData", tagBuilds.ToString())
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Log.WriteLog("Error writing data to disk:" + ex.Message, Log.VerbosityLevels.Errors);
+                }
             }
+
+            return; //some invalid options were passed and we didnt run through anything.
         }
 
         /// <summary>
