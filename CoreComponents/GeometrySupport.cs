@@ -278,24 +278,25 @@ namespace PraxisCore
 
         public static StoredOsmElement ConvertSingleTsvStoredElement(string sw)
         {
-            var parts = sw.Split('\t'); //TODO: possibly a span use here?
+            var source = sw.AsSpan();
             StoredOsmElement entry = new StoredOsmElement();
-            entry.sourceItemID = parts[0].ToLong();
-            entry.sourceItemType = parts[1].ToInt();
-            entry.elementGeometry = GeometrySupport.GeometryFromWKT(parts[2]);
-            entry.AreaSize = parts[3].ToDouble();
-            entry.privacyId = Guid.Parse(parts[4]);
+            entry.sourceItemID = source.SplitNext('\t').ToLong();
+            entry.sourceItemType = source.SplitNext('\t').ToInt();
+            entry.elementGeometry = GeometryFromWKT(source.SplitNext('\t').ToString());
+            entry.AreaSize = source.SplitNext('\t').ToDouble();
+            entry.privacyId = Guid.Parse(source.SplitNext('\t'));
+
             return entry;
         }
 
         public static ElementTags ConvertSingleTsvTag(string sw)
         {
-            var parts = sw.Split('\t'); //TODO: span this up for a tiny optimization?
+            var source = sw.AsSpan();
             ElementTags entry = new ElementTags();
-            entry.SourceItemId = parts[0].ToLong();
-            entry.SourceItemType = parts[1].ToInt();
-            entry.Key = parts[2];
-            entry.Value = parts[3];
+            entry.SourceItemId = source.SplitNext('\t').ToLong();
+            entry.SourceItemType = source.SplitNext('\t').ToInt();
+            entry.Key = source.SplitNext('\t').ToString();
+            entry.Value = source.SplitNext('\t').ToString();
             return entry;
         }
 
@@ -345,7 +346,7 @@ namespace PraxisCore
             }
 
             temp.AreaSize = temp.elementGeometry.Length > 0 ? temp.elementGeometry.Length : resolutionCell10;
-            temp.privacyId = Guid.NewGuid(); //TODO: confirm if this is OK or if I need to create this guid when saving to JSON instead of loading.
+            temp.privacyId = Guid.NewGuid();
             return temp;
         }
     }

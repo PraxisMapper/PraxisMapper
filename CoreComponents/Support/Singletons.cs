@@ -36,8 +36,6 @@ namespace PraxisCore
         //New Layer Rules:
         //Roads 90-99
         //default content: 100
-        //TODO to consider: set up logic so that elements scale with the zoom level. I'd need a ScalePaintOps() function to apply it to all styles for a single draw call?
-        //Or perhaps I set the size in pixels at a given zoom level, and then multiply the size by a scale factor? Some entries might need to opt-out of scaling (like admin boundaries)
 
         /// <summary>
         /// The baseline set of TagParser styles. 

@@ -16,8 +16,7 @@
         public const double squareCell10Area = resolutionCell10 * resolutionCell10; //for area-control calculations.
 
         //Slippy map tile zoom levels to degrees per pixel at 512x512 (double numbers for 256x256)
-        //TODO: fill in odd levels too by dividing larger number in half?
-        //TODO: calculate this in ImageStats by dividing the width of a tile (in degrees) by the number of pixels in the image? Or keep these as static reference?
+        //NOTE: odd levels can be worked out by dividing a zoom level by 2 (EX: zoom14 / 2 = zoom15)
         public const double zoom4DegPerPixelX =  0.0439453125;
         public const double zoom6DegPerPixelX =  0.010986328125;
         public const double zoom8DegPerPixelX =  0.00274658203125;

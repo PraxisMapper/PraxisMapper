@@ -71,7 +71,6 @@ namespace PraxisCore
             //This will draw at a Cell11 resolution automatically.
             //Split it into a few functions.
             //then get all the area
-            //TODO: make a version that just takes paintOps?
 
             int imgX = 0, imgY = 0;
             GetPlusCodeImagePixelSize(area, out imgX, out imgY);

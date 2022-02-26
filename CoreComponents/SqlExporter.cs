@@ -29,7 +29,6 @@ namespace PraxisCore
         public static void LoadDataInfileTest(List<StoredOsmElement> items)
         {
             //Write to tab delimited file first, following schema.
-            //TODO: this might need PrivacyID assigned here, since the entities make a Guid just a char(32) instead of their own type.
             //TODO: would this be faster with 2 StringBuilders than 2 string arrays?
             string[] outputData = new string[items.Count()];
             List<string> outputTags = new List<string>();

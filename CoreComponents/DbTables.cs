@@ -97,7 +97,7 @@ namespace PraxisCore
             //The below are copied from the original object.These get used to create the SKPaint object once at startup, then that paint object is used from then on.
             public string HtmlColorCode { get; set; } //This STARTS with the alpha color.
             public string FillOrStroke { get; set; }
-            public float LineWidth { get; set; } //Todo ponder: should this be pixels, or degrees? or scale based on degreesperpixelx?
+            public float LineWidth { get; set; } //this is in degrees
             public string LinePattern { get; set; } //solid, dashed, other varieties? //If blank, solid line. If not, split string into float[] on |
             public string fileName { get; set; } //A path to an image file that will be used as a repeating pattern. Null for solid colors.
             public double minDrawRes { get; set; } = 0;//skip drawing this item if  resPerPixelX is below this value. (what doesn't draw zoomed in on OSM? name text?
@@ -136,14 +136,14 @@ namespace PraxisCore
             public long generationID { get; set; } = 0; //How many times this tile has been redrawn. Used by client to know when to get new tiles.
         }
 
-        public class ZztGame //TODO rename
-        {
+        //public class ZztGame //TODO rename
+        //{
             //The prototype class for the data a game played on a map needs to hold.
-            public long id { get; set; }
-            public string gameData { get; set; } //Expected: a JSON string of the game objects. Final format still TBD, but it'll be stored in string format.
-            public Geometry gameLocation { get; set; } //A square drawn around the game's bounds. Initial expectations are these will be a Cell8 or less, though could be as big as a Cell6 for max boundary limit.
-            public long UserId { get; set; } //The user that created this game.
-        }
+            //public long id { get; set; }
+            //public string gameData { get; set; } //Expected: a JSON string of the game objects. Final format still TBD, but it'll be stored in string format.
+            //public Geometry gameLocation { get; set; } //A square drawn around the game's bounds. Initial expectations are these will be a Cell8 or less, though could be as big as a Cell6 for max boundary limit.
+            //public long UserId { get; set; } //The user that created this game.
+        //}
 
         public class GamesBeaten
         {
@@ -185,9 +185,6 @@ namespace PraxisCore
             }
         }
          
-        //TODO: at some point i should investigate if its worth having a unique KeyValuePair table, and joining that to 
-        //StoredOsmElement entries in this table instead. Would mean a join on sourceID/Type instead of the PK.
-        //Needs some planning to rework things around that, and saves a little DB space. Is it faster for the ap to process?
         public class ElementTags
         {
             public long id { get; set; }
