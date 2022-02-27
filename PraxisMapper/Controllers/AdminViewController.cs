@@ -29,16 +29,13 @@ namespace PraxisMapper.Controllers
             return View();
         }
 
-        public void ExpireMapTiles()
+        public void ExpireAllMapTiles()
         {
-            //TODO: this is also a duplicate from DataController, but this setup is much less specific.
             PerformanceTracker pt = new PerformanceTracker("ExpireMapTilesAdmin");
             var db = new PraxisContext();
-            //TODO: this is a thing where I probably don't want to load each entry into memory, so using raw SQL for performance here instead.
-            //Confirm this is faster, and by how much.
-            string sql = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP"; //TODO: check if PostgreSQL/MariaDB/SQL Server need variants on the command.
+            string sql = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP"; 
             db.Database.ExecuteSqlRaw(sql);
-            sql = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP"; //sa
+            sql = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP";
             db.Database.ExecuteSqlRaw(sql);
             pt.Stop();
         }
@@ -72,8 +69,6 @@ namespace PraxisMapper.Controllers
             TagParser.ApplyTags(new System.Collections.Generic.List<DbTables.StoredOsmElement>() { area }, "mapTiles");
             ViewBag.areaname = TagParser.GetPlaceName(area.Tags);
             ViewBag.type = area.GameElementName;
-            ViewBag.isGenerated = area.IsGenerated;
-            ViewBag.isUserProvided = area.IsUserProvided;
 
             var geoarea = Converters.GeometryToGeoArea(area.elementGeometry.Envelope);
             geoarea = new Google.OpenLocationCode.GeoArea(geoarea.SouthLatitude - ConstantValues.resolutionCell10,

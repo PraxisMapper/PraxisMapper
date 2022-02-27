@@ -30,7 +30,7 @@ namespace PraxisCore
             //Determines the Scores for the Places, limited to the intersection of the current Area. 1 Cell10 = 1 Score.
             //EX: if a park overlaps 800 Cell10s, but the current area overlaps 250 of them, this returns 250 for that park.
             //Lists each Place and its corresponding Score.
-            List<Tuple<string, long, Guid>> areaSizes = new List<Tuple<string, long, Guid>>();
+            List<Tuple<string, long, Guid>> areaSizes = new List<Tuple<string, long, Guid>>(places.Count());
             foreach (var md in places)
             {
                 var containedArea = md.elementGeometry.Intersection(areaPoly);
@@ -48,7 +48,7 @@ namespace PraxisCore
         public static string GetScoresForFullArea(List<StoredOsmElement> places)
         {
             //As above, but counts the Places' full area, not the area in the given Cell8 or Cell10. 
-            List<Tuple<string, long, Guid>> areaSizes = new List<Tuple<string, long, Guid>>();
+            List<Tuple<string, long, Guid>> areaSizes = new List<Tuple<string, long, Guid>>(places.Count());
             foreach (var place in places)
             {
                 areaSizes.Add(Tuple.Create(TagParser.GetPlaceName(place.Tags), GetScoreForSinglePlace(place.elementGeometry), place.privacyId));
@@ -60,12 +60,13 @@ namespace PraxisCore
         /// Given a single place, determines its full score. Polygons use their area, lines use their length, Points are assigned 1.
         /// </summary>
         /// <param name="place">The place to be scored</param>
-        /// <returns>a long of the place's area or length, in Cell10s. Minimum of 1.</returns>
-        public static long GetScoreForSinglePlace(Geometry place)
+        /// <param name="scoreArea">The area in square degrees to use as the basis for 1 point. Defaults to a Cell10's area.</param>
+        /// <returns>a long of the place's area or length divided by the score area size. Minimum of 1.</returns>
+        public static long GetScoreForSinglePlace(Geometry place, double scoreArea = resolutionCell10)
         {
-            //Despite saving AreaSize to the database, this function isn't obsolete.
             //This code specifically will calculate the correct score based on the place's GeometryType.
-            //Points are always 1. Lines are scores by how many Cell10s long they are. Areas are 1 per square Cell10 they cover. AreaSize doesn't distinguish between the 3, so I still calculate it here.
+            //Points are always 1. Lines are scores by how many Cell10s long they are. Areas are 1 per square Cell10 they cover.
+            //AreaSize doesn't distinguish between the 3, so I still calculate it here.
             //The core function for scoring.
             var containedAreaSize = place.Area; //The area, in square degrees
             if (containedAreaSize == 0)
@@ -74,16 +75,16 @@ namespace PraxisCore
                 //Points will always be 1.
                 //Lines will be based on distance.
                 if (place is NetTopologySuite.Geometries.Point)
-                    containedAreaSize = squareCell10Area;
+                    containedAreaSize = scoreArea * scoreArea;
                 else if (place is NetTopologySuite.Geometries.LineString)
                     containedAreaSize = ((LineString)place).Length * resolutionCell10;
                 //This gives us the length of the line in Cell10 lengths, which may be slightly different from the number of Cell10 draws on the map as belonging to this line.
             }
-            var containedAreaCell10Count = (int)Math.Round(containedAreaSize / squareCell10Area);
-            if (containedAreaCell10Count == 0)
-                containedAreaCell10Count = 1;
+            var containedAreaCellCount = (int)Math.Round(containedAreaSize / (scoreArea * scoreArea));
+            if (containedAreaCellCount == 0)
+                containedAreaCellCount = 1;
 
-            return containedAreaCell10Count;
+            return containedAreaCellCount;
         }
 
         /// <summary>

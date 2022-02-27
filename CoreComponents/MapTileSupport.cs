@@ -91,17 +91,22 @@ namespace PraxisCore
         /// <returns>a byte array for the png file of the pluscode image file</returns>
         public static byte[] DrawPlusCode(string area, List<CompletePaintOp> paintOps, string styleSet = "mapTiles")
         {
-            //This might be a cleaner version of my V4 function, for working with CellX sized tiles..
-            //This will draw at a Cell11 resolution automatically.
-            //Split it into a few functions.
-            //then get all the area
-
             int imgX = 0, imgY = 0;
             GetPlusCodeImagePixelSize(area, out imgX, out imgY);
 
             ImageStats info = new ImageStats(OpenLocationCode.DecodeValid(area), imgX, imgY);
             info.drawPoints = true;
             return MapTiles.DrawAreaAtSize(info, paintOps);
+        }
+
+        private static void GetPaintOps(ref List<CompletePaintOp> list, double areaSize, Geometry elementGeometry, ICollection<TagParserPaint> midOps, ImageStats stats)
+        {
+            foreach (var po in midOps)
+                if (stats.degreesPerPixelX < po.maxDrawRes
+                    && stats.degreesPerPixelX > po.minDrawRes //dppX should be between max and min draw range.
+                    && !(po.HtmlColorCode.Length == 8 && po.HtmlColorCode.StartsWith("00")) //color is NOT transparent.
+                    )
+                    list.Add(new CompletePaintOp(elementGeometry, areaSize, po, "", po.LineWidth * stats.pixelsPerDegreeX));
         }
 
         /// <summary>
@@ -116,15 +121,10 @@ namespace PraxisCore
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].paintOperations.First(), "background", 1);
             var pass1 = elements.Select(d => new { d.AreaSize, d.elementGeometry, paintOp = styles[d.GameElementName].paintOperations });
-            var pass2 = new List<CompletePaintOp>(elements.Count() * 2); //assuming each element will have a Fill and a Stroke operation.
+            var pass2 = new List<CompletePaintOp>(elements.Count() * 2); 
             pass2.Add(bgOp);
             foreach (var op in pass1)
-                foreach (var po in op.paintOp)
-                    if (stats.degreesPerPixelX < po.maxDrawRes 
-                        && stats.degreesPerPixelX > po.minDrawRes //dppX should be between max and min draw range.
-                        && !(po.HtmlColorCode.Length == 8 && po.HtmlColorCode.StartsWith("00")) //color is NOT transparent.
-                        ) 
-                        pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po, "", po.LineWidth * stats.pixelsPerDegreeX));
+                GetPaintOps(ref pass2, op.AreaSize, op.elementGeometry, op.paintOp, stats);
 
             return pass2;
         }
@@ -139,21 +139,15 @@ namespace PraxisCore
         /// <returns>a list of CompletePaintOps to be passed into a DrawArea function</returns>
         public static List<CompletePaintOp> GetPaintOpsForCustomDataElements(Geometry area, string dataKey, string styleSet, ImageStats stats)
         {
-            //NOTE: styleSet must == dataKey for this to work. Or should I just add that to this function?
             var db = new PraxisContext();
             var elements = db.CustomDataOsmElements.Include(d => d.storedOsmElement).Where(d => d.dataKey == dataKey && area.Intersects(d.storedOsmElement.elementGeometry)).ToList();
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].paintOperations.First(), "background", 1);
             var pass1 = elements.Select(d => new { d.storedOsmElement.AreaSize, d.storedOsmElement.elementGeometry, paintOp = styles[d.dataValue].paintOperations, d.dataValue });
-            var pass2 = new List<CompletePaintOp>(elements.Count() * 2); //assume each element has a Fill and Stroke op separately
+            var pass2 = new List<CompletePaintOp>(elements.Count() * 2); 
             pass2.Add(bgOp);
             foreach (var op in pass1)
-                foreach (var po in op.paintOp)
-                    if (stats.degreesPerPixelX < po.maxDrawRes
-                        && stats.degreesPerPixelX > po.minDrawRes //dppX should be between max and min draw range.
-                        && !(po.HtmlColorCode.Length == 8 && po.HtmlColorCode.StartsWith("00")) //color is NOT transparent.
-                        )
-                        pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po, op.dataValue, po.LineWidth * stats.pixelsPerDegreeX));
+                GetPaintOps(ref pass2, op.AreaSize, op.elementGeometry, op.paintOp, stats);
 
             return pass2;
         }
@@ -174,15 +168,10 @@ namespace PraxisCore
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].paintOperations.First(), "background", 1);
             var pass1 = elements.Select(d => new { d.geoAreaIndex.Area, d.geoAreaIndex, paintOp = styles[d.dataValue].paintOperations, d.dataValue });
-            var pass2 = new List<CompletePaintOp>(elements.Count() * 2); //assuming each element has a Fill and Stroke op separately
+            var pass2 = new List<CompletePaintOp>(elements.Count() * 2); 
             pass2.Add(bgOp);
             foreach (var op in pass1)
-                foreach (var po in op.paintOp)
-                    if (stats.degreesPerPixelX < po.maxDrawRes
-                        && stats.degreesPerPixelX > po.minDrawRes //dppX should be between max and min draw range.
-                        && !(po.HtmlColorCode.Length == 8 && po.HtmlColorCode.StartsWith("00")) //color is NOT transparent.
-                        )
-                        pass2.Add(new CompletePaintOp(op.geoAreaIndex, op.Area, po, op.dataValue, po.LineWidth * stats.pixelsPerDegreeX));
+                GetPaintOps(ref pass2, op.Area, op.geoAreaIndex, op.paintOp, stats);
 
             return pass2;
         }
@@ -206,12 +195,7 @@ namespace PraxisCore
             var pass2 = new List<CompletePaintOp>(elements.Count() * 2); //assuming each element has a Fill and Stroke op separately
             pass2.Add(bgOp);
             foreach (var op in pass1)
-                foreach (var po in op.paintOp)
-                    if (stats.degreesPerPixelX < po.maxDrawRes
-                        && stats.degreesPerPixelX > po.minDrawRes //dppX should be between max and min draw range.
-                        && !(po.HtmlColorCode.Length == 8 && po.HtmlColorCode.StartsWith("00")) //color is NOT transparent.
-                        )
-                        pass2.Add(new CompletePaintOp(op.geoAreaIndex, op.Area, po, op.dataValue, po.LineWidth * stats.pixelsPerDegreeX));
+                GetPaintOps(ref pass2, op.Area, op.geoAreaIndex, op.paintOp, stats);
 
             return pass2;
         }
@@ -265,6 +249,7 @@ namespace PraxisCore
                 System.Diagnostics.Stopwatch thisRowSW = new System.Diagnostics.Stopwatch();
                 thisRowSW.Start();
                 var db = new PraxisContext();
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
                 //Make a collision box for just this row of Cell8s, and send the loop below just the list of things that might be relevant.
                 //Add a Cell8 buffer space so all elements are loaded and drawn without needing to loop through the entire area.
                 GeoArea thisRow = new GeoArea(y - ConstantValues.resolutionCell8, xCoords.First() - ConstantValues.resolutionCell8, y + ConstantValues.resolutionCell8 + ConstantValues.resolutionCell8, xCoords.Last() + resolutionCell8);
@@ -272,7 +257,6 @@ namespace PraxisCore
                 var tilesToSave = new List<MapTile>(xCoords.Count());
 
                 Parallel.ForEach(xCoords, x =>
-                //foreach (var x in xCoords)
                 {
                     //make map tile.
                     var plusCode = new OpenLocationCode(y, x, 10);
@@ -284,10 +268,10 @@ namespace PraxisCore
                     var areaList = rowList.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); //Get the list of areas in this maptile.
 
                     int imgX = 0, imgY = 0;
-                    MapTileSupport.GetPlusCodeImagePixelSize(plusCode8, out imgX, out imgY);
+                    GetPlusCodeImagePixelSize(plusCode8, out imgX, out imgY);
                     var info = new ImageStats(plusCodeArea, imgX, imgY);
                     //new setup.
-                    var areaPaintOps = MapTileSupport.GetPaintOpsForStoredElements(areaList, "mapTiles", info);
+                    var areaPaintOps = GetPaintOpsForStoredElements(areaList, "mapTiles", info);
                     var tile = DrawPlusCode(plusCode8, areaPaintOps, "mapTiles");
 
                     if (saveToFiles)
@@ -323,6 +307,7 @@ namespace PraxisCore
         {
             //There is a very similar function for this in Standalone.cs, but this one writes back to the main DB.
             var db = new PraxisContext();
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var intersectCheck = Converters.GeoAreaToPolygon(buffered);
 
             //start drawing maptiles and sorting out data.
@@ -355,8 +340,6 @@ namespace PraxisCore
                 var tilesToSave = new ConcurrentBag<SlippyMapTile>();
 
                 Parallel.For(swCornerLon, neCornerLon + 1, (x) =>
-                //Parallel.ForEach(xCoords, x =>
-                //foreach (var x in xCoords)
                 {
                     //make map tile.
                     var info = new ImageStats(zoomLevel, x, y, IMapTiles.MapTileSizeSquare);
@@ -364,7 +347,7 @@ namespace PraxisCore
                     var areaList = rowList.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); //This one is for the maptile
 
                     var tile = MapTiles.DrawAreaAtSize(info, areaList);
-                    tilesToSave.Add(new SlippyMapTile() { tileData = tile, Values = x + "|" + y + "|" + zoomLevel, CreatedOn = DateTime.Now, ExpireOn = DateTime.Now.AddDays(365 * 10), areaCovered = Converters.GeoAreaToPolygon(info.area), styleSet = "mapTiles" });
+                    tilesToSave.Add(new SlippyMapTile() { tileData = tile, Values = x + "|" + y + "|" + zoomLevel, CreatedOn = DateTime.Now, ExpireOn = DateTime.Now.AddDays(3650), areaCovered = Converters.GeoAreaToPolygon(info.area), styleSet = "mapTiles" });
 
                     mapTileCounter++;
                 });

@@ -403,7 +403,6 @@ namespace PraxisCore
                         //continue;
                         foreach (var p3 in ((MultiLineString)w.elementGeometry).Geometries)
                         {
-                            //TODO: might want to see if I need to move the LineString logic here, or if multiline string are never filled areas.
                             var points2 = PolygonToSKPoints(p3, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                             for (var line = 0; line < points2.Length - 1; line++)
                                 canvas.DrawLine(points2[line], points2[line + 1], paint);
@@ -542,7 +541,6 @@ namespace PraxisCore
                     case "MultiLineString":
                         foreach (var p3 in ((MultiLineString)w.elementGeometry).Geometries)
                         {
-                            //TODO: might want to see if I need to move the LineString logic here, or if multiline string are never filled areas.
                             var points2 = PolygonToSKPoints(p3, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                             for (var line = 0; line < points2.Length - 1; line++)
                                 canvas.DrawLine(points2[line], points2[line + 1], paint);

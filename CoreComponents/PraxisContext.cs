@@ -20,8 +20,6 @@ namespace PraxisCore
         public DbSet<ErrorLog> ErrorLogs { get; set; }
         public DbSet<ServerSetting> ServerSettings { get; set; }
         public DbSet<TileTracking> TileTrackings { get; set; } //This table is for making a full planet's maptiles, and tracks which ones have been drawn or not drawn to allow resuming.
-        //public DbSet<ZztGame> ZztGames { get; set; }
-        //public DbSet<GamesBeaten> GamesBeaten { get; set; }
         public DbSet<StoredOsmElement> StoredOsmElements { get; set; }
         public DbSet<TagParserEntry> TagParserEntries { get; set; }
         public DbSet<TagParserMatchRule> TagParserMatchRules { get; set; }
@@ -102,7 +100,6 @@ namespace PraxisCore
         public static string sourceItemTypeIndex = "CREATE OR REPLACE INDEX IX_StoredOsmElements_sourceItemType on StoredOsmElements (sourceItemType)";
         public static string tagKeyIndex = "CREATE OR REPLACE INDEX IX_ElementTags_Key on ElementTags (`Key`)";
 
-
         //PostgreSQL uses its own CREATE INDEX syntax
         public static string MapTileIndexPG = "CREATE INDEX maptiles_geom_idx ON public.\"MapTiles\" USING GIST(\"areaCovered\")";
         public static string SlippyMapTileIndexPG = "CREATE INDEX slippmayptiles_geom_idx ON public.\"SlippyMapTiles\" USING GIST(\"areaCovered\")";
@@ -120,8 +117,6 @@ namespace PraxisCore
         public static string DropStoredElementsSourceItemIdIndex = "DROP INDEX IF EXISTS IX_StoredOsmElements_sourceItemID on StoredOsmElements";
         public static string DropStoredElementsSourceItemTypeIndex = "DROP INDEX IF EXISTS IX_StoredOsmElements_sourceItemType on StoredOsmElements";
         public static string DropTagKeyIndex = "DROP INDEX IF EXISTS IX_ElementTags_Key on ElementTags";
-
-
 
         //This doesn't appear to be any faster. The query isn't the slow part. Keeping this code as a reference for how to precompile queries.
         //public static Func<PraxisContext, Geometry, IEnumerable<MapData>> compiledIntersectQuery =
@@ -383,4 +378,3 @@ namespace PraxisCore
         }
     }
 }
-

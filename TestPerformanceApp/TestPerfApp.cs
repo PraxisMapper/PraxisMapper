@@ -84,7 +84,8 @@ namespace PerformanceTestApp
             //TestMaptileDrawing();
             //TestTagParsers();
             //TestSpanOnEntry("754866354	2	LINESTRING (-82.110422 40.975346, -82.1113778 40.9753544)	0.0009558369107748833	2028a47f-4119-4426-b40f-a8715d67f962");
-            TestSpanOnEntry("945909899	1	POINT (-84.1416403 39.7111214)	0.000125	5b9f9899-09dc-4b53-ba1a-5799fe6f992b");
+            //TestSpanOnEntry("945909899	1	POINT (-84.1416403 39.7111214)	0.000125	5b9f9899-09dc-4b53-ba1a-5799fe6f992b");
+            TestConvertFromTsv();
 
             //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
             //These cannot all be enabled in one run. You must comment/uncomment each one separately.
@@ -2201,6 +2202,76 @@ namespace PerformanceTestApp
 
             Console.WriteLine("Average string.split() results: " + splitParse.Average());
             Console.WriteLine("Average span() results: " + spanParse.Average());
+        }
+
+        public static StoredOsmElement ConvertSingleTsvStoredElement(string sw)
+        {
+            var source = sw.AsSpan();
+            StoredOsmElement entry = new StoredOsmElement();
+            entry.sourceItemID = source.SplitNext('\t').ToLong();
+            entry.sourceItemType = source.SplitNext('\t').ToInt();
+            entry.elementGeometry = GeometryFromWKT(source.SplitNext('\t').ToString());
+            entry.AreaSize = source.SplitNext('\t').ToDouble();
+            entry.privacyId = Guid.Parse(source);
+
+            if (entry.elementGeometry is Polygon)
+                entry.elementGeometry = GeometrySupport.CCWCheck((Polygon)entry.elementGeometry);
+
+            if (entry.elementGeometry is MultiPolygon)
+            {
+                MultiPolygon mp = (MultiPolygon)entry.elementGeometry;
+                for (int i = 0; i < mp.Geometries.Count(); i++)
+                {
+                    mp.Geometries[i] = GeometrySupport.CCWCheck((Polygon)mp.Geometries[i]);
+                }
+                entry.elementGeometry = mp;
+            }
+            if (entry.elementGeometry == null) //it failed the CCWCheck logic and couldn't be correctly oriented.
+            {
+                Log.WriteLog("NOTE: Item " + entry.sourceItemID + " - Failed to create valid geometry", Log.VerbosityLevels.Errors);
+                return null;
+            }
+
+            return entry;
+        }
+
+        public static StoredOsmElement ConvertSingleTsvStoredElementSkipChecks(string sw)
+        {
+            var source = sw.AsSpan();
+            StoredOsmElement entry = new StoredOsmElement();
+            entry.sourceItemID = source.SplitNext('\t').ToLong();
+            entry.sourceItemType = source.SplitNext('\t').ToInt();
+            entry.elementGeometry = GeometryFromWKT(source.SplitNext('\t').ToString());
+            entry.AreaSize = source.SplitNext('\t').ToDouble();
+            entry.privacyId = Guid.Parse(source);
+
+            return entry;
+        }
+
+        public static void TestConvertFromTsv()
+        {
+            Stopwatch timer = new Stopwatch();
+            List<long> withCheck = new List<long>();
+            List<long> skipCheck = new List<long>();
+            var data = System.IO.File.ReadAllLines(@"D:\Projects\PraxisMapper Files\Trimmed JSON Files\ohio\ohio-latest.osm-3235.geomDatadone");
+
+            foreach (var line in data)
+            {
+                timer.Start();
+                var osm = ConvertSingleTsvStoredElement(line);
+                timer.Stop();
+                if (osm == null)
+                    Console.WriteLine("A saved line didn't convert. It DID fail a check.");
+                withCheck.Add(timer.ElapsedTicks);
+                timer.Restart();
+                ConvertSingleTsvStoredElementSkipChecks(line);
+                timer.Stop();
+                skipCheck.Add(timer.ElapsedTicks);
+            }
+            Console.WriteLine("Average checked results: " + withCheck.Average());
+            Console.WriteLine("Average unchecked results: " + skipCheck.Average());
+            Console.WriteLine("Total times (ms): " + withCheck.Sum() / 10000 + " vs  " + skipCheck.Sum() / 10000);
+            //Summary: 
         }
     }
 }

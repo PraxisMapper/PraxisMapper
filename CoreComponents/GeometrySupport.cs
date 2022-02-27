@@ -1,7 +1,6 @@
 ﻿using Google.OpenLocationCode;
 using NetTopologySuite.Geometries;
 using OsmSharp;
-using PraxisCore.Support;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -21,7 +20,6 @@ namespace PraxisCore
         //Shared class for functions that do work on Geometry objects.
 
         private static NetTopologySuite.IO.WKTReader geomTextReader = new NetTopologySuite.IO.WKTReader() {DefaultSRID = 4326 };
-        private static JsonSerializerOptions jso = new JsonSerializerOptions() { };
         private static PMFeatureInterpreter featureInterpreter = new PMFeatureInterpreter();
 
         public static GeoArea MakeBufferedGeoArea(GeoArea original, double bufferSize)
@@ -43,7 +41,7 @@ namespace PraxisCore
                 //can't determine orientation, because this point was shortened to an awkward line.
                 return null;
 
-            //SQL Server also requires holes in a polygon to be in clockwise order, opposite the outer shell.
+            //NTS specs also requires holes in a polygon to be in clockwise order, opposite the outer shell.
             for (int i = 0; i < p.Holes.Count(); i++)
             {
                 if (p.Holes[i].IsCCW)
@@ -93,7 +91,6 @@ namespace PraxisCore
                     }
                     if (mp.Geometries.Count(g => g == null) != 0)
                     {
-                        //return null; //Used to return null. What if we attempt to work with the data present?
                         mp = new MultiPolygon(mp.Geometries.Where(g => g != null).Select(g => (Polygon)g).ToArray());
                         if (mp.Geometries.Length == 0)
                             return null;
@@ -153,16 +150,15 @@ namespace PraxisCore
                     return null;
                 }
                 var sw = new StoredOsmElement();
-                //sw.name = TagParser.GetPlaceName(g.Tags);
                 sw.sourceItemID = g.Id;
                 sw.sourceItemType = (g.Type == OsmGeoType.Relation ? 3 : g.Type == OsmGeoType.Way ? 2 : 1);
-                var geo = GeometrySupport.SimplifyArea(geometry);
+                var geo = SimplifyArea(geometry);
                 if (geo == null)
                 {
                     Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + " didn't simplify for some reason.", Log.VerbosityLevels.Errors);
                     return null;
                 }
-                geo.SRID = 4326;//Required for SQL Server to accept data this way.
+                geo.SRID = 4326;//Required for SQL Server to accept data.
                 sw.elementGeometry = geo;
                 sw.Tags = tags; 
                 if (sw.elementGeometry.GeometryType == "LinearRing" || (sw.elementGeometry.GeometryType == "LineString" && sw.elementGeometry.Coordinates.First() == sw.elementGeometry.Coordinates.Last()))
@@ -229,24 +225,6 @@ namespace PraxisCore
             entry.elementGeometry = GeometryFromWKT(source.SplitNext('\t').ToString());
             entry.AreaSize = source.SplitNext('\t').ToDouble();
             entry.privacyId = Guid.Parse(source);
-
-            if (entry.elementGeometry is Polygon)
-                entry.elementGeometry = GeometrySupport.CCWCheck((Polygon)entry.elementGeometry);
-
-            if (entry.elementGeometry is MultiPolygon)
-            {
-                MultiPolygon mp = (MultiPolygon)entry.elementGeometry;
-                for (int i = 0; i < mp.Geometries.Count(); i++)
-                {
-                    mp.Geometries[i] = GeometrySupport.CCWCheck((Polygon)mp.Geometries[i]);
-                }
-                entry.elementGeometry = mp;
-            }
-            if (entry.elementGeometry == null) //it failed the CCWCheck logic and couldn;t be correctly oriented.
-            {
-                Log.WriteLog("NOTE: Item " + entry.sourceItemID + " - Failed to create valid geometry", Log.VerbosityLevels.Errors);
-                return null;
-            }
 
             return entry;
         }
