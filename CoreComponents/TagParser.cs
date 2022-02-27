@@ -19,9 +19,9 @@ namespace PraxisCore
     public static class TagParser
     {
         public static TagParserEntry defaultStyle; //background color must be last if I want un-matched areas to be hidden, its own color if i want areas with no ways at all to show up.
-        //this one below has been ported over to libraries.
         public static Dictionary<string, byte[]> cachedBitmaps = new Dictionary<string, byte[]>(); //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
         public static Dictionary<string, Dictionary<string, TagParserEntry>> allStyleGroups = new Dictionary<string, Dictionary<string, TagParserEntry>>();
+        public static System.Security.Cryptography.MD5 hasher = System.Security.Cryptography.MD5.Create();
 
         private static IMapTiles MapTiles; 
 
@@ -49,7 +49,6 @@ namespace PraxisCore
             if (onlyDefaults)
             {
                 styles = Singletons.defaultTagParserEntries;
-                //cachedBitmaps.Add(b.filename, b.data);
 
                 long i = 1;
                 foreach(var s in styles)
@@ -69,12 +68,9 @@ namespace PraxisCore
                     var bitmaps = db.TagParserStyleBitmaps.ToList();
                     foreach (var b in bitmaps)
                     {
-                        cachedBitmaps.Add(b.filename, b.data);
+                        cachedBitmaps.Add(b.filename, b.data); //Actual MapTiles dll will process the bitmap, we just load it here.
                     }
 
-                    //var dbSettings = db.ServerSettings.FirstOrDefault();
-                    //if (dbSettings != null)
-                    //MapTiles.MapTileSizeSquare = dbSettings.SlippyMapTileSizeSquare;
                 }
                 catch (Exception ex)
                 {
@@ -406,8 +402,7 @@ namespace PraxisCore
         /// <returns>a string with the hex value for the color based on the area's name.</returns>
         public static string PickStaticColorForArea(string areaname)
         {
-            var hasher = System.Security.Cryptography.MD5.Create();
-            var value = areaname.ToByteArrayUnicode();
+            var value = areaname.ToByteArrayUTF8();
             var hash = hasher.ComputeHash(value);
             string results = BitConverter.ToString(hash, 0, 3);
             return results;

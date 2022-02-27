@@ -1,20 +1,18 @@
-﻿using ProtoBuf;
-using System.Collections.Concurrent;
-using static PraxisCore.DbTables;
-using PraxisCore.Support;
-using System.Text.Json;
-using OsmSharp.Complete;
-using System.Text;
-using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
+﻿using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Prepared;
-using System.IO;
+using OsmSharp.Complete;
+using ProtoBuf;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Threading.Tasks;
-using System.Linq;
-using System.Threading;
+using System.IO;
 using System.IO.Compression;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using static PraxisCore.DbTables;
 
 namespace PraxisCore.PbfReader
 {
@@ -27,14 +25,12 @@ namespace PraxisCore.PbfReader
         //doesn't depend on OsmSharp for reading the raw data now. OsmSharp's still used for object types now that there's our own
         //FeatureInterpreter instead of theirs. 
 
-        static int initialCapacity = 7993; //ConcurrentDictionary says initial capacity shouldn't be divisible by a small prime number, so i picked the prime closes to 8,000 for initial capacity
+        static int initialCapacity = 8009; //ConcurrentDictionary says initial capacity shouldn't be divisible by a small prime number, so i picked the prime closes to 8,000 for initial capacity
         static int initialConcurrency = Environment.ProcessorCount;
 
         public bool saveToTsv = true;//Defaults to the common intermediate output.
         public bool saveToDB = false;
-        //public bool saveToJson = false; 
-        //public bool onlyTaggedAreas = false; //This is somewhat redundant, since all ways/relations will be tagged and storing untagged nodes isnt necessary in PM.
-        public bool onlyMatchedAreas = false;
+        public bool onlyMatchedAreas = false; //if true, only process geometry if the tags come back with IsGamplayElement== true;
         public string processingMode = "normal"; //normal: use geometry as it exists. Center: save the center point of any geometry provided instead of its actual value.
         public string styleSet = "mapTiles"; //which style set to use when parsing entries
         public bool keepIndexFiles = false;
@@ -43,23 +39,23 @@ namespace PraxisCore.PbfReader
         public string filenameHeader = "";
 
         public bool lowResourceMode = false;
-        public bool reprocessFile = false; //if true, we load JSON data from a previous run and re-process that by the rules.
-
-        //Primary function:
-        //ProcessFile(filename) should do everything automatically and allow resuming if you stop the app.
+        public bool reprocessFile = false; //if true, we load TSV data from a previous run and re-process that by the rules.
 
         FileInfo fi;
-        FileStream fs; // The input file. Output files are used with StreamWriters.
+        FileStream fs; // The input file. Output files are either WriteAllText or their own streamwriter.
 
         //<osmId, blockId>
         ConcurrentDictionary<long, long> relationFinder = new ConcurrentDictionary<long, long>(initialConcurrency, initialCapacity);
 
-        //this is blockId, <minNode, maxNode>.
+        //blockId, <minNode, maxNode>.
         ConcurrentDictionary<long, Tuple<long, long>> nodeFinder2 = new ConcurrentDictionary<long, Tuple<long, long>>(initialConcurrency, initialCapacity);
+
         //blockId, minNode, maxNode.
         List<Tuple<long, long, long>> nodeFinderList = new List<Tuple<long, long, long>>(initialCapacity);
+
         //<blockId, maxWayId> since ways are sorted in order.
         ConcurrentDictionary<long, long> wayFinder = new ConcurrentDictionary<long, long>(initialConcurrency, initialCapacity);// Concurrent needed because loading is threaded.
+
         List<Tuple<long, long>> wayFinderList = new List<Tuple<long, long>>(initialCapacity);
         int nodeFinderTotal = 0;
         int wayFinderTotal = 0;
@@ -73,13 +69,7 @@ namespace PraxisCore.PbfReader
         ConcurrentDictionary<long, PrimitiveBlock> activeBlocks = new ConcurrentDictionary<long, PrimitiveBlock>(8, initialCapacity);
         ConcurrentDictionary<long, bool> accessedBlocks = new ConcurrentDictionary<long, bool>(8, initialCapacity);
 
-        private PrimitiveBlock _block = new PrimitiveBlock();
-        private BlobHeader _header = new BlobHeader();
-
         object msLock = new object(); //reading blocks from disk.
-        object fileLock = new object(); //Writing to json file
-        object geomFileLock = new object(); //Writing to mariadb LOAD DATA INFILE for StoredOsmElement
-        object tagsFileLock = new object(); //Writing to mariadb LOAD DATA INFILE for ElementTags
 
         long nextBlockId = 0;
         long firstWayBlock = 0;
@@ -89,7 +79,6 @@ namespace PraxisCore.PbfReader
         int wayHintsMax = 12; //Ignore hints if it would be slower checking all of them than just doing a BTree search on 2^12 (4096) blocks
         int nodeHintsMax = 12;
 
-        ConcurrentBag<Task> writeTasks = new ConcurrentBag<Task>(); //Writing to json file, and long-running relation processing
         ConcurrentBag<Task> relList = new ConcurrentBag<Task>(); //Individual, smaller tasks.
         ConcurrentBag<TimeSpan> timeList = new ConcurrentBag<TimeSpan>(); //how long each block took to process.
 
@@ -104,16 +93,14 @@ namespace PraxisCore.PbfReader
 
         public bool displayStatus = true;
 
-        StreamWriter geomFileStream;
-        StreamWriter tagsFileStream;
-        StreamWriter reprocFileStream;
-
         CancellationTokenSource tokensource = new CancellationTokenSource();
         CancellationToken token;
 
         public PbfReader()
         {
             token = tokensource.Token;
+            Serializer.PrepareSerializer<PrimitiveBlock>();
+            Serializer.PrepareSerializer<Blob>();
         }
 
         /// <summary>
@@ -133,9 +120,6 @@ namespace PraxisCore.PbfReader
         {
             fi = new FileInfo(filename);
             fs = File.OpenRead(filename);
-
-            Serializer.PrepareSerializer<PrimitiveBlock>();
-            Serializer.PrepareSerializer<Blob>();
         }
 
         /// <summary>
@@ -145,12 +129,11 @@ namespace PraxisCore.PbfReader
         {
             fs.Close();
             fs.Dispose();
-            EndWaitInfoTask();
+            tokensource.Cancel();
         }
 
         //Currently only converts items to center points.
-        //TODO: update to  TSV data files.
-        private void ReprocessFileToCenters(string filename, long relationId = 0)
+        private void ReprocessFileToCenters(string filename)
         {
             //load up each line of a file from a previous run, and then re-process it according to the current settings.
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
@@ -158,7 +141,7 @@ namespace PraxisCore.PbfReader
             var fr = File.OpenRead(filename);
             var sr = new StreamReader(fr);
             sw.Start();
-            reprocFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + Path.GetFileNameWithoutExtension(filename) + "-reprocessed.geomData", FileMode.OpenOrCreate));
+            var reprocFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + Path.GetFileNameWithoutExtension(filename) + "-reprocessed.geomData", FileMode.OpenOrCreate));
 
             while (!sr.EndOfStream)
             {
@@ -175,6 +158,8 @@ namespace PraxisCore.PbfReader
                 sb.Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(md.elementGeometry.AsText()).Append("\t").Append(md.AreaSize).Append("\t").Append(md.privacyId).Append("\r\n");
                 reprocFileStream.WriteLine(sb.ToString());
             }
+            sr.Close(); sr.Dispose(); fr.Close(); fr.Dispose();
+            reprocFileStream.Close(); reprocFileStream.Dispose();
         }
 
         /// <summary>
@@ -233,18 +218,6 @@ namespace PraxisCore.PbfReader
                     boundsEntry = pgf.Create(NTSrelation.elementGeometry);
                 }
 
-                //This is unused as now I write every block to its own file.
-                //if (!saveToDB)
-                //{
-                //    if (saveToInfile)
-                //    {
-                //        geomFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".geomData", FileMode.OpenOrCreate));
-                //        tagsFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".tagsData", FileMode.OpenOrCreate));
-                //    }
-                //    else if (saveToJson)
-                //        jsonFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + System.IO.Path.GetFileNameWithoutExtension(filename) + ".json", FileMode.OpenOrCreate));
-                //}
-
                 if (!lowResourceMode) //typical path
                 {
                     for (var block = nextBlockId; block >= firstWayBlock; block--)
@@ -260,8 +233,6 @@ namespace PraxisCore.PbfReader
                             if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
                             {
                                 ProcessReaderResults(geoData, block);
-                                //if (wt != null)
-                                //writeTasks.Add(wt);
                             }
                             SaveCurrentBlock(block);
                             swBlock.Stop();
@@ -271,7 +242,7 @@ namespace PraxisCore.PbfReader
                         catch
                         {
                             Log.WriteLog("Failed to process block " + block + " normally, trying the low-resourse option", Log.VerbosityLevels.Errors);
-                            System.Threading.Thread.Sleep(3000); //Not necessary, but I want to give the GC a chance to clean up stuff before we pick back up.
+                            Thread.Sleep(3000); //Not necessary, but I want to give the GC a chance to clean up stuff before we pick back up.
                             LastChanceRead(block);
                         }
                     }
@@ -287,26 +258,7 @@ namespace PraxisCore.PbfReader
                         LastChanceRead(block);
                     }
                 }
-
-                Log.WriteLog("Waiting on " + writeTasks.Where(w => !w.IsCompleted).Count() + " additional tasks");
-                Task.WaitAll(writeTasks.ToArray());
                 Close();
-                if (saveToTsv)
-                {
-                    //unused since we now just write each block to its own file.
-                    //geomFileStream.Flush();
-                    //geomFileStream.Close();
-                    //geomFileStream.Dispose();
-                    //tagsFileStream.Flush();
-                    //tagsFileStream.Close();
-                    //tagsFileStream.Dispose();
-                }
-                //if (saveToJson)
-                //{
-                //    jsonFileStream.Flush();
-                //    jsonFileStream.Close();
-                //    jsonFileStream.Dispose();
-                //}
                 CleanupFiles();
                 sw.Stop();
                 Log.WriteLog("File completed at " + DateTime.Now + ", session lasted " + sw.Elapsed);
@@ -360,124 +312,10 @@ namespace PraxisCore.PbfReader
             {
                 var blockData = GetBlock(block);
                 var geoData = GetTaggedNodesFromBlock(blockData, onlyMatchedAreas);
-                //var geoData = GetGeometryFromBlock(block, onlyMatchedAreas);
                 if (geoData != null)
                     ProcessReaderResults(geoData, block);
             });
         }
-
-
-        /// <summary>
-        /// Given a filename and a relation's ID from OpenStreetMap, processes all elements that intersect the given relation directly to the database.
-        /// </summary>
-        /// <param name="filename">the PBF file to process</param>
-        /// <param name="relationId">the OSM relation ID to use as the basis for loaded data</param>
-        /// <returns>the Envelope for the given relation, to be used to identify server bounds.</returns>
-        public Envelope GetOneAreaFromFile(string filename, long relationId)
-        {
-            //Get a bounding box from a single relation, then pull all entries in it from the file to the DB.
-            try
-            {
-                outputPath += relationId.ToString() + "-";
-                System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-                sw.Start();
-                Open(filename);
-                LoadBlockInfo();
-                nextBlockId = 0;
-                IndexFile();
-                SaveBlockInfo();
-                nextBlockId = BlockCount() - 1;
-                SaveCurrentBlock(BlockCount());
-
-                //Get the source relation first
-                var relation = GetRelation(relationId);
-                var NTSrelation = GeometrySupport.ConvertOsmEntryToStoredElement(relation);
-                bounds = NTSrelation.elementGeometry.EnvelopeInternal;
-                var pgf = new PreparedGeometryFactory();
-                boundsEntry = pgf.Create(NTSrelation.elementGeometry);
-
-                //The boundsEntry will be used when checking geometry, and things that intersect will be processed and the rest excluded.                
-                for (var block = nextBlockId; block >= 1; block--)
-                {
-                    if (block >= firstRelationBlock)
-                        Log.WriteLog("Relation Block " + block);
-                    else if (block >= firstWayBlock)
-                        Log.WriteLog("Way Block " + block);
-                    else
-                        Log.WriteLog("Node Block " + block);
-                    var geoData = GetGeometryFromBlock(block, false).Where(g => g != null).ToList();
-                    ProcessReaderResults(geoData, block);
-                }
-                //Task.WaitAll(writeTasks.ToArray());
-                Close();
-                CleanupFiles();
-                sw.Stop();
-                Log.WriteLog("Area processed at " + DateTime.Now + ", session lasted " + sw.Elapsed);
-                Log.WriteLog("Waiting for threaded tasks to finish.");
-                return bounds;
-            }
-            catch (Exception ex)
-            {
-                while (ex.InnerException != null)
-                    ex = ex.InnerException;
-                Log.WriteLog("Error processing file: " + ex.Message + ex.StackTrace);
-                return null;
-            }
-        }
-
-        /// <summary>
-
-        //public void debugArea(string filename, long areaId)
-        //{
-        //    Open(filename);
-        //    IndexFile();
-        //    //LoadBlockInfo();
-        //    var block = relationFinder[areaId];
-
-        //    PraxisCore.Singletons.SimplifyAreas = true; //Labrador Sea is huge. 12 MB by itself.
-        //    var r = GetRelation(areaId);
-        //    var r2 = GeometrySupport.ConvertOsmEntryToStoredElement(r);
-        //    GeometrySupport.WriteSingleStoredElementToFile("labradorSea.json", r2);
-        //    Close();
-        //    CleanupFiles();
-        //}
-
-        //public void debugPerfTest(string filename)
-        //{
-        //    //testing feature interprester variances.
-        //    Open(filename);
-        //    IndexFile();
-        //    var featureInterpreter = new PMFeatureInterpreter();
-        //    var allRelations = new List<CompleteRelation>();
-        //    foreach (var r in relationFinder)
-        //    {
-        //        try
-        //        {
-        //            var g = GetRelation(9428957);  //(r.Key); //gulf of st laurence
-        //            TimeSpan runA, runB;
-
-        //            System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-        //            sw.Start();
-        //            var featureA = featureInterpreter.Interpret(g);
-        //            sw.Stop();
-        //            runA = sw.Elapsed;
-        //            Log.WriteLog("Customized interpreter ran in " + runA);
-        //            var check2 = GeometrySupport.SimplifyArea(featureA.First().Geometry);
-        //            sw.Restart();
-        //            var featureB = OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(g); //mainline version, while i get my version dialed in for edge cases.
-        //            sw.Stop();
-        //            runB = sw.Elapsed;
-        //            Log.WriteLog("Default interpreter ran in " + runB);
-        //            Log.WriteLog("Change from using custom interpreter: " + (runB - runA));
-        //            var a = 1;
-        //        }
-        //        catch (Exception ex)
-        //        {
-        //            //do nothing
-        //        }
-        //    }
-        //}
-
 
         //Build the index for entries in this PBF file.
         private void IndexFile()
@@ -528,7 +366,7 @@ namespace PraxisCore.PbfReader
                     var group = pb2.primitivegroup[0]; //If i get a file with multiple PrimitiveGroups in a block, make this a ForEach loop instead.
                     if (group.ways.Count > 0)
                     {
-                        var wMax = group.ways.Last().id; //.Max(w => w.id);
+                        var wMax = group.ways.Last().id;
                         wayFinder.TryAdd(passedBC, wMax);
                         wayCounter++;
                     }
@@ -638,7 +476,7 @@ namespace PraxisCore.PbfReader
             int max = primRels.Count();
             int current = max / 2;
             int prevCheck = 0;
-            while (min != max && prevCheck != current)
+            while (min != max && prevCheck != current) //This is a B-Tree search on an array
             {
                 var check = primRels[current];
                 if (check.id < relId) //This max is below our way, shift min up
@@ -728,7 +566,6 @@ namespace PraxisCore.PbfReader
                                 wayBlocks.Add(wayKey);
                             break;
                         case Relation.MemberType.RELATION: //ignore meta-relations
-                                                           //neededBlocks.Add(relationFinder[idToFind].Item1);
                             break;
                     }
                 }
@@ -767,7 +604,7 @@ namespace PraxisCore.PbfReader
             }
             catch (Exception ex)
             {
-                Log.WriteLog("relation failed:" + ex.Message);
+                Log.WriteLog("relation failed:" + ex.Message, Log.VerbosityLevels.Errors);
                 return null;
             }
         }
@@ -778,7 +615,7 @@ namespace PraxisCore.PbfReader
             int max = primWays.Count();
             int current = max / 2;
             int prevCheck = 0;
-            while (min != max && prevCheck != current)
+            while (min != max && prevCheck != current) //This is a B-Tree search on an array
             {
                 var check = primWays[current];
                 if (check.id < wayId) //This max is below our way, shift min up
@@ -816,13 +653,12 @@ namespace PraxisCore.PbfReader
                 var way = findWayInBlockList(wayPrimGroup.ways, wayId);
                 if (way == null)
                     return null; //way wasn't in the block it was supposed to be in.
-                                 //finally have the core item
 
                 return GetWay(way, wayBlock, ignoreUnmatched);
             }
             catch (Exception ex)
             {
-                Log.WriteLog("GetWay failed: " + ex.Message + ex.StackTrace);
+                Log.WriteLog("GetWay failed: " + ex.Message + ex.StackTrace, Log.VerbosityLevels.Errors);
                 return null; //Failed to get way, probably because a node didn't exist in the file.
             }
         }
@@ -856,23 +692,21 @@ namespace PraxisCore.PbfReader
                 //This is significantly faster than doing a GetBlock per node when 1 block has mulitple entries
                 //its a little complicated but a solid performance boost.
                 long idToFind = 0; //more deltas 
-                                   //blockId, nodeID
+                //blockId, nodeID
                 List<Tuple<long, long>> nodesPerBlock = new List<Tuple<long, long>>();
-                List<long> hints = new List<long>(nodeHintsMax); //Could make this a dictionary and tryAdd instead of add and distinct every time?
+                List<long> hints = new List<long>(nodeHintsMax);
                 for (int i = 0; i < way.refs.Count; i++)
                 {
                     idToFind += way.refs[i];
                     var blockID = FindBlockKeyForNode(idToFind, hints);
                     if (!hints.Contains(blockID))
                         hints.Add(blockID);
-                    //hints = hints.Distinct().ToList();
                     nodesPerBlock.Add(Tuple.Create(blockID, idToFind));
                 }
                 var nodesByBlock = nodesPerBlock.ToLookup(k => k.Item1, v => v.Item2);
 
                 List<OsmSharp.Node> nodeList = new List<OsmSharp.Node>(way.refs.Count());
                 ConcurrentDictionary<long, OsmSharp.Node> AllNodes = new ConcurrentDictionary<long, OsmSharp.Node>(Environment.ProcessorCount, way.refs.Count());
-                //foreach (var block in nodesByBlock)
                 Parallel.ForEach(nodesByBlock, (block) =>
                 {
                     var someNodes = GetAllNeededNodesInBlock(block.Key, block.Distinct().OrderBy(b => b).ToArray());
@@ -892,7 +726,7 @@ namespace PraxisCore.PbfReader
             }
             catch (Exception ex)
             {
-                Log.WriteLog("GetWay failed: " + ex.Message + ex.StackTrace);
+                Log.WriteLog("GetWay failed: " + ex.Message + ex.StackTrace, Log.VerbosityLevels.Errors);
                 return null; //Failed to get way, probably because a node didn't exist in the file.
             }
         }
@@ -932,6 +766,7 @@ namespace PraxisCore.PbfReader
                 i++;
             }
             var decodedTags = idKeyVal.ToLookup(k => k.Item1, v => new OsmSharp.Tags.Tag(v.Item2, v.Item3));
+            var lastTaggedNode = decodedTags.Max(i => i.Key);
 
             var index = -1;
             long nodeId = 0;
@@ -949,8 +784,6 @@ namespace PraxisCore.PbfReader
 
                 //now, start loading keys/values
                 OsmSharp.Tags.TagsCollection tc = new OsmSharp.Tags.TagsCollection(decodedTags[index]);
-                //foreach (var t in decodedTags[index])
-                //tc.Add(t);
 
                 if (ignoreUnmatched)
                 {
@@ -967,6 +800,9 @@ namespace PraxisCore.PbfReader
                 //if bounds checking, drop nodes that aren't needed.
                 if (bounds == null || (n.Latitude >= bounds.MinY && n.Latitude <= bounds.MaxY && n.Longitude >= bounds.MinX && n.Longitude <= bounds.MaxX))
                     taggedNodes.Add(n);
+
+                if (index >= lastTaggedNode)
+                    break;
             }
 
             return taggedNodes;
@@ -1047,7 +883,6 @@ namespace PraxisCore.PbfReader
         private long FindBlockKeyForNode(long nodeId, List<long> hints = null) //BTree
         {
             //This is the most-called function in this class, and therefore the most performance-dependent.
-            //As it turns out, the range of node IDs involved WON'T overlap, so I can b-tree search this
 
             //Hints is a list of blocks we're already found in the relevant way. Odds are high that
             //any node I need to find is in the same block as another node I've found.
@@ -1128,66 +963,6 @@ namespace PraxisCore.PbfReader
         }
 
         /// <summary>
-        /// Puts loading a Relation into its own thread so the rest of the file could advance instead of waiting on one object. Exports directly to the destination JSON file upon processing. Not currently used in the process, since this task can reload blocks previously discarded and cause RAM related issues.
-        /// </summary>
-        /// <param name="elementId">the relation to convert on its own</param>
-        /// <param name="saveFilename">the destination file to save the JSON formatted StoredOsmElement to. </param>
-        /// <returns>the Task handling the processing.</returns>
-        public Task GetBigRelationSolo(long elementId, string saveFilename)
-        {
-            //For splitting off a single, long-running element into its own whole thread.
-            try
-            {
-                var t = Task.Run(() =>
-                {
-                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-                    sw.Start();
-                    Log.WriteLog("Processing large relation " + elementId + " separately at " + DateTime.Now);
-                    var relation = GetRelation(elementId);
-                    if (relation == null)
-                    {
-                        Log.WriteLog("Large relation " + elementId + " not suitable for processing, exiting standalone task.");
-                        return;
-                    }
-                    Log.WriteLog("Large relation " + elementId + " created at " + DateTime.Now);
-                    var md = GeometrySupport.ConvertOsmEntryToStoredElement(relation);
-                    if (md == null)
-                    {
-                        Log.WriteLog("Error: relation " + relation.Id + " failed to convert to StoredOSmElement");
-                        return;
-                    }
-                    var recordVersion = new StoredOsmElementForJson(md.id, md.sourceItemID, md.sourceItemType, md.elementGeometry.AsText(), string.Join("~", md.Tags.Select(t => t.Key + "|" + t.Value)), md.IsGameElement, md.IsUserProvided, md.IsGenerated);
-                    if (recordVersion == null)
-                    {
-                        Log.WriteLog("Error: relation " + relation.Id + " failed to convert to StoredOSmElementForJson");
-                        return;
-                    }
-                    var text = JsonSerializer.Serialize(recordVersion, typeof(StoredOsmElementForJson));
-                    if (text == null)
-                    {
-                        Log.WriteLog("Error: relation " + relation.Id + " failed to convert to Json.");
-                        return;
-                    }
-                    Log.WriteLog("Large relation " + elementId + " converted at " + DateTime.Now);
-                    lock (fileLock)
-                    {
-                        System.IO.File.AppendAllText(saveFilename, text);
-                        System.IO.File.AppendAllText(saveFilename, Environment.NewLine);
-                    }
-                    sw.Stop();
-                    Log.WriteLog("Processed large relation " + elementId + " from start to finish in " + sw.Elapsed);
-                    return;
-                });
-                return t;
-            }
-            catch (Exception ex)
-            {
-                Log.WriteLog("error getting single relation: " + ex.Message);
-                return null;
-            }
-        }
-
-        /// <summary>
         /// Processes all entries in a PBF block for use in a PraxisMapper server.
         /// </summary>
         /// <param name="blockId">the block to process</param>
@@ -1202,32 +977,22 @@ namespace PraxisCore.PbfReader
             try
             {
                 var block = GetBlock(blockId);
-                results.Clear();
                 //Attempting to clear up some memory slightly faster, but this should be redundant.
                 relList.Clear();
-                //relList = null;
-                //relList = new ConcurrentBag<Task>();
                 foreach (var primgroup in block.primitivegroup)
                 {
                     if (primgroup.relations != null && primgroup.relations.Count() > 0)
                     {
-                        //Some relation blocks can hit 22GB of RAM on their own. Dividing relation blocks into 4 pieces to help minimize that.
-                        //var splitcount = primgroup.relations.Count() / 4;
-                        //for (int i = 0; i < 5; i++) //5 means we won't miss any, just in case splitcount leaves us with 3 remainder entries.
-                        //{
-                        //var toProcess = primgroup.relations.Skip(splitcount * i).Take(splitcount).ToList();
-                        //foreach (var r in toProcess)
+                        //Some relation blocks can hit 22GB of RAM on their own. Low-resource machines will fail, and should roll into the LastChance path automatically.
                         foreach (var r in primgroup.relations)
                             relList.Add(Task.Run(() => results.Add(GetRelation(r.id, onlyTagMatchedEntries))));
 
                         Task.WaitAll(relList.ToArray());
-                        //activeBlocks.Clear();
-                        //}
                     }
                     else if (primgroup.ways != null && primgroup.ways.Count() > 0)
                     {
                         List<long> hint = new List<long>() { blockId };
-                        foreach (var r in primgroup.ways) //.OrderByDescending(w => w.refs.Count())) //Ordering should help consistency in runtime, though it offers little other benefit.
+                        foreach (var r in primgroup.ways)
                         {
                             relList.Add(Task.Run(() => results.Add(GetWay(r, block, onlyTagMatchedEntries))));
                         }
@@ -1236,20 +1001,17 @@ namespace PraxisCore.PbfReader
                     {
                         //Useful node lists are so small, they lose performance from splitting each step into 1 task per entry.
                         //Inline all that here as one task and return null to skip the rest. But this doesn't work if I'm writing to a DB.
-                        //writeTasks.Add(Task.Run(() =>
                         relList.Add(Task.Run(() =>
                         {
                             try
                             {
                                 var nodes = GetTaggedNodesFromBlock(block, onlyTagMatchedEntries);
-                                foreach (var n in nodes)
-                                    results.Add(n);
-
+                                results = new ConcurrentBag<ICompleteOsmGeo>(nodes);
                                 return;
                             }
                             catch (Exception ex)
                             {
-                                Log.WriteLog("Processing node failed: " + ex.Message);
+                                Log.WriteLog("Processing node failed: " + ex.Message, Log.VerbosityLevels.Errors);
                                 return;
                             }
                         }));
@@ -1264,19 +1026,13 @@ namespace PraxisCore.PbfReader
                 {
                     if (!accessedBlocks.ContainsKey(blockRead.Key))
                         activeBlocks.TryRemove(blockRead);
-
                 }
                 accessedBlocks.Clear();
-
-                //var count = (block.primitivegroup[0].relations?.Count > 0 ? block.primitivegroup[0].relations.Count :
-                //    block.primitivegroup[0].ways?.Count > 0 ? block.primitivegroup[0].ways.Count :
-                //    block.primitivegroup[0].dense.id.Count);
-
                 return results;
             }
             catch (Exception ex)
             {
-                Log.WriteLog("error getting geometry: " + ex.Message);
+                Log.WriteLog("Error getting geometry: " + ex.Message, Log.VerbosityLevels.Errors);
                 throw ex; //In order to reprocess this block in last-chance mode.
                 //return null;
             }
@@ -1308,7 +1064,7 @@ namespace PraxisCore.PbfReader
             {
                 data[i] = i + ":" + blockPositions[i] + ":" + blockSizes[i];
             }
-            System.IO.File.WriteAllLines(filename, data);
+            File.WriteAllLines(filename, data);
 
             filename = outputPath + fi.Name + ".relationIndex";
             data = new string[relationFinder.Count()];
@@ -1318,7 +1074,7 @@ namespace PraxisCore.PbfReader
                 data[j] = wf.Key + ":" + wf.Value;
                 j++;
             }
-            System.IO.File.WriteAllLines(filename, data);
+            File.WriteAllLines(filename, data);
 
             filename = outputPath + fi.Name + ".wayIndex";
             data = new string[wayFinderTotal];
@@ -1328,7 +1084,7 @@ namespace PraxisCore.PbfReader
                 data[j] = wf.Item1 + ":" + wf.Item2;
                 j++;
             }
-            System.IO.File.WriteAllLines(filename, data);
+            File.WriteAllLines(filename, data);
 
             filename = outputPath + fi.Name + ".nodeIndex";
             data = new string[nodeFinder2.Count()];
@@ -1338,7 +1094,7 @@ namespace PraxisCore.PbfReader
                 data[j] = wf.Key + ":" + wf.Value.Item1 + ":" + wf.Value.Item2;
                 j++;
             }
-            System.IO.File.WriteAllLines(filename, data);
+            File.WriteAllLines(filename, data);
         }
 
         /// <summary>
@@ -1349,7 +1105,7 @@ namespace PraxisCore.PbfReader
             try
             {
                 string filename = outputPath + fi.Name + ".blockinfo";
-                string[] data = System.IO.File.ReadAllLines(filename);
+                string[] data = File.ReadAllLines(filename);
                 blockPositions = new Dictionary<long, long>(data.Length);
                 blockSizes = new Dictionary<long, int>(data.Length);
 
@@ -1361,7 +1117,7 @@ namespace PraxisCore.PbfReader
                 }
 
                 filename = outputPath + fi.Name + ".relationIndex";
-                data = System.IO.File.ReadAllLines(filename);
+                data = File.ReadAllLines(filename);
                 foreach (var line in data)
                 {
                     string[] subData2 = line.Split(":");
@@ -1369,7 +1125,7 @@ namespace PraxisCore.PbfReader
                 }
 
                 filename = outputPath + fi.Name + ".wayIndex";
-                data = System.IO.File.ReadAllLines(filename);
+                data = File.ReadAllLines(filename);
                 foreach (var line in data)
                 {
                     string[] subData2 = line.Split(":");
@@ -1378,7 +1134,7 @@ namespace PraxisCore.PbfReader
                 }
 
                 filename = outputPath + fi.Name + ".nodeIndex";
-                data = System.IO.File.ReadAllLines(filename);
+                data = File.ReadAllLines(filename);
                 foreach (var line in data)
                 {
                     string[] subData2 = line.Split(":");
@@ -1421,7 +1177,7 @@ namespace PraxisCore.PbfReader
         private void SaveCurrentBlock(long blockID)
         {
             string filename = outputPath + fi.Name + ".progress";
-            System.IO.File.WriteAllText(filename, blockID.ToString());
+            File.WriteAllText(filename, blockID.ToString());
         }
 
         //Loads the most recently completed block from a file to resume without doing duplicate work.
@@ -1430,7 +1186,7 @@ namespace PraxisCore.PbfReader
             try
             {
                 string filename = outputPath + fi.Name + ".progress";
-                long blockID = long.Parse(System.IO.File.ReadAllText(filename));
+                long blockID = long.Parse(File.ReadAllText(filename));
                 return blockID;
             }
             catch (Exception ex)
@@ -1448,25 +1204,25 @@ namespace PraxisCore.PbfReader
             {
                 if (!keepIndexFiles)
                 {
-                    foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.blockinfo"))
-                        System.IO.File.Delete(file);
+                    foreach (var file in Directory.EnumerateFiles(outputPath, "*.blockinfo"))
+                        File.Delete(file);
 
-                    foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.relationIndex"))
-                        System.IO.File.Delete(file);
+                    foreach (var file in Directory.EnumerateFiles(outputPath, "*.relationIndex"))
+                        File.Delete(file);
 
-                    foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.nodeIndex"))
-                        System.IO.File.Delete(file);
+                    foreach (var file in Directory.EnumerateFiles(outputPath, "*.nodeIndex"))
+                        File.Delete(file);
 
-                    foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.wayIndex"))
-                        System.IO.File.Delete(file);
+                    foreach (var file in Directory.EnumerateFiles(outputPath, "*.wayIndex"))
+                        File.Delete(file);
                 }
 
-                foreach (var file in System.IO.Directory.EnumerateFiles(outputPath, "*.progress"))
-                    System.IO.File.Delete(file);
+                foreach (var file in Directory.EnumerateFiles(outputPath, "*.progress"))
+                    File.Delete(file);
             }
             catch (Exception ex)
             {
-                Log.WriteLog("Error cleaning up files: " + ex.Message);
+                Log.WriteLog("Error cleaning up files: " + ex.Message, Log.VerbosityLevels.Errors);
             }
         }
 
@@ -1481,26 +1237,22 @@ namespace PraxisCore.PbfReader
                 {
                     Log.WriteLog("Current stats:");
                     Log.WriteLog("Blocks completed this run: " + timeList.Count());
-                    Log.WriteLog("Long-running/writing pending: " + writeTasks.Where(w => !w.IsCompleted).Count());
                     Log.WriteLog("Processing tasks: " + relList.Count(r => !r.IsCompleted));
                     if (timeList.Count > 0)
                     {
                         Log.WriteLog("Average time per block: " + timeList.Average(t => t.TotalSeconds) + " seconds");
-                    }
 
-                    var slowBlocksLeft = blockSizes.Count() - firstWayBlock - timeList.Count();
-                    var estimatedTimeLeft = slowBlocksLeft > 0 ? (timeList.Average(t => t.TotalSeconds) * slowBlocksLeft) : 0;
-                    estimatedTimeLeft += nodeFinderTotal * .05; //very loose estimate on node duration
-                    TimeSpan t = new TimeSpan((long)estimatedTimeLeft * 100 * 100);
-                    Log.WriteLog("Estimated Time Remaining: " + t);
-                    System.Threading.Thread.Sleep(60000);
+                        var slowBlocks = BlockCount() - firstWayBlock;
+                        var fastBlocks = firstWayBlock - 1;
+                        var slowBlocksLeft = slowBlocks - timeList.Count();
+                        var estimatedTimeLeft = (slowBlocksLeft > 0 ? (timeList.Average(t => t.TotalSeconds) * slowBlocksLeft) : 0);
+                        estimatedTimeLeft += (nodeFinderTotal - timeList.Count()) * .05; //very loose estimate on node duration
+                        TimeSpan t = new TimeSpan((long)estimatedTimeLeft * 10000000);
+                        Log.WriteLog("Estimated Time Remaining: " + t);
+                    }
+                    Thread.Sleep(60000);
                 }
             }, token);
-        }
-
-        public void EndWaitInfoTask()
-        {
-            tokensource.Cancel();
         }
 
         /// <summary>
@@ -1514,7 +1266,7 @@ namespace PraxisCore.PbfReader
         public void ProcessReaderResults(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, long blockId)
         {
             //This one is easy, we just dump the geodata to the file.
-            string saveFilename = outputPath + System.IO.Path.GetFileNameWithoutExtension(fi.Name) + "-" + blockId;
+            string saveFilename = outputPath + Path.GetFileNameWithoutExtension(fi.Name) + "-" + blockId;
             ConcurrentBag<StoredOsmElement> elements = new ConcurrentBag<StoredOsmElement>();
             DateTime startedProcess = DateTime.Now;
 
@@ -1548,7 +1300,7 @@ namespace PraxisCore.PbfReader
                 foreach (var e in elements)
                     e.elementGeometry = e.elementGeometry.Centroid;
 
-            if (saveToDB) //IF this is on, we skip the file-writing part and send this data directly to the DB. Single threaded, but doesn't waste disk space with intermediate files.
+            if (saveToDB) //If this is on, we skip the file-writing part and send this data directly to the DB. Single threaded, but doesn't waste disk space with intermediate files.
             {
                 var db = new PraxisContext();
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
@@ -1569,9 +1321,9 @@ namespace PraxisCore.PbfReader
                 }
                 try
                 {
-                    System.Threading.Tasks.Parallel.Invoke(
-                        () => System.IO.File.AppendAllText(saveFilename + ".geomData", geometryBuilds.ToString()),
-                        () => System.IO.File.AppendAllText(saveFilename + ".tagsData", tagBuilds.ToString())
+                    Parallel.Invoke(
+                        () => File.AppendAllText(saveFilename + ".geomData", geometryBuilds.ToString()),
+                        () => File.AppendAllText(saveFilename + ".tagsData", tagBuilds.ToString())
                     );
                 }
                 catch (Exception ex)
@@ -1612,7 +1364,6 @@ namespace PraxisCore.PbfReader
 
                 var relation = GetRelation(relationId);
                 Close();
-                //CleanupFiles();
                 sw.Stop();
                 Log.WriteLog("Processing completed at " + DateTime.Now + ", session lasted " + sw.Elapsed);
                 return relation;

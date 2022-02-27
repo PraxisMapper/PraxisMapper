@@ -42,6 +42,8 @@ namespace PraxisCore
             }
             if (expiration.HasValue)
                 row.expiration = DateTime.Now.AddSeconds(expiration.Value);
+            else
+                row.expiration = null;
             row.dataValue = value;
             return db.SaveChanges() == 1;
         }
@@ -86,6 +88,8 @@ namespace PraxisCore
             }
             if (expiration.HasValue)
                 row.expiration = DateTime.Now.AddSeconds(expiration.Value);
+            else
+                row.expiration = null;
             row.dataValue = value;
             return db.SaveChanges() == 1;
         }
@@ -117,6 +121,8 @@ namespace PraxisCore
             var row = db.PlayerData.FirstOrDefault(p => p.deviceID == playerId && p.dataKey == key);
             if (row == null || row.expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
                 return "";
+            else
+                row.expiration = null;
             return row.dataValue;
         }
 
@@ -149,6 +155,8 @@ namespace PraxisCore
             }
             if (expiration.HasValue)
                 row.expiration = DateTime.Now.AddSeconds(expiration.Value);
+            else
+                row.expiration = null;
             row.dataValue = value;
             return db.SaveChanges() == 1;
         }
@@ -178,11 +186,11 @@ namespace PraxisCore
         /// </summary>
         /// <param name="area">the GeoArea to pull data for.</param>
         /// <returns>a List of results with the PlusCode, keys, and values</returns>
-        public static List<CustomDataResult> GetAllPlusCodeDataInArea(GeoArea area) //TODO: add optional key filter
+        public static List<CustomDataResult> GetAllPlusCodeDataInArea(GeoArea area, string key = "")
         {
             var db = new PraxisContext();
             var poly = Converters.GeoAreaToPolygon(area);
-            var plusCodeData = db.CustomDataPlusCodes.Where(d => poly.Intersects(d.geoAreaIndex))
+            var plusCodeData = db.CustomDataPlusCodes.Where(d => poly.Intersects(d.geoAreaIndex) && (key == "" || d.dataKey == key))
                 .ToList() //Required to run the next Where on the C# side
                 .Where(row => row.expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now)
                 .Select(d => new CustomDataResult(d.PlusCode, d.dataKey, d.dataValue.Length > 512? "truncated" : d.dataValue))
@@ -196,11 +204,11 @@ namespace PraxisCore
         /// </summary>
         /// <param name="area">the GeoArea to pull data for.</param>
         /// <returns>a List of results with the map element ID, keys, and values</returns>
-        public static List<CustomDataAreaResult> GetAllDataInArea(GeoArea area)
+        public static List<CustomDataAreaResult> GetAllDataInArea(GeoArea area, string key = "")
         {
             var db = new PraxisContext();
             var poly = Converters.GeoAreaToPolygon(area);
-            var data = db.CustomDataOsmElements.Include(d => d.storedOsmElement).Where(d => poly.Intersects(d.storedOsmElement.elementGeometry))
+            var data = db.CustomDataOsmElements.Include(d => d.storedOsmElement).Where(d => poly.Intersects(d.storedOsmElement.elementGeometry) && (key == "" || d.dataKey == key))
                 .ToList() //Required to run the next Where on the C# side
                 .Where(row => row.expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now)
                 .Select(d => new CustomDataAreaResult(d.storedOsmElement.privacyId, d.dataKey, d.dataValue.Length > 512 ? "truncated" : d.dataValue))
@@ -214,11 +222,11 @@ namespace PraxisCore
         /// </summary>
         /// <param name="elementId">the Guid exposed to clients to identify the map element.</param>
         /// <returns>a List of results with the map element ID, keys, and values</returns>
-        public static List<CustomDataAreaResult> GetAllDataInPlace(Guid elementId)
+        public static List<CustomDataAreaResult> GetAllDataInPlace(Guid elementId, string key = "")
         {
             var db = new PraxisContext();
             var place = db.StoredOsmElements.First(s => s.privacyId == elementId);
-            var data = db.CustomDataOsmElements.Where(d => d.storedOsmElement.elementGeometry.Intersects(d.storedOsmElement.elementGeometry))
+            var data = db.CustomDataOsmElements.Where(d => d.storedOsmElement.elementGeometry.Intersects(d.storedOsmElement.elementGeometry) && (key == "" || d.dataKey == key))
                 .ToList() //Required to run the next Where on the C# side
                 .Where(row => row.expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now)
                 .Select(d => new CustomDataAreaResult(place.privacyId, d.dataKey, d.dataValue.Length > 512 ? "truncated" : d.dataValue))
@@ -312,6 +320,8 @@ namespace PraxisCore
             }
             if (expiration.HasValue)
                 row.expiration = DateTime.Now.AddSeconds(expiration.Value);
+            else
+                row.expiration = null;
 
             row.dataValue = encryptedValue;
             return db.SaveChanges() == 1;
@@ -333,6 +343,8 @@ namespace PraxisCore
             }
             if (expiration.HasValue)
                 row.expiration = DateTime.Now.AddSeconds(expiration.Value);
+            else
+                row.expiration = null;
 
             row.dataValue = encryptedValue;
             return db.SaveChanges() == 1;
@@ -406,6 +418,8 @@ namespace PraxisCore
             }
             if (expiration.HasValue)
                 row.expiration = DateTime.Now.AddSeconds(expiration.Value);
+            else
+                row.expiration = null;
             row.dataValue = encryptedValue;
             return db.SaveChanges() == 1;
         }
@@ -450,6 +464,8 @@ namespace PraxisCore
             }
             if (expiration.HasValue)
                 row.expiration = DateTime.Now.AddSeconds(expiration.Value);
+            else
+                row.expiration = null;
             row.dataValue = encryptedValue;
             return db.SaveChanges() == 1;
         }
@@ -488,7 +504,7 @@ namespace PraxisCore
 
         private static string DecryptValue(string value, string password)
         {
-            var results = System.Text.Encoding.UTF8.GetString(DecryptValueBytes(value, password));
+            var results = System.Text.Encoding.Unicode.GetString(DecryptValueBytes(value, password));
             return results;
         }
 

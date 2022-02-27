@@ -116,11 +116,11 @@ namespace PraxisCore
                     { // there is a type in this relation.
                         if (typeValue == "multipolygon" || typeValue == "linearring")
                         { // this relation is a multipolygon.
-                            return this.InterpretMultipolygonRelationNoRecursion(relation);
+                            return InterpretMultipolygonRelationNoRecursion(relation);
                         }
                         else if (typeValue == "boundary" && relation.Tags.Contains("boundary", "administrative"))
                         { // this relation is a boundary.
-                            return this.InterpretMultipolygonRelationNoRecursion(relation);
+                            return InterpretMultipolygonRelationNoRecursion(relation);
                         }
                     }
                     break;
@@ -171,7 +171,7 @@ namespace PraxisCore
         private static List<Polygon> BuildRings(List<CompleteWay> ways)
         {
             //This is where I look at points to try and combine these.
-            var closedWays = new List<CompleteWay>();
+            var closedWays = new List<CompleteWay>(ways.Count());
             closedWays = ways.Where(w => w.Nodes.First() == w.Nodes.Last()).ToList();
             var polys = new List<Polygon>();
 
@@ -199,8 +199,8 @@ namespace PraxisCore
         /// <returns></returns>
         private Geometry BuildGeometry(List<CompleteWay> outerways, List<CompleteWay> innerways)
         {
-            var outerRings = new List<Polygon>();
-            var innerRings = new List<Polygon>();
+            List<Polygon> outerRings;
+            List<Polygon> innerRings;
 
             //Build outer rings first
             outerRings = BuildRings(outerways);
@@ -209,8 +209,8 @@ namespace PraxisCore
 
             innerRings = BuildRings(innerways);
 
-            Geometry outer = null;
-            Geometry inner = null;
+            Geometry outer;
+            Geometry inner;
             if (outerRings.Count() == 1)
                 outer = outerRings.First();
             else
@@ -240,7 +240,7 @@ namespace PraxisCore
 
             // build lists of outer and inner ways.
             var inners = new List<CompleteWay>();
-            var outers = new List<CompleteWay>();
+            var outers = new List<CompleteWay>(relation.Members.Count());
 
             foreach (var member in relation.Members)
             {

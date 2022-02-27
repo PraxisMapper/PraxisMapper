@@ -327,13 +327,12 @@ namespace PraxisCore
 
                 //TODO: use stats to see if this image is scaled to gameTile values, and if so then use cached pre-made pens?
                 Pen pen;
-                if (String.IsNullOrWhiteSpace(w.paintOp.LinePattern))
+                if (String.IsNullOrWhiteSpace(w.paintOp.LinePattern) || w.paintOp.LinePattern == "solid")
                     pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), w.paintOp.LineWidth);
                 else
                 {
-                    //TODO: test and fix this parsing line
-                    //float[] linesAndGaps = w.paintOp.LinePattern.Split('|').Select(t => float.Parse(t)).ToArray();
-                    pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), w.paintOp.LineWidth); //, linesAndGaps);
+                    float[] linesAndGaps = w.paintOp.LinePattern.Split('|').Select(t => float.Parse(t)).ToArray();
+                    pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), w.paintOp.LineWidth, linesAndGaps);
                 }
 
                 //ImageSharp doesn;t like humungous areas (16k+ nodes takes a couple minutes), so we have to crop them down here
@@ -473,7 +472,7 @@ namespace PraxisCore
 
         public SixLabors.ImageSharp.Drawing.LinearLineSegment PolygonToDrawingLine(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
         {
-            //TODO: does this handle holes nicely? It should if I add them to the path.
+            //NOTE: this doesn't handle holes if you add them to the end in the reverse order. Those must be handled by a function in ImageSharp.
             var typeConvertedPoints = place.Coordinates.Select(o => new SixLabors.ImageSharp.PointF((float)((o.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / resolutionY))));
             SixLabors.ImageSharp.Drawing.LinearLineSegment part = new SixLabors.ImageSharp.Drawing.LinearLineSegment(typeConvertedPoints.ToArray());
             var x = new SixLabors.ImageSharp.Drawing.Path();
