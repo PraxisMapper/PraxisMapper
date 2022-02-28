@@ -1,12 +1,14 @@
-﻿using PraxisCore;
-using PraxisCore.Support;
-using Google.Common.Geometry;
+﻿using Google.Common.Geometry;
 using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Prepared;
 using OsmSharp;
 using OsmSharp.Streams;
+using PraxisCore;
+using PraxisCore.PbfReader;
+using PraxisCore.Support;
+using SkiaSharp;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -14,15 +16,12 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Reflection;
 using System.Text;
-using System.Text.Json;
-using static PraxisCore.ConstantValues;
 using static PraxisCore.DbTables;
 using static PraxisCore.GeometrySupport;
 using static PraxisCore.Place;
 using static PraxisCore.Singletons;
-using SkiaSharp;
-using System.Reflection;
 
 namespace PerformanceTestApp
 {
@@ -85,7 +84,8 @@ namespace PerformanceTestApp
             //TestTagParsers();
             //TestSpanOnEntry("754866354	2	LINESTRING (-82.110422 40.975346, -82.1113778 40.9753544)	0.0009558369107748833	2028a47f-4119-4426-b40f-a8715d67f962");
             //TestSpanOnEntry("945909899	1	POINT (-84.1416403 39.7111214)	0.000125	5b9f9899-09dc-4b53-ba1a-5799fe6f992b");
-            TestConvertFromTsv();
+            //TestConvertFromTsv();
+            
 
             //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
             //These cannot all be enabled in one run. You must comment/uncomment each one separately.
@@ -2273,7 +2273,9 @@ namespace PerformanceTestApp
             Console.WriteLine("Average checked results: " + withCheck.Average());
             Console.WriteLine("Average unchecked results: " + skipCheck.Average());
             Console.WriteLine("Total times (ms): " + withCheck.Sum() / 10000 + " vs  " + skipCheck.Sum() / 10000);
-            //Summary: 
+            //Summary:  unchecked is a good bit faster, but its also not a giant performance penalty to do it. 
         }
+
+        
     }
 }
