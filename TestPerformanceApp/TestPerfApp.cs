@@ -81,7 +81,7 @@ namespace PerformanceTestApp
             //TestCustomPbfReader();
             //TestDrawingHoles();
             //TestPbfParsing();
-            //TestMaptileDrawing();
+            TestMaptileDrawing();
             //TestTagParsers();
             //TestSpanOnEntry("754866354	2	LINESTRING (-82.110422 40.975346, -82.1113778 40.9753544)	0.0009558369107748833	2028a47f-4119-4426-b40f-a8715d67f962");
             //TestSpanOnEntry("945909899	1	POINT (-84.1416403 39.7111214)	0.000125	5b9f9899-09dc-4b53-ba1a-5799fe6f992b");
@@ -1778,7 +1778,9 @@ namespace PerformanceTestApp
             List<long> skiaDurations = new List<long>();
             List<long> imageDurations = new List<long>();
             //Get an area from the DB, draw some map tiles with each.
-            var mapData = db.StoredOsmElements.ToList(); //pull them all into RAM to skip DB perf issue.
+            var mapArea = OpenLocationCode.DecodeValid("86HWF5");
+            var mapPoly = Converters.GeoAreaToPolygon(mapArea);
+            var mapData = db.StoredOsmElements.Where(e => e.elementGeometry.Intersects(mapPoly)).ToList(); //pull them all into RAM to skip DB perf issue.
 
             string startPoint = "86HWF5"; //add 4 chars to draw cell8 tiles.
                                           //string endPoint = "86HW99"; //15 Cell6 blocks to draw, so 400 * 15 tiles for testing.
