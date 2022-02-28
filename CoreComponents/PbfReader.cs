@@ -66,8 +66,8 @@ namespace PraxisCore.PbfReader
         Envelope bounds = null; //If not null, reject elements not within it
         IPreparedGeometry boundsEntry = null; //use for precise detection of what to include.
 
-        ConcurrentDictionary<long, PrimitiveBlock> activeBlocks = new ConcurrentDictionary<long, PrimitiveBlock>(Environment.ProcessorCount, initialCapacity);
-        ConcurrentDictionary<long, bool> accessedBlocks = new ConcurrentDictionary<long, bool>(Environment.ProcessorCount, initialCapacity);
+        ConcurrentDictionary<long, PrimitiveBlock> activeBlocks = new ConcurrentDictionary<long, PrimitiveBlock>(initialConcurrency, initialCapacity);
+        ConcurrentDictionary<long, bool> accessedBlocks = new ConcurrentDictionary<long, bool>(initialConcurrency, initialCapacity);
 
         object msLock = new object(); //reading blocks from disk.
 
