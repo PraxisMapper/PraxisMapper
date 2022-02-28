@@ -19,7 +19,6 @@ namespace PraxisCore
         public DbSet<SlippyMapTile> SlippyMapTiles { get; set; }
         public DbSet<ErrorLog> ErrorLogs { get; set; }
         public DbSet<ServerSetting> ServerSettings { get; set; }
-        public DbSet<TileTracking> TileTrackings { get; set; } //This table is for making a full planet's maptiles, and tracks which ones have been drawn or not drawn to allow resuming.
         public DbSet<StoredOsmElement> StoredOsmElements { get; set; }
         public DbSet<TagParserEntry> TagParserEntries { get; set; }
         public DbSet<TagParserMatchRule> TagParserMatchRules { get; set; }
@@ -52,32 +51,32 @@ namespace PraxisCore
         protected override void OnModelCreating(ModelBuilder model)
         {
             //Create indexes here.
-            model.Entity<PlayerData>().HasIndex(p => p.deviceID);
-            model.Entity<PlayerData>().HasIndex(p => p.dataKey);
+            model.Entity<PlayerData>().HasIndex(p => p.DeviceID);
+            model.Entity<PlayerData>().HasIndex(p => p.DataKey);
 
             model.Entity<StoredOsmElement>().HasIndex(m => m.AreaSize); //Enables server-side sorting on biggest-to-smallest draw order.
-            model.Entity<StoredOsmElement>().HasIndex(m => m.sourceItemID);
-            model.Entity<StoredOsmElement>().HasIndex(m => m.sourceItemType);
-            model.Entity<StoredOsmElement>().HasIndex(m => m.privacyId);
-            model.Entity<StoredOsmElement>().HasMany(m => m.Tags).WithOne(m => m.storedOsmElement).HasForeignKey(m => new { m.SourceItemId, m.SourceItemType }).HasPrincipalKey(m => new { m.sourceItemID, m.sourceItemType });
+            model.Entity<StoredOsmElement>().HasIndex(m => m.SourceItemID);
+            model.Entity<StoredOsmElement>().HasIndex(m => m.SourceItemType);
+            model.Entity<StoredOsmElement>().HasIndex(m => m.PrivacyId);
+            model.Entity<StoredOsmElement>().HasMany(m => m.Tags).WithOne(m => m.StoredOsmElement).HasForeignKey(m => new { m.SourceItemId, m.SourceItemType }).HasPrincipalKey(m => new { m.SourceItemID, m.SourceItemType });
 
             model.Entity<MapTile>().HasIndex(m => m.PlusCode);
             model.Entity<MapTile>().Property(m => m.PlusCode).HasMaxLength(12);
-            model.Entity<MapTile>().HasIndex(m => m.styleSet);
+            model.Entity<MapTile>().HasIndex(m => m.StyleSet);
 
             model.Entity<SlippyMapTile>().HasIndex(m => m.Values);
-            model.Entity<SlippyMapTile>().HasIndex(m => m.styleSet);
+            model.Entity<SlippyMapTile>().HasIndex(m => m.StyleSet);
 
             model.Entity<ElementTags>().HasIndex(m => m.Key);
-            model.Entity<ElementTags>().HasOne(m => m.storedOsmElement).WithMany(m => m.Tags).HasForeignKey(m => new { m.SourceItemId, m.SourceItemType }).HasPrincipalKey(m => new { m.sourceItemID, m.sourceItemType });
+            model.Entity<ElementTags>().HasOne(m => m.StoredOsmElement).WithMany(m => m.Tags).HasForeignKey(m => new { m.SourceItemId, m.SourceItemType }).HasPrincipalKey(m => new { m.SourceItemID, m.SourceItemType });
 
-            model.Entity<CustomDataOsmElement>().HasIndex(m => m.dataKey);
+            model.Entity<CustomDataOsmElement>().HasIndex(m => m.DataKey);
             model.Entity<CustomDataOsmElement>().HasIndex(m => m.StoredOsmElementId);
             //model.Entity<CustomDataOsmElement>().HasIndex(m => m.privacyId);
 
-            model.Entity<CustomDataPlusCode>().HasIndex(m => m.dataKey);
+            model.Entity<CustomDataPlusCode>().HasIndex(m => m.DataKey);
             model.Entity<CustomDataPlusCode>().HasIndex(m => m.PlusCode);
-            model.Entity<CustomDataPlusCode>().HasIndex(m => m.geoAreaIndex);
+            model.Entity<CustomDataPlusCode>().HasIndex(m => m.GeoAreaIndex);
 
             if (serverMode == "PostgreSQL")
             {
@@ -161,7 +160,7 @@ namespace PraxisCore
         public void InsertDefaultServerConfig()
         {
             //var db = new PraxisContext();
-            ServerSettings.Add(new ServerSetting() { id = 1, NorthBound = 90, SouthBound = -90, EastBound = 180, WestBound = -180, SlippyMapTileSizeSquare = 512 });
+            ServerSettings.Add(new ServerSetting() { Id = 1, NorthBound = 90, SouthBound = -90, EastBound = 180, WestBound = -180, SlippyMapTileSizeSquare = 512 });
             SaveChanges();
         }
 
@@ -193,8 +192,8 @@ namespace PraxisCore
             {
                 TagParserStyleBitmaps.Add(new TagParserStyleBitmap()
                 {
-                    filename = System.IO.Path.GetFileName(file),
-                    data = System.IO.File.ReadAllBytes(file)
+                    Filename = System.IO.Path.GetFileName(file),
+                    Data = System.IO.File.ReadAllBytes(file)
                 });
             }
             SaveChanges();
@@ -295,8 +294,8 @@ namespace PraxisCore
             GeoArea results = null;
             if (singleArea != 0)
             {
-                var area = StoredOsmElements.First(e => e.sourceItemID == singleArea);
-                var envelop = area.elementGeometry.EnvelopeInternal;
+                var area = StoredOsmElements.First(e => e.SourceItemID == singleArea);
+                var envelop = area.ElementGeometry.EnvelopeInternal;
                 results = new GeoArea(envelop.MinY, envelop.MinX, envelop.MaxY, envelop.MaxX);
             }
             else
@@ -316,7 +315,7 @@ namespace PraxisCore
             foreach (var entry in entries)
             {
                 //check existing entry, see if it requires being updated
-                var existingData = StoredOsmElements.FirstOrDefault(md => md.sourceItemID == entry.sourceItemID && md.sourceItemType == entry.sourceItemType);
+                var existingData = StoredOsmElements.FirstOrDefault(md => md.SourceItemID == entry.SourceItemID && md.SourceItemType == entry.SourceItemType);
                 if (existingData != null)
                 {
                     if (existingData.AreaSize != entry.AreaSize) existingData.AreaSize = entry.AreaSize;
@@ -324,10 +323,10 @@ namespace PraxisCore
                     if (existingData.IsGameElement != entry.IsGameElement) existingData.IsGameElement = entry.IsGameElement;
 
                     bool expireTiles = false;
-                    if (!existingData.elementGeometry.EqualsTopologically(entry.elementGeometry)) //TODO: this might need to be EqualsExact?
+                    if (!existingData.ElementGeometry.EqualsTopologically(entry.ElementGeometry)) //TODO: this might need to be EqualsExact?
                     {
                         //update the geometry for this object.
-                        existingData.elementGeometry = entry.elementGeometry;
+                        existingData.ElementGeometry = entry.ElementGeometry;
                         expireTiles = true;
                     }
                     if (!existingData.Tags.OrderBy(t => t.Key).SequenceEqual(entry.Tags.OrderBy(t => t.Key)))
@@ -342,8 +341,8 @@ namespace PraxisCore
                     if (expireTiles) //geometry or style has to change, otherwise we can skip expiring values.
                     {
                         SaveChanges(); //save before expiring, so the next redraw absolutely has the latest data. Can't catch it mid-command if we do this first.
-                        ExpireMapTiles(entry.elementGeometry, "mapTiles");
-                        ExpireSlippyMapTiles(entry.elementGeometry, "mapTiles");
+                        ExpireMapTiles(entry.ElementGeometry, "mapTiles");
+                        ExpireSlippyMapTiles(entry.ElementGeometry, "mapTiles");
                     }
                 }
                 else
@@ -351,8 +350,8 @@ namespace PraxisCore
                     //We don't have this item, add it.
                     StoredOsmElements.Add(entry);
                     SaveChanges(); //again, necessary here to get tiles to draw correctly after expiring.
-                    ExpireMapTiles(entry.elementGeometry, "mapTiles");
-                    ExpireSlippyMapTiles(entry.elementGeometry, "mapTiles");
+                    ExpireMapTiles(entry.ElementGeometry, "mapTiles");
+                    ExpireSlippyMapTiles(entry.ElementGeometry, "mapTiles");
                 }
             }
             SaveChanges(); //final one for anything not yet persisted.
@@ -361,10 +360,10 @@ namespace PraxisCore
         public void ResetStyles()
         {
             Log.WriteLog("Replacing current styles with default ones");
-            var styles = Singletons.defaultTagParserEntries.Select(t => t.styleSet).Distinct().ToList();
+            var styles = Singletons.defaultTagParserEntries.Select(t => t.StyleSet).Distinct().ToList();
 
-            var toRemove = TagParserEntries.Include(t => t.paintOperations).Where(t => styles.Contains(t.styleSet)).ToList();
-            var toRemovePaints = toRemove.SelectMany(t => t.paintOperations).ToList();
+            var toRemove = TagParserEntries.Include(t => t.PaintOperations).Where(t => styles.Contains(t.StyleSet)).ToList();
+            var toRemovePaints = toRemove.SelectMany(t => t.PaintOperations).ToList();
             var toRemoveImages = TagParserStyleBitmaps.ToList();
             TagParserPaints.RemoveRange(toRemovePaints);
             SaveChanges();

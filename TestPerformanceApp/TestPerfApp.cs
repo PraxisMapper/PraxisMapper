@@ -581,10 +581,10 @@ namespace PerformanceTestApp
             if (source == null)
             {
                 var db = new PraxisCore.PraxisContext();
-                places = db.StoredOsmElements.Where(md => md.elementGeometry.Intersects(location)).ToList();
+                places = db.StoredOsmElements.Where(md => md.ElementGeometry.Intersects(location)).ToList();
             }
             else
-                places = source.Where(md => md.elementGeometry.Intersects(location)).ToList();
+                places = source.Where(md => md.ElementGeometry.Intersects(location)).ToList();
             return places;
         }
 
@@ -968,7 +968,7 @@ namespace PerformanceTestApp
             {
                 //read 1000 random entries;
                 int entry = r.Next(1, maxRandom);
-                var tempEntry = dbPG.StoredOsmElements.Where(m => m.id == entry).FirstOrDefault();
+                var tempEntry = dbPG.StoredOsmElements.Where(m => m.Id == entry).FirstOrDefault();
             }
             sw.Stop();
             Log.WriteLog("10,000 random reads done in " + sw.ElapsedMilliseconds + "ms");
@@ -977,7 +977,7 @@ namespace PerformanceTestApp
             GeoArea delaware = new GeoArea(38, -77, 41, -74);
             var poly = Converters.GeoAreaToPolygon(delaware);
             sw.Restart();
-            var allEntires = dbPG.StoredOsmElements.Where(w => w.elementGeometry.Intersects(poly)).ToList();
+            var allEntires = dbPG.StoredOsmElements.Where(w => w.ElementGeometry.Intersects(poly)).ToList();
             sw.Stop();
             Log.WriteLog("Loaded all Delaware items in " + sw.ElapsedMilliseconds + "ms");
 
@@ -1010,8 +1010,8 @@ namespace PerformanceTestApp
                 }
 
                 //locker.EnterWriteLock();
-                convertedRelation.elementGeometry = SimplifyArea(convertedRelation.elementGeometry);
-                if (convertedRelation.elementGeometry == null)
+                convertedRelation.ElementGeometry = SimplifyArea(convertedRelation.ElementGeometry);
+                if (convertedRelation.ElementGeometry == null)
                     continue;
                 db.StoredOsmElements.Add(convertedRelation);
                 //db.SaveChanges();
@@ -1029,8 +1029,8 @@ namespace PerformanceTestApp
                 }
 
                 //locker.EnterWriteLock();
-                convertedWay.elementGeometry = SimplifyArea(convertedWay.elementGeometry);
-                if (convertedWay.elementGeometry == null)
+                convertedWay.ElementGeometry = SimplifyArea(convertedWay.ElementGeometry);
+                if (convertedWay.ElementGeometry == null)
                     continue;
                 db.StoredOsmElements.Add(convertedWay);
                 //db.SaveChanges();
@@ -1055,19 +1055,19 @@ namespace PerformanceTestApp
                 }
                 var sw = new StoredOsmElement();
                 //sw.name = TagParser.GetPlaceName(g.Tags);
-                sw.sourceItemID = g.Id;
-                sw.sourceItemType = (g.Type == OsmGeoType.Relation ? 3 : g.Type == OsmGeoType.Way ? 2 : 1);
+                sw.SourceItemID = g.Id;
+                sw.SourceItemType = (g.Type == OsmGeoType.Relation ? 3 : g.Type == OsmGeoType.Way ? 2 : 1);
                 var geo = SimplifyArea(feature.First().Geometry);
                 if (geo == null)
                     return null;
                 geo.SRID = 4326;//Required for SQL Server to accept data this way.
-                sw.elementGeometry = geo;
+                sw.ElementGeometry = geo;
                 sw.Tags = TagParser.getFilteredTags(g.Tags);
-                if (sw.elementGeometry.GeometryType == "LinearRing" || (sw.elementGeometry.GeometryType == "LineString" && sw.elementGeometry.Coordinates.First() == sw.elementGeometry.Coordinates.Last()))
+                if (sw.ElementGeometry.GeometryType == "LinearRing" || (sw.ElementGeometry.GeometryType == "LineString" && sw.ElementGeometry.Coordinates.First() == sw.ElementGeometry.Coordinates.Last()))
                 {
                     //I want to update all LinearRings to Polygons, and let the style determine if they're Filled or Stroked.
-                    var poly = factory.CreatePolygon((LinearRing)sw.elementGeometry);
-                    sw.elementGeometry = poly;
+                    var poly = factory.CreatePolygon((LinearRing)sw.ElementGeometry);
+                    sw.ElementGeometry = poly;
                 }
                 return sw;
             }
@@ -1253,7 +1253,7 @@ namespace PerformanceTestApp
             var allTiles = db.SlippyMapTiles.ToList();
             sw.Stop();
             Log.WriteLog("All tiles loaded from DB in " + sw.Elapsed);
-            var randomTileArea = allTiles.OrderBy(t => Guid.NewGuid()).First().areaCovered; //To use for checking the index.
+            var randomTileArea = allTiles.OrderBy(t => Guid.NewGuid()).First().AreaCovered; //To use for checking the index.
             sw.Restart();
             var allTiles2 = db.SlippyMapTiles.ToList();
             Log.WriteLog("All Tiles pulled again while in RAM in: " + sw.Elapsed);
@@ -1262,7 +1262,7 @@ namespace PerformanceTestApp
             sw.Stop();
             Log.WriteLog("Loaded 1 map tile in: " + sw.Elapsed);
             sw.Restart();
-            var indexedTile = db.SlippyMapTiles.Where(s => s.areaCovered.Intersects(randomTileArea)).ToList();
+            var indexedTile = db.SlippyMapTiles.Where(s => s.AreaCovered.Intersects(randomTileArea)).ToList();
             sw.Stop();
             Log.WriteLog("loaded 1 random tile via index in : " + sw.Elapsed);
             sw.Restart();
@@ -1599,7 +1599,7 @@ namespace PerformanceTestApp
             GeoArea testArea6 = OpenLocationCode.DecodeValid(CellToTest);
             var areaPoly = Converters.GeoAreaToPolygon(testArea6);
             var db = new PraxisContext();
-            var places = db.StoredOsmElements.Include(w => w.Tags).Where(w => w.elementGeometry.Intersects(areaPoly)).ToList();
+            var places = db.StoredOsmElements.Include(w => w.Tags).Where(w => w.ElementGeometry.Intersects(areaPoly)).ToList();
             Log.WriteLog("Loaded " + places.Count() + " objects for test");
 
             ImageStats info = new ImageStats(testArea6, 512, 512); //using default Slippy map tile size for comparison.
@@ -1615,7 +1615,7 @@ namespace PerformanceTestApp
             foreach (var ap in places) //Crop geometry and set tags for coloring.
                 try //Error handling for 'non-noded intersection' errors.
                 {
-                    ap.elementGeometry = ap.elementGeometry.Intersection(areaPoly); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
+                    ap.ElementGeometry = ap.ElementGeometry.Intersection(areaPoly); //This is a ref list, so this crop will apply if another call is made to this function with the same list.
                 }
                 catch (Exception ex)
                 {
@@ -1663,7 +1663,7 @@ namespace PerformanceTestApp
             var NTSelement = GeometrySupport.ConvertOsmEntryToStoredElement(testElement);
 
             //prep the drawing area.
-            var geoarea = Converters.GeometryToGeoArea(NTSelement.elementGeometry);
+            var geoarea = Converters.GeometryToGeoArea(NTSelement.ElementGeometry);
             geoarea = new Google.OpenLocationCode.GeoArea(geoarea.SouthLatitude - ConstantValues.resolutionCell10,
                 geoarea.WestLongitude - ConstantValues.resolutionCell10,
                 geoarea.NorthLatitude + ConstantValues.resolutionCell10,
@@ -1716,7 +1716,7 @@ namespace PerformanceTestApp
 
             var path2 = new SKPath();
             path2.FillType = SKPathFillType.EvenOdd;
-            var p2 = NTSelement.elementGeometry as Polygon;
+            var p2 = NTSelement.ElementGeometry as Polygon;
             //path2.AddPoly(PolygonToSKPoints(p2.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
             foreach (var hole in p2.InteriorRings)
             {
@@ -1780,7 +1780,7 @@ namespace PerformanceTestApp
             //Get an area from the DB, draw some map tiles with each.
             var mapArea = OpenLocationCode.DecodeValid("86HWF5");
             var mapPoly = Converters.GeoAreaToPolygon(mapArea);
-            var mapData = db.StoredOsmElements.Where(e => e.elementGeometry.Intersects(mapPoly)).ToList(); //pull them all into RAM to skip DB perf issue.
+            var mapData = db.StoredOsmElements.Where(e => e.ElementGeometry.Intersects(mapPoly)).ToList(); //pull them all into RAM to skip DB perf issue.
 
             string startPoint = "86HWF5"; //add 4 chars to draw cell8 tiles.
                                           //string endPoint = "86HW99"; //15 Cell6 blocks to draw, so 400 * 15 tiles for testing.
@@ -2182,22 +2182,22 @@ namespace PerformanceTestApp
                 timer.Start();
                 var parts = sw.Split('\t');
                 StoredOsmElement entry = new StoredOsmElement();
-                entry.sourceItemID = parts[0].ToLong();
-                entry.sourceItemType = parts[1].ToInt();
-                entry.elementGeometry = GeometrySupport.GeometryFromWKT(parts[2]);
+                entry.SourceItemID = parts[0].ToLong();
+                entry.SourceItemType = parts[1].ToInt();
+                entry.ElementGeometry = GeometrySupport.GeometryFromWKT(parts[2]);
                 entry.AreaSize = parts[3].ToDouble();
-                entry.privacyId = Guid.Parse(parts[4]);
+                entry.PrivacyId = Guid.Parse(parts[4]);
                 timer.Stop();
                 splitParse.Add(timer.ElapsedTicks);
                 timer.Restart();
 
                 var source = sw.AsSpan();
                 StoredOsmElement e2 = new StoredOsmElement();
-                e2.sourceItemID = source.SplitNext('\t').ToLong();
-                e2.sourceItemType = source.SplitNext('\t').ToInt();
-                e2.elementGeometry = GeometryFromWKT(source.SplitNext('\t').ToString());
+                e2.SourceItemID = source.SplitNext('\t').ToLong();
+                e2.SourceItemType = source.SplitNext('\t').ToInt();
+                e2.ElementGeometry = GeometryFromWKT(source.SplitNext('\t').ToString());
                 e2.AreaSize = source.SplitNext('\t').ToDouble();
-                e2.privacyId = Guid.Parse(source);
+                e2.PrivacyId = Guid.Parse(source);
                 timer.Stop();
                 spanParse.Add(timer.ElapsedTicks);
             }
@@ -2210,27 +2210,27 @@ namespace PerformanceTestApp
         {
             var source = sw.AsSpan();
             StoredOsmElement entry = new StoredOsmElement();
-            entry.sourceItemID = source.SplitNext('\t').ToLong();
-            entry.sourceItemType = source.SplitNext('\t').ToInt();
-            entry.elementGeometry = GeometryFromWKT(source.SplitNext('\t').ToString());
+            entry.SourceItemID = source.SplitNext('\t').ToLong();
+            entry.SourceItemType = source.SplitNext('\t').ToInt();
+            entry.ElementGeometry = GeometryFromWKT(source.SplitNext('\t').ToString());
             entry.AreaSize = source.SplitNext('\t').ToDouble();
-            entry.privacyId = Guid.Parse(source);
+            entry.PrivacyId = Guid.Parse(source);
 
-            if (entry.elementGeometry is Polygon)
-                entry.elementGeometry = GeometrySupport.CCWCheck((Polygon)entry.elementGeometry);
+            if (entry.ElementGeometry is Polygon)
+                entry.ElementGeometry = GeometrySupport.CCWCheck((Polygon)entry.ElementGeometry);
 
-            if (entry.elementGeometry is MultiPolygon)
+            if (entry.ElementGeometry is MultiPolygon)
             {
-                MultiPolygon mp = (MultiPolygon)entry.elementGeometry;
+                MultiPolygon mp = (MultiPolygon)entry.ElementGeometry;
                 for (int i = 0; i < mp.Geometries.Count(); i++)
                 {
                     mp.Geometries[i] = GeometrySupport.CCWCheck((Polygon)mp.Geometries[i]);
                 }
-                entry.elementGeometry = mp;
+                entry.ElementGeometry = mp;
             }
-            if (entry.elementGeometry == null) //it failed the CCWCheck logic and couldn't be correctly oriented.
+            if (entry.ElementGeometry == null) //it failed the CCWCheck logic and couldn't be correctly oriented.
             {
-                Log.WriteLog("NOTE: Item " + entry.sourceItemID + " - Failed to create valid geometry", Log.VerbosityLevels.Errors);
+                Log.WriteLog("NOTE: Item " + entry.SourceItemID + " - Failed to create valid geometry", Log.VerbosityLevels.Errors);
                 return null;
             }
 
@@ -2241,11 +2241,11 @@ namespace PerformanceTestApp
         {
             var source = sw.AsSpan();
             StoredOsmElement entry = new StoredOsmElement();
-            entry.sourceItemID = source.SplitNext('\t').ToLong();
-            entry.sourceItemType = source.SplitNext('\t').ToInt();
-            entry.elementGeometry = GeometryFromWKT(source.SplitNext('\t').ToString());
+            entry.SourceItemID = source.SplitNext('\t').ToLong();
+            entry.SourceItemType = source.SplitNext('\t').ToInt();
+            entry.ElementGeometry = GeometryFromWKT(source.SplitNext('\t').ToString());
             entry.AreaSize = source.SplitNext('\t').ToDouble();
-            entry.privacyId = Guid.Parse(source);
+            entry.PrivacyId = Guid.Parse(source);
 
             return entry;
         }

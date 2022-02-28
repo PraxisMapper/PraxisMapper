@@ -51,7 +51,7 @@ namespace PraxisMapper.Controllers
         public ActionResult GetPlaceInfo(long sourceElementId, int sourceElementType)
         {
             var db = new PraxisContext();
-            var area = db.StoredOsmElements.Include(e => e.Tags).FirstOrDefault(e => e.sourceItemID == sourceElementId && e.sourceItemType == sourceElementType);
+            var area = db.StoredOsmElements.Include(e => e.Tags).FirstOrDefault(e => e.SourceItemID == sourceElementId && e.SourceItemType == sourceElementType);
             if (area == null)
                 return View();
 
@@ -59,7 +59,7 @@ namespace PraxisMapper.Controllers
             ViewBag.areaname = TagParser.GetPlaceName(area.Tags);
             ViewBag.type = area.GameElementName;
 
-            var geoarea = Converters.GeometryToGeoArea(area.elementGeometry.Envelope);
+            var geoarea = Converters.GeometryToGeoArea(area.ElementGeometry.Envelope);
             geoarea = new Google.OpenLocationCode.GeoArea(geoarea.SouthLatitude - ConstantValues.resolutionCell10,
                 geoarea.WestLongitude - ConstantValues.resolutionCell10,
                 geoarea.NorthLatitude + ConstantValues.resolutionCell10,
@@ -100,9 +100,9 @@ namespace PraxisMapper.Controllers
         public ActionResult GetPlaceInfo(Guid privacyId)
         {
             var db = new PraxisContext();
-            var area = db.StoredOsmElements.Include(e => e.Tags).FirstOrDefault(e => e.privacyId == privacyId);
+            var area = db.StoredOsmElements.Include(e => e.Tags).FirstOrDefault(e => e.PrivacyId == privacyId);
             if (area != null)
-                return GetPlaceInfo(area.sourceItemID, area.sourceItemType);
+                return GetPlaceInfo(area.SourceItemID, area.SourceItemType);
 
             return null;
         }
@@ -114,10 +114,10 @@ namespace PraxisMapper.Controllers
             Models.EditData model = new Models.EditData();
             var db = new PraxisContext();
             model.accessKey = "?PraxisAuthKey=" + Configuration["serverAuthKey"];
-            model.globalDataKeys = db.GlobalDataEntries.Select(g => new SelectListItem(g.dataKey, g.dataValue)).ToList();
-            model.playerKeys = db.PlayerData.Select(p => p.deviceID).Distinct().Select(g => new SelectListItem(g, g)).ToList();
+            model.globalDataKeys = db.GlobalDataEntries.Select(g => new SelectListItem(g.DataKey, g.DataValue)).ToList();
+            model.playerKeys = db.PlayerData.Select(p => p.DeviceID).Distinct().Select(g => new SelectListItem(g, g)).ToList();
 
-            model.stylesetKeys = db.TagParserEntries.Select(t => t.styleSet).Distinct().Select(t => new SelectListItem(t, t)).ToList();
+            model.stylesetKeys = db.TagParserEntries.Select(t => t.StyleSet).Distinct().Select(t => new SelectListItem(t, t)).ToList();
             model.stylesetKeys.Insert(0, new SelectListItem("", ""));
 
             return View(model);

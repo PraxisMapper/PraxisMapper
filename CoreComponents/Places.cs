@@ -49,18 +49,18 @@ namespace PraxisCore
                 db.Database.SetCommandTimeout(new TimeSpan(0, 5, 0));
                 if (skipTags) //Should make the load slightly faster if we're parsing existing items that already got tags applied
                 {
-                    places = db.StoredOsmElements.Where(md => location.Intersects(md.elementGeometry) && md.AreaSize >= filterSize && (includePoints || md.sourceItemType != 1)).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList();
+                    places = db.StoredOsmElements.Where(md => location.Intersects(md.ElementGeometry) && md.AreaSize >= filterSize && (includePoints || md.SourceItemType != 1)).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length).ToList();
                     return places; //Jump out before we do ApplyTags
                 }
                 else
                 {
-                    places = db.StoredOsmElements.Include(s => s.Tags).Where(md => location.Intersects(md.elementGeometry) && md.AreaSize >= filterSize && (includePoints || md.sourceItemType != 1)).OrderByDescending(w => w.elementGeometry.Area).ThenByDescending(w => w.elementGeometry.Length).ToList();
+                    places = db.StoredOsmElements.Include(s => s.Tags).Where(md => location.Intersects(md.ElementGeometry) && md.AreaSize >= filterSize && (includePoints || md.SourceItemType != 1)).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length).ToList();
                 }
             }
             else
             {
                 var location = Converters.GeoAreaToPreparedPolygon(area);
-                places = source.Where(md => location.Intersects(md.elementGeometry) && md.AreaSize >= filterSize && (includePoints || md.sourceItemType != 1)).Select(md => md.Clone()).ToList();
+                places = source.Where(md => location.Intersects(md.ElementGeometry) && md.AreaSize >= filterSize && (includePoints || md.SourceItemType != 1)).Select(md => md.Clone()).ToList();
             }
 
             if (!skipTags)
@@ -97,12 +97,12 @@ namespace PraxisCore
             if (source == null)
             {
                 var db = new PraxisContext();
-                places = db.StoredOsmElements.Any(md => md.elementGeometry.Intersects(location));
+                places = db.StoredOsmElements.Any(md => md.ElementGeometry.Intersects(location));
                 return places;
             }
             else
             {
-                places = source.Any(md => md.elementGeometry.Intersects(location));
+                places = source.Any(md => md.ElementGeometry.Intersects(location));
             }
             return places;
         }
@@ -183,7 +183,7 @@ namespace PraxisCore
                 if (polygon != null)
                 {
                     StoredOsmElement gmd = new StoredOsmElement();
-                    gmd.elementGeometry = polygon;
+                    gmd.ElementGeometry = polygon;
                     gmd.GameElementName = "generated";
                     gmd.Tags.Add(new ElementTags() { Key = "praxisGenerated", Value = "true" } );
                     areasToAdd.Add(gmd); //this is the line that makes some objects occasionally not be CCW that were CCW before. Maybe its the cast to the generic Geometry item?
@@ -202,7 +202,7 @@ namespace PraxisCore
                 var db = new PraxisContext();
                 foreach (var area in areasToAdd)
                 {
-                    area.elementGeometry = CCWCheck((Polygon)area.elementGeometry); //fixes errors that reappeared above
+                    area.ElementGeometry = CCWCheck((Polygon)area.ElementGeometry); //fixes errors that reappeared above
                 }
                 db.StoredOsmElements.AddRange(areasToAdd);
                 db.SaveChanges();
@@ -221,16 +221,16 @@ namespace PraxisCore
             //Debugging helper call. Loads up some information on an area and display it.
             //Not currently used anywhere.
             var db = new PraxisContext();
-            var entries = db.StoredOsmElements.Where(m => m.id == id || m.sourceItemID == id).ToList();
+            var entries = db.StoredOsmElements.Where(m => m.Id == id || m.SourceItemID == id).ToList();
             string results = "";
             foreach (var entry in entries)
             {
-                var shape = entry.elementGeometry;
+                var shape = entry.ElementGeometry;
 
                 results += "Name: " + TagParser.GetPlaceName(entry.Tags) + Environment.NewLine;
                 results += "Game Type: " + TagParser.GetAreaType(entry.Tags.ToList()) + Environment.NewLine;
                 results += "Geometry Type: " + shape.GeometryType + Environment.NewLine;
-                results += "OSM Type: " + entry.sourceItemType + Environment.NewLine;
+                results += "OSM Type: " + entry.SourceItemType + Environment.NewLine;
                 results += "Area Tags: " + String.Join(",", entry.Tags.Select(t => t.Key + ":" + t.Value));
                 results += "IsValid? : " + shape.IsValid + Environment.NewLine;
                 results += "Area: " + shape.Area + Environment.NewLine; //Not documented, but I believe this is the area in square degrees. Is that a real unit?
@@ -316,9 +316,9 @@ namespace PraxisCore
             var distanceMin = distanceMid / 2;
             var distanceMax = distanceMid + distanceMin;
             List<Tuple<double, StoredOsmElement>> results = db.StoredOsmElements
-                .Where(o => distanceMin < o.elementGeometry.Distance(ntsPoint) && o.elementGeometry.Distance(ntsPoint) < distanceMax)
-                .OrderByDescending(o => Math.Abs(distanceMid - o.elementGeometry.Distance(ntsPoint)))
-                .Select(o => Tuple.Create(o.elementGeometry.Distance(ntsPoint), o))
+                .Where(o => distanceMin < o.ElementGeometry.Distance(ntsPoint) && o.ElementGeometry.Distance(ntsPoint) < distanceMax)
+                .OrderByDescending(o => Math.Abs(distanceMid - o.ElementGeometry.Distance(ntsPoint)))
+                .Select(o => Tuple.Create(o.ElementGeometry.Distance(ntsPoint), o))
                 .ToList();
 
             return results;

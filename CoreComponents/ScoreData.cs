@@ -33,9 +33,9 @@ namespace PraxisCore
             List<Tuple<string, long, Guid>> areaSizes = new List<Tuple<string, long, Guid>>(places.Count());
             foreach (var md in places)
             {
-                var containedArea = md.elementGeometry.Intersection(areaPoly);
+                var containedArea = md.ElementGeometry.Intersection(areaPoly);
                 var areaCell10Count = GetScoreForSinglePlace(containedArea);
-                areaSizes.Add(new Tuple<string, long, Guid>(TagParser.GetPlaceName(md.Tags), areaCell10Count, md.privacyId));
+                areaSizes.Add(new Tuple<string, long, Guid>(TagParser.GetPlaceName(md.Tags), areaCell10Count, md.PrivacyId));
             }
             return string.Join("\r\n", areaSizes.Select(a => a.Item1 + "|" + a.Item2 + "|" + a.Item3));
         }
@@ -51,7 +51,7 @@ namespace PraxisCore
             List<Tuple<string, long, Guid>> areaSizes = new List<Tuple<string, long, Guid>>(places.Count());
             foreach (var place in places)
             {
-                areaSizes.Add(Tuple.Create(TagParser.GetPlaceName(place.Tags), GetScoreForSinglePlace(place.elementGeometry), place.privacyId));
+                areaSizes.Add(Tuple.Create(TagParser.GetPlaceName(place.Tags), GetScoreForSinglePlace(place.ElementGeometry), place.PrivacyId));
             }
             return string.Join("\r\n", areaSizes.Select(a => a.Item1 + "|" + a.Item2 + "|" + a.Item3));
         }
@@ -95,7 +95,7 @@ namespace PraxisCore
         public static long GetScoreForSinglePlace(Guid elementId)
         {
             var db = new PraxisContext();
-            var place = db.StoredOsmElements.FirstOrDefault(e => e.privacyId == elementId).elementGeometry;
+            var place = db.StoredOsmElements.FirstOrDefault(e => e.PrivacyId == elementId).ElementGeometry;
             return GetScoreForSinglePlace(place);
         }
     }

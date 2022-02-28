@@ -266,7 +266,7 @@ namespace PraxisMapper.Controllers
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), box))
                 return "";            
             var places = GetPlaces(box);
-            places = places.Where(p => p.GameElementName != TagParser.defaultStyle.name).ToList();
+            places = places.Where(p => p.GameElementName != TagParser.defaultStyle.Name).ToList();
 
             StringBuilder sb = new StringBuilder();
             //pluscode|name|type|PrivacyID 
@@ -290,7 +290,7 @@ namespace PraxisMapper.Controllers
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), box))
                 return "";
             var places = GetPlaces(box); //All the places in this Cell8
-            places = places.Where(p => p.GameElementName != TagParser.defaultStyle.name).ToList();
+            places = places.Where(p => p.GameElementName != TagParser.defaultStyle.Name).ToList();
 
             StringBuilder sb = new StringBuilder();
             //pluscode|name|type|privacyID(named wrong but its the Guid)
@@ -316,9 +316,9 @@ namespace PraxisMapper.Controllers
         public double GetDistanceToPlace(Guid elementId, double lat, double lon)
         {
             var db = new PraxisContext();
-            var place = db.StoredOsmElements.FirstOrDefault(e => e.privacyId == elementId);
+            var place = db.StoredOsmElements.FirstOrDefault(e => e.PrivacyId == elementId);
             if (place == null) return 0;
-            return place.elementGeometry.Distance(new NetTopologySuite.Geometries.Point(lon, lat));
+            return place.ElementGeometry.Distance(new NetTopologySuite.Geometries.Point(lon, lat));
         }
 
         [HttpGet]
@@ -326,9 +326,9 @@ namespace PraxisMapper.Controllers
         public string GetCenterOfPlace(Guid elementId)
         {
             var db = new PraxisContext();
-            var place = db.StoredOsmElements.FirstOrDefault(e => e.privacyId == elementId);
+            var place = db.StoredOsmElements.FirstOrDefault(e => e.PrivacyId == elementId);
             if (place == null) return "0|0";
-            var center = place.elementGeometry.Centroid;
+            var center = place.ElementGeometry.Centroid;
             return center.Y.ToString() + "|" + center.X.ToString();        
         }
 
@@ -339,7 +339,7 @@ namespace PraxisMapper.Controllers
             //GDPR compliance requires this to exist and be available to the user. 
             //Custom games that attach players to locations may need additional logic to fully meet legal requirements.
             var db = new PraxisContext();
-            var removing = db.PlayerData.Where(p => p.deviceID == deviceId).ToArray();
+            var removing = db.PlayerData.Where(p => p.DeviceID == deviceId).ToArray();
             db.PlayerData.RemoveRange(removing);
             return db.SaveChanges();
         }

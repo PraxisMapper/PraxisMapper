@@ -16,8 +16,8 @@ namespace PraxisMapper.Classes
         public PerformanceTracker(string name)
         {
             if (!EnableLogging) return;
-            pi.functionName = name;
-            pi.calledAt = DateTime.Now;
+            pi.FunctionName = name;
+            pi.CalledAt = DateTime.Now;
             sw.Start();
         }
 
@@ -30,8 +30,8 @@ namespace PraxisMapper.Classes
         {
             if (!EnableLogging) return;
             sw.Stop();
-            pi.runTime = sw.ElapsedMilliseconds;
-            pi.notes = notes;
+            pi.RunTime = sw.ElapsedMilliseconds;
+            pi.Notes = notes;
             PraxisContext db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false; //Diabling this saves ~17ms per call, which can be important on the webserver. Sproc is trivially faster than this setup.
             db.PerformanceInfo.Add(pi);

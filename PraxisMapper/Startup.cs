@@ -98,7 +98,7 @@ namespace PraxisMapper
             cache.Set<DbTables.ServerSetting>("settings", settings, entryOptions);
             var serverBounds = Converters.GeoAreaToPreparedPolygon(new Google.OpenLocationCode.GeoArea(settings.SouthBound, settings.WestBound, settings.NorthBound, settings.EastBound));
             cache.Set<IPreparedGeometry>("serverBounds", serverBounds, entryOptions);
-            cache.Set("caching", settings.enableMapTileCaching); //convenience entry
+            cache.Set("caching", settings.EnableMapTileCaching); //convenience entry
             IMapTiles.MapTileSizeSquare = settings.SlippyMapTileSizeSquare;
 
             Log.WriteLog("PraxisMapper configured and running.");

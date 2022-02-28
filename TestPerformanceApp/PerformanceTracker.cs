@@ -16,15 +16,15 @@ namespace PerformanceTestApp
         System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
         public PerformanceTracker(string name)
         {
-            pi.functionName = name;
-            pi.calledAt = DateTime.Now;
+            pi.FunctionName = name;
+            pi.CalledAt = DateTime.Now;
             sw.Start();
         }
 
         public void Stop()
         {
             sw.Stop();
-            pi.runTime = sw.ElapsedMilliseconds;
+            pi.RunTime = sw.ElapsedMilliseconds;
             PraxisContext db = new PraxisContext();
             db.PerformanceInfo.Add(pi);
             db.SaveChanges();
@@ -34,7 +34,7 @@ namespace PerformanceTestApp
         public void StopNoChangeTracking()
         {
             sw.Stop();
-            pi.runTime = sw.ElapsedMilliseconds;
+            pi.RunTime = sw.ElapsedMilliseconds;
             PraxisContext db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             db.PerformanceInfo.Add(pi);
@@ -46,7 +46,7 @@ namespace PerformanceTestApp
         {
             sw.Stop();
             PraxisContext db = new PraxisContext();
-            db.Database.ExecuteSqlRaw("SavePerfInfo @p0, @p1, @p2, @p3", parameters: new object[] { pi.functionName, sw.ElapsedMilliseconds, pi.calledAt, "" });
+            db.Database.ExecuteSqlRaw("SavePerfInfo @p0, @p1, @p2, @p3", parameters: new object[] { pi.FunctionName, sw.ElapsedMilliseconds, pi.CalledAt, "" });
             return;
         }
     }

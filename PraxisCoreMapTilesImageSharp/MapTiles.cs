@@ -40,8 +40,8 @@ namespace PraxisCore
 
             foreach (var g in TagParser.allStyleGroups)
                 foreach (var s in g.Value)
-                    foreach (var p in s.Value.paintOperations)
-                        cachedPaints.Add(p.id, SetPaintForTPP(p)); //this fails if loaded from defaults since all IDs are 0.
+                    foreach (var p in s.Value.PaintOperations)
+                        cachedPaints.Add(p.Id, SetPaintForTPP(p)); //this fails if loaded from defaults since all IDs are 0.
 
             dOpts = new DrawingOptions();
             ShapeOptions so = new ShapeOptions();
@@ -68,8 +68,8 @@ namespace PraxisCore
                 htmlColor = htmlColor.Substring(2, 6) + htmlColor.Substring(0, 2);
             IBrush paint = new SolidBrush(Rgba32.ParseHex(htmlColor));
 
-            if (!string.IsNullOrEmpty(tpe.fileName))
-                paint = new ImageBrush(cachedBitmaps[tpe.fileName]);
+            if (!string.IsNullOrEmpty(tpe.FileName))
+                paint = new ImageBrush(cachedBitmaps[tpe.FileName]);
 
             return paint;
         }
@@ -312,10 +312,13 @@ namespace PraxisCore
             //THIS is the core drawing function, and other version should call this so there's 1 function that handles the inner loop.
             //baseline image data stuff           
             var image = new Image<Rgba32>(stats.imageSizeX, stats.imageSizeY);
-            foreach (var w in paintOps.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))
+            foreach (var w in paintOps.OrderByDescending(p => p.paintOp.LayerId).ThenByDescending(p => p.areaSize))
             {
                 //I need paints for fill commands and images. 
-                var paint = cachedPaints[w.paintOp.id];
+                var paint = cachedPaints[w.paintOp.Id];
+
+                if (w.paintOp.Randomize) //To randomize the color on every Draw call.
+                    w.paintOp.HtmlColorCode = "99" + ((byte)r.Next(0, 255)).ToString() +  ((byte)r.Next(0, 255)).ToString() + ((byte)r.Next(0, 255)).ToString();
 
                 //TODO: use stats to see if this image is scaled to gameTile values, and if so then use cached pre-made pens?
                 Pen pen;
@@ -379,10 +382,10 @@ namespace PraxisCore
                     case "Point":
                         var convertedPoint = PointToPointF(thisGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                         //If this type has an icon, use it. Otherwise draw a circle in that type's color.
-                        if (!string.IsNullOrEmpty(w.paintOp.fileName))
+                        if (!string.IsNullOrEmpty(w.paintOp.FileName))
                         {
                             //TODO test that this draws in correct position.
-                            Image i2 = cachedBitmaps[w.paintOp.fileName];
+                            Image i2 = cachedBitmaps[w.paintOp.FileName];
                             image.Mutate(x => x.DrawImage(i2, (SixLabors.ImageSharp.Point)convertedPoint, 1));
                         }
                         else
@@ -441,7 +444,7 @@ namespace PraxisCore
         /// <returns>the Rgba32 saved into the requested background paint object.</returns>
         public Rgba32 GetStyleBgColorString(string styleSet)
         {
-            var color = Rgba32.ParseHex(TagParser.allStyleGroups[styleSet]["background"].paintOperations.First().HtmlColorCode);
+            var color = Rgba32.ParseHex(TagParser.allStyleGroups[styleSet]["background"].PaintOperations.First().HtmlColorCode);
             return color;
         }
 
