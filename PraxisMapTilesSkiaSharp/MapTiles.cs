@@ -1,17 +1,10 @@
 ﻿using Google.OpenLocationCode;
 using NetTopologySuite.Geometries;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
+using PraxisCore.Support;
+using SkiaSharp;
 using static PraxisCore.ConstantValues;
 using static PraxisCore.DbTables;
 using static PraxisCore.Place;
-using SkiaSharp;
-using PraxisCore.Support;
-using System.Collections.Concurrent;
-using Microsoft.EntityFrameworkCore;
-using System.Threading.Tasks;
 
 namespace PraxisCore
 {
