@@ -13,6 +13,7 @@ namespace PraxisMapper.Classes
             el.StackTrace = ex.StackTrace;
             el.LoggedAt = DateTime.Now;
             var db = new PraxisContext();
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             db.ErrorLogs.Add(el);
             db.SaveChanges();
         }

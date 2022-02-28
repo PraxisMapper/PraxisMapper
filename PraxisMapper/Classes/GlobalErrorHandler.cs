@@ -27,7 +27,6 @@ namespace PraxisMapper.Classes
                 response.ContentType = "text/text";
                 response.StatusCode = 500;
 
-
                 var result = "Server error";
                 await response.WriteAsync(result);
             }

@@ -131,7 +131,7 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        [Route("/[controller]/CheckPassword/{devicedId}/{password}")]
+        [Route("/[controller]/CheckPwwwwassword/{devicedId}/{password}")]
         public bool CheckPassword(string deviceId, string password)
         {
             BlowfishCrypter crypter = new BlowfishCrypter();

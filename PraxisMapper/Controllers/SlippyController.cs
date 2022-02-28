@@ -22,19 +22,19 @@ namespace PraxisMapper.Controllers
             }
         }
 
-        [HttpGet]
-        [Route("/[controller]/ZZT")]
-        public IActionResult ZZT()
-        {
-            try
-            {
-                return View("ZZT");
-            }
-            catch (Exception ex)
-            {
-                var a = ex;
-                return null;
-            }
-        }
+        //[HttpGet]
+        //[Route("/[controller]/ZZT")]
+        //public IActionResult ZZT()
+        //{
+        //    try
+        //    {
+        //        return View("ZZT");
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        var a = ex;
+        //        return null;
+        //    }
+        //}
     }
 }

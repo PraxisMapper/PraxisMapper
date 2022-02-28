@@ -62,18 +62,6 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        [Route("/[controller]/GetServerBounds/{password}")]
-        public string GetServerBounds(string password)
-        {
-            //NOTE: this is duplicated in DataController without the admin password check.
-            if (password != Configuration.GetValue<string>("adminPwd"))
-                return "";
-
-            var results = cache.Get<ServerSetting>("settings");
-            return results.SouthBound + "," + results.WestBound + "|" + results.NorthBound + "," + results.EastBound;
-        }
-
-        [HttpGet]
         [Route("/[controller]/test")]
         public string TestDummyEndpoint()
         {

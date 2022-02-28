@@ -28,7 +28,6 @@ namespace PraxisMapper
             PraxisContext.serverMode = Configuration.GetValue<string>("dbMode");
             PraxisHeaderCheck.enableAuthCheck = Configuration.GetValue<bool>("enableAuthCheck");
             PraxisHeaderCheck.ServerAuthKey = Configuration.GetValue<string>("serverAuthKey");
-            //AdminController.adminPwd = Configuration.GetValue<string>("adminPwd"); This pulls it directly from the configuration object in AdminController.
             DataCheck.DisableBoundsCheck = Configuration.GetValue<bool>("DisableBoundsCheck");
 
             mapTilesEngine = Configuration.GetValue<string>("MapTilesEngine");
@@ -67,7 +66,7 @@ namespace PraxisMapper
                 services.AddSingleton(typeof(IMapTiles), mapTiles);
             }
 
-            TagParser.Initialize(Configuration.GetValue<bool>("ForceTagParserDefaults"), mapTiles); //set to true when debugging new style rules without resetting the database entries.
+            TagParser.Initialize(Configuration.GetValue<bool>("ForceTagParserDefaults"), mapTiles);
             MapTileSupport.MapTiles = mapTiles;
         }
 
@@ -100,7 +99,7 @@ namespace PraxisMapper
             var serverBounds = Converters.GeoAreaToPreparedPolygon(new Google.OpenLocationCode.GeoArea(settings.SouthBound, settings.WestBound, settings.NorthBound, settings.EastBound));
             cache.Set<IPreparedGeometry>("serverBounds", serverBounds, entryOptions);
             cache.Set("caching", settings.enableMapTileCaching); //convenience entry
-            IMapTiles.MapTileSizeSquare = settings.SlippyMapTileSizeSquare; //TODO: set in config instead of static value?
+            IMapTiles.MapTileSizeSquare = settings.SlippyMapTileSizeSquare;
 
             Log.WriteLog("PraxisMapper configured and running.");
         }
