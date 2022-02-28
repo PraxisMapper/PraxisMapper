@@ -1,18 +1,18 @@
-﻿using PraxisCore;
-using Google.OpenLocationCode;
+﻿using Google.OpenLocationCode;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using NetTopologySuite.Geometries.Prepared;
+using PraxisCore;
 using PraxisMapper.Classes;
 using System;
+using System.Collections.Concurrent;
+using System.Linq;
 using System.Text;
+using System.Threading;
 using static PraxisCore.DbTables;
 using static PraxisCore.Place;
-using System.Linq;
-using Microsoft.EntityFrameworkCore;
-using System.Collections.Concurrent;
-using System.Threading;
 
 namespace PraxisMapper.Controllers
 {
@@ -289,11 +289,11 @@ namespace PraxisMapper.Controllers
             GeoArea box = OpenLocationCode.DecodeValid(plusCode);
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), box))
                 return "";
-            var places = GetPlaces(box); //, includeGenerated: Configuration.GetValue<bool>("generateAreas")  //All the places in this Cell8
+            var places = GetPlaces(box); //All the places in this Cell8
             places = places.Where(p => p.GameElementName != TagParser.defaultStyle.name).ToList();
 
             StringBuilder sb = new StringBuilder();
-            //pluscode|name|type|StoredOsmElementID
+            //pluscode|name|type|privacyID(named wrong but its the Guid)
 
             var data = AreaTypeInfo.SearchAreaFull(ref box, ref places);
             foreach (var d in data)
