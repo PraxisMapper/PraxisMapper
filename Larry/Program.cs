@@ -42,8 +42,8 @@ namespace Larry
             if (args.Any(a => a == "-createDB")) //setup the destination database
             {
                 createDb();
-                TagParser.Initialize(config["ForceTagParserDefaults"] == "True", MapTiles); //Do this after the DB is created just in case.
             }
+            TagParser.Initialize(config["ForceTagParserDefaults"] == "True", MapTiles); //This last bit of config must be done after DB creation check
 
             Log.WriteLog("Larry started at " + DateTime.Now);
 
@@ -495,7 +495,6 @@ namespace Larry
                 var asm2 = Assembly.LoadFrom(@"PraxisMapTilesImageSharp.dll");
                 MapTiles = (IMapTiles)Activator.CreateInstance(asm2.GetType("PraxisCore.MapTiles"));
             }
-            TagParser.Initialize(config["ForceTagParserDefaults"] == "True", MapTiles);
             IMapTiles.GameTileScale = config["mapTileScaleFactor"].ToInt();
             IMapTiles.MapTileSizeSquare = config["slippyTileSize"].ToInt();
             IMapTiles.bufferSize = config["placesAreaBuffer"].ToDouble();
