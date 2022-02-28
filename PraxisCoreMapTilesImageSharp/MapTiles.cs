@@ -1,22 +1,15 @@
 ﻿using Google.OpenLocationCode;
 using NetTopologySuite.Geometries;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
+using PraxisCore.Support;
+using SixLabors.Fonts;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Drawing;
+using SixLabors.ImageSharp.Drawing.Processing;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 using static PraxisCore.ConstantValues;
 using static PraxisCore.DbTables;
 using static PraxisCore.Place;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Drawing;
-using PraxisCore.Support;
-using System.Collections.Concurrent;
-using Microsoft.EntityFrameworkCore;
-using System.Threading.Tasks;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
-using SixLabors.ImageSharp.Drawing.Processing;
-using SixLabors.Fonts;
 
 namespace PraxisCore
 {
@@ -56,7 +49,6 @@ namespace PraxisCore
             GraphicsOptions go = new GraphicsOptions();
             go.Antialias = true;
             go.AntialiasSubpixelDepth = 16; //defaults to 16, would 4 improve speed? would 25 or 64 improve quality? (not visible so from early testing.)
-            //go.AlphaCompositionMode = PixelAlphaCompositionMode.SrcOver; //most of these make nothing render.
             dOpts.GraphicsOptions = go;
             dOpts.ShapeOptions = so;
         }
@@ -113,7 +105,7 @@ namespace PraxisCore
             var fillColor = Rgba32.ParseHex("000000");
             var strokeColor = Rgba32.ParseHex("000000");
 
-            var placeInfo = PraxisCore.Standalone.Standalone.GetPlaceInfo(items.Where(i =>
+            var placeInfo = Standalone.Standalone.GetPlaceInfo(items.Where(i =>
             i.IsGameElement
             ).ToList());
 
@@ -265,7 +257,7 @@ namespace PraxisCore
             var drawableLine = PolygonToDrawingLine(line, mapToDraw, info.degreesPerPixelX, info.degreesPerPixelY);
 
             //Now, draw that path on the map.
-            var places = GetPlaces(mapToDraw); //, null, false, false, degreesPerPixelX * 4 ///TODO: restore item filtering
+            var places = GetPlaces(mapToDraw);
             var baseImage = DrawAreaAtSize(info, places);
 
             Image<Rgba32> image = new Image<Rgba32>(info.imageSizeX, info.imageSizeY);
@@ -296,7 +288,7 @@ namespace PraxisCore
             //This can work for user data by using the linked StoredOsmElements from the items in CustomDataStoredElement.
             //I need a slightly different function for using CustomDataPlusCode, or another optional parameter here
 
-            //This should just get hte paint ops then call the core drawing function.
+            //This should just get the paint ops then call the core drawing function.
             double minimumSize = 0;
             if (filterSmallAreas)
             {
@@ -453,12 +445,11 @@ namespace PraxisCore
             return color;
         }
 
-        public SixLabors.ImageSharp.Drawing.IPath PolygonToDrawingPolygon(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
+        public IPath PolygonToDrawingPolygon(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
         {
             var lineSegmentList = new List<LinearLineSegment>();
             NetTopologySuite.Geometries.Polygon p = (NetTopologySuite.Geometries.Polygon)place;
             var typeConvertedPoints = p.ExteriorRing.Coordinates.Select(o => new SixLabors.ImageSharp.PointF((float)((o.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / resolutionY))));
-            //lineSegmentList.Add(new LinearLineSegment(typeConvertedPoints.ToArray()));
             var path = new SixLabors.ImageSharp.Drawing.Path(new LinearLineSegment(typeConvertedPoints.ToArray())).AsClosedPath();
 
             foreach (var hole in p.InteriorRings)
@@ -470,11 +461,11 @@ namespace PraxisCore
             return path;
         }
 
-        public SixLabors.ImageSharp.Drawing.LinearLineSegment PolygonToDrawingLine(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
+        public LinearLineSegment PolygonToDrawingLine(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
         {
             //NOTE: this doesn't handle holes if you add them to the end in the reverse order. Those must be handled by a function in ImageSharp.
             var typeConvertedPoints = place.Coordinates.Select(o => new SixLabors.ImageSharp.PointF((float)((o.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / resolutionY))));
-            SixLabors.ImageSharp.Drawing.LinearLineSegment part = new SixLabors.ImageSharp.Drawing.LinearLineSegment(typeConvertedPoints.ToArray());
+            LinearLineSegment part = new LinearLineSegment(typeConvertedPoints.ToArray());
             var x = new SixLabors.ImageSharp.Drawing.Path();
             return part;
         }
