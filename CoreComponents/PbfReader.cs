@@ -1023,10 +1023,9 @@ namespace PraxisCore.PbfReader
                 foreach (var blockRead in activeBlocks)
                 {
                     if (!accessedBlocks.ContainsKey(blockRead.Key))
-                        activeBlocks.TryRemove(blockRead);
+                        activeBlocks.TryRemove(blockRead.Key, out var x);
                 }
                 accessedBlocks.Clear();
-                //activeBlocks.TryRemove(blockId, out var x);
                 return results;
             }
             catch (Exception ex)
