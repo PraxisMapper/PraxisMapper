@@ -134,7 +134,8 @@ namespace PraxisCore
             [Required]
             public Geometry ElementGeometry { get; set; }
             public ICollection<ElementTags> Tags { get; set; }
-            public bool IsGameElement { get; set; } //To use when determining if this element should or shouldn't be used as an answer when determining game interaction in an area.
+            [NotMapped]
+            public bool IsGameElement { get; set; } //Gets determined by styles, shouldn't be a persisted property. Only used to make standalone DB right now.
             [NotMapped]
             public string GameElementName { get; set; } //Placeholder for TagParser to load up the name of the matching style for this element, but don't save it to the DB so we can change it on the fly.
             public double AreaSize { get; set; } //For sorting purposes. Draw smaller areas over larger areas.

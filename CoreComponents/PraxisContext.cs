@@ -320,7 +320,6 @@ namespace PraxisCore
                 {
                     if (existingData.AreaSize != entry.AreaSize) existingData.AreaSize = entry.AreaSize;
                     if (existingData.GameElementName != entry.GameElementName) existingData.GameElementName = entry.GameElementName;
-                    if (existingData.IsGameElement != entry.IsGameElement) existingData.IsGameElement = entry.IsGameElement;
 
                     bool expireTiles = false;
                     if (!existingData.ElementGeometry.EqualsTopologically(entry.ElementGeometry)) //TODO: this might need to be EqualsExact?
