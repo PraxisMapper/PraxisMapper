@@ -71,7 +71,7 @@ namespace Larry
                 ResetFiles(config["PbfFolder"]);
             }
 
-            if (args.Any(a => a == "-resetJson"))
+            if (args.Any(a => a == "-resetGeomData"))
             {
                 ResetFiles(config["OutputDataFolder"]);
             }

@@ -81,7 +81,7 @@ namespace PerformanceTestApp
             //TestCustomPbfReader();
             //TestDrawingHoles();
             //TestPbfParsing();
-            TestMaptileDrawing();
+            //TestMaptileDrawing();
             //TestTagParsers();
             //TestSpanOnEntry("754866354	2	LINESTRING (-82.110422 40.975346, -82.1113778 40.9753544)	0.0009558369107748833	2028a47f-4119-4426-b40f-a8715d67f962");
             //TestSpanOnEntry("945909899	1	POINT (-84.1416403 39.7111214)	0.000125	5b9f9899-09dc-4b53-ba1a-5799fe6f992b");
@@ -788,15 +788,15 @@ namespace PerformanceTestApp
             string testPlaceWKT = "POLYGON ((-83.737174987792969 40.103412628173828, -83.734664916992188 40.101036071777344, -83.732452392578125 40.100399017333984, -83.7278823852539 40.100162506103516, -83.7275390625 40.102806091308594, -83.737174987792969 40.103412628173828))";
             //check on performance for reading and writing a MapData entry to Json file.
             //Fixed MapData Entry
-            MapDataForJson test1 = new MapDataForJson("TestPlace", testPlaceWKT, "Way", 12345, null, null, 1, 1);
+            //MapDataForJson test1 = new MapDataForJson("TestPlace", testPlaceWKT, "Way", 12345, null, null, 1, 1);
             string tempFile = System.IO.Path.GetTempFileName();
             sw.Start();
             //WriteMapDataToFile(tempFile, ref l);
-            var test2 = JsonSerializer.Serialize(test1, typeof(MapDataForJson));
+            //var test2 = JsonSerializer.Serialize(test1, typeof(MapDataForJson));
             sw.Stop();
             Log.WriteLog("Single MapData to Json took " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds + "ms)");
             sw.Restart();
-            MapDataForJson j = (MapDataForJson)JsonSerializer.Deserialize(test2, typeof(MapDataForJson));
+            //MapDataForJson j = (MapDataForJson)JsonSerializer.Deserialize(test2, typeof(MapDataForJson));
             sw.Stop();
             Log.WriteLog("Single Json to MapData took " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds + "ms)");
             File.Delete(tempFile); //Clean up after ourselves.

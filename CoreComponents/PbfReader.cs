@@ -967,8 +967,6 @@ namespace PraxisCore.PbfReader
         /// </summary>
         /// <param name="blockId">the block to process</param>
         /// <param name="onlyTagMatchedEntries">if true, skips elements that match the default style for the TagParser style set</param>
-        /// <param name="infileProcess">if true, save results to a MariaDB Infile formatted text file, allowing for dramatically faster loading than the normal JSON process.</param>
-        /// <param name="exportNodesToJson">if true, save results in JSON format to a text file for loading into any database.</param>
         /// <returns>A ConcurrentBag of OSMSharp CompleteGeo objects.</returns>
         public ConcurrentBag<OsmSharp.Complete.ICompleteOsmGeo> GetGeometryFromBlock(long blockId, bool onlyTagMatchedEntries = false)
         {
