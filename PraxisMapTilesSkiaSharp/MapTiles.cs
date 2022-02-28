@@ -32,8 +32,8 @@ namespace PraxisCore
 
             foreach (var g in TagParser.allStyleGroups)
                 foreach(var s in g.Value)
-                    foreach(var p in s.Value.paintOperations)
-                        cachedPaints.Add(p.id, SetPaintForTPP(p));
+                    foreach(var p in s.Value.PaintOperations)
+                        cachedPaints.Add(p.Id, SetPaintForTPP(p));
         }
 
         /// <summary>
@@ -59,11 +59,11 @@ namespace PraxisCore
                 paint.PathEffect = SKPathEffect.CreateDash(linesAndGaps, 0);
                 paint.StrokeCap = SKStrokeCap.Butt;
             }
-            if (!string.IsNullOrEmpty(tpe.fileName))
+            if (!string.IsNullOrEmpty(tpe.FileName))
             {
                 //byte[] fileData = System.IO.File.ReadAllBytes(tpe.fileName);
                 //byte[] fileData = new PraxisContext().TagParserStyleBitmaps.FirstOrDefault(f => f.filename == tpe.fileName).data;
-                SKBitmap fillPattern = cachedBitmaps[tpe.fileName];// SKBitmap.Decode(fileData); //TODO: remove this, replace with raw byte data. let Maptile library deal with converting it to formats.
+                SKBitmap fillPattern = cachedBitmaps[tpe.FileName];// SKBitmap.Decode(fileData); //TODO: remove this, replace with raw byte data. let Maptile library deal with converting it to formats.
                 //cachedBitmaps.TryAdd(tpe.fileName, fillPattern); //For icons.
                 SKShader tiling = SKShader.CreateBitmap(fillPattern, SKShaderTileMode.Repeat, SKShaderTileMode.Repeat); //For fill patterns.
                 paint.Shader = tiling;
@@ -329,14 +329,14 @@ namespace PraxisCore
             canvas.Scale(1, -1, stats.imageSizeX / 2, stats.imageSizeY / 2);
             SKPaint paint = new SKPaint();
 
-            foreach (var w in paintOps.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))
+            foreach (var w in paintOps.OrderByDescending(p => p.paintOp.LayerId).ThenByDescending(p => p.areaSize))
             {
-                paint = cachedPaints[w.paintOp.id]; //SetPaintForTPP(w.paintOp); // w.paintOp.paint;
+                paint = cachedPaints[w.paintOp.Id]; //SetPaintForTPP(w.paintOp); // w.paintOp.paint;
 
-                if (w.paintOp.fromTag) //FromTag is for when you are saving color data directly to each element, instead of tying it to a styleset.
+                if (w.paintOp.FromTag) //FromTag is for when you are saving color data directly to each element, instead of tying it to a styleset.
                     paint.Color = SKColor.Parse(w.tagValue);
 
-                if (w.paintOp.randomize) //To randomize the color on every Draw call.
+                if (w.paintOp.Randomize) //To randomize the color on every Draw call.
                     paint.Color = new SKColor((byte)r.Next(0, 255), (byte)r.Next(0, 255), (byte)r.Next(0, 255), 99);
 
                 paint.StrokeWidth = (float)w.lineWidth;
@@ -404,9 +404,9 @@ namespace PraxisCore
                     case "Point":
                         var convertedPoint = PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                         //If this type has an icon, use it. Otherwise draw a circle in that type's color.
-                        if (!string.IsNullOrEmpty(w.paintOp.fileName))
+                        if (!string.IsNullOrEmpty(w.paintOp.FileName))
                         {
-                            SKBitmap icon = SKBitmap.Decode(TagParser.cachedBitmaps[w.paintOp.fileName]); //TODO optimize by making icons in Initialize.
+                            SKBitmap icon = SKBitmap.Decode(TagParser.cachedBitmaps[w.paintOp.FileName]); //TODO optimize by making icons in Initialize.
                             canvas.DrawBitmap(icon, convertedPoint[0]);
                         }
                         else
@@ -465,27 +465,27 @@ namespace PraxisCore
             MemoryStream s = new MemoryStream();
             SKCanvas canvas = SKSvgCanvas.Create(bounds, s); //output not guaranteed to be complete until the canvas is deleted?!?
             //SKCanvas canvas = new SKCanvas(bitmap);
-            var bgColor = SKColor.Parse(styles["background"].paintOperations.First().HtmlColorCode);
+            var bgColor = SKColor.Parse(styles["background"].PaintOperations.First().HtmlColorCode);
             //Backgound is a named style, unmatched will be the last entry and transparent.
             canvas.Clear(bgColor);
             canvas.Scale(1, -1, stats.imageSizeX / 2, stats.imageSizeY / 2);
             SKPaint paint = new SKPaint();
 
             //I guess what I want here is a list of an object with an elementGeometry object for the shape, and a paintOp attached to it
-            var pass1 = drawnItems.Select(d => new { d.AreaSize, d.elementGeometry, paintOp = styles[d.GameElementName].paintOperations });
+            var pass1 = drawnItems.Select(d => new { d.AreaSize, d.ElementGeometry, paintOp = styles[d.GameElementName].PaintOperations });
             var pass2 = new List<CompletePaintOp>(drawnItems.Count() * 2);
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
-                    pass2.Add(new CompletePaintOp(op.elementGeometry, op.AreaSize, po, "", po.LineWidth * stats.pixelsPerDegreeX));
+                    pass2.Add(new CompletePaintOp(op.ElementGeometry, op.AreaSize, po, "", po.LineWidth * stats.pixelsPerDegreeX));
 
 
-            foreach (var w in pass2.OrderByDescending(p => p.paintOp.layerId).ThenByDescending(p => p.areaSize))
+            foreach (var w in pass2.OrderByDescending(p => p.paintOp.LayerId).ThenByDescending(p => p.areaSize))
             {
-                paint = cachedPaints[w.paintOp.id]; //SetPaintForTPP(w.paintOp);
+                paint = cachedPaints[w.paintOp.Id]; //SetPaintForTPP(w.paintOp);
                 if (paint.Color.Alpha == 0)
                     continue; //This area is transparent, skip drawing it entirely.
 
-                if (stats.degreesPerPixelX > w.paintOp.maxDrawRes || stats.degreesPerPixelX < w.paintOp.minDrawRes)
+                if (stats.degreesPerPixelX > w.paintOp.MaxDrawRes || stats.degreesPerPixelX < w.paintOp.MinDrawRes)
                     continue; //This area isn't drawn at this scale.
 
                 var path = new SKPath();
@@ -542,9 +542,9 @@ namespace PraxisCore
                     case "Point":
                         var convertedPoint = PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                         //If this type has an icon, use it. Otherwise draw a circle in that type's color.
-                        if (!string.IsNullOrEmpty(w.paintOp.fileName))
+                        if (!string.IsNullOrEmpty(w.paintOp.FileName))
                         {
-                            SKBitmap icon = SKBitmap.Decode(TagParser.cachedBitmaps[w.paintOp.fileName]); //TODO optimize by creating in Initialize
+                            SKBitmap icon = SKBitmap.Decode(TagParser.cachedBitmaps[w.paintOp.FileName]); //TODO optimize by creating in Initialize
                             canvas.DrawBitmap(icon, convertedPoint[0]);
                         }
                         else
@@ -600,7 +600,7 @@ namespace PraxisCore
         /// <returns>the SKColor saved into the requested background paint object.</returns>
         public SKColor GetStyleBgColor(string styleSet)
         {
-            var color = SKColor.Parse(TagParser.allStyleGroups[styleSet]["background"].paintOperations.First().HtmlColorCode);
+            var color = SKColor.Parse(TagParser.allStyleGroups[styleSet]["background"].PaintOperations.First().HtmlColorCode);
             return color;
         }
 

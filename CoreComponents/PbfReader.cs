@@ -149,13 +149,13 @@ namespace PraxisCore.PbfReader
                 string entry = sr.ReadLine();
                 StoredOsmElement md = GeometrySupport.ConvertSingleTsvStoredElement(entry);
 
-                if (bounds != null && (!bounds.Intersects(md.elementGeometry.EnvelopeInternal)))
+                if (bounds != null && (!bounds.Intersects(md.ElementGeometry.EnvelopeInternal)))
                     continue;
 
                 if (processingMode == "center")
-                    md.elementGeometry = md.elementGeometry.Centroid;
+                    md.ElementGeometry = md.ElementGeometry.Centroid;
 
-                sb.Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(md.elementGeometry.AsText()).Append("\t").Append(md.AreaSize).Append("\t").Append(md.privacyId).Append("\r\n");
+                sb.Append(md.SourceItemID).Append("\t").Append(md.SourceItemType).Append("\t").Append(md.ElementGeometry.AsText()).Append("\t").Append(md.AreaSize).Append("\t").Append(md.PrivacyId).Append("\r\n");
                 reprocFileStream.WriteLine(sb.ToString());
             }
             sr.Close(); sr.Dispose(); fr.Close(); fr.Dispose();
@@ -213,9 +213,9 @@ namespace PraxisCore.PbfReader
                     //Get the source relation first
                     var relation = GetRelation(relationId);
                     var NTSrelation = GeometrySupport.ConvertOsmEntryToStoredElement(relation);
-                    bounds = NTSrelation.elementGeometry.EnvelopeInternal;
+                    bounds = NTSrelation.ElementGeometry.EnvelopeInternal;
                     var pgf = new PreparedGeometryFactory();
-                    boundsEntry = pgf.Create(NTSrelation.elementGeometry);
+                    boundsEntry = pgf.Create(NTSrelation.ElementGeometry);
                 }
 
                 if (!lowResourceMode) //typical path
@@ -541,7 +541,7 @@ namespace PraxisCore.PbfReader
                 if (ignoreUnmatched)
                 {
                     var tpe = TagParser.GetStyleForOsmWay(r.Tags, styleSet);
-                    if (tpe.name == TagParser.defaultStyle.name)
+                    if (tpe.Name == TagParser.defaultStyle.Name)
                         return null; //This is 'unmatched', skip processing this entry.
                 }
 
@@ -683,7 +683,7 @@ namespace PraxisCore.PbfReader
 
                 if (ignoreUnmatched)
                 {
-                    if (TagParser.GetStyleForOsmWay(finalway.Tags, styleSet).name == TagParser.defaultStyle.name)
+                    if (TagParser.GetStyleForOsmWay(finalway.Tags, styleSet).Name == TagParser.defaultStyle.Name)
                         return null; //don't process this one, we said not to load entries that aren't already in our style list.
                 }
 
@@ -1281,22 +1281,22 @@ namespace PraxisCore.PbfReader
             relList = new ConcurrentBag<Task>();
 
             if (onlyMatchedAreas)
-                elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => TagParser.GetStyleForOsmWay(e.Tags, styleSet).name != TagParser.defaultStyle.name));
+                elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => TagParser.GetStyleForOsmWay(e.Tags, styleSet).Name != TagParser.defaultStyle.Name));
 
             if (boundsEntry != null)
-                elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => boundsEntry.Intersects(e.elementGeometry)));
+                elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => boundsEntry.Intersects(e.ElementGeometry)));
 
             if (elements.Count == 0)
                 return;
 
             //Single check per block to fix points having 0 size.
-            if (elements.First().sourceItemType == 1)
+            if (elements.First().SourceItemType == 1)
                 foreach (var e in elements)
                     e.AreaSize = ConstantValues.resolutionCell10;
 
             if (processingMode == "center")
                 foreach (var e in elements)
-                    e.elementGeometry = e.elementGeometry.Centroid;
+                    e.ElementGeometry = e.ElementGeometry.Centroid;
 
             if (saveToDB) //If this is on, we skip the file-writing part and send this data directly to the DB. Single threaded, but doesn't waste disk space with intermediate files.
             {
@@ -1313,9 +1313,9 @@ namespace PraxisCore.PbfReader
                 StringBuilder tagBuilds = new StringBuilder(40000); //40kb, tags are usually smaller than geometry.
                 foreach (var md in elements)
                 {
-                    geometryBuilds.Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(md.elementGeometry.AsText()).Append("\t").Append(md.AreaSize).Append("\t").Append(Guid.NewGuid()).Append("\r\n");
+                    geometryBuilds.Append(md.SourceItemID).Append("\t").Append(md.SourceItemType).Append("\t").Append(md.ElementGeometry.AsText()).Append("\t").Append(md.AreaSize).Append("\t").Append(Guid.NewGuid()).Append("\r\n");
                     foreach (var t in md.Tags)
-                        tagBuilds.Append(md.sourceItemID).Append("\t").Append(md.sourceItemType).Append("\t").Append(t.Key).Append("\t").Append(t.Value.Replace("\r", "").Replace("\n", "")).Append("\r\n"); //Might also need to sanitize / and ' ?
+                        tagBuilds.Append(md.SourceItemID).Append("\t").Append(md.SourceItemType).Append("\t").Append(t.Key).Append("\t").Append(t.Value.Replace("\r", "").Replace("\n", "")).Append("\r\n"); //Might also need to sanitize / and ' ?
                 }
                 try
                 {

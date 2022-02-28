@@ -37,11 +37,11 @@ namespace Larry
             GeoArea buffered;
             if (relationID > 0)
             {
-                var fullArea = mainDb.StoredOsmElements.FirstOrDefault(m => m.sourceItemID == relationID && m.sourceItemType == 3);
+                var fullArea = mainDb.StoredOsmElements.FirstOrDefault(m => m.SourceItemID == relationID && m.SourceItemType == 3);
                 if (fullArea == null)
                     return;
 
-                buffered = Converters.GeometryToGeoArea(fullArea.elementGeometry);
+                buffered = Converters.GeometryToGeoArea(fullArea.ElementGeometry);
                 //This should also be able to take a bounding box in addition in the future.
             }
             else
@@ -102,7 +102,7 @@ namespace Larry
             //to save time, i need to index which areas are in which Cell6.
             //So i know which entries I can skip when running.
             var indexCell6 = PraxisCore.Standalone.Standalone.IndexAreasPerCell6(buffered, basePlaces);
-            var indexes = indexCell6.SelectMany(i => i.Value.Select(v => new PlaceIndex() { PlusCode = i.Key, placeInfoId = placeDictionary[v.sourceItemID].id })).ToList();
+            var indexes = indexCell6.SelectMany(i => i.Value.Select(v => new PlaceIndex() { PlusCode = i.Key, placeInfoId = placeDictionary[v.SourceItemID].id })).ToList();
             sqliteDb.PlaceIndexs.AddRange(indexes);
 
             sqliteDb.SaveChanges();
@@ -114,17 +114,17 @@ namespace Larry
             var toRemove = new List<PlaceInfo2>();
             foreach (var trail in basePlaces.Where(p => (p.GameElementName == "trail" || p.GameElementName == "road"))) //TODO: add rivers here?
             {
-                if (skipEntries.Contains(trail.sourceItemID))
+                if (skipEntries.Contains(trail.SourceItemID))
                     continue; //Don't per-cell index this one, we shifted it's envelope to handle it instead.
 
                 if (TagParser.GetPlaceName(trail.Tags) == "")
                     continue; //So sorry, but there's too damn many roads without names inflating DB size without being useful as-is.
 
                 //var pis = placeInfo.Where(p => p.OsmElementId == trail.sourceItemID).ToList();
-                var p = placeDictionary[trail.sourceItemID];
+                var p = placeDictionary[trail.SourceItemID];
                 toRemove.Add(p);
 
-                GeoArea thisPath = Converters.GeometryToGeoArea(trail.elementGeometry);
+                GeoArea thisPath = Converters.GeometryToGeoArea(trail.ElementGeometry);
                 List<StoredOsmElement> oneEntry = new List<StoredOsmElement>();
                 oneEntry.Add(trail);
 

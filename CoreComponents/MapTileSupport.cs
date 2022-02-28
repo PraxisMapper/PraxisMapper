@@ -102,8 +102,8 @@ namespace PraxisCore
         private static void GetPaintOps(ref List<CompletePaintOp> list, double areaSize, Geometry elementGeometry, ICollection<TagParserPaint> midOps, ImageStats stats)
         {
             foreach (var po in midOps)
-                if (stats.degreesPerPixelX < po.maxDrawRes
-                    && stats.degreesPerPixelX > po.minDrawRes //dppX should be between max and min draw range.
+                if (stats.degreesPerPixelX < po.MaxDrawRes
+                    && stats.degreesPerPixelX > po.MinDrawRes //dppX should be between max and min draw range.
                     && !(po.HtmlColorCode.Length == 8 && po.HtmlColorCode.StartsWith("00")) //color is NOT transparent.
                     )
                     list.Add(new CompletePaintOp(elementGeometry, areaSize, po, "", po.LineWidth * stats.pixelsPerDegreeX));
@@ -119,12 +119,12 @@ namespace PraxisCore
         public static List<CompletePaintOp> GetPaintOpsForStoredElements(List<StoredOsmElement> elements, string styleSet, ImageStats stats)
         {
             var styles = TagParser.allStyleGroups[styleSet];
-            var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].paintOperations.First(), "background", 1);
-            var pass1 = elements.Select(d => new { d.AreaSize, d.elementGeometry, paintOp = styles[d.GameElementName].paintOperations });
+            var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
+            var pass1 = elements.Select(d => new { d.AreaSize, d.ElementGeometry, paintOp = styles[d.GameElementName].PaintOperations });
             var pass2 = new List<CompletePaintOp>(elements.Count() * 2); 
             pass2.Add(bgOp);
             foreach (var op in pass1)
-                GetPaintOps(ref pass2, op.AreaSize, op.elementGeometry, op.paintOp, stats);
+                GetPaintOps(ref pass2, op.AreaSize, op.ElementGeometry, op.paintOp, stats);
 
             return pass2;
         }
@@ -140,14 +140,14 @@ namespace PraxisCore
         public static List<CompletePaintOp> GetPaintOpsForCustomDataElements(Geometry area, string dataKey, string styleSet, ImageStats stats)
         {
             var db = new PraxisContext();
-            var elements = db.CustomDataOsmElements.Include(d => d.storedOsmElement).Where(d => d.dataKey == dataKey && area.Intersects(d.storedOsmElement.elementGeometry)).ToList();
+            var elements = db.CustomDataOsmElements.Include(d => d.StoredOsmElement).Where(d => d.DataKey == dataKey && area.Intersects(d.StoredOsmElement.ElementGeometry)).ToList();
             var styles = TagParser.allStyleGroups[styleSet];
-            var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].paintOperations.First(), "background", 1);
-            var pass1 = elements.Select(d => new { d.storedOsmElement.AreaSize, d.storedOsmElement.elementGeometry, paintOp = styles[d.dataValue].paintOperations, d.dataValue });
+            var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
+            var pass1 = elements.Select(d => new { d.StoredOsmElement.AreaSize, d.StoredOsmElement.ElementGeometry, paintOp = styles[d.DataValue].PaintOperations, d.DataValue });
             var pass2 = new List<CompletePaintOp>(elements.Count() * 2); 
             pass2.Add(bgOp);
             foreach (var op in pass1)
-                GetPaintOps(ref pass2, op.AreaSize, op.elementGeometry, op.paintOp, stats);
+                GetPaintOps(ref pass2, op.AreaSize, op.ElementGeometry, op.paintOp, stats);
 
             return pass2;
         }
@@ -164,14 +164,14 @@ namespace PraxisCore
         public static List<CompletePaintOp> GetPaintOpsForCustomDataPlusCodes(Geometry area, string dataKey, string styleSet, ImageStats stats)
         {
             var db = new PraxisContext();
-            var elements = db.CustomDataPlusCodes.Where(d => d.dataKey == dataKey && area.Intersects(d.geoAreaIndex)).ToList();
+            var elements = db.CustomDataPlusCodes.Where(d => d.DataKey == dataKey && area.Intersects(d.GeoAreaIndex)).ToList();
             var styles = TagParser.allStyleGroups[styleSet];
-            var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].paintOperations.First(), "background", 1);
-            var pass1 = elements.Select(d => new { d.geoAreaIndex.Area, d.geoAreaIndex, paintOp = styles[d.dataValue].paintOperations, d.dataValue });
+            var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
+            var pass1 = elements.Select(d => new { d.GeoAreaIndex.Area, d.GeoAreaIndex, paintOp = styles[d.DataValue].PaintOperations, d.DataValue });
             var pass2 = new List<CompletePaintOp>(elements.Count() * 2); 
             pass2.Add(bgOp);
             foreach (var op in pass1)
-                GetPaintOps(ref pass2, op.Area, op.geoAreaIndex, op.paintOp, stats);
+                GetPaintOps(ref pass2, op.Area, op.GeoAreaIndex, op.paintOp, stats);
 
             return pass2;
         }
@@ -188,14 +188,14 @@ namespace PraxisCore
         public static List<CompletePaintOp> GetPaintOpsForCustomDataPlusCodesFromTagValue(Geometry area, string dataKey, string styleSet, ImageStats stats)
         {
             var db = new PraxisContext();
-            var elements = db.CustomDataPlusCodes.Where(d => d.dataKey == dataKey && area.Intersects(d.geoAreaIndex)).ToList();
+            var elements = db.CustomDataPlusCodes.Where(d => d.DataKey == dataKey && area.Intersects(d.GeoAreaIndex)).ToList();
             var styles = TagParser.allStyleGroups[styleSet];
-            var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].paintOperations.First(), "background", 1);
-            var pass1 = elements.Select(d => new { d.geoAreaIndex.Area, d.geoAreaIndex, paintOp = styles["tag"].paintOperations, d.dataValue });
+            var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
+            var pass1 = elements.Select(d => new { d.GeoAreaIndex.Area, d.GeoAreaIndex, paintOp = styles["tag"].PaintOperations, d.DataValue });
             var pass2 = new List<CompletePaintOp>(elements.Count() * 2); //assuming each element has a Fill and Stroke op separately
             pass2.Add(bgOp);
             foreach (var op in pass1)
-                GetPaintOps(ref pass2, op.Area, op.geoAreaIndex, op.paintOp, stats);
+                GetPaintOps(ref pass2, op.Area, op.GeoAreaIndex, op.paintOp, stats);
 
             return pass2;
         }
@@ -265,7 +265,7 @@ namespace PraxisCore
                     var paddedArea = GeometrySupport.MakeBufferedGeoArea(plusCodeArea, ConstantValues.resolutionCell10);
 
                     var acheck = Converters.GeoAreaToPreparedPolygon(paddedArea); //Fastest search option is one preparedPolygon against a list of normal geometry.
-                    var areaList = rowList.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); //Get the list of areas in this maptile.
+                    var areaList = rowList.Where(a => acheck.Intersects(a.ElementGeometry)).ToList(); //Get the list of areas in this maptile.
 
                     int imgX = 0, imgY = 0;
                     GetPlusCodeImagePixelSize(plusCode8, out imgX, out imgY);
@@ -280,7 +280,7 @@ namespace PraxisCore
                     }
                     else
                     {
-                        var thisTile = new MapTile() { tileData = tile, PlusCode = plusCode8, CreatedOn = DateTime.Now, ExpireOn = expiration, areaCovered = acheck.Geometry, resolutionScale = 11, styleSet = "mapTiles" };
+                        var thisTile = new MapTile() { TileData = tile, PlusCode = plusCode8, ExpireOn = expiration, AreaCovered = acheck.Geometry, StyleSet = "mapTiles" };
                         lock (listLock)
                             tilesToSave.Add(thisTile);
                     }
@@ -344,10 +344,10 @@ namespace PraxisCore
                     //make map tile.
                     var info = new ImageStats(zoomLevel, x, y, IMapTiles.MapTileSizeSquare);
                     var acheck = Converters.GeoAreaToPolygon(info.area); //this is faster than using a PreparedPolygon in testing, which was unexpected.
-                    var areaList = rowList.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); //This one is for the maptile
+                    var areaList = rowList.Where(a => acheck.Intersects(a.ElementGeometry)).ToList(); //This one is for the maptile
 
                     var tile = MapTiles.DrawAreaAtSize(info, areaList);
-                    tilesToSave.Add(new SlippyMapTile() { tileData = tile, Values = x + "|" + y + "|" + zoomLevel, CreatedOn = DateTime.Now, ExpireOn = DateTime.Now.AddDays(3650), areaCovered = Converters.GeoAreaToPolygon(info.area), styleSet = "mapTiles" });
+                    tilesToSave.Add(new SlippyMapTile() { TileData = tile, Values = x + "|" + y + "|" + zoomLevel, ExpireOn = DateTime.Now.AddDays(3650), AreaCovered = Converters.GeoAreaToPolygon(info.area), StyleSet = "mapTiles" });
 
                     mapTileCounter++;
                 });

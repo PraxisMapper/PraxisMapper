@@ -149,8 +149,8 @@ namespace PraxisCore
                     return null;
                 }
                 var sw = new StoredOsmElement();
-                sw.sourceItemID = g.Id;
-                sw.sourceItemType = (g.Type == OsmGeoType.Relation ? 3 : g.Type == OsmGeoType.Way ? 2 : 1);
+                sw.SourceItemID = g.Id;
+                sw.SourceItemType = (g.Type == OsmGeoType.Relation ? 3 : g.Type == OsmGeoType.Way ? 2 : 1);
                 var geo = SimplifyArea(geometry);
                 if (geo == null)
                 {
@@ -158,15 +158,15 @@ namespace PraxisCore
                     return null;
                 }
                 geo.SRID = 4326;//Required for SQL Server to accept data.
-                sw.elementGeometry = geo;
+                sw.ElementGeometry = geo;
                 sw.Tags = tags; 
-                if (sw.elementGeometry.GeometryType == "LinearRing" || (sw.elementGeometry.GeometryType == "LineString" && sw.elementGeometry.Coordinates.First() == sw.elementGeometry.Coordinates.Last()))
+                if (sw.ElementGeometry.GeometryType == "LinearRing" || (sw.ElementGeometry.GeometryType == "LineString" && sw.ElementGeometry.Coordinates.First() == sw.ElementGeometry.Coordinates.Last()))
                 {
                     //I want to update all LinearRings to Polygons, and let the style determine if they're Filled or Stroked.
-                    var poly = factory.CreatePolygon((LinearRing)sw.elementGeometry);
-                    sw.elementGeometry = poly;
+                    var poly = factory.CreatePolygon((LinearRing)sw.ElementGeometry);
+                    sw.ElementGeometry = poly;
                 }
-                sw.AreaSize = sw.elementGeometry.Length > 0 ? sw.elementGeometry.Length : resolutionCell10;
+                sw.AreaSize = sw.ElementGeometry.Length > 0 ? sw.ElementGeometry.Length : resolutionCell10;
                 return sw;
             }
             catch(Exception ex)
@@ -203,7 +203,7 @@ namespace PraxisCore
             {
                 string line = srGeo.ReadLine();
                 var sw = ConvertSingleTsvStoredElement(line);
-                sw.Tags = tagDict[sw.sourceItemID].ToList();
+                sw.Tags = tagDict[sw.SourceItemID].ToList();
                 lm.Add(sw);
             }
             srGeo.Close(); srGeo.Dispose();
@@ -219,11 +219,11 @@ namespace PraxisCore
         {
             var source = sw.AsSpan();
             StoredOsmElement entry = new StoredOsmElement();
-            entry.sourceItemID = source.SplitNext('\t').ToLong();
-            entry.sourceItemType = source.SplitNext('\t').ToInt();
-            entry.elementGeometry = GeometryFromWKT(source.SplitNext('\t').ToString());
+            entry.SourceItemID = source.SplitNext('\t').ToLong();
+            entry.SourceItemType = source.SplitNext('\t').ToInt();
+            entry.ElementGeometry = GeometryFromWKT(source.SplitNext('\t').ToString());
             entry.AreaSize = source.SplitNext('\t').ToDouble();
-            entry.privacyId = Guid.Parse(source);
+            entry.PrivacyId = Guid.Parse(source);
 
             return entry;
         }

@@ -39,7 +39,7 @@ namespace PraxisMapper.Controllers
                 PerformanceTracker pt = new PerformanceTracker("DrawSlippyTile");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var db = new PraxisContext();
-                var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.styleSet == styleSet);
+                var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.StyleSet == styleSet);
                 bool useCache = false;
                 cache.TryGetValue("caching", out useCache);
                 if (!useCache || existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
@@ -65,13 +65,12 @@ namespace PraxisMapper.Controllers
                     results = MapTiles.DrawAreaAtSize(info, paintOps); //, TagParser.GetStyleBgColor(styleSet));
                     expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                     if (existingResults == null)
-                        db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, CreatedOn = DateTime.Now, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
+                        db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, StyleSet = styleSet, TileData = results, ExpireOn = expires, AreaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
                     else
                     {
-                        existingResults.CreatedOn = DateTime.Now;
                         existingResults.ExpireOn = expires;
-                        existingResults.tileData = results;
-                        existingResults.generationID++;
+                        existingResults.TileData = results;
+                        existingResults.GenerationID++;
                     }
                     if (useCache)
                         db.SaveChanges();
@@ -80,7 +79,7 @@ namespace PraxisMapper.Controllers
                 }
 
                 pt.Stop(tileKey + "|" + styleSet);
-                return File(existingResults.tileData, "image/png");
+                return File(existingResults.TileData, "image/png");
             }
             catch (Exception ex)
             {
@@ -101,7 +100,7 @@ namespace PraxisMapper.Controllers
                 PerformanceTracker pt = new PerformanceTracker("DrawSlippyTileCustomElements");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var db = new PraxisContext();
-                var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.styleSet == styleSet);
+                var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.StyleSet == styleSet);
                 bool useCache = true;
                 cache.TryGetValue("caching", out useCache);
                 if (!useCache || existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
@@ -124,13 +123,12 @@ namespace PraxisMapper.Controllers
                     results = MapTiles.DrawAreaAtSize(info, paintOps); //, TagParser.GetStyleBgColor(styleSet));
                     expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                     if (existingResults == null)
-                        db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, CreatedOn = DateTime.Now, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(info.area) });
+                        db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, StyleSet = styleSet, TileData = results, ExpireOn = expires, AreaCovered = Converters.GeoAreaToPolygon(info.area) });
                     else
                     {
-                        existingResults.CreatedOn = DateTime.Now;
                         existingResults.ExpireOn = expires;
-                        existingResults.tileData = results;
-                        existingResults.generationID++;
+                        existingResults.TileData = results;
+                        existingResults.GenerationID++;
                     }
                     if (useCache)
                         db.SaveChanges();
@@ -139,7 +137,7 @@ namespace PraxisMapper.Controllers
                 }
 
                 pt.Stop(tileKey + "|" + styleSet);
-                return File(existingResults.tileData, "image/png");
+                return File(existingResults.TileData, "image/png");
             }
             catch (Exception ex)
             {
@@ -160,7 +158,7 @@ namespace PraxisMapper.Controllers
                 PerformanceTracker pt = new PerformanceTracker("DrawSlippyTileCustomPlusCodes");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var db = new PraxisContext();
-                var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.styleSet == styleSet);
+                var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.StyleSet == styleSet);
                 bool useCache = true;
                 cache.TryGetValue("caching", out useCache);
                 if (!useCache || existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
@@ -183,13 +181,12 @@ namespace PraxisMapper.Controllers
                     results = MapTiles.DrawAreaAtSize(info, paintOps); //, TagParser.GetStyleBgColor(styleSet));
                     expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                     if (existingResults == null)
-                        db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, CreatedOn = DateTime.Now, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(info.area) });
+                        db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, StyleSet = styleSet, TileData = results, ExpireOn = expires, AreaCovered = Converters.GeoAreaToPolygon(info.area) });
                     else
                     {
-                        existingResults.CreatedOn = DateTime.Now;
                         existingResults.ExpireOn = expires;
-                        existingResults.tileData = results;
-                        existingResults.generationID++;
+                        existingResults.TileData = results;
+                        existingResults.GenerationID++;
                     }
                     if (useCache)
                         db.SaveChanges();
@@ -198,7 +195,7 @@ namespace PraxisMapper.Controllers
                 }
 
                 pt.Stop(tileKey + "|" + styleSet);
-                return File(existingResults.tileData, "image/png");
+                return File(existingResults.TileData, "image/png");
             }
             catch (Exception ex)
             {
@@ -219,7 +216,7 @@ namespace PraxisMapper.Controllers
                 PerformanceTracker pt = new PerformanceTracker("DrawSlippyTile");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var db = new PraxisContext();
-                var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.styleSet == styleSet);
+                var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.StyleSet == styleSet);
                 bool useCache = true;
                 cache.TryGetValue("caching", out useCache);
                 if (!useCache || existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
@@ -242,13 +239,12 @@ namespace PraxisMapper.Controllers
                     results = MapTiles.DrawAreaAtSize(info, paintOps); //, TagParser.GetStyleBgColor(styleSet));
                     expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
                     if (existingResults == null)
-                        db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, CreatedOn = DateTime.Now, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(info.area) });
+                        db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, StyleSet = styleSet, TileData = results, ExpireOn = expires, AreaCovered = Converters.GeoAreaToPolygon(info.area) });
                     else
                     {
-                        existingResults.CreatedOn = DateTime.Now;
                         existingResults.ExpireOn = expires;
-                        existingResults.tileData = results;
-                        existingResults.generationID++;
+                        existingResults.TileData = results;
+                        existingResults.GenerationID++;
                     }
                     if (useCache)
                         db.SaveChanges();
@@ -257,7 +253,7 @@ namespace PraxisMapper.Controllers
                 }
 
                 pt.Stop(tileKey + "|" + styleSet);
-                return File(existingResults.tileData, "image/png");
+                return File(existingResults.TileData, "image/png");
             }
             catch (Exception ex)
             {
@@ -274,7 +270,7 @@ namespace PraxisMapper.Controllers
             //I think, what I actually need, is the CreatedOn, and if it's newer than the client's tile, replace it.
             PerformanceTracker pt = new PerformanceTracker("CheckTileExpiration");
             var db = new PraxisContext();
-            var mapTileExp = db.MapTiles.FirstOrDefault(m => m.PlusCode == PlusCode && m.styleSet == styleSet).ExpireOn;
+            var mapTileExp = db.MapTiles.FirstOrDefault(m => m.PlusCode == PlusCode && m.StyleSet == styleSet).ExpireOn;
             pt.Stop();
             return mapTileExp.ToShortDateString();
         }
@@ -301,7 +297,7 @@ namespace PraxisMapper.Controllers
                 code = code.ToUpper();
                 string tileKey = code + "|" + styleSet;
                 var db = new PraxisContext();
-                var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.styleSet == styleSet);
+                var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.StyleSet == styleSet);
                 bool useCache = true;
                 cache.TryGetValue("caching", out useCache);
                 if (!useCache || existingResults == null || existingResults.MapTileId == null || existingResults.ExpireOn < DateTime.Now)
@@ -311,13 +307,12 @@ namespace PraxisMapper.Controllers
                     var expires = DateTime.Now.AddYears(10); //Assuming tile expiration occurs only when needed.
                     var dataLoadArea = OpenLocationCode.DecodeValid(code);
                     if (existingResults == null)
-                        db.MapTiles.Add(new MapTile() { PlusCode = code, CreatedOn = DateTime.Now, resolutionScale = 11, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
+                        db.MapTiles.Add(new MapTile() { PlusCode = code, StyleSet = styleSet, TileData = results, ExpireOn = expires, AreaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
                     else
                     {
-                        existingResults.CreatedOn = DateTime.Now;
                         existingResults.ExpireOn = expires;
-                        existingResults.tileData = results;
-                        existingResults.generationID++;
+                        existingResults.TileData = results;
+                        existingResults.GenerationID++;
                     }
                     db.SaveChanges();
                     pt.Stop(code + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
@@ -325,7 +320,7 @@ namespace PraxisMapper.Controllers
                 }
 
                 pt.Stop(code + "|" + styleSet);
-                return File(existingResults.tileData, "image/png");
+                return File(existingResults.TileData, "image/png");
             }
             catch (Exception ex)
             {
@@ -346,7 +341,7 @@ namespace PraxisMapper.Controllers
                 code = code.ToUpper();
                 string tileKey = code + "|" + styleSet + "|" + dataKey;
                 var db = new PraxisContext();
-                var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.styleSet == styleSet);
+                var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.StyleSet == styleSet);
                 bool useCache = true;
                 cache.TryGetValue("caching", out useCache);
                 if (!useCache || existingResults == null || existingResults.MapTileId == null || existingResults.ExpireOn < DateTime.Now)
@@ -362,13 +357,12 @@ namespace PraxisMapper.Controllers
                     var expires = DateTime.Now.AddYears(10); //Assuming tile expiration occurs only when needed.
                     var dataLoadArea = OpenLocationCode.DecodeValid(code);
                     if (existingResults == null)
-                        db.MapTiles.Add(new MapTile() { PlusCode = code, CreatedOn = DateTime.Now, resolutionScale = 11, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
+                        db.MapTiles.Add(new MapTile() { PlusCode = code, StyleSet = styleSet, TileData = results, ExpireOn = expires, AreaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
                     else
                     {
-                        existingResults.CreatedOn = DateTime.Now;
                         existingResults.ExpireOn = expires;
-                        existingResults.tileData = results;
-                        existingResults.generationID++;
+                        existingResults.TileData = results;
+                        existingResults.GenerationID++;
                     }
                     db.SaveChanges();
                     pt.Stop(code + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
@@ -376,7 +370,7 @@ namespace PraxisMapper.Controllers
                 }
 
                 pt.Stop(code + "|" + styleSet);
-                return File(existingResults.tileData, "image/png");
+                return File(existingResults.TileData, "image/png");
             }
             catch (Exception ex)
             {
@@ -397,7 +391,7 @@ namespace PraxisMapper.Controllers
                 code = code.ToUpper();
                 string tileKey = code + "|" + styleSet + "|" + dataKey;
                 var db = new PraxisContext();
-                var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.styleSet == styleSet);
+                var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.StyleSet == styleSet);
                 bool useCache = true;
                 cache.TryGetValue("caching", out useCache);
                 if (!useCache || existingResults == null || existingResults.MapTileId == null || existingResults.ExpireOn < DateTime.Now)
@@ -414,13 +408,12 @@ namespace PraxisMapper.Controllers
                     var expires = DateTime.Now.AddYears(10); //Assuming tile expiration occurs only when needed.
                     //var dataLoadArea = OpenLocationCode.DecodeValid(code);
                     if (existingResults == null)
-                        db.MapTiles.Add(new MapTile() { PlusCode = code, resolutionScale = 11, CreatedOn = DateTime.Now, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
+                        db.MapTiles.Add(new MapTile() { PlusCode = code, StyleSet = styleSet, TileData = results, ExpireOn = expires, AreaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
                     else
                     {
-                        existingResults.CreatedOn = DateTime.Now;
                         existingResults.ExpireOn = expires;
-                        existingResults.tileData = results;
-                        existingResults.generationID++;
+                        existingResults.TileData = results;
+                        existingResults.GenerationID++;
                     }
                     db.SaveChanges();
                     pt.Stop(code + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
@@ -428,7 +421,7 @@ namespace PraxisMapper.Controllers
                 }
 
                 pt.Stop(code + "|" + styleSet);
-                return File(existingResults.tileData, "image/png");
+                return File(existingResults.TileData, "image/png");
             }
             catch (Exception ex)
             {
@@ -449,7 +442,7 @@ namespace PraxisMapper.Controllers
                 code = code.ToUpper();
                 string tileKey = code + "|" + styleSet + "|" + dataKey;
                 var db = new PraxisContext();
-                var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.styleSet == styleSet);
+                var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.StyleSet == styleSet);
                 bool useCache = true;
                 cache.TryGetValue("caching", out useCache);
                 if (!useCache || existingResults == null || existingResults.MapTileId == null || existingResults.ExpireOn < DateTime.Now)
@@ -465,13 +458,12 @@ namespace PraxisMapper.Controllers
                     var expires = DateTime.Now.AddYears(10); //Assuming tile expiration occurs only when needed.
                     var dataLoadArea = OpenLocationCode.DecodeValid(code);
                     if (existingResults == null)
-                        db.MapTiles.Add(new MapTile() { PlusCode = code, resolutionScale = 11, CreatedOn = DateTime.Now, styleSet = styleSet, tileData = results, ExpireOn = expires, areaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
+                        db.MapTiles.Add(new MapTile() { PlusCode = code, StyleSet = styleSet, TileData = results, ExpireOn = expires, AreaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
                     else
                     {
-                        existingResults.CreatedOn = DateTime.Now;
                         existingResults.ExpireOn = expires;
-                        existingResults.tileData = results;
-                        existingResults.generationID++;
+                        existingResults.TileData = results;
+                        existingResults.GenerationID++;
                     }
                     db.SaveChanges();
                     pt.Stop(code + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
@@ -479,7 +471,7 @@ namespace PraxisMapper.Controllers
                 }
 
                 pt.Stop(code + "|" + styleSet);
-                return File(existingResults.tileData, "image/png");
+                return File(existingResults.TileData, "image/png");
             }
             catch (Exception ex)
             {
@@ -508,7 +500,7 @@ namespace PraxisMapper.Controllers
                 PerformanceTracker pt = new PerformanceTracker("GetTileExpiration");
                 var db = new PraxisContext();
                 var tileDate = db.MapTiles
-                    .Where(m => m.PlusCode == plusCode && m.styleSet == styleSet)
+                    .Where(m => m.PlusCode == plusCode && m.StyleSet == styleSet)
                     .Select(m => m.ExpireOn)
                     .FirstOrDefault();
 
@@ -536,8 +528,8 @@ namespace PraxisMapper.Controllers
                 PerformanceTracker pt = new PerformanceTracker("GetTileGenerationId");
                 var db = new PraxisContext();
                 var tileGenId = db.MapTiles
-                    .FirstOrDefault(m => m.PlusCode == plusCode && m.styleSet == styleSet)
-                    .generationID; 
+                    .FirstOrDefault(m => m.PlusCode == plusCode && m.StyleSet == styleSet)
+                    .GenerationID; 
                 pt.Stop();
                 return tileGenId;
             }
@@ -561,8 +553,8 @@ namespace PraxisMapper.Controllers
                 PerformanceTracker pt = new PerformanceTracker("GetTileGenerationId");
                 var db = new PraxisContext();
                 var tileGenId = db.SlippyMapTiles
-                    .FirstOrDefault(m => m.Values == x + "|" + y + "|" + zoom && m.styleSet == styleSet)
-                    .generationID;
+                    .FirstOrDefault(m => m.Values == x + "|" + y + "|" + zoom && m.StyleSet == styleSet)
+                    .GenerationID;
                 pt.Stop();
                 return tileGenId;
             }

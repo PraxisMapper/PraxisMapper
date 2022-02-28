@@ -26,7 +26,7 @@ namespace PraxisCore
         {
             //I sort entries on loading from the Database. It's possible this step is unnecessary if everything else runs in order, just using last instead of first.
             if (!allowPoints)
-                entries = entries.Where(e => e.elementGeometry.GeometryType != "Point").ToList();            
+                entries = entries.Where(e => e.ElementGeometry.GeometryType != "Point").ToList();            
 
             entries = entries.OrderBy(e => e.AreaSize).ToList(); //I want lines to show up before areas in most cases, so this should do that.
             return entries;
@@ -43,7 +43,7 @@ namespace PraxisCore
             //This one return all entries, for a game mode that might need all of them.
             var results = new List<TerrainData>(entriesHere.Count());
             foreach (var e in entriesHere)
-                results.Add(new TerrainData() { Name = TagParser.GetPlaceName(e.Tags), areaType = e.GameElementName, StoredOsmElementId = e.privacyId });
+                results.Add(new TerrainData() { Name = TagParser.GetPlaceName(e.Tags), areaType = e.GameElementName, StoredOsmElementId = e.PrivacyId });
             return results;
         }
 
@@ -58,7 +58,7 @@ namespace PraxisCore
             //This one only returns the smallest entry, for games that only need to check the most interesting area in a cell.
             //var entry = SortGameElements(entriesHere).First(); //Entries should already be sorted biggest to smallest, so just get the last one.
             var entry = entriesHere.Last();
-            return new TerrainData() { Name = TagParser.GetPlaceName(entry.Tags), areaType = entry.GameElementName, StoredOsmElementId = entry.privacyId };
+            return new TerrainData() { Name = TagParser.GetPlaceName(entry.Tags), areaType = entry.GameElementName, StoredOsmElementId = entry.PrivacyId };
         }
 
         /// <summary>

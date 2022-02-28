@@ -322,7 +322,7 @@ namespace Larry
                     foreach (var entry in entries)
                     {
                         ElementTags stored = GeometrySupport.ConvertSingleTsvTag(entry);
-                        var taggedGeo = memorySource.First(m => m.sourceItemType == stored.SourceItemType && m.sourceItemID == stored.SourceItemId);
+                        var taggedGeo = memorySource.First(m => m.SourceItemType == stored.SourceItemType && m.SourceItemID == stored.SourceItemId);
                         //MemorySource will need to be a more efficient collection for searching if this is to be a major feature, but this functions.
                         taggedGeo.Tags.Add(stored);
                     }

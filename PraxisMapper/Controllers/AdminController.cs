@@ -34,8 +34,8 @@ namespace PraxisMapper.Controllers
                 return "";
 
             var db = new PraxisContext();
-            var groups = db.PerformanceInfo.Where(p => p.calledAt > DateTime.Now.AddDays(-7)).AsEnumerable().GroupBy(g => g.functionName).OrderBy(g => g.Key).ToList();
-            var avgs = groups.Select(g => new { name = g.Key, avg = g.Average(gg => gg.runTime) }).ToList();
+            var groups = db.PerformanceInfo.Where(p => p.CalledAt > DateTime.Now.AddDays(-7)).AsEnumerable().GroupBy(g => g.FunctionName).OrderBy(g => g.Key).ToList();
+            var avgs = groups.Select(g => new { name = g.Key, avg = g.Average(gg => gg.RunTime) }).ToList();
 
             string results = "Performance Info:" + Environment.NewLine;
             results = "Averages:" + Environment.NewLine;
@@ -48,7 +48,7 @@ namespace PraxisMapper.Controllers
             results += "Maximums:" + Environment.NewLine;
             foreach (var g in groups)
             {
-                results += g.Key+ ":" + g.Max(gg => gg.runTime) + Environment.NewLine;
+                results += g.Key+ ":" + g.Max(gg => gg.RunTime) + Environment.NewLine;
             }
             results += Environment.NewLine;
 

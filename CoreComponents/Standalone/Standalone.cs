@@ -25,7 +25,7 @@ namespace PraxisCore.Standalone
             var results = new List<PlaceInfo2>();
             foreach (var place in allPlaces) //.Where(p => p.IsGameElement))
             {
-                var center = place.elementGeometry.Centroid.Coordinate;
+                var center = place.ElementGeometry.Centroid.Coordinate;
                 //The less symmetrical an area's envelope is, the less accurate this guess is. But that's the tradeoff i'm making
                 //to get this all self-contained in the least amount of space. / 4 because (/2 for average, then /2 for radius instead of diameter)
                 //Circular radius was replaced with square envelope. it's 1 extra double to store per row to do the envelope check this way, and looks more reasonable.
@@ -35,9 +35,9 @@ namespace PraxisCore.Standalone
                     areaType = place.GameElementName,
                     latCenter = center.Y,
                     lonCenter = center.X,
-                    height = place.elementGeometry.EnvelopeInternal.Height,
-                    width = place.elementGeometry.EnvelopeInternal.Width,
-                    OsmElementId = place.sourceItemID };
+                    height = place.ElementGeometry.EnvelopeInternal.Height,
+                    width = place.ElementGeometry.EnvelopeInternal.Width,
+                    OsmElementId = place.SourceItemID };
 
                 //Make points 1 Cell10 in size, so they're detectable.
                 if (pi.height == 0) pi.height = .000125;
@@ -72,8 +72,8 @@ namespace PraxisCore.Standalone
             foreach (var gameElementTags in TagParser.allStyleGroups.First().Value.Where(s => s.Value.IsGameElement))
             {
                 var foundElements = allPlaces.Where(a => TagParser.MatchOnTags(gameElementTags.Value, a.Tags) && !string.IsNullOrWhiteSpace(TagParser.GetPlaceName(a.Tags))).Select(a => TagParser.GetPlaceName(a.Tags)).Distinct().ToList();
-                scavengerHunts.Add(gameElementTags.Value.name, foundElements);
-                Log.WriteLog(foundElements.Count() + " " + gameElementTags.Value.name + " items found for scavenger hunt.");
+                scavengerHunts.Add(gameElementTags.Value.Name, foundElements);
+                Log.WriteLog(foundElements.Count() + " " + gameElementTags.Value.Name + " items found for scavenger hunt.");
             }
 
             foreach (var hunt in scavengerHunts)
@@ -135,7 +135,7 @@ namespace PraxisCore.Standalone
                 //Add a Cell8 buffer space so all elements are loaded and drawn without needing to loop through the entire area.
                 GeoArea thisRow = new GeoArea(y - ConstantValues.resolutionCell8, xCoords.First() - ConstantValues.resolutionCell8, y + ConstantValues.resolutionCell8 + ConstantValues.resolutionCell8, xCoords.Last() + resolutionCell8);
                 var row = Converters.GeoAreaToPolygon(thisRow); 
-                var rowList = allPlaces.Where(a => row.Intersects(a.elementGeometry)).ToList();
+                var rowList = allPlaces.Where(a => row.Intersects(a.ElementGeometry)).ToList();
 
                 Parallel.ForEach(xCoords, x =>
                 //foreach (var x in xCoords)
@@ -147,7 +147,7 @@ namespace PraxisCore.Standalone
 
                     var areaForTile = new GeoArea(new GeoPoint(plusCodeArea.SouthLatitude, plusCodeArea.WestLongitude), new GeoPoint(plusCodeArea.NorthLatitude, plusCodeArea.EastLongitude));
                     var acheck = Converters.GeoAreaToPolygon(areaForTile); //this is faster than using a PreparedPolygon in testing, which was unexpected.
-                    var areaList = rowList.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); //This one is for the maptile
+                    var areaList = rowList.Where(a => acheck.Intersects(a.ElementGeometry)).ToList(); //This one is for the maptile
 
                     //Create the maptile first, so if we save it to the DB/a file we can call the lock once per loop.
                     int imgX = 0, imgY = 0;
@@ -222,7 +222,7 @@ namespace PraxisCore.Standalone
                 //Add a Cell8 buffer space so all elements are loaded and drawn without needing to loop through the entire area.
                 GeoArea thisRow = new GeoArea(y - ConstantValues.resolutionCell8, xCoords.First() - ConstantValues.resolutionCell8, y + ConstantValues.resolutionCell8 + ConstantValues.resolutionCell8, xCoords.Last() + resolutionCell8);
                 var row = Converters.GeoAreaToPolygon(thisRow);
-                var rowList = allPlaces.Where(a => row.Intersects(a.elementGeometry)).ToList();
+                var rowList = allPlaces.Where(a => row.Intersects(a.ElementGeometry)).ToList();
 
                 Parallel.ForEach(xCoords, x =>
                 //foreach (var x in xCoords)
@@ -233,7 +233,7 @@ namespace PraxisCore.Standalone
 
                     var areaForTile = new GeoArea(new GeoPoint(plusCodeArea.SouthLatitude, plusCodeArea.WestLongitude), new GeoPoint(plusCodeArea.NorthLatitude, plusCodeArea.EastLongitude));
                     var acheck = Converters.GeoAreaToPolygon(areaForTile); //this is faster than using a PreparedPolygon in testing, which was unexpected.
-                    var areaList = rowList.Where(a => acheck.Intersects(a.elementGeometry)).ToList(); 
+                    var areaList = rowList.Where(a => acheck.Intersects(a.ElementGeometry)).ToList(); 
 
                     results.TryAdd(plusCode6, areaList);
                 });

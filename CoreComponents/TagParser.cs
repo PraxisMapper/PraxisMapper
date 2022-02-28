@@ -28,10 +28,10 @@ namespace PraxisCore
         public static TagParserEntry outlineStyle = new TagParserEntry()
         {
             MatchOrder = 9998,
-            name = "outline",
-            styleSet = "special",
-            paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "000000", FillOrStroke = "stroke", LineWidth=2, LinePattern= "solid", layerId = 101 }
+            Name = "outline",
+            StyleSet = "special",
+            PaintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "000000", FillOrStroke = "stroke", LineWidth=2, LinePattern= "solid", LayerId = 101 }
                 },
             TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "none" }}
@@ -52,8 +52,8 @@ namespace PraxisCore
 
                 long i = 1;
                 foreach(var s in styles)
-                    foreach (var p in s.paintOperations)
-                        p.id = i++;
+                    foreach (var p in s.PaintOperations)
+                        p.Id = i++;
             }
             else
             {
@@ -61,14 +61,14 @@ namespace PraxisCore
                 {
                     //Load TPE entries from DB for app.
                     var db = new PraxisContext();
-                    styles = db.TagParserEntries.Include(t => t.TagParserMatchRules).Include(t => t.paintOperations).ToList();
+                    styles = db.TagParserEntries.Include(t => t.TagParserMatchRules).Include(t => t.PaintOperations).ToList();
                     if (styles == null || styles.Count() == 0)
                         styles = Singletons.defaultTagParserEntries;
 
                     var bitmaps = db.TagParserStyleBitmaps.ToList();
                     foreach (var b in bitmaps)
                     {
-                        cachedBitmaps.Add(b.filename, b.data); //Actual MapTiles dll will process the bitmap, we just load it here.
+                        cachedBitmaps.Add(b.Filename, b.Data); //Actual MapTiles dll will process the bitmap, we just load it here.
                     }
 
                 }
@@ -79,18 +79,18 @@ namespace PraxisCore
                 }
             }
 
-            var groups = styles.GroupBy(s => s.styleSet);
+            var groups = styles.GroupBy(s => s.StyleSet);
             foreach (var g in groups)
-                allStyleGroups.Add(g.Key, g.Select(gg => gg).OrderBy(gg => gg.MatchOrder).ToDictionary(k => k.name, v => v));
+                allStyleGroups.Add(g.Key, g.Select(gg => gg).OrderBy(gg => gg.MatchOrder).ToDictionary(k => k.Name, v => v));
 
             //Default style should be transparent, matches anything (assumed other styles were checked first)
             defaultStyle = new TagParserEntry()
             {
                 MatchOrder = 10000,
-                name = "unmatched",
-                styleSet = "mapTiles",
-                paintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", layerId = 101 }
+                Name = "unmatched",
+                StyleSet = "mapTiles",
+                PaintOperations = new List<TagParserPaint>() {
+                    new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", LayerId = 101 }
                 },
                 TagParserMatchRules = new List<TagParserMatchRule>() {
                     new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "default" }}
@@ -166,13 +166,13 @@ namespace PraxisCore
         public static string GetAreaType(List<ElementTags> tags, string styleSet = "mapTiles")
         {
             if (tags == null || tags.Count() == 0)
-                return defaultStyle.name;
+                return defaultStyle.Name;
 
             foreach (var drawingRules in allStyleGroups[styleSet])
                 if (MatchOnTags(drawingRules.Value, tags))
-                    return drawingRules.Value.name;
+                    return drawingRules.Value.Name;
 
-            return defaultStyle.name;
+            return defaultStyle.Name;
         }
 
         /// <summary>
@@ -184,13 +184,13 @@ namespace PraxisCore
         public static string GetAreaType(Dictionary<string, string> tags, string styleSet = "mapTiles")
         {
             if (tags == null || tags.Count() == 0)
-                return defaultStyle.name;
+                return defaultStyle.Name;
 
             foreach (var drawingRules in allStyleGroups[styleSet])
                 if (MatchOnTags(drawingRules.Value, tags))
-                    return drawingRules.Value.name;
+                    return drawingRules.Value.Name;
 
-            return defaultStyle.name;
+            return defaultStyle.Name;
         }
 
         /// <summary>
@@ -389,7 +389,7 @@ namespace PraxisCore
             foreach (var p in places)
             {
                 var style = GetStyleForOsmWay(p.Tags, styleSet);
-                p.GameElementName = style.name;
+                p.GameElementName = style.Name;
                 p.IsGameElement = style.IsGameElement;
             }
             return places;
