@@ -61,9 +61,7 @@ namespace PraxisCore
             }
             if (!string.IsNullOrEmpty(tpe.FileName))
             {
-                //byte[] fileData = System.IO.File.ReadAllBytes(tpe.fileName);
-                //byte[] fileData = new PraxisContext().TagParserStyleBitmaps.FirstOrDefault(f => f.filename == tpe.fileName).data;
-                SKBitmap fillPattern = cachedBitmaps[tpe.FileName];// SKBitmap.Decode(fileData); //TODO: remove this, replace with raw byte data. let Maptile library deal with converting it to formats.
+                SKBitmap fillPattern = cachedBitmaps[tpe.FileName];
                 //cachedBitmaps.TryAdd(tpe.fileName, fillPattern); //For icons.
                 SKShader tiling = SKShader.CreateBitmap(fillPattern, SKShaderTileMode.Repeat, SKShaderTileMode.Repeat); //For fill patterns.
                 paint.Shader = tiling;
@@ -116,8 +114,8 @@ namespace PraxisCore
             }
 
             var ms = new MemoryStream();
-            var skms = new SkiaSharp.SKManagedWStream(ms);
-            bitmap.Encode(skms, SkiaSharp.SKEncodedImageFormat.Png, 100);
+            var skms = new SKManagedWStream(ms);
+            bitmap.Encode(skms, SKEncodedImageFormat.Png, 100);
             var results = ms.ToArray();
             skms.Dispose(); ms.Close(); ms.Dispose();
             return results;
