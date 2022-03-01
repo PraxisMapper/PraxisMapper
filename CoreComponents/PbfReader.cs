@@ -1,5 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
-using NetTopologySuite.Geometries;
+﻿using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Prepared;
 using OsmSharp.Complete;
 using ProtoBuf;
@@ -739,7 +738,7 @@ namespace PraxisCore.PbfReader
         /// <returns>a list of Nodes with tags, which may have a length of 0.</returns>
         private List<OsmSharp.Node> GetTaggedNodesFromBlock(PrimitiveBlock block, bool ignoreUnmatched = false)
         {
-            List<OsmSharp.Node> taggedNodes = new List<OsmSharp.Node>(40); //2% of nodes have tags, on averages this is a reasonable starting capacity.
+            List<OsmSharp.Node> taggedNodes = new List<OsmSharp.Node>(400); //2% of nodes have tags, 10x that to get this set for the majority of blocks.
             var dense = block.primitivegroup[0].dense;
 
             //Shortcut: if dense.keys.count == dense.id.count, there's no tagged nodes at all here (0 means 'no keys', and all 0's means every entry has no keys)
@@ -998,19 +997,17 @@ namespace PraxisCore.PbfReader
                     else
                     {
                         //Useful node lists are so small, they lose performance from splitting each step into 1 task per entry.
-                        //Inline all that here as one task and return null to skip the rest. But this doesn't work if I'm writing to a DB.
+                        //Inline all that here as one task and return null to skip the rest.
                         relList.Add(Task.Run(() =>
                         {
                             try
                             {
                                 var nodes = GetTaggedNodesFromBlock(block, onlyTagMatchedEntries);
                                 results = new ConcurrentBag<ICompleteOsmGeo>(nodes);
-                                return;
                             }
                             catch (Exception ex)
                             {
                                 Log.WriteLog("Processing node failed: " + ex.Message, Log.VerbosityLevels.Errors);
-                                return;
                             }
                         }));
                     }
