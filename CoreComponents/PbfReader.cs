@@ -399,10 +399,7 @@ namespace PraxisCore.PbfReader
                 wayFinderList.Add(Tuple.Create(w.Key, w.Value));
             }
             Log.WriteLog("Found " + blockCounter + " blocks. " + relationCounter + " relation blocks and " + wayCounter + " way blocks.");
-            foreach (var entry in nodeFinder2)
-            {
-                nodeFinderList.Add(Tuple.Create(entry.Key, entry.Value.Item1, entry.Value.Item2));
-            }
+            
             SetOptimizationValues();
             sw.Stop();
             Log.WriteLog("File indexed in " + sw.Elapsed);
@@ -1136,11 +1133,6 @@ namespace PraxisCore.PbfReader
                     nodeFinder2.TryAdd(long.Parse(subData2[0]), Tuple.Create(long.Parse(subData2[1]), long.Parse(subData2[2])));
                 }
 
-                //I never use NodeFinder2 with the key, its always iterated over. It should be a list or a sorted concurrent entry
-                foreach (var entry in nodeFinder2)
-                {
-                    nodeFinderList.Add(Tuple.Create(entry.Key, entry.Value.Item1, entry.Value.Item2));
-                }
                 SetOptimizationValues();
 
             }
@@ -1155,6 +1147,11 @@ namespace PraxisCore.PbfReader
         /// </summary>
         private void SetOptimizationValues()
         {
+            foreach (var entry in nodeFinder2)
+            {
+                nodeFinderList.Add(Tuple.Create(entry.Key, entry.Value.Item1, entry.Value.Item2));
+            }
+
             nodeFinderTotal = nodeFinderList.Count();
             wayFinderTotal = wayFinderList.Count();
             firstWayBlock = wayFinder.Keys.Min();
