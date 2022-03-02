@@ -367,15 +367,15 @@ namespace PraxisCore
             return DecryptValue(row.DataValue, password);
         }
 
-        //public static byte[] GetSecurePlusCodeDataBytes(string plusCode, string key, string password)
-        //{
-        //    var db = new PraxisContext();
-        //    var row = db.CustomDataPlusCodes.FirstOrDefault(p => p.PlusCode == plusCode && p.dataKey == key);
-        //    if (row == null || row.expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
-        //        return null;
+        public static byte[] GetSecurePlusCodeDataBytes(string plusCode, string key, string password)
+        {
+            var db = new PraxisContext();
+            var row = db.CustomDataPlusCodes.FirstOrDefault(p => p.PlusCode == plusCode && p.DataKey == key);
+            if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
+                return null;
 
-        //    return DecryptValueBytes(row.dataValue, password);
-        //}
+            return DecryptValueBytes(row.DataValue, password);
+        }
 
         /// <summary>
         /// Get the value from a key/value pair saved on a player's deviceId encrypted with the given password. Expired entries will be ignored.
@@ -491,12 +491,11 @@ namespace PraxisCore
             byte[] passwordBytes = password.ToByteArrayUnicode();
             byte[] iv = baseSec.IV; //This changes every run, so we do need to save this alongside the data itself.
             var crypter = baseSec.CreateEncryptor(passwordBytes, baseSec.IV);
+
+
             var ms = new MemoryStream();
             using (CryptoStream cs = new CryptoStream(ms, crypter, CryptoStreamMode.Write))
-            using (StreamWriter sw = new StreamWriter(cs))
-            {
-                sw.Write(value);
-            }
+                cs.Write(value, 0, value.Length);
 
             var data = Convert.ToBase64String(iv) + "|" + Convert.ToBase64String(ms.ToArray());
             return data;
