@@ -11,6 +11,7 @@ namespace PraxisMapper.Controllers
     {
         [HttpGet]
         [Route("/[controller]/GetStyleSetEntryNames/{styleSet}")]
+        [Route("/[controller]/Names/{styleSet}")]
         public string GetStyleSetEntryNames(string styleSet)
         {
             var db = new PraxisContext();
@@ -21,6 +22,7 @@ namespace PraxisMapper.Controllers
         //These 2 functions do need to use IDs in case names change.
         [HttpGet]
         [Route("/[controller]/GetStyleSetEntryValues/{styleSet}/{entryName}")]
+        [Route("/[controller]/Entry/{styleSet}/{entryName}")]
         public string GetStyleSetEntryValues(string styleSet, string entryName)
         {
             var db = new PraxisContext();
@@ -51,6 +53,7 @@ namespace PraxisMapper.Controllers
 
         [HttpPut]
         [Route("/[controller]/UpdateStyleSetEntryValues/{styleSet}/{id}/{matchOrder}/{entryName}/{isGameElement}")]
+        [Route("/[controller]/Entry/{styleSet}/{id}/{matchOrder}/{entryName}/{isGameElement}")]
         public void UpdateStyleSetEntryValues(string styleSet, long id, int matchOrder, string entryName, bool isGameElement)
         {
             //Hasnt yet been tested.
