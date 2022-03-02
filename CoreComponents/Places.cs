@@ -33,14 +33,14 @@ namespace PraxisCore
         /// <param name="skipTags">If true, skips over tagging elements. A performance boost when you have a List to narrow down already.</param>
         /// <param name="includePoints">If false, removes Points from the source before returning the results</param>
         /// <returns>A list of StoredOsmElements that intersect the area, have a perimter greater than or equal to filtersize.</returns>
-        public static List<StoredOsmElement> GetPlaces(GeoArea area, List<StoredOsmElement> source = null, double filterSize = 0, string styleSet = "mapTiles", bool skipTags = false, bool includePoints = true)
+        public static List<DbTables.Place> GetPlaces(GeoArea area, List<DbTables.Place> source = null, double filterSize = 0, string styleSet = "mapTiles", bool skipTags = false, bool includePoints = true)
         {
             //parameters i will need to restore later.
             //bool includeGenerated = false;
 
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
             //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
-            List<StoredOsmElement> places;
+            List<DbTables.Place> places;
             if (source == null)
             {
                 var paddedArea = GeometrySupport.MakeBufferedGeoArea(area, resolutionCell10);
@@ -49,12 +49,12 @@ namespace PraxisCore
                 db.Database.SetCommandTimeout(new TimeSpan(0, 5, 0));
                 if (skipTags) //Should make the load slightly faster if we're parsing existing items that already got tags applied
                 {
-                    places = db.StoredOsmElements.Where(md => location.Intersects(md.ElementGeometry) && md.AreaSize >= filterSize && (includePoints || md.SourceItemType != 1)).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length).ToList();
+                    places = db.Places.Where(md => location.Intersects(md.ElementGeometry) && md.AreaSize >= filterSize && (includePoints || md.SourceItemType != 1)).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length).ToList();
                     return places; //Jump out before we do ApplyTags
                 }
                 else
                 {
-                    places = db.StoredOsmElements.Include(s => s.Tags).Where(md => location.Intersects(md.ElementGeometry) && md.AreaSize >= filterSize && (includePoints || md.SourceItemType != 1)).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length).ToList();
+                    places = db.Places.Include(s => s.Tags).Where(md => location.Intersects(md.ElementGeometry) && md.AreaSize >= filterSize && (includePoints || md.SourceItemType != 1)).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length).ToList();
                 }
             }
             else
@@ -76,7 +76,7 @@ namespace PraxisCore
         /// <param name="styleSet">A TagParser style set to run the found locations through for identification.</param>
         /// <param name="skipTags">If true, skips over tagging elements. A performance boost when you have a List to narrow down already.</param>
         /// <returns>A list of StoredOsmElements that intersect the area, have a perimter greater than or equal to filtersize.</returns>
-        public static List<StoredOsmElement> GetPlacesForTile(ImageStats stats, List<StoredOsmElement> source = null, string styleSet = "mapTiles", bool skipTags = false)
+        public static List<DbTables.Place> GetPlacesForTile(ImageStats stats, List<DbTables.Place> source = null, string styleSet = "mapTiles", bool skipTags = false)
         {
             var dataLoadArea = new GeoArea(stats.area.SouthLatitude - ConstantValues.resolutionCell10, stats.area.WestLongitude - ConstantValues.resolutionCell10, stats.area.NorthLatitude + ConstantValues.resolutionCell10, stats.area.EastLongitude + ConstantValues.resolutionCell10);
             return GetPlaces(dataLoadArea, source, stats.filterSize, styleSet, skipTags, stats.drawPoints);
@@ -89,7 +89,7 @@ namespace PraxisCore
         /// <param name="area">The area to check for elements</param>
         /// <param name="source">an optional list to use instead of loading from the database.</param>
         /// <returns>true if any StoredOsmElements intersect the given GeoArea, false if not.</returns>
-        public static bool DoPlacesExist(GeoArea area, List<StoredOsmElement> source = null)
+        public static bool DoPlacesExist(GeoArea area, List<DbTables.Place> source = null)
         {
             //As GetPlaces, but only checks if there are entries.
             var location = Converters.GeoAreaToPolygon(area);
@@ -97,7 +97,7 @@ namespace PraxisCore
             if (source == null)
             {
                 var db = new PraxisContext();
-                places = db.StoredOsmElements.Any(md => md.ElementGeometry.Intersects(location));
+                places = db.Places.Any(md => md.ElementGeometry.Intersects(location));
                 return places;
             }
             else
@@ -113,7 +113,7 @@ namespace PraxisCore
         /// <param name="plusCode">The area to generate shape(s) in</param>
         /// <param name="autoSave">If true, saves the areas to the database immediately.</param>
         /// <returns>The list of places created for the given area.</returns>
-        public static List<StoredOsmElement> CreateInterestingPlaces(string plusCode, bool autoSave = true)
+        public static List<DbTables.Place> CreateInterestingPlaces(string plusCode, bool autoSave = true)
         {
             //expected to receive a Cell8
             // populate it with some interesting regions for players.
@@ -121,7 +121,7 @@ namespace PraxisCore
             CodeArea cell8 = OpenLocationCode.DecodeValid(plusCode); //Reminder: area is .0025 degrees on a Cell8
             int shapeCount = 1; // 2; //number of shapes to apply to the Cell8
             double shapeWarp = .3; //percentage a shape is allowed to have each vertexs drift by.
-            List<StoredOsmElement> areasToAdd = new List<StoredOsmElement>();
+            List<DbTables.Place> areasToAdd = new List<DbTables.Place>();
 
             for (int i = 0; i < shapeCount; i++)
             {
@@ -182,10 +182,10 @@ namespace PraxisCore
                 }
                 if (polygon != null)
                 {
-                    StoredOsmElement gmd = new StoredOsmElement();
+                    DbTables.Place gmd = new DbTables.Place();
                     gmd.ElementGeometry = polygon;
                     gmd.GameElementName = "generated";
-                    gmd.Tags.Add(new ElementTags() { Key = "praxisGenerated", Value = "true" } );
+                    gmd.Tags.Add(new PlaceTags() { Key = "praxisGenerated", Value = "true" } );
                     areasToAdd.Add(gmd); //this is the line that makes some objects occasionally not be CCW that were CCW before. Maybe its the cast to the generic Geometry item?
                 }
                 else
@@ -204,7 +204,7 @@ namespace PraxisCore
                 {
                     area.ElementGeometry = CCWCheck((Polygon)area.ElementGeometry); //fixes errors that reappeared above
                 }
-                db.StoredOsmElements.AddRange(areasToAdd);
+                db.Places.AddRange(areasToAdd);
                 db.SaveChanges();
             }
 
@@ -221,7 +221,7 @@ namespace PraxisCore
             //Debugging helper call. Loads up some information on an area and display it.
             //Not currently used anywhere.
             var db = new PraxisContext();
-            var entries = db.StoredOsmElements.Where(m => m.Id == id || m.SourceItemID == id).ToList();
+            var entries = db.Places.Where(m => m.Id == id || m.SourceItemID == id).ToList();
             string results = "";
             foreach (var entry in entries)
             {
@@ -258,7 +258,7 @@ namespace PraxisCore
             double scanRes = 1; //1 degree.
             //This is now a 2-step process for speed. The first pass runs at 1 degree intervals for speed, then drops to the given resolution for precision.
             var northscanner = new GeoArea(new GeoPoint(90 - scanRes, -180), new GeoPoint(90, 180));
-            while (!DoPlacesExist(northscanner))
+            while (!DoPlacesExist(northscanner) && northscanner.SouthLatitude > -90)
                 northscanner = new GeoArea(new GeoPoint(northscanner.SouthLatitude - scanRes, -180), new GeoPoint(northscanner.NorthLatitude - scanRes, 180));
             northscanner = new GeoArea(new GeoPoint(northscanner.SouthLatitude - resolution, -180), new GeoPoint(northscanner.NorthLatitude - resolution, 180));
             while (!DoPlacesExist(northscanner))
@@ -300,14 +300,14 @@ namespace PraxisCore
         /// <param name="area">the GeoArea to select elements from.</param>
         /// <param name="places">A list of OSM Elements to search. If null, loaded from the database based on the area provided.</param>
         /// <returns>a list of OSM Elements with the requested style in the given area.</returns>
-        public static List<StoredOsmElement> GetPlacesByStyle(string type, GeoArea area, List<StoredOsmElement> places = null)
+        public static List<DbTables.Place> GetPlacesByStyle(string type, GeoArea area, List<DbTables.Place> places = null)
         {
             if (places == null)
                 places = GetPlaces(area);
             return places.Where(p => p.GameElementName == type).ToList();
         }
 
-        public static List<Tuple<double, StoredOsmElement>> GetNearbyPlacesAtDistance(string type, string plusCode, double distanceMid)
+        public static List<Tuple<double, DbTables.Place>> GetNearbyPlacesAtDistance(string type, string plusCode, double distanceMid)
         {
             //TODO: test this out for performance. Spatial index should work for Distance but calculating it 3 times might not be very fast
             var db = new PraxisContext();
@@ -315,7 +315,7 @@ namespace PraxisCore
             var ntsPoint = new Point(geopoint.Longitude, geopoint.Latitude);
             var distanceMin = distanceMid / 2;
             var distanceMax = distanceMid + distanceMin;
-            List<Tuple<double, StoredOsmElement>> results = db.StoredOsmElements
+            List<Tuple<double, DbTables.Place>> results = db.Places
                 .Where(o => distanceMin < o.ElementGeometry.Distance(ntsPoint) && o.ElementGeometry.Distance(ntsPoint) < distanceMax)
                 .OrderByDescending(o => Math.Abs(distanceMid - o.ElementGeometry.Distance(ntsPoint)))
                 .Select(o => Tuple.Create(o.ElementGeometry.Distance(ntsPoint), o))

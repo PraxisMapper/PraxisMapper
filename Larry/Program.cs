@@ -28,7 +28,7 @@ namespace Larry
     class Program
     {
         static IConfigurationRoot config;
-        static List<StoredOsmElement> memorySource;
+        static List<DbTables.Place> memorySource;
         static IMapTiles MapTiles;
 
         static void Main(string[] args)
@@ -43,7 +43,9 @@ namespace Larry
             {
                 createDb();
             }
-            TagParser.Initialize(config["ForceTagParserDefaults"] == "True", MapTiles); //This last bit of config must be done after DB creation check
+            
+            if (!args.Any(a => a == "-makeServerDb")) //This will not be available until after creating the DB slightly later.
+                TagParser.Initialize(config["ForceTagParserDefaults"] == "True", MapTiles); //This last bit of config must be done after DB creation check
 
             Log.WriteLog("Larry started at " + DateTime.Now);
 
@@ -307,7 +309,7 @@ namespace Larry
                     var entries = File.ReadAllLines(fileName);
                     foreach (var entry in entries)
                     {
-                        StoredOsmElement stored = GeometrySupport.ConvertSingleTsvStoredElement(entry);
+                        DbTables.Place stored = GeometrySupport.ConvertSingleTsvStoredElement(entry);
                         memorySource.Add(stored);
                     }
 
@@ -321,7 +323,7 @@ namespace Larry
                     var entries = File.ReadAllLines(fileName);
                     foreach (var entry in entries)
                     {
-                        ElementTags stored = GeometrySupport.ConvertSingleTsvTag(entry);
+                        PlaceTags stored = GeometrySupport.ConvertSingleTsvTag(entry);
                         var taggedGeo = memorySource.First(m => m.SourceItemType == stored.SourceItemType && m.SourceItemID == stored.SourceItemId);
                         //MemorySource will need to be a more efficient collection for searching if this is to be a major feature, but this functions.
                         taggedGeo.Tags.Add(stored);
@@ -368,7 +370,7 @@ namespace Larry
                     var lines = File.ReadAllLines(fileName); //Might be faster to use streams and dodge the memory allocation?
                     foreach (var line in lines)
                     {
-                        db.StoredOsmElements.Add(GeometrySupport.ConvertSingleTsvStoredElement(line));
+                        db.Places.Add(GeometrySupport.ConvertSingleTsvStoredElement(line));
                     }
                     db.SaveChanges();
                     sw.Stop();
@@ -385,7 +387,7 @@ namespace Larry
                     var lines = File.ReadAllLines(fileName);
                     foreach (var line in lines)
                     {
-                        db.ElementTags.Add(GeometrySupport.ConvertSingleTsvTag(line));
+                        db.PlaceTags.Add(GeometrySupport.ConvertSingleTsvTag(line));
                     }
                     db.SaveChanges();
                     sw.Stop();
@@ -508,7 +510,7 @@ namespace Larry
             Log.Verbosity = (Log.VerbosityLevels)config["LogLevel"].ToInt();
 
             if (config["KeepElementsInMemory"] == "True")
-                memorySource = new List<StoredOsmElement>(20000);
+                memorySource = new List<DbTables.Place>(20000);
 
             if (config["UseMariaDBInFile"] == "True" && config["DbMode"] != "MariaDB")
             {

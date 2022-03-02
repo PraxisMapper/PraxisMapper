@@ -22,7 +22,7 @@ namespace PraxisCore
         /// <param name="entries">The list of entries to sort by</param>
         /// <param name="allowPoints">If true, include points in the return list as size 0. If false, filters those out from the returned list.</param>
         /// <returns>The sorted list of entries</returns>
-        public static List<StoredOsmElement> SortGameElements(List<StoredOsmElement> entries, bool allowPoints = true)
+        public static List<DbTables.Place> SortGameElements(List<DbTables.Place> entries, bool allowPoints = true)
         {
             //I sort entries on loading from the Database. It's possible this step is unnecessary if everything else runs in order, just using last instead of first.
             if (!allowPoints)
@@ -37,7 +37,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="entriesHere">the list of elements to pull data from</param>
         /// <returns>A list of name, areatype, and elementIds for a client</returns>
-        public static List<TerrainData> DetermineAreaPlaces(List<StoredOsmElement> entriesHere)
+        public static List<TerrainData> DetermineAreaPlaces(List<DbTables.Place> entriesHere)
         {
             //Which Place in this given Area is the one that should be displayed on the game/map as the name? picks the smallest one.
             //This one return all entries, for a game mode that might need all of them.
@@ -52,7 +52,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="entriesHere">the list of elements to pull data from</param>
         /// <returns>the name, areatype, and client facing ID of the OSM element to use</returns>
-        public static TerrainData DetermineAreaPlace(List<StoredOsmElement> entriesHere)
+        public static TerrainData DetermineAreaPlace(List<DbTables.Place> entriesHere)
         {
             //Which Place in this given Area is the one that should be displayed on the game/map as the name? picks the smallest one.
             //This one only returns the smallest entry, for games that only need to check the most interesting area in a cell.
@@ -67,7 +67,7 @@ namespace PraxisCore
         /// <param name="area">GeoArea from a decoded PlusCode</param>
         /// <param name="elements">A list of OSM elements</param>
         /// <returns>returns a dictionary using PlusCode as the key and name/areatype/client facing Id of the smallest element intersecting that PlusCode</returns>
-        public static Dictionary<string, TerrainData> SearchArea(ref GeoArea area, ref List<StoredOsmElement> elements)
+        public static Dictionary<string, TerrainData> SearchArea(ref GeoArea area, ref List<DbTables.Place> elements)
         {
             //Singular function, returns 1 item entry per cell10.
             if (elements.Count() == 0)
@@ -103,7 +103,7 @@ namespace PraxisCore
         /// <param name="area">GeoArea from a decoded PlusCode</param>
         /// <param name="elements">A list of OSM elements</param>
         /// <returns>returns a dictionary using PlusCode as the key and name/areatype/client facing Id of all element intersecting that PlusCode</returns>
-        public static Dictionary<string, List<TerrainData>> SearchAreaFull(ref GeoArea area, ref List<StoredOsmElement> elements)
+        public static Dictionary<string, List<TerrainData>> SearchAreaFull(ref GeoArea area, ref List<DbTables.Place> elements)
         {
             //Plural function, returns all entries for each cell10.
             Dictionary<string, List<TerrainData>> results = new Dictionary<string, List<TerrainData>>(400); //starting capacity for a full Cell8
@@ -139,7 +139,7 @@ namespace PraxisCore
         /// <param name="lat">latitude in degrees</param>
         /// <param name="places">list of OSM elements</param>
         /// <returns>a tuple of the 10-digit plus code and a list of name/areatype/client facing ID for each element in that pluscode.</returns>
-        public static Tuple<string, List<TerrainData>> FindPlacesInCell10(double lon, double lat, ref List<StoredOsmElement> places)
+        public static Tuple<string, List<TerrainData>> FindPlacesInCell10(double lon, double lat, ref List<DbTables.Place> places)
         {
             //Plural function, gets all areas in each cell10.
             var box = new GeoArea(new GeoPoint(lat, lon), new GeoPoint(lat + resolutionCell10, lon + resolutionCell10));
@@ -165,7 +165,7 @@ namespace PraxisCore
         /// <param name="lat">latitude in degrees</param>
         /// <param name="places">list of OSM elements</param>
         /// <returns>a tuple of the 10-digit plus code and the name/areatype/client facing ID for the smallest element in that pluscode.</returns>
-        public static Tuple<string, TerrainData> FindPlaceInCell10(double x, double y, ref List<StoredOsmElement> places)
+        public static Tuple<string, TerrainData> FindPlaceInCell10(double x, double y, ref List<DbTables.Place> places)
         {
             //singular function, only returns the smallest area in a cell.
             var olc = new OpenLocationCode(y, x);

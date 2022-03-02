@@ -37,7 +37,7 @@ namespace Larry
             GeoArea buffered;
             if (relationID > 0)
             {
-                var fullArea = mainDb.StoredOsmElements.FirstOrDefault(m => m.SourceItemID == relationID && m.SourceItemType == 3);
+                var fullArea = mainDb.Places.FirstOrDefault(m => m.SourceItemID == relationID && m.SourceItemType == 3);
                 if (fullArea == null)
                     return;
 
@@ -48,11 +48,11 @@ namespace Larry
                 buffered = bounds;
 
             //TODO: set a flag to allow this to pull straight from a PBF file? 
-            List<StoredOsmElement> allPlaces = new List<StoredOsmElement>();
+            List<DbTables.Place> allPlaces = new List<DbTables.Place>();
             var intersectCheck = Converters.GeoAreaToPolygon(buffered);
             bool pullFromPbf = false; //Set via arg at startup? or setting file?
             if (!pullFromPbf)
-                allPlaces = Place.GetPlaces(buffered);
+                allPlaces = PraxisCore.Place.GetPlaces(buffered);
             else
             {
                 //need a file to read from.
@@ -125,7 +125,7 @@ namespace Larry
                 toRemove.Add(p);
 
                 GeoArea thisPath = Converters.GeometryToGeoArea(trail.ElementGeometry);
-                List<StoredOsmElement> oneEntry = new List<StoredOsmElement>();
+                List<DbTables.Place> oneEntry = new List<DbTables.Place>();
                 oneEntry.Add(trail);
 
                 var overlapped = AreaTypeInfo.SearchArea(ref thisPath, ref oneEntry);

@@ -72,9 +72,7 @@ namespace PraxisCore
             //Split it into a few functions.
             //then get all the area
 
-            int imgX = 0, imgY = 0;
-            GetPlusCodeImagePixelSize(area, out imgX, out imgY);
-
+            GetPlusCodeImagePixelSize(area, out var imgX, out var imgY);
             ImageStats info = new ImageStats(OpenLocationCode.DecodeValid(area), imgX, imgY);
             info.drawPoints = true;
             var places = GetPlacesForTile(info);
@@ -116,7 +114,7 @@ namespace PraxisCore
         /// <param name="styleSet">the style set to use when drwaing the elements</param>
         /// <param name="stats">the info on the resulting image for calculating ops.</param>
         /// <returns>a list of CompletePaintOps to be passed into a DrawArea function</returns>
-        public static List<CompletePaintOp> GetPaintOpsForStoredElements(List<StoredOsmElement> elements, string styleSet, ImageStats stats)
+        public static List<CompletePaintOp> GetPaintOpsForStoredElements(List<DbTables.Place> elements, string styleSet, ImageStats stats)
         {
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
@@ -132,18 +130,19 @@ namespace PraxisCore
         /// <summary>
         /// Creates the list of paint commands for the elements intersecting the given area, with the given data key attached to OSM elements and style set, for the image.
         /// </summary>
-        /// <param name="area">a Polygon covering the area to draw. Intended to match the ImageStats GeoArea. May be removed in favor of using the ImageStats GeoArea later. </param>
         /// <param name="dataKey">the key to pull data from attached to any Osm Elements intersecting the area</param>
         /// <param name="styleSet">the style set to use when drawing the intersecting elements</param>
         /// <param name="stats">the info on the resulting image for calculating ops.</param>
         /// <returns>a list of CompletePaintOps to be passed into a DrawArea function</returns>
-        public static List<CompletePaintOp> GetPaintOpsForCustomDataElements(Geometry area, string dataKey, string styleSet, ImageStats stats)
+        public static List<CompletePaintOp> GetPaintOpsForCustomDataElements(string dataKey, string styleSet, ImageStats stats)
         {
+            //NOTE: this is being passed in an Area as a Geometry. The name needs clarified to show its drawing a maptile based on the gameplay data for places in that area.
             var db = new PraxisContext();
-            var elements = db.CustomDataOsmElements.Include(d => d.StoredOsmElement).Where(d => d.DataKey == dataKey && area.Intersects(d.StoredOsmElement.ElementGeometry)).ToList();
+            var poly = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(stats.area, resolutionCell10));
+            var elements = db.PlaceGameData.Include(d => d.Place).Where(d => d.DataKey == dataKey && poly.Intersects(d.Place.ElementGeometry)).ToList();
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
-            var pass1 = elements.Select(d => new { d.StoredOsmElement.AreaSize, d.StoredOsmElement.ElementGeometry, paintOp = styles[d.DataValue.ToUTF8String()].PaintOperations, d.DataValue });
+            var pass1 = elements.Select(d => new { d.Place.AreaSize, d.Place.ElementGeometry, paintOp = styles[d.DataValue.ToUTF8String()].PaintOperations, d.DataValue });
             var pass2 = new List<CompletePaintOp>(elements.Count() * 2); 
             pass2.Add(bgOp);
             foreach (var op in pass1)
@@ -156,15 +155,15 @@ namespace PraxisCore
         /// <summary>
         /// Creates the list of paint commands for the PlusCode cells intersecting the given area, with the given data key and style set, for the image.
         /// </summary>
-        /// <param name="area">a Polygon covering the area to draw. Intended to match the ImageStats GeoArea. May be removed in favor of using the ImageStats GeoArea later. </param>
         /// <param name="dataKey">the key to pull data from attached to any Osm Elements intersecting the area</param>
         /// <param name="styleSet">the style set to use when drawing the intersecting elements</param>
         /// <param name="stats">the info on the resulting image for calculating ops.</param>
         /// <returns>a list of CompletePaintOps to be passed into a DrawArea function</returns>
-        public static List<CompletePaintOp> GetPaintOpsForCustomDataPlusCodes(Geometry area, string dataKey, string styleSet, ImageStats stats)
+        public static List<CompletePaintOp> GetPaintOpsForCustomDataPlusCodes(string dataKey, string styleSet, ImageStats stats)
         {
             var db = new PraxisContext();
-            var elements = db.CustomDataPlusCodes.Where(d => d.DataKey == dataKey && area.Intersects(d.GeoAreaIndex)).ToList();
+            var poly = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(stats.area, resolutionCell10));
+            var elements = db.AreaGameData.Where(d => d.DataKey == dataKey && poly.Intersects(d.GeoAreaIndex)).ToList();
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
             var pass1 = elements.Select(d => new { d.GeoAreaIndex.Area, d.GeoAreaIndex, paintOp = styles[d.DataValue.ToUTF8String()].PaintOperations, d.DataValue });
@@ -180,15 +179,15 @@ namespace PraxisCore
         /// <summary>
         /// Creates the list of paint commands for the PlusCode cells intersecting the given area, with the given data key and style set, for the image. In this case, the color will be the tag's value.
         /// </summary>
-        /// <param name="area">a Polygon covering the area to draw. Intended to match the ImageStats GeoArea. May be removed in favor of using the ImageStats GeoArea later. </param>
         /// <param name="dataKey">the key to pull data from attached to any Osm Elements intersecting the area</param>
         /// <param name="styleSet">the style set to use when drawing the intersecting elements</param>
         /// <param name="stats">the info on the resulting image for calculating ops.</param>
         /// <returns>a list of CompletePaintOps to be passed into a DrawArea function</returns>
-        public static List<CompletePaintOp> GetPaintOpsForCustomDataPlusCodesFromTagValue(Geometry area, string dataKey, string styleSet, ImageStats stats)
+        public static List<CompletePaintOp> GetPaintOpsForCustomDataPlusCodesFromTagValue(string dataKey, string styleSet, ImageStats stats)
         {
             var db = new PraxisContext();
-            var elements = db.CustomDataPlusCodes.Where(d => d.DataKey == dataKey && area.Intersects(d.GeoAreaIndex)).ToList();
+            var poly = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(stats.area, resolutionCell10));
+            var elements = db.AreaGameData.Where(d => d.DataKey == dataKey && poly.Intersects(d.GeoAreaIndex)).ToList();
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
             var pass1 = elements.Select(d => new { d.GeoAreaIndex.Area, d.GeoAreaIndex, paintOp = styles["tag"].PaintOperations, d.DataValue });

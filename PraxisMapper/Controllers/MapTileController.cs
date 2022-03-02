@@ -10,6 +10,7 @@ using System;
 using System.Linq;
 using static PraxisCore.DbTables;
 using static PraxisCore.Place;
+using System.Collections.Generic;
 
 namespace PraxisMapper.Controllers
 {
@@ -28,58 +29,119 @@ namespace PraxisMapper.Controllers
             MapTiles = mapTile;
         }
 
+        public byte[] getExistingSlippyTile(string tileKey, string styleSet)
+        {
+            bool useCache = true;
+            cache.TryGetValue("caching", out useCache);
+            if (!useCache)
+                return null;
+
+            var db = new PraxisContext();
+            var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.StyleSet == styleSet);
+            if (existingResults == null || existingResults.ExpireOn < DateTime.Now)
+                return null;
+
+            return existingResults.TileData;
+        }
+
+        public byte[] getExistingTile(string code, string styleSet)
+        {
+            bool useCache = true;
+            cache.TryGetValue("caching", out useCache);
+            if (!useCache)
+                return null;
+
+            var db = new PraxisContext();
+            var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.StyleSet == styleSet);
+            if (existingResults == null || existingResults.ExpireOn < DateTime.Now)
+                return null;
+
+            return existingResults.TileData;
+        }
+
+        private byte[] FinishSlippyMapTile(ImageStats info, List<CompletePaintOp> paintOps, string tileKey, string styleSet)
+        {
+            byte[] results = null;
+            results = MapTiles.DrawAreaAtSize(info, paintOps);
+
+            bool useCache = true;
+            cache.TryGetValue("caching", out useCache);
+            if (useCache)
+            {
+                var db = new PraxisContext();
+                var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.StyleSet == styleSet);
+                if (existingResults == null)
+                {
+                    existingResults = new SlippyMapTile() { Values = tileKey, StyleSet = styleSet, AreaCovered = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(info.area, ConstantValues.resolutionCell10)) };
+                    db.SlippyMapTiles.Add(existingResults);
+                }
+
+                existingResults.ExpireOn = DateTime.Now.AddYears(10);
+                existingResults.TileData = results;
+                existingResults.GenerationID++;
+                db.SaveChanges();
+            }
+
+            return results;
+        }
+
+        private byte[] FinishMapTile(ImageStats info, List<CompletePaintOp> paintOps, string code, string styleSet)
+        {
+            byte[] results = null;
+            results = MapTiles.DrawAreaAtSize(info, paintOps);
+
+            bool useCache = true;
+            cache.TryGetValue("caching", out useCache);
+            if (useCache)
+            {
+                var db = new PraxisContext();
+                var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.StyleSet == styleSet);
+                if (existingResults == null)
+                {
+                    existingResults = new MapTile() { PlusCode = code, StyleSet = styleSet, AreaCovered = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(info.area, ConstantValues.resolutionCell10)) };
+                    db.MapTiles.Add(existingResults);
+                }
+
+                existingResults.ExpireOn = DateTime.Now.AddYears(10);
+                existingResults.TileData = results;
+                existingResults.GenerationID++;
+                db.SaveChanges();
+            }
+
+            return results;
+        }
+
         [HttpGet]
         [Route("/[controller]/DrawSlippyTile/{styleSet}/{zoom}/{x}/{y}.png")] //slippy map conventions.
-        public ActionResult DrawSlippyTile(int x, int y, int zoom, string styleSet)
+        [Route("/[controller]/Slippy/{styleSet}/{zoom}/{x}/{y}.png")] //slippy map conventions.
+        public ActionResult DrawSlippyTile(int zoom, int x, int y, string styleSet)
         {
-            //slippymaps don't use coords. They use a grid from -180W to 180E, 85.0511N to -85.0511S (they might also use radians, not degrees, for an additional conversion step)
-            //Remember to invert Y to match PlusCodes going south to north.
             try
             {
                 PerformanceTracker pt = new PerformanceTracker("DrawSlippyTile");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
-                var db = new PraxisContext();
-                var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.StyleSet == styleSet);
-                bool useCache = false;
-                cache.TryGetValue("caching", out useCache);
-                if (!useCache || existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
+                var info = new ImageStats(zoom, x, y, IMapTiles.MapTileSizeSquare);
+
+                if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
                 {
-                    //Create this entry
-                    var info = new ImageStats(zoom, x, y, IMapTiles.MapTileSizeSquare);
-                    if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
-                        return StatusCode(500);
-
-                    info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
-                    if (zoom >= 15) //Gameplay areas are ~15.
-                    {
-                        info.filterSize = 0;
-                        info.drawPoints = true;
-                    }
-
-                    var dataLoadArea = new GeoArea(info.area.SouthLatitude - ConstantValues.resolutionCell10, info.area.WestLongitude - ConstantValues.resolutionCell10, info.area.NorthLatitude + ConstantValues.resolutionCell10, info.area.EastLongitude + ConstantValues.resolutionCell10);
-                    DateTime expires = DateTime.Now;
-                    byte[] results = null;
-                    var places = GetPlaces(dataLoadArea, null, info.filterSize, styleSet, false, info.drawPoints);
-                    //var places = GetPlacesForTile(info, null, styleSet); //Image area crops points near boundaries
-                    var paintOps = MapTileSupport.GetPaintOpsForStoredElements(places, styleSet, info);
-                    results = MapTiles.DrawAreaAtSize(info, paintOps); //, TagParser.GetStyleBgColor(styleSet));
-                    expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
-                    if (existingResults == null)
-                        db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, StyleSet = styleSet, TileData = results, ExpireOn = expires, AreaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
-                    else
-                    {
-                        existingResults.ExpireOn = expires;
-                        existingResults.TileData = results;
-                        existingResults.GenerationID++;
-                    }
-                    if (useCache)
-                        db.SaveChanges();
-                    pt.Stop(tileKey + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
-                    return File(results, "image/png");
+                    pt.Stop("OOB");
+                    return StatusCode(500);
                 }
 
-                pt.Stop(tileKey + "|" + styleSet);
-                return File(existingResults.TileData, "image/png");
+                byte[] tileData = getExistingSlippyTile(tileKey, styleSet);
+                if (tileData != null)
+                {
+                    pt.Stop(tileKey + "|" + styleSet);
+                    return File(tileData, "image/png");
+                }
+
+                //Make tile
+                var places = GetPlacesForTile(info, null, styleSet, false);
+                var paintOps = MapTileSupport.GetPaintOpsForStoredElements(places, styleSet, info);
+                tileData = FinishSlippyMapTile(info, paintOps, tileKey, styleSet);
+
+                pt.Stop(tileKey + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
+                return File(tileData, "image/png");
             }
             catch (Exception ex)
             {
@@ -88,56 +150,39 @@ namespace PraxisMapper.Controllers
             }
         }
 
+        //This might not be a real useful function? Or it might need a better name.
         [HttpGet]
         [Route("/[controller]/DrawSlippyTileCustomElements/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
-
+        [Route("/[controller]/SlippyCustomElements/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
+        [Route("/[controller]/SlippyPlaceData/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
         public ActionResult DrawSlippyTileCustomElements(int x, int y, int zoom, string styleSet, string dataKey)
         {
-            //slippymaps don't use coords. They use a grid from -180W to 180E, 85.0511N to -85.0511S (they might also use radians, not degrees, for an additional conversion step)
-            //Remember to invert Y to match PlusCodes going south to north.
             try
             {
                 PerformanceTracker pt = new PerformanceTracker("DrawSlippyTileCustomElements");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
-                var db = new PraxisContext();
-                var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.StyleSet == styleSet);
-                bool useCache = true;
-                cache.TryGetValue("caching", out useCache);
-                if (!useCache || existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
-                {
-                    //Create this entry
-                    var info = new ImageStats(zoom, x, y, IMapTiles.MapTileSizeSquare);
-                    if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
-                        return StatusCode(400);
-                    info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
-                    if (zoom >= 15) //Gameplay areas are ~15.
-                    {
-                        info.filterSize = 0;
-                        info.drawPoints = true;
-                    }
+                var info = new ImageStats(zoom, x, y, IMapTiles.MapTileSizeSquare);
 
-                    DateTime expires = DateTime.Now;
-                    byte[] results = null;
-                    var places = GetPlacesForTile(info, null, styleSet);
-                    var paintOps = MapTileSupport.GetPaintOpsForCustomDataElements(Converters.GeoAreaToPolygon(info.area), dataKey, styleSet, info);
-                    results = MapTiles.DrawAreaAtSize(info, paintOps); //, TagParser.GetStyleBgColor(styleSet));
-                    expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
-                    if (existingResults == null)
-                        db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, StyleSet = styleSet, TileData = results, ExpireOn = expires, AreaCovered = Converters.GeoAreaToPolygon(info.area) });
-                    else
-                    {
-                        existingResults.ExpireOn = expires;
-                        existingResults.TileData = results;
-                        existingResults.GenerationID++;
-                    }
-                    if (useCache)
-                        db.SaveChanges();
-                    pt.Stop(tileKey + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
-                    return File(results, "image/png");
+                if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
+                {
+                    pt.Stop("OOB");
+                    return StatusCode(500);
                 }
 
-                pt.Stop(tileKey + "|" + styleSet);
-                return File(existingResults.TileData, "image/png");
+                byte[] tileData = getExistingSlippyTile(tileKey, styleSet);
+                if (tileData != null)
+                {
+                    pt.Stop(tileKey + "|" + styleSet);
+                    return File(tileData, "image/png");
+                }
+
+                //Make tile
+                var places = GetPlacesForTile(info, null, styleSet);
+                var paintOps = MapTileSupport.GetPaintOpsForCustomDataElements(dataKey, styleSet, info);
+                tileData = FinishSlippyMapTile(info, paintOps, tileKey, styleSet);
+
+                pt.Stop(tileKey + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
+                return File(tileData, "image/png");
             }
             catch (Exception ex)
             {
@@ -148,54 +193,35 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/DrawSlippyTileCustomPlusCodes/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
-
+        [Route("/[controller]/SlippyAreaData/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
         public ActionResult DrawSlippyTileCustomPlusCodes(int x, int y, int zoom, string styleSet, string dataKey)
         {
-            //slippymaps don't use coords. They use a grid from -180W to 180E, 85.0511N to -85.0511S (they might also use radians, not degrees, for an additional conversion step)
-            //Remember to invert Y to match PlusCodes going south to north.
             try
             {
                 PerformanceTracker pt = new PerformanceTracker("DrawSlippyTileCustomPlusCodes");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
-                var db = new PraxisContext();
-                var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.StyleSet == styleSet);
-                bool useCache = true;
-                cache.TryGetValue("caching", out useCache);
-                if (!useCache || existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
-                {
-                    //Create this entry
-                    var info = new ImageStats(zoom, x, y, IMapTiles.MapTileSizeSquare);
-                    if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
-                        return StatusCode(400);
-                    info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
-                    if (zoom >= 15) //Gameplay areas are ~15.
-                        info.filterSize = 0;
+                var info = new ImageStats(zoom, x, y, IMapTiles.MapTileSizeSquare);
 
-                    //var dataLoadArea = new GeoArea(info.area.SouthLatitude - ConstantValues.resolutionCell10, info.area.WestLongitude - ConstantValues.resolutionCell10, info.area.NorthLatitude + ConstantValues.resolutionCell10, info.area.EastLongitude + ConstantValues.resolutionCell10);
-                    DateTime expires = DateTime.Now;
-                    byte[] results = null;
-                    //var places = GetPlaces(dataLoadArea, filterSize: info.filterSize); //includeGenerated: false, filterSize: filterSize  //NOTE: in this case, we want generated areas to be their own slippy layer, so the config setting is ignored here.
-                    //results = MapTiles.DrawAreaAtSize(info, places, styleSet, true);
-                    var places = GetPlacesForTile(info, null, styleSet);
-                    var paintOps = MapTileSupport.GetPaintOpsForCustomDataPlusCodes(Converters.GeoAreaToPolygon(info.area), dataKey, styleSet, info);
-                    results = MapTiles.DrawAreaAtSize(info, paintOps); //, TagParser.GetStyleBgColor(styleSet));
-                    expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
-                    if (existingResults == null)
-                        db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, StyleSet = styleSet, TileData = results, ExpireOn = expires, AreaCovered = Converters.GeoAreaToPolygon(info.area) });
-                    else
-                    {
-                        existingResults.ExpireOn = expires;
-                        existingResults.TileData = results;
-                        existingResults.GenerationID++;
-                    }
-                    if (useCache)
-                        db.SaveChanges();
-                    pt.Stop(tileKey + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
-                    return File(results, "image/png");
+                if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
+                {
+                    pt.Stop("OOB");
+                    return StatusCode(500);
                 }
 
-                pt.Stop(tileKey + "|" + styleSet);
-                return File(existingResults.TileData, "image/png");
+                byte[] tileData = getExistingSlippyTile(tileKey, styleSet);
+                if (tileData != null)
+                {
+                    pt.Stop(tileKey + "|" + styleSet);
+                    return File(tileData, "image/png");
+                }
+
+                //Make tile
+                var places = GetPlacesForTile(info, null, styleSet);
+                var paintOps = MapTileSupport.GetPaintOpsForCustomDataPlusCodes(dataKey, styleSet, info);
+                tileData = FinishSlippyMapTile(info, paintOps, tileKey, styleSet);
+
+                pt.Stop(tileKey + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
+                return File(tileData, "image/png");
             }
             catch (Exception ex)
             {
@@ -204,76 +230,44 @@ namespace PraxisMapper.Controllers
             }
         }
 
-        [HttpGet]
-        [Route("/[controller]/DrawSlippyTileCustomPlusCodesByTag/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
+        //[HttpGet]
+        //[Route("/[controller]/DrawSlippyTileCustomPlusCodesByTag/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
+        //[Route("/[controller]/SlippyAreaByTag/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
+        //public ActionResult DrawSlippyTileCustomPlusCodesByTag(int x, int y, int zoom, string styleSet, string dataKey)
+        //{
+        //    try
+        //    {
+        //        PerformanceTracker pt = new PerformanceTracker("DrawSlippyTileByTag");
+        //        string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
+        //        var info = new ImageStats(zoom, x, y, IMapTiles.MapTileSizeSquare);
 
-        public ActionResult DrawSlippyTileCustomPlusCodesByTag(int x, int y, int zoom, string styleSet, string dataKey)
-        {
-            //slippymaps don't use coords. They use a grid from -180W to 180E, 85.0511N to -85.0511S (they might also use radians, not degrees, for an additional conversion step)
-            //Remember to invert Y to match PlusCodes going south to north.
-            try
-            {
-                PerformanceTracker pt = new PerformanceTracker("DrawSlippyTile");
-                string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
-                var db = new PraxisContext();
-                var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.StyleSet == styleSet);
-                bool useCache = true;
-                cache.TryGetValue("caching", out useCache);
-                if (!useCache || existingResults == null || existingResults.SlippyMapTileId == null || existingResults.ExpireOn < DateTime.Now)
-                {
-                    //Create this entry
-                    var info = new ImageStats(zoom, x, y, IMapTiles.MapTileSizeSquare);
-                    if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
-                        return StatusCode(400);
-                    info.filterSize = info.degreesPerPixelX * 2; //I want this to apply to areas, and allow lines to be drawn regardless of length.
-                    if (zoom >= 15) //Gameplay areas are ~15.
-                        info.filterSize = 0;
+        //        if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
+        //        {
+        //            pt.Stop("OOB");
+        //            return StatusCode(500);
+        //        }
 
-                    //var dataLoadArea = new GeoArea(info.area.SouthLatitude - ConstantValues.resolutionCell10, info.area.WestLongitude - ConstantValues.resolutionCell10, info.area.NorthLatitude + ConstantValues.resolutionCell10, info.area.EastLongitude + ConstantValues.resolutionCell10);
-                    DateTime expires = DateTime.Now;
-                    byte[] results = null;
-                    //var places = GetPlaces(dataLoadArea, filterSize: info.filterSize); //includeGenerated: false, filterSize: filterSize  //NOTE: in this case, we want generated areas to be their own slippy layer, so the config setting is ignored here.
-                    //results = MapTiles.DrawAreaAtSize(info, places, styleSet, true);
-                    var places = GetPlacesForTile(info, null, styleSet);
-                    var paintOps = MapTileSupport.GetPaintOpsForCustomDataPlusCodesFromTagValue(Converters.GeoAreaToPolygon(info.area), dataKey, styleSet, info);
-                    results = MapTiles.DrawAreaAtSize(info, paintOps); //, TagParser.GetStyleBgColor(styleSet));
-                    expires = DateTime.Now.AddYears(10); //Assuming you are going to manually update/clear tiles when you reload base data
-                    if (existingResults == null)
-                        db.SlippyMapTiles.Add(new SlippyMapTile() { Values = tileKey, StyleSet = styleSet, TileData = results, ExpireOn = expires, AreaCovered = Converters.GeoAreaToPolygon(info.area) });
-                    else
-                    {
-                        existingResults.ExpireOn = expires;
-                        existingResults.TileData = results;
-                        existingResults.GenerationID++;
-                    }
-                    if (useCache)
-                        db.SaveChanges();
-                    pt.Stop(tileKey + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
-                    return File(results, "image/png");
-                }
+        //        byte[] tileData = getExistingSlippyTile(tileKey, styleSet);
+        //        if (tileData != null)
+        //        {
+        //            pt.Stop(tileKey + "|" + styleSet);
+        //            return File(tileData, "image/png");
+        //        }
 
-                pt.Stop(tileKey + "|" + styleSet);
-                return File(existingResults.TileData, "image/png");
-            }
-            catch (Exception ex)
-            {
-                ErrorLogger.LogError(ex);
-                return StatusCode(500);
-            }
-        }
+        //        //Make tile
+        //        var places = GetPlacesForTile(info, null, styleSet);
+        //        var paintOps = MapTileSupport.GetPaintOpsForCustomDataPlusCodesFromTagValue(dataKey, styleSet, info);
+        //        tileData = FinishSlippyMapTile(info, paintOps, tileKey, styleSet);
 
-        [HttpGet]
-        [Route("/[controller]/CheckTileExpiration/{PlusCode}/{styleSet}")]
-        public string CheckTileExpiration(string PlusCode, string styleSet) //For simplicity, maptiles expire after the Date part of a DateTime. Intended for base tiles.
-        {
-            //I pondered making this a boolean, but the client needs the expiration date to know if it's newer or older than it's version. Not if the server needs to redraw the tile. That happens on load.
-            //I think, what I actually need, is the CreatedOn, and if it's newer than the client's tile, replace it.
-            PerformanceTracker pt = new PerformanceTracker("CheckTileExpiration");
-            var db = new PraxisContext();
-            var mapTileExp = db.MapTiles.FirstOrDefault(m => m.PlusCode == PlusCode && m.StyleSet == styleSet).ExpireOn;
-            pt.Stop();
-            return mapTileExp.ToShortDateString();
-        }
+        //        pt.Stop(tileKey + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
+        //        return File(tileData, "image/png");
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        ErrorLogger.LogError(ex);
+        //        return StatusCode(500);
+        //    }
+        //}
 
         [HttpGet]
         [Route("/[controller]/DrawPath")]
@@ -287,40 +281,36 @@ namespace PraxisMapper.Controllers
         [HttpGet]
         [Route("/[controller]/DrawPlusCode/{code}/{styleSet}")]
         [Route("/[controller]/DrawPlusCode/{code}")]
-        public ActionResult DrawPlusCode(string code, string styleSet = "mapTiles")
+        [Route("/[controller]/Area/{code}/{styleSet}")]
+        [Route("/[controller]/Area/{code}")]
+        public ActionResult DrawTile(string code, string styleSet = "mapTiles")
         {
             try
             {
-                PerformanceTracker pt = new PerformanceTracker("DrawPlusCode");
-                if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(code)))
-                    return StatusCode(400);
-                code = code.ToUpper();
-                string tileKey = code + "|" + styleSet;
-                var db = new PraxisContext();
-                var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.StyleSet == styleSet);
-                bool useCache = true;
-                cache.TryGetValue("caching", out useCache);
-                if (!useCache || existingResults == null || existingResults.MapTileId == null || existingResults.ExpireOn < DateTime.Now)
+                PerformanceTracker pt = new PerformanceTracker("DrawTile");
+                MapTileSupport.GetPlusCodeImagePixelSize(code, out var imgX, out var imgY);
+                var info = new ImageStats(OpenLocationCode.DecodeValid(code), imgX, imgY);
+
+                if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
                 {
-                    //Create this entry
-                    var results = MapTileSupport.DrawPlusCode(code, styleSet);
-                    var expires = DateTime.Now.AddYears(10); //Assuming tile expiration occurs only when needed.
-                    var dataLoadArea = OpenLocationCode.DecodeValid(code);
-                    if (existingResults == null)
-                        db.MapTiles.Add(new MapTile() { PlusCode = code, StyleSet = styleSet, TileData = results, ExpireOn = expires, AreaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
-                    else
-                    {
-                        existingResults.ExpireOn = expires;
-                        existingResults.TileData = results;
-                        existingResults.GenerationID++;
-                    }
-                    db.SaveChanges();
-                    pt.Stop(code + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
-                    return File(results, "image/png");
+                    pt.Stop("OOB");
+                    return StatusCode(500);
                 }
 
-                pt.Stop(code + "|" + styleSet);
-                return File(existingResults.TileData, "image/png");
+                byte[] tileData = getExistingSlippyTile(code, styleSet);
+                if (tileData != null)
+                {
+                    pt.Stop(code + "|" + styleSet);
+                    return File(tileData, "image/png");
+                }
+
+                //Make tile
+                var places = GetPlacesForTile(info, null, styleSet, false);
+                var paintOps = MapTileSupport.GetPaintOpsForStoredElements(places, styleSet, info);
+                tileData = FinishMapTile(info, paintOps, code, styleSet);
+
+                pt.Stop(code + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
+                return File(tileData, "image/png");
             }
             catch (Exception ex)
             {
@@ -331,46 +321,35 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/DrawPlusCodeCustomData/{code}/{styleSet}/{dataKey}")]
+        [Route("/[controller]/AreaData/{code}/{styleSet}/{dataKey}")]
         public ActionResult DrawPlusCodeCustomData(string code, string styleSet, string dataKey)
         {
             try
             {
-                PerformanceTracker pt = new PerformanceTracker("DrawPlusCodeCustomData");
-                if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(code)))
-                    return StatusCode(400);
-                code = code.ToUpper();
-                string tileKey = code + "|" + styleSet + "|" + dataKey;
-                var db = new PraxisContext();
-                var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.StyleSet == styleSet);
-                bool useCache = true;
-                cache.TryGetValue("caching", out useCache);
-                if (!useCache || existingResults == null || existingResults.MapTileId == null || existingResults.ExpireOn < DateTime.Now)
+                PerformanceTracker pt = new PerformanceTracker("DrawTileData");
+                MapTileSupport.GetPlusCodeImagePixelSize(code, out var imgX, out var imgY);
+                var info = new ImageStats(OpenLocationCode.DecodeValid(code), imgX, imgY);
+
+                if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
                 {
-                    //Create this entry
-                    var area = OpenLocationCode.DecodeValid(code);
-                    var poly = Converters.GeoAreaToPolygon(area);
-                    int imgX = 0, imgY = 0;
-                    MapTileSupport.GetPlusCodeImagePixelSize(code, out imgX, out imgY);
-                    ImageStats stats = new ImageStats(area, imgX, imgY);
-                    var paintOps = MapTileSupport.GetPaintOpsForCustomDataPlusCodes(poly, dataKey, styleSet, stats);
-                    var results = MapTiles.DrawAreaAtSize(stats, paintOps); //, TagParser.GetStyleBgColor(styleSet));
-                    var expires = DateTime.Now.AddYears(10); //Assuming tile expiration occurs only when needed.
-                    var dataLoadArea = OpenLocationCode.DecodeValid(code);
-                    if (existingResults == null)
-                        db.MapTiles.Add(new MapTile() { PlusCode = code, StyleSet = styleSet, TileData = results, ExpireOn = expires, AreaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
-                    else
-                    {
-                        existingResults.ExpireOn = expires;
-                        existingResults.TileData = results;
-                        existingResults.GenerationID++;
-                    }
-                    db.SaveChanges();
-                    pt.Stop(code + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
-                    return File(results, "image/png");
+                    pt.Stop("OOB");
+                    return StatusCode(500);
                 }
 
-                pt.Stop(code + "|" + styleSet);
-                return File(existingResults.TileData, "image/png");
+                byte[] tileData = getExistingSlippyTile(code, styleSet);
+                if (tileData != null)
+                {
+                    pt.Stop(code + "|" + styleSet);
+                    return File(tileData, "image/png");
+                }
+
+                //Make tile
+                var places = GetPlacesForTile(info, null, styleSet, false);
+                var paintOps = MapTileSupport.GetPaintOpsForCustomDataPlusCodes(dataKey, styleSet, info);
+                tileData = FinishMapTile(info, paintOps, code, styleSet);
+
+                pt.Stop(code + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
+                return File(tileData, "image/png");
             }
             catch (Exception ex)
             {
@@ -379,99 +358,77 @@ namespace PraxisMapper.Controllers
             }
         }
 
-        [HttpGet]
-        [Route("/[controller]/DrawPlusCodeCustomDataByTag/{code}/{styleSet}/{dataKey}")]
-        public ActionResult DrawPlusCodeCustomDataByTag(string code, string styleSet, string dataKey)
-        {
-            try
-            {
-                PerformanceTracker pt = new PerformanceTracker("DrawPlusCodeCustomData");
-                if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(code)))
-                    return StatusCode(400);
-                code = code.ToUpper();
-                string tileKey = code + "|" + styleSet + "|" + dataKey;
-                var db = new PraxisContext();
-                var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.StyleSet == styleSet);
-                bool useCache = true;
-                cache.TryGetValue("caching", out useCache);
-                if (!useCache || existingResults == null || existingResults.MapTileId == null || existingResults.ExpireOn < DateTime.Now)
-                {
-                    //Create this entry
-                    var area = OpenLocationCode.DecodeValid(code);
-                    var dataLoadArea = new GeoArea(area.SouthLatitude - ConstantValues.resolutionCell10, area.WestLongitude - ConstantValues.resolutionCell10, area.NorthLatitude + ConstantValues.resolutionCell10, area.EastLongitude + ConstantValues.resolutionCell10);
-                    var poly = Converters.GeoAreaToPolygon(area);
-                    int imgX = 0, imgY = 0;
-                    MapTileSupport.GetPlusCodeImagePixelSize(code, out imgX, out imgY);
-                    ImageStats stats = new ImageStats(area, imgX, imgY);
-                    var paintOps = MapTileSupport.GetPaintOpsForCustomDataPlusCodesFromTagValue(poly, dataKey, styleSet, stats);
-                    var results = MapTiles.DrawAreaAtSize(stats, paintOps); //, TagParser.GetStyleBgColor(styleSet));
-                    var expires = DateTime.Now.AddYears(10); //Assuming tile expiration occurs only when needed.
-                    //var dataLoadArea = OpenLocationCode.DecodeValid(code);
-                    if (existingResults == null)
-                        db.MapTiles.Add(new MapTile() { PlusCode = code, StyleSet = styleSet, TileData = results, ExpireOn = expires, AreaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
-                    else
-                    {
-                        existingResults.ExpireOn = expires;
-                        existingResults.TileData = results;
-                        existingResults.GenerationID++;
-                    }
-                    db.SaveChanges();
-                    pt.Stop(code + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
-                    return File(results, "image/png");
-                }
+        //note - bytag should just be a call to that style with a 'fromtag=true' entry. 
+        //[HttpGet]
+        //[Route("/[controller]/DrawPlusCodeCustomDataByTag/{code}/{styleSet}/{dataKey}")]
+        //[Route("/[controller]/AreaByTag/{code}/{styleSet}/{dataKey}")]
+        //public ActionResult DrawPlusCodeCustomDataByTag(string code, string styleSet, string dataKey)
+        //{
+        //    try
+        //    {
+        //        PerformanceTracker pt = new PerformanceTracker("DrawTileByTag");
+        //        MapTileSupport.GetPlusCodeImagePixelSize(code, out var imgX, out var imgY);
+        //        var info = new ImageStats(OpenLocationCode.DecodeValid(code), imgX, imgY);
 
-                pt.Stop(code + "|" + styleSet);
-                return File(existingResults.TileData, "image/png");
-            }
-            catch (Exception ex)
-            {
-                ErrorLogger.LogError(ex);
-                return StatusCode(500);
-            }
-        }
+        //        if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
+        //        {
+        //            pt.Stop("OOB");
+        //            return StatusCode(500);
+        //        }
+
+        //        byte[] tileData = getExistingSlippyTile(code, styleSet);
+        //        if (tileData != null)
+        //        {
+        //            pt.Stop(code + "|" + styleSet);
+        //            return File(tileData, "image/png");
+        //        }
+
+        //        //Make tile
+        //        var places = GetPlacesForTile(info, null, styleSet, false);
+        //        var paintOps = MapTileSupport.GetPaintOpsForCustomDataPlusCodesFromTagValue(dataKey, styleSet, info);
+        //        tileData = FinishMapTile(info, paintOps, code, styleSet);
+
+        //        pt.Stop(code + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
+        //        return File(tileData, "image/png");
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        ErrorLogger.LogError(ex);
+        //        return StatusCode(500);
+        //    }
+        //}
 
         [HttpGet]
         [Route("/[controller]/DrawPlusCodeCustomElements/{code}/{styleSet}/{dataKey}")]
+        [Route("/[controller]/AreaPlaceData/{code}/{styleSet}/{dataKey}")] //garbage name
         public ActionResult DrawPlusCodeCustomElements(string code, string styleSet, string dataKey)
         {
             try
             {
-                PerformanceTracker pt = new PerformanceTracker("DrawPlusCodeCustomElements");
-                if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(code)))
-                    return StatusCode(400);
-                code = code.ToUpper();
-                string tileKey = code + "|" + styleSet + "|" + dataKey;
-                var db = new PraxisContext();
-                var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.StyleSet == styleSet);
-                bool useCache = true;
-                cache.TryGetValue("caching", out useCache);
-                if (!useCache || existingResults == null || existingResults.MapTileId == null || existingResults.ExpireOn < DateTime.Now)
+                PerformanceTracker pt = new PerformanceTracker("DrawTilePlace");
+                MapTileSupport.GetPlusCodeImagePixelSize(code, out var imgX, out var imgY);
+                var info = new ImageStats(OpenLocationCode.DecodeValid(code), imgX, imgY);
+
+                if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
                 {
-                    //Create this entry
-                    var area = OpenLocationCode.DecodeValid(code);
-                    var poly = Converters.GeoAreaToPolygon(area);
-                    int imgX = 0, imgY = 0;
-                    MapTileSupport.GetPlusCodeImagePixelSize(code, out imgX, out imgY);
-                    ImageStats stats = new ImageStats(area, imgX, imgY);
-                    var paintOps = MapTileSupport.GetPaintOpsForCustomDataElements(poly, dataKey, styleSet, stats);
-                    var results = MapTiles.DrawAreaAtSize(stats, paintOps); //, TagParser.GetStyleBgColor(styleSet));
-                    var expires = DateTime.Now.AddYears(10); //Assuming tile expiration occurs only when needed.
-                    var dataLoadArea = OpenLocationCode.DecodeValid(code);
-                    if (existingResults == null)
-                        db.MapTiles.Add(new MapTile() { PlusCode = code, StyleSet = styleSet, TileData = results, ExpireOn = expires, AreaCovered = Converters.GeoAreaToPolygon(dataLoadArea) });
-                    else
-                    {
-                        existingResults.ExpireOn = expires;
-                        existingResults.TileData = results;
-                        existingResults.GenerationID++;
-                    }
-                    db.SaveChanges();
-                    pt.Stop(code + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
-                    return File(results, "image/png");
+                    pt.Stop("OOB");
+                    return StatusCode(500);
                 }
 
-                pt.Stop(code + "|" + styleSet);
-                return File(existingResults.TileData, "image/png");
+                byte[] tileData = getExistingSlippyTile(code, styleSet);
+                if (tileData != null)
+                {
+                    pt.Stop(code + "|" + styleSet);
+                    return File(tileData, "image/png");
+                }
+
+                //Make tile
+                var places = GetPlacesForTile(info, null, styleSet, false);
+                var paintOps = MapTileSupport.GetPaintOpsForCustomDataElements(dataKey, styleSet, info);
+                tileData = FinishMapTile(info, paintOps, code, styleSet);
+
+                pt.Stop(code + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
+                return File(tileData, "image/png");
             }
             catch (Exception ex)
             {
@@ -488,33 +445,6 @@ namespace PraxisMapper.Controllers
             db.ExpireMapTiles(elementId, styleSet);
         }
 
-        [HttpGet]
-        [Route("/[controller]/GetTileExpiration/{plusCode}/{styleSet}")]
-        public static long GetTileExpiration(string plusCode, string styleSet)
-        {
-            //Returns seconds remaining on this tile's lifetime in the server.
-            //if value is *more* than previous value, client should refres it.
-            //if value is less than previous value, tile has not changed and ticks forward.
-            try
-            {
-                PerformanceTracker pt = new PerformanceTracker("GetTileExpiration");
-                var db = new PraxisContext();
-                var tileDate = db.MapTiles
-                    .Where(m => m.PlusCode == plusCode && m.StyleSet == styleSet)
-                    .Select(m => m.ExpireOn)
-                    .FirstOrDefault();
-
-                var results = (long)(tileDate - DateTime.Now).TotalSeconds;
-                pt.Stop();
-                return results;
-            }
-            catch (Exception ex)
-            {
-                ErrorLogger.LogError(ex);
-                return -1; //negative answers will be treated as an expiration.
-            }
-        }
-        
         [HttpGet]
         [Route("/[controller]/GetTileGenerationId/{plusCode}/{styleSet}")]
         [Route("/[controller]/Generation/{plusCode}/{styleSet}")]

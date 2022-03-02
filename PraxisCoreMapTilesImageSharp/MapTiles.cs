@@ -96,7 +96,7 @@ namespace PraxisCore
         /// <param name="info">the image information for drawing</param>
         /// <param name="items">the elements to draw.</param>
         /// <returns>byte array of the generated .png tile image</returns>
-        public byte[] DrawOfflineEstimatedAreas(ImageStats info, List<StoredOsmElement> items)
+        public byte[] DrawOfflineEstimatedAreas(ImageStats info, List<DbTables.Place> items)
         {
             //TODO retest this.
             var image = new Image<Rgba32>(info.imageSizeX, info.imageSizeY);
@@ -280,7 +280,7 @@ namespace PraxisCore
         /// <param name="styleSet">the style rules to use when drawing</param>
         /// <param name="filterSmallAreas">if true, removes elements from the drawing that take up fewer than 8 pixels.</param>
         /// <returns></returns>
-        public byte[] DrawAreaAtSize(ImageStats stats, List<StoredOsmElement> drawnItems = null, string styleSet = "mapTiles", bool filterSmallAreas = true)
+        public byte[] DrawAreaAtSize(ImageStats stats, List<DbTables.Place> drawnItems = null, string styleSet = "mapTiles", bool filterSmallAreas = true)
         {
             //This is the new core drawing function. Takes in an area, the items to draw, and the size of the image to draw. 
             //The drawn items get their paint pulled from the TagParser's list. If I need multiple match lists, I'll need to make a way
@@ -414,7 +414,7 @@ namespace PraxisCore
         /// <summary>
         /// ImageSharp doesn't support this at all. Throws NotImplementedException when called.
         /// </summary>
-        public string DrawAreaAtSizeSVG(ImageStats stats, List<StoredOsmElement> drawnItems = null, Dictionary<string, TagParserEntry> styles = null, bool filterSmallAreas = true)
+        public string DrawAreaAtSizeSVG(ImageStats stats, List<DbTables.Place> drawnItems = null, Dictionary<string, TagParserEntry> styles = null, bool filterSmallAreas = true)
         {
             throw new NotImplementedException();
         }

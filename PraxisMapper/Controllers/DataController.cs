@@ -37,8 +37,8 @@ namespace PraxisMapper.Controllers
             if (lastExpiryPass < DateTime.Now)
             {
                 var db = new PraxisContext();
-                db.Database.ExecuteSqlRaw("DELETE FROM CustomDataOsmElements WHERE expiration IS NOT NULL AND expiration < NOW()");
-                db.Database.ExecuteSqlRaw("DELETE FROM CustomDataPlusCodes WHERE expiration IS NOT NULL AND expiration < NOW()");
+                db.Database.ExecuteSqlRaw("DELETE FROM PlaceGameData WHERE expiration IS NOT NULL AND expiration < NOW()");
+                db.Database.ExecuteSqlRaw("DELETE FROM AreaGameData WHERE expiration IS NOT NULL AND expiration < NOW()");
                 db.Database.ExecuteSqlRaw("DELETE FROM PlayerData WHERE expiration IS NOT NULL AND expiration < NOW()");
                 lastExpiryPass = DateTime.Now.AddMinutes(30);
             }
@@ -348,7 +348,7 @@ namespace PraxisMapper.Controllers
         public double GetDistanceToPlace(Guid elementId, double lat, double lon)
         {
             var db = new PraxisContext();
-            var place = db.StoredOsmElements.FirstOrDefault(e => e.PrivacyId == elementId);
+            var place = db.Places.FirstOrDefault(e => e.PrivacyId == elementId);
             if (place == null) return 0;
             return place.ElementGeometry.Distance(new NetTopologySuite.Geometries.Point(lon, lat));
         }
@@ -359,7 +359,7 @@ namespace PraxisMapper.Controllers
         public string GetCenterOfPlace(Guid elementId)
         {
             var db = new PraxisContext();
-            var place = db.StoredOsmElements.FirstOrDefault(e => e.PrivacyId == elementId);
+            var place = db.Places.FirstOrDefault(e => e.PrivacyId == elementId);
             if (place == null) return "0|0";
             var center = place.ElementGeometry.Centroid;
             return center.Y.ToString() + "|" + center.X.ToString();        

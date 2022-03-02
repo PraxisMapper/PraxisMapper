@@ -19,13 +19,13 @@ namespace PraxisCore
         public DbSet<SlippyMapTile> SlippyMapTiles { get; set; }
         public DbSet<ErrorLog> ErrorLogs { get; set; }
         public DbSet<ServerSetting> ServerSettings { get; set; }
-        public DbSet<StoredOsmElement> StoredOsmElements { get; set; }
+        public DbSet<DbTables.Place> Places { get; set; }
         public DbSet<TagParserEntry> TagParserEntries { get; set; }
         public DbSet<TagParserMatchRule> TagParserMatchRules { get; set; }
         public DbSet<TagParserPaint> TagParserPaints { get; set; }
-        public DbSet<ElementTags> ElementTags { get; set; } //This table is exposed so I can search it directly faster.
-        public DbSet<CustomDataOsmElement> CustomDataOsmElements { get; set; }
-        public DbSet<CustomDataPlusCode> CustomDataPlusCodes { get; set; }
+        public DbSet<PlaceTags> PlaceTags { get; set; } 
+        public DbSet<PlaceGameData> PlaceGameData { get; set; }
+        public DbSet<AreaGameData> AreaGameData { get; set; }
         public DbSet<GlobalDataEntries> GlobalDataEntries { get; set; }
         public DbSet<TagParserStyleBitmap> TagParserStyleBitmaps { get; set; }
 
@@ -54,11 +54,11 @@ namespace PraxisCore
             model.Entity<PlayerData>().HasIndex(p => p.DeviceID);
             model.Entity<PlayerData>().HasIndex(p => p.DataKey);
 
-            model.Entity<StoredOsmElement>().HasIndex(m => m.AreaSize); //Enables server-side sorting on biggest-to-smallest draw order.
-            model.Entity<StoredOsmElement>().HasIndex(m => m.SourceItemID);
-            model.Entity<StoredOsmElement>().HasIndex(m => m.SourceItemType);
-            model.Entity<StoredOsmElement>().HasIndex(m => m.PrivacyId);
-            model.Entity<StoredOsmElement>().HasMany(m => m.Tags).WithOne(m => m.StoredOsmElement).HasForeignKey(m => new { m.SourceItemId, m.SourceItemType }).HasPrincipalKey(m => new { m.SourceItemID, m.SourceItemType });
+            model.Entity<DbTables.Place>().HasIndex(m => m.AreaSize); //Enables server-side sorting on biggest-to-smallest draw order.
+            model.Entity<DbTables.Place>().HasIndex(m => m.SourceItemID);
+            model.Entity<DbTables.Place>().HasIndex(m => m.SourceItemType);
+            model.Entity<DbTables.Place>().HasIndex(m => m.PrivacyId);
+            model.Entity<DbTables.Place>().HasMany(m => m.Tags).WithOne(m => m.Place).HasForeignKey(m => (new { m.SourceItemId, m.SourceItemType })).HasPrincipalKey(m => (new { m.SourceItemID, m.SourceItemType }));
 
             model.Entity<MapTile>().HasIndex(m => m.PlusCode);
             model.Entity<MapTile>().Property(m => m.PlusCode).HasMaxLength(12);
@@ -67,16 +67,15 @@ namespace PraxisCore
             model.Entity<SlippyMapTile>().HasIndex(m => m.Values);
             model.Entity<SlippyMapTile>().HasIndex(m => m.StyleSet);
 
-            model.Entity<ElementTags>().HasIndex(m => m.Key);
-            model.Entity<ElementTags>().HasOne(m => m.StoredOsmElement).WithMany(m => m.Tags).HasForeignKey(m => new { m.SourceItemId, m.SourceItemType }).HasPrincipalKey(m => new { m.SourceItemID, m.SourceItemType });
+            model.Entity<PlaceTags>().HasIndex(m => m.Key);
+            model.Entity<PlaceTags>().HasOne(m => m.Place).WithMany(m => m.Tags).HasForeignKey(m => new { m.SourceItemId, m.SourceItemType }).HasPrincipalKey(m => new { m.SourceItemID, m.SourceItemType });
 
-            model.Entity<CustomDataOsmElement>().HasIndex(m => m.DataKey);
-            model.Entity<CustomDataOsmElement>().HasIndex(m => m.StoredOsmElementId);
-            //model.Entity<CustomDataOsmElement>().HasIndex(m => m.privacyId);
+            model.Entity<PlaceGameData>().HasIndex(m => m.DataKey);
+            model.Entity<PlaceGameData>().HasIndex(m => m.PlaceId);
 
-            model.Entity<CustomDataPlusCode>().HasIndex(m => m.DataKey);
-            model.Entity<CustomDataPlusCode>().HasIndex(m => m.PlusCode);
-            model.Entity<CustomDataPlusCode>().HasIndex(m => m.GeoAreaIndex);
+            model.Entity<AreaGameData>().HasIndex(m => m.DataKey);
+            model.Entity<AreaGameData>().HasIndex(m => m.PlusCode);
+            model.Entity<AreaGameData>().HasIndex(m => m.GeoAreaIndex);
 
             if (serverMode == "PostgreSQL")
             {
@@ -91,31 +90,31 @@ namespace PraxisCore
         //An index that I don't think EFCore can create correctly automatically.
         public static string MapTileIndex = "CREATE SPATIAL INDEX MapTileSpatialIndex ON MapTiles(areaCovered)";
         public static string SlippyMapTileIndex = "CREATE SPATIAL INDEX SlippyMapTileSpatialIndex ON SlippyMapTiles(areaCovered)";
-        public static string StoredElementsIndex = "CREATE SPATIAL INDEX StoredOsmElementsIndex ON StoredOsmElements(elementGeometry)";
-        public static string customDataPlusCodesIndex = "CREATE SPATIAL INDEX customDataPlusCodeSpatialIndex ON CustomDataPlusCodes(geoAreaIndex)";
-        public static string areaSizeIndex = "CREATE OR REPLACE INDEX IX_StoredOsmElements_AreaSize on StoredOsmElements (AreaSize)";
-        public static string privacyIdIndex = "CREATE OR REPLACE INDEX IX_StoredOsmElements_privacyId on StoredOsmElements (privacyId)";
-        public static string sourceItemIdIndex = "CREATE OR REPLACE INDEX IX_StoredOsmElements_sourceItemID on StoredOsmElements (sourceItemID)";
-        public static string sourceItemTypeIndex = "CREATE OR REPLACE INDEX IX_StoredOsmElements_sourceItemType on StoredOsmElements (sourceItemType)";
-        public static string tagKeyIndex = "CREATE OR REPLACE INDEX IX_ElementTags_Key on ElementTags (`Key`)";
+        public static string StoredElementsIndex = "CREATE SPATIAL INDEX PlacesIndex ON Places(elementGeometry)";
+        public static string customDataPlusCodesIndex = "CREATE SPATIAL INDEX areaGameDataSpatialIndex ON AreaGameData(geoAreaIndex)";
+        public static string areaSizeIndex = "CREATE OR REPLACE INDEX IX_Places_AreaSize on Places (AreaSize)";
+        public static string privacyIdIndex = "CREATE OR REPLACE INDEX IX_Places_privacyId on Places (privacyId)";
+        public static string sourceItemIdIndex = "CREATE OR REPLACE INDEX IX_Places_sourceItemID on Places (sourceItemID)";
+        public static string sourceItemTypeIndex = "CREATE OR REPLACE INDEX IX_Places_sourceItemType on Places (sourceItemType)";
+        public static string tagKeyIndex = "CREATE OR REPLACE INDEX IX_PlaceTags_Key on PlaceTags (`Key`)";
 
         //PostgreSQL uses its own CREATE INDEX syntax
         public static string MapTileIndexPG = "CREATE INDEX maptiles_geom_idx ON public.\"MapTiles\" USING GIST(\"areaCovered\")";
         public static string SlippyMapTileIndexPG = "CREATE INDEX slippmayptiles_geom_idx ON public.\"SlippyMapTiles\" USING GIST(\"areaCovered\")";
-        public static string StoredElementsIndexPG = "CREATE INDEX storedOsmElements_geom_idx ON public.\"StoredOsmElements\" USING GIST(\"elementGeometry\")";
+        public static string StoredElementsIndexPG = "CREATE INDEX storedOsmElements_geom_idx ON public.\"Places\" USING GIST(\"elementGeometry\")";
 
         //Adding these as helper values for large use cases. When inserting large amounts of data, it's probably worth removing indexes for the insert and re-adding them later.
         //(On a North-America file insert, this keeps insert speeds at about 2-3 seconds per block, whereas it creeps up consistently while indexes are updated per block.
         //Though, I also see better results there droping the single-column indexes as well, which would need re-created manually since those one are automatic.
         public static string DropMapTileIndex = "DROP INDEX IF EXISTS MapTileSpatialIndex on MapTiles";
         public static string DropSlippyMapTileIndex = "DROP INDEX IF EXISTS SlippyMapTileSpatialIndex on SlippyMapTiles";
-        public static string DropStoredElementsIndex = "DROP INDEX IF EXISTS StoredOsmElementsIndex on StoredOsmElements";
-        public static string DropcustomDataPlusCodesIndex = "DROP INDEX IF EXISTS customDataPlusCodeSpatialIndex on CustomDataPlusCodes";
-        public static string DropStoredElementsAreaSizeIndex = "DROP INDEX IF EXISTS IX_StoredOsmElements_AreaSize on StoredOsmElements";
-        public static string DropStoredElementsPrivacyIdIndex = "DROP INDEX IF EXISTS IX_StoredOsmElements_privacyId on StoredOsmElements";
-        public static string DropStoredElementsSourceItemIdIndex = "DROP INDEX IF EXISTS IX_StoredOsmElements_sourceItemID on StoredOsmElements";
-        public static string DropStoredElementsSourceItemTypeIndex = "DROP INDEX IF EXISTS IX_StoredOsmElements_sourceItemType on StoredOsmElements";
-        public static string DropTagKeyIndex = "DROP INDEX IF EXISTS IX_ElementTags_Key on ElementTags";
+        public static string DropStoredElementsIndex = "DROP INDEX IF EXISTS PlacesIndex on Places";
+        public static string DropcustomDataPlusCodesIndex = "DROP INDEX IF EXISTS areaGameDataSpatialIndex on AreaGameData";
+        public static string DropStoredElementsAreaSizeIndex = "DROP INDEX IF EXISTS IX_Places_AreaSize on Places";
+        public static string DropStoredElementsPrivacyIdIndex = "DROP INDEX IF EXISTS IX_Places_privacyId on Places";
+        public static string DropStoredElementsSourceItemIdIndex = "DROP INDEX IF EXISTS IX_Places_sourceItemID on Places";
+        public static string DropStoredElementsSourceItemTypeIndex = "DROP INDEX IF EXISTS IX_Places_sourceItemType on Places";
+        public static string DropTagKeyIndex = "DROP INDEX IF EXISTS IX_PlaceTags_Key on PlaceTags";
 
         //This doesn't appear to be any faster. The query isn't the slow part. Keeping this code as a reference for how to precompile queries.
         //public static Func<PraxisContext, Geometry, IEnumerable<MapData>> compiledIntersectQuery =
@@ -294,7 +293,7 @@ namespace PraxisCore
             GeoArea results = null;
             if (singleArea != 0)
             {
-                var area = StoredOsmElements.First(e => e.SourceItemID == singleArea);
+                var area = Places.First(e => e.SourceItemID == singleArea);
                 var envelop = area.ElementGeometry.EnvelopeInternal;
                 results = new GeoArea(envelop.MinY, envelop.MinX, envelop.MaxY, envelop.MaxX);
             }
@@ -310,12 +309,12 @@ namespace PraxisCore
             return results;
         }
 
-        public void UpdateExistingEntries(List<StoredOsmElement> entries)
+        public void UpdateExistingEntries(List<DbTables.Place> entries)
         {
             foreach (var entry in entries)
             {
                 //check existing entry, see if it requires being updated
-                var existingData = StoredOsmElements.FirstOrDefault(md => md.SourceItemID == entry.SourceItemID && md.SourceItemType == entry.SourceItemType);
+                var existingData = Places.FirstOrDefault(md => md.SourceItemID == entry.SourceItemID && md.SourceItemType == entry.SourceItemType);
                 if (existingData != null)
                 {
                     if (existingData.AreaSize != entry.AreaSize) existingData.AreaSize = entry.AreaSize;
@@ -347,7 +346,7 @@ namespace PraxisCore
                 else
                 {
                     //We don't have this item, add it.
-                    StoredOsmElements.Add(entry);
+                    Places.Add(entry);
                     SaveChanges(); //again, necessary here to get tiles to draw correctly after expiring.
                     ExpireMapTiles(entry.ElementGeometry, "mapTiles");
                     ExpireSlippyMapTiles(entry.ElementGeometry, "mapTiles");

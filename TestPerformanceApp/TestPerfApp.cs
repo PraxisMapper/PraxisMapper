@@ -334,7 +334,7 @@ namespace PerformanceTestApp
             foreach (int splitcount in splitChecks)
             {
                 sw.Restart();
-                List<StoredOsmElement>[] placeArray;
+                List<DbTables.Place>[] placeArray;
                 GeoArea[] areaArray;
                 StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
                 //Converters.SplitArea(box, splitcount, places, out placeArray, out areaArray);
@@ -574,14 +574,14 @@ namespace PerformanceTestApp
             }
         }
 
-        public static List<StoredOsmElement> GetPlacesBase(GeoArea area, List<StoredOsmElement> source = null)
+        public static List<DbTables.Place> GetPlacesBase(GeoArea area, List<DbTables.Place> source = null)
         {
             var location = Converters.GeoAreaToPolygon(area);
-            List<StoredOsmElement> places;
+            List<DbTables.Place> places;
             if (source == null)
             {
                 var db = new PraxisCore.PraxisContext();
-                places = db.StoredOsmElements.Where(md => md.ElementGeometry.Intersects(location)).ToList();
+                places = db.Places.Where(md => md.ElementGeometry.Intersects(location)).ToList();
             }
             else
                 places = source.Where(md => md.ElementGeometry.Intersects(location)).ToList();
@@ -701,7 +701,7 @@ namespace PerformanceTestApp
             fs2.Read(fileInRam, 0, (int)fs2.Length);
             MemoryStream ms = new MemoryStream(fileInRam);
             List<OsmSharp.Relation> filteredRelations2 = new List<OsmSharp.Relation>();
-            List<StoredOsmElement> contents2 = new List<StoredOsmElement>();
+            List<DbTables.Place> contents2 = new List<DbTables.Place>();
             contents2.Capacity = 100000;
 
             var source2 = new PBFOsmStreamSource(ms);
@@ -818,7 +818,7 @@ namespace PerformanceTestApp
             fs2.Read(fileInRam, 0, (int)fs2.Length);
             MemoryStream ms = new MemoryStream(fileInRam);
             List<OsmSharp.Relation> filteredRelations2 = new List<OsmSharp.Relation>();
-            List<StoredOsmElement> contents2 = new List<StoredOsmElement>();
+            List<DbTables.Place> contents2 = new List<DbTables.Place>();
             contents2.Capacity = 100000;
 
             var source2 = new PBFOsmStreamSource(ms);
@@ -868,7 +868,7 @@ namespace PerformanceTestApp
         {
             //on testing, the slowest random result was 13ms.  Most are 0-1ms.
             var db = new PraxisContext();
-            var randomCap = db.StoredOsmElements.Count();
+            var randomCap = db.Places.Count();
             Random r = new Random();
             string website = "http://localhost/GPSExploreServerAPI/MapData/CalculateMapDataScore/";
             for (int i = 0; i < 100; i++)
@@ -962,13 +962,13 @@ namespace PerformanceTestApp
             LoadBaselineData(dbPG, @"D:\Projects\PraxisMapper Files\XmlToProcess\delaware-latest.osm.pbf"); //~17MB PBF, shouldn't be serious stress on anything.
 
 
-            int maxRandom = dbPG.StoredOsmElements.Count();
+            int maxRandom = dbPG.Places.Count();
             sw.Restart();
             for (var i = 0; i < 10000; i++)
             {
                 //read 1000 random entries;
                 int entry = r.Next(1, maxRandom);
-                var tempEntry = dbPG.StoredOsmElements.Where(m => m.Id == entry).FirstOrDefault();
+                var tempEntry = dbPG.Places.Where(m => m.Id == entry).FirstOrDefault();
             }
             sw.Stop();
             Log.WriteLog("10,000 random reads done in " + sw.ElapsedMilliseconds + "ms");
@@ -977,7 +977,7 @@ namespace PerformanceTestApp
             GeoArea delaware = new GeoArea(38, -77, 41, -74);
             var poly = Converters.GeoAreaToPolygon(delaware);
             sw.Restart();
-            var allEntires = dbPG.StoredOsmElements.Where(w => w.ElementGeometry.Intersects(poly)).ToList();
+            var allEntires = dbPG.Places.Where(w => w.ElementGeometry.Intersects(poly)).ToList();
             sw.Stop();
             Log.WriteLog("Loaded all Delaware items in " + sw.ElapsedMilliseconds + "ms");
 
@@ -986,7 +986,7 @@ namespace PerformanceTestApp
             {
                 //write 1000 random entries;
                 var entry = CreateInterestingPlaces("22334455", false);
-                dbPG.StoredOsmElements.AddRange(entry);
+                dbPG.Places.AddRange(entry);
             }
             dbPG.SaveChanges();
             sw.Stop();
@@ -1013,7 +1013,7 @@ namespace PerformanceTestApp
                 convertedRelation.ElementGeometry = SimplifyArea(convertedRelation.ElementGeometry);
                 if (convertedRelation.ElementGeometry == null)
                     continue;
-                db.StoredOsmElements.Add(convertedRelation);
+                db.Places.Add(convertedRelation);
                 //db.SaveChanges();
             }
 
@@ -1032,7 +1032,7 @@ namespace PerformanceTestApp
                 convertedWay.ElementGeometry = SimplifyArea(convertedWay.ElementGeometry);
                 if (convertedWay.ElementGeometry == null)
                     continue;
-                db.StoredOsmElements.Add(convertedWay);
+                db.Places.Add(convertedWay);
                 //db.SaveChanges();
             }
 
@@ -1043,7 +1043,7 @@ namespace PerformanceTestApp
             Log.WriteLog("Saved baseline data to DB in " + sw.Elapsed);
         }
 
-        public static StoredOsmElement ConvertOsmEntryToStoredWay(OsmSharp.Complete.ICompleteOsmGeo g)
+        public static DbTables.Place ConvertOsmEntryToStoredWay(OsmSharp.Complete.ICompleteOsmGeo g)
         {
             try
             {
@@ -1053,7 +1053,7 @@ namespace PerformanceTestApp
                     Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + " didn't return expected number of features (" + feature.Count() + ")", Log.VerbosityLevels.High);
                     return null;
                 }
-                var sw = new StoredOsmElement();
+                var sw = new DbTables.Place();
                 //sw.name = TagParser.GetPlaceName(g.Tags);
                 sw.SourceItemID = g.Id;
                 sw.SourceItemType = (g.Type == OsmGeoType.Relation ? 3 : g.Type == OsmGeoType.Way ? 2 : 1);
@@ -1116,7 +1116,7 @@ namespace PerformanceTestApp
 
             System.Diagnostics.Stopwatch sw = new Stopwatch();
             sw.Start();
-            var placesNormal = Place.GetPlaces(Cell8, places);
+            var placesNormal = PraxisCore.Place.GetPlaces(Cell8, places);
             sw.Stop();
             Log.WriteLog("Normal geometries search took " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds + "ms)");
             sw.Restart();
@@ -1412,7 +1412,7 @@ namespace PerformanceTestApp
             var mtImage = (IMapTiles)Activator.CreateInstance(asm2.GetType("PraxisCore.MapTiles")); //Not actually used to draw, but I need to initialize TagParser.
             TagParser.Initialize(false, mtImage);
             System.Threading.Thread.Sleep(100);
-            List<ElementTags> emptyList = new List<ElementTags>();
+            List<PlaceTags> emptyList = new List<PlaceTags>();
             Stopwatch sw = new Stopwatch();
             sw.Start();
             for (var i = 0; i < 100000; i++)
@@ -1430,8 +1430,8 @@ namespace PerformanceTestApp
             //Log.WriteLog("1000 empty lists run in " + sw.ElapsedTicks + " ticks with alt");
 
             //test with a set that matches on the default entry only.
-            List<ElementTags> defaultSingle = new List<ElementTags>();
-            defaultSingle.Add(new ElementTags() { Key = "badEntry", Value = "mustBeDefault" });
+            List<PlaceTags> defaultSingle = new List<PlaceTags>();
+            defaultSingle.Add(new PlaceTags() { Key = "badEntry", Value = "mustBeDefault" });
 
             sw.Restart();
             for (var i = 0; i < 100000; i++)
@@ -1449,16 +1449,16 @@ namespace PerformanceTestApp
             //Log.WriteLog("1000 default-match lists run in " + sw.ElapsedTicks + " ticks with alt");
 
             //test with a set that has a lot of tags.
-            List<ElementTags> biglist = new List<ElementTags>();
-            biglist.Add(new ElementTags() { Key = "badEntry", Value = "nothing" });
-            biglist.Add(new ElementTags() { Key = "place", Value = "neighborhood" });
-            biglist.Add(new ElementTags() { Key = "natual", Value = "hill" });
-            biglist.Add(new ElementTags() { Key = "lanes", Value = "7" });
-            biglist.Add(new ElementTags() { Key = "placeholder", Value = "stuff" });
-            biglist.Add(new ElementTags() { Key = "screensize", Value = "small" });
-            biglist.Add(new ElementTags() { Key = "twoMore", Value = "entries" });
-            biglist.Add(new ElementTags() { Key = "andHere", Value = "WeGo" });
-            biglist.Add(new ElementTags() { Key = "waterway", Value = "river" });
+            List<PlaceTags> biglist = new List<PlaceTags>();
+            biglist.Add(new PlaceTags() { Key = "badEntry", Value = "nothing" });
+            biglist.Add(new PlaceTags() { Key = "place", Value = "neighborhood" });
+            biglist.Add(new PlaceTags() { Key = "natual", Value = "hill" });
+            biglist.Add(new PlaceTags() { Key = "lanes", Value = "7" });
+            biglist.Add(new PlaceTags() { Key = "placeholder", Value = "stuff" });
+            biglist.Add(new PlaceTags() { Key = "screensize", Value = "small" });
+            biglist.Add(new PlaceTags() { Key = "twoMore", Value = "entries" });
+            biglist.Add(new PlaceTags() { Key = "andHere", Value = "WeGo" });
+            biglist.Add(new PlaceTags() { Key = "waterway", Value = "river" });
 
             sw.Restart();
             for (var i = 0; i < 100000; i++)
@@ -1469,7 +1469,7 @@ namespace PerformanceTestApp
             Log.WriteLog("100000 8-tag match-water lists run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
 
             biglist.Remove(biglist.Last()); //Remove the water-match tag.
-            biglist.Add(new ElementTags() { Key = "other", Value = "tag" });
+            biglist.Add(new PlaceTags() { Key = "other", Value = "tag" });
 
             sw.Restart();
             for (var i = 0; i < 100000; i++)
@@ -1480,42 +1480,42 @@ namespace PerformanceTestApp
             Log.WriteLog("100000 8-tag default match lists run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
 
             var biglist2 = biglist.Select(b => b).ToList();
-            biglist2.Add(new ElementTags() { Key = "2badEntry", Value = "nothing" });
-            biglist2.Add(new ElementTags() { Key = "2place", Value = "neighborhood" });
-            biglist2.Add(new ElementTags() { Key = "2natual", Value = "hill" });
-            biglist2.Add(new ElementTags() { Key = "2lanes", Value = "7" });
-            biglist2.Add(new ElementTags() { Key = "2placeholder", Value = "stuff" });
-            biglist2.Add(new ElementTags() { Key = "2screensize", Value = "small" });
-            biglist2.Add(new ElementTags() { Key = "2twoMore", Value = "entries" });
-            biglist2.Add(new ElementTags() { Key = "2andHere", Value = "WeGo" });
-            biglist2.Add(new ElementTags() { Key = "2waterway", Value = "river" });
-            biglist2.Add(new ElementTags() { Key = "32badEntry", Value = "nothing" });
-            biglist2.Add(new ElementTags() { Key = "32place", Value = "neighborhood" });
-            biglist2.Add(new ElementTags() { Key = "32natual", Value = "hill" });
-            biglist2.Add(new ElementTags() { Key = "32lanes", Value = "7" });
-            biglist2.Add(new ElementTags() { Key = "32placeholder", Value = "stuff" });
-            biglist2.Add(new ElementTags() { Key = "32screensize", Value = "small" });
-            biglist2.Add(new ElementTags() { Key = "32twoMore", Value = "entries" });
-            biglist2.Add(new ElementTags() { Key = "32andHere", Value = "WeGo" });
-            biglist2.Add(new ElementTags() { Key = "32waterway", Value = "river" });
-            biglist2.Add(new ElementTags() { Key = "42badEntry", Value = "nothing" });
-            biglist2.Add(new ElementTags() { Key = "42place", Value = "neighborhood" });
-            biglist2.Add(new ElementTags() { Key = "42natual", Value = "hill" });
-            biglist2.Add(new ElementTags() { Key = "42lanes", Value = "7" });
-            biglist2.Add(new ElementTags() { Key = "42placeholder", Value = "stuff" });
-            biglist2.Add(new ElementTags() { Key = "42screensize", Value = "small" });
-            biglist2.Add(new ElementTags() { Key = "42twoMore", Value = "entries" });
-            biglist2.Add(new ElementTags() { Key = "42andHere", Value = "WeGo" });
-            biglist2.Add(new ElementTags() { Key = "42waterway", Value = "river" });
-            biglist2.Add(new ElementTags() { Key = "52badEntry", Value = "nothing" });
-            biglist2.Add(new ElementTags() { Key = "52place", Value = "neighborhood" });
-            biglist2.Add(new ElementTags() { Key = "52natual", Value = "hill" });
-            biglist2.Add(new ElementTags() { Key = "52lanes", Value = "7" });
-            biglist2.Add(new ElementTags() { Key = "52placeholder", Value = "stuff" });
-            biglist2.Add(new ElementTags() { Key = "52screensize", Value = "small" });
-            biglist2.Add(new ElementTags() { Key = "52twoMore", Value = "entries" });
-            biglist2.Add(new ElementTags() { Key = "52andHere", Value = "WeGo" });
-            biglist2.Add(new ElementTags() { Key = "52waterway", Value = "river" });
+            biglist2.Add(new PlaceTags() { Key = "2badEntry", Value = "nothing" });
+            biglist2.Add(new PlaceTags() { Key = "2place", Value = "neighborhood" });
+            biglist2.Add(new PlaceTags() { Key = "2natual", Value = "hill" });
+            biglist2.Add(new PlaceTags() { Key = "2lanes", Value = "7" });
+            biglist2.Add(new PlaceTags() { Key = "2placeholder", Value = "stuff" });
+            biglist2.Add(new PlaceTags() { Key = "2screensize", Value = "small" });
+            biglist2.Add(new PlaceTags() { Key = "2twoMore", Value = "entries" });
+            biglist2.Add(new PlaceTags() { Key = "2andHere", Value = "WeGo" });
+            biglist2.Add(new PlaceTags() { Key = "2waterway", Value = "river" });
+            biglist2.Add(new PlaceTags() { Key = "32badEntry", Value = "nothing" });
+            biglist2.Add(new PlaceTags() { Key = "32place", Value = "neighborhood" });
+            biglist2.Add(new PlaceTags() { Key = "32natual", Value = "hill" });
+            biglist2.Add(new PlaceTags() { Key = "32lanes", Value = "7" });
+            biglist2.Add(new PlaceTags() { Key = "32placeholder", Value = "stuff" });
+            biglist2.Add(new PlaceTags() { Key = "32screensize", Value = "small" });
+            biglist2.Add(new PlaceTags() { Key = "32twoMore", Value = "entries" });
+            biglist2.Add(new PlaceTags() { Key = "32andHere", Value = "WeGo" });
+            biglist2.Add(new PlaceTags() { Key = "32waterway", Value = "river" });
+            biglist2.Add(new PlaceTags() { Key = "42badEntry", Value = "nothing" });
+            biglist2.Add(new PlaceTags() { Key = "42place", Value = "neighborhood" });
+            biglist2.Add(new PlaceTags() { Key = "42natual", Value = "hill" });
+            biglist2.Add(new PlaceTags() { Key = "42lanes", Value = "7" });
+            biglist2.Add(new PlaceTags() { Key = "42placeholder", Value = "stuff" });
+            biglist2.Add(new PlaceTags() { Key = "42screensize", Value = "small" });
+            biglist2.Add(new PlaceTags() { Key = "42twoMore", Value = "entries" });
+            biglist2.Add(new PlaceTags() { Key = "42andHere", Value = "WeGo" });
+            biglist2.Add(new PlaceTags() { Key = "42waterway", Value = "river" });
+            biglist2.Add(new PlaceTags() { Key = "52badEntry", Value = "nothing" });
+            biglist2.Add(new PlaceTags() { Key = "52place", Value = "neighborhood" });
+            biglist2.Add(new PlaceTags() { Key = "52natual", Value = "hill" });
+            biglist2.Add(new PlaceTags() { Key = "52lanes", Value = "7" });
+            biglist2.Add(new PlaceTags() { Key = "52placeholder", Value = "stuff" });
+            biglist2.Add(new PlaceTags() { Key = "52screensize", Value = "small" });
+            biglist2.Add(new PlaceTags() { Key = "52twoMore", Value = "entries" });
+            biglist2.Add(new PlaceTags() { Key = "52andHere", Value = "WeGo" });
+            biglist2.Add(new PlaceTags() { Key = "52waterway", Value = "river" });
 
             sw.Restart();
             for (var i = 0; i < 100000; i++)
@@ -1599,7 +1599,7 @@ namespace PerformanceTestApp
             GeoArea testArea6 = OpenLocationCode.DecodeValid(CellToTest);
             var areaPoly = Converters.GeoAreaToPolygon(testArea6);
             var db = new PraxisContext();
-            var places = db.StoredOsmElements.Include(w => w.Tags).Where(w => w.ElementGeometry.Intersects(areaPoly)).ToList();
+            var places = db.Places.Include(w => w.Tags).Where(w => w.ElementGeometry.Intersects(areaPoly)).ToList();
             Log.WriteLog("Loaded " + places.Count() + " objects for test");
 
             ImageStats info = new ImageStats(testArea6, 512, 512); //using default Slippy map tile size for comparison.
@@ -1780,7 +1780,7 @@ namespace PerformanceTestApp
             //Get an area from the DB, draw some map tiles with each.
             var mapArea = OpenLocationCode.DecodeValid("86HWF5");
             var mapPoly = Converters.GeoAreaToPolygon(mapArea);
-            var mapData = db.StoredOsmElements.Where(e => e.ElementGeometry.Intersects(mapPoly)).ToList(); //pull them all into RAM to skip DB perf issue.
+            var mapData = db.Places.Where(e => e.ElementGeometry.Intersects(mapPoly)).ToList(); //pull them all into RAM to skip DB perf issue.
 
             string startPoint = "86HWF5"; //add 4 chars to draw cell8 tiles.
                                           //string endPoint = "86HW99"; //15 Cell6 blocks to draw, so 400 * 15 tiles for testing.
@@ -1823,16 +1823,16 @@ namespace PerformanceTestApp
             TagParser.Initialize(false, mtImage);
 
             //create collection of tags.
-            List<ElementTags> biglist = new List<ElementTags>();
-            biglist.Add(new ElementTags() { Key = "badEntry", Value = "nothing" });
-            biglist.Add(new ElementTags() { Key = "place", Value = "neighborhood" });
-            biglist.Add(new ElementTags() { Key = "natual", Value = "hill" });
-            biglist.Add(new ElementTags() { Key = "lanes", Value = "7" });
-            biglist.Add(new ElementTags() { Key = "placeholder", Value = "stuff" });
-            biglist.Add(new ElementTags() { Key = "screensize", Value = "small" });
-            biglist.Add(new ElementTags() { Key = "twoMore", Value = "entries" });
-            biglist.Add(new ElementTags() { Key = "andHere", Value = "WeGo" });
-            biglist.Add(new ElementTags() { Key = "waterway", Value = "river" });
+            List<PlaceTags> biglist = new List<PlaceTags>();
+            biglist.Add(new PlaceTags() { Key = "badEntry", Value = "nothing" });
+            biglist.Add(new PlaceTags() { Key = "place", Value = "neighborhood" });
+            biglist.Add(new PlaceTags() { Key = "natual", Value = "hill" });
+            biglist.Add(new PlaceTags() { Key = "lanes", Value = "7" });
+            biglist.Add(new PlaceTags() { Key = "placeholder", Value = "stuff" });
+            biglist.Add(new PlaceTags() { Key = "screensize", Value = "small" });
+            biglist.Add(new PlaceTags() { Key = "twoMore", Value = "entries" });
+            biglist.Add(new PlaceTags() { Key = "andHere", Value = "WeGo" });
+            biglist.Add(new PlaceTags() { Key = "waterway", Value = "river" });
 
             for (var l = 0; l < 5; l++)
             {
@@ -1880,7 +1880,7 @@ namespace PerformanceTestApp
 
         }
 
-        public static bool MatchOnTags(TagParserEntry tpe, ICollection<ElementTags> tags)
+        public static bool MatchOnTags(TagParserEntry tpe, ICollection<PlaceTags> tags)
         {
             bool OrMatched = false;
             int orRuleCount = 0;
@@ -1948,7 +1948,7 @@ namespace PerformanceTestApp
             return false;
         }
 
-        public static bool MatchOnTagsSpans(TagParserEntry tpe, List<ElementTags> tags)
+        public static bool MatchOnTagsSpans(TagParserEntry tpe, List<PlaceTags> tags)
         {
             bool OrMatched = false;
             int orRuleCount = 0;
@@ -2102,7 +2102,7 @@ namespace PerformanceTestApp
             return false;
         }
 
-        public static bool MatchOnTagsDictstyle(TagParserEntry tpe, List<ElementTags> tags)
+        public static bool MatchOnTagsDictstyle(TagParserEntry tpe, List<PlaceTags> tags)
         {
             bool OrMatched = false;
             int orRuleCount = 0;
@@ -2181,7 +2181,7 @@ namespace PerformanceTestApp
             {
                 timer.Start();
                 var parts = sw.Split('\t');
-                StoredOsmElement entry = new StoredOsmElement();
+                DbTables.Place entry = new DbTables.Place();
                 entry.SourceItemID = parts[0].ToLong();
                 entry.SourceItemType = parts[1].ToInt();
                 entry.ElementGeometry = GeometrySupport.GeometryFromWKT(parts[2]);
@@ -2192,7 +2192,7 @@ namespace PerformanceTestApp
                 timer.Restart();
 
                 var source = sw.AsSpan();
-                StoredOsmElement e2 = new StoredOsmElement();
+                DbTables.Place e2 = new DbTables.Place();
                 e2.SourceItemID = source.SplitNext('\t').ToLong();
                 e2.SourceItemType = source.SplitNext('\t').ToInt();
                 e2.ElementGeometry = GeometryFromWKT(source.SplitNext('\t').ToString());
@@ -2206,10 +2206,10 @@ namespace PerformanceTestApp
             Console.WriteLine("Average span() results: " + spanParse.Average());
         }
 
-        public static StoredOsmElement ConvertSingleTsvStoredElement(string sw)
+        public static DbTables.Place ConvertSingleTsvStoredElement(string sw)
         {
             var source = sw.AsSpan();
-            StoredOsmElement entry = new StoredOsmElement();
+            DbTables.Place entry = new DbTables.Place();
             entry.SourceItemID = source.SplitNext('\t').ToLong();
             entry.SourceItemType = source.SplitNext('\t').ToInt();
             entry.ElementGeometry = GeometryFromWKT(source.SplitNext('\t').ToString());
@@ -2237,10 +2237,10 @@ namespace PerformanceTestApp
             return entry;
         }
 
-        public static StoredOsmElement ConvertSingleTsvStoredElementSkipChecks(string sw)
+        public static DbTables.Place ConvertSingleTsvStoredElementSkipChecks(string sw)
         {
             var source = sw.AsSpan();
-            StoredOsmElement entry = new StoredOsmElement();
+            DbTables.Place entry = new DbTables.Place();
             entry.SourceItemID = source.SplitNext('\t').ToLong();
             entry.SourceItemType = source.SplitNext('\t').ToInt();
             entry.ElementGeometry = GeometryFromWKT(source.SplitNext('\t').ToString());
