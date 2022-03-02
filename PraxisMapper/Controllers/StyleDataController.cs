@@ -14,7 +14,7 @@ namespace PraxisMapper.Controllers
         public string GetStyleSetEntryNames(string styleSet)
         {
             var db = new PraxisContext();
-            var data = db.TagParserEntries.Where(t => t.StyleSet == styleSet).OrderBy(t => t.MatchOrder).Select(t => t.Name).ToList();
+            var data = db.StyleEntries.Where(t => t.StyleSet == styleSet).OrderBy(t => t.MatchOrder).Select(t => t.Name).ToList();
             return string.Join('|', data);
         }
 
@@ -24,7 +24,7 @@ namespace PraxisMapper.Controllers
         public string GetStyleSetEntryValues(string styleSet, string entryName)
         {
             var db = new PraxisContext();
-            var data = db.TagParserEntries.FirstOrDefault(t => t.StyleSet == styleSet && t.Name == entryName);
+            var data = db.StyleEntries.FirstOrDefault(t => t.StyleSet == styleSet && t.Name == entryName);
             return data.MatchOrder + "|" + data.Name + "|" + data.IsGameElement + "|" +  data.Id;
         }
 
@@ -36,7 +36,7 @@ namespace PraxisMapper.Controllers
             JsonOptions jo = new JsonOptions();
             jo.JsonSerializerOptions.IncludeFields = true;
             jo.JsonSerializerOptions.MaxDepth = 2;
-            var data = db.TagParserEntries.Include("TagParserMatchRules").Include("paintOperations").Where(t => t.StyleSet == styleSet).ToList();
+            var data = db.StyleEntries.Include("TagParserMatchRules").Include("paintOperations").Where(t => t.StyleSet == styleSet).ToList();
             var returnData = data.Select(x => new { 
                 x.Id, 
                 x.Name, 
@@ -44,7 +44,7 @@ namespace PraxisMapper.Controllers
                 x.IsGameElement, 
                 x.MatchOrder, 
                 paintOperations = x.PaintOperations.Select(po => new { po.FileName, po.FillOrStroke, po.FromTag, po.HtmlColorCode, po.Id, po.LayerId, po.LinePattern, po.LineWidth, po.MaxDrawRes, po.MinDrawRes, po.Randomize }).ToList(),
-                TagParserMatchRules = x.TagParserMatchRules.Select(mr => new { mr.Id, mr.Key, mr.MatchType, mr.Value}).ToList()  
+                TagParserMatchRules = x.StyleMatchRules.Select(mr => new { mr.Id, mr.Key, mr.MatchType, mr.Value}).ToList()  
             });
             return Json(returnData);
         }
@@ -55,7 +55,7 @@ namespace PraxisMapper.Controllers
         {
             //Hasnt yet been tested.
             var db = new PraxisContext();
-            var data = db.TagParserEntries.FirstOrDefault(t => t.Id == id);
+            var data = db.StyleEntries.FirstOrDefault(t => t.Id == id);
             data.MatchOrder = matchOrder;
             data.Name = entryName;
             data.IsGameElement = isGameElement;

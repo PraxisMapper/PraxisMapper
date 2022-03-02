@@ -58,7 +58,7 @@ namespace PraxisCore
         }
         
 
-        public class TagParserEntry
+        public class StyleEntry
         {
             //For users that customize the rules for parsing tags.
             //Tag pairs are Key:Value per OSM data.
@@ -66,12 +66,12 @@ namespace PraxisCore
             public string Name { get; set; }
             public string StyleSet { get; set; }
             public int MatchOrder { get; set; }
-            public ICollection<TagParserMatchRule> TagParserMatchRules { get; set; }
+            public ICollection<StyleMatchRule> StyleMatchRules { get; set; }
             public bool IsGameElement { get; set; } // This tag should be used when asking for game areas, not just map tiles. Would let me use a single table for both again.
-            public ICollection<TagParserPaint> PaintOperations { get; set; }
+            public ICollection<StylePaint> PaintOperations { get; set; }
         }
 
-        public class TagParserMatchRule
+        public class StyleMatchRule
         { 
             public long Id { get; set; }
             public string Key { get; set; } //the left side of the key:value tag
@@ -79,7 +79,7 @@ namespace PraxisCore
             public string MatchType { get; set; } //Any, all, contains, not.
         }
 
-        public class TagParserPaint
+        public class StylePaint
         {
             //For enabling layering of drawn elements
             public long Id { get; set; }
@@ -212,7 +212,7 @@ namespace PraxisCore
             public byte[] DataValue { get; set; } //Holds byte data for both normal and encrypted entries. 
         }
 
-        public class TagParserStyleBitmap
+        public class StyleBitmap
         {
             public long Id { get; set; }
             public string Filename { get; set; }

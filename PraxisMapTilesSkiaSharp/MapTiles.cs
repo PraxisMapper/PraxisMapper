@@ -40,7 +40,7 @@ namespace PraxisCore
         /// Create the SKPaint object for each style and store it in the requested object.
         /// </summary>
         /// <param name="tpe">the TagParserPaint object to populate</param>
-        private static SKPaint SetPaintForTPP(TagParserPaint tpe)
+        private static SKPaint SetPaintForTPP(StylePaint tpe)
         {
             var paint = new SKPaint();
 
@@ -438,7 +438,7 @@ namespace PraxisCore
         /// <param name="styles">a dictionary of TagParserEntries to select to draw</param>
         /// <param name="filterSmallAreas">if true, skips entries below a certain size when drawing.</param>
         /// <returns>a string containing the SVG XML</returns>
-        public string DrawAreaAtSizeSVG(ImageStats stats, List<DbTables.Place> drawnItems = null, Dictionary<string, TagParserEntry> styles = null, bool filterSmallAreas = true)
+        public string DrawAreaAtSizeSVG(ImageStats stats, List<DbTables.Place> drawnItems = null, Dictionary<string, StyleEntry> styles = null, bool filterSmallAreas = true)
         {
             //TODO: make this take CompletePaintOps
             //This is the new core drawing function. Takes in an area, the items to draw, and the size of the image to draw. 
