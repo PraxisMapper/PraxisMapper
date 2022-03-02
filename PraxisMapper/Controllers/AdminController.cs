@@ -1,10 +1,9 @@
-﻿using PraxisCore;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
+using PraxisCore;
 using System;
 using System.Linq;
-using static PraxisCore.DbTables;
 
 namespace PraxisMapper.Controllers
 {
