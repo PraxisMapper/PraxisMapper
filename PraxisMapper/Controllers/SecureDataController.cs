@@ -13,6 +13,7 @@ using System.Linq;
 using CryptSharp;
 using System.IO.Pipelines;
 using System.Threading.Tasks;
+using System.Buffers;
 
 namespace PraxisMapper.Controllers
 {
@@ -65,6 +66,7 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
+        [HttpPut]
         [Route("/[controller]/SetSecurePlusCodeData/{plusCode}/{key}/{password}")] //for when value is part of the body
         [Route("/[controller]/SetSecurePlusCodeData/{plusCode}/{key}/{value}/{password}")]
         [Route("/[controller]/SetSecurePlusCodeData/{plusCode}/{key}/{value}/{password}/{expiresIn}")]
@@ -77,18 +79,16 @@ namespace PraxisMapper.Controllers
                 return false;
             if (value == null)
             {
-                //var rr = Request.BodyReader.ReadAsync();
-                //var r2 = rr.Result.Buffer; //actual byte data.
-                //var r3 = Encoding.ASCII.GetString(r2); //same string as value gets normally from the path below.
+                var rr = Request.BodyReader.ReadAsync();
+                var r2 = rr.Result.Buffer; //actual byte data.
 
-                //Request.Body.Seek(0, System.IO.SeekOrigin.Begin);
-                var sr = new System.IO.StreamReader(Request.Body);
-                value = await sr.ReadToEndAsync(); //974bytes this way.
+                return GenericData.SetSecurePlusCodeData(plusCode, key, r2.ToArray(), password, expiresIn);
             }
             return GenericData.SetSecurePlusCodeData(plusCode, key, value, password, expiresIn);
         }
 
         [HttpGet]
+        [HttpPut]
         [Route("/[controller]/SetSecurePlusCodeFile/{plusCode}/{key}/{password}")] //for when value is part of the body
         [Route("/[controller]/SetPlusCodeFile/{plusCode}/{key}/{password}")] //for when value is part of the body
         public async Task<bool> SetSecurePlusCodeDataAsFile(string plusCode, string key, [FromBody] byte[]value, string password, double? expiresIn = null)
@@ -114,6 +114,21 @@ namespace PraxisMapper.Controllers
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return "";
             return GenericData.GetSecurePlusCodeData(plusCode, key, password);
+        }
+
+        [HttpGet]
+        [Route("/[controller]/GetSecurePlusCodeDataBytes/{plusCode}/{key}/{password}")]
+        [Route("/[controller]/GetPlusCodeBytes/{plusCode}/{key}/{password}")]
+        public void GetSecurePlusCodeDataBytes(string plusCode, string key, string password)
+        {
+            if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
+                return ;
+            byte[] rawData = GenericData.GetSecurePlusCodeDataBytes(plusCode, key, password);
+
+            Response.BodyWriter.Write(rawData);
+            Response.CompleteAsync();
+
+            return;
         }
 
         [HttpGet]
