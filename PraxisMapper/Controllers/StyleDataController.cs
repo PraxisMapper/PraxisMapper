@@ -49,7 +49,7 @@ namespace PraxisMapper.Controllers
             return Json(returnData);
         }
 
-        [HttpGet]
+        [HttpPut]
         [Route("/[controller]/UpdateStyleSetEntryValues/{styleSet}/{id}/{matchOrder}/{entryName}/{isGameElement}")]
         public void UpdateStyleSetEntryValues(string styleSet, long id, int matchOrder, string entryName, bool isGameElement)
         {
