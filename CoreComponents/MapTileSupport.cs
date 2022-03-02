@@ -97,7 +97,7 @@ namespace PraxisCore
             return MapTiles.DrawAreaAtSize(info, paintOps);
         }
 
-        private static void GetPaintOps(ref List<CompletePaintOp> list, double areaSize, Geometry elementGeometry, ICollection<TagParserPaint> midOps, ImageStats stats)
+        private static void GetPaintOps(ref List<CompletePaintOp> list, double areaSize, Geometry elementGeometry, ICollection<StylePaint> midOps, ImageStats stats)
         {
             foreach (var po in midOps)
                 if (stats.degreesPerPixelX < po.MaxDrawRes

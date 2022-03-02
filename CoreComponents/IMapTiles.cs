@@ -23,7 +23,7 @@ namespace PraxisCore
         public byte[] DrawUserPath(string pointListAsString);
         public byte[] DrawAreaAtSize(ImageStats stats, List<DbTables.Place> drawnItems = null, string styleSet = "mapTiles", bool filterSmallAreas = true);
         public byte[] DrawAreaAtSize(ImageStats stats, List<CompletePaintOp> paintOps);
-        public string DrawAreaAtSizeSVG(ImageStats stats, List<DbTables.Place> drawnItems = null, Dictionary<string, TagParserEntry> styles = null, bool filterSmallAreas = true);
+        public string DrawAreaAtSizeSVG(ImageStats stats, List<DbTables.Place> drawnItems = null, Dictionary<string, StyleEntry> styles = null, bool filterSmallAreas = true);
         public byte[] LayerTiles(ImageStats info, byte[] bottomTile, byte[] topTile);
     }
 }

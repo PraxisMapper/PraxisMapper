@@ -57,7 +57,7 @@ namespace PraxisCore
         /// Create the Brush object for each style and store it for later use.
         /// </summary>
         /// <param name="tpe">the TagParserPaint object to populate</param>
-        private static IBrush SetPaintForTPP(TagParserPaint tpe)
+        private static IBrush SetPaintForTPP(StylePaint tpe)
         {
             //SkiaSharp now implements rounding line ends, but they're only for Pens
             //(which only work on lines), and my stuff all currently uses a Brush.
@@ -414,7 +414,7 @@ namespace PraxisCore
         /// <summary>
         /// ImageSharp doesn't support this at all. Throws NotImplementedException when called.
         /// </summary>
-        public string DrawAreaAtSizeSVG(ImageStats stats, List<DbTables.Place> drawnItems = null, Dictionary<string, TagParserEntry> styles = null, bool filterSmallAreas = true)
+        public string DrawAreaAtSizeSVG(ImageStats stats, List<DbTables.Place> drawnItems = null, Dictionary<string, StyleEntry> styles = null, bool filterSmallAreas = true)
         {
             throw new NotImplementedException();
         }

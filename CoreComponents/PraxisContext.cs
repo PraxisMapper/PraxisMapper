@@ -20,14 +20,14 @@ namespace PraxisCore
         public DbSet<ErrorLog> ErrorLogs { get; set; }
         public DbSet<ServerSetting> ServerSettings { get; set; }
         public DbSet<DbTables.Place> Places { get; set; }
-        public DbSet<TagParserEntry> TagParserEntries { get; set; }
-        public DbSet<TagParserMatchRule> TagParserMatchRules { get; set; }
-        public DbSet<TagParserPaint> TagParserPaints { get; set; }
+        public DbSet<StyleEntry> StyleEntries { get; set; }
+        public DbSet<StyleMatchRule> StyleMatchRules { get; set; }
+        public DbSet<StylePaint> StylePaints { get; set; }
         public DbSet<PlaceTags> PlaceTags { get; set; } 
         public DbSet<PlaceGameData> PlaceGameData { get; set; }
         public DbSet<AreaGameData> AreaGameData { get; set; }
         public DbSet<GlobalDataEntries> GlobalDataEntries { get; set; }
-        public DbSet<TagParserStyleBitmap> TagParserStyleBitmaps { get; set; }
+        public DbSet<StyleBitmap> TagParserStyleBitmaps { get; set; }
 
         public static string connectionString = "Data Source=localhost\\SQLDEV;UID=PraxisService;PWD=lamepassword;Initial Catalog=Praxis;"; //Needs a default value.
         public static string serverMode = "SQLServer";
@@ -177,19 +177,19 @@ namespace PraxisCore
             if (serverMode == "SQLServer")
             {
                 Database.BeginTransaction();
-                Database.ExecuteSqlRaw("SET IDENTITY_INSERT TagParserEntries ON;");
+                Database.ExecuteSqlRaw("SET IDENTITY_INSERT StyleEntries ON;");
             }
-            TagParserEntries.AddRange(Singletons.defaultTagParserEntries);
+            StyleEntries.AddRange(Singletons.defaultStyleEntries);
             SaveChanges();
             if (serverMode == "SQLServer")
             {
-                Database.ExecuteSqlRaw("SET IDENTITY_INSERT TagParserEntries OFF;");
+                Database.ExecuteSqlRaw("SET IDENTITY_INSERT StyleEntries OFF;");
                 Database.CommitTransaction();
             }
 
             foreach (var file in System.IO.Directory.EnumerateFiles("MapPatterns"))
             {
-                TagParserStyleBitmaps.Add(new TagParserStyleBitmap()
+                TagParserStyleBitmaps.Add(new StyleBitmap()
                 {
                     Filename = System.IO.Path.GetFileName(file),
                     Data = System.IO.File.ReadAllBytes(file)
@@ -358,14 +358,14 @@ namespace PraxisCore
         public void ResetStyles()
         {
             Log.WriteLog("Replacing current styles with default ones");
-            var styles = Singletons.defaultTagParserEntries.Select(t => t.StyleSet).Distinct().ToList();
+            var styles = Singletons.defaultStyleEntries.Select(t => t.StyleSet).Distinct().ToList();
 
-            var toRemove = TagParserEntries.Include(t => t.PaintOperations).Where(t => styles.Contains(t.StyleSet)).ToList();
+            var toRemove = StyleEntries.Include(t => t.PaintOperations).Where(t => styles.Contains(t.StyleSet)).ToList();
             var toRemovePaints = toRemove.SelectMany(t => t.PaintOperations).ToList();
             var toRemoveImages = TagParserStyleBitmaps.ToList();
-            TagParserPaints.RemoveRange(toRemovePaints);
+            StylePaints.RemoveRange(toRemovePaints);
             SaveChanges();
-            TagParserEntries.RemoveRange(toRemove);
+            StyleEntries.RemoveRange(toRemove);
             SaveChanges();
             TagParserStyleBitmaps.RemoveRange(toRemoveImages);
             SaveChanges();

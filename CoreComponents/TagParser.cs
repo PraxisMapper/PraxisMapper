@@ -18,23 +18,23 @@ namespace PraxisCore
     /// </summary>
     public static class TagParser
     {
-        public static TagParserEntry defaultStyle; //background color must be last if I want un-matched areas to be hidden, its own color if i want areas with no ways at all to show up.
+        public static StyleEntry defaultStyle; //background color must be last if I want un-matched areas to be hidden, its own color if i want areas with no ways at all to show up.
         public static Dictionary<string, byte[]> cachedBitmaps = new Dictionary<string, byte[]>(); //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
-        public static Dictionary<string, Dictionary<string, TagParserEntry>> allStyleGroups = new Dictionary<string, Dictionary<string, TagParserEntry>>();
+        public static Dictionary<string, Dictionary<string, StyleEntry>> allStyleGroups = new Dictionary<string, Dictionary<string, StyleEntry>>();
         public static System.Security.Cryptography.MD5 hasher = System.Security.Cryptography.MD5.Create();
 
         private static IMapTiles MapTiles; 
 
-        public static TagParserEntry outlineStyle = new TagParserEntry()
+        public static StyleEntry outlineStyle = new StyleEntry()
         {
             MatchOrder = 9998,
             Name = "outline",
             StyleSet = "special",
-            PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "000000", FillOrStroke = "stroke", LineWidth=2, LinePattern= "solid", LayerId = 101 }
+            PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "000000", FillOrStroke = "stroke", LineWidth=2, LinePattern= "solid", LayerId = 101 }
                 },
-            TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "none" }}
+            StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "*", Value = "*", MatchType = "none" }}
         };
 
         /// <summary>
@@ -44,11 +44,11 @@ namespace PraxisCore
         public static void Initialize(bool onlyDefaults = false, IMapTiles mapTiles = null)
         {
             MapTiles = mapTiles;
-            List<TagParserEntry> styles;
+            List<StyleEntry> styles;
 
             if (onlyDefaults)
             {
-                styles = Singletons.defaultTagParserEntries;
+                styles = Singletons.defaultStyleEntries;
 
                 long i = 1;
                 foreach(var s in styles)
@@ -61,9 +61,9 @@ namespace PraxisCore
                 {
                     //Load TPE entries from DB for app.
                     var db = new PraxisContext();
-                    styles = db.TagParserEntries.Include(t => t.TagParserMatchRules).Include(t => t.PaintOperations).ToList();
+                    styles = db.StyleEntries.Include(t => t.StyleMatchRules).Include(t => t.PaintOperations).ToList();
                     if (styles == null || styles.Count() == 0)
-                        styles = Singletons.defaultTagParserEntries;
+                        styles = Singletons.defaultStyleEntries;
 
                     var bitmaps = db.TagParserStyleBitmaps.ToList();
                     foreach (var b in bitmaps)
@@ -75,7 +75,7 @@ namespace PraxisCore
                 catch (Exception ex)
                 {
                     //The database doesn't exist, use defaults.
-                    styles = Singletons.defaultTagParserEntries;
+                    styles = Singletons.defaultStyleEntries;
                 }
             }
 
@@ -84,16 +84,16 @@ namespace PraxisCore
                 allStyleGroups.Add(g.Key, g.Select(gg => gg).OrderBy(gg => gg.MatchOrder).ToDictionary(k => k.Name, v => v));
 
             //Default style should be transparent, matches anything (assumed other styles were checked first)
-            defaultStyle = new TagParserEntry()
+            defaultStyle = new StyleEntry()
             {
                 MatchOrder = 10000,
                 Name = "unmatched",
                 StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", LayerId = 101 }
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", LayerId = 101 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "default" }}
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "*", Value = "*", MatchType = "default" }}
             };
             MapTiles.Initialize();
         }
@@ -104,7 +104,7 @@ namespace PraxisCore
         /// <param name="tags">the tags attached to a StoredOsmElement to search. A list will be converted to a dictionary and error out if duplicate keys are present in the tags.</param>
         /// <param name="styleSet">the styleset with the rules for parsing elements</param>
         /// <returns>The TagParserEntry that matches the rules and tags given, or a defaultStyle if none match.</returns>
-        public static TagParserEntry GetStyleForOsmWay(ICollection<PlaceTags> tags, string styleSet = "mapTiles")
+        public static StyleEntry GetStyleForOsmWay(ICollection<PlaceTags> tags, string styleSet = "mapTiles")
         {
             if (tags == null || tags.Count() == 0)
                 return defaultStyle;
@@ -119,7 +119,7 @@ namespace PraxisCore
         /// <param name="tags">the tags attached to a StoredOsmElement to search</param>
         /// <param name="styleSet">the styleset with the rules for parsing elements</param>
         /// <returns>The TagParserEntry that matches the rules and tags given, or a defaultStyle if none match.</returns>
-        public static TagParserEntry GetStyleForOsmWay(Dictionary<string, string> tags, string styleSet = "mapTiles")
+        public static StyleEntry GetStyleForOsmWay(Dictionary<string, string> tags, string styleSet = "mapTiles")
         {
             if (tags == null || tags.Count() == 0)
                 return defaultStyle;
@@ -139,7 +139,7 @@ namespace PraxisCore
         /// <param name="tags">the tags attached to a CompleteGeo object to search</param>
         /// <param name="styleSet">the styleset with the rules for parsing elements</param>
         /// <returns>The TagParserEntry that matches the rules and tags given, or a defaultStyle if none match.</returns>
-        public static TagParserEntry GetStyleForOsmWay(TagsCollectionBase tags, string styleSet = "mapTiles")
+        public static StyleEntry GetStyleForOsmWay(TagsCollectionBase tags, string styleSet = "mapTiles")
         {
             var tempTags = tags.ToDictionary(k => k.Key, v => v.Value);
             return GetStyleForOsmWay(tempTags, styleSet);
@@ -199,7 +199,7 @@ namespace PraxisCore
         /// <param name="tpe">The TagParserEntry to check</param>
         /// <param name="tags">the tags for a StoredOsmElement to use</param>
         /// <returns>true if this TagParserEntry applies to this StoredOsmElement's tags, or false if it does not.</returns>
-        public static bool MatchOnTags(TagParserEntry tpe, ICollection<PlaceTags> tags)
+        public static bool MatchOnTags(StyleEntry tpe, ICollection<PlaceTags> tags)
         {
             //NOTE: this cast make this path slightly slower (.01ms), but I don't have to maintain 2 version of this functions full code.
             return MatchOnTags(tpe, tags.ToDictionary(k => k.Key, v => v.Value));
@@ -211,18 +211,18 @@ namespace PraxisCore
         /// <param name="tpe">the TagParserEntry to match</param>
         /// <param name="tags">a Dictionary representing the place's tags</param>
         /// <returns>true if this rule entry matches against the place's tags, or false if not.</returns>
-        public static bool MatchOnTags(TagParserEntry tpe, Dictionary<string, string> tags)
+        public static bool MatchOnTags(StyleEntry tpe, Dictionary<string, string> tags)
         {
             bool OrMatched = false;
             int orRuleCount = 0;
 
-            TagParserMatchRule entry;
+            StyleMatchRule entry;
 
             //Step 1: check all the rules against these tags.
             //The * value is required for all the rules, so check it first.
-            for (var i = 0; i < tpe.TagParserMatchRules.Count(); i++)
+            for (var i = 0; i < tpe.StyleMatchRules.Count(); i++)
             {
-                entry = tpe.TagParserMatchRules.ElementAt(i);
+                entry = tpe.StyleMatchRules.ElementAt(i);
 
                 string actualvalue = "";
                 bool isPresent = tags.TryGetValue(entry.Key, out actualvalue);

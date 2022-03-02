@@ -1354,7 +1354,7 @@ namespace PerformanceTestApp
                 db.Database.BeginTransaction();
                 db.Database.ExecuteSqlRaw("SET IDENTITY_INSERT TagParserEntries ON;");
             }
-            db.TagParserEntries.AddRange(Singletons.defaultTagParserEntries);
+            db.StyleEntries.AddRange(Singletons.defaultStyleEntries);
             db.SaveChanges();
             if (mode == "SQLServer")
             {
@@ -1880,16 +1880,16 @@ namespace PerformanceTestApp
 
         }
 
-        public static bool MatchOnTags(TagParserEntry tpe, ICollection<PlaceTags> tags)
+        public static bool MatchOnTags(StyleEntry tpe, ICollection<PlaceTags> tags)
         {
             bool OrMatched = false;
             int orRuleCount = 0;
 
             //Step 1: check all the rules against these tags.
             //The * value is required for all the rules, so check it first.
-            for (var i = 0; i < tpe.TagParserMatchRules.Count(); i++)
+            for (var i = 0; i < tpe.StyleMatchRules.Count(); i++)
             {
-                var entry = tpe.TagParserMatchRules.ElementAt(i);
+                var entry = tpe.StyleMatchRules.ElementAt(i);
                 if (entry.Value == "*") //The Key needs to exist, but any value counts.
                 {
                     if (tags.Any(t => t.Key == entry.Key))
@@ -1948,16 +1948,16 @@ namespace PerformanceTestApp
             return false;
         }
 
-        public static bool MatchOnTagsSpans(TagParserEntry tpe, List<PlaceTags> tags)
+        public static bool MatchOnTagsSpans(StyleEntry tpe, List<PlaceTags> tags)
         {
             bool OrMatched = false;
             int orRuleCount = 0;
 
             //Step 1: check all the rules against these tags.
             //The * value is required for all the rules, so check it first.
-            for (var i = 0; i < tpe.TagParserMatchRules.Count(); i++)
+            for (var i = 0; i < tpe.StyleMatchRules.Count(); i++)
             {
-                var entry = tpe.TagParserMatchRules.ElementAt(i);
+                var entry = tpe.StyleMatchRules.ElementAt(i);
                 if (entry.Value == "*") //The Key needs to exist, but any value counts.
                 {
                     if (tags.Any(t => t.Key == entry.Key))
@@ -2035,18 +2035,18 @@ namespace PerformanceTestApp
             return false;
         }
 
-        public static bool MatchOnTags(TagParserEntry tpe, Dictionary<string, string> tags)
+        public static bool MatchOnTags(StyleEntry tpe, Dictionary<string, string> tags)
         {
             bool OrMatched = false;
             int orRuleCount = 0;
 
-            TagParserMatchRule entry;
+            StyleMatchRule entry;
 
             //Step 1: check all the rules against these tags.
             //The * value is required for all the rules, so check it first.
-            for (var i = 0; i < tpe.TagParserMatchRules.Count(); i++)
+            for (var i = 0; i < tpe.StyleMatchRules.Count(); i++)
             {
-                entry = tpe.TagParserMatchRules.ElementAt(i);
+                entry = tpe.StyleMatchRules.ElementAt(i);
 
                 string actualvalue = "";
                 bool isPresent = tags.TryGetValue(entry.Key, out actualvalue);
@@ -2102,18 +2102,18 @@ namespace PerformanceTestApp
             return false;
         }
 
-        public static bool MatchOnTagsDictstyle(TagParserEntry tpe, List<PlaceTags> tags)
+        public static bool MatchOnTagsDictstyle(StyleEntry tpe, List<PlaceTags> tags)
         {
             bool OrMatched = false;
             int orRuleCount = 0;
 
-            TagParserMatchRule entry;
+            StyleMatchRule entry;
 
             //Step 1: check all the rules against these tags.
             //The * value is required for all the rules, so check it first.
-            for (var i = 0; i < tpe.TagParserMatchRules.Count(); i++)
+            for (var i = 0; i < tpe.StyleMatchRules.Count(); i++)
             {
-                entry = tpe.TagParserMatchRules.ElementAt(i);
+                entry = tpe.StyleMatchRules.ElementAt(i);
                 
                 var thisTag = tags.FirstOrDefault(t => t.Key == entry.Key);
                 string thisValue = null;

@@ -46,288 +46,288 @@ namespace PraxisCore
         /// <item><description>outlines: Draws a black border outline for all elements.</description></item>
         /// </list>
         /// </summary>
-        public static List<TagParserEntry> defaultTagParserEntries = new List<TagParserEntry>()
+        public static List<StyleEntry> defaultStyleEntries = new List<StyleEntry>()
         {
             //NOTE: a rough analysis suggests that about 1/3 of entries are 'tertiary' roads and another third are 'building'
             //So moving those 2 entires up to match order 1 and 2 should reduce the amount of time checking through entries in most cases.
             //(Unmatched is 3rd, and that one has to be last by definition.)
             //Roads of varying sizes and colors to match OSM colors
-            new TagParserEntry() { MatchOrder = 1, Name ="tertiary", StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "ffffff", FillOrStroke = "stroke", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 98, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
-                    new TagParserPaint() { HtmlColorCode = "8f8f8f", FillOrStroke = "stroke", LineWidth=0.0000375F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2}
+            new StyleEntry() { MatchOrder = 1, Name ="tertiary", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "ffffff", FillOrStroke = "stroke", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 98, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "8f8f8f", FillOrStroke = "stroke", LineWidth=0.0000375F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2}
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>()
+                StyleMatchRules = new List<StyleMatchRule>()
             {
-                new TagParserMatchRule() { Key = "highway", Value = "tertiary|unclassified|residential|tertiary_link|service|road", MatchType = "any" },
-                new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
+                new StyleMatchRule() { Key = "highway", Value = "tertiary|unclassified|residential|tertiary_link|service|road", MatchType = "any" },
+                new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
             }},
-            new TagParserEntry() { MatchOrder = 2, Name ="building", StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "d9d0c9", FillOrStroke = "fill", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 },
-                    new TagParserPaint() { HtmlColorCode = "B8A89C", FillOrStroke = "stroke", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 99 }
+            new StyleEntry() { MatchOrder = 2, Name ="building", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "d9d0c9", FillOrStroke = "fill", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 },
+                    new StylePaint() { HtmlColorCode = "B8A89C", FillOrStroke = "stroke", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 99 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "building", Value = "*", MatchType = "equals" }} },
-            new TagParserEntry() { MatchOrder = 14, Name ="water", StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "aad3df", FillOrStroke = "fill", LineWidth=0.0000625F, LinePattern= "solid", LayerId = 100 }
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "building", Value = "*", MatchType = "equals" }} },
+            new StyleEntry() { MatchOrder = 14, Name ="water", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "aad3df", FillOrStroke = "fill", LineWidth=0.0000625F, LinePattern= "solid", LayerId = 100 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() {Key = "natural", Value = "water|strait|bay|coastline", MatchType = "or"},
-                    new TagParserMatchRule() {Key = "waterway", Value ="*", MatchType="or" },
-                    new TagParserMatchRule() {Key = "landuse", Value ="basin", MatchType="or" },
-                    new TagParserMatchRule() {Key = "leisure", Value ="swimming_pool", MatchType="or" },
-                    new TagParserMatchRule() {Key = "place", Value ="sea", MatchType="or" }, //stupid Labrador sea value.
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() {Key = "natural", Value = "water|strait|bay|coastline", MatchType = "or"},
+                    new StyleMatchRule() {Key = "waterway", Value ="*", MatchType="or" },
+                    new StyleMatchRule() {Key = "landuse", Value ="basin", MatchType="or" },
+                    new StyleMatchRule() {Key = "leisure", Value ="swimming_pool", MatchType="or" },
+                    new StyleMatchRule() {Key = "place", Value ="sea", MatchType="or" }, //stupid Labrador sea value.
                 }},
-            new TagParserEntry() { MatchOrder = 34, Name ="wetland", StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "0C4026", FillOrStroke = "fill", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 }
+            new StyleEntry() { MatchOrder = 34, Name ="wetland", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "0C4026", FillOrStroke = "fill", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
-                 TagParserMatchRules = new List<TagParserMatchRule>() {
-                     new TagParserMatchRule() { Key = "natural", Value = "wetland", MatchType = "equals" }
+                 StyleMatchRules = new List<StyleMatchRule>() {
+                     new StyleMatchRule() { Key = "natural", Value = "wetland", MatchType = "equals" }
                  }},
-            new TagParserEntry() { IsGameElement = true, MatchOrder = 3, Name ="park", StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "C8FACC", FillOrStroke = "fill", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 }
+            new StyleEntry() { IsGameElement = true, MatchOrder = 3, Name ="park", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "C8FACC", FillOrStroke = "fill", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "leisure", Value = "park", MatchType = "or" },
-                    new TagParserMatchRule() { Key = "leisure", Value = "playground", MatchType = "or" },
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "leisure", Value = "park", MatchType = "or" },
+                    new StyleMatchRule() { Key = "leisure", Value = "playground", MatchType = "or" },
             }},
-            new TagParserEntry() { IsGameElement = true, MatchOrder = 4, Name ="beach", StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "fff1ba", FillOrStroke = "fill", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 }
+            new StyleEntry() { IsGameElement = true, MatchOrder = 4, Name ="beach", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "fff1ba", FillOrStroke = "fill", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() {Key = "natural", Value = "beach|shoal", MatchType = "or" },
-                    new TagParserMatchRule() {Key = "leisure", Value="beach_resort", MatchType="or"}
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() {Key = "natural", Value = "beach|shoal", MatchType = "or" },
+                    new StyleMatchRule() {Key = "leisure", Value="beach_resort", MatchType="or"}
             } },
-            new TagParserEntry() { IsGameElement = true, MatchOrder = 5, Name ="university", StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "FFFFE5", FillOrStroke = "fill", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 }
+            new StyleEntry() { IsGameElement = true, MatchOrder = 5, Name ="university", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "FFFFE5", FillOrStroke = "fill", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "amenity", Value = "university|college", MatchType = "any" }} 
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "amenity", Value = "university|college", MatchType = "any" }} 
             },
-            new TagParserEntry() { IsGameElement = true, MatchOrder = 6, Name ="natureReserve", StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "124504", FillOrStroke = "fill", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 }
+            new StyleEntry() { IsGameElement = true, MatchOrder = 6, Name ="natureReserve", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "124504", FillOrStroke = "fill", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "leisure", Value = "nature_reserve", MatchType = "equals" }} 
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "leisure", Value = "nature_reserve", MatchType = "equals" }} 
             },
-            new TagParserEntry() {IsGameElement = true, MatchOrder = 7, Name ="cemetery", StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "AACBAF", FillOrStroke = "fill", FileName="Landuse-cemetery.png", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 }
+            new StyleEntry() {IsGameElement = true, MatchOrder = 7, Name ="cemetery", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "AACBAF", FillOrStroke = "fill", FileName="Landuse-cemetery.png", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "landuse", Value = "cemetery", MatchType = "or" },
-                    new TagParserMatchRule() {Key="amenity", Value="grave_yard", MatchType="or" } } 
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "landuse", Value = "cemetery", MatchType = "or" },
+                    new StyleMatchRule() {Key="amenity", Value="grave_yard", MatchType="or" } } 
             },
-            new TagParserEntry() { MatchOrder = 8, Name ="retail", StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "FFD4CE", FillOrStroke = "fill", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 }
+            new StyleEntry() { MatchOrder = 8, Name ="retail", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "FFD4CE", FillOrStroke = "fill", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "landuse", Value = "retail|commercial", MatchType = "or"},
-                    new TagParserMatchRule() {Key="building", Value="retail|commercial", MatchType="or" },
-                    new TagParserMatchRule() {Key="shop", Value="*", MatchType="or" }
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "landuse", Value = "retail|commercial", MatchType = "or"},
+                    new StyleMatchRule() {Key="building", Value="retail|commercial", MatchType="or" },
+                    new StyleMatchRule() {Key="shop", Value="*", MatchType="or" }
             }},
-            new TagParserEntry() { IsGameElement = true, MatchOrder = 9, Name ="tourism", StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "660033", FillOrStroke = "fill", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 }
+            new StyleEntry() { IsGameElement = true, MatchOrder = 9, Name ="tourism", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "660033", FillOrStroke = "fill", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "tourism", Value = "*", MatchType = "equals" }} 
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "tourism", Value = "*", MatchType = "equals" }} 
             },
-            new TagParserEntry() { IsGameElement = true, MatchOrder = 10, Name ="historical", StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "B3B3B3", FillOrStroke = "fill", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 }
+            new StyleEntry() { IsGameElement = true, MatchOrder = 10, Name ="historical", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "B3B3B3", FillOrStroke = "fill", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "historic", Value = "*", MatchType = "equals" }} 
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "historic", Value = "*", MatchType = "equals" }} 
             },
-            new TagParserEntry() { MatchOrder = 11, Name ="trailFilled", StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "F0E68C", FillOrStroke = "fill", LineWidth=0.000025F, LinePattern= "solid", LayerId = 100 }
+            new StyleEntry() { MatchOrder = 11, Name ="trailFilled", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "F0E68C", FillOrStroke = "fill", LineWidth=0.000025F, LinePattern= "solid", LayerId = 100 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() {Key="highway", Value="path|bridleway|cycleway|footway|living_street", MatchType="any"},
-                    new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
-                    new TagParserMatchRule() { Key="area", Value="yes", MatchType="equals"}
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() {Key="highway", Value="path|bridleway|cycleway|footway|living_street", MatchType="any"},
+                    new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
+                    new StyleMatchRule() { Key="area", Value="yes", MatchType="equals"}
             }},
-            new TagParserEntry() { IsGameElement = true, MatchOrder = 12, Name ="trail", StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "F0E68C", FillOrStroke = "stroke", LineWidth=0.000025F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom14DegPerPixelX }
+            new StyleEntry() { IsGameElement = true, MatchOrder = 12, Name ="trail", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "F0E68C", FillOrStroke = "stroke", LineWidth=0.000025F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom14DegPerPixelX }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() {Key="highway", Value="path|bridleway|cycleway|footway|living_street", MatchType="any"},
-                    new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"}
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() {Key="highway", Value="path|bridleway|cycleway|footway|living_street", MatchType="any"},
+                    new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"}
             }},
             //Admin bounds are transparent on mapTiles, because I would prefer to find and skip them on this style. Use the adminBounds style to draw them on their own tile layer.
-            new TagParserEntry() { MatchOrder = 13, Name ="admin", StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=0.0000125F, LinePattern= "10|5", LayerId = 70 }
+            new StyleEntry() { MatchOrder = 13, Name ="admin", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=0.0000125F, LinePattern= "10|5", LayerId = 70 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" }} 
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" }} 
             },
-            new TagParserEntry() { MatchOrder = 17, Name ="parking", StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "EEEEEE", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100, MinDrawRes = ConstantValues.zoom12DegPerPixelX}
+            new StyleEntry() { MatchOrder = 17, Name ="parking", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "EEEEEE", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100, MinDrawRes = ConstantValues.zoom12DegPerPixelX}
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() { 
-                    new TagParserMatchRule() { Key = "amenity", Value = "parking", MatchType = "equals" }} },
+                StyleMatchRules = new List<StyleMatchRule>() { 
+                    new StyleMatchRule() { Key = "amenity", Value = "parking", MatchType = "equals" }} },
 
             //New generic entries for mapping by color
-            new TagParserEntry() { MatchOrder = 18, Name ="greenspace",  StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "cdebb0", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100 }
+            new StyleEntry() { MatchOrder = 18, Name ="greenspace",  StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "cdebb0", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "landuse", Value = "grass|farmland|farmyard|meadow|vineyard|recreation_ground|village_green", MatchType = "or" },
-                    new TagParserMatchRule() { Key = "natural", Value = "scrub|heath|grassland", MatchType = "or" },
-                    new TagParserMatchRule() { Key = "leisure", Value = "garden", MatchType = "or" },
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "landuse", Value = "grass|farmland|farmyard|meadow|vineyard|recreation_ground|village_green", MatchType = "or" },
+                    new StyleMatchRule() { Key = "natural", Value = "scrub|heath|grassland", MatchType = "or" },
+                    new StyleMatchRule() { Key = "leisure", Value = "garden", MatchType = "or" },
             }},
-            new TagParserEntry() { MatchOrder = 19, Name ="alsobeach",  StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "D7B526", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100 }
+            new StyleEntry() { MatchOrder = 19, Name ="alsobeach",  StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "D7B526", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "natural", Value = "sand|shingle|dune|scree", MatchType = "or" },
-                    new TagParserMatchRule() { Key = "surface", Value = "sand", MatchType = "or" }
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "natural", Value = "sand|shingle|dune|scree", MatchType = "or" },
+                    new StyleMatchRule() { Key = "surface", Value = "sand", MatchType = "or" }
             }},
-            new TagParserEntry() { MatchOrder = 20, Name ="darkgreenspace",  StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "ADD19E", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100 }
+            new StyleEntry() { MatchOrder = 20, Name ="darkgreenspace",  StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "ADD19E", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "natural", Value = "wood", MatchType = "or" },
-                    new TagParserMatchRule() { Key = "landuse", Value = "forest|orchard", MatchType = "or" },
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "natural", Value = "wood", MatchType = "or" },
+                    new StyleMatchRule() { Key = "landuse", Value = "forest|orchard", MatchType = "or" },
             }},
-            new TagParserEntry() { MatchOrder = 21, Name ="industrial",  StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "EBDBE8", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100 }
+            new StyleEntry() { MatchOrder = 21, Name ="industrial",  StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "EBDBE8", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "landuse", Value = "industrial", MatchType = "equals" },
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "landuse", Value = "industrial", MatchType = "equals" },
             }},
-            new TagParserEntry() { MatchOrder = 22, Name ="residential",  StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "009933", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100 }
+            new StyleEntry() { MatchOrder = 22, Name ="residential",  StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "009933", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "landuse", Value = "residential", MatchType = "equals" },
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "landuse", Value = "residential", MatchType = "equals" },
             }},
-            new TagParserEntry() { MatchOrder = 23, Name ="sidewalk", StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "C0C0C0", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100 }
+            new StyleEntry() { MatchOrder = 23, Name ="sidewalk", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "C0C0C0", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "highway", Value = "pedestrian", MatchType = "equals" },
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "highway", Value = "pedestrian", MatchType = "equals" },
             }},
             //Transparent: we don't usually want to draw census boundaries
-            new TagParserEntry() { MatchOrder = 24, Name ="censusbounds",  StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100 }
+            new StyleEntry() { MatchOrder = 24, Name ="censusbounds",  StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "boundary", Value = "census", MatchType = "equals" },
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "boundary", Value = "census", MatchType = "equals" },
             }},
             //Transparents: Explicitly things that don't help when drawn in one color.
-            new TagParserEntry() { MatchOrder = 25, Name ="donotdraw",  StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100 }
+            new StyleEntry() { MatchOrder = 25, Name ="donotdraw",  StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "place", Value = "locality|islet", MatchType = "any" },
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "place", Value = "locality|islet", MatchType = "any" },
             }},
-            new TagParserEntry() { MatchOrder = 26, Name ="greyFill",  StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "AAAAAA", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100 }
+            new StyleEntry() { MatchOrder = 26, Name ="greyFill",  StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "AAAAAA", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "man_made", Value = "breakwater", MatchType = "any" },
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "man_made", Value = "breakwater", MatchType = "any" },
             }},
 
             //Roads of varying sizes and colors to match OSM colors
-            new TagParserEntry() { MatchOrder = 27, Name ="motorwayFilled", StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "e892a2", FillOrStroke = "fill", LineWidth=0.000125F, LinePattern= "solid", LayerId = 92},
-                    new TagParserPaint() { HtmlColorCode = "dc2a67", FillOrStroke = "fill", LineWidth=0.000155F, LinePattern= "solid", LayerId = 93}
+            new StyleEntry() { MatchOrder = 27, Name ="motorwayFilled", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "e892a2", FillOrStroke = "fill", LineWidth=0.000125F, LinePattern= "solid", LayerId = 92},
+                    new StylePaint() { HtmlColorCode = "dc2a67", FillOrStroke = "fill", LineWidth=0.000155F, LinePattern= "solid", LayerId = 93}
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>()
+                StyleMatchRules = new List<StyleMatchRule>()
             {
-                new TagParserMatchRule() { Key = "highway", Value = "motorway|trunk|motorway_link|trunk_link", MatchType = "any" },
-                new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
-                new TagParserMatchRule() { Key="area", Value="yes", MatchType="equals"}
+                new StyleMatchRule() { Key = "highway", Value = "motorway|trunk|motorway_link|trunk_link", MatchType = "any" },
+                new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
+                new StyleMatchRule() { Key="area", Value="yes", MatchType="equals"}
             }},
             //Roads of varying sizes and colors to match OSM colors
-            new TagParserEntry() { MatchOrder = 28, Name ="motorway", StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "e892a2", FillOrStroke = "fill", LineWidth=0.000125F, LinePattern= "solid", LayerId = 92},
-                    new TagParserPaint() { HtmlColorCode = "dc2a67", FillOrStroke = "fill", LineWidth=0.000155F, LinePattern= "solid", LayerId = 93}
+            new StyleEntry() { MatchOrder = 28, Name ="motorway", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "e892a2", FillOrStroke = "fill", LineWidth=0.000125F, LinePattern= "solid", LayerId = 92},
+                    new StylePaint() { HtmlColorCode = "dc2a67", FillOrStroke = "fill", LineWidth=0.000155F, LinePattern= "solid", LayerId = 93}
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>()
+                StyleMatchRules = new List<StyleMatchRule>()
             {
-                new TagParserMatchRule() { Key = "highway", Value = "motorway|trunk|motorway_link|trunk_link", MatchType = "any" },
-                new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
+                new StyleMatchRule() { Key = "highway", Value = "motorway|trunk|motorway_link|trunk_link", MatchType = "any" },
+                new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
             }},
-            new TagParserEntry() { MatchOrder = 29, Name ="primaryFilled", StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "fcd6a4", FillOrStroke = "fill", LineWidth=0.000025F, LinePattern= "solid", LayerId = 94, },
-                    new TagParserPaint() { HtmlColorCode = "a06b00", FillOrStroke = "fill", LineWidth=0.00004275F, LinePattern= "solid", LayerId = 95, }
+            new StyleEntry() { MatchOrder = 29, Name ="primaryFilled", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "fcd6a4", FillOrStroke = "fill", LineWidth=0.000025F, LinePattern= "solid", LayerId = 94, },
+                    new StylePaint() { HtmlColorCode = "a06b00", FillOrStroke = "fill", LineWidth=0.00004275F, LinePattern= "solid", LayerId = 95, }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>()
+                StyleMatchRules = new List<StyleMatchRule>()
             {
-                new TagParserMatchRule() { Key = "highway", Value = "primary|primary_link", MatchType = "any" },
-                new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
-                new TagParserMatchRule() { Key="area", Value="yes", MatchType="equals"}
-            }},
-            //Roads of varying sizes and colors to match OSM colors
-            new TagParserEntry() { MatchOrder = 30, Name ="primary", StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "fcd6a4", FillOrStroke = "stroke", LineWidth=0.00005F, LinePattern= "solid", LayerId = 94, MaxDrawRes = ConstantValues.zoom6DegPerPixelX /2 },
-                    new TagParserPaint() { HtmlColorCode = "a06b00", FillOrStroke = "stroke", LineWidth=0.000085F, LinePattern= "solid", LayerId = 95, MaxDrawRes = ConstantValues.zoom6DegPerPixelX /2}
-                },
-                TagParserMatchRules = new List<TagParserMatchRule>()
-            {
-                new TagParserMatchRule() { Key = "highway", Value = "primary|primary_link", MatchType = "any" },
-                new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
-            }},
-            new TagParserEntry() { MatchOrder = 31, Name ="secondaryFilled",  StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "f7fabf", FillOrStroke = "fill", LineWidth=0.0000375F, LinePattern= "solid", LayerId = 96, MaxDrawRes = ConstantValues.zoom8DegPerPixelX,},
-                    new TagParserPaint() { HtmlColorCode = "707d05", FillOrStroke = "fill", LineWidth=0.0000625F, LinePattern= "solid", LayerId = 97, MaxDrawRes = ConstantValues.zoom8DegPerPixelX,}
-                },
-                TagParserMatchRules = new List<TagParserMatchRule>()
-            {
-                new TagParserMatchRule() { Key = "highway", Value = "secondary|secondary_link", MatchType = "any" },
-                new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
-                new TagParserMatchRule() { Key="area", Value="yes", MatchType="equals"}
+                new StyleMatchRule() { Key = "highway", Value = "primary|primary_link", MatchType = "any" },
+                new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
+                new StyleMatchRule() { Key="area", Value="yes", MatchType="equals"}
             }},
             //Roads of varying sizes and colors to match OSM colors
-            new TagParserEntry() { MatchOrder = 32, Name ="secondary",  StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "f7fabf", FillOrStroke = "stroke", LineWidth=0.0000375F, LinePattern= "solid", LayerId = 96, MaxDrawRes = ConstantValues.zoom8DegPerPixelX,},
-                    new TagParserPaint() { HtmlColorCode = "707d05", FillOrStroke = "stroke", LineWidth=0.0000625F, LinePattern= "solid", LayerId = 97, MaxDrawRes = ConstantValues.zoom8DegPerPixelX,}
+            new StyleEntry() { MatchOrder = 30, Name ="primary", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "fcd6a4", FillOrStroke = "stroke", LineWidth=0.00005F, LinePattern= "solid", LayerId = 94, MaxDrawRes = ConstantValues.zoom6DegPerPixelX /2 },
+                    new StylePaint() { HtmlColorCode = "a06b00", FillOrStroke = "stroke", LineWidth=0.000085F, LinePattern= "solid", LayerId = 95, MaxDrawRes = ConstantValues.zoom6DegPerPixelX /2}
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>()
+                StyleMatchRules = new List<StyleMatchRule>()
             {
-                new TagParserMatchRule() { Key = "highway", Value = "secondary|secondary_link", MatchType = "any" },
-                new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
+                new StyleMatchRule() { Key = "highway", Value = "primary|primary_link", MatchType = "any" },
+                new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
             }},
-            new TagParserEntry() { MatchOrder = 33, Name ="tertiaryFilled", StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "ffffff", FillOrStroke = "fill", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 98, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
-                    new TagParserPaint() { HtmlColorCode = "8f8f8f", FillOrStroke = "fill", LineWidth=0.0000375F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2}
+            new StyleEntry() { MatchOrder = 31, Name ="secondaryFilled",  StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "f7fabf", FillOrStroke = "fill", LineWidth=0.0000375F, LinePattern= "solid", LayerId = 96, MaxDrawRes = ConstantValues.zoom8DegPerPixelX,},
+                    new StylePaint() { HtmlColorCode = "707d05", FillOrStroke = "fill", LineWidth=0.0000625F, LinePattern= "solid", LayerId = 97, MaxDrawRes = ConstantValues.zoom8DegPerPixelX,}
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>()
+                StyleMatchRules = new List<StyleMatchRule>()
             {
-                new TagParserMatchRule() { Key = "highway", Value = "tertiary|unclassified|residential|tertiary_link|service|road", MatchType = "any" },
-                new TagParserMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
-                new TagParserMatchRule() { Key="area", Value="yes", MatchType="equals"}
+                new StyleMatchRule() { Key = "highway", Value = "secondary|secondary_link", MatchType = "any" },
+                new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
+                new StyleMatchRule() { Key="area", Value="yes", MatchType="equals"}
+            }},
+            //Roads of varying sizes and colors to match OSM colors
+            new StyleEntry() { MatchOrder = 32, Name ="secondary",  StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "f7fabf", FillOrStroke = "stroke", LineWidth=0.0000375F, LinePattern= "solid", LayerId = 96, MaxDrawRes = ConstantValues.zoom8DegPerPixelX,},
+                    new StylePaint() { HtmlColorCode = "707d05", FillOrStroke = "stroke", LineWidth=0.0000625F, LinePattern= "solid", LayerId = 97, MaxDrawRes = ConstantValues.zoom8DegPerPixelX,}
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key = "highway", Value = "secondary|secondary_link", MatchType = "any" },
+                new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
+            }},
+            new StyleEntry() { MatchOrder = 33, Name ="tertiaryFilled", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "ffffff", FillOrStroke = "fill", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 98, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "8f8f8f", FillOrStroke = "fill", LineWidth=0.0000375F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2}
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key = "highway", Value = "tertiary|unclassified|residential|tertiary_link|service|road", MatchType = "any" },
+                new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
+                new StyleMatchRule() { Key="area", Value="yes", MatchType="equals"}
             }},
 
             //additional areas that I can work out info on go here, though they may not necessarily be the most interesting areas to handle.
@@ -360,203 +360,203 @@ namespace PraxisCore
 
             //NOTE: hiding elements of a given type is done by drawing those elements in a transparent color
             //My default set wants to draw things that haven't yet been identified, so I can see what needs improvement or matched by a rule.
-            new TagParserEntry() { MatchOrder = 9999, Name ="background",  StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "F2EFE9", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 101 }
+            new StyleEntry() { MatchOrder = 9999, Name ="background",  StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "F2EFE9", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 101 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() { 
-                    new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "none" }} },
+                StyleMatchRules = new List<StyleMatchRule>() { 
+                    new StyleMatchRule() { Key = "*", Value = "*", MatchType = "none" }} },
 
-            new TagParserEntry() { MatchOrder = 10000, Name ="unmatched",  StyleSet = "mapTiles",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100 }
+            new StyleEntry() { MatchOrder = 10000, Name ="unmatched",  StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() { 
-                    new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "default" }} 
+                StyleMatchRules = new List<StyleMatchRule>() { 
+                    new StyleMatchRule() { Key = "*", Value = "*", MatchType = "default" }} 
             },
 
             //TODO: these need their sizes adjusted to be wider. Right now, in degrees, the overlap is nearly invisible unless you're at zoom 20.
             //More specific admin-bounds tags, named matching USA values for now.
-            new TagParserEntry() { MatchOrder = 1, Name ="country",  StyleSet = "adminBounds",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "E31010", FillOrStroke = "stroke", LineWidth=0.000125F, LinePattern= "solid", LayerId = 100 }
+            new StyleEntry() { MatchOrder = 1, Name ="country",  StyleSet = "adminBounds",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "E31010", FillOrStroke = "stroke", LineWidth=0.000125F, LinePattern= "solid", LayerId = 100 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
-                    new TagParserMatchRule() { Key = "admin_level", Value = "2", MatchType = "equals" }
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
+                    new StyleMatchRule() { Key = "admin_level", Value = "2", MatchType = "equals" }
                 }
             },
-            new TagParserEntry() { MatchOrder = 2, Name ="region",  StyleSet = "adminBounds", //dot pattern
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "CC8A58", FillOrStroke = "stroke", LineWidth=0.0001125F, LinePattern= "10|10", LayerId = 90 }
+            new StyleEntry() { MatchOrder = 2, Name ="region",  StyleSet = "adminBounds", //dot pattern
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "CC8A58", FillOrStroke = "stroke", LineWidth=0.0001125F, LinePattern= "10|10", LayerId = 90 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
-                    new TagParserMatchRule() { Key = "admin_level", Value = "3", MatchType = "equals" }
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
+                    new StyleMatchRule() { Key = "admin_level", Value = "3", MatchType = "equals" }
                 }
             },
-            new TagParserEntry() { MatchOrder = 3, Name ="state",   StyleSet = "adminBounds", //dot pattern
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "FFE30D", FillOrStroke = "stroke", LineWidth=0.0001F, LinePattern= "10|10", LayerId = 80 }
+            new StyleEntry() { MatchOrder = 3, Name ="state",   StyleSet = "adminBounds", //dot pattern
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "FFE30D", FillOrStroke = "stroke", LineWidth=0.0001F, LinePattern= "10|10", LayerId = 80 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
-                    new TagParserMatchRule() { Key = "admin_level", Value = "4", MatchType = "equals" }
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
+                    new StyleMatchRule() { Key = "admin_level", Value = "4", MatchType = "equals" }
                 }
             },
-            new TagParserEntry() { MatchOrder = 4, Name ="admin5", StyleSet = "adminBounds", //Line pattern is dash-dot-dot
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "369670", FillOrStroke = "stroke", LineWidth=0.0000875F, LinePattern= "20|10|10|10|10|10", LayerId = 70 }
+            new StyleEntry() { MatchOrder = 4, Name ="admin5", StyleSet = "adminBounds", //Line pattern is dash-dot-dot
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "369670", FillOrStroke = "stroke", LineWidth=0.0000875F, LinePattern= "20|10|10|10|10|10", LayerId = 70 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
-                    new TagParserMatchRule() { Key = "admin_level", Value = "5", MatchType = "equals" }
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
+                    new StyleMatchRule() { Key = "admin_level", Value = "5", MatchType = "equals" }
                 }
             },
-            new TagParserEntry() { MatchOrder = 5, Name ="county",  StyleSet = "adminBounds", //dash-dot pattern
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "3E8A25", FillOrStroke = "stroke", LineWidth=0.000075F, LinePattern= "20|10|10|10", LayerId = 60 }
+            new StyleEntry() { MatchOrder = 5, Name ="county",  StyleSet = "adminBounds", //dash-dot pattern
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "3E8A25", FillOrStroke = "stroke", LineWidth=0.000075F, LinePattern= "20|10|10|10", LayerId = 60 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
-                    new TagParserMatchRule() { Key = "admin_level", Value = "6", MatchType = "equals" }
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
+                    new StyleMatchRule() { Key = "admin_level", Value = "6", MatchType = "equals" }
                 }
             },
-            new TagParserEntry() { MatchOrder = 6, Name ="township",  StyleSet = "adminBounds", //dash
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "32FCF6", FillOrStroke = "stroke", LineWidth=0.0000625F, LinePattern= "20|0", LayerId = 50 }
+            new StyleEntry() { MatchOrder = 6, Name ="township",  StyleSet = "adminBounds", //dash
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "32FCF6", FillOrStroke = "stroke", LineWidth=0.0000625F, LinePattern= "20|0", LayerId = 50 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
-                    new TagParserMatchRule() { Key = "admin_level", Value = "7", MatchType = "equals" }
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
+                    new StyleMatchRule() { Key = "admin_level", Value = "7", MatchType = "equals" }
                 }
             },
-            new TagParserEntry() { MatchOrder = 7, Name ="city",  StyleSet = "adminBounds", //dash
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "0F34BA", FillOrStroke = "stroke", LineWidth=0.00005F, LinePattern= "20|0", LayerId = 40 }
+            new StyleEntry() { MatchOrder = 7, Name ="city",  StyleSet = "adminBounds", //dash
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "0F34BA", FillOrStroke = "stroke", LineWidth=0.00005F, LinePattern= "20|0", LayerId = 40 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
-                    new TagParserMatchRule() { Key = "admin_level", Value = "8", MatchType = "equals" }
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
+                    new StyleMatchRule() { Key = "admin_level", Value = "8", MatchType = "equals" }
                 }
             },
-            new TagParserEntry() { MatchOrder = 8, Name ="ward",  StyleSet = "adminBounds", //dot
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "A46DFC", FillOrStroke = "stroke", LineWidth=0.0000475F, LinePattern= "10|10", LayerId = 30 }
+            new StyleEntry() { MatchOrder = 8, Name ="ward",  StyleSet = "adminBounds", //dot
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "A46DFC", FillOrStroke = "stroke", LineWidth=0.0000475F, LinePattern= "10|10", LayerId = 30 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
-                    new TagParserMatchRule() { Key = "admin_level", Value = "9", MatchType = "equals" }
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
+                    new StyleMatchRule() { Key = "admin_level", Value = "9", MatchType = "equals" }
                 }
             },
-            new TagParserEntry() { MatchOrder = 9, Name ="neighborhood",  StyleSet = "adminBounds", //dot
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "B811B5", FillOrStroke = "stroke", LineWidth=0.000035F, LinePattern= "10|10", LayerId = 20 }
+            new StyleEntry() { MatchOrder = 9, Name ="neighborhood",  StyleSet = "adminBounds", //dot
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "B811B5", FillOrStroke = "stroke", LineWidth=0.000035F, LinePattern= "10|10", LayerId = 20 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
-                    new TagParserMatchRule() { Key = "admin_level", Value = "10", MatchType = "equals" }
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
+                    new StyleMatchRule() { Key = "admin_level", Value = "10", MatchType = "equals" }
                 }
             },
-            new TagParserEntry() { MatchOrder = 10, Name ="admin11", StyleSet = "adminBounds", //not rendered
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=0.0000225F, LinePattern= "solid", LayerId = 10 }
+            new StyleEntry() { MatchOrder = 10, Name ="admin11", StyleSet = "adminBounds", //not rendered
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidth=0.0000225F, LinePattern= "solid", LayerId = 10 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
-                    new TagParserMatchRule() { Key = "admin_level", Value = "11", MatchType = "equals" }
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
+                    new StyleMatchRule() { Key = "admin_level", Value = "11", MatchType = "equals" }
                 }
             },
-            new TagParserEntry() { MatchOrder = 9999, Name ="background",  StyleSet = "adminBounds",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00F2EFE9", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 101 }
+            new StyleEntry() { MatchOrder = 9999, Name ="background",  StyleSet = "adminBounds",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "00F2EFE9", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 101 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "none" }} },
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "*", Value = "*", MatchType = "none" }} },
 
-            new TagParserEntry() { MatchOrder = 10000, Name ="unmatched",  StyleSet = "adminBounds",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100 }
+            new StyleEntry() { MatchOrder = 10000, Name ="unmatched",  StyleSet = "adminBounds",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "*", Value = "*", MatchType = "default" }}
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "*", Value = "*", MatchType = "default" }}
             },
         
             //Team Colors now part of the same default list.
-            new TagParserEntry() { MatchOrder = 1, Name ="1",  StyleSet = "teamColor",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "88FF0000", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 99 },
-                    new TagParserPaint() { HtmlColorCode = "FF0000", FillOrStroke = "stroke", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 }
+            new StyleEntry() { MatchOrder = 1, Name ="1",  StyleSet = "teamColor",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "88FF0000", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 99 },
+                    new StylePaint() { HtmlColorCode = "FF0000", FillOrStroke = "stroke", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() {Key = "team", Value = "red", MatchType = "equals"},
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() {Key = "team", Value = "red", MatchType = "equals"},
             }},
-            new TagParserEntry() { MatchOrder = 2, Name ="2",   StyleSet = "teamColor",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "8800FF00", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 99 },
-                    new TagParserPaint() { HtmlColorCode = "00FF00", FillOrStroke = "stroke", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 }
+            new StyleEntry() { MatchOrder = 2, Name ="2",   StyleSet = "teamColor",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "8800FF00", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 99 },
+                    new StylePaint() { HtmlColorCode = "00FF00", FillOrStroke = "stroke", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() {Key = "team", Value = "green", MatchType = "equals"},
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() {Key = "team", Value = "green", MatchType = "equals"},
             }},
-            new TagParserEntry() { MatchOrder = 3, Name ="3",  StyleSet = "teamColor",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "880000FF", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 99 },
-                    new TagParserPaint() { HtmlColorCode = "0000FF", FillOrStroke = "stroke", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 }
+            new StyleEntry() { MatchOrder = 3, Name ="3",  StyleSet = "teamColor",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "880000FF", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 99 },
+                    new StylePaint() { HtmlColorCode = "0000FF", FillOrStroke = "stroke", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() {Key = "team", Value = "blue", MatchType = "equals"},
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() {Key = "team", Value = "blue", MatchType = "equals"},
             }},
 
             //background is a mandatory style entry name, but its transparent here..
-            new TagParserEntry() { MatchOrder = 10000, Name ="background",  StyleSet = "teamColor",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 101 }
+            new StyleEntry() { MatchOrder = 10000, Name ="background",  StyleSet = "teamColor",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 101 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() {Key = "*", Value = "*", MatchType = "default"},
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() {Key = "*", Value = "*", MatchType = "default"},
             }},
 
             //Paint the Town special style.
-            new TagParserEntry() { MatchOrder = 1, Name ="tag",  StyleSet = "paintTown",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "01000000", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100, FromTag=true }
+            new StyleEntry() { MatchOrder = 1, Name ="tag",  StyleSet = "paintTown",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "01000000", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100, FromTag=true }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() {Key = "*", Value = "*", MatchType = "default"},
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() {Key = "*", Value = "*", MatchType = "default"},
             }},
             //background is a mandatory style entry name, but its transparent here..
-            new TagParserEntry() { MatchOrder = 10000, Name ="background",  StyleSet = "paintTown",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 101 }
+            new StyleEntry() { MatchOrder = 10000, Name ="background",  StyleSet = "paintTown",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 101 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() {Key = "*", Value = "*", MatchType = "default"},
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() {Key = "*", Value = "*", MatchType = "default"},
             }},
 
             //new style to allow only outlines of ALL entries.
-            new TagParserEntry() { MatchOrder = 1, Name ="1",  StyleSet = "outlines",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "000000", FillOrStroke = "stroke", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 }
+            new StyleEntry() { MatchOrder = 1, Name ="1",  StyleSet = "outlines",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "000000", FillOrStroke = "stroke", LineWidth=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() {Key = "*", Value = "*", MatchType = "default"},
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() {Key = "*", Value = "*", MatchType = "default"},
             }},
             //background is a mandatory style entry name, but its transparent here..
-            new TagParserEntry() { MatchOrder = 10000, Name ="background",  StyleSet = "outlines",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 101 }
+            new StyleEntry() { MatchOrder = 10000, Name ="background",  StyleSet = "outlines",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 101 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() {Key = "bg", Value = "bg", MatchType = "equals"}, //this one only gets called by name anyways.
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() {Key = "bg", Value = "bg", MatchType = "equals"}, //this one only gets called by name anyways.
             }},
             //this name needs to exist because of the default style using this name.
-            new TagParserEntry() { MatchOrder = 10001, Name ="unmatched",  StyleSet = "outlines",
-                PaintOperations = new List<TagParserPaint>() {
-                    new TagParserPaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100 }
+            new StyleEntry() { MatchOrder = 10001, Name ="unmatched",  StyleSet = "outlines",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=0.00000625F, LinePattern= "solid", LayerId = 100 }
                 },
-                TagParserMatchRules = new List<TagParserMatchRule>() {
-                    new TagParserMatchRule() { Key = "a", Value = "s", MatchType = "equals" }}
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "a", Value = "s", MatchType = "equals" }}
             },
 
         };
