@@ -527,9 +527,10 @@ namespace PraxisMapper.Controllers
             {
                 PerformanceTracker pt = new PerformanceTracker("GetTileGenerationId");
                 var db = new PraxisContext();
-                var tileGenId = db.MapTiles
-                    .FirstOrDefault(m => m.PlusCode == plusCode && m.StyleSet == styleSet)
-                    .GenerationID; 
+                var tile = db.MapTiles.FirstOrDefault(m => m.PlusCode == plusCode && m.StyleSet == styleSet);
+                long tileGenId = -1;
+                if (tile != null)
+                    tileGenId = tile.GenerationID;
                 pt.Stop();
                 return tileGenId;
             }
@@ -552,9 +553,10 @@ namespace PraxisMapper.Controllers
             {
                 PerformanceTracker pt = new PerformanceTracker("GetTileGenerationId");
                 var db = new PraxisContext();
-                var tileGenId = db.SlippyMapTiles
-                    .FirstOrDefault(m => m.Values == x + "|" + y + "|" + zoom && m.StyleSet == styleSet)
-                    .GenerationID;
+                long tileGenId = -1;
+                var tile = db.SlippyMapTiles.FirstOrDefault(m => m.Values == x + "|" + y + "|" + zoom && m.StyleSet == styleSet);
+                if (tile != null)
+                    tileGenId = tile.GenerationID;
                 pt.Stop();
                 return tileGenId;
             }
