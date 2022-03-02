@@ -44,35 +44,40 @@ namespace PraxisMapper.Controllers
             }
         }
 
-        //TODO: make all Set* values a Put instead of a Get
-        [HttpGet]
+        [HttpPut]
         [Route("/[controller]/SetPlusCodeData/{plusCode}/{key}/{value}")]
         [Route("/[controller]/SetPlusCodeData/{plusCode}/{key}/{value}/{expiresIn}")]
-        [Route("/[controller]/SetPlusCode/{plusCode}/{key}/{value}")]
-        [Route("/[controller]/SetPlusCode/{plusCode}/{key}/{value}/{expiresIn}")]
+        [Route("/[controller]/PlusCode/{plusCode}/{key}/{value}")]
+        [Route("/[controller]/PlusCode/{plusCode}/{key}/{value}/{expiresIn}")]
+        [Route("/[controller]/Area/{plusCode}/{key}/{value}")]
+        [Route("/[controller]/Area/{plusCode}/{key}/{value}/{expiresIn}")]
         public bool SetPlusCodeData(string plusCode, string key, string value, double? expiresIn = null)
         {
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return false;
-            return GenericData.SetPlusCodeData(plusCode, key, value, expiresIn);
+            return GenericData.SetAreaData(plusCode, key, value, expiresIn);
         }
 
         [HttpGet]
         [Route("/[controller]/GetPlusCodeData/{plusCode}/{key}")]
-        [Route("/[controller]/GetPlusCode/{plusCode}/{key}")]
-        public string GetPlusCodeData(string plusCode, string key)
+        [Route("/[controller]/PlusCode/{plusCode}/{key}")]
+        [Route("/[controller]/Area/{plusCode}/{key}")]
+        public void GetPlusCodeData(string plusCode, string key)
         {
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
-                return "";
-            return GenericData.GetPlusCodeData(plusCode, key);
+                return;
+
+            var data = GenericData.GetAreaData(plusCode, key); //TODO: this requires writing bytes directly to Response.BodyWriter for all other, similar functions.
+            Response.BodyWriter.WriteAsync(data);
+            Response.CompleteAsync();
+            return;
         }
 
-        //TODO: make all Set* values a Put instead of a Get
-        [HttpGet]
+        [HttpPut]
         [Route("/[controller]/SetPlayerData/{deviceId}/{key}/{value}")]
         [Route("/[controller]/SetPlayerData/{deviceId}/{key}/{value}/{expiresIn}")]
-        [Route("/[controller]/SetPlayer/{deviceId}/{key}/{value}")]
-        [Route("/[controller]/SetPlayer/{deviceId}/{key}/{value}/{expiresIn}")]
+        [Route("/[controller]/Player/{deviceId}/{key}/{value}")]
+        [Route("/[controller]/Player/{deviceId}/{key}/{value}/{expiresIn}")]
         public bool SetPlayerData(string deviceId, string key, string value, double? expiresIn = null)
         {
             return GenericData.SetPlayerData(deviceId, key, value, expiresIn);
@@ -80,32 +85,42 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/GetPlayerData/{deviceId}/{key}")]
-        [Route("/[controller]/GetPlayer/{deviceId}/{key}")]
-        public string GetPlayerData(string deviceId, string key)
+        [Route("/[controller]/Player/{deviceId}/{key}")]
+        public void GetPlayerData(string deviceId, string key)
         {
-            return GenericData.GetPlayerData(deviceId, key);
+            var data = GenericData.GetPlayerData(deviceId, key);
+            Response.BodyWriter.WriteAsync(data);
+            Response.CompleteAsync();
+            return;
         }
 
-        [HttpGet]
+        [HttpPut]
         [Route("/[controller]/SetElementData/{elementId}/{key}/{value}")]
         [Route("/[controller]/SetElementData/{elementId}/{key}/{value}/{expiresIn}")]
-        [Route("/[controller]/SetElement/{elementId}/{key}/{value}")]
-        [Route("/[controller]/SetElement/{elementId}/{key}/{value}/{expiresIn}")]
+        [Route("/[controller]/Element/{elementId}/{key}/{value}")]
+        [Route("/[controller]/Element/{elementId}/{key}/{value}/{expiresIn}")]
+        [Route("/[controller]/Place/{elementId}/{key}/{value}")]
+        [Route("/[controller]/Place/{elementId}/{key}/{value}/{expiresIn}")]
         public bool SetStoredElementData(Guid elementId, string key, string value, double? expiresIn = null)
         {
-            return GenericData.SetStoredElementData(elementId, key, value, expiresIn);
+            return GenericData.SetPlaceData(elementId, key, value, expiresIn);
         }
 
         [HttpGet]
         [Route("/[controller]/GetElementData/{elementId}/{key}")]
-        [Route("/[controller]/GetElement/{elementId}/{key}")]
-        public string GetElementData(Guid elementId, string key)
+        [Route("/[controller]/Element/{elementId}/{key}")]
+        [Route("/[controller]/Place/{elementId}/{key}")]
+        public void GetElementData(Guid elementId, string key)
         {
-            return GenericData.GetElementData(elementId, key);
+            var data = GenericData.GetPlaceData(elementId, key);
+            Response.BodyWriter.WriteAsync(data);
+            Response.CompleteAsync();
+            return;
         }
 
         [HttpGet]
         [Route("/[controller]/GetAllPlayerData/{deviceId}")]
+        [Route("/[controller]/Player/All/{deviceId}")]
         public string GetAllPlayerData(string deviceId)
         {
             var data = GenericData.GetAllPlayerData(deviceId);
@@ -118,11 +133,13 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/GetAllDataInPlusCode/{plusCode}")]
+        [Route("/[controller]/PlusCode/All/{plusCode}")]
+        [Route("/[controller]/Area/All/{plusCode}")]
         public string GetAllDataInPlusCode(string plusCode)
         {
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return "";
-            var data = GenericData.GetAllDataInPlusCode(plusCode);
+            var data = GenericData.GetAllDataInArea(plusCode);
             StringBuilder sb = new StringBuilder();
             foreach (var d in data)
                 sb.Append(d.plusCode).Append("|").Append(d.key).Append("|").AppendLine(d.value);
@@ -131,7 +148,9 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        [Route("/[controller]/GetAllDataInOsmElement/{elementId}/")]
+        [Route("/[controller]/GetAllDataInElement/{elementId}/")]
+        [Route("/[controller]/Element/All/{elementId}/")]
+        [Route("/[controller]/Place/All/{elementId}/")]
         public string GetAllDataInOsmElement(Guid elementId)
 
         {
@@ -143,8 +162,9 @@ namespace PraxisMapper.Controllers
             return sb.ToString();
         }
 
-        [HttpGet]
+        [HttpPut]
         [Route("/[controller]/SetGlobalData/{key}/{value}")]
+        [Route("/[controller]/Global/{key}/{value}")]
         public bool SetGlobalData(string key, string value)
         {
             return GenericData.SetGlobalData(key, value);
@@ -152,9 +172,13 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/GetGlobalData/{key}")]
-        public string GetGlobalData(string key)
+        [Route("/[controller]/Global/{key}")]
+        public void GetGlobalData(string key)
         {
-            return GenericData.GetGlobalData(key);
+            var data = GenericData.GetGlobalData(key);
+            Response.BodyWriter.WriteAsync(data);
+            Response.CompleteAsync();
+            return;
         }
 
         [HttpGet]
@@ -165,8 +189,9 @@ namespace PraxisMapper.Controllers
             return bounds.SouthBound + "|" + bounds.WestBound + "|" + bounds.NorthBound + "|" + bounds.EastBound;
         }
 
-        [HttpGet]
+        [HttpPut]
         [Route("/[controller]/IncrementPlayerData/{deviceId}/{key}/{changeAmount}")]
+        [Route("/[controller]/Player/Increment/{deviceId}/{key}/{changeAmount}")]
         public void IncrementPlayerData(string deviceId, string key, double changeAmount, double? expirationTimer = null)
         {
             PerformanceTracker pt = new PerformanceTracker("IncrementPlayerData");
@@ -176,7 +201,7 @@ namespace PraxisMapper.Controllers
             thisLock.EnterWriteLock();
                 var data = GenericData.GetPlayerData(deviceId, key);
                 double val = 0;
-                Double.TryParse(data, out val);
+                Double.TryParse(data.ToString(), out val);
                 val += changeAmount;
                 GenericData.SetPlayerData(deviceId, key, val.ToString(), expirationTimer);
             thisLock.ExitWriteLock();
@@ -187,8 +212,9 @@ namespace PraxisMapper.Controllers
             pt.Stop();
         }
 
-        [HttpGet]
+        [HttpPut]
         [Route("/[controller]/IncrementGlobalData/{key}/{changeAmount}")]
+        [Route("/[controller]/Global/Increment/{key}/{changeAmount}")]
         public void IncrementGlobalData(string key, double changeAmount)
         {
             PerformanceTracker pt = new PerformanceTracker("IncrementGlobalData");
@@ -197,7 +223,7 @@ namespace PraxisMapper.Controllers
             thisLock.EnterWriteLock();
                 var data = GenericData.GetGlobalData(key);
                 double val = 0;
-                Double.TryParse(data, out val);
+                Double.TryParse(data.ToString(), out val);
                 val += changeAmount;
                 GenericData.SetGlobalData(key, val.ToString());
             thisLock.ExitWriteLock();
@@ -208,8 +234,10 @@ namespace PraxisMapper.Controllers
             pt.Stop();
         }
 
-        [HttpGet]
+        [HttpPut]
         [Route("/[controller]/IncrementPlusCodeData/{plusCode}/{key}/{changeAmount}")]
+        [Route("/[controller]/PlusCode/Increment/{plusCode}/{key}/{changeAmount}")]
+        [Route("/[controller]/Area/Increment/{plusCode}/{key}/{changeAmount}")]
         public void IncrementPlusCodeData(string plusCode, string key, double changeAmount, double? expirationTimer = null)
         {
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
@@ -220,11 +248,11 @@ namespace PraxisMapper.Controllers
             locks.TryAdd(lockKey, new ReaderWriterLockSlim());
             var thisLock = locks[lockKey];
             thisLock.EnterWriteLock();
-                var data = GenericData.GetPlusCodeData(plusCode, key);
+                var data = GenericData.GetAreaData(plusCode, key);
                 double val = 0;
-                Double.TryParse(data, out val);
+                Double.TryParse(data.ToString(), out val);
                 val += changeAmount;
-                GenericData.SetPlusCodeData(plusCode, key, val.ToString(), expirationTimer);
+                GenericData.SetAreaData(plusCode, key, val.ToString(), expirationTimer);
             thisLock.ExitWriteLock();
 
             if (thisLock.WaitingWriteCount == 0)
@@ -233,8 +261,10 @@ namespace PraxisMapper.Controllers
             pt.Stop();
         }
 
-        [HttpGet]
+        [HttpPut]
         [Route("/[controller]/IncrementElementData/{elementId}/{key}/{changeAmount}")]
+        [Route("/[controller]/Element/Increment/{elementId}/{key}/{changeAmount}")]
+        [Route("/[controller]/Place/Increment/{elementId}/{key}/{changeAmount}")]
         public void IncrementElementData(Guid elementId, string key, double changeAmount, double? expirationTimer = null)
         {
             PerformanceTracker pt = new PerformanceTracker("IncrementElementData");
@@ -242,11 +272,11 @@ namespace PraxisMapper.Controllers
             locks.TryAdd(lockKey, new ReaderWriterLockSlim());
             var thisLock = locks[lockKey];
             thisLock.EnterWriteLock();
-                var data = GenericData.GetElementData(elementId, key);
+                var data = GenericData.GetPlaceData(elementId, key);
                 double val = 0;
-                Double.TryParse(data, out val);
+                Double.TryParse(data.ToString(), out val);
                 val += changeAmount;
-                GenericData.SetStoredElementData(elementId, key, val.ToString(), expirationTimer);
+                GenericData.SetPlaceData(elementId, key, val.ToString(), expirationTimer);
             thisLock.ExitWriteLock();
 
             if (thisLock.WaitingWriteCount == 0)
@@ -281,7 +311,7 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/GetPlusCodeTerrainDataFull/{plusCode}")]
-        [Route("/[controller]/TerrainFull/{plusCode}")]
+        [Route("/[controller]/Terrain/All/{plusCode}")]
         public string GetPlusCodeTerrainDataFull(string plusCode)
         {
             //This function returns 1 line per Cell10 per intersecting element. For an app that needs to know all things in all points.
@@ -306,6 +336,7 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/GetScoreForPlace/{elementId}")]
+        [Route("/[controller]/Score/{elementId}")]
         public long GetScoreForPlace(Guid elementId)
         {
             return ScoreData.GetScoreForSinglePlace(elementId);
@@ -313,6 +344,7 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/GetDistanceToPlace/{elementId}/{lat}/{lon}")]
+        [Route("/[controller]/Distance/{elementId}/{lat}/{lon}")]
         public double GetDistanceToPlace(Guid elementId, double lat, double lon)
         {
             var db = new PraxisContext();
@@ -323,6 +355,7 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/GetCenterOfPlace/{elementId}")]
+        [Route("/[controller]/Center/{elementId}")]
         public string GetCenterOfPlace(Guid elementId)
         {
             var db = new PraxisContext();
@@ -332,8 +365,8 @@ namespace PraxisMapper.Controllers
             return center.Y.ToString() + "|" + center.X.ToString();        
         }
 
-        [HttpGet]
-        [Route("/[controller]/DeleteUser/{deviceId}")]
+        [HttpDelete]
+        [Route("/[controller]/Player/{deviceId}")]
         public int DeleteUser(string deviceId)
         {
             //GDPR compliance requires this to exist and be available to the user. 

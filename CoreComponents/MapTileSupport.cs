@@ -143,7 +143,7 @@ namespace PraxisCore
             var elements = db.CustomDataOsmElements.Include(d => d.StoredOsmElement).Where(d => d.DataKey == dataKey && area.Intersects(d.StoredOsmElement.ElementGeometry)).ToList();
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
-            var pass1 = elements.Select(d => new { d.StoredOsmElement.AreaSize, d.StoredOsmElement.ElementGeometry, paintOp = styles[d.DataValue].PaintOperations, d.DataValue });
+            var pass1 = elements.Select(d => new { d.StoredOsmElement.AreaSize, d.StoredOsmElement.ElementGeometry, paintOp = styles[d.DataValue.ToUTF8String()].PaintOperations, d.DataValue });
             var pass2 = new List<CompletePaintOp>(elements.Count() * 2); 
             pass2.Add(bgOp);
             foreach (var op in pass1)
@@ -167,7 +167,7 @@ namespace PraxisCore
             var elements = db.CustomDataPlusCodes.Where(d => d.DataKey == dataKey && area.Intersects(d.GeoAreaIndex)).ToList();
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
-            var pass1 = elements.Select(d => new { d.GeoAreaIndex.Area, d.GeoAreaIndex, paintOp = styles[d.DataValue].PaintOperations, d.DataValue });
+            var pass1 = elements.Select(d => new { d.GeoAreaIndex.Area, d.GeoAreaIndex, paintOp = styles[d.DataValue.ToUTF8String()].PaintOperations, d.DataValue });
             var pass2 = new List<CompletePaintOp>(elements.Count() * 2); 
             pass2.Add(bgOp);
             foreach (var op in pass1)

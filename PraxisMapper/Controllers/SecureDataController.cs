@@ -1,19 +1,13 @@
-﻿using PraxisCore;
+﻿using CryptSharp;
 using Google.OpenLocationCode;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using NetTopologySuite.Geometries.Prepared;
-using PraxisMapper.Classes;
+using PraxisCore;
 using System;
-using System.Text;
-using static PraxisCore.DbTables;
-using static PraxisCore.Place;
-using System.Linq;
-using CryptSharp;
-using System.IO.Pipelines;
-using System.Threading.Tasks;
 using System.Buffers;
+using System.Linq;
 
 namespace PraxisMapper.Controllers
 {
@@ -30,104 +24,84 @@ namespace PraxisMapper.Controllers
             cache = memoryCacheSingleton;
         }
 
-        [HttpGet]
+        [HttpPut]
         [Route("/[controller]/SetSecureElementData/{elementId}/{key}/{value}/{password}")]
         [Route("/[controller]/SetSecureElementData/{elementId}/{key}/{value}/{password}/{expiresIn}")]
-        [Route("/[controller]/SetElement/{elementId}/{key}/{value}/{password}")]
-        [Route("/[controller]/SetElement/{elementId}/{key}/{value}/{password}/{expiresIn}")]
+        [Route("/[controller]/Element/{elementId}/{key}/{value}/{password}")]
+        [Route("/[controller]/Element/{elementId}/{key}/{value}/{password}/{expiresIn}")]
+        [Route("/[controller]/Place/{elementId}/{key}/{value}/{password}")]
+        [Route("/[controller]/Place/{elementId}/{key}/{value}/{password}/{expiresIn}")]
         public bool SetSecureElementData(Guid elementId, string key, string value,string password, double? expiresIn = null)
         {
-            return GenericData.SetSecureElementData(elementId, key, value, password, expiresIn);
+            return GenericData.SetSecurePlaceData(elementId, key, value, password, expiresIn);
         }
 
         [HttpGet]
-        [Route("/[controller]/GetSecureElementData/{elementId}/{key}/{password}")]
-        public string GetSecureElementData(Guid elementId, string key, string password)
+        [Route("/[controller]/Element/{elementId}/{key}/{password}")]
+        [Route("/[controller]/Place/{elementId}/{key}/{password}")]
+        public void GetSecureElementData(Guid elementId, string key, string password)
         {
-            return GenericData.GetSecureElementData(elementId, key, password);
+            byte[] rawData = GenericData.GetSecurePlaceData(elementId, key, password);
+            Response.BodyWriter.Write(rawData);
+            Response.CompleteAsync();
+            return;
         }
 
-        [HttpGet]
+        [HttpPut]
         [Route("/[controller]/SetSecurePlayerData/{deviceId}/{key}/{value}/{password}")]
         [Route("/[controller]/SetSecurePlayerData/{deviceId}/{key}/{value}/{password}/{expiresIn}")]
-        [Route("/[controller]/SetPlayer/{deviceId}/{key}/{value}/{password}")]
-        [Route("/[controller]/SetPlayer/{deviceId}/{key}/{value}/{password}/{expiresIn}")]
+        [Route("/[controller]/Player/{deviceId}/{key}/{value}/{password}")]
+        [Route("/[controller]/Player/{deviceId}/{key}/{value}/{password}/{expiresIn}")]
         public bool SetSecurePlayerData(string deviceId, string key, string value, string password, double? expiresIn = null)
         {
             return GenericData.SetSecurePlayerData(deviceId, key, value, password, expiresIn);
         }
 
         [HttpGet]
-        [Route("/[controller]/GetSecurePlayerData/{deviceId}/{key}/{password}")]
-        [Route("/[controller]/GetPlayer/{deviceId}/{key}/{password}")]
-        public string GetSecurePlayerData(string deviceId, string key, string password)
+        [Route("/[controller]/Player/{deviceId}/{key}/{password}")]
+        public void GetSecurePlayerData(string deviceId, string key, string password)
         {
-            return GenericData.GetSecurePlayerData(deviceId, key, password);
+            byte[] rawData = GenericData.GetSecurePlayerData(deviceId, key, password);
+            Response.BodyWriter.Write(rawData);
+            Response.CompleteAsync();
+            return;
         }
 
-        [HttpGet]
         [HttpPut]
         [Route("/[controller]/SetSecurePlusCodeData/{plusCode}/{key}/{password}")] //for when value is part of the body
         [Route("/[controller]/SetSecurePlusCodeData/{plusCode}/{key}/{value}/{password}")]
         [Route("/[controller]/SetSecurePlusCodeData/{plusCode}/{key}/{value}/{password}/{expiresIn}")]
-        [Route("/[controller]/SetPlusCode/{plusCode}/{key}/{password}")]
-        [Route("/[controller]/SetPlusCode/{plusCode}/{key}/{value}/{password}")]
-        [Route("/[controller]/SetPlusCode/{plusCode}/{key}/{value}/{password}/{expiresIn}")]
-        public async Task<bool> SetSecurePlusCodeDataAsync(string plusCode, string key, string value, string password, double? expiresIn = null)
+        [Route("/[controller]/PlusCode/{plusCode}/{key}/{password}")]
+        [Route("/[controller]/PlusCode/{plusCode}/{key}/{value}/{password}")]
+        [Route("/[controller]/PlusCode/{plusCode}/{key}/{value}/{password}/{expiresIn}")]
+        [Route("/[controller]/Area/{plusCode}/{key}/{password}")]
+        [Route("/[controller]/Area/{plusCode}/{key}/{value}/{password}")]
+        [Route("/[controller]/Area/{plusCode}/{key}/{value}/{password}/{expiresIn}")]
+        public bool SetSecurePlusCodeData(string plusCode, string key, string value, string password, double? expiresIn = null)
         {
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return false;
             if (value == null)
             {
                 var rr = Request.BodyReader.ReadAsync();
-                var r2 = rr.Result.Buffer; //actual byte data.
-
-                return GenericData.SetSecurePlusCodeData(plusCode, key, r2.ToArray(), password, expiresIn);
+                var r2 = rr.Result.Buffer;
+                return GenericData.SetSecureAreaData(plusCode, key, r2.ToArray(), password, expiresIn);
             }
-            return GenericData.SetSecurePlusCodeData(plusCode, key, value, password, expiresIn);
-        }
-
-        [HttpGet]
-        [HttpPut]
-        [Route("/[controller]/SetSecurePlusCodeFile/{plusCode}/{key}/{password}")] //for when value is part of the body
-        [Route("/[controller]/SetPlusCodeFile/{plusCode}/{key}/{password}")] //for when value is part of the body
-        public async Task<bool> SetSecurePlusCodeDataAsFile(string plusCode, string key, [FromBody] byte[]value, string password, double? expiresIn = null)
-        {
-            if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
-                return false;
-            if (value == null)
-            {
-                //var rr = Request.BodyReader.ReadAsync();
-                //var r2 = rr.Result.Buffer; //actual byte data.
-                //var r3 = Encoding.ASCII.GetString(r2); //same string as value gets normally from the path below.
-
-                //Request.Body.Seek(0, System.IO.SeekOrigin.Begin);
-            }
-            return GenericData.SetSecurePlusCodeData(plusCode, key, value, password, expiresIn);
+            return GenericData.SetSecureAreaData(plusCode, key, value, password, expiresIn);
         }
 
         [HttpGet]
         [Route("/[controller]/GetSecurePlusCodeData/{plusCode}/{key}/{password}")]
         [Route("/[controller]/GetPlusCode/{plusCode}/{key}/{password}")]
-        public string GetSecurePlusCodeData(string plusCode, string key, string password)
+        [Route("/[controller]/Area/{plusCode}/{key}/{password}")]
+        public void GetSecurePlusCodeData(string plusCode, string key, string password)
         {
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
-                return "";
-            return GenericData.GetSecurePlusCodeData(plusCode, key, password);
-        }
+                return;
 
-        [HttpGet]
-        [Route("/[controller]/GetSecurePlusCodeDataBytes/{plusCode}/{key}/{password}")]
-        [Route("/[controller]/GetPlusCodeBytes/{plusCode}/{key}/{password}")]
-        public void GetSecurePlusCodeDataBytes(string plusCode, string key, string password)
-        {
-            if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
-                return ;
-            byte[] rawData = GenericData.GetSecurePlusCodeDataBytes(plusCode, key, password);
-
+            byte[] rawData = GenericData.GetSecureAreaData(plusCode, key, password);
             Response.BodyWriter.Write(rawData);
             Response.CompleteAsync();
-
             return;
         }
 
@@ -150,7 +124,7 @@ namespace PraxisMapper.Controllers
         public bool CheckPassword(string deviceId, string password)
         {
             BlowfishCrypter crypter = new BlowfishCrypter();
-            string existingPassword = GenericData.GetPlayerData(deviceId, "password");
+            string existingPassword = GenericData.GetPlayerData(deviceId, "password").ToUTF8String();
             string checkedPassword = crypter.Crypt(password, existingPassword);
             return existingPassword == checkedPassword;
         }

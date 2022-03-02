@@ -13,8 +13,10 @@ namespace PraxisCore
             public int PlayerDataID { get; set; }
             public string DeviceID { get; set; }
             public string DataKey { get; set; }
-            public string DataValue { get; set;}
             public DateTime? Expiration { get; set; }
+            public byte[] IvData { get; set; } //Only set if data is encrypted.
+            public byte[] DataValue { get; set; } //Holds byte data for both normal and encrypted entries. 
+
         }
 
         public class PerformanceInfo
@@ -52,7 +54,7 @@ namespace PraxisCore
         { 
             public int Id { get; set; }
             public string DataKey { get; set; }
-            public string DataValue { get; set; }
+            public byte[] DataValue { get; set; } //Holds byte data for both normal and encrypted entries. 
         }
         
 
@@ -191,11 +193,11 @@ namespace PraxisCore
             public long Id { get; set; }
             public string PlusCode { get; set; } //can be any valid pluscode length 2-11
             public string DataKey { get; set; }
-            public string DataValue { get; set; }
             public DateTime? Expiration { get; set; } //optional. If value is in the past, ignore this data.
             [Required]
             public Geometry GeoAreaIndex { get; set; } //PlusCode listed as a geometry object for index/search purposes.
-            public byte[] FileDataValue { get; set; }
+            public byte[] IvData { get; set; } //Only set if data is encrypted.
+            public byte[] DataValue { get; set; } //Holds byte data for both normal and encrypted entries. 
         }
 
         public class CustomDataOsmElement
@@ -205,9 +207,9 @@ namespace PraxisCore
             public long StoredOsmElementId { get; set; } //might not be necessary?
             public StoredOsmElement StoredOsmElement { get; set; }
             public string DataKey { get; set; }
-            public string DataValue { get; set; }
             public DateTime? Expiration { get; set; } //optional. If value is in the past, ignore this data.
-            public byte[] FileDataValue { get; set; }
+            public byte[] IvData { get; set; } //Only set if data is encrypted.
+            public byte[] DataValue { get; set; } //Holds byte data for both normal and encrypted entries. 
         }
 
         public class TagParserStyleBitmap
