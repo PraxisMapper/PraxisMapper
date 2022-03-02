@@ -179,6 +179,11 @@ namespace PraxisCore
             return BitConverter.ToString(b).Replace("-", "");
         }
 
+        public static string ToUTF8String(this byte[] b)
+        {
+            return Encoding.UTF8.GetString(b);
+        }
+
         /// <summary>
         /// Take a single list of OSM elements and split it into a given number of sub-lists. [This can be replaced with .Chunk(this.Count() % splitIntoLists)]
         /// </summary>

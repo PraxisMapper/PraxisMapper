@@ -25,7 +25,7 @@ namespace PraxisCore
         /// 
         public static Aes baseSec = Aes.Create();
 
-        public static bool SetPlusCodeData(string plusCode, string key, string value, double? expiration = null)
+        public static bool SetAreaData(string plusCode, string key, string value, double? expiration = null)
         {
             var db = new PraxisContext();
             if (db.PlayerData.Any(p => p.DeviceID == key || p.DeviceID == value))
@@ -44,7 +44,8 @@ namespace PraxisCore
                 row.Expiration = DateTime.Now.AddSeconds(expiration.Value);
             else
                 row.Expiration = null;
-            row.DataValue = value;
+            row.IvData = null;
+            row.DataValue = value.ToByteArrayUTF8();
             return db.SaveChanges() == 1;
         }
 
@@ -53,13 +54,13 @@ namespace PraxisCore
         /// </summary>
         /// <param name="plusCode">A valid PlusCode, excluding the + symbol.</param>
         /// <param name="key">The key to load from the database on the PlusCode</param>
-        /// <returns>The value saved to the key, or an empty string if no key/value pair was found.</returns>
-        public static string GetPlusCodeData(string plusCode, string key)
+        /// <returns>The value saved to the key, or an empty byte[] if no key/value pair was found.</returns>
+        public static byte[] GetAreaData(string plusCode, string key)
         {
             var db = new PraxisContext();
             var row = db.CustomDataPlusCodes.FirstOrDefault(p => p.PlusCode == plusCode && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
-                return "";
+                return new byte[0];
             return row.DataValue;
         }
 
@@ -69,9 +70,9 @@ namespace PraxisCore
         /// <param name="elementId">the Guid exposed to clients to identify the map element.</param>
         /// <param name="key">The key to save to the database for the map element.</param>
         /// <param name="value">The value to save with the key.</param>
-        /// <param name="expiration">If not null, expire this data in this many seconds from now.</param>
+        /// <param name="expiration">If not null, expire the data in this many seconds from now.</param>
         /// <returns>true if data was saved, false if data was not.</returns>
-        public static bool SetStoredElementData(Guid elementId, string key, string value, double? expiration = null)
+        public static bool SetPlaceData(Guid elementId, string key, string value, double? expiration = null)
         {
             var db = new PraxisContext();
             if (db.PlayerData.Any(p => p.DeviceID == key || p.DeviceID == value))
@@ -90,7 +91,8 @@ namespace PraxisCore
                 row.Expiration = DateTime.Now.AddSeconds(expiration.Value);
             else
                 row.Expiration = null;
-            row.DataValue = value;
+            row.IvData = null;
+            row.DataValue = value.ToByteArrayUTF8();
             return db.SaveChanges() == 1;
         }
 
@@ -99,13 +101,13 @@ namespace PraxisCore
         /// </summary>
         /// <param name="elementId">the Guid exposed to clients to identify the map element.</param>
         /// <param name="key">The key to load from the database. Keys are unique, and you cannot have multiples of the same key.</param>
-        /// <returns>The value saved to the key, or an empty string if no key/value pair was found.</returns>
-        public static string GetElementData(Guid elementId, string key)
+        /// <returns>The value saved to the key, or an empty byte[] if no key/value pair was found.</returns>
+        public static byte[] GetPlaceData(Guid elementId, string key)
         {
             var db = new PraxisContext();
             var row = db.CustomDataOsmElements.Include(p => p.StoredOsmElement).FirstOrDefault(p => p.StoredOsmElement.PrivacyId == elementId && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
-                return "";
+                return new byte[0];
             return row.DataValue;
         }
 
@@ -114,15 +116,13 @@ namespace PraxisCore
         /// </summary>
         /// <param name="playerId">the player-specific ID used. Expected to be a unique DeviceID to identify a phone, per that device's rules.</param>
         /// <param name="key">The key to load data from for the playerId.</param>
-        /// <returns>The value saved to the key, or an empty string if no key/value pair was found.</returns>
-        public static string GetPlayerData(string playerId, string key)
+        /// <returns>The value saved to the key, or an empty byte[] if no key/value pair was found.</returns>
+        public static byte[] GetPlayerData(string playerId, string key)
         {
             var db = new PraxisContext();
             var row = db.PlayerData.FirstOrDefault(p => p.DeviceID == playerId && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
-                return "";
-            else
-                row.Expiration = null;
+                return new byte[0];
             return row.DataValue;
         }
 
@@ -157,79 +157,46 @@ namespace PraxisCore
                 row.Expiration = DateTime.Now.AddSeconds(expiration.Value);
             else
                 row.Expiration = null;
-            row.DataValue = value;
+            row.IvData = null;
+            row.DataValue = value.ToByteArrayUTF8();
             return db.SaveChanges() == 1;
         }
 
         /// <summary>
-        /// Load all of the key/value pairs in a PlusCode, including pairs saved to a longer PlusCode. Expired entries will be ignored.
+        /// Load all of the key/value pairs in a PlusCode, including pairs saved to a longer PlusCode. Expired and encrypted entries are ignored.
         /// (EX: calling this with an 8 character PlusCode will load all contained 10 character PlusCodes key/value pairs)
         /// </summary>
         /// <param name="plusCode">A valid PlusCode, excluding the + symbol.</param>
+        /// <param name="key">If supplied, only returns data on the given key for the area provided. If blank, returns all keys</param>
         /// <returns>a List of results with the PlusCode, keys, and values</returns>
-        public static List<CustomDataResult> GetAllDataInPlusCode(string plusCode) //TODO: add optional key filter
+        public static List<CustomDataAreaResult> GetAllDataInArea(string plusCode, string key = "")
         {
             var db = new PraxisContext();
             var plusCodeArea = OpenLocationCode.DecodeValid(plusCode);
             var plusCodePoly = Converters.GeoAreaToPolygon(plusCodeArea);
-            var plusCodeData = db.CustomDataPlusCodes.Where(d => plusCodePoly.Intersects(d.GeoAreaIndex))
+            var plusCodeData = db.CustomDataPlusCodes.Where(d => plusCodePoly.Intersects(d.GeoAreaIndex) && (key == "" || d.DataKey == key) && d.IvData == null)
                 .ToList() //Required to run the next Where on the C# side
                 .Where(row => row.Expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now)
-                .Select(d => new CustomDataResult(d.PlusCode, d.DataKey, d.DataValue.Length > 512 ? "truncated" : d.DataValue))
+                .Select(d => new CustomDataAreaResult(d.PlusCode, d.DataKey, d.DataValue.ToUTF8String()))
                 .ToList();
 
             return plusCodeData;
-        }
-
-        /// <summary>
-        /// Load all of the key/value pairs in a GeoArea attached to a PlusCode. Expired entries will be ignored.
-        /// </summary>
-        /// <param name="area">the GeoArea to pull data for.</param>
-        /// <returns>a List of results with the PlusCode, keys, and values</returns>
-        public static List<CustomDataResult> GetAllPlusCodeDataInArea(GeoArea area, string key = "")
-        {
-            var db = new PraxisContext();
-            var poly = Converters.GeoAreaToPolygon(area);
-            var plusCodeData = db.CustomDataPlusCodes.Where(d => poly.Intersects(d.GeoAreaIndex) && (key == "" || d.DataKey == key))
-                .ToList() //Required to run the next Where on the C# side
-                .Where(row => row.Expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now)
-                .Select(d => new CustomDataResult(d.PlusCode, d.DataKey, d.DataValue.Length > 512? "truncated" : d.DataValue))
-                .ToList();
-
-            return plusCodeData;
-        }
-
-        /// <summary>
-        /// Load all of the key/value pairs in a GeoArea attached to a map element. Expired entries will be ignored.
-        /// </summary>
-        /// <param name="area">the GeoArea to pull data for.</param>
-        /// <returns>a List of results with the map element ID, keys, and values</returns>
-        public static List<CustomDataAreaResult> GetAllDataInArea(GeoArea area, string key = "")
-        {
-            var db = new PraxisContext();
-            var poly = Converters.GeoAreaToPolygon(area);
-            var data = db.CustomDataOsmElements.Include(d => d.StoredOsmElement).Where(d => poly.Intersects(d.StoredOsmElement.ElementGeometry) && (key == "" || d.DataKey == key))
-                .ToList() //Required to run the next Where on the C# side
-                .Where(row => row.Expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now)
-                .Select(d => new CustomDataAreaResult(d.StoredOsmElement.PrivacyId, d.DataKey, d.DataValue.Length > 512 ? "truncated" : d.DataValue))
-                .ToList();
-
-            return data;
         }
 
         /// <summary>
         /// Load all of the key/value pairs attached to a map element. Expired entries will be ignored.
         /// </summary>
         /// <param name="elementId">the Guid exposed to clients to identify the map element.</param>
+        /// /// <param name="key">If supplied, only returns data on the given key for the area provided. If blank, returns all keys</param>
         /// <returns>a List of results with the map element ID, keys, and values</returns>
-        public static List<CustomDataAreaResult> GetAllDataInPlace(Guid elementId, string key = "")
+        public static List<CustomDataPlaceResult> GetAllDataInPlace(Guid elementId, string key = "")
         {
             var db = new PraxisContext();
             var place = db.StoredOsmElements.First(s => s.PrivacyId == elementId);
-            var data = db.CustomDataOsmElements.Where(d => d.StoredOsmElement.ElementGeometry.Intersects(d.StoredOsmElement.ElementGeometry) && (key == "" || d.DataKey == key))
+            var data = db.CustomDataOsmElements.Where(d => d.StoredOsmElementId == place.Id && (key == "" || d.DataKey == key) && d.IvData == null)
                 .ToList() //Required to run the next Where on the C# side
                 .Where(row => row.Expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now)
-                .Select(d => new CustomDataAreaResult(place.PrivacyId, d.DataKey, d.DataValue.Length > 512 ? "truncated" : d.DataValue))
+                .Select(d => new CustomDataPlaceResult(place.PrivacyId, d.DataKey, d.DataValue.ToUTF8String()))
                 .ToList();
 
             return data;
@@ -245,8 +212,8 @@ namespace PraxisCore
             var db = new PraxisContext();
             var data = db.PlayerData.Where(p => p.DeviceID == deviceID)
                 .ToList()
-                .Where(row => row.Expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now)
-                .Select(d => new CustomDataPlayerResult(d.DeviceID, d.DataKey, d.DataValue.Length > 512 ? "truncated" : d.DataValue))
+                .Where(row => row.Expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now && row.IvData == null)
+                .Select(d => new CustomDataPlayerResult(d.DeviceID, d.DataKey, d.DataValue.ToUTF8String()))
                 .ToList();
 
             return data;
@@ -257,13 +224,12 @@ namespace PraxisCore
         /// </summary>
         /// <param name="key">The key to load data from.</param>
         /// <returns>The value saved to the key, or an empty string if no key/value pair was found.</returns>
-        public static string GetGlobalData(string key)
+        public static byte[] GetGlobalData(string key)
         {
             var db = new PraxisContext();
             var row = db.GlobalDataEntries.FirstOrDefault(s => s.DataKey == key);
             if (row == null)
-                return "";
-
+                return new byte[0];
             return row.DataValue;
         }
 
@@ -300,14 +266,19 @@ namespace PraxisCore
                 row.DataKey = key;
                 db.GlobalDataEntries.Add(row);
             }
-            row.DataValue = value;
+            row.DataValue = value.ToByteArrayUTF8();
             return db.SaveChanges() == 1;
         }
 
-        public static bool SetSecurePlusCodeData(string plusCode, string key, string value, string password, double? expiration = null)
+        public static bool SetSecureAreaData(string plusCode, string key, string value, string password, double? expiration = null)
+        {
+            return SetSecureAreaData(plusCode, key, value.ToByteArrayUTF8(), password, expiration);
+        }
+
+        public static bool SetSecureAreaData(string plusCode, string key, byte[] value, string password, double? expiration = null)
         {
             var db = new PraxisContext();
-            string encryptedValue = EncryptValue(value, password);
+            byte[] encryptedValue = EncryptValue(value, password, out byte[] IVs);
 
             var row = db.CustomDataPlusCodes.FirstOrDefault(p => p.PlusCode == plusCode && p.DataKey == key);
             if (row == null)
@@ -324,29 +295,7 @@ namespace PraxisCore
                 row.Expiration = null;
 
             row.DataValue = encryptedValue;
-            return db.SaveChanges() == 1;
-        }
-
-        public static bool SetSecurePlusCodeData(string plusCode, string key, byte[] value, string password, double? expiration = null)
-        {
-            var db = new PraxisContext();
-            string encryptedValue = EncryptValue(value, password);
-
-            var row = db.CustomDataPlusCodes.FirstOrDefault(p => p.PlusCode == plusCode && p.DataKey == key);
-            if (row == null)
-            {
-                row = new DbTables.CustomDataPlusCode();
-                row.DataKey = key;
-                row.PlusCode = plusCode;
-                row.GeoAreaIndex = Converters.GeoAreaToPolygon(OpenLocationCode.DecodeValid(plusCode.ToUpper()));
-                db.CustomDataPlusCodes.Add(row);
-            }
-            if (expiration.HasValue)
-                row.Expiration = DateTime.Now.AddSeconds(expiration.Value);
-            else
-                row.Expiration = null;
-
-            row.DataValue = encryptedValue;
+            row.IvData = IVs;
             return db.SaveChanges() == 1;
         }
 
@@ -357,24 +306,14 @@ namespace PraxisCore
         /// <param name="key">The key to load from the database on the PlusCode</param>
         /// <param name="password">The password used to encrypt the value originally.</param>
         /// <returns>The value saved to the key, or an empty string if no key/value pair was found or the password is incorrect.</returns>
-        public static string GetSecurePlusCodeData(string plusCode, string key, string password)
+        public static byte[] GetSecureAreaData(string plusCode, string key, string password)
         {
             var db = new PraxisContext();
             var row = db.CustomDataPlusCodes.FirstOrDefault(p => p.PlusCode == plusCode && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
-                return "";
+                return new byte[0];
 
-            return DecryptValue(row.DataValue, password);
-        }
-
-        public static byte[] GetSecurePlusCodeDataBytes(string plusCode, string key, string password)
-        {
-            var db = new PraxisContext();
-            var row = db.CustomDataPlusCodes.FirstOrDefault(p => p.PlusCode == plusCode && p.DataKey == key);
-            if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
-                return null;
-
-            return DecryptValueBytes(row.DataValue, password);
+            return DecryptValue(row.IvData, row.DataValue, password);
         }
 
         /// <summary>
@@ -384,13 +323,18 @@ namespace PraxisCore
         /// <param name="key">The key to load data from for the playerId.</param>
         /// <param name="password">The password used to encrypt the value originally.</param>
         /// <returns>The value saved to the key with the password given, or an empty string if no key/value pair was found or the password is incorrect.</returns>
-        public static string GetSecurePlayerData(string playerId, string key, string password)
+        public static byte[] GetSecurePlayerData(string playerId, string key, string password)
         {
             var db = new PraxisContext();
             var row = db.PlayerData.FirstOrDefault(p => p.DeviceID == playerId && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
-                return "";
-            return DecryptValue(row.DataValue, password);
+                return new byte[0];
+            return DecryptValue(row.IvData, row.DataValue, password);
+        }
+
+        public static bool SetSecurePlayerData(string playerId, string key, string value, string password, double? expiration = null)
+        {
+            return SetSecurePlayerData(playerId, key, value.ToByteArrayUTF8(), password, expiration);
         }
 
         /// <summary>
@@ -402,12 +346,11 @@ namespace PraxisCore
         /// <param name="password"></param>
         /// <param name="expiration">If not null, expire this data in this many seconds from now.</param>
         /// <returns>true if data was saved, false if data was not.</returns>
-        public static bool SetSecurePlayerData(string playerId, string key, string value, string password, double? expiration = null)
+        public static bool SetSecurePlayerData(string playerId, string key, byte[] value, string password, double? expiration = null)
         {
-            string encryptedValue = EncryptValue(value, password);
+            var encryptedValue = EncryptValue(value, password, out byte[] IVs);
 
             var db = new PraxisContext();
-            //An upsert command would be great here, but I dont think the entities do that.
             var row = db.PlayerData.FirstOrDefault(p => p.DeviceID == playerId && p.DataKey == key);
             if (row == null)
             {
@@ -420,6 +363,7 @@ namespace PraxisCore
                 row.Expiration = DateTime.Now.AddSeconds(expiration.Value);
             else
                 row.Expiration = null;
+            row.IvData = IVs;
             row.DataValue = encryptedValue;
             return db.SaveChanges() == 1;
         }
@@ -430,13 +374,18 @@ namespace PraxisCore
         /// <param name="elementId">the Guid exposed to clients to identify the map element.</param>
         /// <param name="key">The key to load from the database. Keys are unique, and you cannot have multiples of the same key.</param>
         /// <returns>The value saved to the key, or an empty string if no key/value pair was found.</returns>
-        public static string GetSecureElementData(Guid elementId, string key, string password)
+        public static byte[] GetSecurePlaceData(Guid elementId, string key, string password)
         {
             var db = new PraxisContext();
             var row = db.CustomDataOsmElements.Include(p => p.StoredOsmElement).FirstOrDefault(p => p.StoredOsmElement.PrivacyId == elementId && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
-                return "";
-            return DecryptValue(row.DataValue, password);
+                return new byte[0];
+            return DecryptValue(row.IvData, row.DataValue, password);
+        }
+
+        public static bool SetSecurePlaceData(Guid elementId, string key, string value, string password, double? expiration = null)
+        {
+            return SetSecurePlaceData(elementId, key, value.ToByteArrayUTF8(), password, expiration);
         }
 
         /// <summary>
@@ -448,9 +397,9 @@ namespace PraxisCore
         /// <param name="password">The password to encrypt the value with.</param>
         /// <param name="expiration">If not null, expire this data in this many seconds from now.</param>
         /// <returns>true if data was saved, false if data was not.</returns>
-        public static bool SetSecureElementData(Guid elementId, string key, string value,string password, double? expiration = null)
+        public static bool SetSecurePlaceData(Guid elementId, string key, byte[] value,string password, double? expiration = null)
         {
-            string encryptedValue = EncryptValue(value, password);
+            byte[] encryptedValue = EncryptValue(value, password, out byte[] IVs);
             var db = new PraxisContext();
 
             var row = db.CustomDataOsmElements.Include(p => p.StoredOsmElement).FirstOrDefault(p => p.StoredOsmElement.PrivacyId == elementId && p.DataKey == key);
@@ -466,59 +415,33 @@ namespace PraxisCore
                 row.Expiration = DateTime.Now.AddSeconds(expiration.Value);
             else
                 row.Expiration = null;
+            row.IvData = IVs;
             row.DataValue = encryptedValue;
             return db.SaveChanges() == 1;
         }
 
-        private static string EncryptValue(string value, string password)
+        private static byte[] EncryptValue(byte[] value, string password, out byte[] IVs)
         {
             byte[] passwordBytes = password.ToByteArrayUnicode();
-            byte[] iv = baseSec.IV; //This changes every run, so we do need to save this alongside the data itself.
+            baseSec.GenerateIV();
+            IVs = baseSec.IV;
             var crypter = baseSec.CreateEncryptor(passwordBytes, baseSec.IV);
-            var ms = new MemoryStream();
-            using (CryptoStream cs = new CryptoStream(ms, crypter, CryptoStreamMode.Write))
-            using (StreamWriter sw = new StreamWriter(cs))
-            {
-                sw.Write(value);
-            }
-
-            var data = Convert.ToBase64String(iv) + "|" + Convert.ToBase64String(ms.ToArray());
-            return data;
-        }
-
-        private static string EncryptValue(byte[] value, string password)
-        {
-            byte[] passwordBytes = password.ToByteArrayUnicode();
-            byte[] iv = baseSec.IV; //This changes every run, so we do need to save this alongside the data itself.
-            var crypter = baseSec.CreateEncryptor(passwordBytes, baseSec.IV);
-
 
             var ms = new MemoryStream();
             using (CryptoStream cs = new CryptoStream(ms, crypter, CryptoStreamMode.Write))
                 cs.Write(value, 0, value.Length);
 
-            var data = Convert.ToBase64String(iv) + "|" + Convert.ToBase64String(ms.ToArray());
-            return data;
+            return ms.ToArray();
         }
 
-        private static string DecryptValue(string value, string password)
+        private static byte[] DecryptValue(byte[] IVs, byte[] value, string password)
         {
-            var results = System.Text.Encoding.Unicode.GetString(DecryptValueBytes(value, password));
-            return results;
-        }
-
-        private static byte[] DecryptValueBytes(string value, string password)
-        {
-            var spanVal = value.AsSpan();
-            byte[] ivBytes = Convert.FromBase64String(spanVal.SplitNext('|').ToString());
-            byte[] encrypedData = Convert.FromBase64String(spanVal.ToString());
-
             byte[] passwordBytes = password.ToByteArrayUnicode();
-            var crypter = baseSec.CreateDecryptor(passwordBytes, ivBytes);
+            var crypter = baseSec.CreateDecryptor(passwordBytes, IVs);
 
             var ms = new MemoryStream();
             using (CryptoStream cs = new CryptoStream(ms, crypter, CryptoStreamMode.Write))
-                cs.Write(encrypedData);
+                cs.Write(value);
 
             return ms.ToArray();
         }
