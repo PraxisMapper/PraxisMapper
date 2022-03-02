@@ -230,45 +230,6 @@ namespace PraxisMapper.Controllers
             }
         }
 
-        //[HttpGet]
-        //[Route("/[controller]/DrawSlippyTileCustomPlusCodesByTag/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
-        //[Route("/[controller]/SlippyAreaByTag/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
-        //public ActionResult DrawSlippyTileCustomPlusCodesByTag(int x, int y, int zoom, string styleSet, string dataKey)
-        //{
-        //    try
-        //    {
-        //        PerformanceTracker pt = new PerformanceTracker("DrawSlippyTileByTag");
-        //        string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
-        //        var info = new ImageStats(zoom, x, y, IMapTiles.MapTileSizeSquare);
-
-        //        if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
-        //        {
-        //            pt.Stop("OOB");
-        //            return StatusCode(500);
-        //        }
-
-        //        byte[] tileData = getExistingSlippyTile(tileKey, styleSet);
-        //        if (tileData != null)
-        //        {
-        //            pt.Stop(tileKey + "|" + styleSet);
-        //            return File(tileData, "image/png");
-        //        }
-
-        //        //Make tile
-        //        var places = GetPlacesForTile(info, null, styleSet);
-        //        var paintOps = MapTileSupport.GetPaintOpsForCustomDataPlusCodesFromTagValue(dataKey, styleSet, info);
-        //        tileData = FinishSlippyMapTile(info, paintOps, tileKey, styleSet);
-
-        //        pt.Stop(tileKey + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
-        //        return File(tileData, "image/png");
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        ErrorLogger.LogError(ex);
-        //        return StatusCode(500);
-        //    }
-        //}
-
         [HttpGet]
         [Route("/[controller]/DrawPath")]
         public byte[] DrawPath()
@@ -358,49 +319,9 @@ namespace PraxisMapper.Controllers
             }
         }
 
-        //note - bytag should just be a call to that style with a 'fromtag=true' entry. 
-        //[HttpGet]
-        //[Route("/[controller]/DrawPlusCodeCustomDataByTag/{code}/{styleSet}/{dataKey}")]
-        //[Route("/[controller]/AreaByTag/{code}/{styleSet}/{dataKey}")]
-        //public ActionResult DrawPlusCodeCustomDataByTag(string code, string styleSet, string dataKey)
-        //{
-        //    try
-        //    {
-        //        PerformanceTracker pt = new PerformanceTracker("DrawTileByTag");
-        //        MapTileSupport.GetPlusCodeImagePixelSize(code, out var imgX, out var imgY);
-        //        var info = new ImageStats(OpenLocationCode.DecodeValid(code), imgX, imgY);
-
-        //        if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
-        //        {
-        //            pt.Stop("OOB");
-        //            return StatusCode(500);
-        //        }
-
-        //        byte[] tileData = getExistingSlippyTile(code, styleSet);
-        //        if (tileData != null)
-        //        {
-        //            pt.Stop(code + "|" + styleSet);
-        //            return File(tileData, "image/png");
-        //        }
-
-        //        //Make tile
-        //        var places = GetPlacesForTile(info, null, styleSet, false);
-        //        var paintOps = MapTileSupport.GetPaintOpsForCustomDataPlusCodesFromTagValue(dataKey, styleSet, info);
-        //        tileData = FinishMapTile(info, paintOps, code, styleSet);
-
-        //        pt.Stop(code + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
-        //        return File(tileData, "image/png");
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        ErrorLogger.LogError(ex);
-        //        return StatusCode(500);
-        //    }
-        //}
-
         [HttpGet]
         [Route("/[controller]/DrawPlusCodeCustomElements/{code}/{styleSet}/{dataKey}")]
-        [Route("/[controller]/AreaPlaceData/{code}/{styleSet}/{dataKey}")] //garbage name
+        [Route("/[controller]/AreaPlaceData/{code}/{styleSet}/{dataKey}")] //Draw an area using place data.
         public ActionResult DrawPlusCodeCustomElements(string code, string styleSet, string dataKey)
         {
             try
@@ -439,6 +360,7 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/ExpireTiles/{elementId}/{styleSet}")]
+        [Route("/[controller]/Expire/{elementId}/{styleSet}")]
         public void ExpireTiles(Guid elementId, string styleSet)
         {
             var db = new PraxisContext();
