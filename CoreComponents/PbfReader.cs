@@ -146,7 +146,7 @@ namespace PraxisCore.PbfReader
             {
                 StringBuilder sb = new StringBuilder();
                 string entry = sr.ReadLine();
-                StoredOsmElement md = GeometrySupport.ConvertSingleTsvStoredElement(entry);
+                DbTables.Place md = GeometrySupport.ConvertSingleTsvStoredElement(entry);
 
                 if (bounds != null && (!bounds.Intersects(md.ElementGeometry.EnvelopeInternal)))
                     continue;
@@ -1259,7 +1259,7 @@ namespace PraxisCore.PbfReader
         {
             //This one is easy, we just dump the geodata to the file.
             string saveFilename = outputPath + Path.GetFileNameWithoutExtension(fi.Name) + "-" + blockId;
-            ConcurrentBag<StoredOsmElement> elements = new ConcurrentBag<StoredOsmElement>();
+            ConcurrentBag<DbTables.Place> elements = new ConcurrentBag<DbTables.Place>();
             DateTime startedProcess = DateTime.Now;
 
             if (items == null || items.Count() == 0)
@@ -1275,10 +1275,10 @@ namespace PraxisCore.PbfReader
             relList = new ConcurrentBag<Task>();
 
             if (onlyMatchedAreas)
-                elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => TagParser.GetStyleForOsmWay(e.Tags, styleSet).Name != TagParser.defaultStyle.Name));
+                elements = new ConcurrentBag<DbTables.Place>(elements.Where(e => TagParser.GetStyleForOsmWay(e.Tags, styleSet).Name != TagParser.defaultStyle.Name));
 
             if (boundsEntry != null)
-                elements = new ConcurrentBag<StoredOsmElement>(elements.Where(e => boundsEntry.Intersects(e.ElementGeometry)));
+                elements = new ConcurrentBag<DbTables.Place>(elements.Where(e => boundsEntry.Intersects(e.ElementGeometry)));
 
             if (elements.Count == 0)
                 return;
@@ -1296,7 +1296,7 @@ namespace PraxisCore.PbfReader
             {
                 var db = new PraxisContext();
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
-                db.StoredOsmElements.AddRange(elements);
+                db.Places.AddRange(elements);
                 db.SaveChanges();
                 return;
             }

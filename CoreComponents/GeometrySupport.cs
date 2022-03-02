@@ -134,7 +134,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="g">the CompleteOSMGeo object to prepare to save to the DB</param>
         /// <returns>the StoredOsmElement ready to save to the DB</returns>
-        public static StoredOsmElement ConvertOsmEntryToStoredElement(OsmSharp.Complete.ICompleteOsmGeo g)
+        public static DbTables.Place ConvertOsmEntryToStoredElement(OsmSharp.Complete.ICompleteOsmGeo g)
         {
             var tags = TagParser.getFilteredTags(g.Tags);
             if (tags == null || tags.Count() == 0)
@@ -148,7 +148,7 @@ namespace PraxisCore
                     Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + "-" + TagParser.GetPlaceName(g.Tags) + " didn't interpret into a Geometry object", Log.VerbosityLevels.Errors);
                     return null;
                 }
-                var sw = new StoredOsmElement();
+                var sw = new DbTables.Place();
                 sw.SourceItemID = g.Id;
                 sw.SourceItemType = (g.Type == OsmGeoType.Relation ? 3 : g.Type == OsmGeoType.Way ? 2 : 1);
                 var geo = SimplifyArea(geometry);
@@ -181,19 +181,19 @@ namespace PraxisCore
         /// </summary>
         /// <param name="filename">the geomData file to parse. Matching .tagsData file is assumed.</param>
         /// <returns>a list of storedOSMelements</returns>
-        public static List<StoredOsmElement> ReadStoredElementsFileToMemory(string filename)
+        public static List<DbTables.Place> ReadStoredElementsFileToMemory(string filename)
         {
             StreamReader srGeo = new StreamReader(filename);
             StreamReader srTags = new StreamReader(filename.Replace(".geomData", ".tagsData"));
 
-            List<StoredOsmElement> lm = new List<StoredOsmElement>(8000);
-            List<ElementTags> tagsTemp = new List<ElementTags>(8000);
-            ILookup<long, ElementTags> tagDict;
+            List<DbTables.Place> lm = new List<DbTables.Place>(8000);
+            List<PlaceTags> tagsTemp = new List<PlaceTags>(8000);
+            ILookup<long, PlaceTags> tagDict;
 
             while (!srTags.EndOfStream)
             {
                 string line = srTags.ReadLine();
-                ElementTags tag = ConvertSingleTsvTag(line);
+                PlaceTags tag = ConvertSingleTsvTag(line);
                 tagsTemp.Add(tag);
             }
             srTags.Close(); srTags.Dispose();
@@ -215,10 +215,10 @@ namespace PraxisCore
             return lm;
         }
 
-        public static StoredOsmElement ConvertSingleTsvStoredElement(string sw)
+        public static DbTables.Place ConvertSingleTsvStoredElement(string sw)
         {
             var source = sw.AsSpan();
-            StoredOsmElement entry = new StoredOsmElement();
+            DbTables.Place entry = new DbTables.Place();
             entry.SourceItemID = source.SplitNext('\t').ToLong();
             entry.SourceItemType = source.SplitNext('\t').ToInt();
             entry.ElementGeometry = GeometryFromWKT(source.SplitNext('\t').ToString());
@@ -228,10 +228,10 @@ namespace PraxisCore
             return entry;
         }
 
-        public static ElementTags ConvertSingleTsvTag(string sw)
+        public static PlaceTags ConvertSingleTsvTag(string sw)
         {
             var source = sw.AsSpan();
-            ElementTags entry = new ElementTags();
+            PlaceTags entry = new PlaceTags();
             entry.SourceItemId = source.SplitNext('\t').ToLong();
             entry.SourceItemType = source.SplitNext('\t').ToInt();
             entry.Key = source.SplitNext('\t').ToString();

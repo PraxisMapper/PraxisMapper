@@ -25,7 +25,7 @@ namespace PraxisCore
         /// <param name="areaPoly">the area to search and use to determine scores of elements intersecting it  </param>
         /// <param name="places">the elements to be scored, relative to their size in the given area</param>
         /// <returns>a string of pipe-separated values (name, score, ID) split by newlines</returns>
-        public static string GetScoresForArea(Geometry areaPoly, List<StoredOsmElement> places)
+        public static string GetScoresForArea(Geometry areaPoly, List<DbTables.Place> places)
         {
             //Determines the Scores for the Places, limited to the intersection of the current Area. 1 Cell10 = 1 Score.
             //EX: if a park overlaps 800 Cell10s, but the current area overlaps 250 of them, this returns 250 for that park.
@@ -45,7 +45,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="places">The places to report a score for each.</param>
         /// <returns>a string of names and scores, </returns>
-        public static string GetScoresForFullArea(List<StoredOsmElement> places)
+        public static string GetScoresForFullArea(List<DbTables.Place> places)
         {
             //As above, but counts the Places' full area, not the area in the given Cell8 or Cell10. 
             List<Tuple<string, long, Guid>> areaSizes = new List<Tuple<string, long, Guid>>(places.Count());
@@ -95,7 +95,7 @@ namespace PraxisCore
         public static long GetScoreForSinglePlace(Guid elementId)
         {
             var db = new PraxisContext();
-            var place = db.StoredOsmElements.FirstOrDefault(e => e.PrivacyId == elementId).ElementGeometry;
+            var place = db.Places.FirstOrDefault(e => e.PrivacyId == elementId).ElementGeometry;
             return GetScoreForSinglePlace(place);
         }
     }

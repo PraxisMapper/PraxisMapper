@@ -20,7 +20,7 @@ namespace PraxisCore.Standalone
         /// </summary>
         /// <param name="allPlaces">the list of elements to copy into the standalone DB</param>
         /// <returns>a list of PlaceInfo items to use in the standalone DB</returns>
-        public static List<PlaceInfo2> GetPlaceInfo(List<StoredOsmElement> allPlaces)
+        public static List<PlaceInfo2> GetPlaceInfo(List<DbTables.Place> allPlaces)
         {
             var results = new List<PlaceInfo2>();
             foreach (var place in allPlaces) //.Where(p => p.IsGameElement))
@@ -54,7 +54,7 @@ namespace PraxisCore.Standalone
         /// </summary>
         /// <param name="allPlaces">the list of OSM elements to search</param>
         /// <returns>the list of scavenger hunt entries</returns>
-        public static List<ScavengerHuntStandalone> GetScavengerHunts(List<StoredOsmElement> allPlaces)
+        public static List<ScavengerHuntStandalone> GetScavengerHunts(List<DbTables.Place> allPlaces)
         {
             //TODO: This is going to need updated for the new TagParser rules. testing at the minimum
             var results = new List<ScavengerHuntStandalone>();
@@ -91,7 +91,7 @@ namespace PraxisCore.Standalone
         /// <param name="buffered">the GeoArea to use as the gameplay area</param>
         /// <param name="allPlaces">List of OSM Elements to use while drawing tiles</param>
         /// <param name="saveToFolder">If true, save images to a named folder. Does not currently save any output if this is false.</param>
-        public static void DrawMapTilesStandalone(long relationID, GeoArea buffered, List<StoredOsmElement> allPlaces, bool saveToFolder)
+        public static void DrawMapTilesStandalone(long relationID, GeoArea buffered, List<DbTables.Place> allPlaces, bool saveToFolder)
         {
 
             var intersectCheck = Converters.GeoAreaToPolygon(buffered);
@@ -185,7 +185,7 @@ namespace PraxisCore.Standalone
         /// <param name="buffered">the GeoArea to generate this indexed lookup for</param>
         /// <param name="allPlaces">the elements to search while making the index</param>
         /// <returns>a Dictionary of 6 digit PlusCodes and the list of OSM elements that intersect it. </returns>
-        public static ConcurrentDictionary<string, List<StoredOsmElement>> IndexAreasPerCell6(GeoArea buffered, List<StoredOsmElement> allPlaces)
+        public static ConcurrentDictionary<string, List<DbTables.Place>> IndexAreasPerCell6(GeoArea buffered, List<DbTables.Place> allPlaces)
         {
             //NOTE: this could use the same optimization I applied to drawing map tiles
             var intersectCheck = Converters.GeoAreaToPolygon(buffered);
@@ -214,7 +214,7 @@ namespace PraxisCore.Standalone
                 xVal += resolutionCell6;
             }
 
-            ConcurrentDictionary<string, List<StoredOsmElement>> results = new ConcurrentDictionary<string, List<StoredOsmElement>>();
+            ConcurrentDictionary<string, List<DbTables.Place>> results = new ConcurrentDictionary<string, List<DbTables.Place>>();
 
             foreach (var y in yCoords)
             {

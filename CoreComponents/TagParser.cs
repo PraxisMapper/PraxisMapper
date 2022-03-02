@@ -104,7 +104,7 @@ namespace PraxisCore
         /// <param name="tags">the tags attached to a StoredOsmElement to search. A list will be converted to a dictionary and error out if duplicate keys are present in the tags.</param>
         /// <param name="styleSet">the styleset with the rules for parsing elements</param>
         /// <returns>The TagParserEntry that matches the rules and tags given, or a defaultStyle if none match.</returns>
-        public static TagParserEntry GetStyleForOsmWay(ICollection<ElementTags> tags, string styleSet = "mapTiles")
+        public static TagParserEntry GetStyleForOsmWay(ICollection<PlaceTags> tags, string styleSet = "mapTiles")
         {
             if (tags == null || tags.Count() == 0)
                 return defaultStyle;
@@ -153,7 +153,7 @@ namespace PraxisCore
         /// <returns>The name of the style from the given styleSet that matches the CompleteGeo's tags</returns>
         public static string GetAreaType(TagsCollectionBase tags, string styleSet = "mapTiles")
         {
-            var tempTags = tags.Select(t => new ElementTags() { Key = t.Key, Value = t.Value }).ToList();
+            var tempTags = tags.Select(t => new PlaceTags() { Key = t.Key, Value = t.Value }).ToList();
             return GetAreaType(tempTags);
         }
 
@@ -163,7 +163,7 @@ namespace PraxisCore
         /// <param name="tags">the tags attached to a StoredOsmElement object</param>
         /// <param name="styleSet">the styleset to match against</param>
         /// <returns>The name of the style from the given styleSet that matches the StoredOsmElement tags</returns>
-        public static string GetAreaType(List<ElementTags> tags, string styleSet = "mapTiles")
+        public static string GetAreaType(List<PlaceTags> tags, string styleSet = "mapTiles")
         {
             if (tags == null || tags.Count() == 0)
                 return defaultStyle.Name;
@@ -199,7 +199,7 @@ namespace PraxisCore
         /// <param name="tpe">The TagParserEntry to check</param>
         /// <param name="tags">the tags for a StoredOsmElement to use</param>
         /// <returns>true if this TagParserEntry applies to this StoredOsmElement's tags, or false if it does not.</returns>
-        public static bool MatchOnTags(TagParserEntry tpe, ICollection<ElementTags> tags)
+        public static bool MatchOnTags(TagParserEntry tpe, ICollection<PlaceTags> tags)
         {
             //NOTE: this cast make this path slightly slower (.01ms), but I don't have to maintain 2 version of this functions full code.
             return MatchOnTags(tpe, tags.ToDictionary(k => k.Key, v => v.Value));
@@ -283,7 +283,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="rawTags"The initial tags from a CompleteGeo object></param>
         /// <returns>A list of ElementTags with the undesired tags removed.</returns>
-        public static List<ElementTags> getFilteredTags(TagsCollectionBase rawTags)
+        public static List<PlaceTags> getFilteredTags(TagsCollectionBase rawTags)
         {
             return rawTags.Where(t =>
                 t.Key != "source" &&
@@ -328,7 +328,7 @@ namespace PraxisCore
                 !t.Key.StartsWith("was:") &&
                 !t.Key.StartsWith("website") 
                 )
-                .Select(t => new ElementTags() { Key = t.Key, Value = t.Value }).ToList();
+                .Select(t => new PlaceTags() { Key = t.Key, Value = t.Value }).ToList();
         }
 
         /// <summary>
@@ -352,7 +352,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="tagsO">the tags to search</param>
         /// <returns>a Name value if one is found, or an empty string if not</returns>
-        public static string GetPlaceName(ICollection<ElementTags> tagsO)
+        public static string GetPlaceName(ICollection<PlaceTags> tagsO)
         {
             if (tagsO.Count() == 0)
                 return "";
@@ -368,7 +368,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="element">the StoredOsmElement with tags to check</param>
         /// <returns>a link to the relevant Wikipedia page for an element, or an empty string if the element has no such tag.</returns>
-        public static string GetWikipediaLink(StoredOsmElement element)
+        public static string GetWikipediaLink(DbTables.Place element)
         {
             var wikiTag = element.Tags.FirstOrDefault(t => t.Key == "wikipedia");
             if (wikiTag == null)
@@ -384,7 +384,7 @@ namespace PraxisCore
         /// <param name="places">the list of StoredOsmElements to check</param>
         /// <param name="styleSet">the name of the style set to apply to the elements.</param>
         /// <returns>the list of places with the appropriate data filled in.</returns>
-        public static List<StoredOsmElement> ApplyTags(List<StoredOsmElement> places, string styleSet)
+        public static List<DbTables.Place> ApplyTags(List<DbTables.Place> places, string styleSet)
         {
             foreach (var p in places)
             {

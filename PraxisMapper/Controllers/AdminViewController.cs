@@ -51,11 +51,11 @@ namespace PraxisMapper.Controllers
         public ActionResult GetPlaceInfo(long sourceElementId, int sourceElementType)
         {
             var db = new PraxisContext();
-            var area = db.StoredOsmElements.Include(e => e.Tags).FirstOrDefault(e => e.SourceItemID == sourceElementId && e.SourceItemType == sourceElementType);
+            var area = db.Places.Include(e => e.Tags).FirstOrDefault(e => e.SourceItemID == sourceElementId && e.SourceItemType == sourceElementType);
             if (area == null)
                 return View();
 
-            TagParser.ApplyTags(new System.Collections.Generic.List<DbTables.StoredOsmElement>() { area }, "mapTiles");
+            TagParser.ApplyTags(new System.Collections.Generic.List<DbTables.Place>() { area }, "mapTiles");
             ViewBag.areaname = TagParser.GetPlaceName(area.Tags);
             ViewBag.type = area.GameElementName;
 
@@ -100,7 +100,7 @@ namespace PraxisMapper.Controllers
         public ActionResult GetPlaceInfo(Guid privacyId)
         {
             var db = new PraxisContext();
-            var area = db.StoredOsmElements.Include(e => e.Tags).FirstOrDefault(e => e.PrivacyId == privacyId);
+            var area = db.Places.Include(e => e.Tags).FirstOrDefault(e => e.PrivacyId == privacyId);
             if (area != null)
                 return GetPlaceInfo(area.SourceItemID, area.SourceItemType);
 

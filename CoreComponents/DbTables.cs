@@ -127,7 +127,7 @@ namespace PraxisCore
         //This is the new, 5th iteration of geography data storage for PraxisMapper.
         //All types can be stored in this one table, though some data will be applied on read
         //because the TagParser will determine it on-demand instead of storing changeable data.
-        public class StoredOsmElement
+        public class Place
         {
             public long Id { get; set; } //Internal primary key, don't pass this to clients.
             public long SourceItemID { get; set; } //Try to use PrivacyId instead of this where possible to avoid connecting players to locations.
@@ -135,7 +135,7 @@ namespace PraxisCore
             [Column(TypeName = "geography")]
             [Required]
             public Geometry ElementGeometry { get; set; }
-            public ICollection<ElementTags> Tags { get; set; }
+            public ICollection<PlaceTags> Tags { get; set; }
             [NotMapped]
             public bool IsGameElement { get; set; } //Gets determined by styles, shouldn't be a persisted property. Only used to make standalone DB right now.
             [NotMapped]
@@ -147,18 +147,18 @@ namespace PraxisCore
                 return (SourceItemType == 3 ? "Relation " : SourceItemType == 2 ? "Way " : "Node ") +  SourceItemID.ToString() + TagParser.GetPlaceName(Tags);
             }
 
-            public StoredOsmElement Clone()
+            public Place Clone()
             {
-                return (StoredOsmElement)this.MemberwiseClone();
+                return (Place)this.MemberwiseClone();
             }
         }
          
-        public class ElementTags
+        public class PlaceTags
         {
             public long Id { get; set; }
             public long SourceItemId { get; set; } 
             public int SourceItemType { get; set; } 
-            public StoredOsmElement StoredOsmElement { get; set; }
+            public Place Place { get; set; }
             public string Key { get; set; }
             public string Value { get; set; }
 
@@ -187,7 +187,7 @@ namespace PraxisCore
         //    public string StoredOsmElementId { get; set; } //This means we have to add a point/polygon if it's not an existing OSM entry.
         //}
 
-        public class CustomDataPlusCode
+        public class AreaGameData
         {
             //for storing collection data server-side per plus-code
             public long Id { get; set; }
@@ -200,12 +200,12 @@ namespace PraxisCore
             public byte[] DataValue { get; set; } //Holds byte data for both normal and encrypted entries. 
         }
 
-        public class CustomDataOsmElement
+        public class PlaceGameData
         {
             //for storing collection data server-side per existing map area. Join on that table to get geometry area.
             public long Id { get; set; } //internal primary key
-            public long StoredOsmElementId { get; set; } //might not be necessary?
-            public StoredOsmElement StoredOsmElement { get; set; }
+            public long PlaceId { get; set; } //might not be necessary?
+            public Place Place { get; set; }
             public string DataKey { get; set; }
             public DateTime? Expiration { get; set; } //optional. If value is in the past, ignore this data.
             public byte[] IvData { get; set; } //Only set if data is encrypted.

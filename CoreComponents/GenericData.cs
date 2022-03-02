@@ -31,14 +31,14 @@ namespace PraxisCore
             if (db.PlayerData.Any(p => p.DeviceID == key || p.DeviceID == value))
                 return false;
 
-            var row = db.CustomDataPlusCodes.FirstOrDefault(p => p.PlusCode == plusCode && p.DataKey == key);
+            var row = db.AreaGameData.FirstOrDefault(p => p.PlusCode == plusCode && p.DataKey == key);
             if (row == null)
             {
-                row = new DbTables.CustomDataPlusCode();
+                row = new DbTables.AreaGameData();
                 row.DataKey = key;
                 row.PlusCode = plusCode;
                 row.GeoAreaIndex = Converters.GeoAreaToPolygon(OpenLocationCode.DecodeValid(plusCode.ToUpper()));
-                db.CustomDataPlusCodes.Add(row);
+                db.AreaGameData.Add(row);
             }
             if (expiration.HasValue)
                 row.Expiration = DateTime.Now.AddSeconds(expiration.Value);
@@ -58,7 +58,7 @@ namespace PraxisCore
         public static byte[] GetAreaData(string plusCode, string key)
         {
             var db = new PraxisContext();
-            var row = db.CustomDataPlusCodes.FirstOrDefault(p => p.PlusCode == plusCode && p.DataKey == key);
+            var row = db.AreaGameData.FirstOrDefault(p => p.PlusCode == plusCode && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
                 return new byte[0];
             return row.DataValue;
@@ -78,14 +78,14 @@ namespace PraxisCore
             if (db.PlayerData.Any(p => p.DeviceID == key || p.DeviceID == value))
                 return false;
 
-            var row = db.CustomDataOsmElements.Include(p => p.StoredOsmElement).FirstOrDefault(p => p.StoredOsmElement.PrivacyId == elementId && p.DataKey == key);
+            var row = db.PlaceGameData.Include(p => p.Place).FirstOrDefault(p => p.Place.PrivacyId == elementId && p.DataKey == key);
             if (row == null)
             {
-                var sourceItem = db.StoredOsmElements.First(p => p.PrivacyId == elementId);
-                row = new DbTables.CustomDataOsmElement();
+                var sourceItem = db.Places.First(p => p.PrivacyId == elementId);
+                row = new DbTables.PlaceGameData();
                 row.DataKey = key;
-                row.StoredOsmElement = sourceItem;
-                db.CustomDataOsmElements.Add(row);
+                row.Place = sourceItem;
+                db.PlaceGameData.Add(row);
             }
             if (expiration.HasValue)
                 row.Expiration = DateTime.Now.AddSeconds(expiration.Value);
@@ -105,7 +105,7 @@ namespace PraxisCore
         public static byte[] GetPlaceData(Guid elementId, string key)
         {
             var db = new PraxisContext();
-            var row = db.CustomDataOsmElements.Include(p => p.StoredOsmElement).FirstOrDefault(p => p.StoredOsmElement.PrivacyId == elementId && p.DataKey == key);
+            var row = db.PlaceGameData.Include(p => p.Place).FirstOrDefault(p => p.Place.PrivacyId == elementId && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
                 return new byte[0];
             return row.DataValue;
@@ -141,8 +141,8 @@ namespace PraxisCore
 
             var db = new PraxisContext();
             Guid tempCheck = new Guid();
-            if ((Guid.TryParse(key, out tempCheck) && db.StoredOsmElements.Any(osm => osm.PrivacyId == tempCheck))
-                || (Guid.TryParse(value, out tempCheck) && db.StoredOsmElements.Any(osm => osm.PrivacyId == tempCheck)))
+            if ((Guid.TryParse(key, out tempCheck) && db.Places.Any(osm => osm.PrivacyId == tempCheck))
+                || (Guid.TryParse(value, out tempCheck) && db.Places.Any(osm => osm.PrivacyId == tempCheck)))
                 return false; //reject attaching a player to an area
 
             var row = db.PlayerData.FirstOrDefault(p => p.DeviceID == playerId && p.DataKey == key);
@@ -174,7 +174,7 @@ namespace PraxisCore
             var db = new PraxisContext();
             var plusCodeArea = OpenLocationCode.DecodeValid(plusCode);
             var plusCodePoly = Converters.GeoAreaToPolygon(plusCodeArea);
-            var plusCodeData = db.CustomDataPlusCodes.Where(d => plusCodePoly.Intersects(d.GeoAreaIndex) && (key == "" || d.DataKey == key) && d.IvData == null)
+            var plusCodeData = db.AreaGameData.Where(d => plusCodePoly.Intersects(d.GeoAreaIndex) && (key == "" || d.DataKey == key) && d.IvData == null)
                 .ToList() //Required to run the next Where on the C# side
                 .Where(row => row.Expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now)
                 .Select(d => new CustomDataAreaResult(d.PlusCode, d.DataKey, d.DataValue.ToUTF8String()))
@@ -192,8 +192,8 @@ namespace PraxisCore
         public static List<CustomDataPlaceResult> GetAllDataInPlace(Guid elementId, string key = "")
         {
             var db = new PraxisContext();
-            var place = db.StoredOsmElements.First(s => s.PrivacyId == elementId);
-            var data = db.CustomDataOsmElements.Where(d => d.StoredOsmElementId == place.Id && (key == "" || d.DataKey == key) && d.IvData == null)
+            var place = db.Places.First(s => s.PrivacyId == elementId);
+            var data = db.PlaceGameData.Where(d => d.PlaceId == place.Id && (key == "" || d.DataKey == key) && d.IvData == null)
                 .ToList() //Required to run the next Where on the C# side
                 .Where(row => row.Expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now)
                 .Select(d => new CustomDataPlaceResult(place.PrivacyId, d.DataKey, d.DataValue.ToUTF8String()))
@@ -252,8 +252,8 @@ namespace PraxisCore
                 trackingLocation = true;
 
             Guid tempCheck = new Guid();
-            if ((Guid.TryParse(key, out tempCheck) && db.StoredOsmElements.Any(osm => osm.PrivacyId == tempCheck))
-                || (Guid.TryParse(value, out tempCheck) && db.StoredOsmElements.Any(osm => osm.PrivacyId == tempCheck)))
+            if ((Guid.TryParse(key, out tempCheck) && db.Places.Any(osm => osm.PrivacyId == tempCheck))
+                || (Guid.TryParse(value, out tempCheck) && db.Places.Any(osm => osm.PrivacyId == tempCheck)))
                 trackingLocation = true;
 
             if (trackingLocation && trackingPlayer) //Do not allow players and locations to be attached on the global level as a workaround to being blocked on the individual levels.
@@ -280,14 +280,14 @@ namespace PraxisCore
             var db = new PraxisContext();
             byte[] encryptedValue = EncryptValue(value, password, out byte[] IVs);
 
-            var row = db.CustomDataPlusCodes.FirstOrDefault(p => p.PlusCode == plusCode && p.DataKey == key);
+            var row = db.AreaGameData.FirstOrDefault(p => p.PlusCode == plusCode && p.DataKey == key);
             if (row == null)
             {
-                row = new DbTables.CustomDataPlusCode();
+                row = new DbTables.AreaGameData();
                 row.DataKey = key;
                 row.PlusCode = plusCode;
                 row.GeoAreaIndex = Converters.GeoAreaToPolygon(OpenLocationCode.DecodeValid(plusCode.ToUpper()));
-                db.CustomDataPlusCodes.Add(row);
+                db.AreaGameData.Add(row);
             }
             if (expiration.HasValue)
                 row.Expiration = DateTime.Now.AddSeconds(expiration.Value);
@@ -309,7 +309,7 @@ namespace PraxisCore
         public static byte[] GetSecureAreaData(string plusCode, string key, string password)
         {
             var db = new PraxisContext();
-            var row = db.CustomDataPlusCodes.FirstOrDefault(p => p.PlusCode == plusCode && p.DataKey == key);
+            var row = db.AreaGameData.FirstOrDefault(p => p.PlusCode == plusCode && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
                 return new byte[0];
 
@@ -377,7 +377,7 @@ namespace PraxisCore
         public static byte[] GetSecurePlaceData(Guid elementId, string key, string password)
         {
             var db = new PraxisContext();
-            var row = db.CustomDataOsmElements.Include(p => p.StoredOsmElement).FirstOrDefault(p => p.StoredOsmElement.PrivacyId == elementId && p.DataKey == key);
+            var row = db.PlaceGameData.Include(p => p.Place).FirstOrDefault(p => p.Place.PrivacyId == elementId && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
                 return new byte[0];
             return DecryptValue(row.IvData, row.DataValue, password);
@@ -402,14 +402,14 @@ namespace PraxisCore
             byte[] encryptedValue = EncryptValue(value, password, out byte[] IVs);
             var db = new PraxisContext();
 
-            var row = db.CustomDataOsmElements.Include(p => p.StoredOsmElement).FirstOrDefault(p => p.StoredOsmElement.PrivacyId == elementId && p.DataKey == key);
+            var row = db.PlaceGameData.Include(p => p.Place).FirstOrDefault(p => p.Place.PrivacyId == elementId && p.DataKey == key);
             if (row == null)
             {
-                var sourceItem = db.StoredOsmElements.First(p => p.PrivacyId == elementId);
-                row = new DbTables.CustomDataOsmElement();
+                var sourceItem = db.Places.First(p => p.PrivacyId == elementId);
+                row = new DbTables.PlaceGameData();
                 row.DataKey = key;
-                row.StoredOsmElement = sourceItem;
-                db.CustomDataOsmElements.Add(row);
+                row.Place = sourceItem;
+                db.PlaceGameData.Add(row);
             }
             if (expiration.HasValue)
                 row.Expiration = DateTime.Now.AddSeconds(expiration.Value);
