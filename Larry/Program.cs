@@ -309,7 +309,7 @@ namespace Larry
                     var entries = File.ReadAllLines(fileName);
                     foreach (var entry in entries)
                     {
-                        DbTables.Place stored = GeometrySupport.ConvertSingleTsvStoredElement(entry);
+                        DbTables.Place stored = GeometrySupport.ConvertSingleTsvPlace(entry);
                         memorySource.Add(stored);
                     }
 
@@ -341,7 +341,7 @@ namespace Larry
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
                     var mariaPath = fileName.Replace("\\", "\\\\");
-                    db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' IGNORE INTO TABLE StoredOsmElements fields terminated by '\t' lines terminated by '\r\n' (sourceItemID, sourceItemType, @elementGeometry, AreaSize, privacyId) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
+                    db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' IGNORE INTO TABLE Places fields terminated by '\t' lines terminated by '\r\n' (sourceItemID, sourceItemType, @elementGeometry, AreaSize, privacyId) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
                     sw.Stop();
                     Log.WriteLog("Geometry loaded from " + fileName + " in " + sw.Elapsed);
                     File.Move(fileName, fileName + "done");
@@ -352,7 +352,7 @@ namespace Larry
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
                     var mariaPath = fileName.Replace("\\", "\\\\");
-                    db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' IGNORE INTO TABLE ElementTags fields terminated by '\t' lines terminated by '\r\n' (SourceItemId, SourceItemType, `key`, `value`)");
+                    db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' IGNORE INTO TABLE PlaceTags fields terminated by '\t' lines terminated by '\r\n' (SourceItemId, SourceItemType, `key`, `value`)");
                     sw.Stop();
                     Log.WriteLog("Tags loaded from " + fileName + " in " + sw.Elapsed);
                     File.Move(fileName, fileName + "done");
@@ -370,7 +370,7 @@ namespace Larry
                     var lines = File.ReadAllLines(fileName); //Might be faster to use streams and dodge the memory allocation?
                     foreach (var line in lines)
                     {
-                        db.Places.Add(GeometrySupport.ConvertSingleTsvStoredElement(line));
+                        db.Places.Add(GeometrySupport.ConvertSingleTsvPlace(line));
                     }
                     db.SaveChanges();
                     sw.Stop();

@@ -13,26 +13,26 @@ using static PraxisCore.Singletons;
 namespace PraxisCore
 {
     /// <summary>
-    /// Places are StoredOsmElements 
+    /// Places are OpenStreetMap Relations, Ways, or Nodes with tags of interest.
     /// </summary>
     public static class Place
     {
-        //Places will be the name for interactible or important areas on the map. Generally, a StoredOsmElement in the DB.
+        //Places will be the name for interactible or important areas on the map. Generally, a Place in the DB.
         //(vs Area, which is a PlusCode of any size)
 
         //All elements in the table with Geometry will be valid, and the TagParser rules will determine which ones are game elements
         //this allows it to be customized much easier, and changed on the fly without reloading data.
 
         /// <summary>
-        /// The core for pulling in locations from PraxisMapper. Can do a new search on an existing list of StoredOsmElement or pulls from the database if none is provided. Adds padding as set from config automatically.
+        /// The core for pulling in locations from PraxisMapper. Can do a new search on an existing list of Place or pulls from the database if none is provided. Adds padding as set from config automatically.
         /// </summary>
         /// <param name="area">The GeoArea to intersect locations against, and include ones that do. </param>
-        /// <param name="source">Null to load from the database, or a List of StoredOsmElements to narrow down</param>
+        /// <param name="source">Null to load from the database, or a List of Places to narrow down</param>
         /// <param name="filterSize">Removes any areas with a length or perimeter over this value. Defaults to 0 to include everything.</param>
-        /// <param name="styleSet">A TagParser style set to run the found locations through for identification.</param>
+        /// <param name="styleSet">A style set to run the found locations through for identification.</param>
         /// <param name="skipTags">If true, skips over tagging elements. A performance boost when you have a List to narrow down already.</param>
         /// <param name="includePoints">If false, removes Points from the source before returning the results</param>
-        /// <returns>A list of StoredOsmElements that intersect the area, have a perimter greater than or equal to filtersize.</returns>
+        /// <returns>A list of Places that intersect the area, have a perimter greater than or equal to filtersize.</returns>
         public static List<DbTables.Place> GetPlaces(GeoArea area, List<DbTables.Place> source = null, double filterSize = 0, string styleSet = "mapTiles", bool skipTags = false, bool includePoints = true)
         {
             //parameters i will need to restore later.
@@ -72,10 +72,10 @@ namespace PraxisCore
         /// A shortcut function to pull GetPlaces info against an ImageStats objects.
         /// </summary>
         /// <param name="stats">the ImageStats containing some of the other parameters to pass through</param>
-        /// <param name="source">Null to load from the database, or a List of StoredOsmElements to narrow down</param>
+        /// <param name="source">Null to load from the database, or a List of Places to narrow down</param>
         /// <param name="styleSet">A TagParser style set to run the found locations through for identification.</param>
         /// <param name="skipTags">If true, skips over tagging elements. A performance boost when you have a List to narrow down already.</param>
-        /// <returns>A list of StoredOsmElements that intersect the area, have a perimter greater than or equal to filtersize.</returns>
+        /// <returns>A list of Places that intersect the area, have a perimter greater than or equal to filtersize.</returns>
         public static List<DbTables.Place> GetPlacesForTile(ImageStats stats, List<DbTables.Place> source = null, string styleSet = "mapTiles", bool skipTags = false)
         {
             var dataLoadArea = new GeoArea(stats.area.SouthLatitude - ConstantValues.resolutionCell10, stats.area.WestLongitude - ConstantValues.resolutionCell10, stats.area.NorthLatitude + ConstantValues.resolutionCell10, stats.area.EastLongitude + ConstantValues.resolutionCell10);
@@ -88,7 +88,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="area">The area to check for elements</param>
         /// <param name="source">an optional list to use instead of loading from the database.</param>
-        /// <returns>true if any StoredOsmElements intersect the given GeoArea, false if not.</returns>
+        /// <returns>true if any Places intersect the given GeoArea, false if not.</returns>
         public static bool DoPlacesExist(GeoArea area, List<DbTables.Place> source = null)
         {
             //As GetPlaces, but only checks if there are entries.
@@ -214,7 +214,7 @@ namespace PraxisCore
         /// <summary>
         /// A debugging function, writres some information an element using its OSM id (or internal primary key) to load from the database.
         /// </summary>
-        /// <param name="id">the StoredOsmElementId or SourceElementId of an area to load.</param>
+        /// <param name="id">the PlaceId or SourceElementId of an area to load.</param>
         /// <returns>a string with some details on the area in question.</returns>
         public static string LoadDataOnPlace(long id)
         {

@@ -101,9 +101,9 @@ namespace PraxisCore
         /// <summary>
         /// Returns the style to use on an element given its tags and a styleset to search against.
         /// </summary>
-        /// <param name="tags">the tags attached to a StoredOsmElement to search. A list will be converted to a dictionary and error out if duplicate keys are present in the tags.</param>
+        /// <param name="tags">the tags attached to a Place to search. A list will be converted to a dictionary and error out if duplicate keys are present in the tags.</param>
         /// <param name="styleSet">the styleset with the rules for parsing elements</param>
-        /// <returns>The TagParserEntry that matches the rules and tags given, or a defaultStyle if none match.</returns>
+        /// <returns>The StyleEntry that matches the rules and tags given, or a defaultStyle if none match.</returns>
         public static StyleEntry GetStyleForOsmWay(ICollection<PlaceTags> tags, string styleSet = "mapTiles")
         {
             if (tags == null || tags.Count() == 0)
@@ -116,9 +116,9 @@ namespace PraxisCore
         /// <summary>
         /// Returns the style to use on an element given its tags and a styleset to search against.
         /// </summary>
-        /// <param name="tags">the tags attached to a StoredOsmElement to search</param>
+        /// <param name="tags">the tags attached to a Place to search</param>
         /// <param name="styleSet">the styleset with the rules for parsing elements</param>
-        /// <returns>The TagParserEntry that matches the rules and tags given, or a defaultStyle if none match.</returns>
+        /// <returns>The StyleEntry that matches the rules and tags given, or a defaultStyle if none match.</returns>
         public static StyleEntry GetStyleForOsmWay(Dictionary<string, string> tags, string styleSet = "mapTiles")
         {
             if (tags == null || tags.Count() == 0)
@@ -158,11 +158,11 @@ namespace PraxisCore
         }
 
         /// <summary>
-        /// Determines if the name of the matching style for a StoredOsmElement object
+        /// Determines if the name of the matching style for a Place object
         /// </summary>
-        /// <param name="tags">the tags attached to a StoredOsmElement object</param>
+        /// <param name="tags">the tags attached to a Place object</param>
         /// <param name="styleSet">the styleset to match against</param>
-        /// <returns>The name of the style from the given styleSet that matches the StoredOsmElement tags</returns>
+        /// <returns>The name of the style from the given styleSet that matches the Place tags</returns>
         public static string GetAreaType(List<PlaceTags> tags, string styleSet = "mapTiles")
         {
             if (tags == null || tags.Count() == 0)
@@ -176,11 +176,11 @@ namespace PraxisCore
         }
 
         /// <summary>
-        /// Determines if the name of the matching style for a StoredOsmElement object
+        /// Determines if the name of the matching style for a Place object
         /// </summary>
-        /// <param name="tags">the tags attached to a StoredOsmElement object</param>
+        /// <param name="tags">the tags attached to a Place object</param>
         /// <param name="styleSet">the styleset to match against</param>
-        /// <returns>The name of the style from the given styleSet that matches the StoredOsmElement tags</returns>
+        /// <returns>The name of the style from the given styleSet that matches the Place tags</returns>
         public static string GetAreaType(Dictionary<string, string> tags, string styleSet = "mapTiles")
         {
             if (tags == null || tags.Count() == 0)
@@ -194,11 +194,11 @@ namespace PraxisCore
         }
 
         /// <summary>
-        /// Determine if this TagParserEntry matches or not against a StoredOsmElement's tags.
+        /// Determine if this StyleEntry matches or not against a Place's tags.
         /// </summary>
-        /// <param name="tpe">The TagParserEntry to check</param>
-        /// <param name="tags">the tags for a StoredOsmElement to use</param>
-        /// <returns>true if this TagParserEntry applies to this StoredOsmElement's tags, or false if it does not.</returns>
+        /// <param name="tpe">The StyleEntry to check</param>
+        /// <param name="tags">the tags for a Place to use</param>
+        /// <returns>true if this StyleEntry applies to this Place's tags, or false if it does not.</returns>
         public static bool MatchOnTags(StyleEntry tpe, ICollection<PlaceTags> tags)
         {
             //NOTE: this cast make this path slightly slower (.01ms), but I don't have to maintain 2 version of this functions full code.
@@ -206,9 +206,9 @@ namespace PraxisCore
         }
 
         /// <summary>
-        /// Determine if this TagParserEntry matches or not against a StoredOsmElement's tags. Higher performance due to the use of a dictionary.
+        /// Determine if this StyleEntry matches or not against a Place's tags. Higher performance due to the use of a dictionary.
         /// </summary>
-        /// <param name="tpe">the TagParserEntry to match</param>
+        /// <param name="tpe">the StyleEntry to match</param>
         /// <param name="tags">a Dictionary representing the place's tags</param>
         /// <returns>true if this rule entry matches against the place's tags, or false if not.</returns>
         public static bool MatchOnTags(StyleEntry tpe, Dictionary<string, string> tags)
@@ -364,9 +364,9 @@ namespace PraxisCore
         }
 
         /// <summary>
-        /// Get a link to a StoredOsmElement's wikipedia page, if tagged with a wiki tag.
+        /// Get a link to a Place's wikipedia page, if tagged with a wiki tag.
         /// </summary>
-        /// <param name="element">the StoredOsmElement with tags to check</param>
+        /// <param name="element">the Place with tags to check</param>
         /// <returns>a link to the relevant Wikipedia page for an element, or an empty string if the element has no such tag.</returns>
         public static string GetWikipediaLink(DbTables.Place element)
         {
@@ -381,7 +381,7 @@ namespace PraxisCore
         /// <summary>
         /// Apply the rules for a styleset to a list of places. Fills in some placeholder values that aren't persisted into the database.
         /// </summary>
-        /// <param name="places">the list of StoredOsmElements to check</param>
+        /// <param name="places">the list of Places to check</param>
         /// <param name="styleSet">the name of the style set to apply to the elements.</param>
         /// <returns>the list of places with the appropriate data filled in.</returns>
         public static List<DbTables.Place> ApplyTags(List<DbTables.Place> places, string styleSet)

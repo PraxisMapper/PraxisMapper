@@ -100,7 +100,7 @@ THAT is the single best, real-world example of why I push this everywhere in the
 
 7) Server/Code Terms:
 Plus Code areas will be called Cell#, with # the number of digits in the plus code, throughout the code. Use Cell8, not 8Cell.
-Places are entries in the StoredOsmElements tables. A singular thing you would want to visit or interact with.
+Places are relations, ways, and points with tags of interest from OpenStreetMaps. A singular thing you would want to visit or interact with. One entry on the map.
 Areas are Plus Code cells used to find Places or map tiles. A space of predefined size. 
 Points are singular coordinate pairs that may be a reference to a Place or an Area, depending on context. A dot on a map.
 Score is a player's total credits on something. The counter in a video game that goes up when the player does things.

@@ -45,13 +45,6 @@
     <None Update="Content\Scripts\PlusCodes.js">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Content\Scripts\ZZTMap.js">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="CreatureImages\" />
   </ItemGroup>
 
 
