@@ -45,7 +45,7 @@ namespace Larry
             }
             
             if (!args.Any(a => a == "-makeServerDb")) //This will not be available until after creating the DB slightly later.
-                TagParser.Initialize(config["ForceTagParserDefaults"] == "True", MapTiles); //This last bit of config must be done after DB creation check
+                TagParser.Initialize(config["ForceStyleDefaults"] == "True", MapTiles); //This last bit of config must be done after DB creation check
 
             Log.WriteLog("Larry started at " + DateTime.Now);
 
@@ -499,7 +499,7 @@ namespace Larry
             }
             IMapTiles.GameTileScale = config["mapTileScaleFactor"].ToInt();
             IMapTiles.SlippyTileSizeSquare = config["slippyTileSize"].ToInt();
-            IMapTiles.BufferSize = config["placesAreaBuffer"].ToDouble();
+            IMapTiles.BufferSize = config["AreaBuffer"].ToDouble();
 
             if (config["UseHighAccuracy"] != "True")
             {
