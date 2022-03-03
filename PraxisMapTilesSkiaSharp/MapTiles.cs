@@ -49,7 +49,7 @@ namespace PraxisCore
                 paint.Style = SKPaintStyle.StrokeAndFill;
             else
                 paint.Style = SKPaintStyle.Stroke;
-            paint.StrokeWidth = tpe.LineWidth;
+            paint.StrokeWidth = tpe.LineWidthDegrees;
             paint.StrokeCap = SKStrokeCap.Round;
             if (tpe.LinePattern != "solid")
             {
@@ -335,7 +335,7 @@ namespace PraxisCore
                 if (w.paintOp.Randomize) //To randomize the color on every Draw call.
                     paint.Color = new SKColor((byte)r.Next(0, 255), (byte)r.Next(0, 255), (byte)r.Next(0, 255), 99);
 
-                paint.StrokeWidth = (float)w.lineWidth;
+                paint.StrokeWidth = (float)w.lineWidthPixels;
                 var path = new SKPath();
                 switch (w.elementGeometry.GeometryType)
                 {
@@ -472,7 +472,7 @@ namespace PraxisCore
             var pass2 = new List<CompletePaintOp>(drawnItems.Count() * 2);
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
-                    pass2.Add(new CompletePaintOp(op.ElementGeometry, op.AreaSize, po, "", po.LineWidth * stats.pixelsPerDegreeX));
+                    pass2.Add(new CompletePaintOp(op.ElementGeometry, op.AreaSize, po, "", po.LineWidthDegrees * stats.pixelsPerDegreeX));
 
 
             foreach (var w in pass2.OrderByDescending(p => p.paintOp.LayerId).ThenByDescending(p => p.areaSize))
