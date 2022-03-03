@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using static PraxisCore.ConstantValues;
-using static PraxisCore.DbTables;
 using static PraxisCore.Place;
 using static PraxisCore.StandaloneDbTables;
 
@@ -43,7 +42,7 @@ namespace PraxisCore
             //This one return all entries, for a game mode that might need all of them.
             var results = new List<TerrainData>(entriesHere.Count());
             foreach (var e in entriesHere)
-                results.Add(new TerrainData() { Name = TagParser.GetPlaceName(e.Tags), areaType = e.GameElementName, StoredOsmElementId = e.PrivacyId });
+                results.Add(new TerrainData() { Name = TagParser.GetPlaceName(e.Tags), areaType = e.GameElementName, PrivacyId = e.PrivacyId });
             return results;
         }
 
@@ -56,9 +55,8 @@ namespace PraxisCore
         {
             //Which Place in this given Area is the one that should be displayed on the game/map as the name? picks the smallest one.
             //This one only returns the smallest entry, for games that only need to check the most interesting area in a cell.
-            //var entry = SortGameElements(entriesHere).First(); //Entries should already be sorted biggest to smallest, so just get the last one.
             var entry = entriesHere.Last();
-            return new TerrainData() { Name = TagParser.GetPlaceName(entry.Tags), areaType = entry.GameElementName, StoredOsmElementId = entry.PrivacyId };
+            return new TerrainData() { Name = TagParser.GetPlaceName(entry.Tags), areaType = entry.GameElementName, PrivacyId = entry.PrivacyId };
         }
 
         /// <summary>

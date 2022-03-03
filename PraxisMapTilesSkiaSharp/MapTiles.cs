@@ -293,8 +293,8 @@ namespace PraxisCore
             //This is the new core drawing function. Takes in an area, the items to draw, and the size of the image to draw. 
             //The drawn items get their paint pulled from the TagParser's list. If I need multiple match lists, I'll need to make a way
             //to pick which list of tagparser rules to use.
-            //This can work for user data by using the linked StoredOsmElements from the items in CustomDataStoredElement.
-            //I need a slightly different function for using CustomDataPlusCode, or another optional parameter here
+            //This can work for user data by using the linked Places from the items in PlaceGameData.
+            //I need a slightly different function for using AreaGameData, or another optional parameter here
 
             double minimumSize = 0;
             if (filterSmallAreas)

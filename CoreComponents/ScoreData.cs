@@ -90,8 +90,8 @@ namespace PraxisCore
         /// <summary>
         /// Get the score for an area by its client facing ID
         /// </summary>
-        /// <param name="elementId">the PrivacyID of a StoredOsmElement to be scored</param>
-        /// <returns>the score for the requested StoredOsmElement</returns>
+        /// <param name="elementId">the PrivacyID of a Place to be scored</param>
+        /// <returns>the score for the requested Place</returns>
         public static long GetScoreForSinglePlace(Guid elementId)
         {
             var db = new PraxisContext();

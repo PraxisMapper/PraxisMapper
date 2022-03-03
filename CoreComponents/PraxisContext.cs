@@ -101,7 +101,7 @@ namespace PraxisCore
         //PostgreSQL uses its own CREATE INDEX syntax
         public static string MapTileIndexPG = "CREATE INDEX maptiles_geom_idx ON public.\"MapTiles\" USING GIST(\"areaCovered\")";
         public static string SlippyMapTileIndexPG = "CREATE INDEX slippmayptiles_geom_idx ON public.\"SlippyMapTiles\" USING GIST(\"areaCovered\")";
-        public static string StoredElementsIndexPG = "CREATE INDEX storedOsmElements_geom_idx ON public.\"Places\" USING GIST(\"elementGeometry\")";
+        public static string StoredElementsIndexPG = "CREATE INDEX place_geom_idx ON public.\"Places\" USING GIST(\"elementGeometry\")";
 
         //Adding these as helper values for large use cases. When inserting large amounts of data, it's probably worth removing indexes for the insert and re-adding them later.
         //(On a North-America file insert, this keeps insert speeds at about 2-3 seconds per block, whereas it creeps up consistently while indexes are updated per block.
@@ -254,11 +254,11 @@ namespace PraxisCore
         /// <summary>
         /// Force gameplay maptiles to expire and be redrawn on next access. Can be limited to a specific style set or run on all tiles.
         /// </summary>
-        /// <param name="elementId">the privacyID of a storedOsmElement to expire intersecting tiles for.</param>
+        /// <param name="elementId">the privacyID of a Place to expire intersecting tiles for.</param>
         /// <param name="styleSet">which set of maptiles to expire. All tiles if this is an empty string</param>
         public void ExpireMapTiles(Guid elementId, string styleSet = "")
         {
-            string SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM StoredOsmElements WHERE privacyId = '" + elementId + "'))";
+            string SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM Places WHERE privacyId = '" + elementId + "'))";
             Database.ExecuteSqlRaw(SQL);
         }
 
@@ -276,14 +276,14 @@ namespace PraxisCore
         /// <summary>
         /// Force SlippyMap tiles to expire and be redrawn on next access. Can be limited to a specific style set or run on all tiles.
         /// </summary>
-        /// <param name="elementId">the privacyID of a storedOsmElement to expire intersecting tiles for.</param>
+        /// <param name="elementId">the privacyID of a Place to expire intersecting tiles for.</param>
         /// <param name="styleSet">which set of maptiles to expire. All tiles if this is an empty string</param>
         public void ExpireSlippyMapTiles(Guid elementId, string styleSet = "")
         {
             //Might this be better off as raw SQL? If I expire, say, an entire state, that could be a lot of map tiles to pull into RAM just for a date to change.
             //var raw = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE ST_INTERSECTS(areaCovered, ST_GeomFromText(" + g.AsText() + "))";
             //var db = new PraxisContext();
-            string SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet = '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM StoredOsmElements WHERE privacyId = '" + elementId + "'))";
+            string SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet = '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM Places WHERE privacyId = '" + elementId + "'))";
             Database.ExecuteSqlRaw(SQL);
         }
 

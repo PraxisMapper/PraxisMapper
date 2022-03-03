@@ -1,0 +1,21 @@
+﻿All Commands to get a server totally up and running:
+
+Windows Server:
+* Install NET 6
+--subtasks?
+
+* Install Database of Choice 
+--mariaDB assumed
+
+* Install and Configure IIS
+--sub-commands
+--SSL certs mandatory
+
+* Acquire pbf data
+--process logic
+
+* Bootstrap via Larry
+--subcommands
+
+Linux Server:
+similar to above but with correct OS dependent commands

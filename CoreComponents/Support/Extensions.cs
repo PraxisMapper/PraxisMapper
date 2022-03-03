@@ -185,27 +185,6 @@ namespace PraxisCore
         }
 
         /// <summary>
-        /// Take a single list of OSM elements and split it into a given number of sub-lists. [This can be replaced with .Chunk(this.Count() % splitIntoLists)]
-        /// </summary>
-        /// <param name="mainlist">the source list</param>
-        /// <param name="splitIntoCount">how many new lists to create</param>
-        /// <returns>a List of arrays of OSM elements</returns>
-        //public static IEnumerable<DbTables.StoredOsmElement>[] SplitListToMultiple(this IEnumerable<DbTables.StoredOsmElement> mainlist, int splitIntoCount)
-        //{
-        //    List<DbTables.StoredOsmElement>[] results = new List<DbTables.StoredOsmElement>[splitIntoCount];
-        //    for (int i = 0; i < splitIntoCount; i++)
-        //        results[i] = new List<DbTables.StoredOsmElement>(2600);
-
-        //    int splitCount = 0;
-        //    foreach (var i in mainlist)
-        //    {
-        //        results[splitCount % splitIntoCount].Add(i);
-        //        splitCount++;
-        //    }
-        //    return results;
-        //}
-
-        /// <summary>
         /// Convert degrees to radians
         /// </summary>
         /// <param name="val">input in degrees</param>

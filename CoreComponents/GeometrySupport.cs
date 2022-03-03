@@ -206,7 +206,7 @@ namespace PraxisCore
             while (!srGeo.EndOfStream)
             {
                 string line = srGeo.ReadLine();
-                var sw = ConvertSingleTsvStoredElement(line);
+                var sw = ConvertSingleTsvPlace(line);
                 sw.Tags = tagDict[sw.SourceItemID].ToList();
                 lm.Add(sw);
             }
@@ -219,7 +219,7 @@ namespace PraxisCore
             return lm;
         }
 
-        public static DbTables.Place ConvertSingleTsvStoredElement(string sw)
+        public static DbTables.Place ConvertSingleTsvPlace(string sw)
         {
             var source = sw.AsSpan();
             DbTables.Place entry = new DbTables.Place();

@@ -303,7 +303,7 @@ namespace PraxisMapper.Controllers
 
             var data = AreaTypeInfo.SearchArea(ref box, ref places);
             foreach (var d in data)
-                sb.Append(d.Key).Append("|").Append(d.Value.Name).Append("|").Append(d.Value.areaType).Append("|").Append(d.Value.StoredOsmElementId).Append("\r\n");
+                sb.Append(d.Key).Append("|").Append(d.Value.Name).Append("|").Append(d.Value.areaType).Append("|").Append(d.Value.PrivacyId).Append("\r\n");
             var results = sb.ToString();
             pt.Stop(plusCode);
             return results;
@@ -328,7 +328,7 @@ namespace PraxisMapper.Controllers
             var data = AreaTypeInfo.SearchAreaFull(ref box, ref places);
             foreach (var d in data)
                 foreach(var v in d.Value)
-                    sb.Append(d.Key).Append("|").Append(v.Name).Append("|").Append(v.areaType).Append("|").Append(v.StoredOsmElementId).Append("\r\n");
+                    sb.Append(d.Key).Append("|").Append(v.Name).Append("|").Append(v.areaType).Append("|").Append(v.PrivacyId).Append("\r\n");
             var results = sb.ToString();
             pt.Stop(plusCode);
             return results;

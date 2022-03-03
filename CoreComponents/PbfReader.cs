@@ -146,7 +146,7 @@ namespace PraxisCore.PbfReader
             {
                 StringBuilder sb = new StringBuilder();
                 string entry = sr.ReadLine();
-                DbTables.Place md = GeometrySupport.ConvertSingleTsvStoredElement(entry);
+                DbTables.Place md = GeometrySupport.ConvertSingleTsvPlace(entry);
 
                 if (bounds != null && (!bounds.Intersects(md.ElementGeometry.EnvelopeInternal)))
                     continue;
@@ -1248,11 +1248,11 @@ namespace PraxisCore.PbfReader
         }
 
         /// <summary>
-        /// Take a list of OSMSharp CompleteGeo items, and convert them into PraxisMapper's StoredOsmElement objects.
+        /// Take a list of OSMSharp CompleteGeo items, and convert them into PraxisMapper's Place objects.
         /// </summary>
         /// <param name="items">the OSMSharp CompleteGeo items to convert</param>
         /// <param name="saveFilename">The filename to save data to. Ignored if saveToDB is true</param>
-        /// <param name="saveToDb">If true, insert the items directly to the database instead of exporting to a file as JSON elements.</param>
+        /// <param name="saveToDb">If true, insert the items directly to the database instead of exporting to files.</param>
         /// <param name="onlyTagMatchedElements">if true, only loads in elements that dont' match the default entry for a TagParser style set</param>
         /// <returns>the Task handling the conversion process</returns>
         public void ProcessReaderResults(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, long blockId)
