@@ -321,14 +321,17 @@ namespace PraxisCore
                 if (w.paintOp.Randomize) //To randomize the color on every Draw call.
                     w.paintOp.HtmlColorCode = "99" + ((byte)r.Next(0, 255)).ToString() +  ((byte)r.Next(0, 255)).ToString() + ((byte)r.Next(0, 255)).ToString();
 
+                if (w.paintOp.FromTag) //FromTag is for when you are saving color data directly to each element, instead of tying it to a styleset.
+                    w.paintOp.HtmlColorCode = w.tagValue;
+
                 //TODO: use stats to see if this image is scaled to gameTile values, and if so then use cached pre-made pens?
                 Pen pen;
                 if (String.IsNullOrWhiteSpace(w.paintOp.LinePattern) || w.paintOp.LinePattern == "solid")
-                    pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), w.paintOp.LineWidth);
+                    pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), (float)w.lineWidth);
                 else
                 {
                     float[] linesAndGaps = w.paintOp.LinePattern.Split('|').Select(t => float.Parse(t)).ToArray();
-                    pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), w.paintOp.LineWidth, linesAndGaps);
+                    pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), (float)w.lineWidth, linesAndGaps);
                 }
 
                 //ImageSharp doesn;t like humungous areas (16k+ nodes takes a couple minutes), so we have to crop them down here
