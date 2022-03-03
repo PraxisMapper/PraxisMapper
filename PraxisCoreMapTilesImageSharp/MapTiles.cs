@@ -42,7 +42,10 @@ namespace PraxisCore
             foreach (var g in TagParser.allStyleGroups)
                 foreach (var s in g.Value)
                     foreach (var p in s.Value.PaintOperations)
+                    {
                         cachedPaints.Add(p.Id, SetPaintForTPP(p)); //this fails if loaded from defaults since all IDs are 0.
+                        cachedGameTilePens.Add(p.Id, SetPenForGameTile(p));
+                    }
 
             dOpts = new DrawingOptions();
             ShapeOptions so = new ShapeOptions();
@@ -75,21 +78,31 @@ namespace PraxisCore
             return paint;
         }
 
-        //private static IPen SetPenForTPPGameTile(TagParserPaint tpe)
-        //{
-        //    //These pens are saved with a fixed drawing with for using a Cell11 as a pixel (modified by tile scale value)
-        //    var widthMod = resolutionCell11Lon * IMapTiles.GameTileScale;
+        private static IPen SetPenForGameTile(StylePaint tpe)
+        {
+            //These pens are saved with a fixed drawing width to match game tiles.
+            int imgX = 0, imgY = 0;
+            MapTileSupport.GetPlusCodeImagePixelSize("22334455", out imgX, out imgY);
+            var info = new ImageStats(OpenLocationCode.DecodeValid("22334455"), imgX, imgY);
 
-        //    string htmlColor = tpe.HtmlColorCode;
-        //    if (htmlColor.Length == 8)
-        //        htmlColor = htmlColor.Substring(2, 6) + htmlColor.Substring(0, 2);
+            var widthMod = resolutionCell11Lon * IMapTiles.GameTileScale;
 
+            string htmlColor = tpe.HtmlColorCode;
+            if (htmlColor.Length == 8)
+                htmlColor = htmlColor.Substring(2, 6) + htmlColor.Substring(0, 2);
 
+            Pen p;
 
-        //    //Pen p = new Pen(Rgba32.ParseHex(htmlColor), tpe.LineWidth * widthMod )
+            if (String.IsNullOrWhiteSpace(tpe.LinePattern) || tpe.LinePattern == "solid")
+                p = new Pen(Rgba32.ParseHex(htmlColor), tpe.LineWidthDegrees * (float)info.pixelsPerDegreeX);
+            else
+            {
+                float[] linesAndGaps = tpe.LinePattern.Split('|').Select(t => float.Parse(t)).ToArray();
+                p = new Pen(Rgba32.ParseHex(htmlColor), tpe.LineWidthDegrees * (float)info.pixelsPerDegreeX, linesAndGaps);
+            }
 
-        //    //return paint;
-        //}
+            return p;
+        }
 
         /// <summary>
         /// Draw square boxes around each area to approximate how they would behave in an offline app
@@ -317,24 +330,28 @@ namespace PraxisCore
             {
                 //I need paints for fill commands and images. 
                 var paint = cachedPaints[w.paintOp.Id];
+                var pen = cachedGameTilePens[w.paintOp.Id];
 
-                if (w.paintOp.Randomize) //To randomize the color on every Draw call.
-                    w.paintOp.HtmlColorCode = "99" + ((byte)r.Next(0, 255)).ToString() +  ((byte)r.Next(0, 255)).ToString() + ((byte)r.Next(0, 255)).ToString();
-
-                if (w.paintOp.FromTag) //FromTag is for when you are saving color data directly to each element, instead of tying it to a styleset.
-                    w.paintOp.HtmlColorCode = w.tagValue;
-
-                //TODO: use stats to see if this image is scaled to gameTile values, and if so then use cached pre-made pens?
-                Pen pen;
-                if (String.IsNullOrWhiteSpace(w.paintOp.LinePattern) || w.paintOp.LinePattern == "solid")
-                    pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), (float)w.lineWidthPixels);
-                else
+                if (stats.area.LongitudeWidth != resolutionCell8 || w.paintOp.Randomize || w.paintOp.FromTag)
                 {
-                    float[] linesAndGaps = w.paintOp.LinePattern.Split('|').Select(t => float.Parse(t)).ToArray();
-                    pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), (float)w.lineWidthPixels, linesAndGaps);
+                    //recreate pen for this operation instead of using cached pen.
+                    if (w.paintOp.Randomize) //To randomize the color on every Draw call.
+                        w.paintOp.HtmlColorCode = "99" + ((byte)r.Next(0, 255)).ToString() + ((byte)r.Next(0, 255)).ToString() + ((byte)r.Next(0, 255)).ToString();
+
+                    if (w.paintOp.FromTag) //FromTag is for when you are saving color data directly to each element, instead of tying it to a styleset.
+                        w.paintOp.HtmlColorCode = w.tagValue;
+
+                    //TODO: use stats to see if this image is scaled to gameTile values, and if so then use cached pre-made pens?
+                    if (String.IsNullOrWhiteSpace(w.paintOp.LinePattern) || w.paintOp.LinePattern == "solid")
+                        pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), (float)w.lineWidthPixels);
+                    else
+                    {
+                        float[] linesAndGaps = w.paintOp.LinePattern.Split('|').Select(t => float.Parse(t)).ToArray();
+                        pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), (float)w.lineWidthPixels, linesAndGaps);
+                    }
                 }
 
-                //ImageSharp doesn;t like humungous areas (16k+ nodes takes a couple minutes), so we have to crop them down here
+                //ImageSharp doesn't like humungous areas (16k+ nodes takes a couple minutes), so we have to crop them down here
                 Geometry thisGeometry = w.elementGeometry; //default
                 //This block below is fairly imporant because of Path.Clip() performance. I would still prefer to do this over the original way of handling holes in paths (draw bitmap of outer polygons, erase holes with eraser paint, draw that bitmap over maptile)
                 //it doesn't ALWAYS cause problems if I skip this, but when it does it takes forever to draw some tiles. Keep this in even if it only seems to happen with debug mode on.
@@ -408,7 +425,7 @@ namespace PraxisCore
                 }
             }
 
-            image.Mutate(x => x.Flip(FlipMode.Vertical)); //Plus codes are south-to-north, so invert the image to make it correct. TODO: could I use the matrix to skip this step?
+            image.Mutate(x => x.Flip(FlipMode.Vertical)); //Plus codes are south-to-north, so invert the image to make it correct.
             image.Mutate(x => x.BoxBlur(1)); //This does help smooth out some of the rough edges on the game tiles. 
             var ms = new MemoryStream();
             image.SaveAsPng(ms);

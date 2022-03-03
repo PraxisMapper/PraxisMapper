@@ -75,6 +75,7 @@ namespace PraxisCore
                 catch (Exception ex)
                 {
                     //The database doesn't exist, use defaults.
+                    Log.WriteLog("Error initializing:" + ex.Message, Log.VerbosityLevels.Errors);
                     styles = Singletons.defaultStyleEntries;
                 }
             }
