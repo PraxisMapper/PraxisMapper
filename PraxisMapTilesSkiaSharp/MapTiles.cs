@@ -477,7 +477,7 @@ namespace PraxisCore
 
             foreach (var w in pass2.OrderByDescending(p => p.paintOp.LayerId).ThenByDescending(p => p.areaSize))
             {
-                paint = cachedPaints[w.paintOp.Id]; //SetPaintForTPP(w.paintOp);
+                paint = cachedPaints[w.paintOp.Id];
                 if (paint.Color.Alpha == 0)
                     continue; //This area is transparent, skip drawing it entirely.
 
