@@ -1,4 +1,3 @@
-using PraxisCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Caching.Memory;
@@ -7,11 +6,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using NetTopologySuite.Geometries.Prepared;
+using PraxisCore;
 using PraxisMapper.Classes;
+using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System;
 
 namespace PraxisMapper
 {
@@ -23,12 +23,15 @@ namespace PraxisMapper
         {
             Configuration = configuration;
             PerformanceTracker.EnableLogging = Configuration.GetValue<bool>("enablePerformanceTracker");
-            PraxisCore.Log.WriteToFile = Configuration.GetValue<bool>("enableFileLogging");
+            Log.WriteToFile = Configuration.GetValue<bool>("enableFileLogging");
             PraxisContext.connectionString = Configuration.GetValue<string>("dbConnectionString");
             PraxisContext.serverMode = Configuration.GetValue<string>("dbMode");
             PraxisHeaderCheck.enableAuthCheck = Configuration.GetValue<bool>("enableAuthCheck");
             PraxisHeaderCheck.ServerAuthKey = Configuration.GetValue<string>("serverAuthKey");
             DataCheck.DisableBoundsCheck = Configuration.GetValue<bool>("DisableBoundsCheck");
+            IMapTiles.SlippyTileSizeSquare = Configuration.GetValue<int>("slippyTileSize");
+            IMapTiles.BufferSize = Configuration.GetValue<double>("placesAreaBuffer");
+            IMapTiles.GameTileScale = Configuration.GetValue<int>("mapTileScaleFactor");
 
             mapTilesEngine = Configuration.GetValue<string>("MapTilesEngine");
         }
@@ -53,7 +56,7 @@ namespace PraxisMapper
                 else
                     asm = Assembly.LoadFrom(@"PraxisMapTilesSkiaSharp.dll");
                 mapTiles = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
-                services.AddSingleton(typeof(IMapTiles), mapTiles); //compiles
+                services.AddSingleton(typeof(IMapTiles), mapTiles);
             }
             else if (mapTilesEngine == "ImageSharp")
             {
@@ -79,7 +82,7 @@ namespace PraxisMapper
             }
 
             //app.UseHttpsRedirection(); //Testing using only http on app instead of https to allow me to use a personal PC while getting a server functional
-            app.UseStaticFiles( new StaticFileOptions() { FileProvider = new PhysicalFileProvider(Path.Combine(env.ContentRootPath, "Content")), RequestPath = "/Content" });
+            app.UseStaticFiles(new StaticFileOptions() { FileProvider = new PhysicalFileProvider(Path.Combine(env.ContentRootPath, "Content")), RequestPath = "/Content" });
             app.UseRouting();
 
             app.UsePraxisHeaderCheck();
@@ -98,8 +101,7 @@ namespace PraxisMapper
             cache.Set<DbTables.ServerSetting>("settings", settings, entryOptions);
             var serverBounds = Converters.GeoAreaToPreparedPolygon(new Google.OpenLocationCode.GeoArea(settings.SouthBound, settings.WestBound, settings.NorthBound, settings.EastBound));
             cache.Set<IPreparedGeometry>("serverBounds", serverBounds, entryOptions);
-            cache.Set("caching", settings.EnableMapTileCaching); //convenience entry
-            IMapTiles.MapTileSizeSquare = settings.SlippyMapTileSizeSquare;
+            cache.Set("saveMapTiles", Configuration.GetValue<bool>("saveMapTiles"));
 
             Log.WriteLog("PraxisMapper configured and running.");
         }

@@ -43,7 +43,7 @@ namespace PraxisCore
             List<DbTables.Place> places;
             if (source == null)
             {
-                var paddedArea = GeometrySupport.MakeBufferedGeoArea(area, resolutionCell10);
+                var paddedArea = GeometrySupport.MakeBufferedGeoArea(area);
                 var location = Converters.GeoAreaToPolygon(paddedArea); //Prepared items don't work on a DB lookup.
                 var db = new PraxisContext();
                 db.Database.SetCommandTimeout(new TimeSpan(0, 5, 0));

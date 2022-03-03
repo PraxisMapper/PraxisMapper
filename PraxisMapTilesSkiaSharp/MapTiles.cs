@@ -13,9 +13,11 @@ namespace PraxisCore
     /// </summary>
     public class MapTiles : IMapTiles
     {
-        public static int MapTileSizeSquare = 512; //Default value, updated by PraxisMapper at startup. Covers Slippy tiles, not gameplay tiles.
+        //These need to exist because the interface defines them.
+        public static int MapTileSizeSquare = 512;
         public static double GameTileScale = 2;
-        public static double bufferSize = resolutionCell10; //How much space to add to an area to make sure elements are drawn correctly. Mostly to stop points from being clipped.
+        public static double bufferSize = resolutionCell10;
+
         static SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
         static Random r = new Random();
         static Dictionary<string, SKBitmap> cachedBitmaps = new Dictionary<string, SKBitmap>(); //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
@@ -23,10 +25,6 @@ namespace PraxisCore
 
         public void Initialize()
         {
-            IMapTiles.GameTileScale = GameTileScale;
-            IMapTiles.MapTileSizeSquare = MapTileSizeSquare;
-            IMapTiles.bufferSize = bufferSize;
-
             foreach (var b in TagParser.cachedBitmaps)
                 cachedBitmaps.Add(b.Key, SKBitmap.Decode(b.Value));
 
@@ -128,8 +126,8 @@ namespace PraxisCore
         /// <returns>the byte array for the maptile png file</returns>
         public byte[] DrawCell8GridLines(GeoArea totalArea)
         {
-            int imageSizeX = MapTileSizeSquare;
-            int imageSizeY = MapTileSizeSquare;
+            int imageSizeX = IMapTiles.SlippyTileSizeSquare;
+            int imageSizeY = IMapTiles.SlippyTileSizeSquare;
             SKBitmap bitmap = new SKBitmap(imageSizeX, imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
             SKCanvas canvas = new SKCanvas(bitmap);
             var bgColor = new SKColor();
@@ -187,8 +185,8 @@ namespace PraxisCore
         /// <returns>the byte array for the maptile png file</returns>
         public byte[] DrawCell10GridLines(GeoArea totalArea)
         {
-            int imageSizeX = MapTileSizeSquare;
-            int imageSizeY = MapTileSizeSquare;
+            int imageSizeX = IMapTiles.SlippyTileSizeSquare;
+            int imageSizeY = IMapTiles.SlippyTileSizeSquare;
             SKBitmap bitmap = new SKBitmap(imageSizeX, imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
             SKCanvas canvas = new SKCanvas(bitmap);
             var bgColor = new SKColor();
