@@ -30,7 +30,7 @@ namespace PraxisMapper
             PraxisHeaderCheck.ServerAuthKey = Configuration.GetValue<string>("serverAuthKey");
             DataCheck.DisableBoundsCheck = Configuration.GetValue<bool>("DisableBoundsCheck");
             IMapTiles.SlippyTileSizeSquare = Configuration.GetValue<int>("slippyTileSize");
-            IMapTiles.BufferSize = Configuration.GetValue<double>("placesAreaBuffer");
+            IMapTiles.BufferSize = Configuration.GetValue<double>("AreaBuffer");
             IMapTiles.GameTileScale = Configuration.GetValue<int>("mapTileScaleFactor");
 
             mapTilesEngine = Configuration.GetValue<string>("MapTilesEngine");
@@ -69,7 +69,7 @@ namespace PraxisMapper
                 services.AddSingleton(typeof(IMapTiles), mapTiles);
             }
 
-            TagParser.Initialize(Configuration.GetValue<bool>("ForceTagParserDefaults"), mapTiles);
+            TagParser.Initialize(Configuration.GetValue<bool>("ForceStyleDefaults"), mapTiles);
             MapTileSupport.MapTiles = mapTiles;
         }
 
