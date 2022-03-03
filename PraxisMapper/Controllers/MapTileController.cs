@@ -29,11 +29,16 @@ namespace PraxisMapper.Controllers
             MapTiles = mapTile;
         }
 
+        private bool SaveMapTiles()
+        {
+            bool saveMapTiles = true;
+            cache.TryGetValue("saveMapTiles", out saveMapTiles);
+            return saveMapTiles;
+        }
+
         public byte[] getExistingSlippyTile(string tileKey, string styleSet)
         {
-            bool useCache = true;
-            cache.TryGetValue("caching", out useCache);
-            if (!useCache)
+            if (!SaveMapTiles())
                 return null;
 
             var db = new PraxisContext();
@@ -46,9 +51,7 @@ namespace PraxisMapper.Controllers
 
         public byte[] getExistingTile(string code, string styleSet)
         {
-            bool useCache = true;
-            cache.TryGetValue("caching", out useCache);
-            if (!useCache)
+            if (!SaveMapTiles())
                 return null;
 
             var db = new PraxisContext();
@@ -64,15 +67,13 @@ namespace PraxisMapper.Controllers
             byte[] results = null;
             results = MapTiles.DrawAreaAtSize(info, paintOps);
 
-            bool useCache = true;
-            cache.TryGetValue("caching", out useCache);
-            if (useCache)
+            if (!SaveMapTiles())
             {
                 var db = new PraxisContext();
                 var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.StyleSet == styleSet);
                 if (existingResults == null)
                 {
-                    existingResults = new SlippyMapTile() { Values = tileKey, StyleSet = styleSet, AreaCovered = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(info.area, ConstantValues.resolutionCell10)) };
+                    existingResults = new SlippyMapTile() { Values = tileKey, StyleSet = styleSet, AreaCovered = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(info.area)) };
                     db.SlippyMapTiles.Add(existingResults);
                 }
 
@@ -90,15 +91,13 @@ namespace PraxisMapper.Controllers
             byte[] results = null;
             results = MapTiles.DrawAreaAtSize(info, paintOps);
 
-            bool useCache = true;
-            cache.TryGetValue("caching", out useCache);
-            if (useCache)
+            if (!SaveMapTiles())
             {
                 var db = new PraxisContext();
                 var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.StyleSet == styleSet);
                 if (existingResults == null)
                 {
-                    existingResults = new MapTile() { PlusCode = code, StyleSet = styleSet, AreaCovered = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(info.area, ConstantValues.resolutionCell10)) };
+                    existingResults = new MapTile() { PlusCode = code, StyleSet = styleSet, AreaCovered = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(info.area)) };
                     db.MapTiles.Add(existingResults);
                 }
 
@@ -120,7 +119,7 @@ namespace PraxisMapper.Controllers
             {
                 PerformanceTracker pt = new PerformanceTracker("DrawSlippyTile");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
-                var info = new ImageStats(zoom, x, y, IMapTiles.MapTileSizeSquare);
+                var info = new ImageStats(zoom, x, y, IMapTiles.SlippyTileSizeSquare);
 
                 if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
                 {
@@ -161,7 +160,7 @@ namespace PraxisMapper.Controllers
             {
                 PerformanceTracker pt = new PerformanceTracker("DrawSlippyTileCustomElements");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
-                var info = new ImageStats(zoom, x, y, IMapTiles.MapTileSizeSquare);
+                var info = new ImageStats(zoom, x, y, IMapTiles.SlippyTileSizeSquare);
 
                 if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
                 {
@@ -200,7 +199,7 @@ namespace PraxisMapper.Controllers
             {
                 PerformanceTracker pt = new PerformanceTracker("DrawSlippyTileCustomPlusCodes");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
-                var info = new ImageStats(zoom, x, y, IMapTiles.MapTileSizeSquare);
+                var info = new ImageStats(zoom, x, y, IMapTiles.SlippyTileSizeSquare);
 
                 if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
                 {

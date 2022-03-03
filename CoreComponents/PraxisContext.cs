@@ -159,7 +159,7 @@ namespace PraxisCore
         public void InsertDefaultServerConfig()
         {
             //var db = new PraxisContext();
-            ServerSettings.Add(new ServerSetting() { Id = 1, NorthBound = 90, SouthBound = -90, EastBound = 180, WestBound = -180, SlippyMapTileSizeSquare = 512 });
+            ServerSettings.Add(new ServerSetting() { Id = 1, NorthBound = 90, SouthBound = -90, EastBound = 180, WestBound = -180 });
             SaveChanges();
         }
 

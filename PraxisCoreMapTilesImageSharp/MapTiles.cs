@@ -18,9 +18,11 @@ namespace PraxisCore
     /// </summary>
     public class MapTiles : IMapTiles
     {
-        public int MapTileSizeSquare = 512; //Default value, updated by PraxisMapper at startup. COvers Slippy tiles, not gameplay tiles.
-        public double GameTileScale = 2;
-        public double bufferSize = resolutionCell10; //How much space to add to an area to make sure elements are drawn correctly. Mostly to stop points from being clipped.
+        //These need to exist because the interface defines them.
+        public static int MapTileSizeSquare = 512; 
+        public static double GameTileScale = 2;
+        public static double bufferSize = resolutionCell10; 
+
         //static SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
         static Random r = new Random();
         public static Dictionary<string, Image> cachedBitmaps = new Dictionary<string, Image>(); //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
@@ -32,8 +34,7 @@ namespace PraxisCore
         public void Initialize()
         {
             IMapTiles.GameTileScale = GameTileScale;
-            IMapTiles.MapTileSizeSquare = MapTileSizeSquare;
-            IMapTiles.bufferSize = bufferSize;
+            IMapTiles.BufferSize = bufferSize;
 
             foreach (var b in TagParser.cachedBitmaps)
                 cachedBitmaps.Add(b.Key, Image.Load(b.Value));
@@ -142,8 +143,8 @@ namespace PraxisCore
         /// <returns>the byte array for the maptile png file</returns>
         public byte[] DrawCell8GridLines(GeoArea totalArea)
         {
-            int imageSizeX = MapTileSizeSquare;
-            int imageSizeY = MapTileSizeSquare;
+            int imageSizeX = IMapTiles.SlippyTileSizeSquare;
+            int imageSizeY = IMapTiles.SlippyTileSizeSquare;
             Image<Rgba32> image = new Image<Rgba32>(imageSizeX, imageSizeY);
             var bgColor = Rgba32.ParseHex("00000000");
             image.Mutate(x => x.Fill(bgColor));
@@ -193,8 +194,8 @@ namespace PraxisCore
         public byte[] DrawCell10GridLines(GeoArea totalArea)
         {
 
-            int imageSizeX = MapTileSizeSquare;
-            int imageSizeY = MapTileSizeSquare;
+            int imageSizeX = IMapTiles.SlippyTileSizeSquare;
+            int imageSizeY = IMapTiles.SlippyTileSizeSquare;
             Image<Rgba32> image = new Image<Rgba32>(imageSizeX, imageSizeY);
             var bgColor = Rgba32.ParseHex("00000000");
             image.Mutate(x => x.Fill(bgColor));
@@ -335,7 +336,7 @@ namespace PraxisCore
                 //This block below is fairly imporant because of Path.Clip() performance. I would still prefer to do this over the original way of handling holes in paths (draw bitmap of outer polygons, erase holes with eraser paint, draw that bitmap over maptile)
                 //it doesn't ALWAYS cause problems if I skip this, but when it does it takes forever to draw some tiles. Keep this in even if it only seems to happen with debug mode on.
                 if (w.elementGeometry.Coordinates.Length > 800)
-                    thisGeometry = w.elementGeometry.Intersection(Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(stats.area, resolutionCell10)));
+                    thisGeometry = w.elementGeometry.Intersection(Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(stats.area)));
                 if (thisGeometry.Coordinates.Length == 0) //After trimming, linestrings may not have any points in the drawing area.
                     continue;
 

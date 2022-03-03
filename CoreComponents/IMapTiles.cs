@@ -1,20 +1,15 @@
 ﻿using Google.OpenLocationCode;
-using NetTopologySuite.Geometries;
 using PraxisCore.Support;
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using static PraxisCore.DbTables;
 
 namespace PraxisCore
 {
     public interface IMapTiles
     {
-        public static int MapTileSizeSquare;
+        public static int SlippyTileSizeSquare;
         public static double GameTileScale;
-        public static double bufferSize;
+        public static double BufferSize;
 
         public void Initialize(); //Replaces some TagParser stuff, since a lot of drawing optimization happened there.
         public byte[] DrawOfflineEstimatedAreas(ImageStats info, List<DbTables.Place> items);

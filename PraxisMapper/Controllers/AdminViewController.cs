@@ -33,7 +33,7 @@ namespace PraxisMapper.Controllers
         public ActionResult GetMapTileInfo(int x, int y, int zoom)
         {
             //Draw the map tile, with extra info to send over.
-            ImageStats istats = new ImageStats(zoom, x, y, IMapTiles.MapTileSizeSquare);
+            ImageStats istats = new ImageStats(zoom, x, y, IMapTiles.SlippyTileSizeSquare);
 
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
             sw.Start();

@@ -138,7 +138,7 @@ namespace PraxisCore
         {
             //NOTE: this is being passed in an Area as a Geometry. The name needs clarified to show its drawing a maptile based on the gameplay data for places in that area.
             var db = new PraxisContext();
-            var poly = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(stats.area, resolutionCell10));
+            var poly = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(stats.area));
             var elements = db.PlaceGameData.Include(d => d.Place).Where(d => d.DataKey == dataKey && poly.Intersects(d.Place.ElementGeometry)).ToList();
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
@@ -162,7 +162,7 @@ namespace PraxisCore
         public static List<CompletePaintOp> GetPaintOpsForCustomDataPlusCodes(string dataKey, string styleSet, ImageStats stats)
         {
             var db = new PraxisContext();
-            var poly = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(stats.area, resolutionCell10));
+            var poly = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(stats.area));
             var elements = db.AreaGameData.Where(d => d.DataKey == dataKey && poly.Intersects(d.GeoAreaIndex)).ToList();
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
@@ -186,7 +186,7 @@ namespace PraxisCore
         public static List<CompletePaintOp> GetPaintOpsForCustomDataPlusCodesFromTagValue(string dataKey, string styleSet, ImageStats stats)
         {
             var db = new PraxisContext();
-            var poly = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(stats.area, resolutionCell10));
+            var poly = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(stats.area));
             var elements = db.AreaGameData.Where(d => d.DataKey == dataKey && poly.Intersects(d.GeoAreaIndex)).ToList();
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
@@ -261,7 +261,7 @@ namespace PraxisCore
                     var plusCode = new OpenLocationCode(y, x, 10);
                     var plusCode8 = plusCode.CodeDigits.Substring(0, 8);
                     var plusCodeArea = OpenLocationCode.DecodeValid(plusCode8);
-                    var paddedArea = GeometrySupport.MakeBufferedGeoArea(plusCodeArea, ConstantValues.resolutionCell10);
+                    var paddedArea = GeometrySupport.MakeBufferedGeoArea(plusCodeArea);
 
                     var acheck = Converters.GeoAreaToPreparedPolygon(paddedArea); //Fastest search option is one preparedPolygon against a list of normal geometry.
                     var areaList = rowList.Where(a => acheck.Intersects(a.ElementGeometry)).ToList(); //Get the list of areas in this maptile.
@@ -341,7 +341,7 @@ namespace PraxisCore
                 Parallel.For(swCornerLon, neCornerLon + 1, (x) =>
                 {
                     //make map tile.
-                    var info = new ImageStats(zoomLevel, x, y, IMapTiles.MapTileSizeSquare);
+                    var info = new ImageStats(zoomLevel, x, y, IMapTiles.SlippyTileSizeSquare);
                     var acheck = Converters.GeoAreaToPolygon(info.area); //this is faster than using a PreparedPolygon in testing, which was unexpected.
                     var areaList = rowList.Where(a => acheck.Intersects(a.ElementGeometry)).ToList(); //This one is for the maptile
 

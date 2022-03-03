@@ -21,6 +21,10 @@ namespace PraxisCore
         private static NetTopologySuite.IO.WKTReader geomTextReader = new NetTopologySuite.IO.WKTReader() {DefaultSRID = 4326 };
         private static PMFeatureInterpreter featureInterpreter = new PMFeatureInterpreter();
 
+        public static GeoArea MakeBufferedGeoArea(GeoArea original)
+        {
+            return new GeoArea(original.SouthLatitude - IMapTiles.BufferSize, original.WestLongitude - IMapTiles.BufferSize, original.NorthLatitude + IMapTiles.BufferSize, original.EastLongitude + IMapTiles.BufferSize);
+        }
         public static GeoArea MakeBufferedGeoArea(GeoArea original, double bufferSize)
         {
             return new GeoArea(original.SouthLatitude - bufferSize, original.WestLongitude - bufferSize, original.NorthLatitude + bufferSize, original.EastLongitude + bufferSize);

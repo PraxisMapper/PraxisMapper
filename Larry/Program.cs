@@ -498,8 +498,8 @@ namespace Larry
                 MapTiles = (IMapTiles)Activator.CreateInstance(asm2.GetType("PraxisCore.MapTiles"));
             }
             IMapTiles.GameTileScale = config["mapTileScaleFactor"].ToInt();
-            IMapTiles.MapTileSizeSquare = config["slippyTileSize"].ToInt();
-            IMapTiles.bufferSize = config["placesAreaBuffer"].ToDouble();
+            IMapTiles.SlippyTileSizeSquare = config["slippyTileSize"].ToInt();
+            IMapTiles.BufferSize = config["placesAreaBuffer"].ToDouble();
 
             if (config["UseHighAccuracy"] != "True")
             {
