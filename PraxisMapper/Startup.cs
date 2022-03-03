@@ -45,6 +45,7 @@ namespace PraxisMapper
             services.AddMvc();
             //services.AddCoreComponentServiceCollection(); //injects the DbContext and other services into this collection. (Eventually, still working on that)
             services.AddMemoryCache(); //AddMvc calls this quietly, but I'm calling it explicitly here anyways.
+            services.AddResponseCompression();
 
             IMapTiles mapTiles = null;
 
@@ -84,6 +85,7 @@ namespace PraxisMapper
             //app.UseHttpsRedirection(); //Testing using only http on app instead of https to allow me to use a personal PC while getting a server functional
             app.UseStaticFiles(new StaticFileOptions() { FileProvider = new PhysicalFileProvider(Path.Combine(env.ContentRootPath, "Content")), RequestPath = "/Content" });
             app.UseRouting();
+            app.UseResponseCompression();
 
             app.UsePraxisHeaderCheck();
             app.UseGlobalErrorHandler();
