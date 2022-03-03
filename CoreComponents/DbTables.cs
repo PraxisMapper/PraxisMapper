@@ -88,7 +88,7 @@ namespace PraxisCore
             //The below are copied from the original object.These get used to create the SKPaint/Pen/Brush object once at startup, then that paint object is used from then on.
             public string HtmlColorCode { get; set; } //This STARTS with the alpha color, and ImageSharp prefers it END with the alpha color. Handled by the PraxisMapTilesImageSharp library.
             public string FillOrStroke { get; set; }
-            public float LineWidth { get; set; } //this is in degrees. Drawing uses the CompletePaintOp.lineWidth value, which is in pixels.
+            public float LineWidthDegrees { get; set; } 
             public string LinePattern { get; set; } //If 'solid' or blank, solid line. If not, split string into float[] on |
             public string FileName { get; set; } //A path to an image file that will be used as a repeating pattern. Null for solid colors.
             public double MinDrawRes { get; set; } = 0;//skip drawing this item if  resPerPixelX is below this value. (what doesn't draw zoomed in on OSM? name text?

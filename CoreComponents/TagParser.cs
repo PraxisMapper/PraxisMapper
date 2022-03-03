@@ -31,7 +31,7 @@ namespace PraxisCore
             Name = "outline",
             StyleSet = "special",
             PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "000000", FillOrStroke = "stroke", LineWidth=2, LinePattern= "solid", LayerId = 101 }
+                    new StylePaint() { HtmlColorCode = "000000", FillOrStroke = "stroke", LineWidthDegrees=2, LinePattern= "solid", LayerId = 101 }
                 },
             StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "*", Value = "*", MatchType = "none" }}
@@ -90,7 +90,7 @@ namespace PraxisCore
                 Name = "unmatched",
                 StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidth=1, LinePattern= "solid", LayerId = 101 }
+                    new StylePaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidthDegrees=1, LinePattern= "solid", LayerId = 101 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "*", Value = "*", MatchType = "default" }}

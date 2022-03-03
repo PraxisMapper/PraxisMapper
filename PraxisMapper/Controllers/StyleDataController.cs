@@ -45,7 +45,7 @@ namespace PraxisMapper.Controllers
                 x.StyleSet, 
                 x.IsGameElement, 
                 x.MatchOrder, 
-                paintOperations = x.PaintOperations.Select(po => new { po.FileName, po.FillOrStroke, po.FromTag, po.HtmlColorCode, po.Id, po.LayerId, po.LinePattern, po.LineWidth, po.MaxDrawRes, po.MinDrawRes, po.Randomize }).ToList(),
+                paintOperations = x.PaintOperations.Select(po => new { po.FileName, po.FillOrStroke, po.FromTag, po.HtmlColorCode, po.Id, po.LayerId, po.LinePattern, po.LineWidthDegrees, po.MaxDrawRes, po.MinDrawRes, po.Randomize }).ToList(),
                 TagParserMatchRules = x.StyleMatchRules.Select(mr => new { mr.Id, mr.Key, mr.MatchType, mr.Value}).ToList()  
             });
             return Json(returnData);
