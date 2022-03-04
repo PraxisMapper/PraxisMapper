@@ -110,16 +110,16 @@ namespace PraxisCore
         /// <summary>
         /// Creates the list of paint commands for the given elements, styles, and image area.
         /// </summary>
-        /// <param name="elements">the list of StoredOsmElements to be drawn</param>
+        /// <param name="places">the list of Places to be drawn</param>
         /// <param name="styleSet">the style set to use when drwaing the elements</param>
         /// <param name="stats">the info on the resulting image for calculating ops.</param>
         /// <returns>a list of CompletePaintOps to be passed into a DrawArea function</returns>
-        public static List<CompletePaintOp> GetPaintOpsForStoredElements(List<DbTables.Place> elements, string styleSet, ImageStats stats)
+        public static List<CompletePaintOp> GetPaintOpsForStoredElements(List<DbTables.Place> places, string styleSet, ImageStats stats)
         {
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
-            var pass1 = elements.Select(d => new { d.AreaSize, d.ElementGeometry, paintOp = styles[d.GameElementName].PaintOperations });
-            var pass2 = new List<CompletePaintOp>(elements.Count() * 2); 
+            var pass1 = places.Select(d => new { d.AreaSize, d.ElementGeometry, paintOp = styles[d.GameElementName].PaintOperations });
+            var pass2 = new List<CompletePaintOp>(places.Count() * 2); 
             pass2.Add(bgOp);
             foreach (var op in pass1)
                 GetPaintOps(ref pass2, op.AreaSize, op.ElementGeometry, op.paintOp, stats);

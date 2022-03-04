@@ -151,7 +151,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/GetAllDataInElement/{elementId}/")]
         [Route("/[controller]/Element/All/{elementId}/")]
         [Route("/[controller]/Place/All/{elementId}/")]
-        public string GetAllDataInOsmElement(Guid elementId)
+        public string GetAllDataInPlace(Guid elementId)
 
         {
             var data = GenericData.GetAllDataInPlace(elementId);
@@ -182,7 +182,7 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        [Route("/[controller]/GetServerBounds")]
+        [Route("/[controller]/ServerBounds")]
         public string GetServerBounds()
         {
             var bounds = cache.Get<ServerSetting>("settings");

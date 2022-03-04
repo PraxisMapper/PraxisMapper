@@ -105,8 +105,9 @@ namespace PraxisMapper.Controllers
             return;
         }
 
-        [HttpGet]
+        [HttpPut]
         [Route("/[controller]/EncryptUserPassword/{devicedId}/{password}")]
+        [Route("/[controller]/Password/{devicedId}/{password}")]
         public bool EncryptUserPassword(string deviceId, string password)
         {
             var options = new CrypterOptions() {
@@ -120,7 +121,8 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        [Route("/[controller]/CheckPwwwwassword/{devicedId}/{password}")]
+        [Route("/[controller]/CheckPassword/{devicedId}/{password}")]
+        [Route("/[controller]/Password/{devicedId}/{password}")]
         public bool CheckPassword(string deviceId, string password)
         {
             BlowfishCrypter crypter = new BlowfishCrypter();
