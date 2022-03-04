@@ -89,15 +89,15 @@ namespace Larry
             {
                 //If a road is nearly a straight line, treat it as though it was 1 cell10 wide, and don't index its coverage per-cell later.
                 if (pi.height <= ConstantValues.resolutionCell10 && pi.width >= ConstantValues.resolutionCell10)
-                { pi.height = ConstantValues.resolutionCell10; skipEntries.Add(pi.OsmElementId); }
+                { pi.height = ConstantValues.resolutionCell10; skipEntries.Add(pi.PlaceId); }
                 else if (pi.height >= ConstantValues.resolutionCell10 && pi.width <= ConstantValues.resolutionCell10)
-                { pi.width = ConstantValues.resolutionCell10; skipEntries.Add(pi.OsmElementId); }
+                { pi.width = ConstantValues.resolutionCell10; skipEntries.Add(pi.PlaceId); }
             }
 
             sqliteDb.PlaceInfo2s.AddRange(placeInfo);
             sqliteDb.SaveChanges();
             Log.WriteLog("Processed geometry at " + DateTime.Now);
-            var placeDictionary = placeInfo.ToDictionary(k => k.OsmElementId, v => v);
+            var placeDictionary = placeInfo.ToDictionary(k => k.PlaceId, v => v);
 
             //to save time, i need to index which areas are in which Cell6.
             //So i know which entries I can skip when running.
@@ -120,7 +120,6 @@ namespace Larry
                 if (TagParser.GetPlaceName(trail.Tags) == "")
                     continue; //So sorry, but there's too damn many roads without names inflating DB size without being useful as-is.
 
-                //var pis = placeInfo.Where(p => p.OsmElementId == trail.sourceItemID).ToList();
                 var p = placeDictionary[trail.SourceItemID];
                 toRemove.Add(p);
 

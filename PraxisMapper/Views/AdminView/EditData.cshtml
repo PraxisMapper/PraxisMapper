@@ -50,7 +50,7 @@
     function setPlaceKeys()
     {
         placeSelectedKey.length = 0;
-        fetch('../Data/GetAllDataInOSMElement/' + placeId.value)
+        fetch('../Data/GetAllDataInPlace/' + placeId.value)
         .then(response => response.text())
         .then(data => {
             var lines = data.split('\r\n');

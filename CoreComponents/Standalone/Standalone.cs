@@ -37,7 +37,7 @@ namespace PraxisCore.Standalone
                     lonCenter = center.X,
                     height = place.ElementGeometry.EnvelopeInternal.Height,
                     width = place.ElementGeometry.EnvelopeInternal.Width,
-                    OsmElementId = place.SourceItemID };
+                    PlaceId = place.SourceItemID };
 
                 //Make points 1 Cell10 in size, so they're detectable.
                 if (pi.height == 0) pi.height = .000125;
