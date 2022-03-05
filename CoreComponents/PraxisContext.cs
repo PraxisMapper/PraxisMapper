@@ -27,7 +27,7 @@ namespace PraxisCore
         public DbSet<PlaceGameData> PlaceGameData { get; set; }
         public DbSet<AreaGameData> AreaGameData { get; set; }
         public DbSet<GlobalDataEntries> GlobalDataEntries { get; set; }
-        public DbSet<StyleBitmap> TagParserStyleBitmaps { get; set; }
+        public DbSet<StyleBitmap> StyleBitmaps { get; set; }
 
         public static string connectionString = "Data Source=localhost\\SQLDEV;UID=PraxisService;PWD=lamepassword;Initial Catalog=Praxis;"; //Needs a default value.
         public static string serverMode = "SQLServer";
@@ -189,7 +189,7 @@ namespace PraxisCore
 
             foreach (var file in System.IO.Directory.EnumerateFiles("MapPatterns"))
             {
-                TagParserStyleBitmaps.Add(new StyleBitmap()
+                StyleBitmaps.Add(new StyleBitmap()
                 {
                     Filename = System.IO.Path.GetFileName(file),
                     Data = System.IO.File.ReadAllBytes(file)
@@ -362,12 +362,12 @@ namespace PraxisCore
 
             var toRemove = StyleEntries.Include(t => t.PaintOperations).Where(t => styles.Contains(t.StyleSet)).ToList();
             var toRemovePaints = toRemove.SelectMany(t => t.PaintOperations).ToList();
-            var toRemoveImages = TagParserStyleBitmaps.ToList();
+            var toRemoveImages = StyleBitmaps.ToList();
             StylePaints.RemoveRange(toRemovePaints);
             SaveChanges();
             StyleEntries.RemoveRange(toRemove);
             SaveChanges();
-            TagParserStyleBitmaps.RemoveRange(toRemoveImages);
+            StyleBitmaps.RemoveRange(toRemoveImages);
             SaveChanges();
 
             InsertDefaultStyle();
