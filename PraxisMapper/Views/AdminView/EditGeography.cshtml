@@ -31,7 +31,7 @@
         var startLat = 0;
         var startLon = 0;
         var mymap = L.map('mapid'); 
-        fetch(baseSite +  "/Data/GetServerBounds", {headers : {'PraxisAuthKey':serverKey}})
+        fetch(baseSite +  "/Data/ServerBounds", {headers : {'PraxisAuthKey':serverKey}})
         .then(b =>
             b.text().then(bb => {
                 var points = bb.split("|"); 

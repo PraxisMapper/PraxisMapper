@@ -65,7 +65,7 @@ namespace PraxisCore
                     if (styles == null || styles.Count() == 0)
                         styles = Singletons.defaultStyleEntries;
 
-                    var bitmaps = db.TagParserStyleBitmaps.ToList();
+                    var bitmaps = db.StyleBitmaps.ToList();
                     foreach (var b in bitmaps)
                     {
                         cachedBitmaps.Add(b.Filename, b.Data); //Actual MapTiles dll will process the bitmap, we just load it here.

@@ -43,7 +43,7 @@ namespace PraxisCore
                 foreach (var s in g.Value)
                     foreach (var p in s.Value.PaintOperations)
                     {
-                        cachedPaints.Add(p.Id, SetPaintForTPP(p)); //this fails if loaded from defaults since all IDs are 0.
+                        cachedPaints.Add(p.Id, SetPaintForTPP(p)); 
                         cachedGameTilePens.Add(p.Id, SetPenForGameTile(p));
                     }
 
