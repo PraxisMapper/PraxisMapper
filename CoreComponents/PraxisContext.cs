@@ -201,6 +201,7 @@ namespace PraxisCore
         public void RecreateIndexes()
         {
             //Only run this after running DropIndexes, since these should all exist on DB creation.
+            Database.SetCommandTimeout(60000);
 
             //PostgreSQL will make automatic spatial indexes
             if (serverMode == "PostgreSQL")
