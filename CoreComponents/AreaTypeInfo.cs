@@ -67,11 +67,11 @@ namespace PraxisCore
         /// <returns>returns a dictionary using PlusCode as the key and name/areatype/client facing Id of the smallest element intersecting that PlusCode</returns>
         public static Dictionary<string, TerrainData> SearchArea(ref GeoArea area, ref List<DbTables.Place> elements)
         {
+            Dictionary<string, TerrainData> results = new Dictionary<string, TerrainData>(400); //starting capacity for a full Cell8
+
             //Singular function, returns 1 item entry per cell10.
             if (elements.Count() == 0)
-                return null;
-            
-            Dictionary<string, TerrainData> results = new Dictionary<string, TerrainData>(400); //starting capacity for a full Cell8
+                return results;
             
             var xCells = area.LongitudeWidth / resolutionCell10;
             var yCells = area.LatitudeHeight / resolutionCell10;

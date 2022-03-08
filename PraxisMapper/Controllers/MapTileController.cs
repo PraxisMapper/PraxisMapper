@@ -91,7 +91,7 @@ namespace PraxisMapper.Controllers
             byte[] results = null;
             results = MapTiles.DrawAreaAtSize(info, paintOps);
 
-            if (!SaveMapTiles())
+            if (SaveMapTiles())
             {
                 var db = new PraxisContext();
                 var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.StyleSet == styleSet);
@@ -357,7 +357,7 @@ namespace PraxisMapper.Controllers
             }
         }
 
-        [HttpGet]
+        [HttpPut]
         [Route("/[controller]/ExpireTiles/{elementId}/{styleSet}")]
         [Route("/[controller]/Expire/{elementId}/{styleSet}")]
         public void ExpireTiles(Guid elementId, string styleSet)

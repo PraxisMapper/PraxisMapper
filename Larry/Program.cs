@@ -30,6 +30,7 @@ namespace Larry
         static IConfigurationRoot config;
         static List<DbTables.Place> memorySource;
         static IMapTiles MapTiles;
+        static bool singleThread = false;
 
         static void Main(string[] args)
         {
@@ -360,7 +361,11 @@ namespace Larry
             }
             else //Main path.
             {
-                Parallel.ForEach(geomFilenames, fileName => 
+                var options = new ParallelOptions();
+                if (singleThread)
+                    options.MaxDegreeOfParallelism = 1;
+
+                Parallel.ForEach(geomFilenames, options,  fileName => 
                 {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
@@ -377,7 +382,7 @@ namespace Larry
                     Log.WriteLog("Geometry loaded from " + fileName + " in " + sw.Elapsed);
                     File.Move(fileName, fileName + "done");
                 });
-                Parallel.ForEach(tagsFilenames, fileName =>
+                Parallel.ForEach(tagsFilenames, options, fileName =>
                 {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
@@ -517,6 +522,9 @@ namespace Larry
                 Log.WriteLog("You set a MariaDB-only option on and aren't using MariaDB! Fix the configs to use MariaDB or disable the InFile setting and run again.", Log.VerbosityLevels.High);
                 return;
             }
+
+            if (config["ForceSingleThreading"] == "True")
+                singleThread = true;
         }
 
         public static void DownloadPbfFile(string topLevel, string subLevel1, string subLevel2, string destinationFolder)
@@ -552,6 +560,8 @@ namespace Larry
         {
             List<string> filenames = Directory.EnumerateFiles(path, "*.geomData").ToList();
             ParallelOptions po = new ParallelOptions();
+            if (singleThread)
+                po.MaxDegreeOfParallelism = 1;
             Parallel.ForEach(filenames, po, (filename) =>
             {
                 try
