@@ -242,7 +242,7 @@ namespace PraxisCore
             var allPlaces = GetPlaces(areaToDraw);
 
             object listLock = new object();
-            DateTime expiration = DateTime.Now.AddYears(10);
+            DateTime expiration = DateTime.UtcNow.AddYears(10);
             foreach (var y in yCoords)
             {
                 System.Diagnostics.Stopwatch thisRowSW = new System.Diagnostics.Stopwatch();
@@ -346,7 +346,7 @@ namespace PraxisCore
                     var areaList = rowList.Where(a => acheck.Intersects(a.ElementGeometry)).ToList(); //This one is for the maptile
 
                     var tile = MapTiles.DrawAreaAtSize(info, areaList);
-                    tilesToSave.Add(new SlippyMapTile() { TileData = tile, Values = x + "|" + y + "|" + zoomLevel, ExpireOn = DateTime.Now.AddDays(3650), AreaCovered = Converters.GeoAreaToPolygon(info.area), StyleSet = "mapTiles" });
+                    tilesToSave.Add(new SlippyMapTile() { TileData = tile, Values = x + "|" + y + "|" + zoomLevel, ExpireOn = DateTime.UtcNow.AddDays(3650), AreaCovered = Converters.GeoAreaToPolygon(info.area), StyleSet = "mapTiles" });
 
                     mapTileCounter++;
                 });

@@ -41,7 +41,7 @@ namespace PraxisCore
                 db.AreaGameData.Add(row);
             }
             if (expiration.HasValue)
-                row.Expiration = DateTime.Now.AddSeconds(expiration.Value);
+                row.Expiration = DateTime.UtcNow.AddSeconds(expiration.Value);
             else
                 row.Expiration = null;
             row.IvData = null;
@@ -59,7 +59,7 @@ namespace PraxisCore
         {
             var db = new PraxisContext();
             var row = db.AreaGameData.FirstOrDefault(p => p.PlusCode == plusCode && p.DataKey == key);
-            if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
+            if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
                 return new byte[0];
             return row.DataValue;
         }
@@ -88,7 +88,7 @@ namespace PraxisCore
                 db.PlaceGameData.Add(row);
             }
             if (expiration.HasValue)
-                row.Expiration = DateTime.Now.AddSeconds(expiration.Value);
+                row.Expiration = DateTime.UtcNow.AddSeconds(expiration.Value);
             else
                 row.Expiration = null;
             row.IvData = null;
@@ -106,7 +106,7 @@ namespace PraxisCore
         {
             var db = new PraxisContext();
             var row = db.PlaceGameData.Include(p => p.Place).FirstOrDefault(p => p.Place.PrivacyId == elementId && p.DataKey == key);
-            if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
+            if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
                 return new byte[0];
             return row.DataValue;
         }
@@ -121,7 +121,7 @@ namespace PraxisCore
         {
             var db = new PraxisContext();
             var row = db.PlayerData.FirstOrDefault(p => p.DeviceID == playerId && p.DataKey == key);
-            if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
+            if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
                 return new byte[0];
             return row.DataValue;
         }
@@ -154,7 +154,7 @@ namespace PraxisCore
                 db.PlayerData.Add(row);
             }
             if (expiration.HasValue)
-                row.Expiration = DateTime.Now.AddSeconds(expiration.Value);
+                row.Expiration = DateTime.UtcNow.AddSeconds(expiration.Value);
             else
                 row.Expiration = null;
             row.IvData = null;
@@ -176,7 +176,7 @@ namespace PraxisCore
             var plusCodePoly = Converters.GeoAreaToPolygon(plusCodeArea);
             var plusCodeData = db.AreaGameData.Where(d => plusCodePoly.Intersects(d.GeoAreaIndex) && (key == "" || d.DataKey == key) && d.IvData == null)
                 .ToList() //Required to run the next Where on the C# side
-                .Where(row => row.Expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now)
+                .Where(row => row.Expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.UtcNow)
                 .Select(d => new CustomDataAreaResult(d.PlusCode, d.DataKey, d.DataValue.ToUTF8String()))
                 .ToList();
 
@@ -195,7 +195,7 @@ namespace PraxisCore
             var place = db.Places.First(s => s.PrivacyId == elementId);
             var data = db.PlaceGameData.Where(d => d.PlaceId == place.Id && (key == "" || d.DataKey == key) && d.IvData == null)
                 .ToList() //Required to run the next Where on the C# side
-                .Where(row => row.Expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now)
+                .Where(row => row.Expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.UtcNow)
                 .Select(d => new CustomDataPlaceResult(place.PrivacyId, d.DataKey, d.DataValue.ToUTF8String()))
                 .ToList();
 
@@ -212,7 +212,7 @@ namespace PraxisCore
             var db = new PraxisContext();
             var data = db.PlayerData.Where(p => p.DeviceID == deviceID)
                 .ToList()
-                .Where(row => row.Expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.Now && row.IvData == null)
+                .Where(row => row.Expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.UtcNow && row.IvData == null)
                 .Select(d => new CustomDataPlayerResult(d.DeviceID, d.DataKey, d.DataValue.ToUTF8String()))
                 .ToList();
 
@@ -290,7 +290,7 @@ namespace PraxisCore
                 db.AreaGameData.Add(row);
             }
             if (expiration.HasValue)
-                row.Expiration = DateTime.Now.AddSeconds(expiration.Value);
+                row.Expiration = DateTime.UtcNow.AddSeconds(expiration.Value);
             else
                 row.Expiration = null;
 
@@ -310,7 +310,7 @@ namespace PraxisCore
         {
             var db = new PraxisContext();
             var row = db.AreaGameData.FirstOrDefault(p => p.PlusCode == plusCode && p.DataKey == key);
-            if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
+            if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
                 return new byte[0];
 
             return DecryptValue(row.IvData, row.DataValue, password);
@@ -327,7 +327,7 @@ namespace PraxisCore
         {
             var db = new PraxisContext();
             var row = db.PlayerData.FirstOrDefault(p => p.DeviceID == playerId && p.DataKey == key);
-            if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
+            if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
                 return new byte[0];
             return DecryptValue(row.IvData, row.DataValue, password);
         }
@@ -360,7 +360,7 @@ namespace PraxisCore
                 db.PlayerData.Add(row);
             }
             if (expiration.HasValue)
-                row.Expiration = DateTime.Now.AddSeconds(expiration.Value);
+                row.Expiration = DateTime.UtcNow.AddSeconds(expiration.Value);
             else
                 row.Expiration = null;
             row.IvData = IVs;
@@ -378,7 +378,7 @@ namespace PraxisCore
         {
             var db = new PraxisContext();
             var row = db.PlaceGameData.Include(p => p.Place).FirstOrDefault(p => p.Place.PrivacyId == elementId && p.DataKey == key);
-            if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.Now)
+            if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
                 return new byte[0];
             return DecryptValue(row.IvData, row.DataValue, password);
         }
@@ -412,7 +412,7 @@ namespace PraxisCore
                 db.PlaceGameData.Add(row);
             }
             if (expiration.HasValue)
-                row.Expiration = DateTime.Now.AddSeconds(expiration.Value);
+                row.Expiration = DateTime.UtcNow.AddSeconds(expiration.Value);
             else
                 row.Expiration = null;
             row.IvData = IVs;

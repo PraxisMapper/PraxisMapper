@@ -17,7 +17,7 @@ namespace PraxisMapper.Classes
         {
             if (!EnableLogging) return;
             pi.FunctionName = name;
-            pi.CalledAt = DateTime.Now;
+            pi.CalledAt = DateTime.UtcNow;
             sw.Start();
         }
 

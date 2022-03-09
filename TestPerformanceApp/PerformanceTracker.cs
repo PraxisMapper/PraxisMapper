@@ -17,7 +17,7 @@ namespace PerformanceTestApp
         public PerformanceTracker(string name)
         {
             pi.FunctionName = name;
-            pi.CalledAt = DateTime.Now;
+            pi.CalledAt = DateTime.UtcNow;
             sw.Start();
         }
 
