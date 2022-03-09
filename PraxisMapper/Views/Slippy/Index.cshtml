@@ -17,7 +17,7 @@
     </div>
     <script type="text/javascript">
     var serverKey = "testingKey"; //TODO: lock this page to only localhost or find an alternate way to obfuscate this.
-        var baseSite = window.location.href.replace("/slippy", "");
+        var baseSite = window.location.href.toLowerCase().replace("/slippy", "");
         var url = baseSite + '/{id}/{z}/{x}/{y}.png?PraxisAuthKey=' + serverKey;
         var baseData = L.tileLayer(url, {id: "MapTile/DrawSlippyTile", tileSize:512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
         var ptt = L.tileLayer(url, { id: "MapTile/SlippyAreaData/paintTown/color", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
