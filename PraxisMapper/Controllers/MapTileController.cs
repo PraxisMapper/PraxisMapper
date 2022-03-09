@@ -105,6 +105,7 @@ namespace PraxisMapper.Controllers
                 existingResults.TileData = results;
                 existingResults.GenerationID++;
                 db.SaveChanges();
+                cache.Set("gen" + code + styleSet, existingResults.GenerationID);
             }
 
             return results;
@@ -257,7 +258,7 @@ namespace PraxisMapper.Controllers
                     return StatusCode(500);
                 }
 
-                byte[] tileData = getExistingSlippyTile(code, styleSet);
+                byte[] tileData = getExistingTile(code, styleSet);
                 if (tileData != null)
                 {
                     pt.Stop(code + "|" + styleSet);
@@ -296,7 +297,7 @@ namespace PraxisMapper.Controllers
                     return StatusCode(500);
                 }
 
-                byte[] tileData = getExistingSlippyTile(code, styleSet);
+                byte[] tileData = getExistingTile(code, styleSet);
                 if (tileData != null)
                 {
                     pt.Stop(code + "|" + styleSet);
@@ -335,7 +336,7 @@ namespace PraxisMapper.Controllers
                     return StatusCode(500);
                 }
 
-                byte[] tileData = getExistingSlippyTile(code, styleSet);
+                byte[] tileData = getExistingTile(code, styleSet);
                 if (tileData != null)
                 {
                     pt.Stop(code + "|" + styleSet);
@@ -374,14 +375,21 @@ namespace PraxisMapper.Controllers
             //Returns generationID on the tile on the server
             //if value is *more* than previous value, client should refresh it.
             //if value is equal to previous value, tile has not changed.
+            //This uses the memory cache since these get hit a lot. ON t4g.micro this hits up to 17% CPU for 1 player without it.
             try
             {
                 PerformanceTracker pt = new PerformanceTracker("GetTileGenerationId");
+                bool valueExists = cache.TryGetValue("gen" + plusCode + styleSet, out long genId);
+                if (valueExists)
+                    return genId;
+
                 var db = new PraxisContext();
                 var tile = db.MapTiles.FirstOrDefault(m => m.PlusCode == plusCode && m.StyleSet == styleSet);
                 long tileGenId = -1;
                 if (tile != null)
                     tileGenId = tile.GenerationID;
+
+                cache.Set("gen" + plusCode + styleSet, tileGenId);
                 pt.Stop();
                 return tileGenId;
             }
