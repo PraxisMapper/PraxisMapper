@@ -23,7 +23,7 @@ namespace PraxisMapper.Controllers
     [ApiController]
     public class DataController : Controller
     {
-        static DateTime lastExpiryPass = DateTime.Now.AddSeconds(-1);
+        static DateTime lastExpiryPass = DateTime.UtcNow.AddSeconds(-1);
         static ConcurrentDictionary<string, ReaderWriterLockSlim> locks = new ConcurrentDictionary<string, ReaderWriterLockSlim>();
 
         private readonly IConfiguration Configuration;
@@ -34,13 +34,13 @@ namespace PraxisMapper.Controllers
             Configuration = configuration;
             cache = memoryCacheSingleton;
 
-            if (lastExpiryPass < DateTime.Now)
+            if (lastExpiryPass < DateTime.UtcNow)
             {
                 var db = new PraxisContext();
                 db.Database.ExecuteSqlRaw("DELETE FROM PlaceGameData WHERE expiration IS NOT NULL AND expiration < NOW()");
                 db.Database.ExecuteSqlRaw("DELETE FROM AreaGameData WHERE expiration IS NOT NULL AND expiration < NOW()");
                 db.Database.ExecuteSqlRaw("DELETE FROM PlayerData WHERE expiration IS NOT NULL AND expiration < NOW()");
-                lastExpiryPass = DateTime.Now.AddMinutes(30);
+                lastExpiryPass = DateTime.UtcNow.AddMinutes(30);
             }
         }
 

@@ -43,7 +43,7 @@ namespace PraxisMapper.Controllers
 
             var db = new PraxisContext();
             var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.StyleSet == styleSet);
-            if (existingResults == null || existingResults.ExpireOn < DateTime.Now)
+            if (existingResults == null || existingResults.ExpireOn < DateTime.UtcNow)
                 return null;
 
             return existingResults.TileData;
@@ -56,7 +56,7 @@ namespace PraxisMapper.Controllers
 
             var db = new PraxisContext();
             var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.StyleSet == styleSet);
-            if (existingResults == null || existingResults.ExpireOn < DateTime.Now)
+            if (existingResults == null || existingResults.ExpireOn < DateTime.UtcNow)
                 return null;
 
             return existingResults.TileData;
@@ -77,7 +77,7 @@ namespace PraxisMapper.Controllers
                     db.SlippyMapTiles.Add(existingResults);
                 }
 
-                existingResults.ExpireOn = DateTime.Now.AddYears(10);
+                existingResults.ExpireOn = DateTime.UtcNow.AddYears(10);
                 existingResults.TileData = results;
                 existingResults.GenerationID++;
                 db.SaveChanges();
@@ -101,7 +101,7 @@ namespace PraxisMapper.Controllers
                     db.MapTiles.Add(existingResults);
                 }
 
-                existingResults.ExpireOn = DateTime.Now.AddYears(10);
+                existingResults.ExpireOn = DateTime.UtcNow.AddYears(10);
                 existingResults.TileData = results;
                 existingResults.GenerationID++;
                 db.SaveChanges();
@@ -379,20 +379,20 @@ namespace PraxisMapper.Controllers
             try
             {
                 PerformanceTracker pt = new PerformanceTracker("GetTileGenerationId");
-                bool valueExists = cache.TryGetValue("gen" + plusCode + styleSet, out long genId);
-                if (valueExists)
-                    return genId;
+                //bool valueExists = cache.TryGetValue("gen" + plusCode + styleSet, out long genId);
+                //if (valueExists)
+                    //return genId;
 
                 var db = new PraxisContext();
                 var tile = db.MapTiles.FirstOrDefault(m => m.PlusCode == plusCode && m.StyleSet == styleSet);
-                if (tile.ExpireOn < DateTime.Now)
+                if (tile.ExpireOn < DateTime.UtcNow)
                     return -1;
 
                 long tileGenId = -1;
                 if (tile != null)
                     tileGenId = tile.GenerationID;
 
-                cache.Set("gen" + plusCode + styleSet, tileGenId);
+                //cache.Set("gen" + plusCode + styleSet, tileGenId, new TimeSpan(0, 0, 30));
                 pt.Stop();
                 return tileGenId;
             }

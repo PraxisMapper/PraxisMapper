@@ -33,7 +33,7 @@ namespace PraxisMapper.Controllers
                 return "";
 
             var db = new PraxisContext();
-            var groups = db.PerformanceInfo.Where(p => p.CalledAt > DateTime.Now.AddDays(-7)).AsEnumerable().GroupBy(g => g.FunctionName).OrderBy(g => g.Key).ToList();
+            var groups = db.PerformanceInfo.Where(p => p.CalledAt > DateTime.UtcNow.AddDays(-7)).AsEnumerable().GroupBy(g => g.FunctionName).OrderBy(g => g.Key).ToList();
             var avgs = groups.Select(g => new { name = g.Key, avg = g.Average(gg => gg.RunTime) }).ToList();
 
             string results = "Performance Info:" + Environment.NewLine;
