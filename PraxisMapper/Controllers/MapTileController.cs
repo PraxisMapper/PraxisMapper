@@ -375,7 +375,7 @@ namespace PraxisMapper.Controllers
             //Returns generationID on the tile on the server
             //if value is *more* than previous value, client should refresh it.
             //if value is equal to previous value, tile has not changed.
-            //This uses the memory cache since these get hit a lot. ON t4g.micro this hits up to 17% CPU for 1 player without it.
+            //This uses the memory cache since these get hit a lot
             try
             {
                 PerformanceTracker pt = new PerformanceTracker("GetTileGenerationId");
@@ -385,6 +385,9 @@ namespace PraxisMapper.Controllers
 
                 var db = new PraxisContext();
                 var tile = db.MapTiles.FirstOrDefault(m => m.PlusCode == plusCode && m.StyleSet == styleSet);
+                if (tile.ExpireOn < DateTime.Now)
+                    return -1;
+
                 long tileGenId = -1;
                 if (tile != null)
                     tileGenId = tile.GenerationID;
