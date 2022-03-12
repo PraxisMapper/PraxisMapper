@@ -375,7 +375,9 @@ namespace PraxisMapper.Controllers
             //Returns generationID on the tile on the server
             //if value is *more* than previous value, client should refresh it.
             //if value is equal to previous value, tile has not changed.
-            //This uses the memory cache since these get hit a lot
+            //As is, the client will probably download map tiles twice on change. Once when its expired and being redrawn (-1 return value),
+            //and once when the generationID value is incremented from the previous value.
+            //Avoiding that might require an endpoint for 'please draw this tile' that returns true or false rather than the actual maptile.
             try
             {
                 PerformanceTracker pt = new PerformanceTracker("GetTileGenerationId");
@@ -384,12 +386,9 @@ namespace PraxisMapper.Controllers
                     //return genId;
 
                 var db = new PraxisContext();
-                var tile = db.MapTiles.FirstOrDefault(m => m.PlusCode == plusCode && m.StyleSet == styleSet);
-                if (tile.ExpireOn < DateTime.UtcNow)
-                    return -1;
-
                 long tileGenId = -1;
-                if (tile != null)
+                var tile = db.MapTiles.FirstOrDefault(m => m.PlusCode == plusCode && m.StyleSet == styleSet);
+                if (tile != null && tile.ExpireOn > DateTime.UtcNow)
                     tileGenId = tile.GenerationID;
 
                 //cache.Set("gen" + plusCode + styleSet, tileGenId, new TimeSpan(0, 0, 30));
@@ -417,7 +416,7 @@ namespace PraxisMapper.Controllers
                 var db = new PraxisContext();
                 long tileGenId = -1;
                 var tile = db.SlippyMapTiles.FirstOrDefault(m => m.Values == x + "|" + y + "|" + zoom && m.StyleSet == styleSet);
-                if (tile != null)
+                if (tile != null && tile.ExpireOn > DateTime.UtcNow)
                     tileGenId = tile.GenerationID;
                 pt.Stop();
                 return tileGenId;
