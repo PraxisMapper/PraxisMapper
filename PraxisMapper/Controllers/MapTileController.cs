@@ -67,7 +67,7 @@ namespace PraxisMapper.Controllers
             byte[] results = null;
             results = MapTiles.DrawAreaAtSize(info, paintOps);
 
-            if (!SaveMapTiles())
+            if (SaveMapTiles())
             {
                 var db = new PraxisContext();
                 var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.StyleSet == styleSet);
