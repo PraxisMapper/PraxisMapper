@@ -22,7 +22,8 @@ namespace PraxisMapper
         public Startup(IConfiguration configuration)  //can't use MemoryCache here, have to wait until Configure for services and DI
         {
             Configuration = configuration;
-            PerformanceTracker.EnableLogging = Configuration.GetValue<bool>("enablePerformanceTracker");
+            PraxisPerformanceTracker.Enabled = Configuration.GetValue<bool>("enablePerformanceTracker"); //web server built-in
+            PerformanceTracker.EnableLogging = Configuration.GetValue<bool>("enablePerformanceTracker"); //each function calls its own.
             Log.WriteToFile = Configuration.GetValue<bool>("enableFileLogging");
             PraxisContext.connectionString = Configuration.GetValue<string>("dbConnectionString");
             PraxisContext.serverMode = Configuration.GetValue<string>("dbMode");
@@ -32,6 +33,7 @@ namespace PraxisMapper
             IMapTiles.SlippyTileSizeSquare = Configuration.GetValue<int>("slippyTileSize");
             IMapTiles.BufferSize = Configuration.GetValue<double>("AreaBuffer");
             IMapTiles.GameTileScale = Configuration.GetValue<int>("mapTileScaleFactor");
+            
 
             mapTilesEngine = Configuration.GetValue<string>("MapTilesEngine");
         }
@@ -88,6 +90,7 @@ namespace PraxisMapper
             app.UseResponseCompression();
 
             app.UsePraxisHeaderCheck();
+            app.UsePraxisPerformanceTracker();
             app.UseGlobalErrorHandler();
 
             app.UseEndpoints(endpoints =>

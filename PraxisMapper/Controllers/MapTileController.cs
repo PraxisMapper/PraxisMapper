@@ -118,20 +118,19 @@ namespace PraxisMapper.Controllers
         {
             try
             {
-                PerformanceTracker pt = new PerformanceTracker("DrawSlippyTile");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var info = new ImageStats(zoom, x, y, IMapTiles.SlippyTileSizeSquare);
 
                 if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
                 {
-                    pt.Stop("OOB");
+                    Response.Headers.Add("X-notes", "OOB");
                     return StatusCode(500);
                 }
 
                 byte[] tileData = getExistingSlippyTile(tileKey, styleSet);
                 if (tileData != null)
                 {
-                    pt.Stop(tileKey + "|" + styleSet);
+                    Response.Headers.Add("X-notes", "cached");
                     return File(tileData, "image/png");
                 }
 
@@ -140,7 +139,7 @@ namespace PraxisMapper.Controllers
                 var paintOps = MapTileSupport.GetPaintOpsForStoredElements(places, styleSet, info);
                 tileData = FinishSlippyMapTile(info, paintOps, tileKey, styleSet);
 
-                pt.Stop(tileKey + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
+                Response.Headers.Add("X-notes", Configuration.GetValue<string>("MapTilesEngine"));
                 return File(tileData, "image/png");
             }
             catch (Exception ex)
@@ -159,20 +158,19 @@ namespace PraxisMapper.Controllers
         {
             try
             {
-                PerformanceTracker pt = new PerformanceTracker("DrawSlippyTileCustomElements");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var info = new ImageStats(zoom, x, y, IMapTiles.SlippyTileSizeSquare);
 
                 if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
                 {
-                    pt.Stop("OOB");
+                    Response.Headers.Add("X-notes", "OOB");
                     return StatusCode(500);
                 }
 
                 byte[] tileData = getExistingSlippyTile(tileKey, styleSet);
                 if (tileData != null)
                 {
-                    pt.Stop(tileKey + "|" + styleSet);
+                    Response.Headers.Add("X-notes", "cached");
                     return File(tileData, "image/png");
                 }
 
@@ -181,7 +179,7 @@ namespace PraxisMapper.Controllers
                 var paintOps = MapTileSupport.GetPaintOpsForCustomDataElements(dataKey, styleSet, info);
                 tileData = FinishSlippyMapTile(info, paintOps, tileKey, styleSet);
 
-                pt.Stop(tileKey + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
+                Response.Headers.Add("X-notes", Configuration.GetValue<string>("MapTilesEngine"));
                 return File(tileData, "image/png");
             }
             catch (Exception ex)
@@ -198,20 +196,19 @@ namespace PraxisMapper.Controllers
         {
             try
             {
-                PerformanceTracker pt = new PerformanceTracker("DrawSlippyTileCustomPlusCodes");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var info = new ImageStats(zoom, x, y, IMapTiles.SlippyTileSizeSquare);
 
                 if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
                 {
-                    pt.Stop("OOB");
+                    Response.Headers.Add("X-notes", "OOB");
                     return StatusCode(500);
                 }
 
                 byte[] tileData = getExistingSlippyTile(tileKey, styleSet);
                 if (tileData != null)
                 {
-                    pt.Stop(tileKey + "|" + styleSet);
+                    Response.Headers.Add("X-notes", "cached");
                     return File(tileData, "image/png");
                 }
 
@@ -220,7 +217,7 @@ namespace PraxisMapper.Controllers
                 var paintOps = MapTileSupport.GetPaintOpsForCustomDataPlusCodes(dataKey, styleSet, info);
                 tileData = FinishSlippyMapTile(info, paintOps, tileKey, styleSet);
 
-                pt.Stop(tileKey + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
+                Response.Headers.Add("X-notes", Configuration.GetValue<string>("MapTilesEngine"));
                 return File(tileData, "image/png");
             }
             catch (Exception ex)
@@ -248,20 +245,19 @@ namespace PraxisMapper.Controllers
         {
             try
             {
-                PerformanceTracker pt = new PerformanceTracker("DrawTile");
                 MapTileSupport.GetPlusCodeImagePixelSize(code, out var imgX, out var imgY);
                 var info = new ImageStats(OpenLocationCode.DecodeValid(code), imgX, imgY);
 
                 if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
                 {
-                    pt.Stop("OOB");
+                    Response.Headers.Add("X-notes", "OOB");
                     return StatusCode(500);
                 }
 
                 byte[] tileData = getExistingTile(code, styleSet);
                 if (tileData != null)
                 {
-                    pt.Stop(code + "|" + styleSet);
+                    Response.Headers.Add("X-notes", "cached");
                     return File(tileData, "image/png");
                 }
 
@@ -270,7 +266,7 @@ namespace PraxisMapper.Controllers
                 var paintOps = MapTileSupport.GetPaintOpsForStoredElements(places, styleSet, info);
                 tileData = FinishMapTile(info, paintOps, code, styleSet);
 
-                pt.Stop(code + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
+                Response.Headers.Add("X-notes", Configuration.GetValue<string>("MapTilesEngine"));
                 return File(tileData, "image/png");
             }
             catch (Exception ex)
@@ -287,20 +283,19 @@ namespace PraxisMapper.Controllers
         {
             try
             {
-                PerformanceTracker pt = new PerformanceTracker("DrawTileData");
                 MapTileSupport.GetPlusCodeImagePixelSize(code, out var imgX, out var imgY);
                 var info = new ImageStats(OpenLocationCode.DecodeValid(code), imgX, imgY);
 
                 if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
                 {
-                    pt.Stop("OOB");
+                    Response.Headers.Add("X-notes", "OOB");
                     return StatusCode(500);
                 }
 
                 byte[] tileData = getExistingTile(code, styleSet);
                 if (tileData != null)
                 {
-                    pt.Stop(code + "|" + styleSet);
+                    Response.Headers.Add("X-notes", "cached");
                     return File(tileData, "image/png");
                 }
 
@@ -309,7 +304,7 @@ namespace PraxisMapper.Controllers
                 var paintOps = MapTileSupport.GetPaintOpsForCustomDataPlusCodes(dataKey, styleSet, info);
                 tileData = FinishMapTile(info, paintOps, code, styleSet);
 
-                pt.Stop(code + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
+                Response.Headers.Add("X-notes", Configuration.GetValue<string>("MapTilesEngine"));
                 return File(tileData, "image/png");
             }
             catch (Exception ex)
@@ -326,20 +321,19 @@ namespace PraxisMapper.Controllers
         {
             try
             {
-                PerformanceTracker pt = new PerformanceTracker("DrawTilePlace");
                 MapTileSupport.GetPlusCodeImagePixelSize(code, out var imgX, out var imgY);
                 var info = new ImageStats(OpenLocationCode.DecodeValid(code), imgX, imgY);
 
                 if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
                 {
-                    pt.Stop("OOB");
+                    Response.Headers.Add("X-notes", "OOB");
                     return StatusCode(500);
                 }
 
                 byte[] tileData = getExistingTile(code, styleSet);
                 if (tileData != null)
                 {
-                    pt.Stop(code + "|" + styleSet);
+                    Response.Headers.Add("X-notes", "cached");
                     return File(tileData, "image/png");
                 }
 
@@ -348,7 +342,7 @@ namespace PraxisMapper.Controllers
                 var paintOps = MapTileSupport.GetPaintOpsForCustomDataElements(dataKey, styleSet, info);
                 tileData = FinishMapTile(info, paintOps, code, styleSet);
 
-                pt.Stop(code + "|" + styleSet + "|" + Configuration.GetValue<string>("MapTilesEngine"));
+                Response.Headers.Add("X-notes", Configuration.GetValue<string>("MapTilesEngine"));
                 return File(tileData, "image/png");
             }
             catch (Exception ex)
@@ -380,7 +374,6 @@ namespace PraxisMapper.Controllers
             //Avoiding that might require an endpoint for 'please draw this tile' that returns true or false rather than the actual maptile.
             try
             {
-                PerformanceTracker pt = new PerformanceTracker("GetTileGenerationId");
                 //bool valueExists = cache.TryGetValue("gen" + plusCode + styleSet, out long genId);
                 //if (valueExists)
                     //return genId;
@@ -392,7 +385,6 @@ namespace PraxisMapper.Controllers
                     tileGenId = tile.GenerationID;
 
                 //cache.Set("gen" + plusCode + styleSet, tileGenId, new TimeSpan(0, 0, 30));
-                pt.Stop();
                 return tileGenId;
             }
             catch (Exception ex)
@@ -412,13 +404,11 @@ namespace PraxisMapper.Controllers
             //if value is equal to previous value, tile has not changed.
             try
             {
-                PerformanceTracker pt = new PerformanceTracker("GetTileGenerationId");
                 var db = new PraxisContext();
                 long tileGenId = -1;
                 var tile = db.SlippyMapTiles.FirstOrDefault(m => m.Values == x + "|" + y + "|" + zoom && m.StyleSet == styleSet);
                 if (tile != null && tile.ExpireOn > DateTime.UtcNow)
                     tileGenId = tile.GenerationID;
-                pt.Stop();
                 return tileGenId;
             }
             catch (Exception ex)

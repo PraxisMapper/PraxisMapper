@@ -55,10 +55,7 @@ namespace PraxisMapper.Controllers
         {
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return false;
-            PerformanceTracker pt = new PerformanceTracker("SetPlusCodeData");
-            var results = GenericData.SetAreaData(plusCode, key, value, expiresIn);
-            pt.Stop();
-            return results;
+            return GenericData.SetAreaData(plusCode, key, value, expiresIn);
         }
 
         [HttpGet]
@@ -69,11 +66,9 @@ namespace PraxisMapper.Controllers
         {
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return;
-            PerformanceTracker pt = new PerformanceTracker("GetPlusCodeData");
-            var data = GenericData.GetAreaData(plusCode, key); //TODO: this requires writing bytes directly to Response.BodyWriter for all other, similar functions.
+            var data = GenericData.GetAreaData(plusCode, key);
             Response.BodyWriter.WriteAsync(data);
             Response.CompleteAsync();
-            pt.Stop();
             return;
         }
 
@@ -84,10 +79,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Player/{deviceId}/{key}/{value}/{expiresIn}")]
         public bool SetPlayerData(string deviceId, string key, string value, double? expiresIn = null)
         {
-            PerformanceTracker pt = new PerformanceTracker("SetPlayerData");
-            var results = GenericData.SetPlayerData(deviceId, key, value, expiresIn);
-            pt.Stop();
-            return results;
+            return GenericData.SetPlayerData(deviceId, key, value, expiresIn);
         }
 
         [HttpGet]
@@ -95,11 +87,9 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Player/{deviceId}/{key}")]
         public void GetPlayerData(string deviceId, string key)
         {
-            PerformanceTracker pt = new PerformanceTracker("GetPlayerData");
             var data = GenericData.GetPlayerData(deviceId, key);
             Response.BodyWriter.WriteAsync(data);
             Response.CompleteAsync();
-            pt.Stop();
             return;
         }
 
@@ -112,10 +102,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Place/{elementId}/{key}/{value}/{expiresIn}")]
         public bool SetStoredElementData(Guid elementId, string key, string value, double? expiresIn = null)
         {
-            PerformanceTracker pt = new PerformanceTracker("SetPlaceData");
-            var results = GenericData.SetPlaceData(elementId, key, value, expiresIn);
-            pt.Stop();
-            return results;
+            return GenericData.SetPlaceData(elementId, key, value, expiresIn);
         }
 
         [HttpGet]
@@ -124,11 +111,9 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Place/{elementId}/{key}")]
         public void GetElementData(Guid elementId, string key)
         {
-            PerformanceTracker pt = new PerformanceTracker("GetPlaceData");
             var data = GenericData.GetPlaceData(elementId, key);
             Response.BodyWriter.WriteAsync(data);
             Response.CompleteAsync();
-            pt.Stop();
             return;
         }
 
@@ -137,13 +122,11 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Player/All/{deviceId}")]
         public string GetAllPlayerData(string deviceId)
         {
-            PerformanceTracker pt = new PerformanceTracker("GetAllPlayerData");
             var data = GenericData.GetAllPlayerData(deviceId);
             StringBuilder sb = new StringBuilder();
             foreach (var d in data)
                 sb.Append(d.deviceId).Append("|").Append(d.key).Append("|").AppendLine(d.value);
 
-            pt.Stop();
             return sb.ToString();
         }
 
@@ -153,7 +136,6 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Area/All/{plusCode}")]
         public string GetAllPlusCodeData(string plusCode)
         {
-            PerformanceTracker pt = new PerformanceTracker("GetAllPlusCodeData");
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return "";
             var data = GenericData.GetAllDataInArea(plusCode);
@@ -161,7 +143,6 @@ namespace PraxisMapper.Controllers
             foreach (var d in data)
                 sb.Append(d.plusCode).Append("|").Append(d.key).Append("|").AppendLine(d.value);
 
-            pt.Stop();
             return sb.ToString();
         }
 
@@ -171,13 +152,11 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Place/All/{elementId}/")]
         public string GetAllPlaceData(Guid elementId)
         {
-            PerformanceTracker pt = new PerformanceTracker("GetAllPlaceData");
             var data = GenericData.GetAllDataInPlace(elementId);
             StringBuilder sb = new StringBuilder();
             foreach (var d in data)
                 sb.Append(d.elementId).Append("|").Append(d.key).Append("|").AppendLine(d.value);
 
-            pt.Stop();
             return sb.ToString();
         }
 
@@ -186,10 +165,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Global/{key}/{value}")]
         public bool SetGlobalData(string key, string value)
         {
-            PerformanceTracker pt = new PerformanceTracker("SetGlobalData");
-            var results = GenericData.SetGlobalData(key, value);
-            pt.Stop();
-            return results;
+            return GenericData.SetGlobalData(key, value);
         }
 
         [HttpGet]
@@ -197,11 +173,9 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Global/{key}")]
         public void GetGlobalData(string key)
         {
-            PerformanceTracker pt = new PerformanceTracker("GetGlobalData");
             var data = GenericData.GetGlobalData(key);
             Response.BodyWriter.WriteAsync(data);
             Response.CompleteAsync();
-            pt.Stop();
             return;
         }
 
@@ -218,7 +192,6 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Player/Increment/{deviceId}/{key}/{changeAmount}")]
         public void IncrementPlayerData(string deviceId, string key, double changeAmount, double? expirationTimer = null)
         {
-            PerformanceTracker pt = new PerformanceTracker("IncrementPlayerData");
             string lockKey = deviceId + key;
             locks.TryAdd(lockKey, new ReaderWriterLockSlim());
             var thisLock = locks[lockKey];
@@ -232,8 +205,6 @@ namespace PraxisMapper.Controllers
 
             if (thisLock.WaitingWriteCount == 0)
                 locks.TryRemove(lockKey, out thisLock);
-
-            pt.Stop();
         }
 
         [HttpPut]
@@ -241,7 +212,6 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Global/Increment/{key}/{changeAmount}")]
         public void IncrementGlobalData(string key, double changeAmount)
         {
-            PerformanceTracker pt = new PerformanceTracker("IncrementGlobalData");
             locks.TryAdd(key, new ReaderWriterLockSlim());
             var thisLock = locks[key];
             thisLock.EnterWriteLock();
@@ -254,8 +224,6 @@ namespace PraxisMapper.Controllers
 
             if (thisLock.WaitingWriteCount == 0)
                 locks.TryRemove(key, out thisLock);
-
-            pt.Stop();
         }
 
         [HttpPut]
@@ -267,7 +235,6 @@ namespace PraxisMapper.Controllers
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return;
             
-            PerformanceTracker pt = new PerformanceTracker("IncrementPlusCodeData");
             string lockKey = plusCode + key;
             locks.TryAdd(lockKey, new ReaderWriterLockSlim());
             var thisLock = locks[lockKey];
@@ -281,8 +248,6 @@ namespace PraxisMapper.Controllers
 
             if (thisLock.WaitingWriteCount == 0)
                 locks.TryRemove(lockKey, out thisLock);
-
-            pt.Stop();
         }
 
         [HttpPut]
@@ -291,7 +256,6 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Place/Increment/{elementId}/{key}/{changeAmount}")]
         public void IncrementElementData(Guid elementId, string key, double changeAmount, double? expirationTimer = null)
         {
-            PerformanceTracker pt = new PerformanceTracker("IncrementElementData");
             string lockKey = elementId.ToString() + key;
             locks.TryAdd(lockKey, new ReaderWriterLockSlim());
             var thisLock = locks[lockKey];
@@ -305,8 +269,6 @@ namespace PraxisMapper.Controllers
 
             if (thisLock.WaitingWriteCount == 0)
                 locks.TryRemove(lockKey, out thisLock);
-
-            pt.Stop();
         }
 
         [HttpGet]
@@ -315,7 +277,6 @@ namespace PraxisMapper.Controllers
         public string GetPlusCodeTerrainData(string plusCode)
         {
             //This function returns 1 line per Cell10, the smallest (and therefore highest priority) item intersecting that cell10.
-            PerformanceTracker pt = new PerformanceTracker("GetPlusCodeTerrainData");
             GeoArea box = OpenLocationCode.DecodeValid(plusCode);
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), box))
                 return "";            
@@ -329,7 +290,6 @@ namespace PraxisMapper.Controllers
             foreach (var d in data)
                 sb.Append(d.Key).Append("|").Append(d.Value.Name).Append("|").Append(d.Value.areaType).Append("|").Append(d.Value.PrivacyId).Append("\r\n");
             var results = sb.ToString();
-            pt.Stop(plusCode);
             return results;
         }
 
@@ -339,7 +299,6 @@ namespace PraxisMapper.Controllers
         public string GetPlusCodeTerrainDataFull(string plusCode)
         {
             //This function returns 1 line per Cell10 per intersecting element. For an app that needs to know all things in all points.
-            PerformanceTracker pt = new PerformanceTracker("GetPlusCodeTerrainDataFull");
             GeoArea box = OpenLocationCode.DecodeValid(plusCode);
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), box))
                 return "";
@@ -354,7 +313,6 @@ namespace PraxisMapper.Controllers
                 foreach(var v in d.Value)
                     sb.Append(d.Key).Append("|").Append(v.Name).Append("|").Append(v.areaType).Append("|").Append(v.PrivacyId).Append("\r\n");
             var results = sb.ToString();
-            pt.Stop(plusCode);
             return results;
         }
 
@@ -363,10 +321,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Score/{elementId}")]
         public long GetScoreForPlace(Guid elementId)
         {
-            PerformanceTracker pt = new PerformanceTracker("GetScoreForPlace");
-            var results = ScoreData.GetScoreForSinglePlace(elementId);
-            pt.Stop();
-            return results;
+            return ScoreData.GetScoreForSinglePlace(elementId);
         }
 
         [HttpGet]
@@ -374,13 +329,10 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Distance/{elementId}/{lat}/{lon}")]
         public double GetDistanceToPlace(Guid elementId, double lat, double lon)
         {
-            PerformanceTracker pt = new PerformanceTracker("GetDistanceToPlace");
             var db = new PraxisContext();
             var place = db.Places.FirstOrDefault(e => e.PrivacyId == elementId);
             if (place == null) return 0;
-            var dist =  place.ElementGeometry.Distance(new NetTopologySuite.Geometries.Point(lon, lat));
-            pt.Stop();
-            return dist;
+            return place.ElementGeometry.Distance(new NetTopologySuite.Geometries.Point(lon, lat));
         }
 
         [HttpGet]
@@ -388,12 +340,10 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Center/{elementId}")]
         public string GetCenterOfPlace(Guid elementId)
         {
-            PerformanceTracker pt = new PerformanceTracker("GetCenterOfPlace");
             var db = new PraxisContext();
             var place = db.Places.FirstOrDefault(e => e.PrivacyId == elementId);
             if (place == null) return "0|0";
             var center = place.ElementGeometry.Centroid;
-            pt.Stop();
             return center.Y.ToString() + "|" + center.X.ToString();        
         }
 
