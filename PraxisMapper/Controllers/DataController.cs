@@ -5,7 +5,6 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using NetTopologySuite.Geometries.Prepared;
 using PraxisCore;
-using PraxisMapper.Classes;
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
@@ -16,7 +15,7 @@ using static PraxisCore.Place;
 
 namespace PraxisMapper.Controllers
 {
-    //DataController: For handling generic get/set commands for data by location.
+    //DataController: For handling generic get/set commands for data, possibly attached to a Player/Place/Area.
     //The part that actually allows for games to be made using PraxisMapper without editing code. (give or take styles until a style editor exists on an admin interface)
 
     [Route("[controller]")]
