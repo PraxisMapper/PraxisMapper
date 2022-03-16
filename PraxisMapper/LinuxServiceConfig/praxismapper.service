@@ -5,13 +5,13 @@ WantedBy=multi-user.target
 
 [Service]
 Type=simple
-ExecStart=/home/ec2-user/PraxisMapper/PraxisMapper/bin/Release/net6.0/PraxisMapper
-WorkingDirectory=/home/ec2-user/PraxisMapper/PraxisMapper/bin/Release/net6.0/
+ExecStart=/PraxisMapper/PraxisMapper
+WorkingDirectory=/PraxisMapper/
 Restart=always
 RestartSec=5
 StandardOutput=syslog
 StandardError=syslog
 SyslogIdentifier=%n
-Environment=DOTNET_ROOT=/home/ec2-user/dotnet
-Environment=LD_LIBRARY_PATH=/home/ec2-user/libicu/lib
-Environment=DOTNET_CLI_HOME=/home/ec2-user
+Environment=DOTNET_ROOT=/dotnet
+Environment=LD_LIBRARY_PATH=/libicu/lib
+Environment=DOTNET_CLI_HOME=/dotnet
