@@ -1,4 +1,0 @@
-﻿Additional Licensing Info
-
-Default creatures data and images by Pheonixsong from https://phoenixdex.alteredorigin.net
-Used under the CC 4.0 BY-NC license, trimmed and edited for PraxisMapper's needs.
