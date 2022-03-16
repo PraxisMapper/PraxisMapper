@@ -1,0 +1,17 @@
+﻿[Unit]
+Description=PraxisMapper
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/home/ec2-user/PraxisMapper/PraxisMapper/bin/Release/net6.0/PraxisMapper
+WorkingDirectory=/home/ec2-user/PraxisMapper/PraxisMapper/bin/Release/net6.0/
+Restart=always
+RestartSec=5
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=%n
+Environment=DOTNET_ROOT=/home/ec2-user/dotnet
+Environment=LD_LIBRARY_PATH=/home/ec2-user/libicu/lib
+Environment=DOTNET_CLI_HOME=/home/ec2-user
