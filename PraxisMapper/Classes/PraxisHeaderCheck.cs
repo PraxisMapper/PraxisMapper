@@ -23,7 +23,7 @@ public class PraxisHeaderCheck
     {
         if (enableAuthCheck 
             && protectedControllers.Any(c => context.Request.Path.Value.ToLower().Contains(c)) 
-            && (!context.Request.Headers.Any(h => h.Key == "PraxisAuthKey" && h.Value == ServerAuthKey) && !context.Request.Query.Any(q => q.Key== "PraxisAuthKey" && q.Value == ServerAuthKey)))
+            && (!context.Request.Headers.Any(h => h.Key.ToLower() == "praxisauthkey" && h.Value == ServerAuthKey) && !context.Request.Query.Any(q => q.Key.ToLower() == "praxisauthkey" && q.Value == ServerAuthKey)))
         {
             context.Abort();
             return;
