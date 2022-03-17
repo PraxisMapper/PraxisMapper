@@ -2,6 +2,13 @@
 To explain some decisions on features and their inclusion/exclusion
 In no particular order
 
+
+-1) This is open source, hobbyist work. Decisions get made in an non-professional capacity.
+PraxisMappper, in addition to stated goals below, is also meant to be a fun project, done outside the bounds of corporate policies and decisions.
+PraxisMapper intentionally embraces beta releases and early changes in its dependent components. Prepping for a release may delay converting or adopting a new major dependency change, but otherwise keeping up is important.
+Expect PraxisMapper to be built on the current preview version of .NET primarily, as long as critical dependent components have a matching preview release or work as-is with the preview .NET
+
+
 0) What is PraxisMapper meant to do?
 PraxisMapper is a location-based game server, allowing devs create games that use real-world location data with less effort and external services than before.
 
