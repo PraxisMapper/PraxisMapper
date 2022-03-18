@@ -341,7 +341,7 @@ namespace Larry
                 {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
-                    var mariaPath = fileName.Replace("\\", "\\\\");
+                    var mariaPath = fileName.Replace("\\", "\\\\"); //TODO: this may need some cross-platform attention if I have to keep this particular mode up. EF7 might support bulk inserts and make this redundant.
                     db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' IGNORE INTO TABLE Places fields terminated by '\t' lines terminated by '\r\n' (sourceItemID, sourceItemType, @elementGeometry, AreaSize, privacyId) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
                     sw.Stop();
                     Log.WriteLog("Geometry loaded from " + fileName + " in " + sw.Elapsed);
