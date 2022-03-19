@@ -29,10 +29,19 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/SetSecureElementData/{elementId}/{key}/{value}/{password}/{expiresIn}")]
         [Route("/[controller]/Element/{elementId}/{key}/{value}/{password}")]
         [Route("/[controller]/Element/{elementId}/{key}/{value}/{password}/{expiresIn}")]
+        [Route("/[controller]/Place/{elementId}/{key}/{password}")]
         [Route("/[controller]/Place/{elementId}/{key}/{value}/{password}")]
         [Route("/[controller]/Place/{elementId}/{key}/{value}/{password}/{expiresIn}")]
+        
         public bool SetSecureElementData(Guid elementId, string key, string value,string password, double? expiresIn = null)
         {
+            if (value == null)
+            {
+                var br = Request.BodyReader;
+                var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
+                var endData = rr.Result.Buffer.ToArray();
+                return GenericData.SetSecurePlaceData(elementId, key, endData, password, expiresIn);
+            }
             return GenericData.SetSecurePlaceData(elementId, key, value, password, expiresIn);
         }
 
@@ -50,10 +59,18 @@ namespace PraxisMapper.Controllers
         [HttpPut]
         [Route("/[controller]/SetSecurePlayerData/{deviceId}/{key}/{value}/{password}")]
         [Route("/[controller]/SetSecurePlayerData/{deviceId}/{key}/{value}/{password}/{expiresIn}")]
+        [Route("/[controller]/Player/{deviceId}/{key}/{password}")]
         [Route("/[controller]/Player/{deviceId}/{key}/{value}/{password}")]
         [Route("/[controller]/Player/{deviceId}/{key}/{value}/{password}/{expiresIn}")]
         public bool SetSecurePlayerData(string deviceId, string key, string value, string password, double? expiresIn = null)
         {
+            if (value == null)
+            {
+                var br = Request.BodyReader;
+                var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
+                var endData = rr.Result.Buffer.ToArray();
+                return GenericData.SetSecurePlayerData(deviceId, key, endData, password, expiresIn);
+            }
             return GenericData.SetSecurePlayerData(deviceId, key, value, password, expiresIn);
         }
 
@@ -83,9 +100,10 @@ namespace PraxisMapper.Controllers
                 return false;
             if (value == null)
             {
-                var rr = Request.BodyReader.ReadAsync();
-                var r2 = rr.Result.Buffer;
-                return GenericData.SetSecureAreaData(plusCode, key, r2.ToArray(), password, expiresIn);
+                var br = Request.BodyReader;
+                var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
+                var endData = rr.Result.Buffer.ToArray();
+                return GenericData.SetSecureAreaData(plusCode, key, endData, password, expiresIn);
             }
             return GenericData.SetSecureAreaData(plusCode, key, value, password, expiresIn);
         }
