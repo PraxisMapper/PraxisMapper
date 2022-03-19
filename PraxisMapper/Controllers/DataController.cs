@@ -124,7 +124,7 @@ namespace PraxisMapper.Controllers
             var data = GenericData.GetAllPlayerData(deviceId);
             StringBuilder sb = new StringBuilder();
             foreach (var d in data)
-                sb.Append(d.deviceId).Append("|").Append(d.key).Append("|").AppendLine(d.value);
+                sb.Append(d.deviceId).Append("|").Append(d.key).Append("|").Append(d.value).Append("\n");
 
             return sb.ToString();
         }
@@ -140,7 +140,7 @@ namespace PraxisMapper.Controllers
             var data = GenericData.GetAllDataInArea(plusCode);
             StringBuilder sb = new StringBuilder();
             foreach (var d in data)
-                sb.Append(d.plusCode).Append("|").Append(d.key).Append("|").AppendLine(d.value);
+                sb.Append(d.plusCode).Append("|").Append(d.key).Append("|").Append(d.value).Append("\n"); //Consistent line endings instead of varying per server platform.
 
             return sb.ToString();
         }
@@ -154,7 +154,7 @@ namespace PraxisMapper.Controllers
             var data = GenericData.GetAllDataInPlace(elementId);
             StringBuilder sb = new StringBuilder();
             foreach (var d in data)
-                sb.Append(d.elementId).Append("|").Append(d.key).Append("|").AppendLine(d.value);
+                sb.Append(d.elementId).Append("|").Append(d.key).Append("|").Append(d.value).Append("\n");
 
             return sb.ToString();
         }
