@@ -53,7 +53,6 @@ namespace PraxisMapper.Controllers
         {
             byte[] rawData = GenericData.GetSecurePlaceData(elementId, key, password);
             Response.BodyWriter.Write(rawData);
-            Response.CompleteAsync();
             return;
         }
 
@@ -81,7 +80,6 @@ namespace PraxisMapper.Controllers
         {
             byte[] rawData = GenericData.GetSecurePlayerData(deviceId, key, password);
             Response.BodyWriter.Write(rawData);
-            Response.CompleteAsync();
             return;
         }
 
@@ -124,7 +122,6 @@ namespace PraxisMapper.Controllers
 
             byte[] rawData = GenericData.GetSecureAreaData(plusCode, key, password);
             Response.BodyWriter.Write(rawData);
-            //Response.BodyWriter.CompleteAsync();
             return;
         }
 
