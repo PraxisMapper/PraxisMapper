@@ -27,9 +27,21 @@ namespace PraxisCore
 
         public static bool SetAreaData(string plusCode, string key, string value, double? expiration = null)
         {
+            return SetAreaData(plusCode, key, value.ToByteArrayUTF8(), expiration);
+        }
+
+        public static bool SetAreaData(string plusCode, string key, byte[] value, double? expiration = null)
+        {
             var db = new PraxisContext();
-            if (db.PlayerData.Any(p => p.DeviceID == key || p.DeviceID == value))
+            if (db.PlayerData.Any(p => p.DeviceID == key))
                 return false;
+
+            if (value.Length < 128)
+            {
+                string valString = value.ToUTF8String();
+                if (db.PlayerData.Any(p => p.DeviceID == valString))
+                    return false;
+            }
 
             var row = db.AreaGameData.FirstOrDefault(p => p.PlusCode == plusCode && p.DataKey == key);
             if (row == null)
@@ -45,7 +57,7 @@ namespace PraxisCore
             else
                 row.Expiration = null;
             row.IvData = null;
-            row.DataValue = value.ToByteArrayUTF8();
+            row.DataValue = value;
             return db.SaveChanges() == 1;
         }
 
@@ -74,8 +86,13 @@ namespace PraxisCore
         /// <returns>true if data was saved, false if data was not.</returns>
         public static bool SetPlaceData(Guid elementId, string key, string value, double? expiration = null)
         {
+            return SetPlaceData(elementId, key, value.ToByteArrayUTF8(), expiration);
+        }
+
+        public static bool SetPlaceData(Guid elementId, string key, byte[] value, double? expiration = null)
+        {
             var db = new PraxisContext();
-            if (db.PlayerData.Any(p => p.DeviceID == key || p.DeviceID == value))
+            if (db.PlayerData.Any(p => p.DeviceID == key))
                 return false;
 
             var row = db.PlaceGameData.Include(p => p.Place).FirstOrDefault(p => p.Place.PrivacyId == elementId && p.DataKey == key);
@@ -92,7 +109,7 @@ namespace PraxisCore
             else
                 row.Expiration = null;
             row.IvData = null;
-            row.DataValue = value.ToByteArrayUTF8();
+            row.DataValue = value;
             return db.SaveChanges() == 1;
         }
 
@@ -126,6 +143,14 @@ namespace PraxisCore
             return row.DataValue;
         }
 
+        public static bool SetPlayerData(string playerId, string key, string value, double? expiration = null)
+        {
+            if (DataCheck.IsPlusCode(value)) //reject attaching Player to Area
+                return false; 
+
+            return SetPlayerData(playerId, key, value.ToByteArrayUTF8(), expiration);
+        }
+
         /// <summary>
         /// Saves a key/value pair to a given player's DeviceID. Will reject a pair containing a PlusCode or map element Id.
         /// </summary>
@@ -134,16 +159,17 @@ namespace PraxisCore
         /// <param name="value">The value to save with the key.</param>
         /// <param name="expiration">If not null, expire this data in this many seconds from now.</param>
         /// <returns>true if data was saved, false if data was not.</returns>
-        public static bool SetPlayerData(string playerId, string key, string value, double? expiration = null)
+        public static bool SetPlayerData(string playerId, string key, byte[] value, double? expiration = null)
         {
-            if (DataCheck.IsPlusCode(key) || DataCheck.IsPlusCode(value))
-                return false; //Reject attaching a player to a pluscode.
+            if (DataCheck.IsPlusCode(key)) //reject attaching Player to Area
+                return false;
 
+            var guidString = value.ToUTF8String();
             var db = new PraxisContext();
             Guid tempCheck = new Guid();
             if ((Guid.TryParse(key, out tempCheck) && db.Places.Any(osm => osm.PrivacyId == tempCheck))
-                || (Guid.TryParse(value, out tempCheck) && db.Places.Any(osm => osm.PrivacyId == tempCheck)))
-                return false; //reject attaching a player to an area
+                || (Guid.TryParse(guidString, out tempCheck) && db.Places.Any(osm => osm.PrivacyId == tempCheck)))
+                return false; //reject attaching a player to a Place
 
             var row = db.PlayerData.FirstOrDefault(p => p.DeviceID == playerId && p.DataKey == key);
             if (row == null)
@@ -158,7 +184,8 @@ namespace PraxisCore
             else
                 row.Expiration = null;
             row.IvData = null;
-            row.DataValue = value.ToByteArrayUTF8();
+            row.DataValue = value;
+            
             return db.SaveChanges() == 1;
         }
 
@@ -233,27 +260,36 @@ namespace PraxisCore
             return row.DataValue;
         }
 
+        public static bool SetGlobalData(string key, string value)
+        {
+            return SetGlobalData(key, value.ToByteArrayUTF8());
+        }
+
         /// <summary>
         /// Saves a key/value pair to the database that isn't attached to anything specific. Wil reject a pair that contains a player's device ID, PlusCode, or a map element ID. Global entries cannot be set to expire.
         /// </summary>
         /// <param name="key">The key to save to the database. Keys are unique, and you cannot have multiples of the same key.</param>
         /// <param name="value">The value to save with the key.</param>
         /// <returns>true if data was saved, false if data was not.</returns>
-        public static bool SetGlobalData(string key, string value)
+        public static bool SetGlobalData(string key, byte[] value)
         {
             bool trackingPlayer = false;
             bool trackingLocation = false;
 
+            string valString = "";
+            if (value.Length < 128)
+                valString = value.ToUTF8String();
+
             var db = new PraxisContext();
-            if (db.PlayerData.Any(p => p.DeviceID == key || p.DeviceID == value))
+            if (db.PlayerData.Any(p => p.DeviceID == key || p.DeviceID == valString))
                 trackingPlayer = true;
 
-            if (DataCheck.IsPlusCode(key) || DataCheck.IsPlusCode(value))
+            if (DataCheck.IsPlusCode(key) || DataCheck.IsPlusCode(valString))
                 trackingLocation = true;
 
             Guid tempCheck = new Guid();
             if ((Guid.TryParse(key, out tempCheck) && db.Places.Any(osm => osm.PrivacyId == tempCheck))
-                || (Guid.TryParse(value, out tempCheck) && db.Places.Any(osm => osm.PrivacyId == tempCheck)))
+                || (Guid.TryParse(valString, out tempCheck) && db.Places.Any(osm => osm.PrivacyId == tempCheck)))
                 trackingLocation = true;
 
             if (trackingLocation && trackingPlayer) //Do not allow players and locations to be attached on the global level as a workaround to being blocked on the individual levels.
@@ -266,7 +302,7 @@ namespace PraxisCore
                 row.DataKey = key;
                 db.GlobalDataEntries.Add(row);
             }
-            row.DataValue = value.ToByteArrayUTF8();
+            row.DataValue = value;
             return db.SaveChanges() == 1;
         }
 
