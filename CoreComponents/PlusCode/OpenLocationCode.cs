@@ -498,7 +498,7 @@ namespace Google.OpenLocationCode
             long latVal = (long)(Math.Round((latitude + LatitudeMax) * LatIntegerMultiplier * 1e6) / 1e6);
             long lngVal = (long)(Math.Round((longitude + LongitudeMax) * LngIntegerMultiplier * 1e6) / 1e6);
 
-            if (codeLength > PairCodeLength) //only for length 11
+            if (codeLength > PairCodeLength) //only for length 11+
             {
                 for (int i = 0; i < GridCodeLength; i++)
                 {
@@ -529,7 +529,7 @@ namespace Google.OpenLocationCode
                 latVal /= EncodingBase;
                 lngVal /= EncodingBase;
             }
-           
+
             return new string(pendingCode);
         }
 
@@ -722,7 +722,7 @@ namespace Google.OpenLocationCode
                     codeBuilder.Append(c);
                 }
             }
-            return codeBuilder.Length != code.Length ? codeBuilder.ToString() : code;
+            return codeBuilder.ToString();
         }
 
         /// <summary>
@@ -730,14 +730,35 @@ namespace Google.OpenLocationCode
         /// precision for latitude and longitude, but lengths > 10 have different precisions due to the
         /// grid method having fewer columns than rows.
         /// </summary>
-        /// <remarks>Copied from the JS implementation.</remarks>
+        /// <remarks>PraxisMapper change: Math removed in favor of static values.</remarks>
         public static double ComputeLatitudePrecision(int codeLength)
         {
-            if (codeLength <= CodePrecisionNormal)
+            switch(codeLength)
             {
-                return Math.Pow(EncodingBase, codeLength / -2 + 2);
+                case 10:
+                    return 0.000125;
+                case 8:
+                    return 0.0025;
+                case 11:
+                    return 0.000025;
+                case 12:
+                    return 0.000005;
+                case 6:
+                    return 0.05;
+                case 4:
+                    return 1;
+                case 2:
+                    return 20;
+                default:
+                    return 0;
             }
-            return Math.Pow(EncodingBase, -3) / Math.Pow(GridRows, codeLength - PairCodeLength);
+
+            //Original math, in case I juggle this algorithm around
+            //if (codeLength <= CodePrecisionNormal)
+            //{
+            //    return Math.Pow(EncodingBase, codeLength / -2 + 2);
+            //}
+            //return Math.Pow(EncodingBase, -3) / Math.Pow(GridRows, codeLength - PairCodeLength);
         }
 
 
