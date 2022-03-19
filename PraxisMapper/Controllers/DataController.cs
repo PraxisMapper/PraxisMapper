@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using NetTopologySuite.Geometries.Prepared;
 using PraxisCore;
 using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Text;
@@ -54,6 +55,14 @@ namespace PraxisMapper.Controllers
         {
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return false;
+
+            if (value == null)
+            {
+                var br = Request.BodyReader;
+                var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
+                var endData = rr.Result.Buffer.ToArray();
+                return GenericData.SetAreaData(plusCode, key, endData, expiresIn);
+            }
             return GenericData.SetAreaData(plusCode, key, value, expiresIn);
         }
 
@@ -78,6 +87,13 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Player/{deviceId}/{key}/{value}/{expiresIn}")]
         public bool SetPlayerData(string deviceId, string key, string value, double? expiresIn = null)
         {
+            if (value == null)
+            {
+                var br = Request.BodyReader;
+                var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
+                var endData = rr.Result.Buffer.ToArray();
+                return GenericData.SetPlayerData(deviceId, key, endData, expiresIn);
+            }
             return GenericData.SetPlayerData(deviceId, key, value, expiresIn);
         }
 
@@ -97,10 +113,18 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/SetElementData/{elementId}/{key}/{value}/{expiresIn}")]
         [Route("/[controller]/Element/{elementId}/{key}/{value}")]
         [Route("/[controller]/Element/{elementId}/{key}/{value}/{expiresIn}")]
+        [Route("/[controller]/Place/{elementId}/{key}")]
         [Route("/[controller]/Place/{elementId}/{key}/{value}")]
         [Route("/[controller]/Place/{elementId}/{key}/{value}/{expiresIn}")]
         public bool SetStoredElementData(Guid elementId, string key, string value, double? expiresIn = null)
         {
+            if (value == null)
+            {
+                var br = Request.BodyReader;
+                var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
+                var endData = rr.Result.Buffer.ToArray();
+                return GenericData.SetPlaceData(elementId, key, endData, expiresIn);
+            }
             return GenericData.SetPlaceData(elementId, key, value, expiresIn);
         }
 
@@ -161,9 +185,17 @@ namespace PraxisMapper.Controllers
 
         [HttpPut]
         [Route("/[controller]/SetGlobalData/{key}/{value}")]
+        [Route("/[controller]/Global/{key}")]
         [Route("/[controller]/Global/{key}/{value}")]
         public bool SetGlobalData(string key, string value)
         {
+            if (value == null)
+            {
+                var br = Request.BodyReader;
+                var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
+                var endData = rr.Result.Buffer.ToArray();
+                return GenericData.SetGlobalData(key, endData);
+            }
             return GenericData.SetGlobalData(key, value);
         }
 
