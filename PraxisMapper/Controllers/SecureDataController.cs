@@ -8,6 +8,7 @@ using PraxisCore;
 using System;
 using System.Buffers;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace PraxisMapper.Controllers
 {
@@ -102,6 +103,10 @@ namespace PraxisMapper.Controllers
             {
                 var br = Request.BodyReader;
                 var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
+                var wait = rr.GetAwaiter();
+                while (!wait.IsCompleted)
+                    System.Threading.Thread.Sleep(25);
+
                 var endData = rr.Result.Buffer.ToArray();
                 return GenericData.SetSecureAreaData(plusCode, key, endData, password, expiresIn);
             }
