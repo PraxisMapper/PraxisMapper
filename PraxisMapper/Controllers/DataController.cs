@@ -75,8 +75,7 @@ namespace PraxisMapper.Controllers
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return;
             var data = GenericData.GetAreaData(plusCode, key);
-            Response.BodyWriter.WriteAsync(data);
-            Response.CompleteAsync();
+            Response.BodyWriter.Write(data);
             return;
         }
 
@@ -103,8 +102,7 @@ namespace PraxisMapper.Controllers
         public void GetPlayerData(string deviceId, string key)
         {
             var data = GenericData.GetPlayerData(deviceId, key);
-            Response.BodyWriter.WriteAsync(data);
-            Response.CompleteAsync();
+            Response.BodyWriter.Write(data);
             return;
         }
 
@@ -135,8 +133,7 @@ namespace PraxisMapper.Controllers
         public void GetElementData(Guid elementId, string key)
         {
             var data = GenericData.GetPlaceData(elementId, key);
-            Response.BodyWriter.WriteAsync(data);
-            Response.CompleteAsync();
+            Response.BodyWriter.Write(data);
             return;
         }
 
@@ -205,8 +202,7 @@ namespace PraxisMapper.Controllers
         public void GetGlobalData(string key)
         {
             var data = GenericData.GetGlobalData(key);
-            Response.BodyWriter.WriteAsync(data);
-            Response.CompleteAsync();
+            Response.BodyWriter.Write(data);
             return;
         }
 
