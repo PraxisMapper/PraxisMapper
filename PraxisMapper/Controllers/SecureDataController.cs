@@ -124,7 +124,7 @@ namespace PraxisMapper.Controllers
 
             byte[] rawData = GenericData.GetSecureAreaData(plusCode, key, password);
             Response.BodyWriter.Write(rawData);
-            Response.BodyWriter.CompleteAsync();
+            //Response.BodyWriter.CompleteAsync();
             return;
         }
 
