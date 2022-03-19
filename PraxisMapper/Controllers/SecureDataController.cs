@@ -117,14 +117,14 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/GetSecurePlusCodeData/{plusCode}/{key}/{password}")]
         [Route("/[controller]/GetPlusCode/{plusCode}/{key}/{password}")]
         [Route("/[controller]/Area/{plusCode}/{key}/{password}")]
-        public void GetSecurePlusCodeData(string plusCode, string key, string password)
+        public async void GetSecurePlusCodeData(string plusCode, string key, string password)
         {
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return;
 
             byte[] rawData = GenericData.GetSecureAreaData(plusCode, key, password);
             Response.BodyWriter.Write(rawData);
-            Response.CompleteAsync();
+            await Response.CompleteAsync();
             return;
         }
 
