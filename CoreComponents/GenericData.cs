@@ -24,6 +24,7 @@ namespace PraxisCore
         /// <returns>true if data was saved, false if data was not.</returns>
         /// 
         public static Aes baseSec = Aes.Create();
+        public static SHA256 hasher = SHA256.Create();
 
         public static bool SetAreaData(string plusCode, string key, string value, double? expiration = null)
         {
@@ -458,7 +459,7 @@ namespace PraxisCore
 
         private static byte[] EncryptValue(byte[] value, string password, out byte[] IVs)
         {
-            byte[] passwordBytes = password.ToByteArrayUnicode();
+            byte[] passwordBytes = hasher.ComputeHash(password.ToByteArrayUTF8());
             baseSec.GenerateIV();
             IVs = baseSec.IV;
             var crypter = baseSec.CreateEncryptor(passwordBytes, baseSec.IV);
@@ -472,7 +473,7 @@ namespace PraxisCore
 
         private static byte[] DecryptValue(byte[] IVs, byte[] value, string password)
         {
-            byte[] passwordBytes = password.ToByteArrayUnicode();
+            byte[] passwordBytes = hasher.ComputeHash(password.ToByteArrayUTF8());
             var crypter = baseSec.CreateDecryptor(passwordBytes, IVs);
 
             var ms = new MemoryStream();
