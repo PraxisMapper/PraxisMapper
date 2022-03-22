@@ -55,6 +55,7 @@ namespace PraxisCore
                 else
                 {
                     places = db.Places.Include(s => s.Tags).Where(md => location.Intersects(md.ElementGeometry) && md.AreaSize >= filterSize && (includePoints || md.SourceItemType != 1)).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length).ToList();
+                    TagParser.ApplyTags(places, styleSet); //populates the fields we don't save to the DB.
                 }
             }
             else
