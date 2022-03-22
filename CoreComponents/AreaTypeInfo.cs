@@ -73,8 +73,8 @@ namespace PraxisCore
             if (elements.Count() == 0)
                 return results;
             
-            var xCells = area.LongitudeWidth / resolutionCell10;
-            var yCells = area.LatitudeHeight / resolutionCell10;
+            //var xCells = area.LongitudeWidth / resolutionCell10;
+            //var yCells = area.LatitudeHeight / resolutionCell10;
             double x = area.Min.Longitude;
             double y = area.Min.Latitude;
 
@@ -82,11 +82,13 @@ namespace PraxisCore
             List<DbTables.Place> searchPlaces;
             Tuple<string, TerrainData> placeFound;
 
-            for (double xx = 0; xx < xCells; xx++)
+            //for (double xx = 0; xx < xCells; xx++) // while x < area.Max.Longitude?
+            while(x < area.Max.Longitude)
             {
                 searchArea = new GeoArea(area.Min.Latitude, x - resolutionCell10, area.Max.Latitude, x + resolutionCell10);
                 searchPlaces = GetPlaces(searchArea, elements, skipTags: true);
-                for (double yy = 0; yy < yCells; yy++)
+                //for (double yy = 0; yy < yCells; yy++) //while y < area.max.latitude?
+                while (y < area.Max.Latitude)
                 {
                     placeFound = FindPlaceInCell10(x, y, ref searchPlaces);
                     if (placeFound != null)
@@ -115,8 +117,8 @@ namespace PraxisCore
             //Plural function, returns all entries for each cell10.
             List<Tuple<string, List<TerrainData>>> results = new List<Tuple<string, List<TerrainData>>>(400); //starting capacity for a full Cell8
             
-            var xCells = area.LongitudeWidth / resolutionCell10;
-            var yCells = area.LatitudeHeight / resolutionCell10;
+            //var xCells = area.LongitudeWidth / resolutionCell10;
+            //var yCells = area.LatitudeHeight / resolutionCell10;
             double x = area.Min.Longitude;
             double y = area.Min.Latitude;
 
@@ -124,11 +126,13 @@ namespace PraxisCore
             List<DbTables.Place> searchPlaces;
             Tuple<string, List<TerrainData>> placeFound;
 
-            for (double xx = 0; xx < xCells; xx++)
+            //for (double xx = 0; xx < xCells; xx++)
+            while(x < area.Max.Longitude)
             {
                 searchArea = new GeoArea(area.Min.Latitude, x - resolutionCell10, area.Max.Latitude, x + resolutionCell10);
                 searchPlaces = GetPlaces(searchArea, elements, skipTags: true);
-                for (double yy = 0; yy < yCells; yy++)
+                //for (double yy = 0; yy < yCells; yy++)
+                while(y < area.Max.Latitude)
                 {
                     placeFound = FindPlacesInCell10(x, y, ref searchPlaces);
                     if (placeFound != null)
