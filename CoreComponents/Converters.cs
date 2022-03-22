@@ -61,12 +61,11 @@ namespace PraxisCore
             if (w == null)
                 return null;
 
-            List<Coordinate> results = new List<Coordinate>(w.Nodes.Count());
+            Coordinate[] results = new Coordinate[w.Nodes.Count()];
+            for (int i = 0; i < w.Nodes.Count(); i++)
+                results[i] = new Coordinate(w.Nodes[i].Latitude.Value, w.Nodes[i].Longitude.Value);
 
-            foreach (var node in w.Nodes)
-                results.Add(new Coordinate(node.Longitude.Value, node.Latitude.Value));
-
-            return results.ToArray();
+            return results;
         }
 
         /// <summary>
