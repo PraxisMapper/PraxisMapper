@@ -570,7 +570,7 @@ namespace PraxisCore.PbfReader
                 //this saves us from re-creating the same entry.
                 int capacity = rel.memids.Count();
                 Dictionary<long, OsmSharp.Complete.CompleteWay> loadedWays = new Dictionary<long, OsmSharp.Complete.CompleteWay>(capacity);
-                List<OsmSharp.Complete.CompleteRelationMember> crms = new List<OsmSharp.Complete.CompleteRelationMember>(capacity);
+                r.Members = new OsmSharp.Complete.CompleteRelationMember[capacity];
                 idToFind = 0;
                 for (int i = 0; i < capacity; i++)
                 {
@@ -588,9 +588,8 @@ namespace PraxisCore.PbfReader
                             c.Member = loadedWays[idToFind];
                             break;
                     }
-                    crms.Add(c);
+                    r.Members[i] = c;
                 }
-                r.Members = crms.ToArray();
 
                 //Some memory cleanup slightly early, in an attempt to free up RAM faster.
                 loadedWays.Clear();
@@ -701,7 +700,7 @@ namespace PraxisCore.PbfReader
                 }
                 var nodesByBlock = nodesPerBlock.ToLookup(k => k.Item1, v => v.Item2);
 
-                List<OsmSharp.Node> nodeList = new List<OsmSharp.Node>(way.refs.Count());
+                finalway.Nodes = new OsmSharp.Node[way.refs.Count()];
                 ConcurrentDictionary<long, OsmSharp.Node> AllNodes = new ConcurrentDictionary<long, OsmSharp.Node>(Environment.ProcessorCount, way.refs.Count());
                 Parallel.ForEach(nodesByBlock, (block) =>
                 {
@@ -711,13 +710,12 @@ namespace PraxisCore.PbfReader
                 });
 
                 idToFind = 0;
-                foreach (var node in way.refs)
+                for(int i = 0; i < way.refs.Count; i++)
                 {
-                    idToFind += node; //delta coding.
-                    nodeList.Add(AllNodes[idToFind]);
+                    idToFind += way.refs[i]; //delta coding.
+                    finalway.Nodes[i] = AllNodes[idToFind];
                 }
 
-                finalway.Nodes = nodeList.ToArray();
                 return finalway;
             }
             catch (Exception ex)
