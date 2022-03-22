@@ -40,7 +40,7 @@ namespace PraxisCore
         {
             //Which Place in this given Area is the one that should be displayed on the game/map as the name? picks the smallest one.
             //This one return all entries, for a game mode that might need all of them.
-            var results = new List<TerrainData>(entriesHere.Count());
+            var results = new List<TerrainData>(entriesHere.Count);
             foreach (var e in entriesHere)
                 results.Add(new TerrainData() { Name = TagParser.GetPlaceName(e.Tags), areaType = e.GameElementName, PrivacyId = e.PrivacyId });
             return results;
@@ -70,7 +70,7 @@ namespace PraxisCore
             List<Tuple<string, TerrainData>> results = new List<Tuple<string, TerrainData>>(400); //starting capacity for a full Cell8
 
             //Singular function, returns 1 item entry per cell10.
-            if (elements.Count() == 0)
+            if (elements.Count == 0)
                 return results;
             
             //var xCells = area.LongitudeWidth / resolutionCell10;
@@ -111,7 +111,7 @@ namespace PraxisCore
         /// <returns>returns a dictionary using PlusCode as the key and name/areatype/client facing Id of all element intersecting that PlusCode</returns>
         public static List<Tuple<string, List<TerrainData>>> SearchAreaFull(ref GeoArea area, ref List<DbTables.Place> elements)
         {
-            if (elements.Count() == 0)
+            if (elements.Count == 0)
                 return null;
 
             //Plural function, returns all entries for each cell10.
@@ -160,11 +160,11 @@ namespace PraxisCore
             var box = new GeoArea(new GeoPoint(lat, lon), new GeoPoint(lat + resolutionCell10, lon + resolutionCell10));
             var entriesHere = GetPlaces(box, places, skipTags:true);
 
-            if (entriesHere.Count() == 0)
+            if (entriesHere.Count == 0)
                 return null;
 
             var area = DetermineAreaPlaces(entriesHere);
-            if (area.Count() > 0)
+            if (area.Count > 0)
             {
                 string olc = new OpenLocationCode(lat, lon).CodeDigits;
                 return new Tuple<string, List<TerrainData>>(olc, area);
@@ -186,7 +186,7 @@ namespace PraxisCore
             var box = olc.Decode();
             var entriesHere = GetPlaces(box, places, skipTags: true);
 
-            if (entriesHere.Count() == 0)
+            if (entriesHere.Count == 0)
                 return null;
 
             var area = DetermineAreaPlace(entriesHere);

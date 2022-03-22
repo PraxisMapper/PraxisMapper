@@ -128,7 +128,7 @@ namespace Larry
                 oneEntry.Add(trail);
 
                 var overlapped = AreaTypeInfo.SearchArea(ref thisPath, ref oneEntry);
-                if (overlapped.Count() > 0)
+                if (overlapped.Count > 0)
                 {
                     tdSmalls.TryAdd(TagParser.GetPlaceName(trail.Tags), new TerrainDataSmall() { Name = TagParser.GetPlaceName(trail.Tags), areaType = trail.GameElementName });
                 }
