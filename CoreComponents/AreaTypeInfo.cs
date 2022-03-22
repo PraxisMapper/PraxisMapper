@@ -78,13 +78,17 @@ namespace PraxisCore
             double x = area.Min.Longitude;
             double y = area.Min.Latitude;
 
+            GeoArea searchArea;
+            List<DbTables.Place> searchPlaces;
+            Tuple<string, TerrainData> placeFound;
+
             for (double xx = 0; xx < xCells; xx++)
             {
-                var searchArea = new GeoArea(area.Min.Latitude, x - resolutionCell10, area.Max.Latitude, x + resolutionCell10);
-                var searchPlaces = GetPlaces(searchArea, elements, skipTags: true);
+                searchArea = new GeoArea(area.Min.Latitude, x - resolutionCell10, area.Max.Latitude, x + resolutionCell10);
+                searchPlaces = GetPlaces(searchArea, elements, skipTags: true);
                 for (double yy = 0; yy < yCells; yy++)
                 {
-                    var placeFound = FindPlaceInCell10(x, y, ref searchPlaces);
+                    placeFound = FindPlaceInCell10(x, y, ref searchPlaces);
                     if (placeFound != null)
                         results.Add(placeFound);
 
@@ -116,13 +120,17 @@ namespace PraxisCore
             double x = area.Min.Longitude;
             double y = area.Min.Latitude;
 
+            GeoArea searchArea;
+            List<DbTables.Place> searchPlaces;
+            Tuple<string, List<TerrainData>> placeFound;
+
             for (double xx = 0; xx < xCells; xx++)
             {
-                var searchArea = new GeoArea(area.Min.Latitude, x - resolutionCell10, area.Max.Latitude, x + resolutionCell10);
-                var searchPlaces = GetPlaces(searchArea, elements, skipTags: true);
+                searchArea = new GeoArea(area.Min.Latitude, x - resolutionCell10, area.Max.Latitude, x + resolutionCell10);
+                searchPlaces = GetPlaces(searchArea, elements, skipTags: true);
                 for (double yy = 0; yy < yCells; yy++)
                 {
-                    var placeFound = FindPlacesInCell10(x, y, ref searchPlaces);
+                    placeFound = FindPlacesInCell10(x, y, ref searchPlaces);
                     if (placeFound != null)
                         results.Add(placeFound);
 
@@ -160,7 +168,6 @@ namespace PraxisCore
             return null;
         }
 
-
         /// <summary>
         /// Returns the smallest element in a list that intersect with the 10-digit PlusCode at the given lat/lon coordinates.
         /// </summary>
@@ -173,7 +180,7 @@ namespace PraxisCore
             //singular function, only returns the smallest area in a cell.
             var olc = new OpenLocationCode(y, x);
             var box = olc.Decode();
-            var entriesHere = GetPlaces(box, places, skipTags: true).ToList();
+            var entriesHere = GetPlaces(box, places, skipTags: true);
 
             if (entriesHere.Count() == 0)
                 return null;

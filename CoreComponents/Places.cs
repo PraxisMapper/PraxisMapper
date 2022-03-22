@@ -50,7 +50,7 @@ namespace PraxisCore
                 if (skipTags) //Should make the load slightly faster if we're parsing existing items that already got tags applied
                 {
                     places = db.Places.Where(md => location.Intersects(md.ElementGeometry) && md.AreaSize >= filterSize && (includePoints || md.SourceItemType != 1)).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length).ToList();
-                    return places; //Jump out before we do ApplyTags
+                    //return places; //Jump out before we do ApplyTags
                 }
                 else
                 {
@@ -59,12 +59,13 @@ namespace PraxisCore
             }
             else
             {
+                //We should always have the tags here.
                 var location = Converters.GeoAreaToPreparedPolygon(area);
                 places = source.Where(md => location.Intersects(md.ElementGeometry) && md.AreaSize >= filterSize && (includePoints || md.SourceItemType != 1)).Select(md => md.Clone()).ToList();
             }
 
-            if (!skipTags)
-                TagParser.ApplyTags(places, styleSet); //populates the fields we don't save to the DB.
+            //if (!skipTags)
+                //TagParser.ApplyTags(places, styleSet); //populates the fields we don't save to the DB.
             return places;
         }
 
