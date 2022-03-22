@@ -38,16 +38,16 @@ namespace PraxisCore
                     Y = 5;
                     break;
                 case 8:
-                    X = 4 * 20;
-                    Y = 5 * 20;
+                    X = 80;
+                    Y = 100;
                     break;
                 case 6:
-                    X = 4 * 20 * 20;
-                    Y = 5 * 20 * 20;
+                    X = 1600;
+                    Y = 2000;
                     break;
                 case 4: //This is likely to use up more RAM than most PCs have, especially at large scales.
-                    X = 4 * 20 * 20 * 20;
-                    Y = 5 * 20 * 20 * 20;
+                    X = 32000;
+                    Y = 40000;
                     break;
                 default:
                     X = 0;
