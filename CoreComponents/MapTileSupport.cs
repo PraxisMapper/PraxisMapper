@@ -119,7 +119,7 @@ namespace PraxisCore
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
             var pass1 = places.Select(d => new { d.AreaSize, d.ElementGeometry, paintOp = styles[d.GameElementName].PaintOperations });
-            var pass2 = new List<CompletePaintOp>(places.Count() * 2); 
+            var pass2 = new List<CompletePaintOp>(places.Count * 2); 
             pass2.Add(bgOp);
             foreach (var op in pass1)
                 GetPaintOps(ref pass2, op.AreaSize, op.ElementGeometry, op.paintOp, stats);
@@ -143,7 +143,7 @@ namespace PraxisCore
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
             var pass1 = elements.Select(d => new { d.Place.AreaSize, d.Place.ElementGeometry, paintOp = styles[d.DataValue.ToUTF8String()].PaintOperations, d.DataValue });
-            var pass2 = new List<CompletePaintOp>(elements.Count() * 2); 
+            var pass2 = new List<CompletePaintOp>(elements.Count * 2); 
             pass2.Add(bgOp);
             foreach (var op in pass1)
                 GetPaintOps(ref pass2, op.AreaSize, op.ElementGeometry, op.paintOp, stats);
@@ -167,7 +167,7 @@ namespace PraxisCore
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
             var pass1 = elements.Select(d => new { d.GeoAreaIndex.Area, d.GeoAreaIndex, paintOp = styles[d.DataValue.ToUTF8String()].PaintOperations, d.DataValue });
-            var pass2 = new List<CompletePaintOp>(elements.Count() * 2); 
+            var pass2 = new List<CompletePaintOp>(elements.Count * 2); 
             pass2.Add(bgOp);
             foreach (var op in pass1)
                 GetPaintOps(ref pass2, op.Area, op.GeoAreaIndex, op.paintOp, stats);
@@ -191,7 +191,7 @@ namespace PraxisCore
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
             var pass1 = elements.Select(d => new { d.GeoAreaIndex.Area, d.GeoAreaIndex, paintOp = styles["tag"].PaintOperations, d.DataValue });
-            var pass2 = new List<CompletePaintOp>(elements.Count() * 2); //assuming each element has a Fill and Stroke op separately
+            var pass2 = new List<CompletePaintOp>(elements.Count * 2); //assuming each element has a Fill and Stroke op separately
             pass2.Add(bgOp);
             foreach (var op in pass1)
                 GetPaintOps(ref pass2, op.Area, op.GeoAreaIndex, op.paintOp, stats);
@@ -253,7 +253,7 @@ namespace PraxisCore
                 //Add a Cell8 buffer space so all elements are loaded and drawn without needing to loop through the entire area.
                 GeoArea thisRow = new GeoArea(y - ConstantValues.resolutionCell8, xCoords.First() - ConstantValues.resolutionCell8, y + ConstantValues.resolutionCell8 + ConstantValues.resolutionCell8, xCoords.Last() + resolutionCell8);
                 var rowList = GetPlaces(thisRow, allPlaces, skipTags:true);
-                var tilesToSave = new List<MapTile>(xCoords.Count());
+                var tilesToSave = new List<MapTile>(xCoords.Count);
 
                 Parallel.ForEach(xCoords, x =>
                 {
@@ -284,13 +284,13 @@ namespace PraxisCore
                             tilesToSave.Add(thisTile);
                     }
                 });
-                mapTileCounter += xCoords.Count();
+                mapTileCounter += xCoords.Count;
                 if (!saveToFiles)
                 {
                     db.MapTiles.AddRange(tilesToSave);
                     db.SaveChanges();
                 }
-                Log.WriteLog(mapTileCounter + " tiles processed, " + Math.Round((mapTileCounter / totalTiles) * 100, 2) + "% complete, " + Math.Round(xCoords.Count() / thisRowSW.Elapsed.TotalSeconds, 2) + " tiles per second.");
+                Log.WriteLog(mapTileCounter + " tiles processed, " + Math.Round((mapTileCounter / totalTiles) * 100, 2) + "% complete, " + Math.Round(xCoords.Count / thisRowSW.Elapsed.TotalSeconds, 2) + " tiles per second.");
 
             }//);
             progressTimer.Stop();

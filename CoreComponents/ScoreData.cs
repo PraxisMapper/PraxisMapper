@@ -30,7 +30,7 @@ namespace PraxisCore
             //Determines the Scores for the Places, limited to the intersection of the current Area. 1 Cell10 = 1 Score.
             //EX: if a park overlaps 800 Cell10s, but the current area overlaps 250 of them, this returns 250 for that park.
             //Lists each Place and its corresponding Score.
-            List<Tuple<string, long, Guid>> areaSizes = new List<Tuple<string, long, Guid>>(places.Count());
+            List<Tuple<string, long, Guid>> areaSizes = new List<Tuple<string, long, Guid>>(places.Count);
             foreach (var md in places)
             {
                 var containedArea = md.ElementGeometry.Intersection(areaPoly);
@@ -48,7 +48,7 @@ namespace PraxisCore
         public static string GetScoresForFullArea(List<DbTables.Place> places)
         {
             //As above, but counts the Places' full area, not the area in the given Cell8 or Cell10. 
-            List<Tuple<string, long, Guid>> areaSizes = new List<Tuple<string, long, Guid>>(places.Count());
+            List<Tuple<string, long, Guid>> areaSizes = new List<Tuple<string, long, Guid>>(places.Count);
             foreach (var place in places)
             {
                 areaSizes.Add(Tuple.Create(TagParser.GetPlaceName(place.Tags), GetScoreForSinglePlace(place.ElementGeometry), place.PrivacyId));

@@ -171,7 +171,7 @@ namespace PraxisCore
         private static List<Polygon> BuildRings(List<CompleteWay> ways)
         {
             //This is where I look at points to try and combine these.
-            var closedWays = new List<CompleteWay>(ways.Count());
+            var closedWays = new List<CompleteWay>(ways.Count);
             closedWays = ways.Where(w => w.Nodes.First() == w.Nodes.Last()).ToList();
             var polys = new List<Polygon>();
 
@@ -181,7 +181,7 @@ namespace PraxisCore
                 polys.Add(factory.CreatePolygon(Converters.CompleteWayToCoordArray(c)));
             }
 
-            while (ways.Count() > 0)
+            while (ways.Count > 0)
             {
                 var a = GetShapeFromLines(ref ways);
                 if (a != null)
@@ -211,12 +211,12 @@ namespace PraxisCore
 
             Geometry outer;
             Geometry inner;
-            if (outerRings.Count() == 1)
+            if (outerRings.Count == 1)
                 outer = outerRings.First();
             else
                 outer = factory.CreateMultiPolygon(outerRings.ToArray());
 
-            if (innerRings.Count() > 0)
+            if (innerRings.Count > 0)
             {
                 inner = factory.CreateMultiPolygon(innerRings.ToArray());
                 outer = outer.Difference(inner);
@@ -240,7 +240,7 @@ namespace PraxisCore
 
             // build lists of outer and inner ways.
             var inners = new List<CompleteWay>();
-            var outers = new List<CompleteWay>(relation.Members.Count());
+            var outers = new List<CompleteWay>(relation.Members.Length);
 
             foreach (var member in relation.Members)
             {
