@@ -17,7 +17,6 @@ namespace PraxisMapper.Controllers
             }
             catch(Exception ex)
             {
-                var a = ex;
                 return null;
             }
         }

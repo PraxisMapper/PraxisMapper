@@ -18,8 +18,9 @@ namespace PraxisCore
     {
         //Shared class for functions that do work on Geometry objects.
 
-        private static NetTopologySuite.IO.WKTReader geomTextReader = new NetTopologySuite.IO.WKTReader() {DefaultSRID = 4326 };
-        private static PMFeatureInterpreter featureInterpreter = new PMFeatureInterpreter();
+        private static readonly NetTopologySuite.NtsGeometryServices s = new NetTopologySuite.NtsGeometryServices(PrecisionModel.Floating.Value, 4326);
+        private static readonly NetTopologySuite.IO.WKTReader geomTextReader = new NetTopologySuite.IO.WKTReader(s); // {DefaultSRID = 4326 };
+        private static readonly PMFeatureInterpreter featureInterpreter = new PMFeatureInterpreter();
 
         public static GeoArea MakeBufferedGeoArea(GeoArea original)
         {
@@ -45,7 +46,7 @@ namespace PraxisCore
                 return null;
 
             //NTS specs also requires holes in a polygon to be in clockwise order, opposite the outer shell.
-            for (int i = 0; i < p.Holes.Count(); i++)
+            for (int i = 0; i < p.Holes.Length; i++)
             {
                 if (p.Holes[i].IsCCW)
                     p.Holes[i] = (LinearRing)p.Holes[i].Reverse();
@@ -88,11 +89,11 @@ namespace PraxisCore
                 else if (place is MultiPolygon)
                 {
                     MultiPolygon mp = (MultiPolygon)place;
-                    for (int i = 0; i < mp.Geometries.Count(); i++)
+                    for (int i = 0; i < mp.Geometries.Length; i++)
                     {
                         mp.Geometries[i] = CCWCheck((Polygon)mp.Geometries[i]);
                     }
-                    if (mp.Geometries.Count(g => g == null) != 0)
+                    if (mp.Geometries.Any(g => g == null))
                     {
                         mp = new MultiPolygon(mp.Geometries.Where(g => g != null).Select(g => (Polygon)g).ToArray());
                         if (mp.Geometries.Length == 0)
@@ -115,11 +116,11 @@ namespace PraxisCore
             else if (simplerPlace is MultiPolygon)
             {
                 MultiPolygon mp = (MultiPolygon)simplerPlace;
-                for (int i = 0; i < mp.Geometries.Count(); i++)
+                for (int i = 0; i < mp.Geometries.Length; i++)
                 {
                     mp.Geometries[i] = CCWCheck((Polygon)mp.Geometries[i]);
                 }
-                if (mp.Geometries.Count(g => g == null) == 0)
+                if (!mp.Geometries.Any(g => g == null))
                     return mp;
                 else
                 {
@@ -141,7 +142,7 @@ namespace PraxisCore
         public static DbTables.Place ConvertOsmEntryToStoredElement(OsmSharp.Complete.ICompleteOsmGeo g)
         {
             var tags = TagParser.getFilteredTags(g.Tags);
-            if (tags == null || tags.Count() == 0)
+            if (tags == null || tags.Count == 0)
                 return null; //For nodes, don't store every untagged node.
 
             try
@@ -212,7 +213,7 @@ namespace PraxisCore
             }
             srGeo.Close(); srGeo.Dispose();
 
-            if (lm.Count() == 0)
+            if (lm.Count == 0)
                 Log.WriteLog("No entries for " + filename + "? why?");
 
             Log.WriteLog("EOF Reached for " + filename + " at " + DateTime.Now);

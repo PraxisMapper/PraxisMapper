@@ -18,8 +18,8 @@ namespace PraxisCore
         public static double GameTileScale = 2;
         public static double bufferSize = resolutionCell10;
 
-        static SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
-        static Random r = new Random();
+        static readonly SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
+        static readonly Random r = new Random();
         static Dictionary<string, SKBitmap> cachedBitmaps = new Dictionary<string, SKBitmap>(); //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
         static Dictionary<long, SKPaint> cachedPaints = new Dictionary<long, SKPaint>(); 
 
@@ -130,12 +130,12 @@ namespace PraxisCore
             int imageSizeY = IMapTiles.SlippyTileSizeSquare;
             SKBitmap bitmap = new SKBitmap(imageSizeX, imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
             SKCanvas canvas = new SKCanvas(bitmap);
-            var bgColor = new SKColor();
+            SKColor bgColor;
             SKColor.TryParse("00000000", out bgColor);
             canvas.Clear(bgColor);
             canvas.Scale(1, -1, imageSizeX / 2, imageSizeY / 2);
             SKPaint paint = new SKPaint();
-            SKColor color = new SKColor();
+            SKColor color;
             SKColor.TryParse("#FF0000", out color);
             paint.Color = color;
             paint.Style = SKPaintStyle.Stroke;
@@ -189,12 +189,12 @@ namespace PraxisCore
             int imageSizeY = IMapTiles.SlippyTileSizeSquare;
             SKBitmap bitmap = new SKBitmap(imageSizeX, imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
             SKCanvas canvas = new SKCanvas(bitmap);
-            var bgColor = new SKColor();
+            SKColor bgColor;
             SKColor.TryParse("00000000", out bgColor);
             canvas.Clear(bgColor);
             canvas.Scale(1, -1, imageSizeX / 2, imageSizeY / 2);
             SKPaint paint = new SKPaint();
-            SKColor color = new SKColor();
+            SKColor color;
             SKColor.TryParse("#00CCFF", out color);
             paint.Color = color;
             paint.Style = SKPaintStyle.Stroke;
@@ -469,7 +469,7 @@ namespace PraxisCore
 
             //I guess what I want here is a list of an object with an elementGeometry object for the shape, and a paintOp attached to it
             var pass1 = drawnItems.Select(d => new { d.AreaSize, d.ElementGeometry, paintOp = styles[d.GameElementName].PaintOperations });
-            var pass2 = new List<CompletePaintOp>(drawnItems.Count() * 2);
+            var pass2 = new List<CompletePaintOp>(drawnItems.Count * 2);
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
                     pass2.Add(new CompletePaintOp(op.ElementGeometry, op.AreaSize, po, "", po.LineWidthDegrees * stats.pixelsPerDegreeX));
@@ -556,7 +556,6 @@ namespace PraxisCore
             }
             canvas.Flush();
             canvas.Dispose();
-            canvas = null;
             s.Position = 0;
             var svgData = new StreamReader(s).ReadToEnd();
             return svgData;
