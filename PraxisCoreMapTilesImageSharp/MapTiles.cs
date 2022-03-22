@@ -260,14 +260,14 @@ namespace PraxisCore
             //String is formatted as Lat,Lon~Lat,Lon~ repeating. Characters chosen to not be percent-encoded if submitted as part of the URL.
             //first, convert this to a list of latlon points
             string[] pointToConvert = pointListAsString.Split("|");
-            List<Coordinate> coords = pointToConvert.Select(p => new Coordinate(double.Parse(p.Split(',')[0]), double.Parse(p.Split(',')[1]))).ToList();
+            Coordinate[] coords = pointToConvert.Select(p => new Coordinate(double.Parse(p.Split(',')[0]), double.Parse(p.Split(',')[1]))).ToArray();
 
             var mapBuffer = resolutionCell8 / 2; //Leave some area around the edges of where they went.
             GeoArea mapToDraw = new GeoArea(coords.Min(c => c.Y) - mapBuffer, coords.Min(c => c.X) - mapBuffer, coords.Max(c => c.Y) + mapBuffer, coords.Max(c => c.X) + mapBuffer);
 
             ImageStats info = new ImageStats(mapToDraw, 1024, 1024);
 
-            LineString line = new LineString(coords.ToArray());
+            LineString line = new LineString(coords);
             var drawableLine = PolygonToDrawingLine(line, mapToDraw, info.degreesPerPixelX, info.degreesPerPixelY);
 
             //Now, draw that path on the map.
