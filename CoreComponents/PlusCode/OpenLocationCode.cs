@@ -362,7 +362,7 @@ namespace Google.OpenLocationCode
                         return false;
                     }
                 }
-                else if (CodeAlphabet.IndexOf(code[i]) == -1)
+                else if (!CodeAlphabet.Contains(code[i]))
                 {
                     return false; // Illegal character.
                 }
@@ -382,7 +382,7 @@ namespace Google.OpenLocationCode
                 }
                 for (int i = separatorIndex + 1; i < code.Length; i++)
                 {
-                    if (CodeAlphabet.IndexOf(code[i]) == -1)
+                    if (!CodeAlphabet.Contains(code[i]))
                     {
                         return false;
                     }
@@ -452,7 +452,7 @@ namespace Google.OpenLocationCode
 
         private static bool IsCodePadded(string code)
         {
-            return code.IndexOf(PaddingCharacter) >= 0;
+            return code.Contains(PaddingCharacter);
         }
 
 

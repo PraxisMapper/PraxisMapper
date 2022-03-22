@@ -24,7 +24,7 @@ namespace PraxisCore
         public static double bufferSize = resolutionCell10; 
 
         //static SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
-        static Random r = new Random();
+        static readonly Random r = new Random();
         public static Dictionary<string, Image> cachedBitmaps = new Dictionary<string, Image>(); //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
         public static Dictionary<long, IBrush> cachedPaints = new Dictionary<long, IBrush>();
         public static Dictionary<long, IPen> cachedGameTilePens = new Dictionary<long, IPen>();
@@ -69,7 +69,7 @@ namespace PraxisCore
             //It's possible that I want pens instead of brushes for lines with patterns?
             string htmlColor = tpe.HtmlColorCode;
             if (htmlColor.Length == 8)
-                htmlColor = htmlColor.Substring(2, 6) + htmlColor.Substring(0, 2);
+                htmlColor = string.Concat(htmlColor.AsSpan(2, 6), htmlColor.AsSpan(0, 2));
             IBrush paint = new SolidBrush(Rgba32.ParseHex(htmlColor));
 
             if (!string.IsNullOrEmpty(tpe.FileName))
@@ -89,7 +89,7 @@ namespace PraxisCore
 
             string htmlColor = tpe.HtmlColorCode;
             if (htmlColor.Length == 8)
-                htmlColor = htmlColor.Substring(2, 6) + htmlColor.Substring(0, 2);
+                htmlColor = string.Concat(htmlColor.AsSpan(2, 6), htmlColor.AsSpan(0, 2));
 
             Pen p;
 
@@ -462,13 +462,13 @@ namespace PraxisCore
         /// </summary>
         /// <param name="styleSet">the name of the style set to pull the background color from</param>
         /// <returns>the Rgba32 saved into the requested background paint object.</returns>
-        public Rgba32 GetStyleBgColorString(string styleSet)
+        public static Rgba32 GetStyleBgColorString(string styleSet)
         {
             var color = Rgba32.ParseHex(TagParser.allStyleGroups[styleSet]["background"].PaintOperations.First().HtmlColorCode);
             return color;
         }
 
-        public IPath PolygonToDrawingPolygon(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
+        public static IPath PolygonToDrawingPolygon(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
         {
             var lineSegmentList = new List<LinearLineSegment>();
             NetTopologySuite.Geometries.Polygon p = (NetTopologySuite.Geometries.Polygon)place;
@@ -484,7 +484,7 @@ namespace PraxisCore
             return path;
         }
 
-        public LinearLineSegment PolygonToDrawingLine(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
+        public static LinearLineSegment PolygonToDrawingLine(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
         {
             //NOTE: this doesn't handle holes if you add them to the end in the reverse order. Those must be handled by a function in ImageSharp.
             var typeConvertedPoints = place.Coordinates.Select(o => new SixLabors.ImageSharp.PointF((float)((o.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / resolutionY))));
@@ -493,24 +493,24 @@ namespace PraxisCore
             return part;
         }
 
-        public SixLabors.ImageSharp.PointF[] LineToDrawingLine(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
+        public static SixLabors.ImageSharp.PointF[] LineToDrawingLine(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
         {
             var typeConvertedPoints = place.Coordinates.Select(o => new SixLabors.ImageSharp.PointF((float)((o.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / resolutionY)))).ToList();
             return typeConvertedPoints.ToArray();
         }
 
-        public SixLabors.ImageSharp.PointF PointToPointF(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
+        public static SixLabors.ImageSharp.PointF PointToPointF(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
         {
             var coord = place.Coordinate;
             return new SixLabors.ImageSharp.PointF((float)((coord.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((coord.Y - drawingArea.SouthLatitude) * (1 / resolutionY)));
         }
 
-        public Rectangle PlaceInfoToRect(PraxisCore.StandaloneDbTables.PlaceInfo2 pi, ImageStats info)
+        public static Rectangle PlaceInfoToRect(PraxisCore.StandaloneDbTables.PlaceInfo2 pi, ImageStats info)
         {
             //TODO test this.
             Rectangle r = new Rectangle();
-            float heightMod = (float)pi.height / 2;
-            float widthMod = (float)pi.width / 2;
+            //float heightMod = (float)pi.height / 2;
+            //float widthMod = (float)pi.width / 2;
             r.Width = (int)(pi.width * info.pixelsPerDegreeX);
             r.Height = (int)(pi.height * info.pixelsPerDegreeY);
             r.X = (int)(pi.lonCenter * info.pixelsPerDegreeX);
