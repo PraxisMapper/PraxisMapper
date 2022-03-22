@@ -78,11 +78,13 @@ namespace PraxisCore
             double x = area.Min.Longitude;
             double y = area.Min.Latitude;
 
-            for (double xx = 0; xx < xCells; xx += 1)
+            for (double xx = 0; xx < xCells; xx++)
             {
-                for (double yy = 0; yy < yCells; yy += 1)
+                var searchArea = new GeoArea(area.Min.Latitude, x - resolutionCell10, area.Max.Latitude, x + resolutionCell10);
+                var searchPlaces = GetPlaces(searchArea, elements, skipTags: true);
+                for (double yy = 0; yy < yCells; yy++)
                 {
-                    var placeFound = FindPlaceInCell10(x, y, ref elements);
+                    var placeFound = FindPlaceInCell10(x, y, ref searchPlaces);
                     if (placeFound != null)
                         results.Add(placeFound);
 
@@ -116,9 +118,11 @@ namespace PraxisCore
 
             for (double xx = 0; xx < xCells; xx++)
             {
+                var searchArea = new GeoArea(area.Min.Latitude, x - resolutionCell10, area.Max.Latitude, x + resolutionCell10);
+                var searchPlaces = GetPlaces(searchArea, elements, skipTags: true);
                 for (double yy = 0; yy < yCells; yy++)
                 {
-                    var placeFound = FindPlacesInCell10(x, y, ref elements);
+                    var placeFound = FindPlacesInCell10(x, y, ref searchPlaces);
                     if (placeFound != null)
                         results.Add(placeFound);
 
