@@ -135,9 +135,9 @@ namespace Larry
                 foreach (var o in overlapped)
                 {
                     var ti = new TerrainInfo();
-                    ti.PlusCode = o.Key.Substring(removableLetters, 10 - removableLetters);
+                    ti.PlusCode = o.Item1.Substring(removableLetters, 10 - removableLetters);
                     ti.TerrainDataSmall = new List<TerrainDataSmall>();
-                    ti.TerrainDataSmall.Add(tdSmalls[o.Value.Name]);
+                    ti.TerrainDataSmall.Add(tdSmalls[o.Item2.Name]);
                     sqliteDb.TerrainInfo.Add(ti);
                 }
                 sqliteDb.SaveChanges();

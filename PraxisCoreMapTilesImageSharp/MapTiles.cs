@@ -271,8 +271,7 @@ namespace PraxisCore
             var drawableLine = PolygonToDrawingLine(line, mapToDraw, info.degreesPerPixelX, info.degreesPerPixelY);
 
             //Now, draw that path on the map.
-            var places = GetPlaces(mapToDraw);
-            var baseImage = DrawAreaAtSize(info, places);
+            var baseImage = DrawAreaAtSize(info);
 
             Image<Rgba32> image = new Image<Rgba32>(info.imageSizeX, info.imageSizeY);
             Rgba32 strokeColor = Rgba32.ParseHex("000000");
