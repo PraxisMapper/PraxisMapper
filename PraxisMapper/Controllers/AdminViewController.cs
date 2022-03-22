@@ -41,7 +41,7 @@ namespace PraxisMapper.Controllers
             var tile = MapTiles.DrawAreaAtSize(istats, places);
             sw.Stop();
 
-            ViewBag.placeCount = places.Count();
+            ViewBag.placeCount = places.Count;
             ViewBag.timeToDraw = sw.Elapsed.ToString();
             ViewBag.imageString = "data:image/png;base64," + Convert.ToBase64String(tile);
 
@@ -87,7 +87,7 @@ namespace PraxisMapper.Controllers
             ViewBag.placeCount = 0;
             ViewBag.areasByType = "";
             
-            ViewBag.placeCount = places.Count();
+            ViewBag.placeCount = places.Count;
             var grouped = places.GroupBy(p => p.GameElementName);
             string areasByType = "";
             foreach (var g in grouped)

@@ -61,8 +61,8 @@ namespace PraxisCore
             if (w == null)
                 return null;
 
-            Coordinate[] results = new Coordinate[w.Nodes.Count()];
-            for (int i = 0; i < w.Nodes.Count(); i++)
+            Coordinate[] results = new Coordinate[w.Nodes.Length];
+            for (int i = 0; i < w.Nodes.Length; i++)
                 results[i] = new Coordinate(w.Nodes[i].Latitude.Value, w.Nodes[i].Longitude.Value);
 
             return results;

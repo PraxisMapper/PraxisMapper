@@ -67,13 +67,13 @@ namespace PraxisCore.Standalone
             //If I run this by name, the lists are much shorter but visiting one distinct location might count for all of them (This is a bigger concern with very large areas or retail establishment)
             //So I'm going to run this by name for the player's sake. 
             scavengerHunts.Add("Wikipedia Places", wikiList);
-            Log.WriteLog(wikiList.Count() + " Wikipedia-linked items found for scavenger hunt.");
+            Log.WriteLog(wikiList.Count + " Wikipedia-linked items found for scavenger hunt.");
             //fill in gameElement lists.
             foreach (var gameElementTags in TagParser.allStyleGroups.First().Value.Where(s => s.Value.IsGameElement))
             {
                 var foundElements = allPlaces.Where(a => TagParser.MatchOnTags(gameElementTags.Value, a.Tags) && !string.IsNullOrWhiteSpace(TagParser.GetPlaceName(a.Tags))).Select(a => TagParser.GetPlaceName(a.Tags)).Distinct().ToList();
                 scavengerHunts.Add(gameElementTags.Value.Name, foundElements);
-                Log.WriteLog(foundElements.Count() + " " + gameElementTags.Value.Name + " items found for scavenger hunt.");
+                Log.WriteLog(foundElements.Count + " " + gameElementTags.Value.Name + " items found for scavenger hunt.");
             }
 
             foreach (var hunt in scavengerHunts)

@@ -62,7 +62,7 @@ namespace PraxisCore
                     //Load TPE entries from DB for app.
                     var db = new PraxisContext();
                     styles = db.StyleEntries.Include(t => t.StyleMatchRules).Include(t => t.PaintOperations).ToList();
-                    if (styles == null || styles.Count() == 0)
+                    if (styles == null || styles.Count == 0)
                     {
                         styles = Singletons.defaultStyleEntries;
                         long i = 1;
@@ -117,7 +117,7 @@ namespace PraxisCore
         /// <returns>The StyleEntry that matches the rules and tags given, or a defaultStyle if none match.</returns>
         public static StyleEntry GetStyleForOsmWay(ICollection<PlaceTags> tags, string styleSet = "mapTiles")
         {
-            if (tags == null || tags.Count() == 0)
+            if (tags == null || tags.Count == 0)
                 return defaultStyle;
 
             Dictionary<string, string> dTags = tags.ToDictionary(k => k.Key, v => v.Value);
@@ -132,7 +132,7 @@ namespace PraxisCore
         /// <returns>The StyleEntry that matches the rules and tags given, or a defaultStyle if none match.</returns>
         public static StyleEntry GetStyleForOsmWay(Dictionary<string, string> tags, string styleSet = "mapTiles")
         {
-            if (tags == null || tags.Count() == 0)
+            if (tags == null || tags.Count == 0)
                 return defaultStyle;
 
             foreach (var drawingRules in allStyleGroups[styleSet])
@@ -176,7 +176,7 @@ namespace PraxisCore
         /// <returns>The name of the style from the given styleSet that matches the Place tags</returns>
         public static string GetAreaType(List<PlaceTags> tags, string styleSet = "mapTiles")
         {
-            if (tags == null || tags.Count() == 0)
+            if (tags == null || tags.Count == 0)
                 return defaultStyle.Name;
 
             foreach (var drawingRules in allStyleGroups[styleSet])
@@ -194,7 +194,7 @@ namespace PraxisCore
         /// <returns>The name of the style from the given styleSet that matches the Place tags</returns>
         public static string GetAreaType(Dictionary<string, string> tags, string styleSet = "mapTiles")
         {
-            if (tags == null || tags.Count() == 0)
+            if (tags == null || tags.Count == 0)
                 return defaultStyle.Name;
 
             foreach (var drawingRules in allStyleGroups[styleSet])
@@ -231,7 +231,7 @@ namespace PraxisCore
 
             //Step 1: check all the rules against these tags.
             //The * value is required for all the rules, so check it first.
-            for (var i = 0; i < tpe.StyleMatchRules.Count(); i++)
+            for (var i = 0; i < tpe.StyleMatchRules.Count; i++)
             {
                 entry = tpe.StyleMatchRules.ElementAt(i);
 
@@ -349,7 +349,7 @@ namespace PraxisCore
         /// <returns>a Name value if one is found, or an empty string if not</returns>
         public static string GetPlaceName(TagsCollectionBase tagsO) 
         {
-            if (tagsO.Count() == 0)
+            if (tagsO.Count == 0)
                 return "";
             var retVal = tagsO.GetValue("name");
             if (retVal == null)
@@ -365,7 +365,7 @@ namespace PraxisCore
         /// <returns>a Name value if one is found, or an empty string if not</returns>
         public static string GetPlaceName(ICollection<PlaceTags> tagsO)
         {
-            if (tagsO.Count() == 0)
+            if (tagsO.Count == 0)
                 return "";
             var retVal = tagsO.FirstOrDefault(t => t.Key == "name");
             if (retVal == null)

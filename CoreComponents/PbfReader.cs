@@ -108,7 +108,7 @@ namespace PraxisCore.PbfReader
         /// <returns>long of blocks in the opened file</returns>
         public long BlockCount()
         {
-            return blockPositions.Count();
+            return blockPositions.Count;
         }
 
         /// <summary>
@@ -275,18 +275,18 @@ namespace PraxisCore.PbfReader
             var thisBlock = GetBlock(block);
 
             var geoListOfOne = new List<ICompleteOsmGeo>();
-            if (thisBlock.primitivegroup[0].relations.Count() > 0)
+            if (thisBlock.primitivegroup[0].relations.Count > 0)
             {
                 foreach (var relId in thisBlock.primitivegroup[0].relations)
                 {
-                    Log.WriteLog("Loading relation with " + relId.memids.Count() + " members");
+                    Log.WriteLog("Loading relation with " + relId.memids.Count + " members");
                     geoListOfOne.Add(GetRelation(relId.id, onlyMatchedAreas));
                     ProcessReaderResults(geoListOfOne, block);
                     activeBlocks.Clear();
                     geoListOfOne.Clear();
                 }
             }
-            else if (thisBlock.primitivegroup[0].ways.Count() > 0)
+            else if (thisBlock.primitivegroup[0].ways.Count > 0)
             {
                 foreach (var wayId in thisBlock.primitivegroup[0].ways)
                 {
@@ -296,7 +296,7 @@ namespace PraxisCore.PbfReader
                     geoListOfOne.Clear();
                 }
             }
-            else if (thisBlock.primitivegroup[0].nodes.Count() > 0)
+            else if (thisBlock.primitivegroup[0].nodes.Count > 0)
             {
                 var nodes = GetTaggedNodesFromBlock(thisBlock, onlyMatchedAreas);
                 ProcessReaderResults(nodes, block);
@@ -469,7 +469,7 @@ namespace PraxisCore.PbfReader
         private Relation findRelationInBlockList(List<Relation> primRels, long relId)
         {
             int min = 0;
-            int max = primRels.Count();
+            int max = primRels.Count;
             int current = max / 2;
             int prevCheck = 0;
             while (min != max && prevCheck != current) //This is a B-Tree search on an array
@@ -529,7 +529,7 @@ namespace PraxisCore.PbfReader
                 r.Id = relationId;
                 r.Tags = new OsmSharp.Tags.TagsCollection();
 
-                for (int i = 0; i < rel.keys.Count(); i++)
+                for (int i = 0; i < rel.keys.Count; i++)
                 {
                     r.Tags.Add(new OsmSharp.Tags.Tag(System.Text.Encoding.UTF8.GetString(relationBlock.stringtable.s[(int)rel.keys[i]]), System.Text.Encoding.UTF8.GetString(relationBlock.stringtable.s[(int)rel.vals[i]])));
                 }
@@ -568,7 +568,7 @@ namespace PraxisCore.PbfReader
 
                 //This makes sure we only load each element once. If a relation references an element more than once (it shouldnt)
                 //this saves us from re-creating the same entry.
-                int capacity = rel.memids.Count();
+                int capacity = rel.memids.Count;
                 Dictionary<long, OsmSharp.Complete.CompleteWay> loadedWays = new Dictionary<long, OsmSharp.Complete.CompleteWay>(capacity);
                 r.Members = new OsmSharp.Complete.CompleteRelationMember[capacity];
                 idToFind = 0;
@@ -607,7 +607,7 @@ namespace PraxisCore.PbfReader
         private Way findWayInBlockList(List<Way> primWays, long wayId)
         {
             int min = 0;
-            int max = primWays.Count();
+            int max = primWays.Count;
             int current = max / 2;
             int prevCheck = 0;
             while (min != max && prevCheck != current) //This is a B-Tree search on an array
@@ -670,10 +670,10 @@ namespace PraxisCore.PbfReader
             {
                 OsmSharp.Complete.CompleteWay finalway = new OsmSharp.Complete.CompleteWay();
                 finalway.Id = way.id;
-                finalway.Tags = new OsmSharp.Tags.TagsCollection(way.keys.Count());
+                finalway.Tags = new OsmSharp.Tags.TagsCollection(way.keys.Count);
 
                 //We always need to apply tags here, so we can either skip after (if IgnoredUmatched is set) or to pass along tag values correctly.
-                for (int i = 0; i < way.keys.Count(); i++)
+                for (int i = 0; i < way.keys.Count; i++)
                     finalway.Tags.Add(new OsmSharp.Tags.Tag(System.Text.Encoding.UTF8.GetString(wayBlock.stringtable.s[(int)way.keys[i]]), System.Text.Encoding.UTF8.GetString(wayBlock.stringtable.s[(int)way.vals[i]])));
 
                 if (ignoreUnmatched)
@@ -700,8 +700,8 @@ namespace PraxisCore.PbfReader
                 }
                 var nodesByBlock = nodesPerBlock.ToLookup(k => k.Item1, v => v.Item2);
 
-                finalway.Nodes = new OsmSharp.Node[way.refs.Count()];
-                ConcurrentDictionary<long, OsmSharp.Node> AllNodes = new ConcurrentDictionary<long, OsmSharp.Node>(Environment.ProcessorCount, way.refs.Count());
+                finalway.Nodes = new OsmSharp.Node[way.refs.Count];
+                ConcurrentDictionary<long, OsmSharp.Node> AllNodes = new ConcurrentDictionary<long, OsmSharp.Node>(Environment.ProcessorCount, way.refs.Count);
                 Parallel.ForEach(nodesByBlock, (block) =>
                 {
                     var someNodes = GetAllNeededNodesInBlock(block.Key, block.Distinct().OrderBy(b => b).ToArray());
@@ -742,7 +742,7 @@ namespace PraxisCore.PbfReader
 
             //sort out tags ahead of time.
             int entryCounter = 0;
-            List<Tuple<int, string, string>> idKeyVal = new List<Tuple<int, string, string>>((dense.keys_vals.Count - dense.id.Count()) / 2);
+            List<Tuple<int, string, string>> idKeyVal = new List<Tuple<int, string, string>>((dense.keys_vals.Count - dense.id.Count) / 2);
             for (int i = 0; i < dense.keys_vals.Count; i++)
             {
                 if (dense.keys_vals[i] == 0)
@@ -882,7 +882,7 @@ namespace PraxisCore.PbfReader
             //any node I need to find is in the same block as another node I've found.
             //This should save a lot of time searching the list when I have already found some blocks
             //and shoudn't waste too much time if it isn't in a block already found.
-            if (hints != null && hints.Count() < nodeHintsMax) //skip hints if the BTree search is fewer checks.
+            if (hints != null && hints.Count < nodeHintsMax) //skip hints if the BTree search is fewer checks.
             {
                 foreach (var h in hints)
                 {
@@ -923,7 +923,7 @@ namespace PraxisCore.PbfReader
 
         private long FindBlockKeyForWay(long wayId, List<long> hints) //BTree
         {
-            if (hints != null && hints.Count() < wayHintsMax) //skip hints if the BTree search is fewer checks.
+            if (hints != null && hints.Count < wayHintsMax) //skip hints if the BTree search is fewer checks.
                 foreach (var h in hints)
                 {
                     //we can check this, but we need to look at the previous block too.
@@ -973,7 +973,7 @@ namespace PraxisCore.PbfReader
                 relList.Clear();
                 foreach (var primgroup in block.primitivegroup)
                 {
-                    if (primgroup.relations != null && primgroup.relations.Count() > 0)
+                    if (primgroup.relations != null && primgroup.relations.Count > 0)
                     {
                         //Some relation blocks can hit 22GB of RAM on their own. Low-resource machines will fail, and should roll into the LastChance path automatically.
                         foreach (var r in primgroup.relations)
@@ -981,7 +981,7 @@ namespace PraxisCore.PbfReader
 
                         Task.WaitAll(relList.ToArray());
                     }
-                    else if (primgroup.ways != null && primgroup.ways.Count() > 0)
+                    else if (primgroup.ways != null && primgroup.ways.Count > 0)
                     {
                         List<long> hint = new List<long>() { blockId };
                         foreach (var r in primgroup.ways)
@@ -1049,15 +1049,15 @@ namespace PraxisCore.PbfReader
         {
             string filename = outputPath + fi.Name + ".blockinfo";
             //now deserialize
-            string[] data = new string[blockPositions.Count()];
-            for (int i = 0; i < data.Count(); i++)
+            string[] data = new string[blockPositions.Count];
+            for (int i = 0; i < data.Length; i++)
             {
                 data[i] = i + ":" + blockPositions[i] + ":" + blockSizes[i];
             }
             File.WriteAllLines(filename, data);
 
             filename = outputPath + fi.Name + ".relationIndex";
-            data = new string[relationFinder.Count()];
+            data = new string[relationFinder.Count];
             int j = 0;
             foreach (var wf in relationFinder)
             {
@@ -1077,7 +1077,7 @@ namespace PraxisCore.PbfReader
             File.WriteAllLines(filename, data);
 
             filename = outputPath + fi.Name + ".nodeIndex";
-            data = new string[nodeFinder2.Count()];
+            data = new string[nodeFinder2.Count];
             j = 0;
             foreach (var wf in nodeFinder2)
             {
@@ -1099,7 +1099,7 @@ namespace PraxisCore.PbfReader
                 blockPositions = new Dictionary<long, long>(data.Length);
                 blockSizes = new Dictionary<long, int>(data.Length);
 
-                for (int i = 0; i < data.Count(); i++)
+                for (int i = 0; i < data.Length; i++)
                 {
                     string[] subdata = data[i].Split(":");
                     blockPositions[i] = long.Parse(subdata[1]);
@@ -1150,8 +1150,8 @@ namespace PraxisCore.PbfReader
                 nodeFinderList.Add(Tuple.Create(entry.Key, entry.Value.Item1, entry.Value.Item2));
             }
 
-            nodeFinderTotal = nodeFinderList.Count();
-            wayFinderTotal = wayFinderList.Count();
+            nodeFinderTotal = nodeFinderList.Count;
+            wayFinderTotal = wayFinderList.Count;
             firstWayBlock = wayFinder.Keys.Min();
             firstRelationBlock = relationFinder.Values.Min();
             startNodeBtreeIndex = nodeFinderTotal / 2;
@@ -1226,7 +1226,7 @@ namespace PraxisCore.PbfReader
                 while (!token.IsCancellationRequested)
                 {
                     Log.WriteLog("Current stats:");
-                    Log.WriteLog("Blocks completed this run: " + timeList.Count());
+                    Log.WriteLog("Blocks completed this run: " + timeList.Count);
                     Log.WriteLog("Processing tasks: " + relList.Count(r => !r.IsCompleted));
                     if (timeList.Count > 0)
                     {
@@ -1234,9 +1234,9 @@ namespace PraxisCore.PbfReader
 
                         var slowBlocks = BlockCount() - firstWayBlock;
                         var fastBlocks = firstWayBlock - 1;
-                        var slowBlocksLeft = slowBlocks - timeList.Count();
+                        var slowBlocksLeft = slowBlocks - timeList.Count;
                         var estimatedTimeLeft = (slowBlocksLeft > 0 ? (timeList.Average(t => t.TotalSeconds) * slowBlocksLeft) : 0);
-                        estimatedTimeLeft += (nodeFinderTotal - timeList.Count()) * .05; //very loose estimate on node duration
+                        estimatedTimeLeft += (nodeFinderTotal - timeList.Count) * .05; //very loose estimate on node duration
                         TimeSpan t = new TimeSpan((long)estimatedTimeLeft * 10000000);
                         Log.WriteLog("Estimated Time Remaining: " + t);
                     }
