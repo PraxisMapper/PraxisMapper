@@ -37,10 +37,11 @@ namespace PraxisMapper.Controllers
 
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
             sw.Start();
-            var tile = MapTiles.DrawAreaAtSize(istats);
+            var places = Place.GetPlaces(istats.area);
+            var tile = MapTiles.DrawAreaAtSize(istats, places);
             sw.Stop();
 
-            ViewBag.placeCount = Place.GetPlaces(istats.area).Count();
+            ViewBag.placeCount = places.Count();
             ViewBag.timeToDraw = sw.Elapsed.ToString();
             ViewBag.imageString = "data:image/png;base64," + Convert.ToBase64String(tile);
 
@@ -76,7 +77,8 @@ namespace PraxisMapper.Controllers
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
             sw.Start();
             //var tileSvg = MapTiles.DrawAreaAtSizeSVG(istats); ViewBag.UseSvg = true;
-            var tile = MapTiles.DrawAreaAtSize(istats); ViewBag.UseSvg = false;
+            var places = Place.GetPlaces(istats.area);
+            var tile = MapTiles.DrawAreaAtSize(istats, places); ViewBag.UseSvg = false;
             sw.Stop();
 
             ViewBag.imageString = "data:image/png;base64," + Convert.ToBase64String(tile);
@@ -84,7 +86,7 @@ namespace PraxisMapper.Controllers
             ViewBag.timeToDraw = sw.Elapsed;
             ViewBag.placeCount = 0;
             ViewBag.areasByType = "";
-            var places = Place.GetPlaces(istats.area);
+            
             ViewBag.placeCount = places.Count();
             var grouped = places.GroupBy(p => p.GameElementName);
             string areasByType = "";

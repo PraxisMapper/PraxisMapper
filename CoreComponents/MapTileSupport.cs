@@ -252,7 +252,7 @@ namespace PraxisCore
                 //Make a collision box for just this row of Cell8s, and send the loop below just the list of things that might be relevant.
                 //Add a Cell8 buffer space so all elements are loaded and drawn without needing to loop through the entire area.
                 GeoArea thisRow = new GeoArea(y - ConstantValues.resolutionCell8, xCoords.First() - ConstantValues.resolutionCell8, y + ConstantValues.resolutionCell8 + ConstantValues.resolutionCell8, xCoords.Last() + resolutionCell8);
-                var rowList = GetPlaces(thisRow, allPlaces);
+                var rowList = GetPlaces(thisRow, allPlaces, skipTags:true);
                 var tilesToSave = new List<MapTile>(xCoords.Count());
 
                 Parallel.ForEach(xCoords, x =>

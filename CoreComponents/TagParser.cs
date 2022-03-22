@@ -63,7 +63,17 @@ namespace PraxisCore
                     var db = new PraxisContext();
                     styles = db.StyleEntries.Include(t => t.StyleMatchRules).Include(t => t.PaintOperations).ToList();
                     if (styles == null || styles.Count() == 0)
+                    {
                         styles = Singletons.defaultStyleEntries;
+                        long i = 1;
+                        foreach (var s in styles)
+                        {
+                            foreach (var p in s.PaintOperations)
+                                p.Id = i++;
+                            foreach (var p in s.StyleMatchRules)
+                                p.Id = i++;
+                         }
+                    }
 
                     var bitmaps = db.StyleBitmaps.ToList();
                     foreach (var b in bitmaps)

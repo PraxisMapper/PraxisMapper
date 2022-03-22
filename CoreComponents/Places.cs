@@ -78,8 +78,7 @@ namespace PraxisCore
         /// <returns>A list of Places that intersect the area, have a perimter greater than or equal to filtersize.</returns>
         public static List<DbTables.Place> GetPlacesForTile(ImageStats stats, List<DbTables.Place> source = null, string styleSet = "mapTiles", bool skipTags = false)
         {
-            var dataLoadArea = new GeoArea(stats.area.SouthLatitude - ConstantValues.resolutionCell10, stats.area.WestLongitude - ConstantValues.resolutionCell10, stats.area.NorthLatitude + ConstantValues.resolutionCell10, stats.area.EastLongitude + ConstantValues.resolutionCell10);
-            return GetPlaces(dataLoadArea, source, stats.filterSize, styleSet, skipTags, stats.drawPoints);
+            return GetPlaces(stats.area, source, stats.filterSize, styleSet, skipTags, stats.drawPoints);
         }
 
         //Note: This should have the padding added to area before this is called, if checking for tiles that need regenerated.

@@ -65,9 +65,9 @@ namespace PraxisCore
         /// <param name="area">GeoArea from a decoded PlusCode</param>
         /// <param name="elements">A list of OSM elements</param>
         /// <returns>returns a dictionary using PlusCode as the key and name/areatype/client facing Id of the smallest element intersecting that PlusCode</returns>
-        public static Dictionary<string, TerrainData> SearchArea(ref GeoArea area, ref List<DbTables.Place> elements)
+        public static List<Tuple<string, TerrainData>> SearchArea(ref GeoArea area, ref List<DbTables.Place> elements)
         {
-            Dictionary<string, TerrainData> results = new Dictionary<string, TerrainData>(400); //starting capacity for a full Cell8
+            List<Tuple<string, TerrainData>> results = new List<Tuple<string, TerrainData>>(400); //starting capacity for a full Cell8
 
             //Singular function, returns 1 item entry per cell10.
             if (elements.Count() == 0)
@@ -84,7 +84,7 @@ namespace PraxisCore
                 {
                     var placeFound = FindPlaceInCell10(x, y, ref elements);
                     if (placeFound != null)
-                        results.Add(placeFound.Item1, placeFound.Item2);
+                        results.Add(placeFound);
 
                     y = Math.Round(y + resolutionCell10, 6); //Round ensures we get to the next pluscode in the event of floating point errors.
                 }
@@ -101,25 +101,26 @@ namespace PraxisCore
         /// <param name="area">GeoArea from a decoded PlusCode</param>
         /// <param name="elements">A list of OSM elements</param>
         /// <returns>returns a dictionary using PlusCode as the key and name/areatype/client facing Id of all element intersecting that PlusCode</returns>
-        public static Dictionary<string, List<TerrainData>> SearchAreaFull(ref GeoArea area, ref List<DbTables.Place> elements)
+        public static List<Tuple<string, List<TerrainData>>> SearchAreaFull(ref GeoArea area, ref List<DbTables.Place> elements)
         {
-            //Plural function, returns all entries for each cell10.
-            Dictionary<string, List<TerrainData>> results = new Dictionary<string, List<TerrainData>>(400); //starting capacity for a full Cell8
             if (elements.Count() == 0)
                 return null;
 
+            //Plural function, returns all entries for each cell10.
+            List<Tuple<string, List<TerrainData>>> results = new List<Tuple<string, List<TerrainData>>>(400); //starting capacity for a full Cell8
+            
             var xCells = area.LongitudeWidth / resolutionCell10;
             var yCells = area.LatitudeHeight / resolutionCell10;
             double x = area.Min.Longitude;
             double y = area.Min.Latitude;
 
-            for (double xx = 0; xx < xCells; xx += 1)
+            for (double xx = 0; xx < xCells; xx++)
             {
-                for (double yy = 0; yy < yCells; yy += 1)
+                for (double yy = 0; yy < yCells; yy++)
                 {
                     var placeFound = FindPlacesInCell10(x, y, ref elements);
                     if (placeFound != null)
-                        results.Add(placeFound.Item1, placeFound.Item2);
+                        results.Add(placeFound);
 
                     y = Math.Round(y + resolutionCell10, 6); //Round ensures we get to the next pluscode in the event of floating point errors.
                 }
@@ -141,13 +142,13 @@ namespace PraxisCore
         {
             //Plural function, gets all areas in each cell10.
             var box = new GeoArea(new GeoPoint(lat, lon), new GeoPoint(lat + resolutionCell10, lon + resolutionCell10));
-            var entriesHere = GetPlaces(box, places, skipTags:true).ToList();
+            var entriesHere = GetPlaces(box, places, skipTags:true);
 
             if (entriesHere.Count() == 0)
                 return null;
 
             var area = DetermineAreaPlaces(entriesHere);
-            if (area != null && area.Count() > 0)
+            if (area.Count() > 0)
             {
                 string olc = new OpenLocationCode(lat, lon).CodeDigits;
                 return new Tuple<string, List<TerrainData>>(olc, area);
