@@ -22,7 +22,7 @@
         var baseData = L.tileLayer(url, {id: "MapTile/DrawSlippyTile", tileSize:512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
         var ptt = L.tileLayer(url, { id: "MapTile/SlippyAreaData/paintTown/color", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
         //var ptt = L.tileLayer(url, { id: "PaintTown/DrawSlippyTile", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 });
-        var ac = L.tileLayer(url, { id: "AreaControl/DrawFactionModeSlippyTile", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
+        var ac = L.tileLayer(url, { id: "MapTile/SlippyPlaceData/teamColor/team", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
         var generated = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
         var adminBounds = L.tileLayer(url, { id: "MapTile/DrawSlippyTile/adminBounds", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
         var adminBounds2 = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
@@ -36,7 +36,7 @@
         //};
         var overlays = {
             "Paint The Town": ptt,
-            "Area Control": ac,
+            "Area Tag": ac,
             //"Server-Generated": generated,
             "Admin Boundaries": adminBounds,
             "Outline All Items": outlineAll
