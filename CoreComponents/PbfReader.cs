@@ -182,7 +182,7 @@ namespace PraxisCore.PbfReader
                 Open(filename);
                 LoadBlockInfo();
                 nextBlockId = 0;
-                if (relationFinder.Count == 0)
+                if (relationFinder.IsEmpty)
                 {
                     IndexFile();
                     SaveBlockInfo();
@@ -455,7 +455,7 @@ namespace PraxisCore.PbfReader
         /// </summary>
         /// <param name="blockBytes">the bytes making up the block</param>
         /// <returns>the PrimitiveBlock object requested.</returns>
-        private PrimitiveBlock DecodeBlock(byte[] blockBytes)
+        private static PrimitiveBlock DecodeBlock(byte[] blockBytes)
         {
             var ms2 = new MemoryStream(blockBytes);
             var b2 = Serializer.Deserialize<Blob>(ms2);
@@ -466,7 +466,7 @@ namespace PraxisCore.PbfReader
             return pulledBlock;
         }
 
-        private Relation findRelationInBlockList(List<Relation> primRels, long relId)
+        private static Relation findRelationInBlockList(List<Relation> primRels, long relId)
         {
             int min = 0;
             int max = primRels.Count;
@@ -604,7 +604,7 @@ namespace PraxisCore.PbfReader
             }
         }
 
-        private Way findWayInBlockList(List<Way> primWays, long wayId)
+        private static Way findWayInBlockList(List<Way> primWays, long wayId)
         {
             int min = 0;
             int max = primWays.Count;
@@ -855,7 +855,7 @@ namespace PraxisCore.PbfReader
         /// <param name="key">the NodeId to check for in this block</param>
         /// <param name="value">the Tuple of min and max node IDs in a block.</param>
         /// <returns>true if key is between the 2 Tuple values, or false ifnot.</returns>
-        private bool NodeHasKey(long key, Tuple<long, long> value)
+        private static bool NodeHasKey(long key, Tuple<long, long> value)
         {
             //key is block id
             //value is the tuple list. 1 is min, 2 is max.
@@ -1228,7 +1228,7 @@ namespace PraxisCore.PbfReader
                     Log.WriteLog("Current stats:");
                     Log.WriteLog("Blocks completed this run: " + timeList.Count);
                     Log.WriteLog("Processing tasks: " + relList.Count(r => !r.IsCompleted));
-                    if (timeList.Count > 0)
+                    if (!timeList.IsEmpty)
                     {
                         Log.WriteLog("Average time per block: " + timeList.Average(t => t.TotalSeconds) + " seconds");
 
@@ -1278,7 +1278,7 @@ namespace PraxisCore.PbfReader
             if (boundsEntry != null)
                 elements = new ConcurrentBag<DbTables.Place>(elements.Where(e => boundsEntry.Intersects(e.ElementGeometry)));
 
-            if (elements.Count == 0)
+            if (elements.IsEmpty)
                 return;
 
             //Single check per block to fix points having 0 size.
@@ -1341,7 +1341,7 @@ namespace PraxisCore.PbfReader
                 Open(filename);
                 LoadBlockInfo();
                 nextBlockId = 0;
-                if (relationFinder.Count == 0)
+                if (relationFinder.IsEmpty)
                 {
                     IndexFile();
                     SaveBlockInfo();
@@ -1383,7 +1383,7 @@ namespace PraxisCore.PbfReader
                 Open(filename);
                 LoadBlockInfo();
                 nextBlockId = 0;
-                if (relationFinder.Count == 0)
+                if (relationFinder.IsEmpty)
                 {
                     IndexFile();
                     SaveBlockInfo();
