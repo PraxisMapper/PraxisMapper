@@ -154,7 +154,7 @@ namespace PraxisCore.PbfReader
                 if (processingMode == "center")
                     md.ElementGeometry = md.ElementGeometry.Centroid;
 
-                sb.Append(md.SourceItemID).Append("\t").Append(md.SourceItemType).Append("\t").Append(md.ElementGeometry.AsText()).Append("\t").Append(md.AreaSize).Append("\t").Append(md.PrivacyId).Append("\r\n");
+                sb.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(md.AreaSize).Append('\t').Append(md.PrivacyId).Append("\r\n");
                 reprocFileStream.WriteLine(sb.ToString());
             }
             sr.Close(); sr.Dispose(); fr.Close(); fr.Dispose();
@@ -1305,9 +1305,9 @@ namespace PraxisCore.PbfReader
                 StringBuilder tagBuilds = new StringBuilder(40000); //40kb, tags are usually smaller than geometry.
                 foreach (var md in elements)
                 {
-                    geometryBuilds.Append(md.SourceItemID).Append("\t").Append(md.SourceItemType).Append("\t").Append(md.ElementGeometry.AsText()).Append("\t").Append(md.AreaSize).Append("\t").Append(Guid.NewGuid()).Append("\r\n");
+                    geometryBuilds.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(md.AreaSize).Append('\t').Append(Guid.NewGuid()).Append("\r\n");
                     foreach (var t in md.Tags)
-                        tagBuilds.Append(md.SourceItemID).Append("\t").Append(md.SourceItemType).Append("\t").Append(t.Key).Append("\t").Append(t.Value.Replace("\r", "").Replace("\n", "")).Append("\r\n"); //Might also need to sanitize / and ' ?
+                        tagBuilds.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(t.Key).Append('\t').Append(t.Value.Replace("\r", "").Replace("\n", "")).Append("\r\n"); //Might also need to sanitize / and ' ?
                 }
                 try
                 {
