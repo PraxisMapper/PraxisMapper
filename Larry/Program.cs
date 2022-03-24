@@ -50,7 +50,7 @@ namespace Larry
 
             Log.WriteLog("Larry started at " + DateTime.Now);
 
-            if (args.Count() == 0)
+            if (args.Length == 0)
             {
                 Log.WriteLog("You must pass an arguement to this application", Log.VerbosityLevels.High);
                 //TODO: list valid commands or point at the docs file
@@ -569,7 +569,7 @@ namespace Larry
                     var db = new PraxisContext();
                     Log.WriteLog("Loading " + filename);
                     var entries = GeometrySupport.ReadStoredElementsFileToMemory(filename); //tagsData file loaded automatically here.
-                    Log.WriteLog(entries.Count() + " entries to update in database for " + filename);
+                    Log.WriteLog(entries.Count + " entries to update in database for " + filename);
                     db.UpdateExistingEntries(entries);
                     File.Move(filename, filename + "Done");
                     Log.WriteLog(filename + " completed at " + DateTime.Now);
