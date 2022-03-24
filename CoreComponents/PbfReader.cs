@@ -773,7 +773,7 @@ namespace PraxisCore.PbfReader
                 lat += dense.lat[index];
                 lon += dense.lon[index];
 
-                if (decodedTags[index].Count() == 0)
+                if (!decodedTags[index].Any())
                     continue;
 
                 //now, start loading keys/values
@@ -1260,7 +1260,7 @@ namespace PraxisCore.PbfReader
             ConcurrentBag<DbTables.Place> elements = new ConcurrentBag<DbTables.Place>();
             DateTime startedProcess = DateTime.Now;
 
-            if (items == null || items.Count() == 0)
+            if (items == null || !items.Any())
                 return;
 
             relList = new ConcurrentBag<Task>();
@@ -1270,7 +1270,7 @@ namespace PraxisCore.PbfReader
                     relList.Add(Task.Run(() => { var e = GeometrySupport.ConvertOsmEntryToStoredElement(r); if (e != null) elements.Add(e); }));
             }
             Task.WaitAll(relList.ToArray());
-            relList = new ConcurrentBag<Task>();
+            //relList = new ConcurrentBag<Task>();
 
             if (onlyMatchedAreas)
                 elements = new ConcurrentBag<DbTables.Place>(elements.Where(e => TagParser.GetStyleForOsmWay(e.Tags, styleSet).Name != TagParser.defaultStyle.Name));
