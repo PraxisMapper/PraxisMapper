@@ -312,6 +312,9 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Terrain/{plusCode}")]
         public string GetPlusCodeTerrainData(string plusCode)
         {
+            if (cache.TryGetValue("Terrain" + plusCode, out string cachedResults))
+                return cachedResults;
+
             //This function returns 1 line per Cell10, the smallest (and therefore highest priority) item intersecting that cell10.
             GeoArea box = OpenLocationCode.DecodeValid(plusCode);
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), box))
@@ -326,6 +329,7 @@ namespace PraxisMapper.Controllers
             foreach (var d in data)
                 sb.Append(d.plusCode).Append('|').Append(d.data.Name).Append('|').Append(d.data.areaType).Append('|').Append(d.data.PrivacyId).Append('\n');
             var results = sb.ToString();
+            cache.Set("Terrain" + plusCode, results, new TimeSpan(0, 0, 30));
             return results;
         }
 
@@ -334,6 +338,8 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Terrain/All/{plusCode}")]
         public string GetPlusCodeTerrainDataFull(string plusCode)
         {
+            if (cache.TryGetValue("TerrainAll" + plusCode, out string cachedResults))
+                return cachedResults;
             //This function returns 1 line per Cell10 per intersecting element. For an app that needs to know all things in all points.
             GeoArea box = OpenLocationCode.DecodeValid(plusCode);
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), box))
@@ -349,6 +355,7 @@ namespace PraxisMapper.Controllers
                 foreach (var v in d.data)
                     sb.Append(d.plusCode).Append('|').Append(v.Name).Append('|').Append(v.areaType).Append('|').Append(v.PrivacyId).Append('\n');
             var results = sb.ToString();
+            cache.Set("TerrainAll" + plusCode, results, new TimeSpan(0, 0, 30));
             return results;
         }
 
