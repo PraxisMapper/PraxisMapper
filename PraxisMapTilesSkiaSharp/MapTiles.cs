@@ -310,7 +310,7 @@ namespace PraxisCore
             if (drawnItems == null)
                 drawnItems = GetPlaces(stats.area, filterSize: minimumSize, includePoints: includePoints);
 
-            var paintOps = MapTileSupport.GetPaintOpsForStoredElements(drawnItems, "mapTiles", stats);
+            var paintOps = MapTileSupport.GetPaintOpsForPlaces(drawnItems, "mapTiles", stats);
             return DrawAreaAtSize(stats, paintOps);
         }
 
