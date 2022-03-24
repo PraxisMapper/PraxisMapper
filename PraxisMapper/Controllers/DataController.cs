@@ -28,6 +28,7 @@ namespace PraxisMapper.Controllers
 
         private readonly IConfiguration Configuration;
         private static IMemoryCache cache;
+        private static ReaderWriterLockSlim deleteLock = new ReaderWriterLockSlim();
 
         public DataController(IConfiguration configuration, IMemoryCache memoryCacheSingleton)
         {
@@ -36,11 +37,19 @@ namespace PraxisMapper.Controllers
 
             if (lastExpiryPass < DateTime.UtcNow)
             {
-                var db = new PraxisContext();
-                db.Database.ExecuteSqlRaw("DELETE FROM PlaceGameData WHERE expiration IS NOT NULL AND expiration < NOW()");
-                db.Database.ExecuteSqlRaw("DELETE FROM AreaGameData WHERE expiration IS NOT NULL AND expiration < NOW()");
-                db.Database.ExecuteSqlRaw("DELETE FROM PlayerData WHERE expiration IS NOT NULL AND expiration < NOW()");
-                lastExpiryPass = DateTime.UtcNow.AddMinutes(30);
+                if (!deleteLock.IsWriteLockHeld)
+                {
+                    deleteLock.EnterWriteLock();
+                    lastExpiryPass = DateTime.UtcNow.AddMinutes(30);
+                    System.Threading.Tasks.Task.Run(() =>
+                    {
+                        var db = new PraxisContext();
+                        db.Database.ExecuteSqlRaw("DELETE FROM PlaceGameData WHERE expiration IS NOT NULL AND expiration < NOW()");
+                        db.Database.ExecuteSqlRaw("DELETE FROM AreaGameData WHERE expiration IS NOT NULL AND expiration < NOW()");
+                        db.Database.ExecuteSqlRaw("DELETE FROM PlayerData WHERE expiration IS NOT NULL AND expiration < NOW()");
+                        deleteLock.ExitWriteLock();
+                    });
+                }
             }
         }
 
@@ -223,11 +232,11 @@ namespace PraxisMapper.Controllers
             locks.TryAdd(lockKey, new ReaderWriterLockSlim());
             var thisLock = locks[lockKey];
             thisLock.EnterWriteLock();
-                var data = GenericData.GetPlayerData(deviceId, key);
-                double val = 0;
-                Double.TryParse(data.ToString(), out val);
-                val += changeAmount;
-                GenericData.SetPlayerData(deviceId, key, val.ToString(), expirationTimer);
+            var data = GenericData.GetPlayerData(deviceId, key);
+            double val = 0;
+            Double.TryParse(data.ToString(), out val);
+            val += changeAmount;
+            GenericData.SetPlayerData(deviceId, key, val.ToString(), expirationTimer);
             thisLock.ExitWriteLock();
 
             if (thisLock.WaitingWriteCount == 0)
@@ -242,11 +251,11 @@ namespace PraxisMapper.Controllers
             locks.TryAdd(key, new ReaderWriterLockSlim());
             var thisLock = locks[key];
             thisLock.EnterWriteLock();
-                var data = GenericData.GetGlobalData(key);
-                double val = 0;
-                Double.TryParse(data.ToString(), out val);
-                val += changeAmount;
-                GenericData.SetGlobalData(key, val.ToString());
+            var data = GenericData.GetGlobalData(key);
+            double val = 0;
+            Double.TryParse(data.ToString(), out val);
+            val += changeAmount;
+            GenericData.SetGlobalData(key, val.ToString());
             thisLock.ExitWriteLock();
 
             if (thisLock.WaitingWriteCount == 0)
@@ -261,16 +270,16 @@ namespace PraxisMapper.Controllers
         {
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return;
-            
+
             string lockKey = plusCode + key;
             locks.TryAdd(lockKey, new ReaderWriterLockSlim());
             var thisLock = locks[lockKey];
             thisLock.EnterWriteLock();
-                var data = GenericData.GetAreaData(plusCode, key);
-                double val = 0;
-                Double.TryParse(data.ToString(), out val);
-                val += changeAmount;
-                GenericData.SetAreaData(plusCode, key, val.ToString(), expirationTimer);
+            var data = GenericData.GetAreaData(plusCode, key);
+            double val = 0;
+            Double.TryParse(data.ToString(), out val);
+            val += changeAmount;
+            GenericData.SetAreaData(plusCode, key, val.ToString(), expirationTimer);
             thisLock.ExitWriteLock();
 
             if (thisLock.WaitingWriteCount == 0)
@@ -287,11 +296,11 @@ namespace PraxisMapper.Controllers
             locks.TryAdd(lockKey, new ReaderWriterLockSlim());
             var thisLock = locks[lockKey];
             thisLock.EnterWriteLock();
-                var data = GenericData.GetPlaceData(elementId, key);
-                double val = 0;
-                Double.TryParse(data.ToString(), out val);
-                val += changeAmount;
-                GenericData.SetPlaceData(elementId, key, val.ToString(), expirationTimer);
+            var data = GenericData.GetPlaceData(elementId, key);
+            double val = 0;
+            Double.TryParse(data.ToString(), out val);
+            val += changeAmount;
+            GenericData.SetPlaceData(elementId, key, val.ToString(), expirationTimer);
             thisLock.ExitWriteLock();
 
             if (thisLock.WaitingWriteCount == 0)
@@ -306,7 +315,7 @@ namespace PraxisMapper.Controllers
             //This function returns 1 line per Cell10, the smallest (and therefore highest priority) item intersecting that cell10.
             GeoArea box = OpenLocationCode.DecodeValid(plusCode);
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), box))
-                return "";            
+                return "";
             var places = GetPlaces(box);
             places = places.Where(p => p.GameElementName != TagParser.defaultStyle.Name).ToList();
 
@@ -337,7 +346,7 @@ namespace PraxisMapper.Controllers
 
             var data = AreaTypeInfo.SearchAreaFull(ref box, ref places);
             foreach (var d in data)
-                foreach(var v in d.Item2)
+                foreach (var v in d.Item2)
                     sb.Append(d.Item1).Append("|").Append(v.Name).Append("|").Append(v.areaType).Append("|").Append(v.PrivacyId).Append("\n");
             var results = sb.ToString();
             return results;
@@ -371,7 +380,7 @@ namespace PraxisMapper.Controllers
             var place = db.Places.FirstOrDefault(e => e.PrivacyId == elementId);
             if (place == null) return "0|0";
             var center = place.ElementGeometry.Centroid;
-            return center.Y.ToString() + "|" + center.X.ToString();        
+            return center.Y.ToString() + "|" + center.X.ToString();
         }
 
         [HttpDelete]
