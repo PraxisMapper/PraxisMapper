@@ -53,6 +53,7 @@ namespace PraxisCore
             //Create indexes here.
             model.Entity<PlayerData>().HasIndex(p => p.DeviceID);
             model.Entity<PlayerData>().HasIndex(p => p.DataKey);
+            model.Entity<PlayerData>().HasIndex(p => p.Expiration);
 
             model.Entity<DbTables.Place>().HasIndex(m => m.AreaSize); //Enables server-side sorting on biggest-to-smallest draw order.
             model.Entity<DbTables.Place>().HasIndex(m => m.SourceItemID);
@@ -70,12 +71,15 @@ namespace PraxisCore
             model.Entity<PlaceTags>().HasIndex(m => m.Key);
             model.Entity<PlaceTags>().HasOne(m => m.Place).WithMany(m => m.Tags).HasForeignKey(m => new { m.SourceItemId, m.SourceItemType }).HasPrincipalKey(m => new { m.SourceItemID, m.SourceItemType });
 
+
             model.Entity<PlaceGameData>().HasIndex(m => m.DataKey);
             model.Entity<PlaceGameData>().HasIndex(m => m.PlaceId);
+            model.Entity<PlaceGameData>().HasIndex(m => m.Expiration);
 
             model.Entity<AreaGameData>().HasIndex(m => m.DataKey);
             model.Entity<AreaGameData>().HasIndex(m => m.PlusCode);
             model.Entity<AreaGameData>().HasIndex(m => m.GeoAreaIndex);
+            model.Entity<AreaGameData>().HasIndex(m => m.Expiration);
 
             if (serverMode == "PostgreSQL")
             {
