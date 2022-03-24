@@ -21,7 +21,6 @@ namespace PraxisCore
         public static StyleEntry defaultStyle; //background color must be last if I want un-matched areas to be hidden, its own color if i want areas with no ways at all to show up.
         public static Dictionary<string, byte[]> cachedBitmaps = new Dictionary<string, byte[]>(); //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
         public static Dictionary<string, Dictionary<string, StyleEntry>> allStyleGroups = new Dictionary<string, Dictionary<string, StyleEntry>>();
-        public static System.Security.Cryptography.MD5 hasher = System.Security.Cryptography.MD5.Create();
 
         private static IMapTiles MapTiles; 
 
@@ -414,7 +413,7 @@ namespace PraxisCore
         public static string PickStaticColorForArea(string areaname)
         {
             var value = areaname.ToByteArrayUTF8();
-            var hash = hasher.ComputeHash(value);
+            var hash = System.Security.Cryptography.MD5.HashData(value);
             string results = BitConverter.ToString(hash, 0, 3);
             return results;
         }
