@@ -133,14 +133,9 @@ namespace Google.OpenLocationCode
         // The digit values indexed by the character ASCII integer for efficient lookup of a digit value by its character
         private static readonly int[] IndexedDigitValues = new int[CodeAlphabet[CodeAlphabet.Length - 1] - IndexedDigitValueOffset + 1]; // int[38]
 
-        //These indicate the boundaries of a code cell by degrees.
-        public static readonly double Precision10 = .000125;
-        public static readonly double Precision8 = .0025;
-        public static readonly double Precision6 = .05;
-
         static OpenLocationCode()
         {
-            for (int i = 0, digitVal = 0; i < IndexedDigitValues.Length; i++)
+            for ( int i = 0, digitVal = 0; i < IndexedDigitValues.Length; i++)
             {
                 int digitIndex = CodeAlphabet[digitVal] - IndexedDigitValueOffset;
                 IndexedDigitValues[i] = (digitIndex == i) ? digitVal++ : -1;

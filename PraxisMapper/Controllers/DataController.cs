@@ -324,7 +324,7 @@ namespace PraxisMapper.Controllers
 
             var data = AreaTypeInfo.SearchArea(ref box, ref places);
             foreach (var d in data)
-                sb.Append(d.Item1).Append('|').Append(d.Item2.Name).Append('|').Append(d.Item2.areaType).Append('|').Append(d.Item2.PrivacyId).Append('\n');
+                sb.Append(d.plusCode).Append('|').Append(d.data.Name).Append('|').Append(d.data.areaType).Append('|').Append(d.data.PrivacyId).Append('\n');
             var results = sb.ToString();
             return results;
         }
@@ -342,12 +342,12 @@ namespace PraxisMapper.Controllers
             places = places.Where(p => p.GameElementName != TagParser.defaultStyle.Name).ToList();
 
             StringBuilder sb = new StringBuilder();
-            //pluscode|name|type|privacyID(named wrong but its the Guid)
+            //pluscode|name|type|privacyID
 
             var data = AreaTypeInfo.SearchAreaFull(ref box, ref places);
             foreach (var d in data)
-                foreach (var v in d.Item2)
-                    sb.Append(d.Item1).Append('|').Append(v.Name).Append('|').Append(v.areaType).Append('|').Append(v.PrivacyId).Append('\n');
+                foreach (var v in d.data)
+                    sb.Append(d.plusCode).Append('|').Append(v.Name).Append('|').Append(v.areaType).Append('|').Append(v.PrivacyId).Append('\n');
             var results = sb.ToString();
             return results;
         }

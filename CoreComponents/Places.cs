@@ -62,7 +62,7 @@ namespace PraxisCore
             {
                 //We should always have the tags here.
                 var location = Converters.GeoAreaToPreparedPolygon(area);
-                places = source.Where(md => location.Intersects(md.ElementGeometry) && md.AreaSize >= filterSize && (includePoints || md.SourceItemType != 1)).Select(md => md.Clone()).ToList();
+                places = source.Where(md => location.Intersects(md.ElementGeometry) && md.AreaSize >= filterSize && (includePoints || md.SourceItemType != 1)).ToList();
             }
 
             //if (!skipTags)

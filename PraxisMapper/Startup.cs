@@ -55,7 +55,7 @@ namespace PraxisMapper
             {
                 Assembly asm;
                 if (System.Diagnostics.Debugger.IsAttached) //Folders vary, when debugging in IIS run path and local folder aren't the same so we check here.
-                    asm = Assembly.LoadFrom(@".\bin\Debug\net6.0\PraxisMapTilesSkiaSharp.dll");
+                    asm = Assembly.LoadFrom(@".\bin\Debug\net7.0\PraxisMapTilesSkiaSharp.dll");
                 else
                     asm = Assembly.LoadFrom(@"PraxisMapTilesSkiaSharp.dll");
                 mapTiles = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
@@ -65,7 +65,7 @@ namespace PraxisMapper
             {
                 Assembly asm;
                 if (System.Diagnostics.Debugger.IsAttached)
-                    asm = Assembly.LoadFrom(@".\bin\Debug\net6.0\PraxisMapTilesImageSharp.dll");
+                    asm = Assembly.LoadFrom(@".\bin\Debug\net7.0\PraxisMapTilesImageSharp.dll");
                 else
                     asm = Assembly.LoadFrom(@"PraxisMapTilesImageSharp.dll");
                 mapTiles = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
