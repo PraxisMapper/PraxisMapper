@@ -22,6 +22,7 @@ using static PraxisCore.DbTables;
 using static PraxisCore.GeometrySupport;
 using static PraxisCore.Place;
 using static PraxisCore.Singletons;
+using static PraxisCore.StandaloneDbTables;
 
 namespace PerformanceTestApp
 {
@@ -53,6 +54,7 @@ namespace PerformanceTestApp
             //PraxisContext.connectionString = "server=localhost;database=praxis;user=root;password=asdf;";
 
             //TagParser.Initialize();
+            TagParser.Initialize(false, (IMapTiles)MapTiles);
 
             if (Debugger.IsAttached)
                 Console.WriteLine("Run this in Release mode for accurate numbers!");
@@ -84,8 +86,10 @@ namespace PerformanceTestApp
             //TestTagParsers();
             //TestSpanOnEntry("754866354	2	LINESTRING (-82.110422 40.975346, -82.1113778 40.9753544)	0.0009558369107748833	2028a47f-4119-4426-b40f-a8715d67f962");
             //TestSpanOnEntry("945909899	1	POINT (-84.1416403 39.7111214)	0.000125	5b9f9899-09dc-4b53-ba1a-5799fe6f992b");
-            //TestConvertFromTsv();
-            
+            TestConvertFromTsv();
+            //TestSearchArea();
+            //TupleVsRecords(); //looks like recordstructs are way faster
+
 
             //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
             //These cannot all be enabled in one run. You must comment/uncomment each one separately.
@@ -328,7 +332,7 @@ namespace PerformanceTestApp
             var places = GetPlaces(OpenLocationCode.DecodeValid(plusCode6));  //All the places in this 6-code
             var box = OpenLocationCode.DecodeValid(plusCode6);
             sw.Stop();
-            Log.WriteLog("Pulling " + places.Count() + " places in 6-cell took " + sw.ElapsedMilliseconds + "ms");
+            Log.WriteLog("Pulling " + places.Count + " places in 6-cell took " + sw.ElapsedMilliseconds + "ms");
 
             int[] splitChecks = new int[] { 1, 2, 4, 8, 10, 20, 25, 32, 40, 80, 100 };
             foreach (int splitcount in splitChecks)
@@ -835,11 +839,11 @@ namespace PerformanceTestApp
 
             Stopwatch sw = new Stopwatch();
             sw.Start();
-            var data1 = normalListTest.AsParallel().Select(r => r.Members.Count()).ToList();
+            var data1 = normalListTest.AsParallel().Select(r => r.Members.Length).ToList();
             sw.Stop();
             Log.WriteLog("Standard list took " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds + "ms)");
             sw.Restart();
-            var data2 = concurrentTest.AsParallel().Select(r => r.Members.Count()).ToList();
+            var data2 = concurrentTest.AsParallel().Select(r => r.Members.Length).ToList();
             sw.Stop();
             Log.WriteLog("ConcurrentBag took " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds + "ms)");
 
@@ -1010,7 +1014,7 @@ namespace PerformanceTestApp
                 }
 
                 //locker.EnterWriteLock();
-                convertedRelation.ElementGeometry = SimplifyArea(convertedRelation.ElementGeometry);
+                convertedRelation.ElementGeometry = SimplifyPlace(convertedRelation.ElementGeometry);
                 if (convertedRelation.ElementGeometry == null)
                     continue;
                 db.Places.Add(convertedRelation);
@@ -1029,7 +1033,7 @@ namespace PerformanceTestApp
                 }
 
                 //locker.EnterWriteLock();
-                convertedWay.ElementGeometry = SimplifyArea(convertedWay.ElementGeometry);
+                convertedWay.ElementGeometry = SimplifyPlace(convertedWay.ElementGeometry);
                 if (convertedWay.ElementGeometry == null)
                     continue;
                 db.Places.Add(convertedWay);
@@ -1048,16 +1052,16 @@ namespace PerformanceTestApp
             try
             {
                 var feature = OsmSharp.Geo.FeatureInterpreter.DefaultInterpreter.Interpret(g);
-                if (feature.Count() != 1)
+                if (feature.Count != 1)
                 {
-                    Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + " didn't return expected number of features (" + feature.Count() + ")", Log.VerbosityLevels.High);
+                    Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + " didn't return expected number of features (" + feature.Count + ")", Log.VerbosityLevels.High);
                     return null;
                 }
                 var sw = new DbTables.Place();
                 //sw.name = TagParser.GetPlaceName(g.Tags);
                 sw.SourceItemID = g.Id;
                 sw.SourceItemType = (g.Type == OsmGeoType.Relation ? 3 : g.Type == OsmGeoType.Way ? 2 : 1);
-                var geo = SimplifyArea(feature.First().Geometry);
+                var geo = SimplifyPlace(feature.First().Geometry);
                 if (geo == null)
                     return null;
                 geo.SRID = 4326;//Required for SQL Server to accept data this way.
@@ -1600,7 +1604,7 @@ namespace PerformanceTestApp
             var areaPoly = Converters.GeoAreaToPolygon(testArea6);
             var db = new PraxisContext();
             var places = db.Places.Include(w => w.Tags).Where(w => w.ElementGeometry.Intersects(areaPoly)).ToList();
-            Log.WriteLog("Loaded " + places.Count() + " objects for test");
+            Log.WriteLog("Loaded " + places.Count + " objects for test");
 
             ImageStats info = new ImageStats(testArea6, 512, 512); //using default Slippy map tile size for comparison.
             //draw objects as is.
@@ -1660,7 +1664,7 @@ namespace PerformanceTestApp
             string filename = @"D:\Projects\PraxisMapper Files\XmlToProcess\ohio-latest.osm.pbf";
             PraxisCore.PbfReader.PbfReader r = new PraxisCore.PbfReader.PbfReader();
             var testElement = r.LoadOneRelationFromFile(filename, elementID);
-            var NTSelement = GeometrySupport.ConvertOsmEntryToStoredElement(testElement);
+            var NTSelement = GeometrySupport.ConvertOsmEntryToPlace(testElement);
 
             //prep the drawing area.
             var geoarea = Converters.GeometryToGeoArea(NTSelement.ElementGeometry);
@@ -1792,7 +1796,7 @@ namespace PerformanceTestApp
                     var area = new OpenLocationCode(cellToCheck).Decode();
                     ImageStats stats = new ImageStats(area, 80, 100);
                     var places = GetPlaces(area, mapData, 0, "mapTiles");
-                    var drawOps = MapTileSupport.GetPaintOpsForStoredElements(places, "mapTiles", stats);
+                    var drawOps = MapTileSupport.GetPaintOpsForPlaces(places, "mapTiles", stats);
 
                     Stopwatch swSkia = new Stopwatch();
                     Stopwatch swImage = new Stopwatch();
@@ -1887,7 +1891,7 @@ namespace PerformanceTestApp
 
             //Step 1: check all the rules against these tags.
             //The * value is required for all the rules, so check it first.
-            for (var i = 0; i < tpe.StyleMatchRules.Count(); i++)
+            for (var i = 0; i < tpe.StyleMatchRules.Count; i++)
             {
                 var entry = tpe.StyleMatchRules.ElementAt(i);
                 if (entry.Value == "*") //The Key needs to exist, but any value counts.
@@ -1955,7 +1959,7 @@ namespace PerformanceTestApp
 
             //Step 1: check all the rules against these tags.
             //The * value is required for all the rules, so check it first.
-            for (var i = 0; i < tpe.StyleMatchRules.Count(); i++)
+            for (var i = 0; i < tpe.StyleMatchRules.Count; i++)
             {
                 var entry = tpe.StyleMatchRules.ElementAt(i);
                 if (entry.Value == "*") //The Key needs to exist, but any value counts.
@@ -2044,7 +2048,7 @@ namespace PerformanceTestApp
 
             //Step 1: check all the rules against these tags.
             //The * value is required for all the rules, so check it first.
-            for (var i = 0; i < tpe.StyleMatchRules.Count(); i++)
+            for (var i = 0; i < tpe.StyleMatchRules.Count; i++)
             {
                 entry = tpe.StyleMatchRules.ElementAt(i);
 
@@ -2111,7 +2115,7 @@ namespace PerformanceTestApp
 
             //Step 1: check all the rules against these tags.
             //The * value is required for all the rules, so check it first.
-            for (var i = 0; i < tpe.StyleMatchRules.Count(); i++)
+            for (var i = 0; i < tpe.StyleMatchRules.Count; i++)
             {
                 entry = tpe.StyleMatchRules.ElementAt(i);
                 
@@ -2206,7 +2210,7 @@ namespace PerformanceTestApp
             Console.WriteLine("Average span() results: " + spanParse.Average());
         }
 
-        public static DbTables.Place ConvertSingleTsvStoredElement(string sw)
+        public static DbTables.Place ConvertSingleTsvPlace(string sw)
         {
             var source = sw.AsSpan();
             DbTables.Place entry = new DbTables.Place();
@@ -2216,17 +2220,15 @@ namespace PerformanceTestApp
             entry.AreaSize = source.SplitNext('\t').ToDouble();
             entry.PrivacyId = Guid.Parse(source);
 
-            if (entry.ElementGeometry is Polygon)
-                entry.ElementGeometry = GeometrySupport.CCWCheck((Polygon)entry.ElementGeometry);
+            if (entry.ElementGeometry is Polygon e)
+                e = GeometrySupport.CCWCheck((Polygon)entry.ElementGeometry);
 
-            if (entry.ElementGeometry is MultiPolygon)
+            if (entry.ElementGeometry is MultiPolygon mp)
             {
-                MultiPolygon mp = (MultiPolygon)entry.ElementGeometry;
-                for (int i = 0; i < mp.Geometries.Count(); i++)
+                for (int i = 0; i < mp.Geometries.Length; i++)
                 {
                     mp.Geometries[i] = GeometrySupport.CCWCheck((Polygon)mp.Geometries[i]);
                 }
-                entry.ElementGeometry = mp;
             }
             if (entry.ElementGeometry == null) //it failed the CCWCheck logic and couldn't be correctly oriented.
             {
@@ -2237,7 +2239,7 @@ namespace PerformanceTestApp
             return entry;
         }
 
-        public static DbTables.Place ConvertSingleTsvStoredElementSkipChecks(string sw)
+        public static DbTables.Place ConvertSingleTsvPlaceSkipChecks(string sw)
         {
             var source = sw.AsSpan();
             DbTables.Place entry = new DbTables.Place();
@@ -2260,13 +2262,13 @@ namespace PerformanceTestApp
             foreach (var line in data)
             {
                 timer.Start();
-                var osm = ConvertSingleTsvStoredElement(line);
+                var osm = ConvertSingleTsvPlace(line);
                 timer.Stop();
                 if (osm == null)
                     Console.WriteLine("A saved line didn't convert. It DID fail a check.");
                 withCheck.Add(timer.ElapsedTicks);
                 timer.Restart();
-                ConvertSingleTsvStoredElementSkipChecks(line);
+                ConvertSingleTsvPlaceSkipChecks(line);
                 timer.Stop();
                 skipCheck.Add(timer.ElapsedTicks);
             }
@@ -2276,6 +2278,176 @@ namespace PerformanceTestApp
             //Summary:  unchecked is a good bit faster, but its also not a giant performance penalty to do it. 
         }
 
-        
+        public static void TestSearchArea()
+        {
+            var db = new PraxisContext();
+            var location = "87C6J9JR"; //JR
+
+            var area = (GeoArea)OpenLocationCode.DecodeValid(location);
+            var places = GetPlaces(area);
+            for (int i = 0; i < 5; i++)
+            {
+                Stopwatch sw = new Stopwatch();
+                sw.Start();
+                //old search
+                StringBuilder sb1 = new StringBuilder();
+                var results1 = SearchAreaOld(ref area, ref places);
+                foreach (var d in results1)
+                    foreach(var v in d.Value)
+                        sb1.Append(d.Key).Append('|').Append(v.Name).Append('|').Append(v.areaType).Append('|').Append(v.PrivacyId).Append('\n');
+                var results2 = sb1.ToString();
+                sw.Stop();
+                Console.WriteLine("Old search ran in " + sw.ElapsedMilliseconds);
+                //new search:
+                sw.Restart();
+                var sb2 = new StringBuilder();
+                var results3 = AreaTypeInfo.SearchAreaFull(ref area, ref places);
+                foreach (var d in results3)
+                    foreach(var v in d.data)
+                        sb2.Append(d.plusCode).Append('|').Append(v.Name).Append('|').Append(v.areaType).Append('|').Append(v.PrivacyId).Append('\n');
+                var results4 = sb2.ToString();
+                sw.Stop();
+                Console.WriteLine("New search ran in " + sw.ElapsedMilliseconds);
+            }
+        }
+
+        public static List<FindPlacesResult> SearchAreaNew(ref GeoArea area, ref List<DbTables.Place> elements)
+        {
+            List<FindPlacesResult> results = new List<FindPlacesResult>(400); //starting capacity for a full Cell8
+
+            //Singular function, returns 1 item entry per cell10.
+            if (elements.Count == 0)
+                return results;
+
+            //var xCells = area.LongitudeWidth / ConstantValues.resolutionCell10;
+            //var yCells = area.LatitudeHeight / ConstantValues.resolutionCell10;
+            double x = area.Min.Longitude;
+            double y = area.Min.Latitude;
+
+            GeoArea searchArea;
+            List<DbTables.Place> searchPlaces;
+            FindPlacesResult? placeFound;
+
+            //for (double xx = 0; xx < xCells; xx += 1)
+            while(x < area.Max.Longitude)
+            {
+                searchArea = new GeoArea(area.Min.Latitude, x - ConstantValues.resolutionCell10, area.Max.Latitude, x + ConstantValues.resolutionCell10);
+                searchPlaces = GetPlaces(searchArea, elements, skipTags: true);
+                //TODO: test trimming this down into strips instead of searching full list every block.
+                //for (double yy = 0; yy < yCells; yy += 1)
+                while(y < area.Max.Latitude)
+                {
+                    placeFound = AreaTypeInfo.FindPlacesInCell10(x, y, ref searchPlaces);
+                    if (placeFound.HasValue)
+                        results.Add(placeFound.Value);
+
+                    y = Math.Round(y + ConstantValues.resolutionCell10, 6); //Round ensures we get to the next pluscode in the event of floating point errors.
+                }
+                x = Math.Round(x + ConstantValues.resolutionCell10, 6);
+                y = area.Min.Latitude;
+            }
+
+            return results;
+        }
+
+        public static Dictionary<string, List<TerrainDataStandalone>> SearchAreaOld(ref GeoArea area, ref List<DbTables.Place> elements)
+        {
+            Dictionary<string, List<TerrainDataStandalone>> results = new Dictionary<string, List<TerrainDataStandalone>>(400); //starting capacity for a full Cell8
+
+            //Singular function, returns 1 item entry per cell10.
+            if (elements.Count == 0)
+                return results;
+
+            var xCells = area.LongitudeWidth / ConstantValues.resolutionCell10;
+            var yCells = area.LatitudeHeight / ConstantValues.resolutionCell10;
+            double x = area.Min.Longitude;
+            double y = area.Min.Latitude;
+
+            for (double xx = 0; xx < xCells; xx += 1)
+            {
+                for (double yy = 0; yy < yCells; yy += 1)
+                {
+                    var placeFound = FindPlacesInCell10(x, y, ref elements);
+                    if (placeFound != null)
+                        results.Add(placeFound.Item1, placeFound.Item2);
+
+                    y = Math.Round(y + ConstantValues.resolutionCell10, 6); //Round ensures we get to the next pluscode in the event of floating point errors.
+                }
+                x = Math.Round(x + ConstantValues.resolutionCell10, 6);
+                y = area.Min.Latitude;
+            }
+
+            return results;
+        }
+
+        public static Tuple<string, List<TerrainDataStandalone>> FindPlacesInCell10(double lon, double lat, ref List<DbTables.Place> places)
+        {
+            //Plural function, gets all areas in each cell10.
+            var box = new GeoArea(new GeoPoint(lat, lon), new GeoPoint(lat + .000125, lon + .000125));
+            var entriesHere = GetPlaces(box, places, skipTags: true);
+
+            if (entriesHere.Count == 0)
+                return null;
+
+            var area = DetermineAreaPlaces(entriesHere);
+            if (area.Count > 0)
+            {
+                string olc = new OpenLocationCode(lat, lon).CodeDigits;
+                return new Tuple<string, List<TerrainDataStandalone>>(olc, area);
+            }
+            return null;
+        }
+
+        public static List<TerrainDataStandalone> DetermineAreaPlaces(List<DbTables.Place> entriesHere)
+        {
+            //Which Place in this given Area is the one that should be displayed on the game/map as the name? picks the smallest one.
+            //This one return all entries, for a game mode that might need all of them.
+            var results = new List<TerrainDataStandalone>(entriesHere.Count);
+            foreach (var e in entriesHere)
+                results.Add(new TerrainDataStandalone() { Name = TagParser.GetPlaceName(e.Tags), areaType = e.GameElementName, PrivacyId = e.PrivacyId });
+
+            return results;
+        }
+
+            public record RecordTest(int a, string b);
+        public record struct RecordTest2(int a, string b);
+        public static void TupleVsRecords()
+        {
+            for (int t = 0; t < 5; t++)
+            {
+                List<Tuple<int, string>> tuples = new List<Tuple<int, string>>(100000);
+                List<RecordTest> records = new List<RecordTest>(100000);
+                List<RecordTest2> recordstruct = new List<RecordTest2>(100000);
+
+                Stopwatch sw = new Stopwatch();
+
+                sw.Start();
+                for (int i = 0; i < 1000000; i++)
+                {
+                    tuples.Add(Tuple.Create(i, "asdf"));
+                }
+                sw.Stop();
+                Console.WriteLine("tuples created in " + sw.ElapsedTicks);
+
+                sw.Restart();
+                for (int i = 0; i < 1000000; i++)
+                {
+                    records.Add(new RecordTest(i, "asdf"));
+                }
+                sw.Stop();
+                Console.WriteLine("records created in " + sw.ElapsedTicks);
+
+                sw.Restart();
+                for (int i = 0; i < 1000000; i++)
+                {
+                    recordstruct.Add(new RecordTest2(i, "asdf"));
+                }
+                sw.Stop();
+                Console.WriteLine("recordstructs created in " + sw.ElapsedTicks);
+            }
+
+
+        }
+
     }
 }
