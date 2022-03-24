@@ -1,4 +1,5 @@
 ﻿using Google.OpenLocationCode;
+using PraxisCore.Support;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,7 +13,7 @@ namespace PraxisCore
     /// <summary>
     /// Functions that search or sort the gameplay or map style type of areas.
     /// </summary>
-    public static class AreaTypeInfo 
+    public static class AreaTypeInfo
     {
         //The new version, which returns a sorted list of places, smallest to largest, for when a single space contains multiple entries (default ScavengerHunt logic)
         /// <summary>
@@ -25,7 +26,7 @@ namespace PraxisCore
         {
             //I sort entries on loading from the Database. It's possible this step is unnecessary if everything else runs in order, just using last instead of first.
             if (!allowPoints)
-                entries = entries.Where(e => e.ElementGeometry.GeometryType != "Point").ToList();            
+                entries = entries.Where(e => e.ElementGeometry.GeometryType != "Point").ToList();
 
             entries = entries.OrderBy(e => e.AreaSize).ToList(); //I want lines to show up before areas in most cases, so this should do that.
             return entries;
@@ -42,7 +43,9 @@ namespace PraxisCore
             //This one return all entries, for a game mode that might need all of them.
             var results = new List<TerrainData>(entriesHere.Count);
             foreach (var e in entriesHere)
-                results.Add(new TerrainData() { Name = TagParser.GetPlaceName(e.Tags), areaType = e.GameElementName, PrivacyId = e.PrivacyId });
+            {
+                results.Add(new TerrainData(TagParser.GetPlaceName(e.Tags), e.GameElementName, e.PrivacyId));
+            }
             return results;
         }
 
@@ -56,7 +59,7 @@ namespace PraxisCore
             //Which Place in this given Area is the one that should be displayed on the game/map as the name? picks the smallest one.
             //This one only returns the smallest entry, for games that only need to check the most interesting area in a cell.
             var entry = entriesHere.Last();
-            return new TerrainData() { Name = TagParser.GetPlaceName(entry.Tags), areaType = entry.GameElementName, PrivacyId = entry.PrivacyId };
+            return new TerrainData(TagParser.GetPlaceName(entry.Tags), entry.GameElementName, entry.PrivacyId);
         }
 
         /// <summary>
@@ -65,14 +68,14 @@ namespace PraxisCore
         /// <param name="area">GeoArea from a decoded PlusCode</param>
         /// <param name="elements">A list of OSM elements</param>
         /// <returns>returns a dictionary using PlusCode as the key and name/areatype/client facing Id of the smallest element intersecting that PlusCode</returns>
-        public static List<Tuple<string, TerrainData>> SearchArea(ref GeoArea area, ref List<DbTables.Place> elements)
+        public static List<FindPlaceResult> SearchArea(ref GeoArea area, ref List<DbTables.Place> elements)
         {
-            List<Tuple<string, TerrainData>> results = new List<Tuple<string, TerrainData>>(400); //starting capacity for a full Cell8
+            List<FindPlaceResult> results = new List<FindPlaceResult>(400); //starting capacity for a full Cell8
 
             //Singular function, returns 1 item entry per cell10.
             if (elements.Count == 0)
                 return results;
-            
+
             //var xCells = area.LongitudeWidth / resolutionCell10;
             //var yCells = area.LatitudeHeight / resolutionCell10;
             double x = area.Min.Longitude;
@@ -80,19 +83,19 @@ namespace PraxisCore
 
             GeoArea searchArea;
             List<DbTables.Place> searchPlaces;
-            Tuple<string, TerrainData> placeFound;
+            FindPlaceResult? placeFound;
 
-            //for (double xx = 0; xx < xCells; xx++) // while x < area.Max.Longitude?
-            while(x < area.Max.Longitude)
+            //for (double xx = 0; xx < xCells; xx++) 
+            while (x < area.Max.Longitude)
             {
                 searchArea = new GeoArea(area.Min.Latitude, x - resolutionCell10, area.Max.Latitude, x + resolutionCell10);
                 searchPlaces = GetPlaces(searchArea, elements, skipTags: true);
-                //for (double yy = 0; yy < yCells; yy++) //while y < area.max.latitude?
+                //for (double yy = 0; yy < yCells; yy++) 
                 while (y < area.Max.Latitude)
                 {
                     placeFound = FindPlaceInCell10(x, y, ref searchPlaces);
-                    if (placeFound != null)
-                        results.Add(placeFound);
+                    if (placeFound.HasValue)
+                        results.Add(placeFound.Value);
 
                     y = Math.Round(y + resolutionCell10, 6); //Round ensures we get to the next pluscode in the event of floating point errors.
                 }
@@ -109,14 +112,14 @@ namespace PraxisCore
         /// <param name="area">GeoArea from a decoded PlusCode</param>
         /// <param name="elements">A list of OSM elements</param>
         /// <returns>returns a dictionary using PlusCode as the key and name/areatype/client facing Id of all element intersecting that PlusCode</returns>
-        public static List<Tuple<string, List<TerrainData>>> SearchAreaFull(ref GeoArea area, ref List<DbTables.Place> elements)
+        public static List<FindPlacesResult> SearchAreaFull(ref GeoArea area, ref List<DbTables.Place> elements)
         {
             if (elements.Count == 0)
                 return null;
 
             //Plural function, returns all entries for each cell10.
-            List<Tuple<string, List<TerrainData>>> results = new List<Tuple<string, List<TerrainData>>>(400); //starting capacity for a full Cell8
-            
+            List<FindPlacesResult> results = new List<FindPlacesResult>(400); //starting capacity for a full Cell8
+
             //var xCells = area.LongitudeWidth / resolutionCell10;
             //var yCells = area.LatitudeHeight / resolutionCell10;
             double x = area.Min.Longitude;
@@ -124,19 +127,19 @@ namespace PraxisCore
 
             GeoArea searchArea;
             List<DbTables.Place> searchPlaces;
-            Tuple<string, List<TerrainData>> placeFound;
+            FindPlacesResult? placeFound;
 
             //for (double xx = 0; xx < xCells; xx++)
-            while(x < area.Max.Longitude)
+            while (x < area.Max.Longitude)
             {
                 searchArea = new GeoArea(area.Min.Latitude, x - resolutionCell10, area.Max.Latitude, x + resolutionCell10);
                 searchPlaces = GetPlaces(searchArea, elements, skipTags: true);
                 //for (double yy = 0; yy < yCells; yy++)
-                while(y < area.Max.Latitude)
+                while (y < area.Max.Latitude)
                 {
                     placeFound = FindPlacesInCell10(x, y, ref searchPlaces);
-                    if (placeFound != null)
-                        results.Add(placeFound);
+                    if (placeFound.HasValue)
+                        results.Add(placeFound.Value);
 
                     y = Math.Round(y + resolutionCell10, 6); //Round ensures we get to the next pluscode in the event of floating point errors.
                 }
@@ -154,22 +157,19 @@ namespace PraxisCore
         /// <param name="lat">latitude in degrees</param>
         /// <param name="places">list of OSM elements</param>
         /// <returns>a tuple of the 10-digit plus code and a list of name/areatype/client facing ID for each element in that pluscode.</returns>
-        public static Tuple<string, List<TerrainData>> FindPlacesInCell10(double lon, double lat, ref List<DbTables.Place> places)
+        public static FindPlacesResult? FindPlacesInCell10(double lon, double lat, ref List<DbTables.Place> places)
         {
             //Plural function, gets all areas in each cell10.
             var box = new GeoArea(new GeoPoint(lat, lon), new GeoPoint(lat + resolutionCell10, lon + resolutionCell10));
-            var entriesHere = GetPlaces(box, places, skipTags:true);
+            var entriesHere = GetPlaces(box, places, skipTags: true);
 
             if (entriesHere.Count == 0)
                 return null;
 
             var area = DetermineAreaPlaces(entriesHere);
-            if (area.Count > 0)
-            {
-                string olc = new OpenLocationCode(lat, lon).CodeDigits;
-                return new Tuple<string, List<TerrainData>>(olc, area);
-            }
-            return null;
+            string olc = new OpenLocationCode(lat, lon).CodeDigits;
+            return new FindPlacesResult(olc, area);
+
         }
 
         /// <summary>
@@ -179,7 +179,7 @@ namespace PraxisCore
         /// <param name="lat">latitude in degrees</param>
         /// <param name="places">list of OSM elements</param>
         /// <returns>a tuple of the 10-digit plus code and the name/areatype/client facing ID for the smallest element in that pluscode.</returns>
-        public static Tuple<string, TerrainData> FindPlaceInCell10(double x, double y, ref List<DbTables.Place> places)
+        public static FindPlaceResult? FindPlaceInCell10(double x, double y, ref List<DbTables.Place> places)
         {
             //singular function, only returns the smallest area in a cell.
             var olc = new OpenLocationCode(y, x);
@@ -190,11 +190,7 @@ namespace PraxisCore
                 return null;
 
             var area = DetermineAreaPlace(entriesHere);
-            if (area != null)
-            {
-                return new Tuple<string, TerrainData>(olc.CodeDigits, area);
-            }
-            return null;
+            return new FindPlaceResult(olc.CodeDigits, area);
         }
     }
 }

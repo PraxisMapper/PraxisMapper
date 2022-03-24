@@ -22,7 +22,7 @@ namespace PraxisCore
 
         }
 
-        public class TerrainData //read-only for the destination app. Reduces storage space on big areas.
+        public class TerrainDataStandalone //read-only for the destination app. Reduces storage space on big areas.
         {
             public long id { get; set; }
             public string Name { get; set; }
