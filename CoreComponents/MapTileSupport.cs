@@ -76,7 +76,7 @@ namespace PraxisCore
             ImageStats info = new ImageStats(OpenLocationCode.DecodeValid(area), imgX, imgY);
             info.drawPoints = true;
             var places = GetPlacesForTile(info);
-            var paintOps = GetPaintOpsForStoredElements(places, styleSet, info);
+            var paintOps = GetPaintOpsForPlaces(places, styleSet, info);
             return MapTiles.DrawAreaAtSize(info, paintOps);
         }
 
@@ -114,7 +114,7 @@ namespace PraxisCore
         /// <param name="styleSet">the style set to use when drwaing the elements</param>
         /// <param name="stats">the info on the resulting image for calculating ops.</param>
         /// <returns>a list of CompletePaintOps to be passed into a DrawArea function</returns>
-        public static List<CompletePaintOp> GetPaintOpsForStoredElements(List<DbTables.Place> places, string styleSet, ImageStats stats)
+        public static List<CompletePaintOp> GetPaintOpsForPlaces(List<DbTables.Place> places, string styleSet, ImageStats stats)
         {
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
@@ -134,7 +134,7 @@ namespace PraxisCore
         /// <param name="styleSet">the style set to use when drawing the intersecting elements</param>
         /// <param name="stats">the info on the resulting image for calculating ops.</param>
         /// <returns>a list of CompletePaintOps to be passed into a DrawArea function</returns>
-        public static List<CompletePaintOp> GetPaintOpsForCustomDataElements(string dataKey, string styleSet, ImageStats stats)
+        public static List<CompletePaintOp> GetPaintOpsForPlacesData(string dataKey, string styleSet, ImageStats stats)
         {
             //NOTE: this is being passed in an Area as a Geometry. The name needs clarified to show its drawing a maptile based on the gameplay data for places in that area.
             var db = new PraxisContext();
@@ -159,7 +159,7 @@ namespace PraxisCore
         /// <param name="styleSet">the style set to use when drawing the intersecting elements</param>
         /// <param name="stats">the info on the resulting image for calculating ops.</param>
         /// <returns>a list of CompletePaintOps to be passed into a DrawArea function</returns>
-        public static List<CompletePaintOp> GetPaintOpsForCustomDataPlusCodes(string dataKey, string styleSet, ImageStats stats)
+        public static List<CompletePaintOp> GetPaintOpsForAreaData(string dataKey, string styleSet, ImageStats stats)
         {
             var db = new PraxisContext();
             var poly = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(stats.area));
@@ -183,7 +183,7 @@ namespace PraxisCore
         /// <param name="styleSet">the style set to use when drawing the intersecting elements</param>
         /// <param name="stats">the info on the resulting image for calculating ops.</param>
         /// <returns>a list of CompletePaintOps to be passed into a DrawArea function</returns>
-        public static List<CompletePaintOp> GetPaintOpsForCustomDataPlusCodesFromTagValue(string dataKey, string styleSet, ImageStats stats)
+        public static List<CompletePaintOp> GetPaintOpsForAreaDataByTag(string dataKey, string styleSet, ImageStats stats)
         {
             var db = new PraxisContext();
             var poly = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(stats.area));
@@ -270,7 +270,7 @@ namespace PraxisCore
                     GetPlusCodeImagePixelSize(plusCode8, out imgX, out imgY);
                     var info = new ImageStats(plusCodeArea, imgX, imgY);
                     //new setup.
-                    var areaPaintOps = GetPaintOpsForStoredElements(areaList, "mapTiles", info);
+                    var areaPaintOps = GetPaintOpsForPlaces(areaList, "mapTiles", info);
                     var tile = DrawPlusCode(plusCode8, areaPaintOps, "mapTiles");
 
                     if (saveToFiles)

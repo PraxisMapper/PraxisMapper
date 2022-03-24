@@ -415,7 +415,7 @@ namespace Larry
             sw.Start();
             TagParser.ApplyTags(memorySource, "mapTiles");
             ImageStats istats = new ImageStats(OpenLocationCode.DecodeValid(code), 1024, 1024);
-            var paintOps = MapTileSupport.GetPaintOpsForStoredElements(memorySource, "mapTiles", istats);
+            var paintOps = MapTileSupport.GetPaintOpsForPlaces(memorySource, "mapTiles", istats);
             File.WriteAllBytes(config["OutputDataFolder"] + code + ".png", MapTileSupport.DrawPlusCode(code, paintOps, "mapTiles"));
             sw.Stop();
             Log.WriteLog("image drawn from memory in " + sw.Elapsed);
@@ -457,7 +457,7 @@ namespace Larry
             var places = GetPlaces(geoArea);
             var iStats = new ImageStats(geoArea, xSize, ySize);
             Log.WriteLog("Generating paint operations");
-            var paintOps = MapTileSupport.GetPaintOpsForStoredElements(places, "mapTiles", iStats);
+            var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, "mapTiles", iStats);
             Log.WriteLog("Drawing image");
             var image = MapTiles.DrawAreaAtSize(iStats, paintOps);
 
@@ -568,7 +568,7 @@ namespace Larry
                 {
                     var db = new PraxisContext();
                     Log.WriteLog("Loading " + filename);
-                    var entries = GeometrySupport.ReadStoredElementsFileToMemory(filename); //tagsData file loaded automatically here.
+                    var entries = GeometrySupport.ReadPlaceFilesToMemory(filename); //tagsData file loaded automatically here.
                     Log.WriteLog(entries.Count + " entries to update in database for " + filename);
                     db.UpdateExistingEntries(entries);
                     File.Move(filename, filename + "Done");

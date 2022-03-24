@@ -211,7 +211,7 @@ namespace PraxisCore.PbfReader
                     filenameHeader += relationId.ToString() + "-";
                     //Get the source relation first
                     var relation = GetRelation(relationId);
-                    var NTSrelation = GeometrySupport.ConvertOsmEntryToStoredElement(relation);
+                    var NTSrelation = GeometrySupport.ConvertOsmEntryToPlace(relation);
                     bounds = NTSrelation.ElementGeometry.EnvelopeInternal;
                     var pgf = new PreparedGeometryFactory();
                     boundsEntry = pgf.Create(NTSrelation.ElementGeometry);
@@ -1267,7 +1267,7 @@ namespace PraxisCore.PbfReader
             foreach (var r in items)
             {
                 if (r != null)
-                    relList.Add(Task.Run(() => { var e = GeometrySupport.ConvertOsmEntryToStoredElement(r); if (e != null) elements.Add(e); }));
+                    relList.Add(Task.Run(() => { var e = GeometrySupport.ConvertOsmEntryToPlace(r); if (e != null) elements.Add(e); }));
             }
             Task.WaitAll(relList.ToArray());
             //relList = new ConcurrentBag<Task>();

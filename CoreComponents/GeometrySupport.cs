@@ -78,7 +78,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="place">The Geometry to CCWCheck and potentially simplify</param>
         /// <returns>The Geometry object, in CCW orientation and potentially simplified.</returns>
-        public static Geometry SimplifyArea(Geometry place)
+        public static Geometry SimplifyPlace(Geometry place)
         {
             if (!SimplifyAreas)
             {
@@ -139,7 +139,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="g">the CompleteOSMGeo object to prepare to save to the DB</param>
         /// <returns>the StoredOsmElement ready to save to the DB</returns>
-        public static DbTables.Place ConvertOsmEntryToStoredElement(OsmSharp.Complete.ICompleteOsmGeo g)
+        public static DbTables.Place ConvertOsmEntryToPlace(OsmSharp.Complete.ICompleteOsmGeo g)
         {
             var tags = TagParser.getFilteredTags(g.Tags);
             if (tags == null || tags.Count == 0)
@@ -153,26 +153,26 @@ namespace PraxisCore
                     Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + "-" + TagParser.GetPlaceName(g.Tags) + " didn't interpret into a Geometry object", Log.VerbosityLevels.Errors);
                     return null;
                 }
-                var sw = new DbTables.Place();
-                sw.SourceItemID = g.Id;
-                sw.SourceItemType = (g.Type == OsmGeoType.Relation ? 3 : g.Type == OsmGeoType.Way ? 2 : 1);
-                var geo = SimplifyArea(geometry);
+                var place = new DbTables.Place();
+                place.SourceItemID = g.Id;
+                place.SourceItemType = (g.Type == OsmGeoType.Relation ? 3 : g.Type == OsmGeoType.Way ? 2 : 1);
+                var geo = SimplifyPlace(geometry);
                 if (geo == null)
                 {
                     Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + " didn't simplify for some reason.", Log.VerbosityLevels.Errors);
                     return null;
                 }
                 geo.SRID = 4326;//Required for SQL Server to accept data.
-                sw.ElementGeometry = geo;
-                sw.Tags = tags; 
-                if (sw.ElementGeometry.GeometryType == "LinearRing" || (sw.ElementGeometry.GeometryType == "LineString" && sw.ElementGeometry.Coordinates.First() == sw.ElementGeometry.Coordinates.Last()))
+                place.ElementGeometry = geo;
+                place.Tags = tags; 
+                if (place.ElementGeometry.GeometryType == "LinearRing" || (place.ElementGeometry.GeometryType == "LineString" && place.ElementGeometry.Coordinates.First() == place.ElementGeometry.Coordinates.Last()))
                 {
                     //I want to update all LinearRings to Polygons, and let the style determine if they're Filled or Stroked.
-                    var poly = factory.CreatePolygon((LinearRing)sw.ElementGeometry);
-                    sw.ElementGeometry = poly;
+                    var poly = factory.CreatePolygon((LinearRing)place.ElementGeometry);
+                    place.ElementGeometry = poly;
                 }
-                sw.AreaSize = sw.ElementGeometry.Length > 0 ? sw.ElementGeometry.Length : resolutionCell10;
-                return sw;
+                place.AreaSize = place.ElementGeometry.Length > 0 ? place.ElementGeometry.Length : resolutionCell10;
+                return place;
             }
             catch(Exception ex)
             {
@@ -186,7 +186,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="filename">the geomData file to parse. Matching .tagsData file is assumed.</param>
         /// <returns>a list of storedOSMelements</returns>
-        public static List<DbTables.Place> ReadStoredElementsFileToMemory(string filename)
+        public static List<DbTables.Place> ReadPlaceFilesToMemory(string filename)
         {
             StreamReader srGeo = new StreamReader(filename);
             StreamReader srTags = new StreamReader(filename.Replace(".geomData", ".tagsData"));

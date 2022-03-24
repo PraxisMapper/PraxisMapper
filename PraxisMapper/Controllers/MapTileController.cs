@@ -136,7 +136,7 @@ namespace PraxisMapper.Controllers
 
                 //Make tile
                 var places = GetPlacesForTile(info, null, styleSet, false);
-                var paintOps = MapTileSupport.GetPaintOpsForStoredElements(places, styleSet, info);
+                var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, styleSet, info);
                 tileData = FinishSlippyMapTile(info, paintOps, tileKey, styleSet);
 
                 Response.Headers.Add("X-notes", Configuration.GetValue<string>("MapTilesEngine"));
@@ -176,7 +176,7 @@ namespace PraxisMapper.Controllers
 
                 //Make tile
                 var places = GetPlacesForTile(info, null, styleSet);
-                var paintOps = MapTileSupport.GetPaintOpsForCustomDataElements(dataKey, styleSet, info);
+                var paintOps = MapTileSupport.GetPaintOpsForPlacesData(dataKey, styleSet, info);
                 tileData = FinishSlippyMapTile(info, paintOps, tileKey, styleSet);
 
                 Response.Headers.Add("X-notes", Configuration.GetValue<string>("MapTilesEngine"));
@@ -214,7 +214,7 @@ namespace PraxisMapper.Controllers
 
                 //Make tile
                 var places = GetPlacesForTile(info, null, styleSet);
-                var paintOps = MapTileSupport.GetPaintOpsForCustomDataPlusCodes(dataKey, styleSet, info);
+                var paintOps = MapTileSupport.GetPaintOpsForAreaData(dataKey, styleSet, info);
                 tileData = FinishSlippyMapTile(info, paintOps, tileKey, styleSet);
 
                 Response.Headers.Add("X-notes", Configuration.GetValue<string>("MapTilesEngine"));
@@ -263,7 +263,7 @@ namespace PraxisMapper.Controllers
 
                 //Make tile
                 var places = GetPlacesForTile(info, null, styleSet, false);
-                var paintOps = MapTileSupport.GetPaintOpsForStoredElements(places, styleSet, info);
+                var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, styleSet, info);
                 tileData = FinishMapTile(info, paintOps, code, styleSet);
 
                 Response.Headers.Add("X-notes", Configuration.GetValue<string>("MapTilesEngine"));
@@ -301,7 +301,7 @@ namespace PraxisMapper.Controllers
 
                 //Make tile
                 var places = GetPlacesForTile(info, null, styleSet, false);
-                var paintOps = MapTileSupport.GetPaintOpsForCustomDataPlusCodes(dataKey, styleSet, info);
+                var paintOps = MapTileSupport.GetPaintOpsForAreaData(dataKey, styleSet, info);
                 tileData = FinishMapTile(info, paintOps, code, styleSet);
 
                 Response.Headers.Add("X-notes", Configuration.GetValue<string>("MapTilesEngine"));
@@ -339,7 +339,7 @@ namespace PraxisMapper.Controllers
 
                 //Make tile
                 var places = GetPlacesForTile(info, null, styleSet, false);
-                var paintOps = MapTileSupport.GetPaintOpsForCustomDataElements(dataKey, styleSet, info);
+                var paintOps = MapTileSupport.GetPaintOpsForPlacesData(dataKey, styleSet, info);
                 tileData = FinishMapTile(info, paintOps, code, styleSet);
 
                 Response.Headers.Add("X-notes", Configuration.GetValue<string>("MapTilesEngine"));
