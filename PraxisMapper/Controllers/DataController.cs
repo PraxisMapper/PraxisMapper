@@ -39,10 +39,10 @@ namespace PraxisMapper.Controllers
             {
                 if (!deleteLock.IsWriteLockHeld)
                 {
-                    deleteLock.EnterWriteLock();
                     lastExpiryPass = DateTime.UtcNow.AddMinutes(30);
                     System.Threading.Tasks.Task.Run(() =>
                     {
+                        deleteLock.EnterWriteLock();
                         var db = new PraxisContext();
                         db.Database.ExecuteSqlRaw("DELETE FROM PlaceGameData WHERE expiration IS NOT NULL AND expiration < NOW()");
                         db.Database.ExecuteSqlRaw("DELETE FROM AreaGameData WHERE expiration IS NOT NULL AND expiration < NOW()");
