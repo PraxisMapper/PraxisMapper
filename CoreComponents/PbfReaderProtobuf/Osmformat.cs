@@ -206,12 +206,14 @@ namespace PraxisCore.PbfReader
             set { _lon_offset = value; }
         }
 
+        [ProtoBuf.ProtoIgnore]
         private int _date_granularity = (int)1000;
         /// <summary>
         /// 
         /// </summary>
         [global::ProtoBuf.ProtoMember(18, IsRequired = false, Name = @"date_granularity", DataFormat = global::ProtoBuf.DataFormat.TwosComplement)]
         [global::System.ComponentModel.DefaultValue((int)1000)]
+        [ProtoBuf.ProtoIgnore]
         public int date_granularity
         {
             get { return _date_granularity; }
@@ -514,22 +516,26 @@ namespace PraxisCore.PbfReader
         }
 
 
+        [ProtoBuf.ProtoIgnore]
         private Info _info = null;
         /// <summary>
         /// 
         /// </summary>
         [global::ProtoBuf.ProtoMember(4, IsRequired = false, Name = @"info", DataFormat = global::ProtoBuf.DataFormat.Default)]
         [global::System.ComponentModel.DefaultValue(null)]
+        [ProtoBuf.ProtoIgnore]
         public Info info
         {
             get { return _info; }
             set { _info = value; }
         }
+        [ProtoBuf.ProtoIgnore]
         private long _created_at;
         /// <summary>
         /// 
         /// </summary>
         [global::ProtoBuf.ProtoMember(8, IsRequired = true, Name = @"created_at", DataFormat = global::ProtoBuf.DataFormat.TwosComplement)]
+        [ProtoBuf.ProtoIgnore]
         public long created_at
         {
             get { return _created_at; }
@@ -656,6 +662,7 @@ namespace PraxisCore.PbfReader
     /// 
     /// </summary>
     [global::ProtoBuf.ProtoContract(Name = @"DenseNodes")]
+    [ProtoBuf.ProtoPartialIgnore("_denseinfo")]
     public partial class DenseNodes //: global::ProtoBuf.IExtensible
     {
         /// <summary>
@@ -674,12 +681,14 @@ namespace PraxisCore.PbfReader
         }
 
 
+        [ProtoBuf.ProtoIgnore]
         private DenseInfo _denseinfo = null;
         /// <summary>
         /// 
         /// </summary>
         [global::ProtoBuf.ProtoMember(5, IsRequired = false, Name = @"denseinfo", DataFormat = global::ProtoBuf.DataFormat.Default)]
         [global::System.ComponentModel.DefaultValue(null)]
+        [ProtoBuf.ProtoIgnore]
         public DenseInfo denseinfo
         {
             get { return _denseinfo; }
