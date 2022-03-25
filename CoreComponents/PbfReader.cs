@@ -39,6 +39,7 @@ namespace PraxisCore.PbfReader
 
         public bool lowResourceMode = false;
         public bool reprocessFile = false; //if true, we load TSV data from a previous run and re-process that by the rules.
+        public bool keepAllBlocksInRam = false; //if true, keep all decompressed blocks in memory instead of purging out unused ones each block.
 
         FileInfo fi;
         FileStream fs; // The input file. Output files are either WriteAllText or their own streamwriter.
@@ -1012,11 +1013,12 @@ namespace PraxisCore.PbfReader
 
                 //Moved this logic here to free up RAM by removing blocks once we're done reading data from the hard drive. Should result in fewer errors at the ProcessReaderResults step.
                 //Slightly more complex: only remove blocks we didn't access last call. saves some serialization effort. Small RAM trade for 30% speed increase.
-                foreach (var blockRead in activeBlocks)
-                {
-                    if (!accessedBlocks.ContainsKey(blockRead.Key))
-                        activeBlocks.TryRemove(blockRead.Key, out var x);
-                }
+                if (!keepAllBlocksInRam)
+                    foreach (var blockRead in activeBlocks)
+                    {
+                        if (!accessedBlocks.ContainsKey(blockRead.Key))
+                            activeBlocks.TryRemove(blockRead.Key, out var x);
+                    }
                 accessedBlocks.Clear();
                 return results;
             }
@@ -1258,7 +1260,6 @@ namespace PraxisCore.PbfReader
             //This one is easy, we just dump the geodata to the file.
             string saveFilename = outputPath + Path.GetFileNameWithoutExtension(fi.Name) + "-" + blockId;
             ConcurrentBag<DbTables.Place> elements = new ConcurrentBag<DbTables.Place>();
-            DateTime startedProcess = DateTime.Now;
 
             if (items == null || !items.Any())
                 return;
