@@ -21,7 +21,6 @@
         var url = baseSite + '/{id}/{z}/{x}/{y}.png?PraxisAuthKey=' + serverKey;
         var baseData = L.tileLayer(url, {id: "MapTile/DrawSlippyTile", tileSize:512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
         var ptt = L.tileLayer(url, { id: "MapTile/SlippyAreaData/paintTown/color", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
-        //var ptt = L.tileLayer(url, { id: "PaintTown/DrawSlippyTile", tileSize: 512, maxZoom: 20, minZoom: 9, zoomOffset: -1 });
         var ac = L.tileLayer(url, { id: "MapTile/SlippyPlaceData/teamColor/team", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
         var generated = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
         var adminBounds = L.tileLayer(url, { id: "MapTile/DrawSlippyTile/adminBounds", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
@@ -29,17 +28,19 @@
         var baseDataTEstV4 = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
         var offlineEstimateAreas = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
         var outlineAll = L.tileLayer(url, { id: "MapTile/DrawSlippyTile/outlines", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
+        var suggested = L.tileLayer(url, { id: "MapTile/DrawSlippyTile/suggestedGameplay", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
 
         //var baseLayers = {
         //    "Base Data": baseData,
         //    "Base Data TestV4": baseDataTEstV4,
         //};
         var overlays = {
+            "Suggested Gameplay Areas": suggested
             "Paint The Town": ptt,
             "Area Tag": ac,
             //"Server-Generated": generated,
             "Admin Boundaries": adminBounds,
-            "Outline All Items": outlineAll
+            "Outline All Items": outlineAll,
             //"Other Admin Boundaries": adminBounds2,
             //"Offline Estimates": offlineEstimateAreas
         };
