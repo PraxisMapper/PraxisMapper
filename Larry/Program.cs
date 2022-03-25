@@ -283,6 +283,7 @@ namespace Larry
                 r.saveToDB = false; //This is slower than doing both steps separately because loading to the DB is single-threaded this way.
                 r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
                 r.reprocessFile = config["reprocessFiles"] == "True";
+                r.lowResourceMode = config["ForceSingleThreading"] == "True";
                 r.ProcessFile(filename, long.Parse(config["UseOneRelationID"]));
                 File.Move(filename, filename + "done");
             }
