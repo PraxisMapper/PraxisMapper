@@ -63,7 +63,7 @@ namespace PraxisCore
 
             Coordinate[] results = new Coordinate[w.Nodes.Length];
             for (int i = 0; i < w.Nodes.Length; i++)
-                results[i] = new Coordinate(w.Nodes[i].Latitude.Value, w.Nodes[i].Longitude.Value);
+                results[i] = new Coordinate(w.Nodes[i].Longitude.Value, w.Nodes[i].Latitude.Value); //Coordinates are X, Y
 
             return results;
         }
