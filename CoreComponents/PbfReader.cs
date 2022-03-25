@@ -400,7 +400,7 @@ namespace PraxisCore.PbfReader
                 wayFinderList.Add(Tuple.Create(w.Key, w.Value));
             }
             Log.WriteLog("Found " + blockCounter + " blocks. " + relationCounter + " relation blocks and " + wayCounter + " way blocks.");
-            
+
             SetOptimizationValues();
             sw.Stop();
             Log.WriteLog("File indexed in " + sw.Elapsed);
@@ -528,7 +528,7 @@ namespace PraxisCore.PbfReader
                 //I have to knows my tags BEFORE doing the rest of the processing.
                 OsmSharp.Complete.CompleteRelation r = new OsmSharp.Complete.CompleteRelation();
                 r.Id = relationId;
-                r.Tags = new OsmSharp.Tags.TagsCollection();
+                r.Tags = new OsmSharp.Tags.TagsCollection(rel.keys.Count);
 
                 for (int i = 0; i < rel.keys.Count; i++)
                 {
@@ -543,11 +543,12 @@ namespace PraxisCore.PbfReader
                 }
 
                 //Now get a list of block i know i need now.
-                List<long> wayBlocks = new List<long>();
+                int capacity = rel.memids.Count;
+                List<long> wayBlocks = new List<long>(capacity);
 
                 //memIds is delta-encoded
                 long idToFind = 0;
-                for (int i = 0; i < rel.memids.Count; i++)
+                for (int i = 0; i < capacity; i++)
                 {
                     idToFind += rel.memids[i];
                     Relation.MemberType typeToFind = rel.types[i];
@@ -569,8 +570,7 @@ namespace PraxisCore.PbfReader
 
                 //This makes sure we only load each element once. If a relation references an element more than once (it shouldnt)
                 //this saves us from re-creating the same entry.
-                int capacity = rel.memids.Count;
-                Dictionary<long, OsmSharp.Complete.CompleteWay> loadedWays = new Dictionary<long, OsmSharp.Complete.CompleteWay>(capacity);
+                //Dictionary<long, OsmSharp.Complete.CompleteWay> loadedWays = new Dictionary<long, OsmSharp.Complete.CompleteWay>(capacity);
                 r.Members = new OsmSharp.Complete.CompleteRelationMember[capacity];
                 idToFind = 0;
                 for (int i = 0; i < capacity; i++)
@@ -584,17 +584,17 @@ namespace PraxisCore.PbfReader
                         case Relation.MemberType.NODE:
                             break;
                         case Relation.MemberType.WAY:
-                            if (!loadedWays.ContainsKey(idToFind))
-                                loadedWays.Add(idToFind, GetWay(idToFind, wayBlocks, false));
-                            c.Member = loadedWays[idToFind];
+                            //if (!loadedWays.ContainsKey(idToFind))
+                            //loadedWays.Add(idToFind, GetWay(idToFind, wayBlocks, false));
+                            c.Member = GetWay(idToFind, wayBlocks, false); //loadedWays[idToFind];
                             break;
                     }
                     r.Members[i] = c;
                 }
 
                 //Some memory cleanup slightly early, in an attempt to free up RAM faster.
-                loadedWays.Clear();
-                loadedWays = null;
+                //loadedWays.Clear();
+                //loadedWays = null;
                 rel = null;
                 return r;
             }
@@ -650,7 +650,7 @@ namespace PraxisCore.PbfReader
                 if (way == null)
                     return null; //way wasn't in the block it was supposed to be in.
 
-                return GetWay(way, wayBlock, ignoreUnmatched);
+                return GetWay(way, wayBlock.stringtable.s, ignoreUnmatched);
             }
             catch (Exception ex)
             {
@@ -659,13 +659,15 @@ namespace PraxisCore.PbfReader
             }
         }
 
+        public record struct NodeBlock(long blockId, long nodeId);
+
         /// <summary>
         /// Processes the requested way from the currently open file into an OSMSharp CompleteWay
         /// </summary>
         /// <param name="way">the way, in PBF form</param>
         /// <param name="ignoreUnmatched">if true, returns null if this element's tags only match the default style.</param>
         /// <returns>the CompleteWay object requested, or null if skipUntagged or ignoreUnmatched checks skip this elements, or if there is an error processing the way</returns>
-        private OsmSharp.Complete.CompleteWay GetWay(Way way, PrimitiveBlock wayBlock, bool ignoreUnmatched = false)
+        private OsmSharp.Complete.CompleteWay GetWay(Way way, List<byte[]> stringTable, bool ignoreUnmatched = false)
         {
             try
             {
@@ -675,7 +677,7 @@ namespace PraxisCore.PbfReader
 
                 //We always need to apply tags here, so we can either skip after (if IgnoredUmatched is set) or to pass along tag values correctly.
                 for (int i = 0; i < way.keys.Count; i++)
-                    finalway.Tags.Add(new OsmSharp.Tags.Tag(System.Text.Encoding.UTF8.GetString(wayBlock.stringtable.s[(int)way.keys[i]]), System.Text.Encoding.UTF8.GetString(wayBlock.stringtable.s[(int)way.vals[i]])));
+                    finalway.Tags.Add(new OsmSharp.Tags.Tag(System.Text.Encoding.UTF8.GetString(stringTable[(int)way.keys[i]]), System.Text.Encoding.UTF8.GetString(stringTable[(int)way.vals[i]])));
 
                 if (ignoreUnmatched)
                 {
@@ -689,17 +691,20 @@ namespace PraxisCore.PbfReader
                 //its a little complicated but a solid performance boost.
                 long idToFind = 0; //more deltas 
                 //blockId, nodeID
-                List<Tuple<long, long>> nodesPerBlock = new List<Tuple<long, long>>();
+                List<NodeBlock> nodesPerBlock = new List<NodeBlock>();
                 List<long> hints = new List<long>(nodeHintsMax);
+                //long hint = 0;
                 for (int i = 0; i < way.refs.Count; i++)
                 {
                     idToFind += way.refs[i];
                     var blockID = FindBlockKeyForNode(idToFind, hints);
+                    //var blockID = FindBlockKeyForNode(idToFind, hint);
+                    //hint = blockID;
                     if (!hints.Contains(blockID))
-                        hints.Add(blockID);
-                    nodesPerBlock.Add(Tuple.Create(blockID, idToFind));
+                    hints.Add(blockID);
+                    nodesPerBlock.Add(new NodeBlock(blockID, idToFind));
                 }
-                var nodesByBlock = nodesPerBlock.ToLookup(k => k.Item1, v => v.Item2);
+                var nodesByBlock = nodesPerBlock.ToLookup(k => k.blockId, v => v.nodeId);
 
                 finalway.Nodes = new OsmSharp.Node[way.refs.Count];
                 ConcurrentDictionary<long, OsmSharp.Node> AllNodes = new ConcurrentDictionary<long, OsmSharp.Node>(Environment.ProcessorCount, way.refs.Count);
@@ -711,7 +716,7 @@ namespace PraxisCore.PbfReader
                 });
 
                 idToFind = 0;
-                for(int i = 0; i < way.refs.Count; i++)
+                for (int i = 0; i < way.refs.Count; i++)
                 {
                     idToFind += way.refs[i]; //delta coding.
                     finalway.Nodes[i] = AllNodes[idToFind];
@@ -914,6 +919,42 @@ namespace PraxisCore.PbfReader
             throw new Exception("Node Not Found");
         }
 
+        private long FindBlockKeyForNode(long nodeId, long hint) //BTree
+        {
+            //This is the most-called function in this class, and therefore the most performance-dependent.
+
+            //Hints is a list of blocks we're already found in the relevant way. Odds are high that
+            //any node I need to find is in the same block as another node I've found.
+            //This should save a lot of time searching the list when I have already found some blocks
+            //and shoudn't waste too much time if it isn't in a block already found.
+            if (hint != 0) //skip hints if the BTree search is fewer checks.
+            {
+                var entry = nodeFinder2[hint];
+                if (NodeHasKey(nodeId, entry))
+                    return hint;
+            }
+
+            //ways will hit a couple thousand blocks, nodes hit hundred of thousands of blocks.
+            //This might help performance on ways, but will be much more noticeable on nodes.
+            int min = 0;
+            int max = nodeFinderTotal;
+            int current = startNodeBtreeIndex;
+
+            while (min != max)
+            {
+                var check = nodeFinderList[current];
+                if (check.Item2 > nodeId) //this node's minimum is larger than our node, shift up
+                    max = current;
+                else if (check.Item3 < nodeId) //this node's maximum is smaller than our node, shift down.
+                    min = current;
+                else
+                    return check.Item1;
+
+                current = (min + max) / 2;
+            }
+            throw new Exception("Node Not Found");
+        }
+
         /// <summary>
         /// Determine which node in the file has the given Way, using a BTree search on the index.
         /// </summary>
@@ -931,6 +972,39 @@ namespace PraxisCore.PbfReader
                     if (wayFinder[h] >= wayId && (h == firstWayBlock || wayFinder[h - 1] < wayId))
                         return h;
                 }
+
+            int min = 0;
+            int max = wayFinderTotal;
+            int current = startWayBtreeIndex;
+            while (min != max)
+            {
+                var check = wayFinderList[current];
+                if (check.Item2 < wayId) //This max is below our way, shift min up
+                {
+                    min = current;
+                }
+                else if (check.Item2 >= wayId) //this max is over our way, check previous block if this one is correct OR shift max down if not
+                {
+                    if (current == 0 || wayFinderList[current - 1].Item2 < wayId) //our way is below current max, above previous max, this is the block we want
+                        return check.Item1;
+                    else
+                        max = current;
+                }
+
+                current = (min + max) / 2;
+            }
+
+            //couldnt find this way
+            throw new Exception("Way Not Found");
+        }
+
+        private long FindBlockKeyForWay(long wayId, long hint) //BTree
+        {
+            if (hint != null) //skip hints if the BTree search is fewer checks.
+                              //we can check this, but we need to look at the previous block too.
+                if (wayFinder[hint] >= wayId && (wayFinder[hint - 1] < wayId || hint == firstWayBlock))
+                    return hint;
+
 
             int min = 0;
             int max = wayFinderTotal;
@@ -987,7 +1061,7 @@ namespace PraxisCore.PbfReader
                         List<long> hint = new List<long>() { blockId };
                         foreach (var r in primgroup.ways)
                         {
-                            relList.Add(Task.Run(() => results.Add(GetWay(r, block, onlyTagMatchedEntries))));
+                            relList.Add(Task.Run(() => results.Add(GetWay(r, block.stringtable.s, onlyTagMatchedEntries))));
                         }
                     }
                     else

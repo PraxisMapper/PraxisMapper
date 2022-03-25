@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using PraxisCore;
 using System.Linq;
+using static PraxisCore.DbTables;
 
 namespace PraxisMapper.Controllers
 {
@@ -9,6 +10,8 @@ namespace PraxisMapper.Controllers
     [ApiController]
     public class StyleDataController : Controller
     {
+        //some of these will take JSON strings up, parse and reapply them rather than having a ton of parameters
+
         [HttpGet]
         [Route("/[controller]/GetStyleSetEntryNames/{styleSet}")]
         [Route("/[controller]/Names/{styleSet}")]
@@ -46,7 +49,7 @@ namespace PraxisMapper.Controllers
                 x.IsGameElement, 
                 x.MatchOrder, 
                 paintOperations = x.PaintOperations.Select(po => new { po.FileName, po.FillOrStroke, po.FromTag, po.HtmlColorCode, po.Id, po.LayerId, po.LinePattern, po.LineWidthDegrees, po.MaxDrawRes, po.MinDrawRes, po.Randomize }).ToList(),
-                TagParserMatchRules = x.StyleMatchRules.Select(mr => new { mr.Id, mr.Key, mr.MatchType, mr.Value}).ToList()  
+                MatchRules = x.StyleMatchRules.Select(mr => new { mr.Id, mr.Key, mr.MatchType, mr.Value}).ToList()  
             });
             return Json(returnData);
         }
@@ -59,10 +62,73 @@ namespace PraxisMapper.Controllers
             //Hasnt yet been tested.
             var db = new PraxisContext();
             var data = db.StyleEntries.FirstOrDefault(t => t.Id == id);
+            if (data == null)
+            {
+                data = new DbTables.StyleEntry();
+                db.StyleEntries.Add(data);
+            }
             data.MatchOrder = matchOrder;
             data.Name = entryName;
             data.IsGameElement = isGameElement;
             db.SaveChanges();
+        }
+
+        [HttpPut]
+        [Route("/[controller]/UpdateStyleSetEntryValues/{styleSet}/{id}/{matchOrder}/{entryName}/{isGameElement}")]
+        [Route("/[controller]/MatchRule/{id}/{matchType}/{key}/{value}")]
+        public void UpdateMatchRule(long id, string matchType, string key, string value)
+        {
+            //Hasnt yet been tested.
+            var db = new PraxisContext();
+            var tagrule = db.StyleMatchRules.FirstOrDefault(t => t.Id == id);
+            if (tagrule == null)
+            {
+                tagrule = new DbTables.StyleMatchRule();
+                db.StyleMatchRules.Add(tagrule);
+            }
+            tagrule.MatchType = matchType;
+            tagrule.Key = key;
+            tagrule.Value = value;
+            db.SaveChanges();
+        }
+
+        public void UpdateStylePaint([FromBody] StylePaint paint)
+        {
+            var db = new PraxisContext();
+            var data = db.StylePaints.First();
+            data.FileName = "";
+            data.FillOrStroke = "";
+            data.FromTag = false;
+            data.HtmlColorCode = "";
+            data.LayerId = 1;
+            data.LinePattern = "";
+            data.LineWidthDegrees = 1;
+            data.MaxDrawRes = 0;
+            data.MinDrawRes = 0;
+            data.Randomize = false;
+
+            db.SaveChanges();
+        }
+
+        public void InsertBitmap(string filename, [FromBody] byte[] image)
+        {
+            //NOTE: this one rejects overwriting existing entries.
+            var db = new PraxisContext();
+            if(db.StyleBitmaps.Any(d => d.Filename == filename))
+                return;
+
+            var data = new StyleBitmap();
+            data.Data = image;
+            data.Filename = filename;
+            db.StyleBitmaps.Add(data);
+            db.SaveChanges();
+
+        }
+
+        public void AskForCreatedAreas(string plusCode)
+        {
+            //This may belong somewhere else, but this should be a server-side function.
+            //Check if there are areas in the listed plusCode, 
         }
     }
 }
