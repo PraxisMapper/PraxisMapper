@@ -2,6 +2,7 @@
 using Google.OpenLocationCode;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Prepared;
+using OsmSharp;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -52,18 +53,18 @@ namespace PraxisCore
         }
 
         /// <summary>
-        /// Convert an OSMSharp CompleteWay into an array of coordinates. Used by the FeatureInterpreter.
+        /// Convert a list or array of OSMSharp Nodes (probably from a CompleteWay) into an array of coordinates. Used by the FeatureInterpreter.
         /// </summary>
-        /// <param name="w">The CompleteWay to convert</param>
+        /// <param name="w">The list of nodes to convert</param>
         /// <returns>An array of coordinate pairs</returns>
-        public static Coordinate[] CompleteWayToCoordArray(OsmSharp.Complete.CompleteWay w)
+        public static Coordinate[] NodeArrayToCoordArray(IList<Node> w)
         {
             if (w == null)
                 return null;
 
-            Coordinate[] results = new Coordinate[w.Nodes.Length];
-            for (int i = 0; i < w.Nodes.Length; i++)
-                results[i] = new Coordinate(w.Nodes[i].Longitude.Value, w.Nodes[i].Latitude.Value); //Coordinates are X, Y
+            Coordinate[] results = new Coordinate[w.Count];
+            for (int i = 0; i < w.Count; i++)
+                results[i] = new Coordinate(w[i].Longitude.Value, w[i].Latitude.Value); //Coordinates are X, Y
 
             return results;
         }
