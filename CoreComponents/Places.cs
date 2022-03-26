@@ -118,7 +118,6 @@ namespace PraxisCore
         {
             //expected to receive a Cell8
             // populate it with some interesting regions for players.
-            Random r = new Random();
             CodeArea cell8 = OpenLocationCode.DecodeValid(plusCode); //Reminder: area is .0025 degrees on a Cell8
             int shapeCount = 1; // 2; //number of shapes to apply to the Cell8
             double shapeWarp = .3; //percentage a shape is allowed to have each vertexs drift by.
@@ -127,11 +126,11 @@ namespace PraxisCore
             for (int i = 0; i < shapeCount; i++)
             {
                 //Pick a shape
-                var masterShape = possibleShapes.OrderBy(s => r.Next()).First();
+                var masterShape = possibleShapes.OrderBy(s => Random.Shared.Next()).First();
                 var shapeToAdd = masterShape.Select(s => new Coordinate(s)).ToList();
-                var scaleFactor = r.Next(10, 36) * .01; //Math.Clamp(r.Next, .1, .35); //Ensure that we get a value that isn't terribly useless. 2 shapes can still cover 70%+ of an empty area this way.
-                var positionFactorX = r.NextDouble() * resolutionCell8;
-                var positionFactorY = r.NextDouble() * resolutionCell8;
+                var scaleFactor = Random.Shared.Next(10, 36) * .01; //Math.Clamp(r.Next, .1, .35); //Ensure that we get a value that isn't terribly useless. 2 shapes can still cover 70%+ of an empty area this way.
+                var positionFactorX = Random.Shared.NextDouble() * resolutionCell8;
+                var positionFactorY = Random.Shared.NextDouble() * resolutionCell8;
                 foreach (Coordinate c in shapeToAdd)
                 {
                     //scale it to our resolution
@@ -153,8 +152,8 @@ namespace PraxisCore
 
                     //Fuzz each vertex by adding some random distance on each axis less than 30% of the cell's size in either direction.
                     //10% makes the shapes much more recognizable, but not as interesting. Will continue looking into parameters here to help adjust that.
-                    c.X += (r.NextDouble() * resolutionCell8 * shapeWarp) * (r.Next() % 2 == 0 ? 1 : -1);
-                    c.Y += (r.NextDouble() * resolutionCell8 * shapeWarp) * (r.Next() % 2 == 0 ? 1 : -1);
+                    c.X += (Random.Shared.NextDouble() * resolutionCell8 * shapeWarp) * (Random.Shared.Next() % 2 == 0 ? 1 : -1);
+                    c.Y += (Random.Shared.NextDouble() * resolutionCell8 * shapeWarp) * (Random.Shared.Next() % 2 == 0 ? 1 : -1);
 
                     //Let us know if this shape overlaps a neighboring cell. We probably want to make sure we re-draw map tiles if it does.
                     if (c.X > .0025 || c.Y > .0025)
