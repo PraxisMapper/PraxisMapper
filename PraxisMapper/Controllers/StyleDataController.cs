@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Google.OpenLocationCode;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PraxisCore;
 using System.Linq;
@@ -92,27 +93,33 @@ namespace PraxisMapper.Controllers
             db.SaveChanges();
         }
 
+        [HttpPut]
         public void UpdateStylePaint([FromBody] StylePaint paint)
         {
+            //placeholder, requires testing to make sure paint loads correctly from the body.
             var db = new PraxisContext();
             var data = db.StylePaints.First();
-            data.FileName = "";
-            data.FillOrStroke = "";
-            data.FromTag = false;
-            data.HtmlColorCode = "";
-            data.LayerId = 1;
-            data.LinePattern = "";
-            data.LineWidthDegrees = 1;
-            data.MaxDrawRes = 0;
-            data.MinDrawRes = 0;
-            data.Randomize = false;
+            if (data == null)
+                data = new StylePaint();
+            data.FileName = paint.FileName;
+            data.FillOrStroke = paint.FillOrStroke;
+            data.FromTag = paint.FromTag;
+            data.HtmlColorCode = paint.HtmlColorCode;
+            data.LayerId = paint.LayerId;
+            data.LinePattern = paint.LinePattern;
+            data.LineWidthDegrees = paint.LineWidthDegrees;
+            data.MaxDrawRes = paint.MaxDrawRes;
+            data.MinDrawRes = paint.MinDrawRes;
+            data.Randomize = paint.Randomize;
 
             db.SaveChanges();
         }
 
+        [HttpPut]
+        [Route("/[controller]/Upload/{filename}")]
         public void InsertBitmap(string filename, [FromBody] byte[] image)
         {
-            //NOTE: this one rejects overwriting existing entries.
+            //NOTE: this one rejects overwriting existing entries to avoid potential griefing.
             var db = new PraxisContext();
             if(db.StyleBitmaps.Any(d => d.Filename == filename))
                 return;
@@ -122,13 +129,22 @@ namespace PraxisMapper.Controllers
             data.Filename = filename;
             db.StyleBitmaps.Add(data);
             db.SaveChanges();
-
         }
 
         public void AskForCreatedAreas(string plusCode)
         {
             //This may belong somewhere else, but this should be a server-side function.
-            //Check if there are areas in the listed plusCode, 
+            //Check if there are areas in the listed plusCode, and if not make one or two.
+            var db = new PraxisContext();
+            var area = OpenLocationCode.DecodeValid(plusCode);
+            var places = PraxisCore.Place.GetPlaces(area);
+            places = places.Where(p => p.Tags.Any(t => t.Key == "generated" && t.Value == "praxisMapper")).ToList();
+
+            if (places.Count == 0)
+                return;
+
+            //now generate a place here.
+            PraxisCore.Place.CreateInterestingPlaces(plusCode, true);
         }
     }
 }

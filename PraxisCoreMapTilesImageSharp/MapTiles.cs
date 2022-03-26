@@ -24,7 +24,7 @@ namespace PraxisCore
         public static double bufferSize = resolutionCell10; 
 
         //static SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
-        static readonly Random r = new Random();
+        //static readonly Random r = new Random();
         public static Dictionary<string, Image> cachedBitmaps = new Dictionary<string, Image>(); //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
         public static Dictionary<long, IBrush> cachedPaints = new Dictionary<long, IBrush>();
         public static Dictionary<long, IPen> cachedGameTilePens = new Dictionary<long, IPen>();
@@ -335,7 +335,7 @@ namespace PraxisCore
                 {
                     //recreate pen for this operation instead of using cached pen.
                     if (w.paintOp.Randomize) //To randomize the color on every Draw call.
-                        w.paintOp.HtmlColorCode = "99" + ((byte)r.Next(0, 255)).ToString() + ((byte)r.Next(0, 255)).ToString() + ((byte)r.Next(0, 255)).ToString();
+                        w.paintOp.HtmlColorCode = "99" + ((byte)Random.Shared.Next(0, 255)).ToString() + ((byte)Random.Shared.Next(0, 255)).ToString() + ((byte)Random.Shared.Next(0, 255)).ToString();
 
                     if (w.paintOp.FromTag) //FromTag is for when you are saving color data directly to each element, instead of tying it to a styleset.
                         w.paintOp.HtmlColorCode = w.tagValue;
@@ -385,7 +385,7 @@ namespace PraxisCore
                     case "LineString":
                         var firstPoint = thisGeometry.Coordinates.First();
                         var lastPoint = thisGeometry.Coordinates.Last();
-                        var line = LineToDrawingLine(thisGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                        var line = LineToDrawingLine(thisGeometry, stats);
 
                         if (firstPoint.Equals(lastPoint) && w.paintOp.FillOrStroke == "fill")
                             image.Mutate(x => x.Fill(dOpts, paint, new SixLabors.ImageSharp.Drawing.Polygon(new LinearLineSegment(line))));
@@ -395,7 +395,7 @@ namespace PraxisCore
                     case "MultiLineString":
                         foreach (var p3 in ((MultiLineString)thisGeometry).Geometries)
                         {
-                            var line2 = LineToDrawingLine(p3, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                            var line2 = LineToDrawingLine(p3, stats);
                             image.Mutate(x => x.DrawLines(dOpts, pen, line2));
                         }
                         break;
@@ -410,7 +410,7 @@ namespace PraxisCore
                         }
                         else
                         {
-                            var circleRadius = (float)w.lineWidthPixels; //(float)(ConstantValues.resolutionCell10 / stats.degreesPerPixelX / 2); //I want points to be drawn as 1 Cell10 in diameter.
+                            var circleRadius = (float)w.lineWidthPixels; //(float)(ConstantValues.resolutionCell10 / stats.degreesPerPixelX / 2); //I wanted points to be drawn as 1 Cell10 in diameter, but maybe that adjusts now?
                             var shape = new SixLabors.ImageSharp.Drawing.EllipsePolygon(
                                 PointToPointF(thisGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY),
                                 new SizeF(circleRadius, circleRadius));
@@ -425,7 +425,7 @@ namespace PraxisCore
             }
 
             image.Mutate(x => x.Flip(FlipMode.Vertical)); //Plus codes are south-to-north, so invert the image to make it correct.
-            image.Mutate(x => x.BoxBlur(1)); //This does help smooth out some of the rough edges on the game tiles. 
+            //image.Mutate(x => x.BoxBlur(1)); //This does help smooth out some of the rough edges on the game tiles, but it might need a bigger radius? 
             var ms = new MemoryStream();
             image.SaveAsPng(ms);
             return ms.ToArray();
@@ -493,9 +493,9 @@ namespace PraxisCore
             return part;
         }
 
-        public static SixLabors.ImageSharp.PointF[] LineToDrawingLine(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
+        public static SixLabors.ImageSharp.PointF[] LineToDrawingLine(Geometry place, ImageStats stats) // GeoArea drawingArea, double resolutionX, double resolutionY)
         {
-            var typeConvertedPoints = place.Coordinates.Select(o => new SixLabors.ImageSharp.PointF((float)((o.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / resolutionY)))).ToList();
+            var typeConvertedPoints = place.Coordinates.Select(o => new SixLabors.ImageSharp.PointF((float)((o.X - stats.area.WestLongitude) * (1 / stats.degreesPerPixelX)), (float)((o.Y - stats.area.SouthLatitude) * (1 / stats.degreesPerPixelY)))).ToList();
             return typeConvertedPoints.ToArray();
         }
 
