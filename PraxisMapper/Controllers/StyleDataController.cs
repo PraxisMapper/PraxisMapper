@@ -116,10 +116,11 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpPut]
-        [Route("/[controller]/Upload/{filename}")]
+        [Route("/[controller]/Bitmap/{filename}")]
         public void InsertBitmap(string filename, [FromBody] byte[] image)
         {
             //NOTE: this one rejects overwriting existing entries to avoid potential griefing.
+            //
             var db = new PraxisContext();
             if(db.StyleBitmaps.Any(d => d.Filename == filename))
                 return;
