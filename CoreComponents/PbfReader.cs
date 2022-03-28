@@ -281,7 +281,7 @@ namespace PraxisCore.PbfReader
                 foreach (var relId in thisBlock.primitivegroup[0].relations)
                 {
                     Log.WriteLog("Loading relation with " + relId.memids.Count + " members");
-                    geoListOfOne.Add(GetRelation(relId.id, onlyMatchedAreas));
+                    geoListOfOne.Add(GetRelation(relId.id, onlyMatchedAreas, thisBlock));
                     ProcessReaderResults(geoListOfOne, block);
                     activeBlocks.Clear();
                     geoListOfOne.Clear();
@@ -499,15 +499,18 @@ namespace PraxisCore.PbfReader
         /// <param name="relationId">the relation to load and process</param>
         /// <param name="ignoreUnmatched">if true, skip entries that don't get a TagParser match applied to them.</param>
         /// <returns>an OSMSharp CompleteRelation, or null if entries are missing, the elements were unmatched and ignoreUnmatched is true, or there were errors creating the object.</returns>
-        private OsmSharp.Complete.CompleteRelation GetRelation(long relationId, bool ignoreUnmatched = false)
+        private OsmSharp.Complete.CompleteRelation GetRelation(long relationId, bool ignoreUnmatched = false, PrimitiveBlock relationBlock = null)
         {
             try
             {
                 var relationBlockValues = relationFinder[relationId];
-                PrimitiveBlock relationBlock = GetBlock(relationBlockValues);
+                //PrimitiveBlock relationBlock = GetBlock(relationBlockValues);
+                if (relationBlock == null)
+                    relationBlock = GetBlock(relationBlockValues);
 
                 var relPrimGroup = relationBlock.primitivegroup[0];
                 var rel = findRelationInBlockList(relPrimGroup.relations, relationId);
+                var stringData = relationBlock.stringtable.s;
                 bool canProcess = false;
                 //sanity check - if this relation doesn't have inner or outer role members,
                 //its not one i can process.
@@ -532,7 +535,9 @@ namespace PraxisCore.PbfReader
 
                 for (int i = 0; i < rel.keys.Count; i++)
                 {
-                    r.Tags.Add(new OsmSharp.Tags.Tag(System.Text.Encoding.UTF8.GetString(relationBlock.stringtable.s[(int)rel.keys[i]]), System.Text.Encoding.UTF8.GetString(relationBlock.stringtable.s[(int)rel.vals[i]])));
+                    r.Tags.Add(new OsmSharp.Tags.Tag(
+                        System.Text.Encoding.UTF8.GetString(stringData[(int)rel.keys[i]]), 
+                        System.Text.Encoding.UTF8.GetString(stringData[(int)rel.vals[i]])));
                 }
 
                 if (ignoreUnmatched)
@@ -578,7 +583,7 @@ namespace PraxisCore.PbfReader
                     idToFind += rel.memids[i];
                     Relation.MemberType typeToFind = rel.types[i];
                     OsmSharp.Complete.CompleteRelationMember c = new OsmSharp.Complete.CompleteRelationMember();
-                    c.Role = System.Text.Encoding.UTF8.GetString(relationBlock.stringtable.s[rel.roles_sid[i]]);
+                    c.Role = System.Text.Encoding.UTF8.GetString(stringData[rel.roles_sid[i]]);
                     switch (typeToFind)
                     {
                         case Relation.MemberType.NODE:
@@ -707,13 +712,17 @@ namespace PraxisCore.PbfReader
                 var nodesByBlock = nodesPerBlock.ToLookup(k => k.blockId, v => v.nodeId);
 
                 finalway.Nodes = new OsmSharp.Node[way.refs.Count];
-                ConcurrentDictionary<long, OsmSharp.Node> AllNodes = new ConcurrentDictionary<long, OsmSharp.Node>(Environment.ProcessorCount, way.refs.Count);
-                Parallel.ForEach(nodesByBlock, (block) =>
+                //Each way is already in its own thread, I think making each of those fire off 1 thread per node block referenced is excessive.
+                //and may well hurt performance in most cases due to overhead and locking the concurrentdictionary than it gains.
+                //ConcurrentDictionary<long, OsmSharp.Node> AllNodes = new ConcurrentDictionary<long, OsmSharp.Node>(Environment.ProcessorCount, way.refs.Count);
+                //Parallel.ForEach(nodesByBlock, (block) =>
+                Dictionary<long, OsmSharp.Node> AllNodes = new Dictionary<long, OsmSharp.Node>(way.refs.Count);
+                foreach (var block in nodesByBlock)
                 {
                     var someNodes = GetAllNeededNodesInBlock(block.Key, block.Distinct().OrderBy(b => b).ToArray());
                     foreach (var n in someNodes)
-                        AllNodes.TryAdd(n.Key, n.Value);
-                });
+                        AllNodes.Add(n.Key, n.Value);
+                }// );
 
                 idToFind = 0;
                 for (int i = 0; i < way.refs.Count; i++)
@@ -739,13 +748,19 @@ namespace PraxisCore.PbfReader
         /// <returns>a list of Nodes with tags, which may have a length of 0.</returns>
         private List<OsmSharp.Node> GetTaggedNodesFromBlock(PrimitiveBlock block, bool ignoreUnmatched = false)
         {
-            List<OsmSharp.Node> taggedNodes = new List<OsmSharp.Node>(400); //2% of nodes have tags, 10x that to get this set for the majority of blocks.
             var dense = block.primitivegroup[0].dense;
 
             //Shortcut: if dense.keys.count == dense.id.count, there's no tagged nodes at all here (0 means 'no keys', and all 0's means every entry has no keys)
             if (dense.keys_vals.Count == dense.id.Count)
-                return taggedNodes;
+                return new List<OsmSharp.Node>();
 
+            List<OsmSharp.Node> taggedNodes = new List<OsmSharp.Node>((dense.keys_vals.Count - dense.id.Count) / 2); //precise count of expected nodes, can't be 0.
+            var granularity = block.granularity;
+            var lat_offset = block.lat_offset;
+            var lon_offset = block.lon_offset;
+            var stringData = block.stringtable.s;
+
+            
             //sort out tags ahead of time.
             int entryCounter = 0;
             List<Tuple<int, string, string>> idKeyVal = new List<Tuple<int, string, string>>((dense.keys_vals.Count - dense.id.Count) / 2);
@@ -760,13 +775,13 @@ namespace PraxisCore.PbfReader
 
                 idKeyVal.Add(
                     Tuple.Create(entryCounter,
-                System.Text.Encoding.UTF8.GetString(block.stringtable.s[dense.keys_vals[i]]),
-                System.Text.Encoding.UTF8.GetString(block.stringtable.s[dense.keys_vals[i + 1]])
+                System.Text.Encoding.UTF8.GetString(stringData[dense.keys_vals[i]]),
+                System.Text.Encoding.UTF8.GetString(stringData[dense.keys_vals[i + 1]])
                 ));
                 i++;
             }
             var decodedTags = idKeyVal.ToLookup(k => k.Item1, v => new OsmSharp.Tags.Tag(v.Item2, v.Item3));
-            var lastTaggedNode = decodedTags.Max(i => i.Key);
+            var lastTaggedNode = idKeyVal.Last().Item1;
 
             var index = -1;
             long nodeId = 0;
@@ -793,8 +808,8 @@ namespace PraxisCore.PbfReader
 
                 OsmSharp.Node n = new OsmSharp.Node();
                 n.Id = nodeId;
-                n.Latitude = DecodeLatLon(lat, block.lat_offset, block.granularity);
-                n.Longitude = DecodeLatLon(lon, block.lon_offset, block.granularity);
+                n.Latitude = DecodeLatLon(lat, lat_offset, granularity);
+                n.Longitude = DecodeLatLon(lon, lon_offset, granularity);
                 n.Tags = tc;
 
                 //if bounds checking, drop nodes that aren't needed.
@@ -821,6 +836,9 @@ namespace PraxisCore.PbfReader
 
             var block = GetBlock(blockId);
             var group = block.primitivegroup[0].dense;
+            var granularity = block.granularity;
+            var lat_offset = block.lat_offset;
+            var lon_offset = block.lon_offset;
 
             int index = -1;
             long nodeCounter = 0;
@@ -830,7 +848,7 @@ namespace PraxisCore.PbfReader
             var dLat = group.lat;
             var dLon = group.lon;
             var nodeToFind = nodeIds[arrayIndex];
-            while (arrayIndex < 8000)
+            while (index < 8000) //was arrayIndex, but thats how many entries we want to load, not how many are in the block
             {
                 index++;
 
@@ -843,8 +861,8 @@ namespace PraxisCore.PbfReader
                 {
                     OsmSharp.Node filled = new OsmSharp.Node();
                     filled.Id = nodeCounter;
-                    filled.Latitude = DecodeLatLon(latDelta, block.lat_offset, block.granularity);
-                    filled.Longitude = DecodeLatLon(lonDelta, block.lon_offset, block.granularity);
+                    filled.Latitude = DecodeLatLon(latDelta, lat_offset, granularity);
+                    filled.Longitude = DecodeLatLon(lonDelta, lon_offset, granularity);
                     results.Add(nodeCounter, filled);
                     arrayIndex++;
                     if (arrayIndex == nodeIds.Length)
@@ -1052,13 +1070,12 @@ namespace PraxisCore.PbfReader
                     {
                         //Some relation blocks can hit 22GB of RAM on their own. Low-resource machines will fail, and should roll into the LastChance path automatically.
                         foreach (var r in primgroup.relations)
-                            relList.Add(Task.Run(() => results.Add(GetRelation(r.id, onlyTagMatchedEntries))));
+                            relList.Add(Task.Run(() => results.Add(GetRelation(r.id, onlyTagMatchedEntries, block))));
 
                         Task.WaitAll(relList.ToArray());
                     }
                     else if (primgroup.ways != null && primgroup.ways.Count > 0)
                     {
-                        List<long> hint = new List<long>() { blockId };
                         foreach (var r in primgroup.ways)
                         {
                             relList.Add(Task.Run(() => results.Add(GetWay(r, block.stringtable.s, onlyTagMatchedEntries))));
@@ -1091,8 +1108,9 @@ namespace PraxisCore.PbfReader
                     foreach (var blockRead in activeBlocks)
                     {
                         if (!accessedBlocks.ContainsKey(blockRead.Key))
-                            activeBlocks.TryRemove(blockRead.Key, out var x);
+                            activeBlocks.TryRemove(blockRead.Key, out var xx);
                     }
+                activeBlocks.TryRemove(blockId, out var x); //Extremely unlikely to need to keep the processed block in RAM>
                 accessedBlocks.Clear();
                 return results;
             }
@@ -1108,13 +1126,13 @@ namespace PraxisCore.PbfReader
         /// <summary>
         /// Turns a PBF's dense stored data into a standard latitude or longitude value in degrees.
         /// </summary>
-        /// <param name="valueOffset">the valueOffset for the block data is loaded from</param>
-        /// <param name="offset">the offset for the node currently loaded</param>
-        /// <param name="granularity">the granularity value of the block data is loaded from</param>
+        /// <param name="valueOffset">the valueOffset for the given node</param>
+        /// <param name="blockOffset">the offset for the block currently loaded</param>
+        /// <param name="blockGranularity">the granularity value of the block data is loaded from</param>
         /// <returns>a double represeting the lat or lon value for the given dense values</returns>
-        private static double DecodeLatLon(long valueOffset, long offset, long granularity)
+        private static double DecodeLatLon(long valueOffset, long blockOffset, long blockGranularity)
         {
-            return .000000001 * (offset + (granularity * valueOffset));
+            return .000000001 * (blockOffset + (blockGranularity * valueOffset));
         }
         //end OsmSharp copied functions.
 
