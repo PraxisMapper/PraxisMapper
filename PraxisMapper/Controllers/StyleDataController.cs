@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PraxisCore;
+using System.Buffers;
 using System.Linq;
 using static PraxisCore.DbTables;
 
@@ -117,7 +118,7 @@ namespace PraxisMapper.Controllers
 
         [HttpPut]
         [Route("/[controller]/Bitmap/{filename}")]
-        public void InsertBitmap(string filename, [FromBody] byte[] image)
+        public void InsertBitmap(string filename)
         {
             //NOTE: this one rejects overwriting existing entries to avoid potential griefing.
             //
@@ -125,8 +126,12 @@ namespace PraxisMapper.Controllers
             if(db.StyleBitmaps.Any(d => d.Filename == filename))
                 return;
 
+            var br = Request.BodyReader;
+            var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
+            var endData = rr.Result.Buffer.ToArray();
+
             var data = new StyleBitmap();
-            data.Data = image;
+            data.Data = endData;
             data.Filename = filename;
             db.StyleBitmaps.Add(data);
             db.SaveChanges();

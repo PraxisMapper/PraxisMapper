@@ -215,6 +215,14 @@ namespace PraxisMapper.Controllers
             return;
         }
 
+        [HttpDelete]
+        [Route("/[controller]/Global/{key}")]
+        public void DeleteGlobalData(string key)
+        {
+            var data = GenericData.SetGlobalData(key, "");
+            return;
+        }
+
         [HttpGet]
         [Route("/[controller]/ServerBounds")]
         public string GetServerBounds()
