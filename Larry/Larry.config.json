@@ -1,8 +1,8 @@
 ﻿{
   "DbMode": "MariaDB",
   "DbConnectionString": "server=localhost;database=praxis;user=root;password=asdf;",
-  "PbfFolder": "F:\\Projects\\PraxisMapper Files\\PbfsToProcess\\",
-  "OutputDataFolder": "F:\\Projects\\PraxisMapper Files\\Trimmed JSON Files\\ohio\\",
+  "PbfFolder": "C:\\Praxis\\",
+  "OutputDataFolder": "C:\\Praxis\\",
   "Solar2dExportFolder": "",
   "UseHighAccuracy": true,
   "OnlyTaggedAreas": false,
@@ -19,5 +19,5 @@
   "reprocessFiles": false, //false: only read PBF files. true: loads an existing geomdata file and follow normal processing rules on it, then re-do output. Only converts items to center points at this time.
   "singleStyle": "", //if not blank, pull out one named style from the default styleSet and use that in place of the default styleset this run.
   "MapTilesEngine": "SkiaSharp",
-  "ForceSingleThreading": false // set to true for lower-resource systems. Takes longer to run stuff when true.
+  "ResourceUse": "normal" // normal: multithreading, conserve RAM. low: singlethread, conserve RAM, high: multithread, don't reclaim RAM early.
 }
