@@ -101,6 +101,8 @@ namespace PraxisCore
                 p = new Pen(Rgba32.ParseHex(htmlColor), tpe.LineWidthDegrees * (float)info.pixelsPerDegreeX, linesAndGaps);
             }
 
+            p.EndCapStyle = EndCapStyle.Round;
+            p.JointStyle = JointStyle.Round;
             return p;
         }
 
@@ -348,6 +350,8 @@ namespace PraxisCore
                         float[] linesAndGaps = w.paintOp.LinePattern.Split('|').Select(t => float.Parse(t)).ToArray();
                         pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), (float)w.lineWidthPixels, linesAndGaps);
                     }
+                    pen.EndCapStyle = EndCapStyle.Round;
+                    pen.JointStyle = JointStyle.Round;
                 }
 
                 //ImageSharp doesn't like humungous areas (16k+ nodes takes a couple minutes), so we have to crop them down here
