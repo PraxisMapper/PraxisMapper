@@ -1148,7 +1148,7 @@ namespace PraxisCore.PbfReader
             {
                 data[i] = i + ":" + blockPositions[i] + ":" + blockSizes[i];
             }
-            File.WriteAllLines(filename, data);
+            File.WriteAllLinesAsync(filename, data);
 
             filename = outputPath + fi.Name + ".relationIndex";
             data = new string[relationFinder.Count];
@@ -1158,7 +1158,7 @@ namespace PraxisCore.PbfReader
                 data[j] = wf.Key + ":" + wf.Value;
                 j++;
             }
-            File.WriteAllLines(filename, data);
+            File.WriteAllLinesAsync(filename, data);
 
             filename = outputPath + fi.Name + ".wayIndex";
             data = new string[wayFinderTotal];
@@ -1168,7 +1168,7 @@ namespace PraxisCore.PbfReader
                 data[j] = wf.Item1 + ":" + wf.Item2;
                 j++;
             }
-            File.WriteAllLines(filename, data);
+            File.WriteAllLinesAsync(filename, data);
 
             filename = outputPath + fi.Name + ".nodeIndex";
             data = new string[nodeFinder2.Count];
@@ -1178,7 +1178,7 @@ namespace PraxisCore.PbfReader
                 data[j] = wf.Key + ":" + wf.Value.Item1 + ":" + wf.Value.Item2;
                 j++;
             }
-            File.WriteAllLines(filename, data);
+            File.WriteAllLinesAsync(filename, data);
         }
 
         /// <summary>
@@ -1261,7 +1261,7 @@ namespace PraxisCore.PbfReader
         private void SaveCurrentBlock(long blockID)
         {
             string filename = outputPath + fi.Name + ".progress";
-            File.WriteAllText(filename, blockID.ToString());
+            File.WriteAllTextAsync(filename, blockID.ToString());
         }
 
         //Loads the most recently completed block from a file to resume without doing duplicate work.
@@ -1405,8 +1405,8 @@ namespace PraxisCore.PbfReader
                 try
                 {
                     Parallel.Invoke(
-                        () => File.AppendAllTextAsync(saveFilename + ".geomData", geometryBuilds.ToString()),
-                        () => File.AppendAllTextAsync(saveFilename + ".tagsData", tagBuilds.ToString())
+                        () => File.WriteAllTextAsync(saveFilename + ".geomData", geometryBuilds.ToString()),
+                        () => File.WriteAllTextAsync(saveFilename + ".tagsData", tagBuilds.ToString())
                     );
                 }
                 catch (Exception ex)
