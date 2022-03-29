@@ -1,8 +1,8 @@
 ﻿{
   "DbMode": "MariaDB",
   "DbConnectionString": "server=localhost;database=praxis;user=root;password=asdf;",
-  "PbfFolder": "C:\\Praxis\\",
-  "OutputDataFolder": "C:\\Praxis\\ohio\\",
+  "PbfFolder": "F:\\Projects\\PraxisMapper Files\\PbfsToProcess\\",
+  "OutputDataFolder": "F:\\Projects\\PraxisMapper Files\\Trimmed JSON Files\\ohio\\",
   "Solar2dExportFolder": "",
   "UseHighAccuracy": true,
   "OnlyTaggedAreas": false,

@@ -1405,8 +1405,8 @@ namespace PraxisCore.PbfReader
                 try
                 {
                     Parallel.Invoke(
-                        () => File.AppendAllText(saveFilename + ".geomData", geometryBuilds.ToString()),
-                        () => File.AppendAllText(saveFilename + ".tagsData", tagBuilds.ToString())
+                        () => File.AppendAllTextAsync(saveFilename + ".geomData", geometryBuilds.ToString()),
+                        () => File.AppendAllTextAsync(saveFilename + ".tagsData", tagBuilds.ToString())
                     );
                 }
                 catch (Exception ex)
