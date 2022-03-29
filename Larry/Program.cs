@@ -283,7 +283,15 @@ namespace Larry
                 r.saveToDB = false; //This is slower than doing both steps separately because loading to the DB is single-threaded this way.
                 r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
                 r.reprocessFile = config["reprocessFiles"] == "True";
-                r.lowResourceMode = config["ForceSingleThreading"] == "True";
+
+                if (config["ResourceUse"] == "low")
+                {
+                    r.lowResourceMode = true;
+                }
+                else if (config["ResourceUse"] == "high")
+                {
+                    r.keepAllBlocksInRam = true; //Faster performance, but files use vastly more RAM than they do HD space. 200MB file = ~6GB total RAM last I checked.
+                }
                 r.ProcessFile(filename, long.Parse(config["UseOneRelationID"]));
                 File.Move(filename, filename + "done");
             }
@@ -524,7 +532,7 @@ namespace Larry
                 return;
             }
 
-            if (config["ForceSingleThreading"] == "True")
+            if (config["ResourceUse"] == "low")
                 singleThread = true;
         }
 
