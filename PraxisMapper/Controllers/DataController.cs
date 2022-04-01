@@ -59,7 +59,9 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/PlusCode/{plusCode}/{key}/{value}")]
         [Route("/[controller]/PlusCode/{plusCode}/{key}/{value}/{expiresIn}")]
         [Route("/[controller]/Area/{plusCode}/{key}/{value}")]
+        [Route("/[controller]/Area/{plusCode}/{key}/noval/{expiresIn}")]
         [Route("/[controller]/Area/{plusCode}/{key}/{value}/{expiresIn}")]
+        
         public bool SetPlusCodeData(string plusCode, string key, string value, double? expiresIn = null)
         {
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
