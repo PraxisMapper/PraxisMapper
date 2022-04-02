@@ -18,11 +18,13 @@ namespace PraxisMapper.Controllers
     {
         private readonly IConfiguration Configuration;
         private static IMemoryCache cache;
+        private static bool perfTrackerEnabled;
 
         public SecureDataController(IConfiguration config, IMemoryCache memoryCacheSingleton)
         {
             Configuration = config;
             cache = memoryCacheSingleton;
+            perfTrackerEnabled = Configuration.GetValue<bool>("enablePerformanceTracker");
         }
 
         [HttpPut]
@@ -36,6 +38,10 @@ namespace PraxisMapper.Controllers
         
         public bool SetSecureElementData(Guid elementId, string key, string value,string password, double? expiresIn = null)
         {
+            if (perfTrackerEnabled)
+            {
+                Response.Headers.Add("X-privacy", "PerfTracker is ON, password used is visible in a log.");
+            }
             if (value == null)
             {
                 var br = Request.BodyReader;
@@ -64,6 +70,10 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Player/{deviceId}/{key}/{value}/{password}/{expiresIn}")]
         public bool SetSecurePlayerData(string deviceId, string key, string value, string password, double? expiresIn = null)
         {
+            if (perfTrackerEnabled)
+            {
+                Response.Headers.Add("X-privacy", "PerfTracker is ON, password used is visible in a log.");
+            }
             if (value == null)
             {
                 var br = Request.BodyReader;
@@ -97,6 +107,11 @@ namespace PraxisMapper.Controllers
         {
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return false;
+
+            if (perfTrackerEnabled)
+            {
+                Response.Headers.Add("X-privacy", "PerfTracker is ON, password used is visible in a log.");
+            }
             if (value == null)
             {
                 var br = Request.BodyReader;
@@ -130,6 +145,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Password/{devicedId}/{password}")]
         public bool EncryptUserPassword(string deviceId, string password)
         {
+            Response.Headers.Add("X-noPerfTrack", "1");
             var options = new CrypterOptions() {
                 { CrypterOption.Rounds, Configuration["PasswordRounds"]}
             };
@@ -145,6 +161,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Password/{devicedId}/{password}")]
         public bool CheckPassword(string deviceId, string password)
         {
+            Response.Headers.Add("X-noPerfTrack", "1");
             BlowfishCrypter crypter = new BlowfishCrypter();
             string existingPassword = GenericData.GetPlayerData(deviceId, "password").ToUTF8String();
             string checkedPassword = crypter.Crypt(password, existingPassword);

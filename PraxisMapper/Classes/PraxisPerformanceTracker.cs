@@ -17,7 +17,7 @@ namespace PraxisMapper.Classes
 
         public async Task Invoke(HttpContext context)
         {
-            if (Enabled)
+            if (Enabled && !context.Response.Headers.ContainsKey("X-noPerfTrack"))
             {
                 System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                 sw.Start();

@@ -23,7 +23,6 @@ namespace PraxisMapper
         {
             Configuration = configuration;
             PraxisPerformanceTracker.Enabled = Configuration.GetValue<bool>("enablePerformanceTracker"); //web server built-in
-            PerformanceTracker.EnableLogging = Configuration.GetValue<bool>("enablePerformanceTracker"); //each function calls its own.
             Log.WriteToFile = Configuration.GetValue<bool>("enableFileLogging");
             PraxisContext.connectionString = Configuration.GetValue<string>("dbConnectionString");
             PraxisContext.serverMode = Configuration.GetValue<string>("dbMode");
