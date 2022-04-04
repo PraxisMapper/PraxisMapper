@@ -23,34 +23,15 @@ namespace PraxisMapper.Controllers
     [ApiController]
     public class DataController : Controller
     {
-        static DateTime lastExpiryPass = DateTime.UtcNow.AddSeconds(-1);
         static ConcurrentDictionary<string, ReaderWriterLockSlim> locks = new ConcurrentDictionary<string, ReaderWriterLockSlim>();
 
         private readonly IConfiguration Configuration;
         private static IMemoryCache cache;
-        private static ReaderWriterLockSlim deleteLock = new ReaderWriterLockSlim();
 
         public DataController(IConfiguration configuration, IMemoryCache memoryCacheSingleton)
         {
             Configuration = configuration;
             cache = memoryCacheSingleton;
-
-            if (lastExpiryPass < DateTime.UtcNow)
-            {
-                if (!deleteLock.IsWriteLockHeld)
-                {
-                    lastExpiryPass = DateTime.UtcNow.AddMinutes(30);
-                    System.Threading.Tasks.Task.Run(() =>
-                    {
-                        deleteLock.EnterWriteLock();
-                        var db = new PraxisContext();
-                        db.Database.ExecuteSqlRaw("DELETE FROM PlaceGameData WHERE expiration IS NOT NULL AND expiration < NOW()");
-                        db.Database.ExecuteSqlRaw("DELETE FROM AreaGameData WHERE expiration IS NOT NULL AND expiration < NOW()");
-                        db.Database.ExecuteSqlRaw("DELETE FROM PlayerData WHERE expiration IS NOT NULL AND expiration < NOW()");
-                        deleteLock.ExitWriteLock();
-                    });
-                }
-            }
         }
 
         [HttpPut]
