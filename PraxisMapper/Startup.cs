@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -73,6 +74,20 @@ namespace PraxisMapper
 
             TagParser.Initialize(Configuration.GetValue<bool>("ForceStyleDefaults"), mapTiles);
             MapTileSupport.MapTiles = mapTiles;
+
+            //Start cleanup threads that fire every half hour.
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                var db = new PraxisContext();
+                while (true)
+                {
+                    db.Database.ExecuteSqlRaw("DELETE FROM PlaceGameData WHERE expiration IS NOT NULL AND expiration < NOW()");
+                    db.Database.ExecuteSqlRaw("DELETE FROM AreaGameData WHERE expiration IS NOT NULL AND expiration < NOW()");
+                    db.Database.ExecuteSqlRaw("DELETE FROM PlayerData WHERE expiration IS NOT NULL AND expiration < NOW()");
+                    //remember, don't delete map tiles here, since those track how many times they've been redrawn so the client knows when to ask for the image again.
+                    System.Threading.Thread.Sleep(1800000); // 30 minutes in milliseconds
+                }
+            });
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
