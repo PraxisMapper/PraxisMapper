@@ -50,10 +50,11 @@ namespace PraxisMapper.Controllers
 
             if (value == null)
             {
+                Console.WriteLine("Setting plusCode data"); //test
                 var br = Request.BodyReader;
                 var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
                 var endData = rr.Result.Buffer.ToArray();
-                br.Complete();
+                br.Complete(); //might be redundant or unnecessary. Might be very important.
                 return GenericData.SetAreaData(plusCode, key, endData, expiresIn);
             }
             return GenericData.SetAreaData(plusCode, key, value, expiresIn);
@@ -184,6 +185,7 @@ namespace PraxisMapper.Controllers
                 var br = Request.BodyReader;
                 var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
                 var endData = rr.Result.Buffer.ToArray();
+                br.Complete(); //also potentially required or redundant, still testing.
                 return GenericData.SetGlobalData(key, endData);
             }
             return GenericData.SetGlobalData(key, value);
