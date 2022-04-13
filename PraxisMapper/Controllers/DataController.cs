@@ -54,7 +54,8 @@ namespace PraxisMapper.Controllers
                 var br = Request.BodyReader;
                 var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
                 var endData = rr.Result.Buffer.ToArray();
-                br.Complete(); //might be redundant or unnecessary. Might be very important.
+                //br.Complete(); //might be redundant or unnecessary. Might be very important.
+                br.AdvanceTo(rr.Result.Buffer.Start, rr.Result.Buffer.End); // third try to squelch an exception in kestrel.
                 return GenericData.SetAreaData(plusCode, key, endData, expiresIn);
             }
             return GenericData.SetAreaData(plusCode, key, value, expiresIn);
