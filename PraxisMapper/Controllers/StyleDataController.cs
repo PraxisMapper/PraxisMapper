@@ -129,6 +129,7 @@ namespace PraxisMapper.Controllers
             var br = Request.BodyReader;
             var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
             var endData = rr.Result.Buffer.ToArray();
+            br.AdvanceTo(rr.Result.Buffer.Start); // this is required to silence an error in Kestrel on Linux.
 
             var data = new StyleBitmap();
             data.Data = endData;

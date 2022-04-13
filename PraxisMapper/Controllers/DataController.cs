@@ -84,6 +84,7 @@ namespace PraxisMapper.Controllers
                 var br = Request.BodyReader;
                 var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
                 var endData = rr.Result.Buffer.ToArray();
+                br.AdvanceTo(rr.Result.Buffer.Start); // this is required to silence an error in Kestrel on Linux.
                 return GenericData.SetPlayerData(deviceId, key, endData, expiresIn);
             }
             return GenericData.SetPlayerData(deviceId, key, value, expiresIn);
@@ -114,6 +115,7 @@ namespace PraxisMapper.Controllers
                 var br = Request.BodyReader;
                 var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
                 var endData = rr.Result.Buffer.ToArray();
+                br.AdvanceTo(rr.Result.Buffer.Start); // this is required to silence an error in Kestrel on Linux.
                 return GenericData.SetPlaceData(elementId, key, endData, expiresIn);
             }
             return GenericData.SetPlaceData(elementId, key, value, expiresIn);
@@ -184,7 +186,7 @@ namespace PraxisMapper.Controllers
                 var br = Request.BodyReader;
                 var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
                 var endData = rr.Result.Buffer.ToArray();
-                br.Complete(); //also potentially required or redundant, still testing.
+                br.AdvanceTo(rr.Result.Buffer.Start); // this is required to silence an error in Kestrel on Linux.
                 return GenericData.SetGlobalData(key, endData);
             }
             return GenericData.SetGlobalData(key, value);
