@@ -50,12 +50,10 @@ namespace PraxisMapper.Controllers
 
             if (value == null)
             {
-                Console.WriteLine("Setting plusCode data"); //test
                 var br = Request.BodyReader;
                 var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
                 var endData = rr.Result.Buffer.ToArray();
-                //br.Complete(); //might be redundant or unnecessary. Might be very important.
-                br.AdvanceTo(rr.Result.Buffer.Start, rr.Result.Buffer.End); // third try to squelch an exception in kestrel.
+                br.AdvanceTo(rr.Result.Buffer.Start); // this is required to silence an error in Kestrel on Linux.
                 return GenericData.SetAreaData(plusCode, key, endData, expiresIn);
             }
             return GenericData.SetAreaData(plusCode, key, value, expiresIn);
