@@ -53,6 +53,7 @@ namespace PraxisMapper.Controllers
                 var br = Request.BodyReader;
                 var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
                 var endData = rr.Result.Buffer.ToArray();
+                br.Complete();
                 return GenericData.SetAreaData(plusCode, key, endData, expiresIn);
             }
             return GenericData.SetAreaData(plusCode, key, value, expiresIn);
