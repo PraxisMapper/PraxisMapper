@@ -19,11 +19,12 @@ namespace PraxisMapper
     public class Startup
     {
         string mapTilesEngine;
+        bool usePerfTracker;
 
         public Startup(IConfiguration configuration)  //can't use MemoryCache here, have to wait until Configure for services and DI
         {
             Configuration = configuration;
-            PraxisPerformanceTracker.Enabled = Configuration.GetValue<bool>("enablePerformanceTracker"); //web server built-in
+            usePerfTracker = Configuration.GetValue<bool>("enablePerformanceTracker");
             Log.WriteToFile = Configuration.GetValue<bool>("enableFileLogging");
             PraxisContext.connectionString = Configuration.GetValue<string>("dbConnectionString");
             PraxisContext.serverMode = Configuration.GetValue<string>("dbMode");
@@ -104,7 +105,8 @@ namespace PraxisMapper
             app.UseResponseCompression();
 
             app.UsePraxisHeaderCheck();
-            app.UsePraxisPerformanceTracker();
+            if (usePerfTracker)
+                app.UsePraxisPerformanceTracker();
             app.UseGlobalErrorHandler();
 
             app.UseEndpoints(endpoints =>

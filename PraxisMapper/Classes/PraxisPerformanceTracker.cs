@@ -9,7 +9,6 @@ namespace PraxisMapper.Classes
     public class PraxisPerformanceTracker
     {
         private readonly RequestDelegate _next;
-        public static bool Enabled = false;
         public PraxisPerformanceTracker(RequestDelegate next)
         {
             this._next = next;
@@ -17,7 +16,7 @@ namespace PraxisMapper.Classes
 
         public async Task Invoke(HttpContext context)
         {
-            if (Enabled && !context.Response.Headers.ContainsKey("X-noPerfTrack"))
+            if (!context.Response.Headers.ContainsKey("X-noPerfTrack"))
             {
                 System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                 sw.Start();
