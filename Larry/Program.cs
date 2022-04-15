@@ -45,9 +45,6 @@ namespace Larry
                 createDb();
             }
             
-            if (!args.Any(a => a == "-makeServerDb")) //This will not be available until after creating the DB slightly later.
-                TagParser.Initialize(config["ForceStyleDefaults"] == "True", MapTiles); //This last bit of config must be done after DB creation check
-
             Log.WriteLog("Larry started at " + DateTime.Now);
 
             if (args.Length == 0)
@@ -84,6 +81,9 @@ namespace Larry
                 var db = new PraxisContext();
                 db.ResetStyles();
             }
+
+            if (!args.Any(a => a == "-makeServerDb")) //This will not be available until after creating the DB slightly later.
+                TagParser.Initialize(config["ForceStyleDefaults"] == "True", MapTiles); //This last bit of config must be done after DB creation check
 
             if (args.Any(a => a == "-processPbfs"))
             {
