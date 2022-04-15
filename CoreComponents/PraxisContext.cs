@@ -306,6 +306,11 @@ namespace PraxisCore
                 results = Place.DetectServerBounds(ConstantValues.resolutionCell8);
 
             var settings = ServerSettings.FirstOrDefault();
+            if (settings == null) //Shouldn't happen, but an error in the right spot and re-running the process can cause this.
+            {
+                settings = new ServerSetting();
+                ServerSettings.Add(settings);
+            }
             settings.NorthBound = results.NorthLatitude;
             settings.SouthBound = results.SouthLatitude;
             settings.EastBound = results.EastLongitude;
