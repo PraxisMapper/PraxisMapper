@@ -12,7 +12,6 @@ public class PraxisHeaderCheck
     //Define target endpoints to protect, so webview apps will load without issues.
     static string[] protectedControllers = new string[] { "admin", "data", "maptile" };
     public static string ServerAuthKey = "";
-    public static bool enableAuthCheck = false;
 
     public PraxisHeaderCheck(RequestDelegate next)
     {
@@ -21,9 +20,9 @@ public class PraxisHeaderCheck
 
     public async Task Invoke(HttpContext context)
     {
-        if (enableAuthCheck 
-            && protectedControllers.Any(c => context.Request.Path.Value.ToLower().Contains(c)) 
-            && (!context.Request.Headers.Any(h => h.Key.ToLower() == "praxisauthkey" && h.Value == ServerAuthKey) && !context.Request.Query.Any(q => q.Key.ToLower() == "praxisauthkey" && q.Value == ServerAuthKey)))
+        if (protectedControllers.Any(c => context.Request.Path.Value.ToLower().Contains(c)) 
+            && (!context.Request.Headers.Any(h => h.Key.ToLower() == "praxisauthkey" && h.Value == ServerAuthKey) 
+            && !context.Request.Query.Any(q => q.Key.ToLower() == "praxisauthkey" && q.Value == ServerAuthKey)))
         {
             context.Abort();
             return;

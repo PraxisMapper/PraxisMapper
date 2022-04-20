@@ -20,21 +20,23 @@ namespace PraxisMapper
     {
         string mapTilesEngine;
         bool usePerfTracker;
+        bool useAuthCheck;
+        bool useAntiCheat;
 
         public Startup(IConfiguration configuration)  //can't use MemoryCache here, have to wait until Configure for services and DI
         {
             Configuration = configuration;
             usePerfTracker = Configuration.GetValue<bool>("enablePerformanceTracker");
-            Log.WriteToFile = Configuration.GetValue<bool>("enableFileLogging");
-            PraxisContext.connectionString = Configuration.GetValue<string>("dbConnectionString");
-            PraxisContext.serverMode = Configuration.GetValue<string>("dbMode");
-            PraxisHeaderCheck.enableAuthCheck = Configuration.GetValue<bool>("enableAuthCheck");
+            useAuthCheck = Configuration.GetValue<bool>("enableAuthCheck");
+            useAntiCheat = Configuration.GetValue<bool>("enableAntiCheat");
             PraxisHeaderCheck.ServerAuthKey = Configuration.GetValue<string>("serverAuthKey");
+            Log.WriteToFile = Configuration.GetValue<bool>("enableFileLogging");
+            PraxisContext.serverMode = Configuration.GetValue<string>("dbMode");
+            PraxisContext.connectionString = Configuration.GetValue<string>("dbConnectionString");           
             DataCheck.DisableBoundsCheck = Configuration.GetValue<bool>("DisableBoundsCheck");
             IMapTiles.SlippyTileSizeSquare = Configuration.GetValue<int>("slippyTileSize");
             IMapTiles.BufferSize = Configuration.GetValue<double>("AreaBuffer");
             IMapTiles.GameTileScale = Configuration.GetValue<int>("mapTileScaleFactor");
-            
 
             mapTilesEngine = Configuration.GetValue<string>("MapTilesEngine");
         }
@@ -104,10 +106,16 @@ namespace PraxisMapper
             app.UseRouting();
             app.UseResponseCompression();
 
-            app.UsePraxisHeaderCheck();
+            app.UseGlobalErrorHandler();
+
+            if (useAuthCheck)
+                app.UsePraxisHeaderCheck();
+
+            if (useAntiCheat)
+                app.UsePraxisAntiCheat();
+
             if (usePerfTracker)
                 app.UsePraxisPerformanceTracker();
-            app.UseGlobalErrorHandler();
 
             app.UseEndpoints(endpoints =>
             {
@@ -123,6 +131,8 @@ namespace PraxisMapper
             var serverBounds = Converters.GeoAreaToPreparedPolygon(new Google.OpenLocationCode.GeoArea(settings.SouthBound, settings.WestBound, settings.NorthBound, settings.EastBound));
             cache.Set<IPreparedGeometry>("serverBounds", serverBounds, entryOptions);
             cache.Set("saveMapTiles", Configuration.GetValue<bool>("saveMapTiles"));
+
+            PraxisAntiCheat.expectedCount = db.AntiCheatEntries.Select(c => c.filename).Distinct().Count();
 
             Log.WriteLog("PraxisMapper configured and running.");
         }
