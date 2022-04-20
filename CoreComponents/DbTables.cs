@@ -215,5 +215,14 @@ namespace PraxisCore
             public string Filename { get; set; }
             public byte[] Data { get; set; }
         }
+
+        public class AntiCheatEntry
+        { 
+            public long Id { get; set; }
+            public string filename { get; set; }
+            public long revision { get; set; }
+            public byte[] data { get; set; }
+        }
+
     }
 }
