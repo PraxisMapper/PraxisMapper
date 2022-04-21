@@ -10,6 +10,7 @@ using NetTopologySuite.Geometries.Prepared;
 using PraxisCore;
 using PraxisMapper.Classes;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -88,6 +89,17 @@ namespace PraxisMapper
                     db.Database.ExecuteSqlRaw("DELETE FROM AreaGameData WHERE expiration IS NOT NULL AND expiration < NOW()");
                     db.Database.ExecuteSqlRaw("DELETE FROM PlayerData WHERE expiration IS NOT NULL AND expiration < NOW()");
                     //remember, don't delete map tiles here, since those track how many times they've been redrawn so the client knows when to ask for the image again.
+
+                    if (useAntiCheat)
+                    {
+                        List<string> toRemove = new List<string>();
+                        foreach (var entry in PraxisAntiCheat.antiCheatStatus)
+                            if (entry.Value.validUntil < DateTime.Now)
+                                toRemove.Add(entry.Key);
+
+                        foreach (var i in toRemove)
+                            PraxisAntiCheat.antiCheatStatus.TryRemove(i, out var removed);
+                    }
                     System.Threading.Thread.Sleep(1800000); // 30 minutes in milliseconds
                 }
             });
