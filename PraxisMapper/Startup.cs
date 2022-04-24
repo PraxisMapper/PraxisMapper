@@ -8,6 +8,7 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using NetTopologySuite.Geometries.Prepared;
 using PraxisCore;
+using PraxisCore.Support;
 using PraxisMapper.Classes;
 using System;
 using System.Collections.Generic;
@@ -52,6 +53,30 @@ namespace PraxisMapper
             //services.AddCoreComponentServiceCollection(); //injects the DbContext and other services into this collection. (Eventually, still working on that)
             services.AddMemoryCache(); //AddMvc calls this quietly, but I'm calling it explicitly here anyways.
             services.AddResponseCompression();
+
+            foreach (var potentialPlugin in Directory.EnumerateFiles(System.IO.Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "*.dll"))
+            {
+                if (!potentialPlugin.Contains("PraxisCore")) {
+                    try
+                    {
+                        var assembly = Assembly.LoadFile(potentialPlugin);
+                        var types = assembly.GetTypes();
+                        if (types.Any(a => a.GetInterfaces().Contains(typeof(IPraxisPlugin)))) 
+                        {
+                            services.AddControllersWithViews().AddApplicationPart(assembly);//.AddRazorRuntimeCompilation();
+                        }
+                        else
+                        {
+                            assembly = null;
+                        }
+                    }
+                    catch
+                    {
+                        //continue.
+                    }
+                }
+            }
+
 
             IMapTiles mapTiles = null;
 
