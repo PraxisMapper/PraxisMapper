@@ -32,11 +32,12 @@ Source code for a test application, Hypothesis, is available at https://github.c
 
 # How to Use PraxisMapper's APIs
 * /MapTile handles all the drawing logic for creating baseline map tiles, or overlays to layer multiple tiles together on your client.
-** Call YourServer/MapTile/Area/{PlusCode} to get a maptile for a gameplay area, or MapTile/AreaPlaceData/{PlusCode} to draw an overlay with gameplay data from the elements.
+* * Call YourServer/MapTile/Area/{PlusCode} to get a maptile for a gameplay area, or MapTile/AreaPlaceData/{PlusCode} to draw an overlay with gameplay data from the elements.
 * /Data handles storing and reading data for players, Places, Areas, and global information or settings.
-** Use GET Data/Area/{PlusCode} to read info from a grid cell, or PUT Data/Area/{PlusCode} to save data to the server
-** Use GET Data/Place/{ID} and PUT Data/Place/{ID} to read and write data based on the items drawn on the map.
+* * Use GET Data/Area/{PlusCode} to read info from a grid cell, or PUT Data/Area/{PlusCode} to save data to the server
+* * Use GET Data/Place/{ID} and PUT Data/Place/{ID} to read and write data based on the items drawn on the map.
 * See the APIDocs.txt file for a full set of API endpoints and expected values.
+* More examples are available in Hypothesis, the example mobile client.
 * Your game keeps any player location history stored client-side. The server is for interactions, not tracking.
 
 At this time, you are expected to have some programming experience to use PraxisMapper for making games. Building a location-based game with PraxisMapper is not currently suitable as a first coding project.
