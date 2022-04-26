@@ -60,10 +60,16 @@ namespace PraxisMapper
                     try
                     {
                         var assembly = Assembly.LoadFile(potentialPlugin);
-                        var types = assembly.GetTypes();
-                        if (types.Any(a => a.GetInterfaces().Contains(typeof(IPraxisPlugin)))) 
+                        var types = assembly.GetTypes().Where(t => t.IsAssignableTo(typeof(IPraxisPlugin)));
+                        if (types.Any()) 
                         {
                             services.AddControllersWithViews().AddApplicationPart(assembly);//.AddRazorRuntimeCompilation();
+                            foreach (var type in types)
+                            {
+                                var instance = assembly.CreateInstance(type.FullName);
+                                var method = type.GetMethod("Startup");
+                                method.Invoke(instance, null);
+                            }
                         }
                         else
                         {
