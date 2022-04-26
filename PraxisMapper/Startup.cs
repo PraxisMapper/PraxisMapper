@@ -76,9 +76,11 @@ namespace PraxisMapper
                             assembly = null;
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
                         //continue.
+                        Log.WriteLog("Error loading " + potentialPlugin + ": " + ex.Message + "|" + ex.StackTrace);
+                        ErrorLogger.LogError(ex);
                     }
                 }
             }
