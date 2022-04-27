@@ -49,8 +49,8 @@ namespace PraxisCore
             //optionsBuilder.UseMemoryCache(mc);//I think this improves performance at the cost of RAM usage. Needs additional testing.
         }
 
-        protected override void OnModelCreating(ModelBuilder model)
-        {
+            protected override void OnModelCreating(ModelBuilder model)
+            {
             //Create indexes here.
             model.Entity<PlayerData>().HasIndex(p => p.DeviceID);
             model.Entity<PlayerData>().HasIndex(p => p.DataKey);
@@ -129,7 +129,6 @@ namespace PraxisCore
 
         public void MakePraxisDB()
         {
-            //PraxisContext db = new PraxisContext();
             if (!Database.EnsureCreated()) //all the automatic stuff EF does for us
                 return;
 
