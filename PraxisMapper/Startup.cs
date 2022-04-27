@@ -24,6 +24,7 @@ namespace PraxisMapper
         bool usePerfTracker;
         bool useAuthCheck;
         bool useAntiCheat;
+        bool usePlugins;
 
         public Startup(IConfiguration configuration)  //can't use MemoryCache here, have to wait until Configure for services and DI
         {
@@ -31,10 +32,11 @@ namespace PraxisMapper
             usePerfTracker = Configuration.GetValue<bool>("enablePerformanceTracker");
             useAuthCheck = Configuration.GetValue<bool>("enableAuthCheck");
             useAntiCheat = Configuration.GetValue<bool>("enableAntiCheat");
+            usePlugins = Configuration.GetValue<bool>("enablePlugins");
             PraxisHeaderCheck.ServerAuthKey = Configuration.GetValue<string>("serverAuthKey");
             Log.WriteToFile = Configuration.GetValue<bool>("enableFileLogging");
             PraxisContext.serverMode = Configuration.GetValue<string>("dbMode");
-            PraxisContext.connectionString = Configuration.GetValue<string>("dbConnectionString");           
+            PraxisContext.connectionString = Configuration.GetValue<string>("dbConnectionString");
             DataCheck.DisableBoundsCheck = Configuration.GetValue<bool>("DisableBoundsCheck");
             IMapTiles.SlippyTileSizeSquare = Configuration.GetValue<int>("slippyTileSize");
             IMapTiles.BufferSize = Configuration.GetValue<double>("AreaBuffer");
@@ -54,57 +56,54 @@ namespace PraxisMapper
             services.AddMemoryCache(); //AddMvc calls this quietly, but I'm calling it explicitly here anyways.
             services.AddResponseCompression();
 
-            foreach (var potentialPlugin in Directory.EnumerateFiles(System.IO.Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "*.dll"))
-            {
-                if (!potentialPlugin.Contains("PraxisCore")) {
-                    try
+            var executionFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            if (usePlugins)
+                foreach ( var potentialPlugin in Directory.EnumerateFiles(executionFolder, "*.dll"))
+                {
+                    if (!potentialPlugin.Contains("PraxisCore"))
                     {
-                        var assembly = Assembly.LoadFile(potentialPlugin);
-                        var types = assembly.GetTypes().Where(t => t.IsAssignableTo(typeof(IPraxisPlugin)));
-                        if (types.Any()) 
+                        try
                         {
-                            services.AddControllersWithViews().AddApplicationPart(assembly);//.AddRazorRuntimeCompilation();
-                            foreach (var type in types)
+                            Log.WriteLog("Loading plugin " + potentialPlugin);
+                            var assembly = Assembly.LoadFile(potentialPlugin);
+                            var types = assembly.GetTypes().Where(t => t.IsAssignableTo(typeof(IPraxisPlugin)));
+                            if (types.Any())
                             {
-                                var instance = assembly.CreateInstance(type.FullName);
-                                var method = type.GetMethod("Startup");
-                                method.Invoke(instance, null);
+                                services.AddControllersWithViews().AddApplicationPart(assembly);//.AddRazorRuntimeCompilation();
+                            }
+                            else
+                            {
+                                assembly = null;
                             }
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            assembly = null;
+                            //continue.
+                            Log.WriteLog("Error loading " + potentialPlugin + ": " + ex.Message + "|" + ex.StackTrace);
+                            ErrorLogger.LogError(ex);
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        //continue.
-                        Log.WriteLog("Error loading " + potentialPlugin + ": " + ex.Message + "|" + ex.StackTrace);
-                        ErrorLogger.LogError(ex);
-                    }
                 }
-            }
-
 
             IMapTiles mapTiles = null;
 
             if (mapTilesEngine == "SkiaSharp")
             {
                 Assembly asm;
-                if (System.Diagnostics.Debugger.IsAttached) //Folders vary, when debugging in IIS run path and local folder aren't the same so we check here.
-                    asm = Assembly.LoadFrom(@".\bin\Debug\net7.0\PraxisMapTilesSkiaSharp.dll");
-                else
-                    asm = Assembly.LoadFrom(@"PraxisMapTilesSkiaSharp.dll");
+                //if (System.Diagnostics.Debugger.IsAttached) //Folders vary, when debugging in IIS run path and local folder aren't the same so we check here.
+                    //asm = Assembly.LoadFrom(@".\bin\Debug\net7.0\PraxisMapTilesSkiaSharp.dll");
+                //else
+                asm = Assembly.LoadFrom(executionFolder + "/PraxisMapTilesSkiaSharp.dll");
                 mapTiles = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
                 services.AddSingleton(typeof(IMapTiles), mapTiles);
             }
             else if (mapTilesEngine == "ImageSharp")
             {
                 Assembly asm;
-                if (System.Diagnostics.Debugger.IsAttached)
-                    asm = Assembly.LoadFrom(@".\bin\Debug\net7.0\PraxisMapTilesImageSharp.dll");
-                else
-                    asm = Assembly.LoadFrom(@"PraxisMapTilesImageSharp.dll");
+                //if (System.Diagnostics.Debugger.IsAttached) 
+                    //asm = Assembly.LoadFrom(@".\bin\Debug\net7.0\PraxisMapTilesImageSharp.dll");
+                //else
+                asm = Assembly.LoadFrom(executionFolder + "/PraxisMapTilesImageSharp.dll");
                 mapTiles = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
                 services.AddSingleton(typeof(IMapTiles), mapTiles);
             }
