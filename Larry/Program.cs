@@ -151,6 +151,36 @@ namespace Larry
                 //}
             }
 
+            if (args.Any(a => a.StartsWith("-splitPbfByStyle:")))
+            {
+                var style = args.First(a => a.StartsWith("-splitPbfByStyle:")).Split(':')[1];
+                List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.pbf").ToList();
+                foreach (string filename in filenames)
+                {
+                    Log.WriteLog("Loading " + filename + " at " + DateTime.Now);
+                    PbfReader r = new PbfReader();
+                    r.outputPath = config["OutputDataFolder"];
+                    r.styleSet = config["TagParserStyleSet"];
+                    r.processingMode = config["processingMode"]; // "normal" and "center" allowed
+                    r.saveToTsv = config["UseTsvOutput"] == "True";
+                    r.saveToDB = false; //This is slower than doing both steps separately because loading to the DB is single-threaded this way.
+                    r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
+                    r.reprocessFile = config["reprocessFiles"] == "True";
+                    r.splitByStyleSet = true;
+
+                    if (config["ResourceUse"] == "low")
+                    {
+                        r.lowResourceMode = true;
+                    }
+                    else if (config["ResourceUse"] == "high")
+                    {
+                        r.keepAllBlocksInRam = true; //Faster performance, but files use vastly more RAM than they do HD space. 200MB file = ~6GB total RAM last I checked.
+                    }
+                    r.ProcessFile(filename, long.Parse(config["UseOneRelationID"]));
+                    File.Move(filename, filename + "done");
+                }
+            }
+
             if (args.Any(a => a == "-updateDatabase"))
             {
                 UpdateExistingEntries(config["OutputDataFolder"]);
@@ -234,7 +264,7 @@ namespace Larry
 
         private static void SetEnvValues()
         {
-            Log.WriteLog("Setting preferred NET 6 environment variables for performance. A restart may be required for them to apply.");
+            Log.WriteLog("Setting preferred NET environment variables for performance. A restart may be required for them to apply.");
             System.Environment.SetEnvironmentVariable("DOTNET_CLI_TELEMETRY_OPTOUT", "1", EnvironmentVariableTarget.Machine);
             System.Environment.SetEnvironmentVariable("COMPlus_TieredCompilation", "1", EnvironmentVariableTarget.Machine);
             System.Environment.SetEnvironmentVariable("DOTNET_TieredPGO", "1", EnvironmentVariableTarget.Machine);
