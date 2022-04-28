@@ -33,6 +33,7 @@ namespace PraxisCore.PbfReader
         public string processingMode = "normal"; //normal: use geometry as it exists. Center: save the center point of any geometry provided instead of its actual value.
         public string styleSet = "mapTiles"; //which style set to use when parsing entries
         public bool keepIndexFiles = false;
+        public bool splitByStyleSet = false;
 
         public string outputPath = "";
         public string filenameHeader = "";
@@ -232,7 +233,10 @@ namespace PraxisCore.PbfReader
                             //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
                             if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
                             {
-                                ProcessReaderResults(geoData, block);
+                                if (splitByStyleSet)
+                                    ProcessReaderResultsByStyle(geoData, block, styleSet);
+                                else
+                                    ProcessReaderResults(geoData, block);
                             }
                             SaveCurrentBlock(block);
                             swBlock.Stop();
@@ -1416,6 +1420,69 @@ namespace PraxisCore.PbfReader
             }
 
             return; //some invalid options were passed and we didnt run through anything.
+        }
+
+        public void ProcessReaderResultsByStyle(IEnumerable<OsmSharp.Complete.ICompleteOsmGeo> items, long blockId, string styleToSplit)
+        {
+            //We get a style passed in, we make a file for each entry in the style, and then put each processed item in the appropriate file, and save them all.
+            Dictionary<string, StringBuilder> geomDataByMatch = new Dictionary<string, StringBuilder>();
+            Dictionary<string, StringBuilder> tagDataByMatch = new Dictionary<string, StringBuilder>();
+            foreach(var s in TagParser.allStyleGroups[styleToSplit])
+            {
+                geomDataByMatch.Add(s.Value.Name, new StringBuilder());
+                tagDataByMatch.Add(s.Value.Name, new StringBuilder());
+            }
+
+            string saveFilename = outputPath + Path.GetFileNameWithoutExtension(fi.Name) + "-";
+            ConcurrentBag<DbTables.Place> elements = new ConcurrentBag<DbTables.Place>();
+
+            if (items == null || !items.Any())
+                return;
+
+            relList = new ConcurrentBag<Task>();
+            foreach (var r in items)
+            {
+                if (r != null)
+                    relList.Add(Task.Run(() => { var e = GeometrySupport.ConvertOsmEntryToPlace(r); if (e != null) elements.Add(e); }));
+            }
+            Task.WaitAll(relList.ToArray());
+            //relList = new ConcurrentBag<Task>();
+
+            if (boundsEntry != null)
+                elements = new ConcurrentBag<DbTables.Place>(elements.Where(e => boundsEntry.Intersects(e.ElementGeometry)));
+
+            if (elements.IsEmpty)
+                return;
+
+            //Single check per block to fix points having 0 size.
+            if (elements.First().SourceItemType == 1)
+                foreach (var e in elements)
+                    e.AreaSize = ConstantValues.resolutionCell10;
+
+            if (processingMode == "center")
+                foreach (var e in elements)
+                    e.ElementGeometry = e.ElementGeometry.Centroid;
+
+            //this mode only has one save option, to separate files.
+            foreach(var md in elements)
+            {
+                var areatype = TagParser.GetAreaType(md.Tags, styleToSplit);
+                geomDataByMatch[areatype].Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(md.AreaSize).Append('\t').Append(Guid.NewGuid()).Append("\r\n");
+                foreach (var t in md.Tags)
+                    tagDataByMatch[areatype].Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(t.Key).Append('\t').Append(t.Value.Replace("\r", "").Replace("\n", "")).Append("\r\n"); //Might also need to sanitize / and ' ?
+            }
+
+            foreach(var dataSet in geomDataByMatch)
+            {
+                if (dataSet.Value.Length > 0)
+                {
+                    Parallel.Invoke(
+                        () => File.AppendAllTextAsync(saveFilename + dataSet.Key + ".geomData", dataSet.Value.ToString()),
+                        () => File.AppendAllTextAsync(saveFilename + dataSet.Key + ".tagsData", tagDataByMatch[dataSet.Key].ToString())
+                    );
+                }
+            }
+            return; 
         }
 
         /// <summary>
