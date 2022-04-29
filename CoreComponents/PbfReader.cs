@@ -55,9 +55,9 @@ namespace PraxisCore.PbfReader
         List<Tuple<long, long, long>> nodeFinderList = new List<Tuple<long, long, long>>(initialCapacity);
 
         //<blockId, maxWayId> since ways are sorted in order.
-        ConcurrentDictionary<long, long> wayFinder = new ConcurrentDictionary<long, long>(initialConcurrency, initialCapacity);// Concurrent needed because loading is threaded.
+        ConcurrentDictionary<long, Tuple<long, long>> wayFinder = new ConcurrentDictionary<long, Tuple<long,long>>(initialConcurrency, initialCapacity);// Concurrent needed because loading is threaded.
 
-        List<Tuple<long, long>> wayFinderList = new List<Tuple<long, long>>(initialCapacity);
+        List<Tuple<long, long, long>> wayFinderList = new List<Tuple<long, long, long>>(initialCapacity);
         int nodeFinderTotal = 0;
         int wayFinderTotal = 0;
 
@@ -82,6 +82,8 @@ namespace PraxisCore.PbfReader
 
         ConcurrentBag<Task> relList = new ConcurrentBag<Task>(); //Individual, smaller tasks.
         ConcurrentBag<TimeSpan> timeList = new ConcurrentBag<TimeSpan>(); //how long each block took to process.
+
+        long nodesProcessed = 0;
 
         //for reference. These are likely to be lost if the application dies partway through processing, since these sit outside the general block-by-block plan.
         //private HashSet<long> knownSlowRelations = new HashSet<long>() {
@@ -316,8 +318,15 @@ namespace PraxisCore.PbfReader
             {
                 var blockData = GetBlock(block);
                 var geoData = GetTaggedNodesFromBlock(blockData, onlyMatchedAreas);
-                if (geoData != null)
+                if (geoData == null)
+                    return;
+
+                if (splitByStyleSet)
+                    ProcessReaderResultsByStyle(geoData, block, styleSet);
+                else
                     ProcessReaderResults(geoData, block);
+
+                nodesProcessed++;
             });
         }
 
@@ -333,7 +342,7 @@ namespace PraxisCore.PbfReader
             blockSizes = new Dictionary<long, int>(initialCapacity);
             relationFinder = new ConcurrentDictionary<long, long>(initialConcurrency, initialCapacity);
             nodeFinder2 = new ConcurrentDictionary<long, Tuple<long, long>>(initialConcurrency, initialCapacity);
-            wayFinder = new ConcurrentDictionary<long, long>(initialConcurrency, initialCapacity);
+            wayFinder = new ConcurrentDictionary<long, Tuple<long, long>>(initialConcurrency, initialCapacity);
 
             BlobHeader bh = new BlobHeader();
             Blob b = new Blob();
@@ -370,8 +379,9 @@ namespace PraxisCore.PbfReader
                     var group = pb2.primitivegroup[0]; //If i get a file with multiple PrimitiveGroups in a block, make this a ForEach loop instead.
                     if (group.ways.Count > 0)
                     {
+                        var wMin = group.ways.First().id;
                         var wMax = group.ways.Last().id;
-                        wayFinder.TryAdd(passedBC, wMax);
+                        wayFinder.TryAdd(passedBC, Tuple.Create(wMin, wMax));
                         wayCounter++;
                     }
                     else if (group.relations.Count > 0)
@@ -401,7 +411,7 @@ namespace PraxisCore.PbfReader
             //this logic does require the wayIndex to be in blockID order, which they are (at least from Geofabrik).
             foreach (var w in wayFinder.OrderBy(w => w.Key))
             {
-                wayFinderList.Add(Tuple.Create(w.Key, w.Value));
+                wayFinderList.Add(Tuple.Create(w.Key, w.Value.Item1, w.Value.Item2));
             }
             Log.WriteLog("Found " + blockCounter + " blocks. " + relationCounter + " relation blocks and " + wayCounter + " way blocks.");
 
@@ -436,7 +446,27 @@ namespace PraxisCore.PbfReader
         /// </summary>
         /// <param name="blockId">the block to read from the file</param>
         /// <returns>the PrimitiveBlock requested</returns>
+        /// 
         private PrimitiveBlock GetBlockFromFile(long blockId)
+        {
+            long pos1 = blockPositions[blockId];
+            int size1 = blockSizes[blockId];
+            byte[] thisblob1 = new byte[size1];
+            //lock (msLock)
+            using(var fs = File.OpenRead(fi.FullName))
+            {
+                fs.Seek(pos1, SeekOrigin.Begin);
+                fs.Read(thisblob1, 0, size1);
+            }
+
+            var ms2 = new MemoryStream(thisblob1);
+            var b2 = Serializer.Deserialize<Blob>(ms2);
+            var ms3 = new MemoryStream(b2.zlib_data);
+            var dms2 = new ZLibStream(ms3, CompressionMode.Decompress);
+            var pulledBlock = Serializer.Deserialize<PrimitiveBlock>(dms2);
+            return pulledBlock;
+        }
+        private PrimitiveBlock GetBlockFromFileOld(long blockId)
         {
             long pos1 = blockPositions[blockId];
             int size1 = blockSizes[blockId];
@@ -883,7 +913,7 @@ namespace PraxisCore.PbfReader
         /// <param name="key">the NodeId to check for in this block</param>
         /// <param name="value">the Tuple of min and max node IDs in a block.</param>
         /// <returns>true if key is between the 2 Tuple values, or false ifnot.</returns>
-        private static bool NodeHasKey(long key, Tuple<long, long> value)
+        private static bool MinMaxTupleHasKey(long key, Tuple<long, long> value)
         {
             //key is block id
             //value is the tuple list. 1 is min, 2 is max.
@@ -915,7 +945,7 @@ namespace PraxisCore.PbfReader
                 foreach (var h in hints)
                 {
                     var entry = nodeFinder2[h];
-                    if (NodeHasKey(nodeId, entry))
+                    if (MinMaxTupleHasKey(nodeId, entry))
                         return h;
                 }
             }
@@ -952,7 +982,7 @@ namespace PraxisCore.PbfReader
             if (hint != 0) //skip hints if the BTree search is fewer checks.
             {
                 var entry = nodeFinder2[hint];
-                if (NodeHasKey(nodeId, entry))
+                if (MinMaxTupleHasKey(nodeId, entry))
                     return hint;
             }
 
@@ -991,67 +1021,93 @@ namespace PraxisCore.PbfReader
                 foreach (var h in hints)
                 {
                     //we can check this, but we need to look at the previous block too.
-                    if (wayFinder[h] >= wayId && (h == firstWayBlock || wayFinder[h - 1] < wayId))
+                    if (MinMaxTupleHasKey(wayId, wayFinder[h]))
                         return h;
                 }
 
+            //if (wayId > wayFinderList.Last().Item2) //Don't loop forever looking for a way that isn't in our file.
+                //throw new Exception("Way Not Found");
+
             int min = 0;
             int max = wayFinderTotal;
             int current = startWayBtreeIndex;
+            int lastCurrent = current;
             while (min != max)
             {
                 var check = wayFinderList[current];
-                if (check.Item2 < wayId) //This max is below our way, shift min up
-                {
-                    min = current;
-                }
-                else if (check.Item2 >= wayId) //this max is over our way, check previous block if this one is correct OR shift max down if not
-                {
-                    if (current == 0 || wayFinderList[current - 1].Item2 < wayId) //our way is below current max, above previous max, this is the block we want
-                        return check.Item1;
-                    else
-                        max = current;
-                }
+                if ((check.Item2 <= wayId) && (wayId <= check.Item3))
+                    return check.Item1;
 
+                else if (check.Item2 > wayId) //this ways minimum is larger than our way, shift maxs down
+                    max = current;
+                else if (check.Item3 < wayId) //this ways maximum is smaller than our way, shift min up.
+                    min = current;
+                //else
+                    //return check.Item1;
+
+                lastCurrent = current;
                 current = (min + max) / 2;
+                if (lastCurrent == current)
+                {
+                    //We have an issue, and are gonna infinite loop. Fix it.
+                    //Check if we're in the gap between blocks.
+                    var checkUnder = wayFinderList[current-1];
+                    var checkOver = wayFinderList[current+1];
+
+                    if (checkUnder.Item3 < wayId && check.Item2 > wayId)
+                        //exception, we're between blocks.
+                        throw new Exception("Way Not Found");
+
+                    if (check.Item3 < wayId && checkOver.Item2 > wayId)
+                        //exception, we're between blocks.
+                        throw new Exception("Way Not Found");
+
+                    //We are probably in a weird edge case where min and max are 1 or 2 apart and I just need nudged over 1 spot.
+                    if (wayId < check.Item2)
+                        current--;
+                    else if (wayId > check.Item3)
+                        current++;
+                    else
+                        min = max;
+                }
             }
 
             //couldnt find this way
             throw new Exception("Way Not Found");
         }
 
-        private long FindBlockKeyForWay(long wayId, long hint) //BTree
-        {
-            if (hint != null) //skip hints if the BTree search is fewer checks.
-                              //we can check this, but we need to look at the previous block too.
-                if (wayFinder[hint] >= wayId && (wayFinder[hint - 1] < wayId || hint == firstWayBlock))
-                    return hint;
+        //private long FindBlockKeyForWay(long wayId, long hint) //BTree
+        //{
+        //    if (hint != null) //skip hints if the BTree search is fewer checks.
+        //                      //we can check this, but we need to look at the previous block too.
+        //        if (wayFinder[hint] >= wayId && (wayFinder[hint - 1] < wayId || hint == firstWayBlock))
+        //            return hint;
 
 
-            int min = 0;
-            int max = wayFinderTotal;
-            int current = startWayBtreeIndex;
-            while (min != max)
-            {
-                var check = wayFinderList[current];
-                if (check.Item2 < wayId) //This max is below our way, shift min up
-                {
-                    min = current;
-                }
-                else if (check.Item2 >= wayId) //this max is over our way, check previous block if this one is correct OR shift max down if not
-                {
-                    if (current == 0 || wayFinderList[current - 1].Item2 < wayId) //our way is below current max, above previous max, this is the block we want
-                        return check.Item1;
-                    else
-                        max = current;
-                }
+        //    int min = 0;
+        //    int max = wayFinderTotal;
+        //    int current = startWayBtreeIndex;
+        //    while (min != max)
+        //    {
+        //        var check = wayFinderList[current];
+        //        if (check.Item2 < wayId) //This max is below our way, shift min up
+        //        {
+        //            min = current;
+        //        }
+        //        else if (check.Item2 >= wayId) //this max is over our way, check previous block if this one is correct OR shift max down if not
+        //        {
+        //            if (current == 0 || wayFinderList[current - 1].Item2 < wayId) //our way is below current max, above previous max, this is the block we want
+        //                return check.Item1;
+        //            else
+        //                max = current;
+        //        }
 
-                current = (min + max) / 2;
-            }
+        //        current = (min + max) / 2;
+        //    }
 
-            //couldnt find this way
-            throw new Exception("Way Not Found");
-        }
+        //    //couldnt find this way
+        //    throw new Exception("Way Not Found");
+        //}
 
         /// <summary>
         /// Processes all entries in a PBF block for use in a PraxisMapper server.
@@ -1217,8 +1273,8 @@ namespace PraxisCore.PbfReader
                 foreach (var line in data)
                 {
                     string[] subData2 = line.Split(":");
-                    wayFinder.TryAdd(long.Parse(subData2[0]), long.Parse(subData2[1]));
-                    wayFinderList.Add(Tuple.Create(long.Parse(subData2[0]), long.Parse(subData2[1])));
+                    wayFinder.TryAdd(long.Parse(subData2[0]), Tuple.Create(long.Parse(subData2[1]), long.Parse(subData2[2])));
+                    wayFinderList.Add(Tuple.Create(long.Parse(subData2[0]), long.Parse(subData2[1]), long.Parse(subData2[2])));
                 }
 
                 filename = outputPath + fi.Name + ".nodeIndex";
@@ -1253,7 +1309,7 @@ namespace PraxisCore.PbfReader
             firstWayBlock = wayFinder.Keys.Min();
             firstRelationBlock = relationFinder.Values.Min();
             startNodeBtreeIndex = nodeFinderTotal / 2;
-            startWayBtreeIndex = wayFinderTotal / 2;
+            startWayBtreeIndex = (int)Math.Round((double)wayFinderTotal / 2.0f, MidpointRounding.AwayFromZero);
             nodeHintsMax = (int)Math.Log2(nodeFinderTotal);
             wayHintsMax = (int)Math.Log2(wayFinderTotal);
         }
@@ -1324,7 +1380,7 @@ namespace PraxisCore.PbfReader
                 while (!token.IsCancellationRequested)
                 {
                     Log.WriteLog("Current stats:");
-                    Log.WriteLog("Blocks completed this run: " + timeList.Count);
+                    Log.WriteLog("Blocks completed this run: " + (timeList.Count + nodesProcessed));
                     Log.WriteLog("Processing tasks: " + relList.Count(r => !r.IsCompleted));
                     if (!timeList.IsEmpty)
                     {
@@ -1334,7 +1390,7 @@ namespace PraxisCore.PbfReader
                         var fastBlocks = firstWayBlock - 1;
                         var slowBlocksLeft = slowBlocks - timeList.Count;
                         var estimatedTimeLeft = (slowBlocksLeft > 0 ? (timeList.Average(t => t.TotalSeconds) * slowBlocksLeft) : 0);
-                        estimatedTimeLeft += (nodeFinderTotal - timeList.Count) * .05; //very loose estimate on node duration
+                        estimatedTimeLeft += (nodeFinderTotal - nodesProcessed) * .05; //very loose estimate on node duration
                         TimeSpan t = new TimeSpan((long)estimatedTimeLeft * 10000000);
                         Log.WriteLog("Estimated Time Remaining: " + t);
                     }
