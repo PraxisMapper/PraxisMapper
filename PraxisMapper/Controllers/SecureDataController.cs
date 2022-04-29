@@ -44,10 +44,7 @@ namespace PraxisMapper.Controllers
             }
             if (value == null)
             {
-                var br = Request.BodyReader;
-                var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
-                var endData = rr.Result.Buffer.ToArray();
-                br.AdvanceTo(rr.Result.Buffer.Start); // this is required to silence an error in Kestrel on Linux.
+                var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
                 return GenericData.SetSecurePlaceData(elementId, key, endData, password, expiresIn);
             }
             return GenericData.SetSecurePlaceData(elementId, key, value, password, expiresIn);
@@ -77,10 +74,7 @@ namespace PraxisMapper.Controllers
             }
             if (value == null)
             {
-                var br = Request.BodyReader;
-                var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
-                var endData = rr.Result.Buffer.ToArray();
-                br.AdvanceTo(rr.Result.Buffer.Start); // this is required to silence an error in Kestrel on Linux.
+                var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
                 return GenericData.SetSecurePlayerData(deviceId, key, endData, password, expiresIn);
             }
             return GenericData.SetSecurePlayerData(deviceId, key, value, password, expiresIn);
@@ -116,14 +110,7 @@ namespace PraxisMapper.Controllers
             }
             if (value == null)
             {
-                var br = Request.BodyReader;
-                var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
-                var wait = rr.GetAwaiter();
-                while (!wait.IsCompleted)
-                    System.Threading.Thread.Sleep(25);
-
-                var endData = rr.Result.Buffer.ToArray();
-                br.AdvanceTo(rr.Result.Buffer.Start); // this is required to silence an error in Kestrel on Linux.
+                var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
                 return GenericData.SetSecureAreaData(plusCode, key, endData, password, expiresIn);
             }
             return GenericData.SetSecureAreaData(plusCode, key, value, password, expiresIn);
