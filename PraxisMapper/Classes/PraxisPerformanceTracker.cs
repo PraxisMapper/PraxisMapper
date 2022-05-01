@@ -16,25 +16,28 @@ namespace PraxisMapper.Classes
 
         public async Task Invoke(HttpContext context)
         {
-            if (!context.Response.Headers.ContainsKey("X-noPerfTrack"))
+
+
+            System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+            sw.Start();
+            var pi = new DbTables.PerformanceInfo();
+            pi.FunctionName = context.Request.Path;
+            if (context.Response.Headers.ContainsKey("X-noPerfTrack"))
+                pi.FunctionName = context.Response.Headers["X-noPerfTrack"];
+            pi.CalledAt = DateTime.UtcNow;
+            context.Response.OnStarting(() =>
             {
-                System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-                sw.Start();
-                var pi = new DbTables.PerformanceInfo();
-                pi.FunctionName = context.Request.Path;
-                pi.CalledAt = DateTime.UtcNow;
-                context.Response.OnStarting(() => {
-                    sw.Stop();
-                    pi.RunTime = sw.ElapsedMilliseconds;
-                    if (context.Response.Headers.ContainsKey("X-notes"))
-                        pi.Notes = context.Response.Headers["X-notes"];
-                    PraxisContext db = new PraxisContext();
-                    db.ChangeTracker.AutoDetectChangesEnabled = false;
-                    db.PerformanceInfo.Add(pi);
-                    db.SaveChanges();
-                    return Task.CompletedTask;
-                });
-            }
+                sw.Stop();
+                pi.RunTime = sw.ElapsedMilliseconds;
+                if (context.Response.Headers.ContainsKey("X-notes"))
+                    pi.Notes = context.Response.Headers["X-notes"];
+                PraxisContext db = new PraxisContext();
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
+                db.PerformanceInfo.Add(pi);
+                db.SaveChanges();
+                return Task.CompletedTask;
+            });
+
             await this._next.Invoke(context).ConfigureAwait(false);
         }
     }
