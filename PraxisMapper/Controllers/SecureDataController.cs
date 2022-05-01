@@ -148,7 +148,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Password/{devicedId}/{password}")]
         public bool EncryptUserPassword(string deviceId, string password)
         {
-            Response.Headers.Add("X-noPerfTrack", "1");
+            Response.Headers.Add("X-noPerfTrack", "SecureData/Password/deviceId/password-PUT");
             var options = new CrypterOptions() {
                 { CrypterOption.Rounds, Configuration["PasswordRounds"]}
             };
@@ -164,7 +164,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Password/{devicedId}/{password}")]
         public bool CheckPassword(string deviceId, string password)
         {
-            Response.Headers.Add("X-noPerfTrack", "1");
+            Response.Headers.Add("X-noPerfTrack", "SecureData/Password/deviceId/password-GET");
             BlowfishCrypter crypter = new BlowfishCrypter();
             string existingPassword = GenericData.GetPlayerData(deviceId, "password").ToUTF8String();
             string checkedPassword = crypter.Crypt(password, existingPassword);
