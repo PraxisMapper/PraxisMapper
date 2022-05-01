@@ -2,8 +2,10 @@
 using Microsoft.EntityFrameworkCore;
 using PraxisCore.Support;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Pipelines;
 using System.Linq;
 using System.Security.Cryptography;
 
@@ -480,6 +482,17 @@ namespace PraxisCore
                 cs.Write(value);
 
             return ms.ToArray();
+        }
+
+        public static byte[] ReadBody(PipeReader br, int contentLength)
+        {
+            var rr = br.ReadAtLeastAsync(contentLength);
+            var wait = rr.GetAwaiter();
+            while (!wait.IsCompleted)
+                System.Threading.Thread.Sleep(10);
+            var endData = rr.Result.Buffer.ToArray();
+            br.AdvanceTo(rr.Result.Buffer.Start); // this is required to silence an error in Kestrel on Linux.
+            return endData;
         }
     }
 }
