@@ -994,6 +994,7 @@ namespace PraxisCore.PbfReader
 
             while (min != max)
             {
+                
                 var check = nodeFinderList[current];
                 if (check.Item2 > nodeId) //this node's minimum is larger than our node, shift up
                     max = current;
@@ -1042,8 +1043,6 @@ namespace PraxisCore.PbfReader
                     max = current;
                 else if (check.Item3 < wayId) //this ways maximum is smaller than our way, shift min up.
                     min = current;
-                //else
-                    //return check.Item1;
 
                 lastCurrent = current;
                 current = (min + max) / 2;
@@ -1523,9 +1522,40 @@ namespace PraxisCore.PbfReader
             foreach(var md in elements)
             {
                 var areatype = TagParser.GetAreaType(md.Tags, styleToSplit);
-                geomDataByMatch[areatype].Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(md.AreaSize).Append('\t').Append(Guid.NewGuid()).Append("\r\n");
-                foreach (var t in md.Tags)
-                    tagDataByMatch[areatype].Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(t.Key).Append('\t').Append(t.Value.Replace("\r", "").Replace("\n", "")).Append("\r\n"); //Might also need to sanitize / and ' ?
+                var name = TagParser.GetPlaceName(md.Tags);
+                if (true) //testing out saving estimated areas as rectangles for size output, is for offline games.
+                {
+                    //rectangles are much more reliable estimates, even if circles are half the data.
+                    if (md.ElementGeometry is MultiPolygon mp)
+                    {
+                        foreach(var outer in mp.Geometries)
+                            geomDataByMatch[areatype].Append(name).Append('\t').Append(areatype).Append('\t')
+                           .Append(outer.EnvelopeInternal.MinY).Append('\t').Append(outer.EnvelopeInternal.MinX).Append('\t')
+                           .Append(outer.EnvelopeInternal.MaxY).Append('\t').Append(outer.EnvelopeInternal.MaxX).Append('\t')
+                           .Append(ScoreData.GetScoreForSinglePlace(outer)).Append("\r\n");
+                    }
+                    else if (md.ElementGeometry is Point p)
+                    {
+                        var area = new Google.OpenLocationCode.OpenLocationCode(p.Y, p.X).Decode();
+                        geomDataByMatch[areatype].Append(name).Append('\t').Append(areatype).Append('\t')
+                           .Append(area.SouthLatitude).Append('\t').Append(area.WestLongitude).Append('\t')
+                           .Append(area.NorthLatitude).Append('\t').Append(area.EastLongitude).Append('\t')
+                           .Append(ScoreData.GetScoreForSinglePlace(md.ElementGeometry)).Append("\r\n");
+                    }
+                    else
+                    {
+                        geomDataByMatch[areatype].Append(name).Append('\t').Append(areatype).Append('\t')
+                           .Append(md.ElementGeometry.EnvelopeInternal.MinY).Append('\t').Append(md.ElementGeometry.EnvelopeInternal.MinX).Append('\t')
+                           .Append(md.ElementGeometry.EnvelopeInternal.MaxY).Append('\t').Append(md.ElementGeometry.EnvelopeInternal.MaxX).Append('\t')
+                           .Append(ScoreData.GetScoreForSinglePlace(md.ElementGeometry)).Append("\r\n");
+                    }
+                }
+                else
+                {
+                    geomDataByMatch[areatype].Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(md.AreaSize).Append('\t').Append(Guid.NewGuid()).Append("\r\n");
+                    foreach (var t in md.Tags)
+                        tagDataByMatch[areatype].Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(t.Key).Append('\t').Append(t.Value.Replace("\r", "").Replace("\n", "")).Append("\r\n"); //Might also need to sanitize / and ' ?
+                }
             }
 
             foreach(var dataSet in geomDataByMatch)
@@ -1533,8 +1563,8 @@ namespace PraxisCore.PbfReader
                 if (dataSet.Value.Length > 0)
                 {
                     Parallel.Invoke(
-                        () => File.AppendAllTextAsync(saveFilename + dataSet.Key + ".geomData", dataSet.Value.ToString()),
-                        () => File.AppendAllTextAsync(saveFilename + dataSet.Key + ".tagsData", tagDataByMatch[dataSet.Key].ToString())
+                        () => File.AppendAllTextAsync(saveFilename + dataSet.Key + ".geomData", dataSet.Value.ToString())
+                        //() => File.AppendAllTextAsync(saveFilename + dataSet.Key + ".tagsData", tagDataByMatch[dataSet.Key].ToString())
                     );
                 }
             }
