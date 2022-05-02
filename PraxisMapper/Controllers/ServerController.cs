@@ -52,6 +52,16 @@ namespace PraxisMapper.Controllers
             return Configuration.GetValue<bool>("enableAntiCheat");
         }
 
+        [HttpGet]
+        [Route("/[controller]/MOTD")]
+        [Route("/[controller]/Message")]
+        public string MessageOfTheDay()
+        {
+            var db = new PraxisContext(); //NOTE: not using the cached ServerSettings table, since this might change on the fly.
+            var message = db.ServerSettings.First().MessageOfTheDay;
+            return message;
+        }
+
         [HttpPut]
         [Route("/[controller]/AntiCheat/{filename}")]
         public void AntiCheat(string filename)
@@ -76,3 +86,4 @@ namespace PraxisMapper.Controllers
         }
     }
 }
+
