@@ -60,7 +60,8 @@ namespace PraxisCore
                 row.Expiration = null;
             row.IvData = null;
             row.DataValue = value;
-            return db.SaveChanges() == 1;
+            db.SaveChangesAsync(); //TODO: determine if I want to do this change for performance and return the Task so the caller can check for errors, or leave it as it was.
+            return true;
         }
 
         /// <summary>
