@@ -30,6 +30,7 @@ All of the unacceptable examples are fine for a game, ONLY IF that data is on th
 All GET endpoints return a blank string is a value is not present in the server's database.
 elementId will always be a Guid for the items privacyId in the DB.
 {expiresIn} is optional on the PUT endpoints, its a number of seconds for data to remain valid. If absent, data is permanent until replaced.
+using 'noval' in place of a {value} entry for PUT commands will read from the body instead of the query string.
 
 GET:
 Area/{plusCode}/{key} - Loads the value for a given key attached to a PlusCode. 
