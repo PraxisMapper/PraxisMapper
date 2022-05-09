@@ -5,12 +5,14 @@ using System.Linq;
 using System.Threading.Tasks;
 
 namespace PraxisMapper.Classes;
+//NOTE: PraxiHeaderCheck is intended as a simple app guard, that doesn't require logging in. 
+//If you have an authentication system in place, or use the PraxisAuthentication middleware,
+//this probably does no additional help.
 public class PraxisHeaderCheck
 {
     private readonly RequestDelegate _next;
-
     //Define target endpoints to protect, so webview apps will load without issues.
-    static string[] protectedControllers = new string[] { "admin", "data", "maptile" };
+    static string[] protectedControllers = new string[] { "admin", "data", "maptile", "securedata", "server", "styledata" };
     public static string ServerAuthKey = "";
 
     public PraxisHeaderCheck(RequestDelegate next)
@@ -21,8 +23,8 @@ public class PraxisHeaderCheck
     public async Task Invoke(HttpContext context)
     {
         if (protectedControllers.Any(c => context.Request.Path.Value.ToLower().Contains(c)) 
-            && (!context.Request.Headers.Any(h => h.Key.ToLower() == "praxisauthkey" && h.Value == ServerAuthKey) 
-            && !context.Request.Query.Any(q => q.Key.ToLower() == "praxisauthkey" && q.Value == ServerAuthKey)))
+            && !(context.Request.Headers.Any(h => h.Key == "PraxisAuthKey" && h.Value == ServerAuthKey) 
+            || context.Request.Query.Any(q => q.Key.ToLower() == "praxisauthkey" && q.Value == ServerAuthKey)))
         {
             context.Abort();
             return;
