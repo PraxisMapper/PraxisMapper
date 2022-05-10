@@ -225,5 +225,12 @@ namespace PraxisCore
             public byte[] data { get; set; }
         }
 
+        public class AuthenticationData
+        {
+            public long Id { get; set; }
+            public string accountId { get; set; } //could also be deviceId, but probably a string for the account name
+            public string password { get; set; }
+            public string authToken { get; set; }
+        }
     }
 }
