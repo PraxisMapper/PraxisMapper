@@ -140,6 +140,8 @@ namespace PraxisMapper
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IMemoryCache cache)
         {
+            var db = new PraxisContext();
+
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
@@ -156,7 +158,10 @@ namespace PraxisMapper
                 app.UsePraxisHeaderCheck();
 
             if (useAntiCheat)
+            {
                 app.UsePraxisAntiCheat();
+                PraxisAntiCheat.expectedCount = db.AntiCheatEntries.Select(c => c.filename).Distinct().Count();
+            }
 
             if (usePerfTracker)
                 app.UsePraxisPerformanceTracker();
@@ -169,14 +174,13 @@ namespace PraxisMapper
             //Populate the memory cache with some data we won't edit until a restart occurs.
             var entryOptions = new MemoryCacheEntryOptions().SetPriority(CacheItemPriority.NeverRemove);
 
-            var db = new PraxisContext();
             var settings = db.ServerSettings.First();
             cache.Set<DbTables.ServerSetting>("settings", settings, entryOptions);
             var serverBounds = Converters.GeoAreaToPreparedPolygon(new Google.OpenLocationCode.GeoArea(settings.SouthBound, settings.WestBound, settings.NorthBound, settings.EastBound));
             cache.Set<IPreparedGeometry>("serverBounds", serverBounds, entryOptions);
             cache.Set("saveMapTiles", Configuration.GetValue<bool>("saveMapTiles"));
 
-            PraxisAntiCheat.expectedCount = db.AntiCheatEntries.Select(c => c.filename).Distinct().Count();
+            
 
             Log.WriteLog("PraxisMapper configured and running.");
         }
