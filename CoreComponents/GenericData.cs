@@ -201,10 +201,11 @@ namespace PraxisCore
         /// <returns>a List of results with the PlusCode, keys, and values</returns>
         public static List<CustomDataAreaResult> GetAllDataInArea(string plusCode, string key = "")
         {
+            //TODO: this throws an error about update locks can't be acquired in a READ UNCOMMITTED block or something when key != "" on MariaDB.
             var db = new PraxisContext();
             var plusCodeArea = OpenLocationCode.DecodeValid(plusCode);
             var plusCodePoly = Converters.GeoAreaToPolygon(plusCodeArea);
-            var plusCodeData = db.AreaGameData.Where(d => plusCodePoly.Intersects(d.GeoAreaIndex) && (key == "" || d.DataKey == key) && d.IvData == null)
+            var plusCodeData = db.AreaGameData.Where(d => plusCodePoly.Intersects(d.GeoAreaIndex) && (key == "" || key == d.DataKey) && d.IvData == null)
                 .ToList() //Required to run the next Where on the C# side
                 .Where(row => row.Expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.UtcNow)
                 .Select(d => new CustomDataAreaResult(d.PlusCode, d.DataKey, d.DataValue.ToUTF8String()))
