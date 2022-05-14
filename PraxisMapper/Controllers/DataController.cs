@@ -140,11 +140,12 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/GetAllDataInPlusCode/{plusCode}")]
         [Route("/[controller]/PlusCode/All/{plusCode}")]
         [Route("/[controller]/Area/All/{plusCode}")]
-        public string GetAllPlusCodeData(string plusCode)
+        [Route("/[controller]/Area/All/{plusCode}/{key}")]
+        public string GetAllPlusCodeData(string plusCode, string key = "")
         {
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return "";
-            var data = GenericData.GetAllDataInArea(plusCode);
+            var data = GenericData.GetAllDataInArea(plusCode, key);
             StringBuilder sb = new StringBuilder();
             foreach (var d in data)
                 sb.Append(d.plusCode).Append('|').Append(d.key).Append('|').Append(d.value).Append('\n'); 
