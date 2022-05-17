@@ -205,7 +205,7 @@ namespace PraxisCore
             var db = new PraxisContext();
             var plusCodeArea = OpenLocationCode.DecodeValid(plusCode);
             var plusCodePoly = Converters.GeoAreaToPolygon(plusCodeArea);
-            var plusCodeData = db.AreaGameData.Where(d => plusCodePoly.Intersects(d.GeoAreaIndex) && (key == "" || key == d.DataKey) && d.IvData == null)
+            var plusCodeData = db.AreaGameData.Where(d => plusCodePoly.Contains(d.GeoAreaIndex) && (key == "" || key == d.DataKey) && d.IvData == null)
                 .ToList() //Required to run the next Where on the C# side
                 .Where(row => row.Expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.UtcNow)
                 .Select(d => new CustomDataAreaResult(d.PlusCode, d.DataKey, d.DataValue.ToUTF8String()))
