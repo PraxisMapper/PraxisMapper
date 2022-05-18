@@ -1,4 +1,5 @@
-﻿using Google.OpenLocationCode;
+﻿using CryptSharp;
+using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
 using PraxisCore.Support;
 using System;
@@ -495,6 +496,26 @@ namespace PraxisCore
             var endData = rr.Result.Buffer.ToArray();
             br.AdvanceTo(rr.Result.Buffer.Start); // this is required to silence an error in Kestrel on Linux.
             return endData;
+        }
+
+        public static bool EncryptPassword(string userId, string password, int rounds)
+        {
+            var options = new CrypterOptions() {
+                { CrypterOption.Rounds, rounds}
+            };
+            BlowfishCrypter crypter = new BlowfishCrypter();
+            var salt = crypter.GenerateSalt(options);
+            var results = crypter.Crypt(password, salt);
+            GenericData.SetPlayerData(userId, "password", results);
+            return true;
+        }
+
+        public static bool CheckPassword(string userId, string password)
+        {
+            BlowfishCrypter crypter = new BlowfishCrypter();
+            string existingPassword = GenericData.GetPlayerData(userId, "password").ToUTF8String();
+            string checkedPassword = crypter.Crypt(password, existingPassword);
+            return existingPassword == checkedPassword;
         }
     }
 }
