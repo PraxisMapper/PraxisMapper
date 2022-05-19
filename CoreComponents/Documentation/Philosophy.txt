@@ -83,10 +83,10 @@ No. But if you were at those parks, and had access to the DB, could you figure o
 Demo 2: In-game player-created public locations are clustered in a circle, all tagged as belonging to xXExamplePlayer999Xx. They all make a perfect circle centered on one house. Does this reveal someone's identity? 
 Yes, this narrows down the player to one of the people living in that house, and if they were to interact with others in-game, those other players could easily figure out much more info about them from the game alone.
 Can this be fixed? Not making the account name attached to those buildings stops other players from knowing which player lives there exclusively from in-game info. Making these locations not be publicly available is also a potential fix. Requiring users to spread out these placements would assist in avoiding these situations as well.
-Location data on players shouldn't be stored, and aggregating a player's behavior is questionable on how invasive it is.
+Location data on players shouldn't be stored, and aggregating a player's behavior is questionable on how invasive it is. (keep reading for additional discussion on this point)
 The server doesn't innately track user locations over time, and does it's best to block developers from tying location and players together at any point. 
 Connections should use SSL to conceal locations passed as API parameters. This is effectively a mandatory requirement for Android/iOS games to use network calls anyways. Let's Encrypt makes enabling SSL as easy as possible, and can be done for a server's IP so you don't even need a domain name to enable SSL on your server.
-Identification of an individual user requires additional, external data and not be manageable solely with PraxisMapper.
+The goal is that identification of an individual user requires additional, external data and not be manageable solely with PraxisMapper.
 Tracking activity by team, assuming population of teams is sufficiently large, should obfuscate individual behaior. Doubly so if players are allowed to freely change teams.
 The single most damaging option for security is enabling PerformanceTracker, which could provide a more thorough view of server activity if the server and/or database are compromised, primarily based on timestamps
 (at which point, an attacker would insert their own malicious code anyways)
@@ -104,6 +104,12 @@ Area Tag is OK, because a player claims a Place for their team. Anyone on that t
 (Niantic-created) Ingress attaches a player's account name to a portal when they claim it, and announces it to all players when it happens, AND TEAMS RAN BOTS SPECIFICALLY TO MONITOR THIS AND BLOCK PLAYERS FROM ACHEIVING GOALS.
 It's not the claiming of a portal that's the issue. It's the rest of that, where attaching names to them (and especially pushing that information to a global chat channel) that enabled abusive, stalking behavior only using data acquired in-game.
 THAT is the single best, real-world example of why I push this everywhere in the documentation. Don't do that. Don't let people do that with your game.
+The proper way to attach a player to a location in PraxisMapper, if you need to do it for your game, is to use the SecureData endpoints. This will at least keep the data encryped in the database, and hidden from calls that aren't using the correct key and password.
+For data that isn't shared, it should use a unique, generated password encrypted with a value the user provides. Either an account exists where this data is attached, or this stored data is a secret only to people with the password.
+The latter case works for a 'geocache' style setup, where something is hidden and the password is expected to be provided to people somehow for gameplay purposes.
+The former is expected for more typical GPS games, and by using a good generated password that's protected by the user's password, the system owner cannot track the player's activity in high detail. 
+If area/placeIds are used as keys on the PlayerData table, even with SecureData, this may leak some info to the system owner or exposed in a data breach, and should still be avoided, but keys with encrypted data won't be revealed to external users on Data calls.
+A system-defined password could encrypt data on the location data entries that contains the player's info, and this would not hide this from the system owner but would protect it in the event of a data breach.
 
 7) Server/Code Terms:
 Plus Code areas will be called Cell#, with # the number of digits in the plus code, throughout the code. Use Cell8, not 8Cell.
