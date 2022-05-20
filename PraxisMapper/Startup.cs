@@ -25,6 +25,7 @@ namespace PraxisMapper
         bool useAuthCheck;
         bool useAntiCheat;
         bool usePlugins;
+        string maintenanceMessage = "";
 
         public Startup(IConfiguration configuration)  //can't use MemoryCache here, have to wait until Configure for services and DI
         {
@@ -33,6 +34,7 @@ namespace PraxisMapper
             useAuthCheck = Configuration.GetValue<bool>("enableAuthCheck");
             useAntiCheat = Configuration.GetValue<bool>("enableAntiCheat");
             usePlugins = Configuration.GetValue<bool>("enablePlugins");
+            maintenanceMessage = Configuration.GetValue<string>("maintenanceMessage");
             PraxisHeaderCheck.ServerAuthKey = Configuration.GetValue<string>("serverAuthKey");
             Log.WriteToFile = Configuration.GetValue<bool>("enableFileLogging");
             PraxisContext.serverMode = Configuration.GetValue<string>("dbMode");
@@ -152,6 +154,9 @@ namespace PraxisMapper
             app.UseRouting();
             app.UseResponseCompression();
 
+            if (maintenanceMessage != "")
+                app.UsePraxisMaintenanceMessage(maintenanceMessage);
+
             app.UseGlobalErrorHandler();
 
             if (useAuthCheck)
@@ -179,8 +184,6 @@ namespace PraxisMapper
             var serverBounds = Converters.GeoAreaToPreparedPolygon(new Google.OpenLocationCode.GeoArea(settings.SouthBound, settings.WestBound, settings.NorthBound, settings.EastBound));
             cache.Set<IPreparedGeometry>("serverBounds", serverBounds, entryOptions);
             cache.Set("saveMapTiles", Configuration.GetValue<bool>("saveMapTiles"));
-
-            
 
             Log.WriteLog("PraxisMapper configured and running.");
         }
