@@ -185,7 +185,16 @@ namespace PraxisMapper
             cache.Set<IPreparedGeometry>("serverBounds", serverBounds, entryOptions);
             cache.Set("saveMapTiles", Configuration.GetValue<bool>("saveMapTiles"));
 
-            Log.WriteLog("PraxisMapper configured and running.");
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                while (true)
+                {
+                    ((MemoryCache)cache).Compact(.5);
+                    System.Threading.Thread.Sleep(1800000); // 30 minutes in milliseconds
+                }
+            });
+
+                Log.WriteLog("PraxisMapper configured and running.");
         }
     }
 }
