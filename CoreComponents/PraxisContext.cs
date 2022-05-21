@@ -29,6 +29,7 @@ namespace PraxisCore
         public DbSet<GlobalDataEntries> GlobalDataEntries { get; set; }
         public DbSet<StyleBitmap> StyleBitmaps { get; set; }
         public DbSet<AntiCheatEntry> AntiCheatEntries { get; set; }
+        public DbSet<AuthenticationData> AuthenticationData { get; set; }
 
         public static string connectionString = "Data Source=localhost\\SQLDEV;UID=PraxisService;PWD=lamepassword;Initial Catalog=Praxis;"; //Needs a default value.
         public static string serverMode = "SQLServer";
@@ -83,6 +84,8 @@ namespace PraxisCore
             model.Entity<AreaGameData>().HasIndex(m => m.Expiration);
 
             model.Entity<AntiCheatEntry>().HasIndex(m => m.filename);
+
+            model.Entity<AuthenticationData>().HasIndex(m => m.accountId);
 
             if (serverMode == "PostgreSQL")
             {
