@@ -35,12 +35,12 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Place/{elementId}/{key}/{password}")]
         [Route("/[controller]/Place/{elementId}/{key}/{value}/{password}")]
         [Route("/[controller]/Place/{elementId}/{key}/{value}/{password}/{expiresIn}")]
-        
-        public bool SetSecureElementData(Guid elementId, string key, string value,string password, double? expiresIn = null)
+
+        public bool SetSecureElementData(Guid elementId, string key, string value, string password, double? expiresIn = null)
         {
             if (perfTrackerEnabled)
             {
-                Response.Headers.Add("X-privacy", "PerfTracker is ON, password used is visible in a log.");
+                Response.Headers.Add("X-noPerfTrack", "SecureData/Place/" + elementId.ToString() + "/VALUESREMOVED-PUT");
             }
             if (value == null)
             {
@@ -55,6 +55,8 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Place/{elementId}/{key}/{password}")]
         public void GetSecureElementData(Guid elementId, string key, string password)
         {
+
+            Response.Headers.Add("X-noPerfTrack", "SecureData/Place/VALUESREMOVED-GET");
             byte[] rawData = GenericData.GetSecurePlaceData(elementId, key, password);
             Response.BodyWriter.Write(rawData);
             return;
@@ -68,10 +70,8 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Player/{deviceId}/{key}/{value}/{password}/{expiresIn}")]
         public bool SetSecurePlayerData(string deviceId, string key, string value, string password, double? expiresIn = null)
         {
-            if (perfTrackerEnabled)
-            {
-                Response.Headers.Add("X-privacy", "PerfTracker is ON, password used is visible in a log.");
-            }
+            Response.Headers.Add("X-noPerfTrack", "SecureData/Player/" + deviceId.ToString() + "/VALUESREMOVED-PUT");
+
             if (value == null)
             {
                 var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
@@ -84,6 +84,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Player/{deviceId}/{key}/{password}")]
         public void GetSecurePlayerData(string deviceId, string key, string password)
         {
+            Response.Headers.Add("X-noPerfTrack", "SecureData/Player/VALUESREMOVED-GET");
             byte[] rawData = GenericData.GetSecurePlayerData(deviceId, key, password);
             Response.BodyWriter.Write(rawData);
             return;
@@ -104,10 +105,7 @@ namespace PraxisMapper.Controllers
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return false;
 
-            if (perfTrackerEnabled)
-            {
-                Response.Headers.Add("X-privacy", "PerfTracker is ON, password used is visible in a log.");
-            }
+            Response.Headers.Add("X-noPerfTrack", "SecureData/Area/" + plusCode + "/VALUESREMOVED-PUT");
             if (value == null)
             {
                 var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
@@ -125,6 +123,7 @@ namespace PraxisMapper.Controllers
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return;
 
+            Response.Headers.Add("X-noPerfTrack", "SecureData/Area/" + plusCode + "/VALUESREMOVED-GET");
             byte[] rawData = GenericData.GetSecureAreaData(plusCode, key, password);
             Response.BodyWriter.Write(rawData);
             return;
