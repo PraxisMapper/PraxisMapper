@@ -27,6 +27,7 @@ namespace PraxisCore
         /// <returns>true if data was saved, false if data was not.</returns>
         /// 
         public static Aes baseSec = Aes.Create();
+        private const string systemPassword = "9ec44aa8-e8cc-4421-8724-0ca876c6ec73"; //Used to encrypt things that aren't player specific
 
         public static bool SetAreaData(string plusCode, string key, string value, double? expiration = null)
         {
@@ -478,6 +479,7 @@ namespace PraxisCore
         private static byte[] DecryptValue(byte[] IVs, byte[] value, string password)
         {
             byte[] passwordBytes = SHA256.HashData(password.ToByteArrayUTF8());
+         
             var crypter = baseSec.CreateDecryptor(passwordBytes, IVs);
 
             var ms = new MemoryStream();
@@ -500,22 +502,38 @@ namespace PraxisCore
 
         public static bool EncryptPassword(string userId, string password, int rounds)
         {
+            //TODO: I might want to set the IV column on this entry to some invalid entry, so that it doesnt show up in /All results.
             var options = new CrypterOptions() {
                 { CrypterOption.Rounds, rounds}
             };
             BlowfishCrypter crypter = new BlowfishCrypter();
             var salt = crypter.GenerateSalt(options);
             var results = crypter.Crypt(password, salt);
-            GenericData.SetPlayerData(userId, "password", results);
+            //GenericData.SetPlayerData(userId, "password", results);
+            var db = new PraxisContext();
+            var entry = db.AuthenticationData.Where(a => a.accountId == userId).FirstOrDefault();
+            if (entry == null)
+            {
+                entry = new DbTables.AuthenticationData();
+                db.AuthenticationData.Add(entry);
+                entry.accountId = userId;
+            }
+            entry.password = results;
+            db.SaveChanges();
+
             return true;
         }
 
         public static bool CheckPassword(string userId, string password)
         {
             BlowfishCrypter crypter = new BlowfishCrypter();
-            string existingPassword = GenericData.GetPlayerData(userId, "password").ToUTF8String();
-            string checkedPassword = crypter.Crypt(password, existingPassword);
-            return existingPassword == checkedPassword;
+            //string existingPassword = GenericData.GetPlayerData(userId, "password").ToUTF8String();
+            var db = new PraxisContext();
+            var entry = db.AuthenticationData.Where(a => a.accountId == userId).FirstOrDefault();
+            if (entry == null)
+                return false;
+            string checkedPassword = crypter.Crypt(password, entry.password);
+            return entry.password == checkedPassword;
         }
     }
 }
