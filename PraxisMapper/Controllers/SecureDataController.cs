@@ -128,23 +128,5 @@ namespace PraxisMapper.Controllers
             Response.BodyWriter.Write(rawData);
             return;
         }
-
-        [HttpPut]
-        [Route("/[controller]/EncryptUserPassword/{devicedId}/{password}")]
-        [Route("/[controller]/Password/{devicedId}/{password}")]
-        public bool EncryptUserPassword(string deviceId, string password)
-        {
-            Response.Headers.Add("X-noPerfTrack", "SecureData/Password/deviceId/password-PUT");
-            return GenericData.EncryptPassword(deviceId, password, Configuration["PasswordRounds"].ToInt());
-        }
-
-        [HttpGet]
-        [Route("/[controller]/CheckPassword/{devicedId}/{password}")]
-        [Route("/[controller]/Password/{devicedId}/{password}")]
-        public bool CheckPassword(string deviceId, string password)
-        {
-            Response.Headers.Add("X-noPerfTrack", "SecureData/Password/deviceId/password-GET");
-            return GenericData.CheckPassword(deviceId, password);
-        }
     }
 }

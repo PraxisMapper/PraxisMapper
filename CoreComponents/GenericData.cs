@@ -527,7 +527,6 @@ namespace PraxisCore
         public static bool CheckPassword(string userId, string password)
         {
             BlowfishCrypter crypter = new BlowfishCrypter();
-            //string existingPassword = GenericData.GetPlayerData(userId, "password").ToUTF8String();
             var db = new PraxisContext();
             var entry = db.AuthenticationData.Where(a => a.accountId == userId).FirstOrDefault();
             if (entry == null)
