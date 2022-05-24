@@ -93,3 +93,45 @@ Player/{deviceId}/{key}/{value}/{password}/{expiresIn} - Save a key value pair t
 Slippy:
 Slippy controller handles the webpages with a Slippymap viewer (Leaflet.js). These can be useful for visualizing data on the server. Admin access only.
 Index/ - Opens up a Slippymap viewer, initially set on the center of the server's bounds. Can toggle between various tile overlays. 
+
+
+PLUGINS:
+When making a plugin DLL, you need to follow this process:
+* Create a new DLL project
+* Reference PraxisCore.dll
+* Make a new controller that inherits both Microsoft.AspNetCore.Mvc.Controller and PraxisCore.Support.IPraxisPlugin
+* Create a public constructor that takes and IConfiguration and an IMemoryCache
+* I suggest checking a static boolean to see if your plugin has been initialized, and if not to run a function that does all your one-time setup logic, and then sets that boolean to true.
+** If you don't rely on anything persisting on your new controller, you can safely skip this step.
+* Make your endpoints like any other MVC project. You can reference anything in PraxisCore, include the PraxisContext to get database access.
+** NOTE: you can make your own DBContext that uses the PraxisContext database string for convenience to put your data in separate tables, but you won't have any of the nice EF code to 
+   automatically create it for you. You'll have to do raw SQL queries to see if your tables exist, and if not create them via raw SQL commands. Once they exist, you can use the EF context as normal.
+* Drop the DLL into the same folder as your PraxisMapper server, and you should see your endpoints show up when you fire up the web server.
+
+Example Minimum Plugin Code (skipping using statements):
+public class YourController : Controller, IPraxisPlugin
+{
+	readonly IConfiguration config;
+	static IMemoryCache cache;
+	static bool initialized = false;
+
+	public YourController(IConfiguration configuration, IMemoryCache memoryCacheSingleton)
+	{
+		config = configuration;
+		cache = memoryCacheSingleton;
+		if (!initialized)
+			Startup();
+	}
+
+	public void Startup()
+	{
+		initialized = true;
+	}
+
+	[HttpGet]
+    [Route("/[controller]/Test")]
+	public string Test()
+	{
+		return "OK!";
+	}
+}
