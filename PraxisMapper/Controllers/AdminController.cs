@@ -59,25 +59,5 @@ namespace PraxisMapper.Controllers
 
             return results;
         }
-
-        [HttpGet]
-        [Route("/[controller]/test")]
-        public string TestDummyEndpoint()
-        {
-            //For debug purposes to confirm the server is running and reachable.
-            string results = "Function OK";
-            try
-            {
-                var DB = new PraxisContext();
-                var check = DB.PlayerData.FirstOrDefault();
-                results += "|Database OK";
-            }
-            catch (Exception ex)
-            {
-                results += "|" + ex.Message + "|" + ex.StackTrace;
-            }
-
-            return results;
-        }
     }
 }
