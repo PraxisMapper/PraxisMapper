@@ -25,6 +25,14 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
+        [Route("/[controller]/Test")]
+        public string Test()
+        {
+            //Used for clients to test if server is alive. Returns OK normally, clients should check for non-OK results to display as a maintenance message.
+            return "OK";
+        }
+
+        [HttpGet]
         [Route("/[controller]/ServerBounds")]
         public string GetServerBounds()
         {
