@@ -16,8 +16,6 @@ namespace PraxisMapper.Classes
 
         public async Task Invoke(HttpContext context)
         {
-
-
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
             sw.Start();
             var pi = new DbTables.PerformanceInfo();
