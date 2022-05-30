@@ -1,9 +1,12 @@
-﻿using Google.OpenLocationCode;
+﻿using CryptSharp;
+using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
 using PraxisCore.Support;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Pipelines;
 using System.Linq;
 using System.Security.Cryptography;
 
@@ -24,6 +27,7 @@ namespace PraxisCore
         /// <returns>true if data was saved, false if data was not.</returns>
         /// 
         public static Aes baseSec = Aes.Create();
+        private const string systemPassword = "9ec44aa8-e8cc-4421-8724-0ca876c6ec73"; //Used to encrypt things that aren't player specific
 
         public static bool SetAreaData(string plusCode, string key, string value, double? expiration = null)
         {
@@ -58,7 +62,8 @@ namespace PraxisCore
                 row.Expiration = null;
             row.IvData = null;
             row.DataValue = value;
-            return db.SaveChanges() == 1;
+            db.SaveChangesAsync(); //TODO: determine if I want to do this change for performance and return the Task so the caller can check for errors, or leave it as it was.
+            return true;
         }
 
         /// <summary>
@@ -198,10 +203,11 @@ namespace PraxisCore
         /// <returns>a List of results with the PlusCode, keys, and values</returns>
         public static List<CustomDataAreaResult> GetAllDataInArea(string plusCode, string key = "")
         {
+            //TODO: this throws an error about update locks can't be acquired in a READ UNCOMMITTED block or something when key != "" on MariaDB.
             var db = new PraxisContext();
             var plusCodeArea = OpenLocationCode.DecodeValid(plusCode);
             var plusCodePoly = Converters.GeoAreaToPolygon(plusCodeArea);
-            var plusCodeData = db.AreaGameData.Where(d => plusCodePoly.Intersects(d.GeoAreaIndex) && (key == "" || d.DataKey == key) && d.IvData == null)
+            var plusCodeData = db.AreaGameData.Where(d => plusCodePoly.Contains(d.GeoAreaIndex) && (key == "" || key == d.DataKey) && d.IvData == null)
                 .ToList() //Required to run the next Where on the C# side
                 .Where(row => row.Expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.UtcNow)
                 .Select(d => new CustomDataAreaResult(d.PlusCode, d.DataKey, d.DataValue.ToUTF8String()))
@@ -473,6 +479,7 @@ namespace PraxisCore
         private static byte[] DecryptValue(byte[] IVs, byte[] value, string password)
         {
             byte[] passwordBytes = SHA256.HashData(password.ToByteArrayUTF8());
+         
             var crypter = baseSec.CreateDecryptor(passwordBytes, IVs);
 
             var ms = new MemoryStream();
@@ -480,6 +487,52 @@ namespace PraxisCore
                 cs.Write(value);
 
             return ms.ToArray();
+        }
+
+        public static byte[] ReadBody(PipeReader br, int contentLength)
+        {
+            var rr = br.ReadAtLeastAsync(contentLength);
+            var wait = rr.GetAwaiter();
+            while (!wait.IsCompleted)
+                System.Threading.Thread.Sleep(10);
+            var endData = rr.Result.Buffer.ToArray();
+            br.AdvanceTo(rr.Result.Buffer.Start); // this is required to silence an error in Kestrel on Linux.
+            return endData;
+        }
+
+        public static bool EncryptPassword(string userId, string password, int rounds)
+        {
+            //TODO: I might want to set the IV column on this entry to some invalid entry, so that it doesnt show up in /All results.
+            var options = new CrypterOptions() {
+                { CrypterOption.Rounds, rounds}
+            };
+            BlowfishCrypter crypter = new BlowfishCrypter();
+            var salt = crypter.GenerateSalt(options);
+            var results = crypter.Crypt(password, salt);
+            //GenericData.SetPlayerData(userId, "password", results);
+            var db = new PraxisContext();
+            var entry = db.AuthenticationData.Where(a => a.accountId == userId).FirstOrDefault();
+            if (entry == null)
+            {
+                entry = new DbTables.AuthenticationData();
+                db.AuthenticationData.Add(entry);
+                entry.accountId = userId;
+            }
+            entry.password = results;
+            db.SaveChanges();
+
+            return true;
+        }
+
+        public static bool CheckPassword(string userId, string password)
+        {
+            BlowfishCrypter crypter = new BlowfishCrypter();
+            var db = new PraxisContext();
+            var entry = db.AuthenticationData.Where(a => a.accountId == userId).FirstOrDefault();
+            if (entry == null)
+                return false;
+            string checkedPassword = crypter.Crypt(password, entry.password);
+            return entry.password == checkedPassword;
         }
     }
 }

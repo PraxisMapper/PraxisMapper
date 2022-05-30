@@ -10,7 +10,7 @@ Source code for a test application, Hypothesis, is available at https://github.c
 
 # Requirements
 * Visual Studio 2022 17.0+ Community (or the mac/linux equivalent)
-* .NET 6.0
+* .NET 7.0 Preview
 * MariaDB 10.6+ (Recommended) OR SQL Server 2016+ OR PostgreSQL
 * System resources may vary with content.
 * * Running a county-sized game (500 square miles/1200 square kilometers)? A server can run with as little as 1GB RAM and storage space, with the webserver and DB on the same box.
@@ -30,21 +30,25 @@ Source code for a test application, Hypothesis, is available at https://github.c
 * Setting up a state-sized game server (53,000 square miles) takes about 6 hours (Processing files and data will be about 1 hour, the rest is maptile drawing) and uses up 14GB of space.
 * Most continents can be converted from source data to working server in under 48 hours of processing time and a little extra planning. North America takes up about 100GB of space for map data, tags, and indexes, without any map tiles drawn. Europe requires significantly more space than NA. 
 
-# How to Use PraxisMapper 
-* Call MapTile/DrawPlusCode to get a maptile for a gameplay area, or MapTile/DrawPlusCodeCustomElements to draw an overlay with gameplay data from the elements.
-* Use Data/GetPlusCode to read info from a grid cell, or Data/SetPlusCode to save data to the server
-* Use Data/GetElementData and Data/SetElementData to read and write data based on the items drawn on the map.
+# How to Use PraxisMapper's APIs
+* /MapTile handles all the drawing logic for creating baseline map tiles, or overlays to layer multiple tiles together on your client.
+* * Call YourServer/MapTile/Area/{PlusCode} to get a maptile for a gameplay area, or MapTile/AreaPlaceData/{PlusCode} to draw an overlay with gameplay data from the elements.
+* /Data handles storing and reading data for players, Places, Areas, and global information or settings.
+* * Use GET Data/Area/{PlusCode} to read info from a grid cell, or PUT Data/Area/{PlusCode} to save data to the server
+* * Use GET Data/Place/{ID} and PUT Data/Place/{ID} to read and write data based on the items drawn on the map.
+* See the APIDocs.txt file for a full set of API endpoints and expected values.
+* More examples are available in Hypothesis, the example mobile client.
 * Your game keeps any player location history stored client-side. The server is for interactions, not tracking.
 
 At this time, you are expected to have some programming experience to use PraxisMapper for making games. Building a location-based game with PraxisMapper is not currently suitable as a first coding project.
-# Setup Instructions from Source (Windows)
-* Download the smallest usable PBF map extract file you can find for the area you want to cover for gameplay from Geofabrik.de
-* On OpenStreetMap.org, search for the area you want your game to cover, and write down its Relation ID.
+# Minimal Setup Instructions (Windows)
+* Unzip all files from PraxisMapper.zip to C:\Praxis.
+* Download the smallest usable PBF map extract file you can find for the area you want to cover for gameplay from Geofabrik.de to C:\Praxis
+* On OpenStreetMap.org, search for the area you want your game to cover, and write down its Relation ID. (Optional, for smaller area games)
 * Install MariaDB and create a service account for PraxisMapper
-* Update the config files for Larry and PraxisMapper with your connection string for the database, and with the folder path to the PBF file and the specific relation you want to map out (if desired) for Larry.
-* Build Larry, then run "Larry -makeServerDb" from the command line
-* Install and configure IIS for ASP.NET Core, creating an application for PraxisMapper
-* Publish the PraxisMapper project from VS 2022 and copy the output to your IIS application
+* Update the config files Larry.config.json and appsettings.json. with your connection string for the database, and the specific relation you want to map out (if you did the optional step for a Relatio ID) for Larry. Also, remove all of the lines in the "Kestrel:{}" block of appsettings.json (everything above the "Logging" line) to skip over some SSL setup (these lines may be necessary later, as iOS apps and Javascript web pages that use GPS data require HTTPS)
+* Run "Larry -makeServerDb" from the command line
+* Run PraxisMapper.exe. It should fire up, and you should get a scrollable Slippy map if you go to http://localhost:5000/slippy. If so, congratulations! You have a minimum functional PraxisMapper installation.
 
 # Scale Changes
 It is entirely feasible for small games to run the entire server on a single PC, with surprisingly low resources. A US county is often an entirely viable space for a local game, particularly in a testing phase of development.

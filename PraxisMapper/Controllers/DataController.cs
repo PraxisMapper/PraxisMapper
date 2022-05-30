@@ -23,34 +23,15 @@ namespace PraxisMapper.Controllers
     [ApiController]
     public class DataController : Controller
     {
-        static DateTime lastExpiryPass = DateTime.UtcNow.AddSeconds(-1);
         static ConcurrentDictionary<string, ReaderWriterLockSlim> locks = new ConcurrentDictionary<string, ReaderWriterLockSlim>();
 
         private readonly IConfiguration Configuration;
         private static IMemoryCache cache;
-        private static ReaderWriterLockSlim deleteLock = new ReaderWriterLockSlim();
 
         public DataController(IConfiguration configuration, IMemoryCache memoryCacheSingleton)
         {
             Configuration = configuration;
             cache = memoryCacheSingleton;
-
-            if (lastExpiryPass < DateTime.UtcNow)
-            {
-                if (!deleteLock.IsWriteLockHeld)
-                {
-                    lastExpiryPass = DateTime.UtcNow.AddMinutes(30);
-                    System.Threading.Tasks.Task.Run(() =>
-                    {
-                        deleteLock.EnterWriteLock();
-                        var db = new PraxisContext();
-                        db.Database.ExecuteSqlRaw("DELETE FROM PlaceGameData WHERE expiration IS NOT NULL AND expiration < NOW()");
-                        db.Database.ExecuteSqlRaw("DELETE FROM AreaGameData WHERE expiration IS NOT NULL AND expiration < NOW()");
-                        db.Database.ExecuteSqlRaw("DELETE FROM PlayerData WHERE expiration IS NOT NULL AND expiration < NOW()");
-                        deleteLock.ExitWriteLock();
-                    });
-                }
-            }
         }
 
         [HttpPut]
@@ -59,7 +40,9 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/PlusCode/{plusCode}/{key}/{value}")]
         [Route("/[controller]/PlusCode/{plusCode}/{key}/{value}/{expiresIn}")]
         [Route("/[controller]/Area/{plusCode}/{key}/{value}")]
+        [Route("/[controller]/Area/{plusCode}/{key}/noval/{expiresIn}")]
         [Route("/[controller]/Area/{plusCode}/{key}/{value}/{expiresIn}")]
+        
         public bool SetPlusCodeData(string plusCode, string key, string value, double? expiresIn = null)
         {
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
@@ -67,9 +50,7 @@ namespace PraxisMapper.Controllers
 
             if (value == null)
             {
-                var br = Request.BodyReader;
-                var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
-                var endData = rr.Result.Buffer.ToArray();
+                var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
                 return GenericData.SetAreaData(plusCode, key, endData, expiresIn);
             }
             return GenericData.SetAreaData(plusCode, key, value, expiresIn);
@@ -97,9 +78,7 @@ namespace PraxisMapper.Controllers
         {
             if (value == null)
             {
-                var br = Request.BodyReader;
-                var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
-                var endData = rr.Result.Buffer.ToArray();
+                var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
                 return GenericData.SetPlayerData(deviceId, key, endData, expiresIn);
             }
             return GenericData.SetPlayerData(deviceId, key, value, expiresIn);
@@ -127,9 +106,7 @@ namespace PraxisMapper.Controllers
         {
             if (value == null)
             {
-                var br = Request.BodyReader;
-                var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
-                var endData = rr.Result.Buffer.ToArray();
+                var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
                 return GenericData.SetPlaceData(elementId, key, endData, expiresIn);
             }
             return GenericData.SetPlaceData(elementId, key, value, expiresIn);
@@ -163,11 +140,12 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/GetAllDataInPlusCode/{plusCode}")]
         [Route("/[controller]/PlusCode/All/{plusCode}")]
         [Route("/[controller]/Area/All/{plusCode}")]
-        public string GetAllPlusCodeData(string plusCode)
+        [Route("/[controller]/Area/All/{plusCode}/{key}")]
+        public string GetAllPlusCodeData(string plusCode, string key = "")
         {
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return "";
-            var data = GenericData.GetAllDataInArea(plusCode);
+            var data = GenericData.GetAllDataInArea(plusCode, key);
             StringBuilder sb = new StringBuilder();
             foreach (var d in data)
                 sb.Append(d.plusCode).Append('|').Append(d.key).Append('|').Append(d.value).Append('\n'); 
@@ -197,9 +175,7 @@ namespace PraxisMapper.Controllers
         {
             if (value == null)
             {
-                var br = Request.BodyReader;
-                var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
-                var endData = rr.Result.Buffer.ToArray();
+                var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
                 return GenericData.SetGlobalData(key, endData);
             }
             return GenericData.SetGlobalData(key, value);
@@ -215,12 +191,12 @@ namespace PraxisMapper.Controllers
             return;
         }
 
-        [HttpGet]
-        [Route("/[controller]/ServerBounds")]
-        public string GetServerBounds()
+        [HttpDelete]
+        [Route("/[controller]/Global/{key}")]
+        public void DeleteGlobalData(string key)
         {
-            var bounds = cache.Get<ServerSetting>("settings");
-            return bounds.SouthBound + "|" + bounds.WestBound + "|" + bounds.NorthBound + "|" + bounds.EastBound;
+            var data = GenericData.SetGlobalData(key, "");
+            return;
         }
 
         [HttpPut]
@@ -402,18 +378,6 @@ namespace PraxisMapper.Controllers
             if (place == null) return "0|0";
             var center = place.ElementGeometry.Centroid;
             return center.Y.ToString() + "|" + center.X.ToString();
-        }
-
-        [HttpDelete]
-        [Route("/[controller]/Player/{deviceId}")]
-        public int DeleteUser(string deviceId)
-        {
-            //GDPR compliance requires this to exist and be available to the user. 
-            //Custom games that attach players to locations may need additional logic to fully meet legal requirements.
-            var db = new PraxisContext();
-            var removing = db.PlayerData.Where(p => p.DeviceID == deviceId).ToArray();
-            db.PlayerData.RemoveRange(removing);
-            return db.SaveChanges();
-        }
+        }        
     }
 }

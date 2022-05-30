@@ -31,9 +31,7 @@ namespace PraxisMapper.Controllers
 
         private bool SaveMapTiles()
         {
-            bool saveMapTiles = true;
-            cache.TryGetValue("saveMapTiles", out saveMapTiles);
-            return saveMapTiles;
+            return Configuration.GetValue<bool>("saveMapTiles");
         }
 
         public byte[] getExistingSlippyTile(string tileKey, string styleSet)

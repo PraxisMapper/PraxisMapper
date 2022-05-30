@@ -8,7 +8,6 @@ PraxisMappper, in addition to stated goals below, is also meant to be a fun proj
 PraxisMapper intentionally embraces beta releases and early changes in its dependent components. Prepping for a release may delay converting or adopting a new major dependency change, but otherwise keeping up is important.
 Expect PraxisMapper to be built on the current preview version of .NET primarily, as long as critical dependent components have a matching preview release or work as-is with the preview .NET
 
-
 0) What is PraxisMapper meant to do?
 PraxisMapper is a location-based game server, allowing devs create games that use real-world location data with less effort and external services than before.
 
@@ -83,14 +82,14 @@ No. But if you were at those parks, and had access to the DB, could you figure o
 Demo 2: In-game player-created public locations are clustered in a circle, all tagged as belonging to xXExamplePlayer999Xx. They all make a perfect circle centered on one house. Does this reveal someone's identity? 
 Yes, this narrows down the player to one of the people living in that house, and if they were to interact with others in-game, those other players could easily figure out much more info about them from the game alone.
 Can this be fixed? Not making the account name attached to those buildings stops other players from knowing which player lives there exclusively from in-game info. Making these locations not be publicly available is also a potential fix. Requiring users to spread out these placements would assist in avoiding these situations as well.
-Location data on players shouldn't be stored, and aggregating a player's behavior is questionable on how invasive it is.
+Location data on players shouldn't be stored, and aggregating a player's behavior is questionable on how invasive it is. (keep reading for additional discussion on this point)
 The server doesn't innately track user locations over time, and does it's best to block developers from tying location and players together at any point. 
 Connections should use SSL to conceal locations passed as API parameters. This is effectively a mandatory requirement for Android/iOS games to use network calls anyways. Let's Encrypt makes enabling SSL as easy as possible, and can be done for a server's IP so you don't even need a domain name to enable SSL on your server.
-Identification of an individual user requires additional, external data and not be manageable solely with PraxisMapper.
+The goal is that identification of an individual user requires additional, external data and not be manageable solely with PraxisMapper.
 Tracking activity by team, assuming population of teams is sufficiently large, should obfuscate individual behaior. Doubly so if players are allowed to freely change teams.
 The single most damaging option for security is enabling PerformanceTracker, which could provide a more thorough view of server activity if the server and/or database are compromised, primarily based on timestamps
 (at which point, an attacker would insert their own malicious code anyways)
-The short rule is: a request cannot include both a location and a unique deviceID. Only one or the other. Anonymous identities/handles do not completely remove the concerns associated with this.
+The short rule is: an insecure request cannot include both a location and a unique deviceID. Only one or the other. Anonymous identities/handles do not completely remove the concerns associated with this.
 While lots of parts of the Philosophy section are going to sound like a hard-line stance (and they should, they're philosophical points rather than practical compromises), this security one might seem the least reasonable.
 Essentially, every game in the last 5+ years requires an account to keep track of your data on, and those offer lots of personalization, and a straight reading would say that you shouldn't even make accounts for players, because that could tie them to a location.
 The big reason for this push is because people will want to run a game, probably for a small number of people, and not want to (or properly be able to) manage security perfectly.
@@ -104,10 +103,32 @@ Area Tag is OK, because a player claims a Place for their team. Anyone on that t
 (Niantic-created) Ingress attaches a player's account name to a portal when they claim it, and announces it to all players when it happens, AND TEAMS RAN BOTS SPECIFICALLY TO MONITOR THIS AND BLOCK PLAYERS FROM ACHEIVING GOALS.
 It's not the claiming of a portal that's the issue. It's the rest of that, where attaching names to them (and especially pushing that information to a global chat channel) that enabled abusive, stalking behavior only using data acquired in-game.
 THAT is the single best, real-world example of why I push this everywhere in the documentation. Don't do that. Don't let people do that with your game.
+The proper way to attach a player to a location in PraxisMapper, if you need to do it for your game, is to use the SecureData endpoints. This will at least keep the data encryped in the database, and hidden from calls that aren't using the correct key and password.
+For data that isn't shared, it should use a unique, generated password encrypted with a value the user provides. Either an account exists where this data is attached, or this stored data is a secret only to people with the password.
+The latter case works for a 'geocache' style setup, where something is hidden and the password is expected to be provided to people somehow for gameplay purposes.
+The former is expected for more typical GPS games, and by using a good generated password that's protected by the user's password, the system owner cannot track the player's activity in high detail. 
+If area/placeIds are used as keys on the PlayerData table, even with SecureData, this may leak some info to the system owner or exposed in a data breach, and should still be avoided, but keys with encrypted data won't be revealed to external users on Data calls.
+A system-defined password could encrypt data on the location data entries that contains the player's info, and this would not hide this from the system owner but would protect it in the event of a data breach.
+Additionally, only saving a current-state is vastly safer than saving a full history. In the event that a history is saved, saving a list of events without specific timestamps would be better than a timestamped history of user locations.
 
-7) Server/Code Terms:
+7) Why all this focus on not doing basic stuff bigger games do, or all these weird extra steps?
+Ingress is fairly notorious for teams tracking down people and/or monitoring them in-game to prevent them from making any progress.
+Orna is a fairly privacy-focused game, but keeps accounts and such. The developers wanted to make sure you could not stalk people in their game, and it does feature a large subset of solo players.
+Unlike those 2 games, PraxisMapper is a toolkit, and likely to be used by people or teams with even fewer resources to start, and I do not want to be known for making stuff that enables stalkerware.
+Since this will be used as a base, it should be reasonable to assume that anything built on it follows the basic assumptions presented here, and establish trust that anything using PraxisMapper is more likely than not safe to use without much worry.
+I need the toolkit to be as ready to use as possible, with the fewest traps to make mistakes and the most suggestions and checks for good behavior.
+It's open source, so someone that wants to get around any of the checks or do something suggested against can still do so, but it's additional work on their part, and thats the best I can do against those dedicated to doing it.
+Ideally I would have some way to prove its a stock build of PraxisMapper, but how I could do that I have not yet investigated.
+
+8) Server/Code Terms:
 Plus Code areas will be called Cell#, with # the number of digits in the plus code, throughout the code. Use Cell8, not 8Cell.
 Places are relations, ways, and points with tags of interest from OpenStreetMaps. A singular thing you would want to visit or interact with. One entry on the map.
 Areas are Plus Code cells used to find Places or map tiles. A space of predefined size. 
 Points are singular coordinate pairs that may be a reference to a Place or an Area, depending on context. A dot on a map.
 Score is a player's total credits on something. The counter in a video game that goes up when the player does things.
+
+9) Tech differences
+Niantic games use S2 cells to handle gameplay effects and data.
+Orna uses a customized grid, with 'regions' being a 10x10 degree square and subdivisions of those (exactly how uncertain to me right now, assuming 10x10 grids inside there a couple levels down.)
+PraxisMapper uses PlusCodes, which start at a 20x20 degree square and break those down into a 20x20 grid, repeated 5 times to get the baseline Cell10 size.
+Orna areas are likely very close to PlusCodes in practice, even though they're identified with anonymized/generated names instead of cell names.
