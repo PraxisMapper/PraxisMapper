@@ -1,4 +1,5 @@
 ﻿using Google.OpenLocationCode;
+using Microsoft.EntityFrameworkCore;
 using PraxisCore.Support;
 using System;
 using System.Collections.Generic;
@@ -9,9 +10,9 @@ using static PraxisCore.StandaloneDbTables;
 
 namespace PraxisCore
 {
-    //this is data on an Area (PlusCode cell), so AreaTypeInfo is the correct name. Places are OSM entries.
+    //this is data on an Area (PlusCode cell), but the info is usually from a Place, perhaps AreaPlaceInfo is a better name even if its slightly confusing? 
     /// <summary>
-    /// Functions that search or sort the gameplay or map style type of areas.
+    /// Functions that search or sort the gameplay on map style type of areas.
     /// </summary>
     public static class AreaTypeInfo
     {
@@ -191,6 +192,19 @@ namespace PraxisCore
 
             var area = DetermineAreaPlace(entriesHere);
             return new FindPlaceResult(olc.CodeDigits, area);
+        }
+
+        public static DbTables.Place GetSinglePlaceFromArea(string plusCode)
+        {
+            //for individual Cell10 or Cell11 checks. Existing terrain calls only do Cell10s in a Cell8 or larger area.
+
+            //Self contained set of calls here
+            var db = new PraxisContext();
+            var area = OpenLocationCode.DecodeValid(plusCode);
+            var poly = Converters.GeoAreaToPolygon(area);
+            var place = db.Places.Include(s => s.Tags).Where(md => poly.Intersects(md.ElementGeometry)).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length).Last();
+
+            return place;
         }
     }
 }
