@@ -56,7 +56,7 @@ namespace PraxisCore
             //So I will re-order this to handle tertiary first, then the gameElements that might be buildings, then plain buildings, and the remaining elements after that.
             //This should mean that 60%+ of elements match in 6 checks or less.
             //MapTiles: Roads of varying sizes and colors to match OSM colors
-            new StyleEntry() { MatchOrder = 1, Name ="tertiary", StyleSet = "mapTiles", //This is MatchOrde 1 because
+            new StyleEntry() { MatchOrder = 10, Name ="tertiary", StyleSet = "mapTiles", //This is MatchOrde 1 because its one of the most common entries, is the correct answer 30$ of the time.
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "ffffff", FillOrStroke = "stroke", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 98, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                     new StylePaint() { HtmlColorCode = "8f8f8f", FillOrStroke = "stroke", LineWidthDegrees=0.0000375F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2}
@@ -66,14 +66,14 @@ namespace PraxisCore
                 new StyleMatchRule() { Key = "highway", Value = "tertiary|unclassified|residential|tertiary_link|service|road", MatchType = "any" },
                 new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
             }},
-            new StyleEntry() { IsGameElement = true, MatchOrder = 2, Name ="university", StyleSet = "mapTiles",
+            new StyleEntry() { IsGameElement = true, MatchOrder = 20, Name ="university", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "FFFFE5", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "amenity", Value = "university|college", MatchType = "any" }}
             },
-            new StyleEntry() { MatchOrder = 3, Name ="retail", StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 30, Name ="retail", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "FFD4CE", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
@@ -82,28 +82,45 @@ namespace PraxisCore
                     new StyleMatchRule() {Key="building", Value="retail|commercial", MatchType="or" },
                     new StyleMatchRule() {Key="shop", Value="*", MatchType="or" }
             }},
-            new StyleEntry() { IsGameElement = true, MatchOrder = 4, Name ="tourism", StyleSet = "mapTiles",
+            new StyleEntry() { IsGameElement = true, MatchOrder = 40, Name ="tourism", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "660033", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "tourism", Value = "*", MatchType = "equals" }}
             },
-            new StyleEntry() { IsGameElement = true, MatchOrder = 5, Name ="historical", StyleSet = "mapTiles",
+            new StyleEntry() { IsGameElement = true, MatchOrder = 50, Name ="historical", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "B3B3B3", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "historic", Value = "*", MatchType = "equals" }}
             },
-            new StyleEntry() { MatchOrder = 6, Name ="building", StyleSet = "mapTiles", //NOTE: making this matchOrder=2 makes map tiles draw faster, but hides some gameplay-element colors.
+            new StyleEntry() { IsGameElement = true, MatchOrder = 60, Name ="artsCulture", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
+                },
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "amenity", Value = "theatre|concert hall|arts centre|planetarium", MatchType = "or" }} //TODO: expand this. Might need to swap order with tourism to catch several other entries.
+            },
+            new StyleEntry() { MatchOrder = 69, Name ="namedBuilding", StyleSet = "mapTiles", 
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "d1b6a1", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 },
+                    new StylePaint() { HtmlColorCode = "806b5b", FillOrStroke = "stroke", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99 }
+                },
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "building", Value = "*", MatchType = "equals" },
+                    new StyleMatchRule() { Key = "name", Value = "*", MatchType = "equals" }
+                } 
+            },
+            new StyleEntry() { MatchOrder = 70, Name ="building", StyleSet = "mapTiles", //NOTE: making this matchOrder=2 makes map tiles draw faster, but hides some gameplay-element colors.
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "d9d0c9", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 },
                     new StylePaint() { HtmlColorCode = "B8A89C", FillOrStroke = "stroke", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "building", Value = "*", MatchType = "equals" }} },
-            new StyleEntry() { MatchOrder = 7, Name ="water", StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 80, Name ="water", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "aad3df", FillOrStroke = "fill", LineWidthDegrees=0.0000625F, LinePattern= "solid", LayerId = 100 }
                 },
@@ -114,14 +131,14 @@ namespace PraxisCore
                     new StyleMatchRule() {Key = "leisure", Value ="swimming_pool", MatchType="or" },
                     new StyleMatchRule() {Key = "place", Value ="sea", MatchType="or" }, //stupid Labrador sea value.
                 }},
-            new StyleEntry() {IsGameElement = true,  MatchOrder = 8, Name ="wetland", StyleSet = "mapTiles",
+            new StyleEntry() {IsGameElement = true,  MatchOrder = 90, Name ="wetland", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "0C4026", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                  StyleMatchRules = new List<StyleMatchRule>() {
                      new StyleMatchRule() { Key = "natural", Value = "wetland", MatchType = "equals" }
                  }},
-            new StyleEntry() { IsGameElement = true, MatchOrder = 9, Name ="park", StyleSet = "mapTiles",
+            new StyleEntry() { IsGameElement = true, MatchOrder = 100, Name ="park", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "C8FACC", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
@@ -129,7 +146,7 @@ namespace PraxisCore
                     new StyleMatchRule() { Key = "leisure", Value = "park", MatchType = "or" },
                     new StyleMatchRule() { Key = "leisure", Value = "playground", MatchType = "or" },
             }},
-            new StyleEntry() { IsGameElement = true, MatchOrder = 10, Name ="beach", StyleSet = "mapTiles",
+            new StyleEntry() { IsGameElement = true, MatchOrder = 110, Name ="beach", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "fff1ba", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
@@ -138,14 +155,14 @@ namespace PraxisCore
                     new StyleMatchRule() {Key = "leisure", Value="beach_resort", MatchType="or"}
             } },
             
-            new StyleEntry() { IsGameElement = true, MatchOrder = 11, Name ="natureReserve", StyleSet = "mapTiles",
+            new StyleEntry() { IsGameElement = true, MatchOrder = 120, Name ="natureReserve", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "124504", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "leisure", Value = "nature_reserve", MatchType = "equals" }} 
             },
-            new StyleEntry() {IsGameElement = true, MatchOrder = 12, Name ="cemetery", StyleSet = "mapTiles",
+            new StyleEntry() {IsGameElement = true, MatchOrder = 130, Name ="cemetery", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "AACBAF", FillOrStroke = "fill", FileName="Landuse-cemetery.png", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
@@ -153,7 +170,7 @@ namespace PraxisCore
                     new StyleMatchRule() { Key = "landuse", Value = "cemetery", MatchType = "or" },
                     new StyleMatchRule() {Key="amenity", Value="grave_yard", MatchType="or" } } 
             },
-            new StyleEntry() { MatchOrder = 13, Name ="trailFilled", StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 140, Name ="trailFilled", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "F0E68C", FillOrStroke = "fill", LineWidthDegrees=0.000025F, LinePattern= "solid", LayerId = 100 }
                 },
@@ -162,7 +179,7 @@ namespace PraxisCore
                     new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
                     new StyleMatchRule() { Key="area", Value="yes", MatchType="equals"}
             }},
-            new StyleEntry() { IsGameElement = true, MatchOrder = 14, Name ="trail", StyleSet = "mapTiles",
+            new StyleEntry() { IsGameElement = true, MatchOrder = 150, Name ="trail", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "F0E68C", FillOrStroke = "stroke", LineWidthDegrees=0.000025F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom14DegPerPixelX }
                 },
@@ -171,14 +188,14 @@ namespace PraxisCore
                     new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"}
             }},
             //Admin bounds are transparent on mapTiles, because I would prefer to find and skip them on this style. Use the adminBounds style to draw them on their own tile layer.
-            new StyleEntry() { MatchOrder = 15, Name ="admin", StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 160, Name ="admin", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidthDegrees=0.0000125F, LinePattern= "10|5", LayerId = 70 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" }} 
             },
-            new StyleEntry() { MatchOrder = 16, Name ="parking", StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 170, Name ="parking", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "EEEEEE", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MinDrawRes = ConstantValues.zoom12DegPerPixelX}
                 },
@@ -186,7 +203,7 @@ namespace PraxisCore
                     new StyleMatchRule() { Key = "amenity", Value = "parking", MatchType = "equals" }} },
 
             //New generic entries for mapping by color
-            new StyleEntry() { MatchOrder = 17, Name ="greenspace",  StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 180, Name ="greenspace",  StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "cdebb0", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100 }
                 },
@@ -195,7 +212,7 @@ namespace PraxisCore
                     new StyleMatchRule() { Key = "natural", Value = "scrub|heath|grassland", MatchType = "or" },
                     new StyleMatchRule() { Key = "leisure", Value = "garden", MatchType = "or" },
             }},
-            new StyleEntry() { MatchOrder = 19, Name ="alsobeach",  StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 190, Name ="alsobeach",  StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "D7B526", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100 }
                 },
@@ -203,7 +220,7 @@ namespace PraxisCore
                     new StyleMatchRule() { Key = "natural", Value = "sand|shingle|dune|scree", MatchType = "or" },
                     new StyleMatchRule() { Key = "surface", Value = "sand", MatchType = "or" }
             }},
-            new StyleEntry() { MatchOrder = 20, Name ="darkgreenspace",  StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 200, Name ="darkgreenspace",  StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "ADD19E", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100 }
                 },
@@ -211,21 +228,21 @@ namespace PraxisCore
                     new StyleMatchRule() { Key = "natural", Value = "wood", MatchType = "or" },
                     new StyleMatchRule() { Key = "landuse", Value = "forest|orchard", MatchType = "or" },
             }},
-            new StyleEntry() { MatchOrder = 21, Name ="industrial",  StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 210, Name ="industrial",  StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "EBDBE8", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "landuse", Value = "industrial", MatchType = "equals" },
             }},
-            new StyleEntry() { MatchOrder = 22, Name ="residential",  StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 220, Name ="residential",  StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "009933", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "landuse", Value = "residential", MatchType = "equals" },
             }},
-            new StyleEntry() { MatchOrder = 23, Name ="sidewalk", StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 230, Name ="sidewalk", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "C0C0C0", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100 }
                 },
@@ -233,7 +250,7 @@ namespace PraxisCore
                     new StyleMatchRule() { Key = "highway", Value = "pedestrian", MatchType = "equals" },
             }},
             //Transparent: we don't usually want to draw census boundaries
-            new StyleEntry() { MatchOrder = 24, Name ="censusbounds",  StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 240, Name ="censusbounds",  StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100 }
                 },
@@ -241,14 +258,14 @@ namespace PraxisCore
                     new StyleMatchRule() { Key = "boundary", Value = "census", MatchType = "equals" },
             }},
             //Transparents: Explicitly things that don't help when drawn in one color.
-            new StyleEntry() { MatchOrder = 25, Name ="donotdraw",  StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 250, Name ="donotdraw",  StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "place", Value = "locality|islet", MatchType = "any" },
             }},
-            new StyleEntry() { MatchOrder = 26, Name ="greyFill",  StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 260, Name ="greyFill",  StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "AAAAAA", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100 }
                 },
@@ -257,7 +274,7 @@ namespace PraxisCore
             }},
 
             //Roads of varying sizes and colors to match OSM colors
-            new StyleEntry() { MatchOrder = 27, Name ="motorwayFilled", StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 270, Name ="motorwayFilled", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "e892a2", FillOrStroke = "fill", LineWidthDegrees=0.000125F, LinePattern= "solid", LayerId = 92},
                     new StylePaint() { HtmlColorCode = "dc2a67", FillOrStroke = "fill", LineWidthDegrees=0.000155F, LinePattern= "solid", LayerId = 93}
@@ -269,7 +286,7 @@ namespace PraxisCore
                 new StyleMatchRule() { Key="area", Value="yes", MatchType="equals"}
             }},
             //Roads of varying sizes and colors to match OSM colors
-            new StyleEntry() { MatchOrder = 28, Name ="motorway", StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 280, Name ="motorway", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "e892a2", FillOrStroke = "fill", LineWidthDegrees=0.000125F, LinePattern= "solid", LayerId = 92},
                     new StylePaint() { HtmlColorCode = "dc2a67", FillOrStroke = "fill", LineWidthDegrees=0.000155F, LinePattern= "solid", LayerId = 93}
@@ -279,7 +296,7 @@ namespace PraxisCore
                 new StyleMatchRule() { Key = "highway", Value = "motorway|trunk|motorway_link|trunk_link", MatchType = "any" },
                 new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
             }},
-            new StyleEntry() { MatchOrder = 29, Name ="primaryFilled", StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 290, Name ="primaryFilled", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "fcd6a4", FillOrStroke = "fill", LineWidthDegrees=0.000025F, LinePattern= "solid", LayerId = 94, },
                     new StylePaint() { HtmlColorCode = "a06b00", FillOrStroke = "fill", LineWidthDegrees=0.00004275F, LinePattern= "solid", LayerId = 95, }
@@ -291,7 +308,7 @@ namespace PraxisCore
                 new StyleMatchRule() { Key="area", Value="yes", MatchType="equals"}
             }},
             //Roads of varying sizes and colors to match OSM colors
-            new StyleEntry() { MatchOrder = 30, Name ="primary", StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 300, Name ="primary", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "fcd6a4", FillOrStroke = "stroke", LineWidthDegrees=0.00005F, LinePattern= "solid", LayerId = 94, MaxDrawRes = ConstantValues.zoom6DegPerPixelX /2 },
                     new StylePaint() { HtmlColorCode = "a06b00", FillOrStroke = "stroke", LineWidthDegrees=0.000085F, LinePattern= "solid", LayerId = 95, MaxDrawRes = ConstantValues.zoom6DegPerPixelX /2}
@@ -301,7 +318,7 @@ namespace PraxisCore
                 new StyleMatchRule() { Key = "highway", Value = "primary|primary_link", MatchType = "any" },
                 new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
             }},
-            new StyleEntry() { MatchOrder = 31, Name ="secondaryFilled",  StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 310, Name ="secondaryFilled",  StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "f7fabf", FillOrStroke = "fill", LineWidthDegrees=0.0000375F, LinePattern= "solid", LayerId = 96, MaxDrawRes = ConstantValues.zoom8DegPerPixelX,},
                     new StylePaint() { HtmlColorCode = "707d05", FillOrStroke = "fill", LineWidthDegrees=0.0000625F, LinePattern= "solid", LayerId = 97, MaxDrawRes = ConstantValues.zoom8DegPerPixelX,}
@@ -313,7 +330,7 @@ namespace PraxisCore
                 new StyleMatchRule() { Key="area", Value="yes", MatchType="equals"}
             }},
             //Roads of varying sizes and colors to match OSM colors
-            new StyleEntry() { MatchOrder = 32, Name ="secondary",  StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 320, Name ="secondary",  StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "f7fabf", FillOrStroke = "stroke", LineWidthDegrees=0.0000375F, LinePattern= "solid", LayerId = 96, MaxDrawRes = ConstantValues.zoom8DegPerPixelX,},
                     new StylePaint() { HtmlColorCode = "707d05", FillOrStroke = "stroke", LineWidthDegrees=0.0000625F, LinePattern= "solid", LayerId = 97, MaxDrawRes = ConstantValues.zoom8DegPerPixelX,}
@@ -323,7 +340,7 @@ namespace PraxisCore
                 new StyleMatchRule() { Key = "highway", Value = "secondary|secondary_link", MatchType = "any" },
                 new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
             }},
-            new StyleEntry() { MatchOrder = 33, Name ="tertiaryFilled", StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 330, Name ="tertiaryFilled", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "ffffff", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 98, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                     new StylePaint() { HtmlColorCode = "8f8f8f", FillOrStroke = "fill", LineWidthDegrees=0.0000375F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2}

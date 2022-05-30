@@ -18,11 +18,13 @@ namespace PraxisMapper.Controllers
     {
         private readonly IConfiguration Configuration;
         private static IMemoryCache cache;
+        private static bool perfTrackerEnabled;
 
         public SecureDataController(IConfiguration config, IMemoryCache memoryCacheSingleton)
         {
             Configuration = config;
             cache = memoryCacheSingleton;
+            perfTrackerEnabled = Configuration.GetValue<bool>("enablePerformanceTracker");
         }
 
         [HttpPut]
@@ -33,14 +35,16 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Place/{elementId}/{key}/{password}")]
         [Route("/[controller]/Place/{elementId}/{key}/{value}/{password}")]
         [Route("/[controller]/Place/{elementId}/{key}/{value}/{password}/{expiresIn}")]
-        
-        public bool SetSecureElementData(Guid elementId, string key, string value,string password, double? expiresIn = null)
+
+        public bool SetSecureElementData(Guid elementId, string key, string value, string password, double? expiresIn = null)
         {
+            if (perfTrackerEnabled)
+            {
+                Response.Headers.Add("X-noPerfTrack", "SecureData/Place/" + elementId.ToString() + "/VALUESREMOVED-PUT");
+            }
             if (value == null)
             {
-                var br = Request.BodyReader;
-                var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
-                var endData = rr.Result.Buffer.ToArray();
+                var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
                 return GenericData.SetSecurePlaceData(elementId, key, endData, password, expiresIn);
             }
             return GenericData.SetSecurePlaceData(elementId, key, value, password, expiresIn);
@@ -51,6 +55,8 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Place/{elementId}/{key}/{password}")]
         public void GetSecureElementData(Guid elementId, string key, string password)
         {
+
+            Response.Headers.Add("X-noPerfTrack", "SecureData/Place/VALUESREMOVED-GET");
             byte[] rawData = GenericData.GetSecurePlaceData(elementId, key, password);
             Response.BodyWriter.Write(rawData);
             return;
@@ -64,11 +70,11 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Player/{deviceId}/{key}/{value}/{password}/{expiresIn}")]
         public bool SetSecurePlayerData(string deviceId, string key, string value, string password, double? expiresIn = null)
         {
+            Response.Headers.Add("X-noPerfTrack", "SecureData/Player/" + deviceId.ToString() + "/VALUESREMOVED-PUT");
+
             if (value == null)
             {
-                var br = Request.BodyReader;
-                var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
-                var endData = rr.Result.Buffer.ToArray();
+                var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
                 return GenericData.SetSecurePlayerData(deviceId, key, endData, password, expiresIn);
             }
             return GenericData.SetSecurePlayerData(deviceId, key, value, password, expiresIn);
@@ -78,6 +84,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Player/{deviceId}/{key}/{password}")]
         public void GetSecurePlayerData(string deviceId, string key, string password)
         {
+            Response.Headers.Add("X-noPerfTrack", "SecureData/Player/VALUESREMOVED-GET");
             byte[] rawData = GenericData.GetSecurePlayerData(deviceId, key, password);
             Response.BodyWriter.Write(rawData);
             return;
@@ -97,15 +104,11 @@ namespace PraxisMapper.Controllers
         {
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return false;
+
+            Response.Headers.Add("X-noPerfTrack", "SecureData/Area/" + plusCode + "/VALUESREMOVED-PUT");
             if (value == null)
             {
-                var br = Request.BodyReader;
-                var rr = br.ReadAtLeastAsync((int)Request.ContentLength);
-                var wait = rr.GetAwaiter();
-                while (!wait.IsCompleted)
-                    System.Threading.Thread.Sleep(25);
-
-                var endData = rr.Result.Buffer.ToArray();
+                var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
                 return GenericData.SetSecureAreaData(plusCode, key, endData, password, expiresIn);
             }
             return GenericData.SetSecureAreaData(plusCode, key, value, password, expiresIn);
@@ -120,35 +123,10 @@ namespace PraxisMapper.Controllers
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return;
 
+            Response.Headers.Add("X-noPerfTrack", "SecureData/Area/" + plusCode + "/VALUESREMOVED-GET");
             byte[] rawData = GenericData.GetSecureAreaData(plusCode, key, password);
             Response.BodyWriter.Write(rawData);
             return;
-        }
-
-        [HttpPut]
-        [Route("/[controller]/EncryptUserPassword/{devicedId}/{password}")]
-        [Route("/[controller]/Password/{devicedId}/{password}")]
-        public bool EncryptUserPassword(string deviceId, string password)
-        {
-            var options = new CrypterOptions() {
-                { CrypterOption.Rounds, Configuration["PasswordRounds"]}
-            };
-            BlowfishCrypter crypter = new BlowfishCrypter();
-            var salt = crypter.GenerateSalt(options);
-            var results = crypter.Crypt(password, salt);
-            GenericData.SetPlayerData(deviceId, "password", results);
-            return true;
-        }
-
-        [HttpGet]
-        [Route("/[controller]/CheckPassword/{devicedId}/{password}")]
-        [Route("/[controller]/Password/{devicedId}/{password}")]
-        public bool CheckPassword(string deviceId, string password)
-        {
-            BlowfishCrypter crypter = new BlowfishCrypter();
-            string existingPassword = GenericData.GetPlayerData(deviceId, "password").ToUTF8String();
-            string checkedPassword = crypter.Crypt(password, existingPassword);
-            return existingPassword == checkedPassword;
         }
     }
 }

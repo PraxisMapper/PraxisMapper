@@ -173,7 +173,7 @@ namespace PraxisCore
         /// <param name="tags">the tags attached to a Place object</param>
         /// <param name="styleSet">the styleset to match against</param>
         /// <returns>The name of the style from the given styleSet that matches the Place tags</returns>
-        public static string GetAreaType(List<PlaceTags> tags, string styleSet = "mapTiles")
+        public static string GetAreaType(ICollection<PlaceTags> tags, string styleSet = "mapTiles")
         {
             if (tags == null || tags.Count == 0)
                 return defaultStyle.Name;

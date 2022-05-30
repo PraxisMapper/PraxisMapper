@@ -28,6 +28,8 @@ namespace PraxisCore
         public DbSet<AreaGameData> AreaGameData { get; set; }
         public DbSet<GlobalDataEntries> GlobalDataEntries { get; set; }
         public DbSet<StyleBitmap> StyleBitmaps { get; set; }
+        public DbSet<AntiCheatEntry> AntiCheatEntries { get; set; }
+        public DbSet<AuthenticationData> AuthenticationData { get; set; }
 
         public static string connectionString = "Data Source=localhost\\SQLDEV;UID=PraxisService;PWD=lamepassword;Initial Catalog=Praxis;"; //Needs a default value.
         public static string serverMode = "SQLServer";
@@ -48,8 +50,8 @@ namespace PraxisCore
             //optionsBuilder.UseMemoryCache(mc);//I think this improves performance at the cost of RAM usage. Needs additional testing.
         }
 
-        protected override void OnModelCreating(ModelBuilder model)
-        {
+            protected override void OnModelCreating(ModelBuilder model)
+            {
             //Create indexes here.
             model.Entity<PlayerData>().HasIndex(p => p.DeviceID);
             model.Entity<PlayerData>().HasIndex(p => p.DataKey);
@@ -80,6 +82,10 @@ namespace PraxisCore
             model.Entity<AreaGameData>().HasIndex(m => m.PlusCode);
             model.Entity<AreaGameData>().HasIndex(m => m.GeoAreaIndex);
             model.Entity<AreaGameData>().HasIndex(m => m.Expiration);
+
+            model.Entity<AntiCheatEntry>().HasIndex(m => m.filename);
+
+            model.Entity<AuthenticationData>().HasIndex(m => m.accountId);
 
             if (serverMode == "PostgreSQL")
             {
@@ -126,7 +132,6 @@ namespace PraxisCore
 
         public void MakePraxisDB()
         {
-            //PraxisContext db = new PraxisContext();
             if (!Database.EnsureCreated()) //all the automatic stuff EF does for us
                 return;
 
@@ -306,6 +311,11 @@ namespace PraxisCore
                 results = Place.DetectServerBounds(ConstantValues.resolutionCell8);
 
             var settings = ServerSettings.FirstOrDefault();
+            if (settings == null) //Shouldn't happen, but an error in the right spot and re-running the process can cause this.
+            {
+                settings = new ServerSetting();
+                ServerSettings.Add(settings);
+            }
             settings.NorthBound = results.NorthLatitude;
             settings.SouthBound = results.SouthLatitude;
             settings.EastBound = results.EastLongitude;
