@@ -359,6 +359,20 @@ namespace PraxisMapper.Controllers
             return results;
         }
 
+        public string GetTerrainDataNew(string plusCode)
+        {
+            //NOTE: plusCode has no plus here.
+            //for individual Cell10 or Cell11 checks. Existing terrain calls only do Cell10s in a Cell8 or larger area.
+            //Might be better in PraxisCore to be reused.
+
+            var place = AreaTypeInfo.GetSinglePlaceFromArea(plusCode);
+            var name = TagParser.GetPlaceName(place.Tags);
+            StringBuilder sb = new StringBuilder();
+            sb.Append(plusCode).Append('|').Append(name).Append('|').Append(place.GameElementName).Append('|').Append(place.PrivacyId);
+
+            return sb.ToString();
+        }
+
         [HttpGet]
         [Route("/[controller]/GetScoreForPlace/{elementId}")]
         [Route("/[controller]/Score/{elementId}")]
