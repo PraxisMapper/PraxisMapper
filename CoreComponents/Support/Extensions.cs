@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Google.OpenLocationCode;
+using NetTopologySuite.Geometries;
+using System;
 using System.Globalization;
 using System.Text;
 
@@ -216,5 +218,17 @@ namespace PraxisCore
                 return part;
             }
         }
+
+        public static Polygon ToPolygon(this GeoArea g)
+        {
+            return (Polygon)Converters.GeoAreaToPolygon(g);
+        }
+
+        public static GeoArea ToGeoArea(this Geometry g)
+        {
+            return Converters.GeometryToGeoArea(g);
+        }
+
+        
     }
 }
