@@ -14,7 +14,7 @@ namespace PraxisCore
             public int layer { get; set; } //I might want to do variant maptiles where each area cliamed adds an overlay to the base map tile, this tracks which stacking order this goes in.
         }
 
-        public class TerrainInfo //read-only for the destination app. writes go to PlusCodesVisited
+        public class TerrainInfo //read-only for the destination app.
         {
             public long id { get; set; }
             public string PlusCode { get; set; } //now is a Cell6 instead of a Cell10
