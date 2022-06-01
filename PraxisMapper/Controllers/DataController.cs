@@ -39,6 +39,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/SetPlusCodeData/{plusCode}/{key}/{value}/{expiresIn}")]
         [Route("/[controller]/PlusCode/{plusCode}/{key}/{value}")]
         [Route("/[controller]/PlusCode/{plusCode}/{key}/{value}/{expiresIn}")]
+        [Route("/[controller]/Area/{plusCode}/{key}/")]
         [Route("/[controller]/Area/{plusCode}/{key}/{value}")]
         [Route("/[controller]/Area/{plusCode}/{key}/noval/{expiresIn}")]
         [Route("/[controller]/Area/{plusCode}/{key}/{value}/{expiresIn}")]
@@ -72,6 +73,7 @@ namespace PraxisMapper.Controllers
         [HttpPut]
         [Route("/[controller]/SetPlayerData/{deviceId}/{key}/{value}")]
         [Route("/[controller]/SetPlayerData/{deviceId}/{key}/{value}/{expiresIn}")]
+        [Route("/[controller]/Player/{deviceId}/{key}/")]
         [Route("/[controller]/Player/{deviceId}/{key}/{value}")]
         [Route("/[controller]/Player/{deviceId}/{key}/{value}/{expiresIn}")]
         public bool SetPlayerData(string deviceId, string key, string value, double? expiresIn = null)
