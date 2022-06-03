@@ -200,9 +200,21 @@ namespace PraxisCore
 
             //Self contained set of calls here
             var db = new PraxisContext();
-            var area = OpenLocationCode.DecodeValid(plusCode);
-            var poly = Converters.GeoAreaToPolygon(area);
+            var poly = plusCode.ToPolygon();
             var place = db.Places.Include(s => s.Tags).Where(md => poly.Intersects(md.ElementGeometry)).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length).Last();
+
+            return place;
+        }
+
+        public static DbTables.Place GetSingleGameplayPlaceFromArea(string plusCode, string styleSet = "mapTiles")
+        {
+            //for individual Cell10 or Cell11 checks. Existing terrain calls only do Cell10s in a Cell8 or larger area.
+            //Self contained set of calls here
+            var db = new PraxisContext();
+            var poly = plusCode.ToPolygon();
+            var places = db.Places.Include(s => s.Tags).Where(md => poly.Intersects(md.ElementGeometry)).ToList();
+            TagParser.ApplyTags(places, styleSet);
+            var place = places.Where(p => p.IsGameElement).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length).FirstOrDefault();
 
             return place;
         }

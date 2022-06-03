@@ -224,11 +224,19 @@ namespace PraxisCore
             return (Polygon)Converters.GeoAreaToPolygon(g);
         }
 
+        public static Polygon ToPolygon(this string s)
+        {
+            return OpenLocationCode.DecodeValid(s).ToPolygon();
+        }
+
+        public static CodeArea ToGeoArea(this string s)
+        {
+            return OpenLocationCode.DecodeValid(s);
+        }
+
         public static GeoArea ToGeoArea(this Geometry g)
         {
             return Converters.GeometryToGeoArea(g);
         }
-
-        
     }
 }
