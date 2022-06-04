@@ -214,7 +214,7 @@ namespace PraxisCore
             var poly = plusCode.ToPolygon();
             var places = db.Places.Include(s => s.Tags).Where(md => poly.Intersects(md.ElementGeometry)).ToList();
             TagParser.ApplyTags(places, styleSet);
-            var place = places.Where(p => p.IsGameElement).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length).FirstOrDefault();
+            var place = places.Where(p => p.IsGameElement).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length).LastOrDefault();
 
             return place;
         }
