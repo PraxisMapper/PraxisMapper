@@ -122,7 +122,7 @@ namespace PraxisMapper.Controllers
             if (GenericData.CheckPassword(accountId, password))
             {
                 Guid token = Guid.NewGuid();
-                PraxisAuthentication.authTokens.TryRemove(accountId, out var ignore));
+                PraxisAuthentication.authTokens.TryRemove(accountId, out var ignore);
                 PraxisAuthentication.authTokens.TryAdd(token.ToString(), new AuthData(accountId, token.ToString(), DateTime.UtcNow.AddSeconds(1800)));
                 return new AuthDataResponse(token, 1800);
             }
