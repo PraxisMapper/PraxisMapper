@@ -160,7 +160,12 @@ namespace PraxisMapper
             app.UseGlobalErrorHandler();
 
             if (useAuthCheck)
-                app.UsePraxisHeaderCheck();
+            {
+                //app.UsePraxisHeaderCheck(); //Obsoleting over a per-user auth check.
+
+                app.UsePraxisAuthentication();
+                PraxisAuthentication.whitelistedPaths.Add("/Server/Login/"); //Don't require a sucessful login to login.
+            }
 
             if (useAntiCheat)
             {

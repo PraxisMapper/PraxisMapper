@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using PraxisCore;
+using PraxisMapper.Classes;
 using System;
 using System.Buffers;
 using System.Linq;
@@ -103,12 +104,29 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        [Route("/[controller]/CheckPassword/{devicedId}/{password}")]
-        [Route("/[controller]/Password/{devicedId}/{password}")]
+        [Route("/[controller]/CheckPassword/{deviceId}/{password}")]
+        [Route("/[controller]/Password/{deviceId}/{password}")]
         public bool CheckPassword(string deviceId, string password)
         {
             Response.Headers.Add("X-noPerfTrack", "Server/Password/deviceId/password-GET");
             return GenericData.CheckPassword(deviceId, password);
+        }
+
+
+        [HttpGet]
+        [Route("/[controller]/Login/{accountId}/{password}")]
+        public AuthDataResponse Login(string accountId, string password)
+        {
+            Response.Headers.Add("X-noPerfTrack", "Server/Login/VARSREMOVED");
+            var db = new PraxisContext();
+            if (GenericData.CheckPassword(accountId, password))
+            {
+                Guid token = Guid.NewGuid();
+                PraxisAuthentication.authTokens.TryRemove(accountId, out var ignore));
+                PraxisAuthentication.authTokens.TryAdd(token.ToString(), new AuthData(accountId, token.ToString(), DateTime.UtcNow.AddSeconds(1800)));
+                return new AuthDataResponse(token, 1800);
+            }
+            return null;
         }
     }
 }
