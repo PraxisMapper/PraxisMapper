@@ -128,6 +128,31 @@ namespace PraxisMapper.Controllers
             }
             return null;
         }
+
+        [HttpPut]
+        [Route("/[controller]/CreateAccount/{accountId}/{password}")]
+        public bool CreateAccount(string accountId, string password)
+        {
+            Response.Headers.Add("X-noPerfTrack", "Server/CreateAccount/VARSREMOVED");
+
+            var db = new PraxisContext();
+            var exists = db.AuthenticationData.Any(a => a.accountId == accountId);
+            if (exists)
+                return false;
+
+            return GenericData.EncryptPassword(accountId, password, Configuration.GetValue<int>("PasswordRounds"));
+        }
+
+        [HttpPut]
+        [Route("/[controller]/ChangePassword/{accountId}/{passwordOld}/{passwordNew}")]
+        public bool ChangePassword(string accountId, string passwordOld, string passwordNew)
+        {
+            Response.Headers.Add("X-noPerfTrack", "Server/ChangePassword/VARSREMOVED");
+            if (GenericData.CheckPassword(accountId, passwordOld))
+                return GenericData.EncryptPassword(accountId, passwordNew, Configuration.GetValue<int>("PasswordRounds"));
+
+            return false;
+        }
     }
 }
 

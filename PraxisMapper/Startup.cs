@@ -66,11 +66,11 @@ namespace PraxisMapper
                     {
                         try
                         {
-                            Log.WriteLog("Loading plugin " + potentialPlugin);
                             var assembly = Assembly.LoadFile(potentialPlugin);
                             var types = assembly.GetTypes().Where(t => t.IsAssignableTo(typeof(IPraxisPlugin)));
                             if (types.Any())
                             {
+                                Log.WriteLog("Loading plugin " + potentialPlugin);
                                 services.AddControllersWithViews().AddApplicationPart(assembly);//.AddRazorRuntimeCompilation();
                             }
                             else
@@ -119,6 +119,15 @@ namespace PraxisMapper
                 var db = new PraxisContext();
                 while (true)
                 {
+                    List<string> toRemoveAuth = new List<string>();
+                    foreach(var d in PraxisAuthentication.authTokens)
+                    {
+                        if (d.Value.expiration < DateTime.UtcNow)
+                            toRemoveAuth.Add(d.Key);
+                    }
+                    foreach(var d in toRemoveAuth)
+                        PraxisAuthentication.authTokens.TryRemove(d, out var ignore);
+
                     db.Database.ExecuteSqlRaw("DELETE FROM PlaceGameData WHERE expiration IS NOT NULL AND expiration < NOW()");
                     db.Database.ExecuteSqlRaw("DELETE FROM AreaGameData WHERE expiration IS NOT NULL AND expiration < NOW()");
                     db.Database.ExecuteSqlRaw("DELETE FROM PlayerData WHERE expiration IS NOT NULL AND expiration < NOW()");
@@ -165,6 +174,7 @@ namespace PraxisMapper
 
                 app.UsePraxisAuthentication();
                 PraxisAuthentication.whitelistedPaths.Add("/Server/Login/"); //Don't require a sucessful login to login.
+                PraxisAuthentication.whitelistedPaths.Add("/Server/CreateAccount/"); //Don't require a sucessful login to make a new account
             }
 
             if (useAntiCheat)
