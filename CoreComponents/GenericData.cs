@@ -9,6 +9,7 @@ using System.IO;
 using System.IO.Pipelines;
 using System.Linq;
 using System.Security.Cryptography;
+using static PraxisCore.DbTables;
 
 namespace PraxisCore
 {
@@ -467,7 +468,7 @@ namespace PraxisCore
             byte[] passwordBytes = SHA256.HashData(password.ToByteArrayUTF8());
             baseSec.GenerateIV();
             IVs = baseSec.IV;
-            var crypter = baseSec.CreateEncryptor(passwordBytes, baseSec.IV);
+            var crypter = baseSec.CreateEncryptor(passwordBytes, IVs);
 
             var ms = new MemoryStream();
             using (CryptoStream cs = new CryptoStream(ms, crypter, CryptoStreamMode.Write))
