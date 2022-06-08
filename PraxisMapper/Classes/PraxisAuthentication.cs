@@ -21,6 +21,7 @@ namespace PraxisMapper.Classes
 
         public async Task Invoke(HttpContext context)
         {
+            //TODO: allow any request from localhost? or make Slippy login first?
             var path = context.Request.Path.Value;
             if (!whitelistedPaths.Any(p => path.Contains(p)))
             {
