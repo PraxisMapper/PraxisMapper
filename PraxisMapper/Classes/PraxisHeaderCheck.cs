@@ -12,6 +12,7 @@ public class PraxisHeaderCheck
 {
     private readonly RequestDelegate _next;
     //Define target endpoints to protect, so webview apps will load without issues.
+    //NOTE: header check only blocks endpoints in the core server. Plugin controller paths aren't protected by it!
     static string[] protectedControllers = new string[] { "admin", "data", "maptile", "securedata", "server", "styledata" };
     public static string ServerAuthKey = "";
 
