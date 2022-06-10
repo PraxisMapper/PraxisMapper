@@ -30,8 +30,8 @@ namespace PraxisMapper.Classes
 
                 var key = context.Request.Headers.First(h => h.Key == "AuthKey").Value;
                 var account = context.Request.Headers.First(h => h.Key == "Account").Value;
-                var data = authTokens[account];
-                if (data.accountId != account || data.authToken != key)
+                var data = authTokens[key];
+                if (data.accountId != account)
                     context.Abort();
 
                 if (data.expiration < DateTime.UtcNow)
