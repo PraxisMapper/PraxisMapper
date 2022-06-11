@@ -22,6 +22,7 @@ namespace PraxisMapper
     {
         string mapTilesEngine;
         bool usePerfTracker;
+        bool useHeaderCheck;
         bool useAuthCheck;
         bool useAntiCheat;
         bool usePlugins;
@@ -31,6 +32,7 @@ namespace PraxisMapper
         {
             Configuration = configuration;
             usePerfTracker = Configuration.GetValue<bool>("enablePerformanceTracker");
+            useHeaderCheck = Configuration.GetValue<bool>("enableHeaderCheck");
             useAuthCheck = Configuration.GetValue<bool>("enableAuthCheck");
             useAntiCheat = Configuration.GetValue<bool>("enableAntiCheat");
             usePlugins = Configuration.GetValue<bool>("enablePlugins");
@@ -72,6 +74,8 @@ namespace PraxisMapper
                             {
                                 Log.WriteLog("Loading plugin " + potentialPlugin);
                                 services.AddControllersWithViews().AddApplicationPart(assembly);//.AddRazorRuntimeCompilation();
+                                //foreach (var p in (List<string>)types.First().GetProperty("AuthWhiteList").GetMethod)
+                                    //PraxisAuthentication.whitelistedPaths.Add(p);
                             }
                             else
                             {
@@ -168,10 +172,11 @@ namespace PraxisMapper
 
             app.UseGlobalErrorHandler();
 
+            if (useHeaderCheck)
+                app.UsePraxisHeaderCheck();
+
             if (useAuthCheck)
             {
-                //app.UsePraxisHeaderCheck(); //Obsoleting over a per-user auth check.
-
                 app.UsePraxisAuthentication();
                 PraxisAuthentication.whitelistedPaths.Add("/Server/Test"); //Don't require a sucessful login to confirm server is alive.
                 PraxisAuthentication.whitelistedPaths.Add("/Server/Login"); //Don't require a sucessful login to login.

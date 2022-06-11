@@ -25,17 +25,19 @@ namespace PraxisMapper.Classes
             var path = context.Request.Path.Value;
             if (!whitelistedPaths.Any(p => path.Contains(p)))
             {
-                if (!context.Request.Headers.Any(h => h.Key == "AuthKey"))
+                var ch = context.Request.Headers;
+                if (!ch.Any(h => h.Key == "AuthKey"))
                     context.Abort();
 
-                var key = context.Request.Headers.First(h => h.Key == "AuthKey").Value;
-                var account = context.Request.Headers.First(h => h.Key == "Account").Value;
+                var key = ch.First(h => h.Key == "AuthKey").Value;
+                var account = ch.First(h => h.Key == "Account").Value;
                 var data = authTokens[key];
                 if (data.accountId != account)
                     context.Abort();
 
                 if (data.expiration < DateTime.UtcNow)
                 {
+                    authTokens.TryRemove(key, out var ignore);
                     context.Response.StatusCode = StatusCodes.Status419AuthenticationTimeout;
                     return;
                 }
