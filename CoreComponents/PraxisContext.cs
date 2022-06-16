@@ -375,10 +375,13 @@ namespace PraxisCore
             Log.WriteLog("Replacing current styles with default ones");
             var styles = Singletons.defaultStyleEntries.Select(t => t.StyleSet).Distinct().ToList();
 
-            var toRemove = StyleEntries.Include(t => t.PaintOperations).Where(t => styles.Contains(t.StyleSet)).ToList();
+            var toRemove = StyleEntries.Include(t => t.PaintOperations).Include(t => t.StyleMatchRules).Where(t => styles.Contains(t.StyleSet)).ToList();
             var toRemovePaints = toRemove.SelectMany(t => t.PaintOperations).ToList();
             var toRemoveImages = StyleBitmaps.ToList();
+            var toRemoveRules = toRemove.SelectMany(t => t.StyleMatchRules).ToList();
             StylePaints.RemoveRange(toRemovePaints);
+            SaveChanges();
+            StyleMatchRules.RemoveRange(toRemoveRules);
             SaveChanges();
             StyleEntries.RemoveRange(toRemove);
             SaveChanges();
