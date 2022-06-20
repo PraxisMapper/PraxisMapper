@@ -23,8 +23,6 @@ namespace PraxisMapper.Controllers
     [ApiController]
     public class DataController : Controller
     {
-        static ConcurrentDictionary<string, ReaderWriterLockSlim> locks = new ConcurrentDictionary<string, ReaderWriterLockSlim>();
-
         private readonly IConfiguration Configuration;
         private static IMemoryCache cache;
 
@@ -206,19 +204,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Player/Increment/{deviceId}/{key}/{changeAmount}")]
         public void IncrementPlayerData(string deviceId, string key, double changeAmount, double? expirationTimer = null)
         {
-            string lockKey = deviceId + key;
-            locks.TryAdd(lockKey, new ReaderWriterLockSlim());
-            var thisLock = locks[lockKey];
-            thisLock.EnterWriteLock();
-            var data = GenericData.GetPlayerData(deviceId, key);
-            double val = 0;
-            Double.TryParse(data.ToString(), out val);
-            val += changeAmount;
-            GenericData.SetPlayerData(deviceId, key, val.ToString(), expirationTimer);
-            thisLock.ExitWriteLock();
-
-            if (thisLock.WaitingWriteCount == 0)
-                locks.TryRemove(lockKey, out thisLock);
+            GenericData.IncrementPlayerData(deviceId, key, changeAmount, expirationTimer);
         }
 
         [HttpPut]
@@ -226,18 +212,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Global/Increment/{key}/{changeAmount}")]
         public void IncrementGlobalData(string key, double changeAmount)
         {
-            locks.TryAdd(key, new ReaderWriterLockSlim());
-            var thisLock = locks[key];
-            thisLock.EnterWriteLock();
-            var data = GenericData.GetGlobalData(key);
-            double val = 0;
-            Double.TryParse(data.ToString(), out val);
-            val += changeAmount;
-            GenericData.SetGlobalData(key, val.ToString());
-            thisLock.ExitWriteLock();
-
-            if (thisLock.WaitingWriteCount == 0)
-                locks.TryRemove(key, out thisLock);
+            GenericData.IncrementGlobalData(key, changeAmount);
         }
 
         [HttpPut]
@@ -249,19 +224,7 @@ namespace PraxisMapper.Controllers
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return;
 
-            string lockKey = plusCode + key;
-            locks.TryAdd(lockKey, new ReaderWriterLockSlim());
-            var thisLock = locks[lockKey];
-            thisLock.EnterWriteLock();
-            var data = GenericData.GetAreaData(plusCode, key);
-            double val = 0;
-            Double.TryParse(data.ToString(), out val);
-            val += changeAmount;
-            GenericData.SetAreaData(plusCode, key, val.ToString(), expirationTimer);
-            thisLock.ExitWriteLock();
-
-            if (thisLock.WaitingWriteCount == 0)
-                locks.TryRemove(lockKey, out thisLock);
+            GenericData.IncrementAreaData(plusCode, key, changeAmount, expirationTimer);
         }
 
         [HttpPut]
@@ -270,19 +233,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Place/Increment/{elementId}/{key}/{changeAmount}")]
         public void IncrementElementData(Guid elementId, string key, double changeAmount, double? expirationTimer = null)
         {
-            string lockKey = elementId.ToString() + key;
-            locks.TryAdd(lockKey, new ReaderWriterLockSlim());
-            var thisLock = locks[lockKey];
-            thisLock.EnterWriteLock();
-            var data = GenericData.GetPlaceData(elementId, key);
-            double val = 0;
-            Double.TryParse(data.ToString(), out val);
-            val += changeAmount;
-            GenericData.SetPlaceData(elementId, key, val.ToString(), expirationTimer);
-            thisLock.ExitWriteLock();
-
-            if (thisLock.WaitingWriteCount == 0)
-                locks.TryRemove(lockKey, out thisLock);
+            GenericData.IncrementPlaceData(elementId, key, changeAmount, expirationTimer);
         }
 
         [HttpGet]

@@ -4,11 +4,13 @@ using Microsoft.EntityFrameworkCore;
 using PraxisCore.Support;
 using System;
 using System.Buffers;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Pipelines;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Threading;
 using static PraxisCore.DbTables;
 
 namespace PraxisCore
@@ -29,6 +31,7 @@ namespace PraxisCore
         /// 
         public static Aes baseSec = Aes.Create();
         private const string systemPassword = "9ec44aa8-e8cc-4421-8724-0ca876c6ec73"; //Used to encrypt things that aren't player specific
+        static ConcurrentDictionary<string, ReaderWriterLockSlim> locks = new ConcurrentDictionary<string, ReaderWriterLockSlim>();
 
         public static bool SetAreaData(string plusCode, string key, string value, double? expiration = null)
         {
@@ -63,7 +66,7 @@ namespace PraxisCore
                 row.Expiration = null;
             row.IvData = null;
             row.DataValue = value;
-            db.SaveChangesAsync(); //TODO: determine if I want to do this change for performance and return the Task so the caller can check for errors, or leave it as it was.
+            db.SaveChanges();
             return true;
         }
 
@@ -461,6 +464,118 @@ namespace PraxisCore
             row.IvData = IVs;
             row.DataValue = encryptedValue;
             return db.SaveChanges() == 1;
+        }
+
+        public static ReaderWriterLockSlim GetLock(string key)
+        {
+            locks.TryAdd(key, new ReaderWriterLockSlim());
+            var thisLock = locks[key];
+            thisLock.EnterWriteLock();
+            return thisLock;
+        }
+        public static void ReleaseLock(string key, ReaderWriterLockSlim thisLock)
+        {
+            thisLock.ExitWriteLock();
+            if (thisLock.WaitingWriteCount == 0)
+                locks.TryRemove(key, out thisLock);
+        }
+
+        public static void IncrementGlobalData(string key, double value)
+        {
+            string lockKey = "global" + key;
+            var ourLock = GetLock(lockKey);
+
+            var data = GetGlobalData(key);
+            double val = 0;
+            Double.TryParse(data.ToString(), out val);
+            val += value;
+            SetGlobalData(key, val.ToString());
+
+            ReleaseLock(lockKey, ourLock);
+        }
+
+        public static void IncrementPlayerData(string playerId, string key, double value, double? expiration = null)
+        {
+            string lockKey = playerId + key;
+            var ourLock = GetLock(lockKey);
+
+            var data = GetPlayerData(playerId, key);
+            double val = 0;
+            Double.TryParse(data.ToString(), out val);
+            val += value;
+            SetPlayerData(playerId, key, val.ToString(), expiration);
+
+            ReleaseLock(lockKey, ourLock);
+        }
+
+        public static void IncrementPlaceData(Guid placeId, string key, double value, double? expiration = null)
+        {
+            string lockKey = placeId + key;
+            var ourLock = GetLock(lockKey);
+
+            var data = GetPlaceData(placeId, key);
+            double val = 0;
+            Double.TryParse(data.ToString(), out val);
+            val += value;
+            SetPlaceData(placeId, key, val.ToString(), expiration);
+
+            ReleaseLock(lockKey, ourLock);
+        }
+
+        public static void IncrementAreaData(string plusCode, string key, double value, double? expiration = null)
+        {
+            string lockKey = plusCode + key;
+            var ourLock = GetLock(lockKey);
+
+            var data = GetAreaData(plusCode, key);
+            double val = 0;
+            Double.TryParse(data.ToString(), out val);
+            val += value;
+            SetAreaData(plusCode, key, val.ToString(), expiration);
+
+            ReleaseLock(lockKey, ourLock);
+        }
+
+        public static void IncrementSecurePlayerData(string playerId, string password, string key, double value, double? expiration = null)
+        {
+            string lockKey = "playerSecure" + key;
+            var ourLock = GetLock(lockKey);
+
+            var data = GetSecurePlayerData(playerId, key, password);
+            double val = 0;
+            Double.TryParse(data.ToString(), out val);
+            val += value;
+            SetSecurePlayerData(playerId, key, val.ToString(), password, expiration);
+
+            ReleaseLock(lockKey, ourLock);
+        }
+
+        public static void IncrementSecurePlaceData(Guid placeId, string password, string key, double value, double? expiration = null)
+        {
+            string lockKey = "placeSecure" + key;
+            var ourLock = GetLock(lockKey);
+
+            var data = GetSecurePlaceData(placeId, key, password);
+            double val = 0;
+            Double.TryParse(data.ToString(), out val);
+            val += value;
+            SetSecurePlaceData(placeId, key, val.ToString(), password, expiration);
+
+            ReleaseLock(lockKey, ourLock);
+        }
+
+        public static void IncrementSecureAreaData(string plusCode, string password, string key, double value, double? expiration = null)
+        {
+            string lockKey = "areaSecure" + key;
+            var ourLock = GetLock(lockKey);
+
+            var data = GetSecureAreaData(plusCode, key, password);
+            double val = 0;
+            Double.TryParse(data.ToString(), out val);
+            val += value;
+            SetSecureAreaData(plusCode, key, val.ToString(), password, expiration);
+
+            ReleaseLock(lockKey, ourLock);
         }
 
         private static byte[] EncryptValue(byte[] value, string password, out byte[] IVs)
