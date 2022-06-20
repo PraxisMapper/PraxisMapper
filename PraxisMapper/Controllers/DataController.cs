@@ -30,6 +30,7 @@ namespace PraxisMapper.Controllers
         {
             Configuration = configuration;
             cache = memoryCacheSingleton;
+            if (Configuration.GetValue<bool>("enableDataEndpoints") == false) HttpContext.Abort();
         }
 
         [HttpPut]
