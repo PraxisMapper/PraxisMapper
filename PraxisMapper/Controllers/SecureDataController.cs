@@ -18,13 +18,12 @@ namespace PraxisMapper.Controllers
     {
         private readonly IConfiguration Configuration;
         private static IMemoryCache cache;
-        private static bool perfTrackerEnabled;
 
         public SecureDataController(IConfiguration config, IMemoryCache memoryCacheSingleton)
         {
             Configuration = config;
             cache = memoryCacheSingleton;
-            perfTrackerEnabled = Configuration.GetValue<bool>("enablePerformanceTracker");
+            if (Configuration.GetValue<bool>("enableDataEndpoints") == false) HttpContext.Abort();
         }
 
         [HttpPut]

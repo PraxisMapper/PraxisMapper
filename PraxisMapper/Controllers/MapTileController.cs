@@ -27,6 +27,7 @@ namespace PraxisMapper.Controllers
             Configuration = configuration;
             cache = memoryCacheSingleton;
             MapTiles = mapTile;
+            if (Configuration.GetValue<bool>("enableMapTileEndpoints") == false) HttpContext.Abort();
         }
 
         private bool SaveMapTiles()
