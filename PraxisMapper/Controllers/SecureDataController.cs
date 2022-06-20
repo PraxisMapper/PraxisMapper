@@ -38,10 +38,7 @@ namespace PraxisMapper.Controllers
 
         public bool SetSecureElementData(Guid elementId, string key, string value, string password, double? expiresIn = null)
         {
-            if (perfTrackerEnabled)
-            {
-                Response.Headers.Add("X-noPerfTrack", "SecureData/Place/" + elementId.ToString() + "/VALUESREMOVED-PUT");
-            }
+            Response.Headers.Add("X-noPerfTrack", "SecureData/Place/" + elementId.ToString() + "/VALUESREMOVED-PUT");
             if (value == null)
             {
                 var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
@@ -55,7 +52,6 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Place/{elementId}/{key}/{password}")]
         public void GetSecureElementData(Guid elementId, string key, string password)
         {
-
             Response.Headers.Add("X-noPerfTrack", "SecureData/Place/VALUESREMOVED-GET");
             byte[] rawData = GenericData.GetSecurePlaceData(elementId, key, password);
             Response.BodyWriter.Write(rawData);
@@ -102,10 +98,10 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Area/{plusCode}/{key}/{value}/{password}/{expiresIn}")]
         public bool SetSecurePlusCodeData(string plusCode, string key, string value, string password, double? expiresIn = null)
         {
+            Response.Headers.Add("X-noPerfTrack", "SecureData/Area/" + plusCode + "/VALUESREMOVED-PUT");
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return false;
-
-            Response.Headers.Add("X-noPerfTrack", "SecureData/Area/" + plusCode + "/VALUESREMOVED-PUT");
+            
             if (value == null)
             {
                 var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
@@ -120,13 +116,44 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Area/{plusCode}/{key}/{password}")]
         public void GetSecurePlusCodeData(string plusCode, string key, string password)
         {
+            Response.Headers.Add("X-noPerfTrack", "SecureData/Area/" + plusCode + "/VALUESREMOVED-GET");
             if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
                 return;
 
-            Response.Headers.Add("X-noPerfTrack", "SecureData/Area/" + plusCode + "/VALUESREMOVED-GET");
             byte[] rawData = GenericData.GetSecureAreaData(plusCode, key, password);
             Response.BodyWriter.Write(rawData);
             return;
         }
+
+        [HttpPut]
+        [Route("/[controller]/Place/Increment{elementId}/{key}/{password}/{changeAmount}/{expirationTimer}")]
+        [Route("/[controller]/Place/Increment{elementId}/{key}/{password}/{changeAmount}")]
+        public void IncrementSecureElementData(Guid elementId, string key, string password, double changeAmount, double? expirationTimer = null)
+        {
+            Response.Headers.Add("X-noPerfTrack", "SecureData/Place/Increment" + elementId.ToString() + "/VALUESREMOVED");
+            GenericData.IncrementSecurePlaceData(elementId, key, password, changeAmount, expirationTimer);
+        }
+
+        [HttpPut]
+        [Route("/[controller]/Player/Increment{playerId}/{key}/{password}/{changeAmount}/{expirationTimer}")]
+        [Route("/[controller]/Player/Increment{playerId}/{key}/{password}/{changeAmount}")]
+        public void IncrementSecurePlayerData(string playerId, string key, string password, double changeAmount, double? expirationTimer = null)
+        {
+            Response.Headers.Add("X-noPerfTrack", "SecureData/Player/Increment/VALUESREMOVED");
+            GenericData.IncrementSecurePlayerData(playerId, key, password, changeAmount, expirationTimer);
+        }
+
+        [HttpPut]
+        [Route("/[controller]/Area/Increment{plusCode}/{key}/{password}/{changeAmount}/{expirationTimer}")]
+        [Route("/[controller]/Area/Increment{plusCode}/{key}/{password}/{changeAmount}")]
+        public void IncrementSecureAreaData(string plusCode, string key, string password, double changeAmount, double? expirationTimer = null)
+        {
+            Response.Headers.Add("X-noPerfTrack", "SecureData/Area/Increment" + plusCode + "/VALUESREMOVED");
+            if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
+                return;
+
+            GenericData.IncrementSecureAreaData(plusCode, key, password, changeAmount, expirationTimer);
+        }
+
     }
 }
