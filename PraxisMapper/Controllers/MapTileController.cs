@@ -11,6 +11,7 @@ using System.Linq;
 using static PraxisCore.DbTables;
 using static PraxisCore.Place;
 using System.Collections.Generic;
+using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace PraxisMapper.Controllers
 {
@@ -27,7 +28,13 @@ namespace PraxisMapper.Controllers
             Configuration = configuration;
             cache = memoryCacheSingleton;
             MapTiles = mapTile;
-            if (Configuration.GetValue<bool>("enableMapTileEndpoints") == false) HttpContext.Abort();
+        }
+
+        public override void OnActionExecuting(ActionExecutingContext context)
+        {
+            base.OnActionExecuting(context);
+            if (Configuration.GetValue<bool>("enableMapTileEndpoints") == false)
+                HttpContext.Abort();
         }
 
         private bool SaveMapTiles()

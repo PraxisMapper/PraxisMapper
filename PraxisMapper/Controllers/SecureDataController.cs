@@ -1,6 +1,7 @@
 ﻿using CryptSharp;
 using Google.OpenLocationCode;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using NetTopologySuite.Geometries.Prepared;
@@ -23,7 +24,13 @@ namespace PraxisMapper.Controllers
         {
             Configuration = config;
             cache = memoryCacheSingleton;
-            if (Configuration.GetValue<bool>("enableDataEndpoints") == false) HttpContext.Abort();
+        }
+
+        public override void OnActionExecuting(ActionExecutingContext context)
+        {
+            base.OnActionExecuting(context);
+            if (Configuration.GetValue<bool>("enableDataEndpoints") == false)
+                HttpContext.Abort();
         }
 
         [HttpPut]
