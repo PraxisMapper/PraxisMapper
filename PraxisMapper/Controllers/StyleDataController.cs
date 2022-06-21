@@ -1,5 +1,6 @@
 ﻿using Google.OpenLocationCode;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using PraxisCore;
@@ -14,10 +15,18 @@ namespace PraxisMapper.Controllers
     public class StyleDataController : Controller
     {
         //some of these will take JSON strings up, parse and reapply them rather than having a ton of parameters
+        IConfiguration Configuration;
 
-        public StyleDataController(IConfiguration Configuration)
+        public StyleDataController(IConfiguration configuration)
         {
-            if (Configuration.GetValue<bool>("enableStyleDataEndpoints") == false) HttpContext.Abort();
+            Configuration = configuration;
+        }
+
+        public override void OnActionExecuting(ActionExecutingContext context)
+        {
+            base.OnActionExecuting(context);
+            if (Configuration.GetValue<bool>("enableStyleDataEndpoints") == false)
+                HttpContext.Abort();
         }
 
 

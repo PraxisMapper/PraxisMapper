@@ -1,5 +1,6 @@
 ﻿using Google.OpenLocationCode;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
@@ -30,7 +31,12 @@ namespace PraxisMapper.Controllers
         {
             Configuration = configuration;
             cache = memoryCacheSingleton;
-            if (Configuration.GetValue<bool>("enableDataEndpoints") == false) HttpContext.Abort();
+        }
+        public override void OnActionExecuting(ActionExecutingContext context)
+        {
+            base.OnActionExecuting(context);
+            if (Configuration.GetValue<bool>("enableDataEndpoints") == false)
+                HttpContext.Abort();
         }
 
         [HttpPut]
