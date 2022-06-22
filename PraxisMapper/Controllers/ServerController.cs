@@ -57,7 +57,6 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/UseAntiCheat")]
         public bool UseAntiCheat()
         {
-            //This may belong on a different endpoint? Possibly Admin? Or should I make a new Server endpoint for things like that?
             return Configuration.GetValue<bool>("enableAntiCheat");
         }
 
@@ -93,25 +92,6 @@ namespace PraxisMapper.Controllers
                     entry.validUntil = DateTime.Now.AddHours(24);
             }
         }
-
-        [HttpPut]
-        [Route("/[controller]/EncryptUserPassword/{devicedId}/{password}")]
-        [Route("/[controller]/Password/{devicedId}/{password}")]
-        public bool EncryptUserPassword(string deviceId, string password)
-        {
-            Response.Headers.Add("X-noPerfTrack", "Server/Password/deviceId/password-PUT");
-            return GenericData.EncryptPassword(deviceId, password, Configuration["PasswordRounds"].ToInt());
-        }
-
-        [HttpGet]
-        [Route("/[controller]/CheckPassword/{deviceId}/{password}")]
-        [Route("/[controller]/Password/{deviceId}/{password}")]
-        public bool CheckPassword(string deviceId, string password)
-        {
-            Response.Headers.Add("X-noPerfTrack", "Server/Password/deviceId/password-GET");
-            return GenericData.CheckPassword(deviceId, password);
-        }
-
 
         [HttpGet]
         [Route("/[controller]/Login/{accountId}/{password}")]
