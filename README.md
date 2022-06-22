@@ -36,9 +36,12 @@ Source code for a test application, Hypothesis, is available at https://github.c
 * /Data handles storing and reading data for players, Places, Areas, and global information or settings.
 * * Use GET Data/Area/{PlusCode} to read info from a grid cell, or PUT Data/Area/{PlusCode} to save data to the server
 * * Use GET Data/Place/{ID} and PUT Data/Place/{ID} to read and write data based on the items drawn on the map.
-* See the APIDocs.txt file for a full set of API endpoints and expected values.
+* /SecureData allows for entries to be encrypted, blocking them from being viewed by unauthorized users.
+* * GET and PUT calls both add a password entry
+* * SecureData endpoints are appropriate if you want to attach users to places or store location data, so as to not expose it to other players (or the server owner, if the password is provided by the player)
+* See the APIDocs.txt file or the wiki tab on GitHub for a full set of API endpoints and expected values.
 * More examples are available in Hypothesis, the example mobile client.
-* Your game keeps any player location history stored client-side. The server is for interactions, not tracking.
+* By default, your game should keeps any player location history stored client-side. The server is for interactions, not tracking. 
 
 At this time, you are expected to have some programming experience to use PraxisMapper for making games. Building a location-based game with PraxisMapper is not currently suitable as a first coding project.
 # Minimal Setup Instructions (Windows)
@@ -46,10 +49,10 @@ At this time, you are expected to have some programming experience to use Praxis
 * Download the smallest usable PBF map extract file you can find for the area you want to cover for gameplay from Geofabrik.de to C:\Praxis
 * On OpenStreetMap.org, search for the area you want your game to cover, and write down its Relation ID. (Optional, for smaller area games)
 * Install MariaDB and create a service account for PraxisMapper
-* Update the config files Larry.config.json and appsettings.json. with your connection string for the database, and the specific relation you want to map out (if you did the optional step for a Relatio ID) for Larry. Also, remove all of the lines in the "Kestrel:{}" block of appsettings.json (everything above the "Logging" line) to skip over some SSL setup (these lines may be necessary later, as iOS apps and Javascript web pages that use GPS data require HTTPS)
-* Run "Larry -makeServerDb" from the command line
+* Update the config files Larry.config.json and appsettings.json. with your connection string for the database, and the specific relation you want to map out (if you did the optional step for a Relation ID) for Larry. Also, remove all of the lines in the "Kestrel:{}" block of appsettings.json (everything above the "Logging" line) to skip over some SSL setup (these lines may be necessary later, as iOS apps and Javascript web pages that use GPS data require HTTPS)
+* Run "Larry -makeServerDb" from the command line. This will create your database, parse your map files, and load them into your database. (This will NOT pre-draw map tiles, to save setup time and disk space)
 * Run PraxisMapper.exe. It should fire up, and you should get a scrollable Slippy map if you go to http://localhost:5000/slippy. If so, congratulations! You have a minimum functional PraxisMapper installation.
 
 # Scale Changes
 It is entirely feasible for small games to run the entire server on a single PC, with surprisingly low resources. A US county is often an entirely viable space for a local game, particularly in a testing phase of development.
-Huge games will require some manual work to set up. Continent-sized servers, or countries that take up most of a continent, will require deleting indexes after creating the database schema, processing and importing data, then re-creating indexes after import in order to remove a few days from that initial load time.
+Huge games will require some manual work to set up. Continent-sized servers, or countries that take up most of a continent, will require deleting indexes after creating the database schema, processing and importing data, then re-creating indexes after import in order to remove a few days from that initial load time. This index juggling process is handled with the -makeServerDb command.
