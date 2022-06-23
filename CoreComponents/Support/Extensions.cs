@@ -1,7 +1,9 @@
 ﻿using Google.OpenLocationCode;
 using NetTopologySuite.Geometries;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 
 namespace PraxisCore
@@ -237,6 +239,16 @@ namespace PraxisCore
         public static GeoArea ToGeoArea(this Geometry g)
         {
             return Converters.GeometryToGeoArea(g);
+        }
+
+        public static T PickOneRandom<T>(this List<T> parent)
+        {
+            return parent[Random.Shared.Next(parent.Count())];
+        }
+
+        public static T PickOneRandom<T>(this IEnumerable<T> parent)
+        {
+            return parent.OrderBy(r => Random.Shared.Next()).First();
         }
     }
 }
