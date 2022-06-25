@@ -42,11 +42,14 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpDelete]
-        [Route("/[controller]/Account/{accountId}")]
-        public int DeleteUser(string accountId)
+        [Route("/[controller]/Account/{accountId}/{password}")]
+        public int DeleteUser(string accountId, string password)
         {
             //GDPR compliance requires this to exist and be available to the user. 
             //Custom games that attach players to locations may need additional logic to fully meet legal requirements.
+            if (!GenericData.CheckPassword(accountId, password))
+                return 0;
+
             var db = new PraxisContext();
             var removing = db.PlayerData.Where(p => p.DeviceID == accountId).ToArray();
             db.PlayerData.RemoveRange(removing);
