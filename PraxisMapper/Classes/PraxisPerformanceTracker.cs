@@ -20,8 +20,6 @@ namespace PraxisMapper.Classes
             sw.Start();
             var pi = new DbTables.PerformanceInfo();
             pi.FunctionName = context.Request.Path;
-            if (context.Response.Headers.ContainsKey("X-noPerfTrack"))
-                pi.FunctionName = context.Response.Headers["X-noPerfTrack"];
             pi.CalledAt = DateTime.UtcNow;
             context.Response.OnStarting(() =>
             {
@@ -29,6 +27,8 @@ namespace PraxisMapper.Classes
                 pi.RunTime = sw.ElapsedMilliseconds;
                 if (context.Response.Headers.ContainsKey("X-notes"))
                     pi.Notes = context.Response.Headers["X-notes"];
+                if (context.Response.Headers.ContainsKey("X-noPerfTrack"))
+                    pi.FunctionName = context.Response.Headers["X-noPerfTrack"];
                 PraxisContext db = new PraxisContext();
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
                 db.PerformanceInfo.Add(pi);
