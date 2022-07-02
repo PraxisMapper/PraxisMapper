@@ -170,7 +170,7 @@ namespace PraxisCore
                     new StyleMatchRule() { Key = "landuse", Value = "cemetery", MatchType = "or" },
                     new StyleMatchRule() {Key="amenity", Value="grave_yard", MatchType="or" } } 
             },
-            new StyleEntry() { MatchOrder = 140, Name ="trailFilled", StyleSet = "mapTiles", IsGameElement = true,
+            new StyleEntry() { MatchOrder = 140, Name ="trailFilled", StyleSet = "mapTiles", IsGameElement = false, //This exists to make the map look correct, but these are so few removing them as game elements should not impact games.
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "F0E68C", FillOrStroke = "fill", LineWidthDegrees=0.000025F, LinePattern= "solid", LayerId = 100 }
                 },
