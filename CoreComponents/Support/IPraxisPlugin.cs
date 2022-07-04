@@ -9,5 +9,12 @@ namespace PraxisCore.Support
     public interface IPraxisPlugin
     {
         public abstract void Startup();
+        //public abstract List<string> AuthWhiteList { get; set; }
     }
+
+    public interface IPraxisStartup
+    {
+        public static void Startup() => throw new NotImplementedException();
+    }
+
 }

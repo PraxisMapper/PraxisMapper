@@ -61,6 +61,33 @@ namespace PraxisMapper
             services.AddResponseCompression();
 
             var executionFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            IMapTiles mapTiles = null;
+
+            if (mapTilesEngine == "SkiaSharp")
+            {
+                Assembly asm;
+                //if (System.Diagnostics.Debugger.IsAttached) //Folders vary, when debugging in IIS run path and local folder aren't the same so we check here.
+                //asm = Assembly.LoadFrom(@".\bin\Debug\net7.0\PraxisMapTilesSkiaSharp.dll");
+                //else
+                asm = Assembly.LoadFrom(executionFolder + "/PraxisMapTilesSkiaSharp.dll");
+                mapTiles = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
+                services.AddSingleton(typeof(IMapTiles), mapTiles);
+            }
+            else if (mapTilesEngine == "ImageSharp")
+            {
+                Assembly asm;
+                //if (System.Diagnostics.Debugger.IsAttached) 
+                //asm = Assembly.LoadFrom(@".\bin\Debug\net7.0\PraxisMapTilesImageSharp.dll");
+                //else
+                asm = Assembly.LoadFrom(executionFolder + "/PraxisMapTilesImageSharp.dll");
+                mapTiles = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
+                services.AddSingleton(typeof(IMapTiles), mapTiles);
+            }
+
+            TagParser.Initialize(Configuration.GetValue<bool>("ForceStyleDefaults"), mapTiles);
+            MapTileSupport.MapTiles = mapTiles;
+
+            
             if (usePlugins)
                 foreach ( var potentialPlugin in Directory.EnumerateFiles(executionFolder, "*.dll"))
                 {
@@ -70,6 +97,16 @@ namespace PraxisMapper
                         {
                             var assembly = Assembly.LoadFile(potentialPlugin);
                             var types = assembly.GetTypes().Where(t => t.IsAssignableTo(typeof(IPraxisPlugin)));
+                            var startupTypes = assembly.GetTypes().Where(t => t.IsAssignableTo(typeof(IPraxisStartup)));
+                            if (startupTypes.Any())
+                            {
+                                foreach (var s in startupTypes)
+                                {
+                                    var startupMethod = s.GetMethod("Startup");
+                                    var results = startupMethod.Invoke(s, null);
+                                }
+                            }
+
                             if (types.Any())
                             {
                                 Log.WriteLog("Loading plugin " + potentialPlugin);
@@ -90,32 +127,6 @@ namespace PraxisMapper
                         }
                     }
                 }
-
-            IMapTiles mapTiles = null;
-
-            if (mapTilesEngine == "SkiaSharp")
-            {
-                Assembly asm;
-                //if (System.Diagnostics.Debugger.IsAttached) //Folders vary, when debugging in IIS run path and local folder aren't the same so we check here.
-                    //asm = Assembly.LoadFrom(@".\bin\Debug\net7.0\PraxisMapTilesSkiaSharp.dll");
-                //else
-                asm = Assembly.LoadFrom(executionFolder + "/PraxisMapTilesSkiaSharp.dll");
-                mapTiles = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
-                services.AddSingleton(typeof(IMapTiles), mapTiles);
-            }
-            else if (mapTilesEngine == "ImageSharp")
-            {
-                Assembly asm;
-                //if (System.Diagnostics.Debugger.IsAttached) 
-                    //asm = Assembly.LoadFrom(@".\bin\Debug\net7.0\PraxisMapTilesImageSharp.dll");
-                //else
-                asm = Assembly.LoadFrom(executionFolder + "/PraxisMapTilesImageSharp.dll");
-                mapTiles = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
-                services.AddSingleton(typeof(IMapTiles), mapTiles);
-            }
-
-            TagParser.Initialize(Configuration.GetValue<bool>("ForceStyleDefaults"), mapTiles);
-            MapTileSupport.MapTiles = mapTiles;
 
             //Start cleanup threads that fire every half hour.
             System.Threading.Tasks.Task.Run(() =>
