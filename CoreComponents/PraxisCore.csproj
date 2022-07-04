@@ -47,8 +47,8 @@
     <PackageReference Include="OsmSharp.Geo" Version="7.0.0-pre018" />
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="6.0.1" />
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql.NetTopologySuite" Version="6.0.1" />
-    <PackageReference Include="protobuf-net" Version="3.1.4" />
-    <PackageReference Include="SkiaSharp" Version="2.88.1-preview.63" />
+    <PackageReference Include="protobuf-net" Version="3.1.17" />
+    <PackageReference Include="SkiaSharp" Version="2.88.1-preview.79" />
     <PackageReference Include="System.IO.Pipelines" Version="7.0.0-preview.5.22301.12" />
   </ItemGroup>
 
