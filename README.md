@@ -51,7 +51,7 @@ At this time, you are expected to have some programming experience to use Praxis
 * Install MariaDB and create a service account for PraxisMapper
 * Update the config files Larry.config.json and appsettings.json. with your connection string for the database, and the specific relation you want to map out (if you did the optional step for a Relation ID) for Larry. Also, remove all of the lines in the "Kestrel:{}" block of appsettings.json (everything above the "Logging" line) to skip over some SSL setup (these lines may be necessary later, as iOS apps and Javascript web pages that use GPS data require HTTPS)
 * Run "Larry -makeServerDb" from the command line. This will create your database, parse your map files, and load them into your database. (This will NOT pre-draw map tiles, to save setup time and disk space)
-* Run PraxisMapper.exe. It should fire up, and you should get a scrollable Slippy map if you go to http://localhost:5000/slippy. If so, congratulations! You have a minimum functional PraxisMapper installation.
+* Run PraxisMapper.exe. It should fire up, and you should get the words "OK" if you go to http://localhost:5000/Server/Test. If so, congratulations! You have a minimum functional PraxisMapper installation.
 
 # Scale Changes
 It is entirely feasible for small games to run the entire server on a single PC, with surprisingly low resources. A US county is often an entirely viable space for a local game, particularly in a testing phase of development.
