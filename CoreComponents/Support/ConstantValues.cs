@@ -2,16 +2,31 @@
 {
     public static class ConstantValues
     {
+        //The original data on GitHub for plus code sizes:
+        //This table assumes one degree is 111321 meters, and that all distances are calculated at the equator.
+        //chars Degrees             Meters
+        //2 	20 	                2226 km
+        //4 	1 	                111.321 km
+        //6 	1/20 	            5566 meters
+        //8 	1/400 	            278 meters
+        //10 	1/8000 	            13.9 meters
+        //11 	1/40000 x 1/32000 	2.8 x 3.5 meters
+        //12 	1/200000 x 1/128000 56 x 87 cm
+        //13 	1/1e6 x 1/512000 	11 x 22 cm
+        //14 	1/5e6 x 1/2.048e6 	2 x 5 cm
+        //15 	1/2.5e7 x 1/8.192e6 4 x 14 mm
+
+
         //the 11th+ digit uses a 4x5 grid, not a 20x20. They need separate scaling values for X and Y and are rectangular even at the equator.
         public const double resolutionCell12Lat = .000025 / 5;
-        public const double resolutionCell12Lon = .00003125 / 4; //12-digit plus codes are... pretty small.
+        public const double resolutionCell12Lon = .00003125 / 4; 
         public const double resolutionCell11Lat = .000025;
-        public const double resolutionCell11Lon = .00003125; //11-digit plus codes are approx. 3.5m ^2
-        public const double resolutionCell10 = .000125; //the size of a 10-digit PlusCode, in degrees. Approx. 14 meters^2
-        public const double resolutionCell8 = .0025; //the size of a 8-digit PlusCode, in degrees. Approx. 275 meters^2
-        public const double resolutionCell6 = .05; //the size of a 6-digit PlusCode, in degrees. Approx. 5.5 km^2
-        public const double resolutionCell4 = 1; //the size of a 4-digit PlusCode, in degrees. Approx. 110km ^2
-        public const double resolutionCell2 = 20; //the size of a 2-digit PlusCode, in degrees. Approx 2200km ^2
+        public const double resolutionCell11Lon = .00003125; 
+        public const double resolutionCell10 = .000125; 
+        public const double resolutionCell8 = .0025; 
+        public const double resolutionCell6 = .05; 
+        public const double resolutionCell4 = 1; 
+        public const double resolutionCell2 = 20; 
 
         public const double squareCell10Area = resolutionCell10 * resolutionCell10; //for area-control calculations.
 
