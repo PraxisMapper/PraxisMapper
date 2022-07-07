@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 
 namespace PraxisCore
 {
@@ -249,6 +250,26 @@ namespace PraxisCore
         public static T PickOneRandom<T>(this IEnumerable<T> parent)
         {
             return parent.OrderBy(r => Random.Shared.Next()).First();
+        }
+
+        public static T FromJsonBytesTo<T>(this byte[] data)
+        {
+            return JsonSerializer.Deserialize<T>(data.ToUTF8String());
+        }
+
+        public static T FromJsonTo<T>(this string data)
+        {
+            return JsonSerializer.Deserialize<T>(data);
+        }
+
+        public static string ToJson(this object data)
+        {
+            return JsonSerializer.Serialize(data);
+        }
+
+        public static byte[] ToJsonByteArray(this object data)
+        {
+            return JsonSerializer.Serialize(data).ToByteArrayUTF8();
         }
     }
 }
