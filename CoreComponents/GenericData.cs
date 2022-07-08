@@ -39,6 +39,11 @@ namespace PraxisCore
             return SetAreaData(plusCode, key, value.ToByteArrayUTF8(), expiration);
         }
 
+        public static bool SetAreaDataJson(string plusCode, string key, object value, double? expiration = null)
+        {
+            return SetAreaData(plusCode, key, value.ToJsonByteArray(), expiration);
+        }
+
         public static bool SetAreaData(string plusCode, string key, byte[] value, double? expiration = null)
         {
             var db = new PraxisContext();
@@ -86,6 +91,11 @@ namespace PraxisCore
             return row.DataValue;
         }
 
+        public static T GetAreaData<T>(string plusCode, string key)
+        {
+            return GetAreaData(plusCode, key).FromJsonBytesTo<T>();
+        }
+
         /// <summary>
         /// Saves a key/value pair to a given map element. Will reject a pair containing a player's deviceId in the database.
         /// </summary>
@@ -97,6 +107,11 @@ namespace PraxisCore
         public static bool SetPlaceData(Guid elementId, string key, string value, double? expiration = null)
         {
             return SetPlaceData(elementId, key, value.ToByteArrayUTF8(), expiration);
+        }
+
+        public static bool SetPlaceDataJson(Guid elementId, string key, object value, double? expiration = null)
+        {
+            return SetPlaceData(elementId, key, value.ToJsonByteArray(), expiration);
         }
 
         public static bool SetPlaceData(Guid elementId, string key, byte[] value, double? expiration = null)
@@ -138,6 +153,11 @@ namespace PraxisCore
             return row.DataValue;
         }
 
+        public static T GetPlaceData<T>(Guid elementId, string key)
+        {
+            return GetPlaceData(elementId, key).FromJsonBytesTo<T>();
+        }
+
         /// <summary>
         /// Get the value from a key/value pair saved on a player's deviceId. Expired entries will be ignored.
         /// </summary>
@@ -153,12 +173,22 @@ namespace PraxisCore
             return row.DataValue;
         }
 
+        public static T GetPlayerData<T>(string playerId, string key)
+        {
+            return GetPlayerData(playerId, key).FromJsonBytesTo<T>();
+        }
+
         public static bool SetPlayerData(string playerId, string key, string value, double? expiration = null)
         {
             if (DataCheck.IsPlusCode(value)) //reject attaching Player to Area
                 return false; 
 
             return SetPlayerData(playerId, key, value.ToByteArrayUTF8(), expiration);
+        }
+
+        public static bool SetPlayerDataJson(string playerId, string key, object value, double? expiration = null)
+        {
+            return SetPlayerData(playerId, key, value.ToJsonByteArray(), expiration);
         }
 
         /// <summary>
@@ -271,9 +301,19 @@ namespace PraxisCore
             return row.DataValue;
         }
 
+        public static T GetGlobalData<T>(string key)
+        {
+            return GetGlobalData(key).FromJsonBytesTo<T>();
+        }    
+
         public static bool SetGlobalData(string key, string value)
         {
             return SetGlobalData(key, value.ToByteArrayUTF8());
+        }
+
+        public static bool SetGlobalDataJson(string key, object value)
+        {
+            return SetGlobalData(key, value.ToJsonByteArray());
         }
 
         /// <summary>
@@ -322,6 +362,11 @@ namespace PraxisCore
             return SetSecureAreaData(plusCode, key, value.ToByteArrayUTF8(), password, expiration);
         }
 
+        public static bool SetSecureAreaDataJson(string plusCode, string key, object value, string password, double? expiration = null)
+        {
+            return SetSecureAreaData(plusCode, key, value.ToJsonByteArray(), password, expiration);
+        }
+
         public static bool SetSecureAreaData(string plusCode, string key, byte[] value, string password, double? expiration = null)
         {
             var db = new PraxisContext();
@@ -363,6 +408,11 @@ namespace PraxisCore
             return DecryptValue(row.IvData, row.DataValue, password);
         }
 
+        public static T GetSecureAreaData<T>(string plusCode, string key, string password)
+        {
+            return GetSecureAreaData(plusCode, key, password).FromJsonBytesTo<T>();
+        }
+
         /// <summary>
         /// Get the value from a key/value pair saved on a player's deviceId encrypted with the given password. Expired entries will be ignored.
         /// </summary>
@@ -379,9 +429,19 @@ namespace PraxisCore
             return DecryptValue(row.IvData, row.DataValue, password);
         }
 
+        public static T GetSecurePlayerData<T>(string playerId, string key, string password)
+        {
+            return GetSecurePlayerData(playerId, key, password).FromJsonBytesTo<T>();
+        }
+
         public static bool SetSecurePlayerData(string playerId, string key, string value, string password, double? expiration = null)
         {
             return SetSecurePlayerData(playerId, key, value.ToByteArrayUTF8(), password, expiration);
+        }
+
+        public static bool SetSecurePlayerDataJson(string playerId, string key, object value, string password, double? expiration = null)
+        {
+            return SetSecurePlayerData(playerId, key, value.ToJsonByteArray(), password, expiration);
         }
 
         /// <summary>
@@ -430,9 +490,19 @@ namespace PraxisCore
             return DecryptValue(row.IvData, row.DataValue, password);
         }
 
+        public static T GetSecurePlaceData<T>(Guid elementId, string key, string password)
+        {
+            return GetSecurePlaceData(elementId, key, password).FromJsonBytesTo<T>();
+        }
+
         public static bool SetSecurePlaceData(Guid elementId, string key, string value, string password, double? expiration = null)
         {
             return SetSecurePlaceData(elementId, key, value.ToByteArrayUTF8(), password, expiration);
+        }
+
+        public static bool SetSecurePlaceDataJson(Guid elementId, string key, object value, string password, double? expiration = null)
+        {
+            return SetSecurePlaceData(elementId, key, value.ToJsonByteArray(), password, expiration);
         }
 
         /// <summary>
