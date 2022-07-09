@@ -105,7 +105,7 @@ namespace PraxisMapper.Controllers
         public bool SetSecurePlusCodeData(string plusCode, string key, string value, string password, double? expiresIn = null)
         {
             Response.Headers.Add("X-noPerfTrack", "SecureData/Area/" + plusCode + "/VALUESREMOVED-PUT");
-            if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
+            if (!DataCheck.IsInBounds(plusCode))
                 return false;
             
             if (value == null)
@@ -123,7 +123,7 @@ namespace PraxisMapper.Controllers
         public void GetSecurePlusCodeData(string plusCode, string key, string password)
         {
             Response.Headers.Add("X-noPerfTrack", "SecureData/Area/" + plusCode + "/VALUESREMOVED-GET");
-            if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
+            if (!DataCheck.IsInBounds(plusCode))
                 return;
 
             byte[] rawData = GenericData.GetSecureAreaData(plusCode, key, password);
@@ -155,7 +155,7 @@ namespace PraxisMapper.Controllers
         public void IncrementSecureAreaData(string plusCode, string key, string password, double changeAmount, double? expirationTimer = null)
         {
             Response.Headers.Add("X-noPerfTrack", "SecureData/Area/Increment" + plusCode + "/VALUESREMOVED");
-            if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
+            if (!DataCheck.IsInBounds(plusCode))
                 return;
 
             GenericData.IncrementSecureAreaData(plusCode, key, password, changeAmount, expirationTimer);

@@ -214,6 +214,7 @@ namespace PraxisMapper
             var settings = db.ServerSettings.First();
             cache.Set<DbTables.ServerSetting>("settings", settings, entryOptions);
             var serverBounds = Converters.GeoAreaToPreparedPolygon(new Google.OpenLocationCode.GeoArea(settings.SouthBound, settings.WestBound, settings.NorthBound, settings.EastBound));
+            DataCheck.bounds = serverBounds;
             cache.Set<IPreparedGeometry>("serverBounds", serverBounds, entryOptions);
             cache.Set("saveMapTiles", Configuration.GetValue<bool>("saveMapTiles"));
 
