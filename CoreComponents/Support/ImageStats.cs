@@ -43,6 +43,8 @@ namespace PraxisCore.Support
 
             pixelsPerDegreeX = imageSizeX / area.LongitudeWidth;
             pixelsPerDegreeY = imageSizeY / area.LatitudeHeight;
+
+            drawPoints = pixelsPerDegreeX > 32000;
         }
 
         /// <summary>
@@ -80,6 +82,8 @@ namespace PraxisCore.Support
 
             pixelsPerDegreeX = imageSize / areaWidthDegrees;
             pixelsPerDegreeY = imageSize / areaHeightDegrees;
+
+            drawPoints = pixelsPerDegreeX > 32000;
         }
     }
 }
