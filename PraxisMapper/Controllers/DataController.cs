@@ -51,7 +51,7 @@ namespace PraxisMapper.Controllers
         
         public bool SetPlusCodeData(string plusCode, string key, string value, double? expiresIn = null)
         {
-            if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
+            if (!DataCheck.IsInBounds(plusCode))
                 return false;
 
             if (value == null)
@@ -68,7 +68,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Area/{plusCode}/{key}")]
         public void GetPlusCodeData(string plusCode, string key)
         {
-            if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
+            if (!DataCheck.IsInBounds(plusCode))
                 return;
             var data = GenericData.GetAreaData(plusCode, key);
             Response.BodyWriter.Write(data);
@@ -150,7 +150,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Area/All/{plusCode}/{key}")]
         public string GetAllPlusCodeData(string plusCode, string key = "")
         {
-            if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
+            if (!DataCheck.IsInBounds(plusCode))
                 return "";
             var data = GenericData.GetAllDataInArea(plusCode, key);
             StringBuilder sb = new StringBuilder();
@@ -228,7 +228,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Area/Increment/{plusCode}/{key}/{changeAmount}")]
         public void IncrementPlusCodeData(string plusCode, string key, double changeAmount, double? expirationTimer = null)
         {
-            if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), OpenLocationCode.DecodeValid(plusCode)))
+            if (!DataCheck.IsInBounds(plusCode))
                 return;
 
             GenericData.IncrementAreaData(plusCode, key, changeAmount, expirationTimer);
@@ -253,7 +253,7 @@ namespace PraxisMapper.Controllers
 
             //This function returns 1 line per Cell10, the smallest (and therefore highest priority) item intersecting that cell10.
             GeoArea box = OpenLocationCode.DecodeValid(plusCode);
-            if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), box))
+            if (!DataCheck.IsInBounds(box))
                 return "";
             var places = GetPlaces(box);
             places = places.Where(p => p.GameElementName != TagParser.defaultStyle.Name).ToList();
@@ -278,7 +278,7 @@ namespace PraxisMapper.Controllers
                 return cachedResults;
             //This function returns 1 line per Cell10 per intersecting element. For an app that needs to know all things in all points.
             GeoArea box = OpenLocationCode.DecodeValid(plusCode);
-            if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), box))
+            if (!DataCheck.IsInBounds(box))
                 return "";
             var places = GetPlaces(box); //All the places in this Cell8
             places = places.Where(p => p.GameElementName != TagParser.defaultStyle.Name).ToList();

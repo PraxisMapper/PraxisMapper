@@ -11,6 +11,7 @@ namespace PraxisCore
     public static class DataCheck
     {
         public static bool DisableBoundsCheck = true;
+        public static IPreparedGeometry bounds = null;
 
         /// <summary>
         /// Determine if a GeoArea (presumably from a PlusCode) intersects with the data contained in the server.
@@ -19,6 +20,14 @@ namespace PraxisCore
         /// <param name="place">GeoArea to check against the server's bounds</param>
         /// <returns>true if the 2 parameters intersect, or false if they do not.</returns>
         public static bool IsInBounds(IPreparedGeometry bounds, GeoArea place)
+        {
+            if (DisableBoundsCheck || bounds.Intersects(Converters.GeoAreaToPolygon(place)))
+                return true;
+
+            return false;
+        }
+
+        public static bool IsInBounds(GeoArea place)
         {
             if (DisableBoundsCheck || bounds.Intersects(Converters.GeoAreaToPolygon(place)))
                 return true;
@@ -40,6 +49,14 @@ namespace PraxisCore
             return false;
         }
 
+        public static bool IsInBounds(Polygon place)
+        {
+            if (DisableBoundsCheck || bounds.Intersects(place))
+                return true;
+
+            return false;
+        }
+
         /// <summary>
         /// Determine if a Polygon (presumably from a map element) intersects with the data contained in the server.
         /// </summary>
@@ -50,6 +67,13 @@ namespace PraxisCore
         {
             return IsInBounds(bounds, OpenLocationCode.DecodeValid(plusCode));
         }
+
+        public static bool IsInBounds(string plusCode)
+        {
+            return IsInBounds(bounds, OpenLocationCode.DecodeValid(plusCode));
+        }
+
+
 
         /// <summary>
         /// Determine if a Lat/Lon coordinate pair intersects with the data contained in the server.

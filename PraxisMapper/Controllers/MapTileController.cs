@@ -127,7 +127,7 @@ namespace PraxisMapper.Controllers
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var info = new ImageStats(zoom, x, y, IMapTiles.SlippyTileSizeSquare);
 
-                if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
+                if (!DataCheck.IsInBounds(info.area))
                 {
                     Response.Headers.Add("X-notes", "OOB");
                     return StatusCode(500);
@@ -167,7 +167,7 @@ namespace PraxisMapper.Controllers
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var info = new ImageStats(zoom, x, y, IMapTiles.SlippyTileSizeSquare);
 
-                if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
+                if (!DataCheck.IsInBounds(info.area))
                 {
                     Response.Headers.Add("X-notes", "OOB");
                     return StatusCode(500);
@@ -205,7 +205,7 @@ namespace PraxisMapper.Controllers
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var info = new ImageStats(zoom, x, y, IMapTiles.SlippyTileSizeSquare);
 
-                if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
+                if (!DataCheck.IsInBounds(info.area))
                 {
                     Response.Headers.Add("X-notes", "OOB");
                     return StatusCode(500);
@@ -254,7 +254,7 @@ namespace PraxisMapper.Controllers
                 MapTileSupport.GetPlusCodeImagePixelSize(code, out var imgX, out var imgY);
                 var info = new ImageStats(OpenLocationCode.DecodeValid(code), imgX, imgY);
 
-                if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
+                if (!DataCheck.IsInBounds(info.area))
                 {
                     Response.Headers.Add("X-notes", "OOB");
                     return StatusCode(500);
@@ -292,7 +292,7 @@ namespace PraxisMapper.Controllers
                 MapTileSupport.GetPlusCodeImagePixelSize(code, out var imgX, out var imgY);
                 var info = new ImageStats(OpenLocationCode.DecodeValid(code), imgX, imgY);
 
-                if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
+                if (!DataCheck.IsInBounds(info.area))
                 {
                     Response.Headers.Add("X-notes", "OOB");
                     return StatusCode(500);
@@ -330,7 +330,7 @@ namespace PraxisMapper.Controllers
                 MapTileSupport.GetPlusCodeImagePixelSize(code, out var imgX, out var imgY);
                 var info = new ImageStats(OpenLocationCode.DecodeValid(code), imgX, imgY);
 
-                if (!DataCheck.IsInBounds(cache.Get<IPreparedGeometry>("serverBounds"), info.area))
+                if (!DataCheck.IsInBounds(info.area))
                 {
                     Response.Headers.Add("X-notes", "OOB");
                     return StatusCode(500);
