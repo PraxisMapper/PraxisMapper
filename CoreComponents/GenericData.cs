@@ -251,6 +251,21 @@ namespace PraxisCore
             return plusCodeData;
         }
 
+        //This version can be used to get info on plusCode areas without passing in a specific pluscode.
+        public static List<CustomDataAreaResult> GetAllDataInArea(GeoArea area, string key = "")
+        {
+            //TODO: this throws an error about update locks can't be acquired in a READ UNCOMMITTED block or something when key != "" on MariaDB.
+            var db = new PraxisContext();
+            var poly = Converters.GeoAreaToPolygon(area);
+            var data = db.AreaGameData.Where(d => poly.Contains(d.GeoAreaIndex) && (key == "" || key == d.DataKey) && d.IvData == null)
+                .ToList() //Required to run the next Where on the C# side
+                .Where(row => row.Expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.UtcNow)
+                .Select(d => new CustomDataAreaResult(d.PlusCode, d.DataKey, d.DataValue.ToUTF8String()))
+                .ToList();
+
+            return data;
+        }
+
         /// <summary>
         /// Load all of the key/value pairs attached to a map element. Expired entries will be ignored.
         /// </summary>
