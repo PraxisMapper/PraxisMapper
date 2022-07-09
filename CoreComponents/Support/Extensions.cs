@@ -254,6 +254,8 @@ namespace PraxisCore
 
         public static T FromJsonBytesTo<T>(this byte[] data)
         {
+            if (data.Length == 0)
+                return default(T);
             return JsonSerializer.Deserialize<T>(data.ToUTF8String());
         }
 
