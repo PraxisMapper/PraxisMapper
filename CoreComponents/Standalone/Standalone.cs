@@ -150,9 +150,7 @@ namespace PraxisCore.Standalone
                     var areaList = rowList.Where(a => acheck.Intersects(a.ElementGeometry)).ToList(); //This one is for the maptile
 
                     //Create the maptile first, so if we save it to the DB/a file we can call the lock once per loop.
-                    int imgX = 0, imgY = 0;
-                    MapTileSupport.GetPlusCodeImagePixelSize(plusCode8, out imgX, out imgY);
-                    var info = new ImageStats(areaForTile, imgX, imgY); //Each pixel is a Cell11, we're drawing a Cell8. For Cell6 testing this is 1600x2000, just barely within android limits
+                    var info = new ImageStats(plusCode8);
                     byte[] tile = null; // MapTiles.DrawAreaAtSize(info, areaList);
                     if (tile == null)
                     {
