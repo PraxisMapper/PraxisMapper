@@ -72,8 +72,7 @@ namespace PraxisCore
             //Split it into a few functions.
             //then get all the area
 
-            GetPlusCodeImagePixelSize(area, out var imgX, out var imgY);
-            ImageStats info = new ImageStats(OpenLocationCode.DecodeValid(area), imgX, imgY);
+            var info = new ImageStats(area);
             info.drawPoints = true;
             var places = GetPlacesForTile(info);
             var paintOps = GetPaintOpsForPlaces(places, styleSet, info);
@@ -89,10 +88,7 @@ namespace PraxisCore
         /// <returns>a byte array for the png file of the pluscode image file</returns>
         public static byte[] DrawPlusCode(string area, List<CompletePaintOp> paintOps, string styleSet = "mapTiles")
         {
-            int imgX = 0, imgY = 0;
-            GetPlusCodeImagePixelSize(area, out imgX, out imgY);
-
-            ImageStats info = new ImageStats(OpenLocationCode.DecodeValid(area), imgX, imgY);
+            var info = new ImageStats(area);
             info.drawPoints = true;
             return MapTiles.DrawAreaAtSize(info, paintOps);
         }
@@ -266,9 +262,7 @@ namespace PraxisCore
                     var acheck = Converters.GeoAreaToPreparedPolygon(paddedArea); //Fastest search option is one preparedPolygon against a list of normal geometry.
                     var areaList = rowList.Where(a => acheck.Intersects(a.ElementGeometry)).ToList(); //Get the list of areas in this maptile.
 
-                    int imgX = 0, imgY = 0;
-                    GetPlusCodeImagePixelSize(plusCode8, out imgX, out imgY);
-                    var info = new ImageStats(plusCodeArea, imgX, imgY);
+                    var info = new ImageStats(plusCode8);
                     //new setup.
                     var areaPaintOps = GetPaintOpsForPlaces(areaList, "mapTiles", info);
                     var tile = DrawPlusCode(plusCode8, areaPaintOps, "mapTiles");

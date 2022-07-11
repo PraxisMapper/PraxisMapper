@@ -251,8 +251,7 @@ namespace PraxisMapper.Controllers
         {
             try
             {
-                MapTileSupport.GetPlusCodeImagePixelSize(code, out var imgX, out var imgY);
-                var info = new ImageStats(OpenLocationCode.DecodeValid(code), imgX, imgY);
+                var info = new ImageStats(code);
 
                 if (!DataCheck.IsInBounds(info.area))
                 {
@@ -289,8 +288,7 @@ namespace PraxisMapper.Controllers
         {
             try
             {
-                MapTileSupport.GetPlusCodeImagePixelSize(code, out var imgX, out var imgY);
-                var info = new ImageStats(OpenLocationCode.DecodeValid(code), imgX, imgY);
+                var info = new ImageStats(code);
 
                 if (!DataCheck.IsInBounds(info.area))
                 {
@@ -327,8 +325,7 @@ namespace PraxisMapper.Controllers
         {
             try
             {
-                MapTileSupport.GetPlusCodeImagePixelSize(code, out var imgX, out var imgY);
-                var info = new ImageStats(OpenLocationCode.DecodeValid(code), imgX, imgY);
+                var info = new ImageStats(code);
 
                 if (!DataCheck.IsInBounds(info.area))
                 {
