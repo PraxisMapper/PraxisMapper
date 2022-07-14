@@ -87,44 +87,41 @@ namespace PraxisMapper
             TagParser.Initialize(Configuration.GetValue<bool>("ForceStyleDefaults"), mapTiles);
             MapTileSupport.MapTiles = mapTiles;
 
-            
-            if (usePlugins)
-                foreach ( var potentialPlugin in Directory.EnumerateFiles(executionFolder, "*.dll"))
-                {
-                    if (!potentialPlugin.Contains("PraxisCore"))
-                    {
-                        try
-                        {
-                            var assembly = Assembly.LoadFile(potentialPlugin);
-                            var types = assembly.GetTypes().Where(t => t.IsAssignableTo(typeof(IPraxisPlugin)));
-                            var startupTypes = assembly.GetTypes().Where(t => t.IsAssignableTo(typeof(IPraxisStartup)));
-                            if (startupTypes.Any())
-                            {
-                                foreach (var s in startupTypes)
-                                {
-                                    var startupMethod = s.GetMethod("Startup");
-                                    var results = startupMethod.Invoke(s, null);
-                                }
-                            }
 
-                            if (types.Any())
-                            {
-                                Log.WriteLog("Loading plugin " + potentialPlugin);
-                                services.AddControllersWithViews().AddApplicationPart(assembly);//.AddRazorRuntimeCompilation();
-                                //foreach (var p in (List<string>)types.First().GetProperty("AuthWhiteList").GetMethod)
-                                    //PraxisAuthentication.whitelistedPaths.Add(p);
-                            }
-                            else
-                            {
-                                assembly = null;
-                            }
-                        }
-                        catch (Exception ex)
+            if (usePlugins)
+                foreach (var potentialPlugin in Directory.EnumerateFiles(executionFolder + "/plugins", "*.dll"))
+                {
+                    try
+                    {
+                        var assembly = Assembly.LoadFile(potentialPlugin);
+                        var types = assembly.GetTypes().Where(t => t.IsAssignableTo(typeof(IPraxisPlugin)));
+                        var startupTypes = assembly.GetTypes().Where(t => t.IsAssignableTo(typeof(IPraxisStartup)));
+                        if (startupTypes.Any())
                         {
-                            //continue.
-                            Log.WriteLog("Error loading " + potentialPlugin + ": " + ex.Message + "|" + ex.StackTrace);
-                            ErrorLogger.LogError(ex);
+                            foreach (var s in startupTypes)
+                            {
+                                var startupMethod = s.GetMethod("Startup");
+                                var results = startupMethod.Invoke(s, null);
+                            }
                         }
+
+                        if (types.Any())
+                        {
+                            Log.WriteLog("Loading plugin " + potentialPlugin);
+                            services.AddControllersWithViews().AddApplicationPart(assembly);//.AddRazorRuntimeCompilation();
+                                                                                            //foreach (var p in (List<string>)types.First().GetProperty("AuthWhiteList").GetMethod)
+                                                                                            //PraxisAuthentication.whitelistedPaths.Add(p);
+                        }
+                        else
+                        {
+                            assembly = null;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        //continue.
+                        Log.WriteLog("Error loading " + potentialPlugin + ": " + ex.Message + "|" + ex.StackTrace);
+                        ErrorLogger.LogError(ex);
                     }
                 }
 
@@ -135,12 +132,12 @@ namespace PraxisMapper
                 while (true)
                 {
                     List<string> toRemoveAuth = new List<string>();
-                    foreach(var d in PraxisAuthentication.authTokens)
+                    foreach (var d in PraxisAuthentication.authTokens)
                     {
                         if (d.Value.expiration < DateTime.UtcNow)
                             toRemoveAuth.Add(d.Key);
                     }
-                    foreach(var d in toRemoveAuth)
+                    foreach (var d in toRemoveAuth)
                         PraxisAuthentication.authTokens.TryRemove(d, out var ignore);
 
                     db.Database.ExecuteSqlRaw("DELETE FROM PlaceGameData WHERE expiration IS NOT NULL AND expiration < NOW()");
@@ -227,7 +224,7 @@ namespace PraxisMapper
                 }
             });
 
-                Log.WriteLog("PraxisMapper configured and running.");
+            Log.WriteLog("PraxisMapper configured and running.");
         }
     }
 }
