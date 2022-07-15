@@ -552,6 +552,14 @@ namespace PraxisCore
             return db.SaveChanges() == 1;
         }
 
+        //NOTE: this returns the entry for 'key' for all players. Not all entries for a player.
+        public static List<PlayerData> GetAllPlayerDataByKey(string key)
+        {
+            var db = new PraxisContext();
+            var results = db.PlayerData.Where(k => k.DataKey == key && k.IvData == null).ToList();
+            return results;
+        }
+
         public static ReaderWriterLockSlim GetLock(string key)
         {
             locks.TryAdd(key, new ReaderWriterLockSlim());

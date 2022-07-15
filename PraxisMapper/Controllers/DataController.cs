@@ -272,7 +272,8 @@ namespace PraxisMapper.Controllers
         [HttpGet]
         [Route("/[controller]/GetPlusCodeTerrainDataFull/{plusCode}")]
         [Route("/[controller]/Terrain/All/{plusCode}")]
-        public string GetPlusCodeTerrainDataFull(string plusCode)
+        [Route("/[controller]/Terrain/All/{plusCode}/{styleSet}")]
+        public string GetPlusCodeTerrainDataFull(string plusCode, string styleSet = "mapTiles")
         {
             if (cache.TryGetValue("TerrainAll" + plusCode, out string cachedResults))
                 return cachedResults;
@@ -280,7 +281,7 @@ namespace PraxisMapper.Controllers
             GeoArea box = OpenLocationCode.DecodeValid(plusCode);
             if (!DataCheck.IsInBounds(box))
                 return "";
-            var places = GetPlaces(box); //All the places in this Cell8
+            var places = GetPlaces(box, styleSet: styleSet); //All the places in this Cell8
             places = places.Where(p => p.GameElementName != TagParser.defaultStyle.Name).ToList();
 
             StringBuilder sb = new StringBuilder();
@@ -339,5 +340,11 @@ namespace PraxisMapper.Controllers
             var center = place.ElementGeometry.Centroid;
             return center.Y.ToString() + "|" + center.X.ToString();
         }        
+
+        //TODO:
+        //Add 'SetPointData' that takes lat/lon, saves a 13-digit plusCode as AreaData. Cell12 is about .5m, Cell13 is about .1m
+        //(Approx. 11x22cm square, far below where a phone could detect. Would need 1px = 1cm on the display, which would be pretty awful to deal with on the map.)
+        //Add 'GetDataAroundPoint' that takes lat/lon and a radius, and gets all data in a square centered on that point.
+
     }
 }
