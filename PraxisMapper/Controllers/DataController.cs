@@ -246,7 +246,8 @@ namespace PraxisMapper.Controllers
         [HttpGet]
         [Route("/[controller]/GetPlusCodeTerrainData/{plusCode}")]
         [Route("/[controller]/Terrain/{plusCode}")]
-        public string GetPlusCodeTerrainData(string plusCode)
+        [Route("/[controller]/Terrain/{plusCode}/{styleSet}")]
+        public string GetPlusCodeTerrainData(string plusCode, string styleSet = "mapTiles")
         {
             if (cache.TryGetValue("Terrain" + plusCode, out string cachedResults))
                 return cachedResults;
@@ -255,7 +256,7 @@ namespace PraxisMapper.Controllers
             GeoArea box = OpenLocationCode.DecodeValid(plusCode);
             if (!DataCheck.IsInBounds(box))
                 return "";
-            var places = GetPlaces(box);
+            var places = GetPlaces(box, styleSet: styleSet);
             places = places.Where(p => p.GameElementName != TagParser.defaultStyle.Name).ToList();
 
             StringBuilder sb = new StringBuilder();
