@@ -11,6 +11,8 @@ using PraxisCore.Support;
 using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using System.Threading.Tasks;
+using System.Numerics;
+using System.Data;
 
 namespace PraxisCore
 {
@@ -140,6 +142,20 @@ namespace PraxisCore
             var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
             var pass1 = elements.Select(d => new { d.Place.AreaSize, d.Place.ElementGeometry, paintOp = styles[d.DataValue.ToUTF8String()].PaintOperations, d.DataValue });
             var pass2 = new List<CompletePaintOp>(elements.Count * 2); 
+            pass2.Add(bgOp);
+            foreach (var op in pass1)
+                GetPaintOps(ref pass2, op.AreaSize, op.ElementGeometry, op.paintOp, stats);
+
+            return pass2;
+        }
+
+        public static List<CompletePaintOp> GetPaintOpsForPlacesParseTags(List<DbTables.Place> places, string styleSet, ImageStats stats)
+        {
+            //This one will be slightly slower since it runs TagParser on each entry, but that lets us have a fallback value if we don't find a specific entry.
+            var styles = TagParser.allStyleGroups[styleSet];
+            var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
+            var pass1 = places.Select(d => new { d.AreaSize, d.ElementGeometry, paintOp = styles[TagParser.GetStyleForOsmWay(d.Tags, styleSet).Name].PaintOperations });
+            var pass2 = new List<CompletePaintOp>(places.Count * 2);
             pass2.Add(bgOp);
             foreach (var op in pass1)
                 GetPaintOps(ref pass2, op.AreaSize, op.ElementGeometry, op.paintOp, stats);
