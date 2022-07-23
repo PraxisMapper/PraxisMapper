@@ -273,5 +273,10 @@ namespace PraxisCore
         {
             return JsonSerializer.Serialize(data).ToByteArrayUTF8();
         }
+
+        public static Point ToPoint(this GeoArea g)
+        {
+            return new Point(g.CenterLongitude, g.CenterLatitude);
+        }
     }
 }
