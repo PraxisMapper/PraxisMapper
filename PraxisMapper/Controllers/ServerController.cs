@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Azure.Core;
+using Google.OpenLocationCode;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using PraxisCore;
@@ -138,6 +140,14 @@ namespace PraxisMapper.Controllers
                 return GenericData.EncryptPassword(accountId, passwordNew, Configuration.GetValue<int>("PasswordRounds"));
 
             return false;
+        }
+
+        [HttpPut]
+        [Route("/[controller]/RandomPoint")]
+        public string RandomPoint()
+        {
+            var bounds = cache.Get<DbTables.ServerSetting>("settings");
+            return PraxisCore.Place.RandomPoint(bounds);
         }
     }
 }
