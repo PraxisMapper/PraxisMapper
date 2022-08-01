@@ -1,4 +1,5 @@
-﻿using Azure.Core;
+﻿using Azure;
+using Azure.Core;
 using Google.OpenLocationCode;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
@@ -44,11 +45,15 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpDelete]
-        [Route("/[controller]/Account/{accountId}/{password}")]
-        public int DeleteUser(string accountId, string password)
+        [Route("/[controller]/Account/")]
+        public int DeleteUser()
         {
             //GDPR compliance requires this to exist and be available to the user. 
             //Custom games that attach players to locations may need additional logic to fully meet legal requirements.
+            //These 2 lines require PraxisAuth enabled, which you should have on anyways if you're using accounts.
+            var accountId = Response.Headers["X-account"].ToString();
+            var password = Response.Headers["X-internalPwd"].ToString();
+
             if (!GenericData.CheckPassword(accountId, password))
                 return 0;
 
