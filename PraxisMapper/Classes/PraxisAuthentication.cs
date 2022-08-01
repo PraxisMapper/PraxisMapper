@@ -27,11 +27,13 @@ namespace PraxisMapper.Classes
             var path = context.Request.Path.Value;
             if (!whitelistedPaths.Any(p => path.Contains(p)))
             {
-                var ch = context.Request.Headers;
-                var key = ch.FirstOrDefault(h => h.Key == "AuthKey");
+                var key = context.Request.Headers.FirstOrDefault(h => h.Key == "AuthKey");
 
                 if (key.Key == null || !authTokens.ContainsKey(key.Value))
+                {
                     context.Abort();
+                    return;
+                }
                 
                 var data = authTokens[key.Value];
 
