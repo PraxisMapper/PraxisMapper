@@ -28,14 +28,12 @@ namespace PraxisMapper.Classes
             if (!whitelistedPaths.Any(p => path.Contains(p)))
             {
                 var ch = context.Request.Headers;
-                if (!ch.Any(h => h.Key == "AuthKey"))
-                    context.Abort();
+                var key = ch.FirstOrDefault(h => h.Key == "AuthKey");
 
-                var key = ch.First(h => h.Key == "AuthKey").Value;
-                var account = ch.First(h => h.Key == "Account").Value; //This MIGHT be unnecessary, since I pass both in the headers anyways. If you skimmed one you skimmed both.
-                var data = authTokens[key];
-                if (data.accountId != account)
+                if (key.Key == null || !authTokens.ContainsKey(key.Value))
                     context.Abort();
+                
+                var data = authTokens[key.Value];
 
                 context.Response.Headers.Add("X-account", data.accountId);
                 context.Response.Headers.Add("X-internalPwd", data.intPassword);
@@ -48,7 +46,7 @@ namespace PraxisMapper.Classes
 
                 if (data.expiration < DateTime.UtcNow)
                 {
-                    authTokens.TryRemove(key, out var ignore);
+                    authTokens.TryRemove(key.Value, out var ignore);
                     context.Response.StatusCode = StatusCodes.Status419AuthenticationTimeout;
                     return;
                 }
