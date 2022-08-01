@@ -744,5 +744,10 @@ namespace PraxisCore
             string checkedPassword = crypter.Crypt(password, entry.password);
             return entry.password == checkedPassword;
         }
+
+        public static string GetInternalPassword(string userId, string password)
+        {
+            return GetSecurePlayerData(userId, "password", password).ToUTF8String();
+        }
     }
 }
