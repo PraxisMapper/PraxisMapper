@@ -131,14 +131,7 @@ namespace PraxisMapper
                 var db = new PraxisContext();
                 while (true)
                 {
-                    List<string> toRemoveAuth = new List<string>();
-                    foreach (var d in PraxisAuthentication.authTokens)
-                    {
-                        if (d.Value.expiration < DateTime.UtcNow)
-                            toRemoveAuth.Add(d.Key);
-                    }
-                    foreach (var d in toRemoveAuth)
-                        PraxisAuthentication.authTokens.TryRemove(d, out var ignore);
+                    PraxisAuthentication.DropExpiredEntries();
 
                     db.Database.ExecuteSqlRaw("DELETE FROM PlaceGameData WHERE expiration IS NOT NULL AND expiration < NOW()");
                     db.Database.ExecuteSqlRaw("DELETE FROM AreaGameData WHERE expiration IS NOT NULL AND expiration < NOW()");

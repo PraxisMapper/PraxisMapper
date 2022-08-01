@@ -110,8 +110,9 @@ namespace PraxisMapper.Controllers
             if (GenericData.CheckPassword(accountId, password))
             {
                 Guid token = Guid.NewGuid();
-                PraxisAuthentication.authTokens.TryRemove(accountId, out var ignore);
-                PraxisAuthentication.authTokens.TryAdd(token.ToString(), new AuthData(accountId, token.ToString(), DateTime.UtcNow.AddSeconds(1800)));
+                var intPassword = GenericData.GetInternalPassword(accountId, password);
+                PraxisAuthentication.RemoveEntry(accountId);
+                PraxisAuthentication.AddEntry(new AuthData(accountId, intPassword, token.ToString(), DateTime.UtcNow.AddSeconds(1800)));
                 return new AuthDataResponse(token, 1800);
             }
             return null;
@@ -128,6 +129,8 @@ namespace PraxisMapper.Controllers
             if (exists)
                 return false;
 
+
+            GenericData.SetSecurePlayerData(accountId, "password", new Guid().ToByteArray(), password);
             return GenericData.EncryptPassword(accountId, password, Configuration.GetValue<int>("PasswordRounds"));
         }
 
