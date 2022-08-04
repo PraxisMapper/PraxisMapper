@@ -27,7 +27,7 @@ namespace PraxisCore
         {
             //I sort entries on loading from the Database. It's possible this step is unnecessary if everything else runs in order, just using last instead of first.
             if (!allowPoints)
-                entries = entries.Where(e => e.ElementGeometry.GeometryType != "Point").ToList();
+                entries = entries.Where(e => e.SourceItemType != 1).ToList(); // .ElementGeometry.GeometryType != "Point")
 
             entries = entries.OrderBy(e => e.AreaSize).ToList(); //I want lines to show up before areas in most cases, so this should do that.
             return entries;
