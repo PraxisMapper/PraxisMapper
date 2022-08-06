@@ -244,11 +244,15 @@ namespace PraxisCore
 
         public static T PickOneRandom<T>(this List<T> parent)
         {
+            if (parent == null || parent.Count == 0)
+                return default(T);
             return parent[Random.Shared.Next(parent.Count())];
         }
 
         public static T PickOneRandom<T>(this IEnumerable<T> parent)
         {
+            if (parent == null || parent.Count() == 0)
+                return default(T);
             return parent.OrderBy(r => Random.Shared.Next()).First();
         }
 

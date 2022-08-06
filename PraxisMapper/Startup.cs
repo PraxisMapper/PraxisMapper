@@ -100,8 +100,18 @@ namespace PraxisMapper
                         {
                             foreach (var s in startupTypes)
                             {
-                                var startupMethod = s.GetMethod("Startup");
-                                var results = startupMethod.Invoke(s, null);
+                                try
+                                {
+                                    var startupMethod = s.GetMethod("Startup");
+                                    var results = startupMethod.Invoke(s, null);
+                                }
+                                catch(Exception ex)
+                                {
+                                    ErrorLogger.LogError(new Exception("Error thrown attempting to load " + potentialPlugin));
+                                    while (ex.InnerException != null)
+                                        ex = ex.InnerException;
+                                    ErrorLogger.LogError(ex);
+                                }
                             }
                         }
 
