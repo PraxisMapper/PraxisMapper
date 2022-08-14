@@ -30,7 +30,6 @@ namespace PraxisCore
         /// <returns>true if data was saved, false if data was not.</returns>
         /// 
         public static Aes baseSec = Aes.Create();
-        private const string systemPassword = "9ec44aa8-e8cc-4421-8724-0ca876c6ec73"; //Used to encrypt things that aren't player specific
         //NOTE: this should get changed in the near future. RWLS may not work the same in IIS as it does on a desktop app due to thread pools and RWLS's thread affinity checks.
         static ConcurrentDictionary<string, ReaderWriterLockSlim> locks = new ConcurrentDictionary<string, ReaderWriterLockSlim>();
 
