@@ -117,7 +117,7 @@ namespace PraxisCore
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
             var pass1 = places.Select(d => new { d.AreaSize, d.ElementGeometry, paintOp = styles[d.GameElementName].PaintOperations });
-            var pass2 = new List<CompletePaintOp>(places.Count * 2); 
+            var pass2 = new List<CompletePaintOp>(places.Count * 2);
             pass2.Add(bgOp);
             foreach (var op in pass1)
                 GetPaintOps(ref pass2, op.AreaSize, op.ElementGeometry, op.paintOp, stats);
@@ -141,7 +141,7 @@ namespace PraxisCore
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
             var pass1 = elements.Select(d => new { d.Place.AreaSize, d.Place.ElementGeometry, paintOp = styles[d.DataValue.ToUTF8String()].PaintOperations, d.DataValue });
-            var pass2 = new List<CompletePaintOp>(elements.Count * 2); 
+            var pass2 = new List<CompletePaintOp>(elements.Count * 2);
             pass2.Add(bgOp);
             foreach (var op in pass1)
                 GetPaintOps(ref pass2, op.AreaSize, op.ElementGeometry, op.paintOp, stats);
@@ -179,7 +179,7 @@ namespace PraxisCore
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
             var pass1 = elements.Select(d => new { d.GeoAreaIndex.Area, d.GeoAreaIndex, paintOp = styles[d.DataValue.ToUTF8String()].PaintOperations, d.DataValue });
-            var pass2 = new List<CompletePaintOp>(elements.Count * 2); 
+            var pass2 = new List<CompletePaintOp>(elements.Count * 2);
             pass2.Add(bgOp);
             foreach (var op in pass1)
                 GetPaintOps(ref pass2, op.Area, op.GeoAreaIndex, op.paintOp, stats);
@@ -264,7 +264,7 @@ namespace PraxisCore
                 //Make a collision box for just this row of Cell8s, and send the loop below just the list of things that might be relevant.
                 //Add a Cell8 buffer space so all elements are loaded and drawn without needing to loop through the entire area.
                 GeoArea thisRow = new GeoArea(y - ConstantValues.resolutionCell8, xCoords.First() - ConstantValues.resolutionCell8, y + ConstantValues.resolutionCell8 + ConstantValues.resolutionCell8, xCoords.Last() + resolutionCell8);
-                var rowList = GetPlaces(thisRow, allPlaces, skipTags:true);
+                var rowList = GetPlaces(thisRow, allPlaces, skipTags: true);
                 var tilesToSave = new List<MapTile>(xCoords.Count);
 
                 Parallel.ForEach(xCoords, x =>
@@ -367,6 +367,23 @@ namespace PraxisCore
             }//);
             progressTimer.Stop();
             Log.WriteLog("Zoom " + zoomLevel + " map tiles drawn in " + progressTimer.Elapsed.ToString());
+        }
+
+        public static long SaveMapTile(string code, string styleSet, byte[] image)
+        {
+            var db = new PraxisContext();
+            var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.StyleSet == styleSet);
+            if (existingResults == null)
+            {
+                existingResults = new MapTile() { PlusCode = code, StyleSet = styleSet, AreaCovered = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(code.ToGeoArea())) };
+                db.MapTiles.Add(existingResults);
+            }
+
+            existingResults.ExpireOn = DateTime.UtcNow.AddYears(10);
+            existingResults.TileData = image;
+            existingResults.GenerationID++;
+            db.SaveChanges();
+            return existingResults.GenerationID;
         }
     }
 }
