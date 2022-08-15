@@ -134,8 +134,7 @@ namespace PraxisMapper.Controllers
             if (exists)
                 return false;
 
-
-            GenericData.SetSecurePlayerData(accountId, "password", new Guid().ToByteArray(), password);
+            GenericData.SetSecurePlayerData(accountId, "password", Guid.NewGuid().ToString().ToByteArrayASCII(), password);
             return GenericData.EncryptPassword(accountId, password, Configuration.GetValue<int>("PasswordRounds"));
         }
 
