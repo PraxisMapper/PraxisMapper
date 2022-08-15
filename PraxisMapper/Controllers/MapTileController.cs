@@ -420,5 +420,44 @@ namespace PraxisMapper.Controllers
                 return -1; //negative answers will be treated as an expiration.
             }
         }
+
+        [HttpGet]
+        [Route("/[controller]/StyleTest/{styleSet}")]
+        public ActionResult DrawAllStyleEntries(string styleSet)
+        {
+            var styleData = TagParser.allStyleGroups[styleSet].ToList();
+            //Draw style as an X by X grid of circles, where X is square root of total sets
+            int gridSize = (int)Math.Ceiling(Math.Sqrt(styleData.Count));
+
+            //each circle is 25x25 pixels.
+
+            ImageStats stats = new ImageStats("86"); //Constructor is ignored, all the values are overridden.
+            stats.imageSizeX = gridSize * 30;
+            stats.imageSizeY = gridSize * 30;
+            stats.drawPoints = true;
+            var circleSize = stats.degreesPerPixelX * 25;
+
+            List<CompletePaintOp> testCircles = new List<CompletePaintOp>();
+
+            for (int y = 0; y < gridSize; y++)
+                for (int x = 0; x < gridSize; x++)
+                {
+                    var index = (x * gridSize) + y;
+                    if (index < styleData.Count)
+                    {
+                        var circlePosX = stats.area.WestLongitude + ((stats.area.LongitudeWidth / gridSize) * x);
+                        var circlePosY = stats.area.NorthLatitude - ((stats.area.LatitudeHeight / gridSize) * y);
+                        var circle = new NetTopologySuite.Geometries.Point(circlePosX, circlePosY).Buffer(circleSize);
+                        foreach (var op in styleData[index].Value.PaintOperations)
+                        {
+                            var entry = new CompletePaintOp() { paintOp = op, elementGeometry = circle, lineWidthPixels = 3 };
+                            testCircles.Add(entry);
+                        }
+                    }
+                }
+
+            var test = MapTiles.DrawAreaAtSize(stats, testCircles);
+            return File(test, "image/png");
+        }
     }
 }
