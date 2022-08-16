@@ -24,6 +24,7 @@ namespace PraxisCore
 
         private static IMapTiles MapTiles; 
 
+        //TODO: this might need an ID and then added to allStyleGroups.
         public static StyleEntry outlineStyle = new StyleEntry()
         {
             MatchOrder = 9998,

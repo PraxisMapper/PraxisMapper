@@ -429,24 +429,27 @@ namespace PraxisMapper.Controllers
             //Draw style as an X by X grid of circles, where X is square root of total sets
             int gridSize = (int)Math.Ceiling(Math.Sqrt(styleData.Count));
 
-            //each circle is 25x25 pixels.
-
-            ImageStats stats = new ImageStats("86"); //Constructor is ignored, all the values are overridden.
-            stats.imageSizeX = gridSize * 30;
-            stats.imageSizeY = gridSize * 30;
+            ImageStats stats = new ImageStats("234567"); //Constructor is ignored, all the values are overridden.
+            stats.imageSizeX = gridSize * 60;
+            stats.imageSizeY = gridSize * 60;
+            stats.degreesPerPixelX = stats.area.LongitudeWidth / stats.imageSizeX;
+            stats.degreesPerPixelY = stats.area.LatitudeHeight / stats.imageSizeY;
             stats.drawPoints = true;
             var circleSize = stats.degreesPerPixelX * 25;
 
             List<CompletePaintOp> testCircles = new List<CompletePaintOp>();
 
-            for (int y = 0; y < gridSize; y++)
-                for (int x = 0; x < gridSize; x++)
+            var spacingX = stats.area.LongitudeWidth / gridSize;
+            var spacingY = stats.area.LatitudeHeight / gridSize;
+
+            for (int x = 0; x < gridSize; x++)
+                for (int y = 0; y < gridSize; y++)
                 {
-                    var index = (x * gridSize) + y;
+                    var index = (y * gridSize) + x;
                     if (index < styleData.Count)
                     {
-                        var circlePosX = stats.area.WestLongitude + ((stats.area.LongitudeWidth / gridSize) * x);
-                        var circlePosY = stats.area.NorthLatitude - ((stats.area.LatitudeHeight / gridSize) * y);
+                        var circlePosX = stats.area.WestLongitude + (spacingX * .5) + (spacingX * x);
+                        var circlePosY = stats.area.NorthLatitude - (spacingY * .5) - (spacingY * y);
                         var circle = new NetTopologySuite.Geometries.Point(circlePosX, circlePosY).Buffer(circleSize);
                         foreach (var op in styleData[index].Value.PaintOperations)
                         {
