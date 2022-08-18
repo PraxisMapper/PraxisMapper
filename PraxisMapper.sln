@@ -15,7 +15,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PraxisMapTilesSkiaSharp", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PraxisMapTilesImageSharp", "PraxisCoreMapTilesImageSharp\PraxisMapTilesImageSharp.csproj", "{46F74A96-71F8-414B-A4E0-552A09D8C158}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PraxisSlippyPlugin", "PraxisSlippyPlugin\PraxisSlippyPlugin.csproj", "{751F05A5-A4E4-4197-A055-4D1DC313A3E5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PraxisSlippyPlugin", "PraxisSlippyPlugin\PraxisSlippyPlugin.csproj", "{751F05A5-A4E4-4197-A055-4D1DC313A3E5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PraxisVersionPlugin", "PraxisVersionPlugin\PraxisVersionPlugin.csproj", "{0C4FE956-E86B-41CC-AED0-1C6DBECAD63F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -51,6 +53,10 @@ Global
 		{751F05A5-A4E4-4197-A055-4D1DC313A3E5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{751F05A5-A4E4-4197-A055-4D1DC313A3E5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{751F05A5-A4E4-4197-A055-4D1DC313A3E5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0C4FE956-E86B-41CC-AED0-1C6DBECAD63F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0C4FE956-E86B-41CC-AED0-1C6DBECAD63F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0C4FE956-E86B-41CC-AED0-1C6DBECAD63F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0C4FE956-E86B-41CC-AED0-1C6DBECAD63F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
