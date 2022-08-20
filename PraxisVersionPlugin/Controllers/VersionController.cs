@@ -15,12 +15,5 @@ namespace PraxisVersionPlugin.Controllers
         {
             return GenericData.GetGlobalData("clientVersion").ToUTF8String();
         }
-
-        [HttpGet]
-        [Route("/[controller]/{dataKey}")]
-        public string GetAnything(string dataKey)
-        {
-            return GenericData.GetGlobalData(dataKey).ToUTF8String();
-        }
     }
 }
