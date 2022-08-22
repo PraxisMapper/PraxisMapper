@@ -66,9 +66,6 @@ namespace PraxisMapper
             if (mapTilesEngine == "SkiaSharp")
             {
                 Assembly asm;
-                //if (System.Diagnostics.Debugger.IsAttached) //Folders vary, when debugging in IIS run path and local folder aren't the same so we check here.
-                //asm = Assembly.LoadFrom(@".\bin\Debug\net7.0\PraxisMapTilesSkiaSharp.dll");
-                //else
                 asm = Assembly.LoadFrom(executionFolder + "/PraxisMapTilesSkiaSharp.dll");
                 mapTiles = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
                 services.AddSingleton(typeof(IMapTiles), mapTiles);
@@ -76,9 +73,6 @@ namespace PraxisMapper
             else if (mapTilesEngine == "ImageSharp")
             {
                 Assembly asm;
-                //if (System.Diagnostics.Debugger.IsAttached) 
-                //asm = Assembly.LoadFrom(@".\bin\Debug\net7.0\PraxisMapTilesImageSharp.dll");
-                //else
                 asm = Assembly.LoadFrom(executionFolder + "/PraxisMapTilesImageSharp.dll");
                 mapTiles = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
                 services.AddSingleton(typeof(IMapTiles), mapTiles);
@@ -86,7 +80,6 @@ namespace PraxisMapper
 
             TagParser.Initialize(Configuration.GetValue<bool>("ForceStyleDefaults"), mapTiles);
             MapTileSupport.MapTiles = mapTiles;
-
 
             if (usePlugins)
                 foreach (var potentialPlugin in Directory.EnumerateFiles(executionFolder + "/plugins", "*.dll"))
