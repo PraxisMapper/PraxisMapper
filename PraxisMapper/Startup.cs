@@ -27,6 +27,7 @@ namespace PraxisMapper
         bool useAntiCheat;
         bool usePlugins;
         string maintenanceMessage = "";
+        public static IConfiguration Configuration { get; set;  }
 
         public Startup(IConfiguration configuration)  //can't use MemoryCache here, have to wait until Configure for services and DI
         {
@@ -48,8 +49,6 @@ namespace PraxisMapper
 
             mapTilesEngine = Configuration.GetValue<string>("MapTilesEngine");
         }
-
-        public IConfiguration Configuration { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
