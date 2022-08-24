@@ -16,6 +16,15 @@
         //14 	1/5e6 x 1/2.048e6 	2 x 5 cm
         //15 	1/2.5e7 x 1/8.192e6 4 x 14 mm
 
+        //Count of cells by size, globally
+        //2: 162 (18x9 grid)
+        //4: 64,800
+        //6: 25,920,000 //Max unique hashable entries with 32-bit int is 4,200,000,000
+        //8: 10,368,000,000
+        //10: 4,147,200,000,000
+        //11: 82,944,000,000,000 (* 20, instead of * 400 per level starting at 11)
+        //    9,223,372,036,854,775,807 //max 64-bit long.
+
 
         //the 11th+ digit uses a 4x5 grid, not a 20x20. They need separate scaling values for X and Y and are rectangular even at the equator.
         public const double resolutionCell12Lat = .000025 / 5;
