@@ -282,5 +282,27 @@ namespace PraxisCore
         {
             return new Point(g.CenterLongitude, g.CenterLatitude);
         }
+
+        /// <summary>
+        /// Seeds a new Random instance based on the given PlusCode, meant for procedural generation. Will usually be unique at Cell6 or bigger cells, collisions ensured at Cell8 or smaller.
+        /// </summary>
+        /// <param name="plusCode">PlusCode string</param>
+        /// <returns>Random seeded with a value based on the PlusCode</returns>
+        public static Random GetSeededRandom(this string plusCode)
+        {
+            var hash = plusCode.GetHashCode();
+            return new Random(hash);
+        }
+
+        /// <summary>
+        /// Seeds a new Random instance based on the given PlusCode, meant for procedural generation. Will usually be unique at Cell6, 4, or 2 cells, collisions ensured at Cell8, 10, and smaller.
+        /// </summary>
+        /// <param name="plusCode">PlusCode string</param>
+        /// <returns>Random seeded with a value based on the PlusCode</returns>
+        public static Random GetSeededRandom(this OpenLocationCode plusCode)
+        {
+            var hash = plusCode.CodeDigits.GetHashCode();
+            return new Random(hash);
+        }
     }
 }
