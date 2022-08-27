@@ -78,8 +78,13 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Message")]
         public string MessageOfTheDay()
         {
-            var db = new PraxisContext(); //NOTE: not using the cached ServerSettings table, since this might change on the fly.
+            if (cache.TryGetValue<string>("MOTD", out var cached))
+                return cached;
+
+            //NOTE: not using the cached ServerSettings table, since this might change without a reboot, but I do cache the results for 15 minutes to minimize DB calls.
+            var db = new PraxisContext(); 
             var message = db.ServerSettings.First().MessageOfTheDay;
+            cache.Set("MOTD", message, DateTimeOffset.UtcNow.AddMinutes(15));
             return message;
         }
 
