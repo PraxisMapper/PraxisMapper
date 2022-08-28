@@ -24,11 +24,7 @@ namespace PraxisCore
 
         public static GeoArea MakeBufferedGeoArea(GeoArea original)
         {
-            return new GeoArea(original.SouthLatitude - IMapTiles.BufferSize, original.WestLongitude - IMapTiles.BufferSize, original.NorthLatitude + IMapTiles.BufferSize, original.EastLongitude + IMapTiles.BufferSize);
-        }
-        public static GeoArea MakeBufferedGeoArea(GeoArea original, double bufferSize)
-        {
-            return new GeoArea(original.SouthLatitude - bufferSize, original.WestLongitude - bufferSize, original.NorthLatitude + bufferSize, original.EastLongitude + bufferSize);
+            return original.PadGeoArea(IMapTiles.BufferSize); // new GeoArea(original.SouthLatitude - IMapTiles.BufferSize, original.WestLongitude - IMapTiles.BufferSize, original.NorthLatitude + IMapTiles.BufferSize, original.EastLongitude + IMapTiles.BufferSize);
         }
 
         /// <summary>

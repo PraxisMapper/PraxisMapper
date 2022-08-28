@@ -304,5 +304,10 @@ namespace PraxisCore
             var hash = plusCode.CodeDigits.GetHashCode();
             return new Random(hash);
         }
+
+        public static GeoArea PadGeoArea(this GeoArea g, double padding)
+        {
+            return new GeoArea(g.SouthLatitude - padding, g.WestLongitude - padding, g.NorthLatitude + padding, g.EastLongitude + padding);
+        }
     }
 }
