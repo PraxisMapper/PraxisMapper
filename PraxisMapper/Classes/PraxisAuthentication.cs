@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Identity.Client;
+using PraxisCore;
 using RTools_NTS.Util;
 using System;
 using System.Collections.Concurrent;
@@ -31,6 +33,13 @@ namespace PraxisMapper.Classes
 
                 if (key.Key == null || !authTokens.ContainsKey(key.Value))
                 {
+                    if (PraxisMapper.Startup.Configuration.GetValue<bool>("enablePerformanceTracker"))
+                    {
+                        var db = new PraxisContext();
+                        db.PerformanceInfo.Add(new DbTables.PerformanceInfo() { Notes = "Auth Failed for " + context.Request.Path, FunctionName = "PraxisAuth", CalledAt = DateTime.UtcNow });
+                        db.SaveChangesAsync();
+                    }
+
                     context.Abort();
                     return;
                 }
