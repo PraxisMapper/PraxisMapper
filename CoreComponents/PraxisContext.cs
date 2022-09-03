@@ -255,10 +255,10 @@ namespace PraxisCore
         /// </summary>
         /// <param name="g">the area to expire intersecting maptiles with</param>
         /// <param name="styleSet">which set of maptiles to expire. All tiles if this is an empty string</param>
-        public void ExpireMapTiles(Geometry g, string styleSet = "")
+        public int ExpireMapTiles(Geometry g, string styleSet = "")
         {
             string SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, ST_GEOMFROMTEXT('" + g.AsText() + "'))";
-            Database.ExecuteSqlRaw(SQL);
+            return Database.ExecuteSqlRaw(SQL);
         }
 
         /// <summary>
@@ -266,10 +266,10 @@ namespace PraxisCore
         /// </summary>
         /// <param name="elementId">the privacyID of a Place to expire intersecting tiles for.</param>
         /// <param name="styleSet">which set of maptiles to expire. All tiles if this is an empty string</param>
-        public void ExpireMapTiles(Guid elementId, string styleSet = "")
+        public int ExpireMapTiles(Guid elementId, string styleSet = "")
         {
             string SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM Places WHERE privacyId = '" + elementId + "'))";
-            Database.ExecuteSqlRaw(SQL);
+            return Database.ExecuteSqlRaw(SQL);
         }
 
         /// <summary>

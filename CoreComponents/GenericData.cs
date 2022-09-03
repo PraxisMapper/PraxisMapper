@@ -671,7 +671,7 @@ namespace PraxisCore
             ReleaseLock(lockKey, ourLock);
         }
 
-        private static byte[] EncryptValue(byte[] value, string password, out byte[] IVs)
+        public static byte[] EncryptValue(byte[] value, string password, out byte[] IVs)
         {
             byte[] passwordBytes = SHA256.HashData(password.ToByteArrayUTF8());
             baseSec.GenerateIV();
@@ -685,7 +685,7 @@ namespace PraxisCore
             return ms.ToArray();
         }
 
-        private static byte[] DecryptValue(byte[] IVs, byte[] value, string password)
+        public static byte[] DecryptValue(byte[] IVs, byte[] value, string password)
         {
             byte[] passwordBytes = SHA256.HashData(password.ToByteArrayUTF8());
          
