@@ -326,8 +326,8 @@ namespace PraxisCore
 
         public static string RandomPoint(ServerSetting bounds)
         {
-            var ranLat = Random.Shared.NextDouble() * (bounds.NorthBound - bounds.SouthBound);
-            var ranLon = Random.Shared.NextDouble() * (bounds.EastBound - bounds.WestBound);
+            var ranLat = Random.Shared.NextDouble() * (bounds.NorthBound - bounds.SouthBound) + bounds.SouthBound;
+            var ranLon = Random.Shared.NextDouble() * (bounds.EastBound - bounds.WestBound) + bounds.WestBound;
 
             var olc = new OpenLocationCode(ranLat, ranLon);
             return olc.CodeDigits;
