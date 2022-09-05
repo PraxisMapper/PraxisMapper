@@ -124,6 +124,7 @@ namespace PraxisMapper.Controllers
         {
             try
             {
+                Response.Headers.Add("X-noPerfTrack", "Maptiles/Slippy/" + styleSet + "/VARSREMOVED");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var info = new ImageStats(zoom, x, y, IMapTiles.SlippyTileSizeSquare);
 
@@ -162,6 +163,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/SlippyPlaceData/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
         public ActionResult DrawSlippyTileCustomElements(int x, int y, int zoom, string styleSet, string dataKey)
         {
+            Response.Headers.Add("X-noPerfTrack", "Maptiles/SlippyPlaceData/" + styleSet + "/VARSREMOVED");
             try
             {
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
@@ -200,6 +202,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/SlippyAreaData/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
         public ActionResult DrawSlippyTileCustomPlusCodes(int x, int y, int zoom, string styleSet, string dataKey)
         {
+            Response.Headers.Add("X-noPerfTrack", "Maptiles/SlippyAreaData/" + styleSet + "/VARSREMOVED");
             try
             {
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
@@ -249,6 +252,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Area/{code}")]
         public ActionResult DrawTile(string code, string styleSet = "mapTiles")
         {
+            Response.Headers.Add("X-noPerfTrack", "Maptiles/Area/"+ styleSet + "/VARSREMOVED");
             try
             {
                 var info = new ImageStats(code);
@@ -286,6 +290,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/AreaData/{code}/{styleSet}/{dataKey}")]
         public ActionResult DrawPlusCodeCustomData(string code, string styleSet, string dataKey)
         {
+            Response.Headers.Add("X-noPerfTrack", "Maptiles/AreaData/" + styleSet + "/VARSREMOVED");
             try
             {
                 var info = new ImageStats(code);
@@ -323,6 +328,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/AreaPlaceData/{code}/{styleSet}/{dataKey}")] //Draw an area using place data.
         public ActionResult DrawPlusCodeCustomElements(string code, string styleSet, string dataKey)
         {
+            Response.Headers.Add("X-noPerfTrack", "Maptiles/AreaPlaceData/" + styleSet + "/VARSREMOVED");
             try
             {
                 var info = new ImageStats(code);
@@ -360,6 +366,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Expire/{elementId}/{styleSet}")]
         public void ExpireTiles(Guid elementId, string styleSet)
         {
+            Response.Headers.Add("X-noPerfTrack", "Maptiles/Expire/VARSREMOVED");
             var db = new PraxisContext();
             db.ExpireMapTiles(elementId, styleSet);
         }
@@ -375,6 +382,7 @@ namespace PraxisMapper.Controllers
             //As is, the client will probably download map tiles twice on change. Once when its expired and being redrawn (-1 return value),
             //and once when the generationID value is incremented from the previous value.
             //Avoiding that might require an endpoint for 'please draw this tile' that returns true or false rather than the actual maptile.
+            Response.Headers.Add("X-noPerfTrack", "Maptiles/Generation/" + styleSet + "/VARSREMOVED");
             try
             {
                 //bool valueExists = cache.TryGetValue("gen" + plusCode + styleSet, out long genId);
@@ -405,6 +413,7 @@ namespace PraxisMapper.Controllers
             //Returns generationID on the tile on the server
             //if value is *more* than previous value, client should refresh it.
             //if value is equal to previous value, tile has not changed.
+            Response.Headers.Add("X-noPerfTrack", "Maptiles/SlippyGeneration/" + styleSet + "/VARSREMOVED");
             try
             {
                 var db = new PraxisContext();
