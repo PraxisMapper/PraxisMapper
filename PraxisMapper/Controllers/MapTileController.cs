@@ -55,6 +55,7 @@ namespace PraxisMapper.Controllers
             return existingResults.TileData;
         }
 
+        //NOTE: this may be better served being in MapTileSupport.
         public byte[] getExistingTile(string code, string styleSet)
         {
             if (!SaveMapTiles())
