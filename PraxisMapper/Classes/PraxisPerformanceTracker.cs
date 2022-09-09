@@ -38,6 +38,18 @@ namespace PraxisMapper.Classes
 
             await this._next.Invoke(context).ConfigureAwait(false);
         }
+
+        public static void LogInfoToPerfData(string functionName, string notes)
+        {
+            var pi = new DbTables.PerformanceInfo();
+            pi.FunctionName = functionName;
+            pi.Notes = notes;
+            pi.CalledAt = DateTime.UtcNow;
+            PraxisContext db = new PraxisContext();
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
+            db.PerformanceInfo.Add(pi);
+            db.SaveChanges();
+        }
     }
 
     public static class PraxisPerformanceTrackerExtensions
