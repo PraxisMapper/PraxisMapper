@@ -184,6 +184,7 @@ namespace PraxisMapper
                 PraxisAuthentication.whitelistedPaths.Add("/Server/Test"); //Don't require a sucessful login to confirm server is alive.
                 PraxisAuthentication.whitelistedPaths.Add("/Server/Login"); //Don't require a sucessful login to login.
                 PraxisAuthentication.whitelistedPaths.Add("/Server/CreateAccount"); //Don't require a sucessful login to make a new account
+                PraxisAuthentication.whitelistedPaths.Add("/Server/ServerBounds"); //Required for Slippy stuff to work.
                 PraxisAuthentication.whitelistedPaths.Add("/Content"); //Don't require a sucessful login to get images/scripts.
             }
 
