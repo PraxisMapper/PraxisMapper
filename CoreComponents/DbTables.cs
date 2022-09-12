@@ -142,7 +142,7 @@ namespace PraxisCore
             public Guid PrivacyId { get; set; } = Guid.NewGuid(); //Pass this Id to clients, so we can attempt to block attaching players to locations in the DB.
             public override string ToString()
             {
-                return (SourceItemType == 3 ? "Relation " : SourceItemType == 2 ? "Way " : "Node ") +  SourceItemID.ToString() + TagParser.GetPlaceName(Tags);
+                return (SourceItemType == 3 ? "Relation " : SourceItemType == 2 ? "Way " : "Node ") +  SourceItemID.ToString() + " " + TagParser.GetPlaceName(Tags);
             }
 
             public Place Clone()
@@ -163,6 +163,11 @@ namespace PraxisCore
             public override string ToString()
             {
                 return Key + ":" + Value;
+            }
+
+            public bool Equals(PlaceTags other)
+            {
+                return other.Key == Key && other.Value == Value;
             }
         }
 

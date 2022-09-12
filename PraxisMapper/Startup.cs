@@ -221,6 +221,7 @@ namespace PraxisMapper
                 }
             });
 
+            PraxisPerformanceTracker.LogInfoToPerfData("Startup", "PraxisMapper online.");
             Log.WriteLog("PraxisMapper configured and running.");
         }
     }

@@ -14,6 +14,7 @@ using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using static PraxisCore.ConstantValues;
 using static PraxisCore.DbTables;
@@ -184,6 +185,11 @@ namespace Larry
             if (args.Any(a => a == "-updateDatabase"))
             {
                 UpdateExistingEntries(config["OutputDataFolder"]);
+            }
+
+            if (args.Any(a => a == "-updateDatabaseFast"))
+            {
+                UpdateExistingEntriesFast(config["OutputDataFolder"]);
             }
 
             if (args.Any(a => a.StartsWith("-createStandaloneRelation")))
@@ -589,7 +595,7 @@ namespace Larry
                 var shapeData = sf.GetShapeDataD(i);
                 var poly = Converters.ShapefileRecordToPolygon(shapeData);
                 geometryBuilds.Append(100000000000 + i).Append('\t').Append('2').Append('\t').Append(poly.AsText()).Append('\t').Append(poly.Area).Append('\t').Append(Guid.NewGuid()).Append("\r\n");
-                tagBuilds.Append(100000000000 + i).Append("\t").Append('2').Append('\t').Append("natural").Append('\t').Append("coastline").Append("\r\n"); 
+                tagBuilds.Append(100000000000 + i).Append('\t').Append('2').Append('\t').Append("natural").Append('\t').Append("coastline").Append("\r\n"); 
             }
             File.WriteAllText(fileBaseName + ".geomData", geometryBuilds.ToString());
             File.WriteAllText(fileBaseName + ".tagData", tagBuilds.ToString());
@@ -599,7 +605,7 @@ namespace Larry
         {
             List<string> filenames = Directory.EnumerateFiles(path, "*.geomData").ToList();
             ParallelOptions po = new ParallelOptions();
-            if (singleThread)
+            //if (singleThread)
                 po.MaxDegreeOfParallelism = 1;
             Parallel.ForEach(filenames, po, (filename) =>
             {
@@ -608,16 +614,47 @@ namespace Larry
                     var db = new PraxisContext();
                     Log.WriteLog("Loading " + filename);
                     var entries = GeometrySupport.ReadPlaceFilesToMemory(filename); //tagsData file loaded automatically here.
-                    Log.WriteLog(entries.Count + " entries to update in database for " + filename);
-                    db.UpdateExistingEntries(entries);
+                    Log.WriteLog(entries.Count + " entries to check in database for " + filename);
+                    var updated = db.UpdateExistingEntries(entries);
                     File.Move(filename, filename + "Done");
-                    Log.WriteLog(filename + " completed at " + DateTime.Now);
+                    Log.WriteLog(filename + " completed at " + DateTime.Now + ", updated " + updated + " rows");
                 }
                 catch (Exception ex)
                 {
                     Log.WriteLog("Error multithreading: " + ex.Message + ex.StackTrace, Log.VerbosityLevels.Errors);
                 }
             });
+        }
+
+        public static void UpdateExistingEntriesFast(string path)
+        {
+            List<string> filenames = Directory.EnumerateFiles(path, "*.geomData").ToList();
+            ParallelOptions po = new ParallelOptions();
+            if (singleThread)
+                po.MaxDegreeOfParallelism = 1;
+            else
+                po.MaxDegreeOfParallelism = 4;
+            Parallel.ForEach(filenames, po, (filename) =>
+            {
+                try
+                {
+                    var db = new PraxisContext();
+                    Log.WriteLog("Loading " + filename);
+                    var entries = GeometrySupport.ReadPlaceFilesToMemory(filename); //tagsData file loaded automatically here.
+                    Log.WriteLog(entries.Count + " entries to check in database for " + filename);
+                    var updated = db.UpdateExistingEntriesFast(entries);
+                    File.Move(filename, filename + "Done");
+                    Log.WriteLog(filename + " completed at " + DateTime.Now + ", updated " + updated + " rows");
+                }
+                catch (Exception ex)
+                {
+                    Log.WriteLog("Error multithreading: " + ex.Message + ex.StackTrace, Log.VerbosityLevels.Errors);
+                }
+            });
+
+            var db = new PraxisContext();
+            db.ExpireAllMapTiles();
+            db.ExpireAllSlippyMapTiles();
         }
 
         public static void ResetFiles(string folder)

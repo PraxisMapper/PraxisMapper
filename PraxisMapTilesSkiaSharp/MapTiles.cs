@@ -593,7 +593,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="styleSet">the name of the style set to pull the background color from</param>
         /// <returns>the SKColor saved into the requested background paint object.</returns>
-        public SKColor GetStyleBgColor(string styleSet)
+        public static SKColor GetStyleBgColor(string styleSet)
         {
             var color = SKColor.Parse(TagParser.allStyleGroups[styleSet]["background"].PaintOperations.First().HtmlColorCode);
             return color;
@@ -612,13 +612,13 @@ namespace PraxisCore
         /// <param name="degreesPerPixelX">Width of each pixel in degrees</param>
         /// <param name="degreesPerPixelY">Height of each pixel in degrees</param>
         /// <returns>Array of SkPoints for the image information provided.</returns>
-        public SkiaSharp.SKPoint[] PolygonToSKPoints(Geometry place, GeoArea drawingArea, double degreesPerPixelX, double degreesPerPixelY)
+        public static SkiaSharp.SKPoint[] PolygonToSKPoints(Geometry place, GeoArea drawingArea, double degreesPerPixelX, double degreesPerPixelY)
         {
             SkiaSharp.SKPoint[] points = place.Coordinates.Select(o => new SkiaSharp.SKPoint((float)((o.X - drawingArea.WestLongitude) * (1 / degreesPerPixelX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / degreesPerPixelY)))).ToArray();
             return points;
         }
 
-        public SkiaSharp.SKPoint PlaceInfoToSKPoint(PraxisCore.StandaloneDbTables.PlaceInfo2 pi, ImageStats imgstats)
+        public static SKPoint PlaceInfoToSKPoint(PraxisCore.StandaloneDbTables.PlaceInfo2 pi, ImageStats imgstats)
         {
             SkiaSharp.SKPoint point = new SkiaSharp.SKPoint();
             point.X = (float)((pi.lonCenter - imgstats.area.WestLongitude) * (1 / imgstats.degreesPerPixelX));
@@ -626,7 +626,7 @@ namespace PraxisCore
             return point;
         }
 
-        public SkiaSharp.SKPoint[] PlaceInfoToSKPoints(PraxisCore.StandaloneDbTables.PlaceInfo2 pi, ImageStats info)
+        public static SKPoint[] PlaceInfoToSKPoints(PraxisCore.StandaloneDbTables.PlaceInfo2 pi, ImageStats info)
         {
             float heightMod = (float)pi.height / 2;
             float widthMod = (float)pi.width / 2;
@@ -649,9 +649,9 @@ namespace PraxisCore
         /// <param name="pi">PlaceInfo object to convert</param>
         /// <param name="info">ImageStats for the resulting map tile</param>
         /// <returns>The SKRect representing the standaloneDb size of the PlaceInfo</returns>
-        public SkiaSharp.SKRect PlaceInfoToRect(PraxisCore.StandaloneDbTables.PlaceInfo2 pi, ImageStats info)
+        public static SKRect PlaceInfoToRect(StandaloneDbTables.PlaceInfo2 pi, ImageStats info)
         {
-            SkiaSharp.SKRect r = new SkiaSharp.SKRect();
+            SKRect r = new SKRect();
             float heightMod = (float)pi.height / 2;
             float widthMod = (float)pi.width / 2;
             r.Left = (float)pi.lonCenter - widthMod;
