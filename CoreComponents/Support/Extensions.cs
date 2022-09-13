@@ -283,6 +283,28 @@ namespace PraxisCore
             return new Point(g.CenterLongitude, g.CenterLatitude);
         }
 
+        //Note: .NET Core's built-in GetHashCode() returns different values for every execution, because not doing so is a potential DDOS vector for IIS via hash collisions.
+        //So I found this on Andrew Lock's site and added this function here to use for procedural generation logic based on a plusCode.
+        public static int GetDeterministicHashCode(this string str)
+        {
+            unchecked
+            {
+                int hash1 = (5381 << 16) + 5381;
+                int hash2 = hash1;
+
+                for (int i = 0; i < str.Length; i += 2)
+                {
+                    hash1 = ((hash1 << 5) + hash1) ^ str[i];
+                    if (i == str.Length - 1)
+                        break;
+                    hash2 = ((hash2 << 5) + hash2) ^ str[i + 1];
+                }
+
+                return hash1 + (hash2 * 1566083941);
+            }
+        }
+
+
         /// <summary>
         /// Seeds a new Random instance based on the given PlusCode, meant for procedural generation. Will usually be unique at Cell6 or bigger cells, collisions ensured at Cell8 or smaller.
         /// </summary>
@@ -290,7 +312,7 @@ namespace PraxisCore
         /// <returns>Random seeded with a value based on the PlusCode</returns>
         public static Random GetSeededRandom(this string plusCode)
         {
-            var hash = plusCode.GetHashCode();
+            var hash = plusCode.GetDeterministicHashCode();
             return new Random(hash);
         }
 
@@ -301,7 +323,7 @@ namespace PraxisCore
         /// <returns>Random seeded with a value based on the PlusCode</returns>
         public static Random GetSeededRandom(this OpenLocationCode plusCode)
         {
-            var hash = plusCode.CodeDigits.GetHashCode();
+            var hash = plusCode.CodeDigits.GetDeterministicHashCode();
             return new Random(hash);
         }
 
