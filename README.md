@@ -5,7 +5,7 @@ Powered by OpenStreetMap data.
 
 To focus on the player, and to let them play without tracking them.
 
-Source code for a test application, Hypothesis, is available at https://github.com/drakewill-CRL/Hypothesis
+Source code for a test application, Hypothesis, is available at https://github.com/PraxisMapper/Hypothesis
 
 
 # Requirements
