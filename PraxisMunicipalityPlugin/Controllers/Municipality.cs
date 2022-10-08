@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Client;
 using PraxisCore;
 using PraxisCore.Support;
@@ -30,7 +31,7 @@ namespace PraxisMunicipalityPlugin.Controllers
             Response.Headers.Add("X-noPerfTrack", "Muni/VARSREMOVED");
             var db = new PraxisContext();
             var location = plusCode.ToPolygon();
-            var places = db.Places.Where(p => location.Intersects(p.ElementGeometry) && p.Tags.Any(pp => pp.Key == "admin_level")).ToList();
+            var places = db.Places.Include(p => p.Tags).Where(p => location.Intersects(p.ElementGeometry) && p.Tags.Any(pp => pp.Key == "admin_level")).ToList();
             var smallestPlace = places.OrderByDescending(p => p.Tags.FirstOrDefault(t => t.Key == "admin_level").Value.ToInt()).FirstOrDefault();
 
             return TagParser.GetPlaceName(smallestPlace.Tags);
@@ -45,7 +46,7 @@ namespace PraxisMunicipalityPlugin.Controllers
             Response.Headers.Add("X-noPerfTrack", "MuniAll/VARSREMOVED");
             var db = new PraxisContext();
             var location = plusCode.ToPolygon();
-            var places = db.Places.Where(p => location.Intersects(p.ElementGeometry) && p.Tags.Any(pp => pp.Key == "admin_level")).ToList();
+            var places = db.Places.Include(p => p.Tags).Where(p => location.Intersects(p.ElementGeometry) && p.Tags.Any(pp => pp.Key == "admin_level")).ToList();
             var allPlaces = places.OrderBy(p => p.Tags.FirstOrDefault(t => t.Key == "admin_level").Value.ToInt())
                 .Select(p => new MuniData(TagParser.GetPlaceName(p.Tags), p.Tags.FirstOrDefault(t => t.Key == "admin_level").Value)).ToList();
 
