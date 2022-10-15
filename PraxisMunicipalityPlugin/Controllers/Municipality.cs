@@ -52,5 +52,24 @@ namespace PraxisMunicipalityPlugin.Controllers
 
             return allPlaces;
         }
+
+        [HttpGet]
+        [Route("/[controller]/PlaceName/{plusCode}")]
+        [Route("/[controller]/Place/{plusCode}")]
+        public string PlaceName(string plusCode)
+        {
+            Response.Headers.Add("X-noPerfTrack", "PlaceName/VARSREMOVED");
+            var db = new PraxisContext();
+            var poly = plusCode.ToPolygon();
+            var places = db.Places.Include(s => s.Tags).Where(md => poly.Intersects(md.ElementGeometry)).ToList();
+            TagParser.ApplyTags(places, "mapTiles");
+            var place = places.Where(p => p.IsGameElement).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length).LastOrDefault();
+
+            var name = TagParser.GetPlaceName(place.Tags);
+            if (name == "")
+                name = TagParser.GetAreaType(place.Tags);
+
+            return name;
+        }
     }
 }
