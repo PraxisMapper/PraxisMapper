@@ -279,3 +279,17 @@ Testing Span.SplitNext() vs String.Split():
 Average string.split() results: 64.66112
 Average span() results: 29.59288
 Summary: Spans are about twice as fast on average. It's a trivial difference since we're measuring it in ticks, but I call those functions enough that it may become noticeable.
+
+Testing BCrypt create salt vs decode salt test:
+Creating password hashes:
+Average 13-round results: 516.8
+Average 16-round results: 3853.2
+Total times (ms): 5168 vs  38532
+Checking password hashes vs existing entry:
+Average 13-round results: 480.7
+Average 16-round results: 3824.4
+Total times (ms): 4807 vs  38244
+Summary: BCrypt is not meaning fully faster on checking existing entries compared to creating them.
+NOTE: I checked this because the latest GPUs claimed to be hitting 200k hashes/sec against BCrypt. That's with a Rounds value of 5, after looking closer.
+Against the current-default value of 13 Rounds in PraxisMapper, that's about 800 hashes/sec. Each 1 added to rounds cuts the value in half.
+Given all of this information, I assert that BCrypt and 13 rounds are sufficiently strong defaults to deter decryption of any compromised data.

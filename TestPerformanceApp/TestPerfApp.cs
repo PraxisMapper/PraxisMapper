@@ -1,9 +1,11 @@
-﻿using Google.Common.Geometry;
+﻿using CryptSharp;
+using Google.Common.Geometry;
 using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Prepared;
 using OsmSharp;
+using OsmSharp.API;
 using OsmSharp.Streams;
 using PraxisCore;
 using PraxisCore.PbfReader;
@@ -16,6 +18,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Numerics;
 using System.Reflection;
 using System.Text;
 using static PraxisCore.DbTables;
@@ -86,9 +89,10 @@ namespace PerformanceTestApp
             //TestTagParsers();
             //TestSpanOnEntry("754866354	2	LINESTRING (-82.110422 40.975346, -82.1113778 40.9753544)	0.0009558369107748833	2028a47f-4119-4426-b40f-a8715d67f962");
             //TestSpanOnEntry("945909899	1	POINT (-84.1416403 39.7111214)	0.000125	5b9f9899-09dc-4b53-ba1a-5799fe6f992b");
-            TestConvertFromTsv();
+            //TestConvertFromTsv();
             //TestSearchArea();
             //TupleVsRecords(); //looks like recordstructs are way faster
+            BcryptSpeedCheck();
 
 
             //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
@@ -1866,7 +1870,7 @@ namespace PerformanceTestApp
                         MatchOnTags(style.Value, biglist.ToDictionary(k => k.Key, v => v.Value));
                 sw.Stop();
                 Console.WriteLine("Ran matchOnTags via dictionary in \r\n" + sw.ElapsedTicks + " ticks");
-                
+
                 var thirdTicks = sw.ElapsedTicks;
                 Console.WriteLine("Performance Difference: Third runs in " + ((double)thirdTicks / (double)firstTicks) * 100.0 + "% of the time.");
 
@@ -2118,7 +2122,7 @@ namespace PerformanceTestApp
             for (var i = 0; i < tpe.StyleMatchRules.Count; i++)
             {
                 entry = tpe.StyleMatchRules.ElementAt(i);
-                
+
                 var thisTag = tags.FirstOrDefault(t => t.Key == entry.Key);
                 string thisValue = null;
                 if (thisTag != null)
@@ -2293,7 +2297,7 @@ namespace PerformanceTestApp
                 StringBuilder sb1 = new StringBuilder();
                 var results1 = SearchAreaOld(ref area, ref places);
                 foreach (var d in results1)
-                    foreach(var v in d.Value)
+                    foreach (var v in d.Value)
                         sb1.Append(d.Key).Append('|').Append(v.Name).Append('|').Append(v.areaType).Append('|').Append(v.PrivacyId).Append('\n');
                 var results2 = sb1.ToString();
                 sw.Stop();
@@ -2303,7 +2307,7 @@ namespace PerformanceTestApp
                 var sb2 = new StringBuilder();
                 var results3 = AreaTypeInfo.SearchAreaFull(ref area, ref places);
                 foreach (var d in results3)
-                    foreach(var v in d.data)
+                    foreach (var v in d.data)
                         sb2.Append(d.plusCode).Append('|').Append(v.Name).Append('|').Append(v.areaType).Append('|').Append(v.PrivacyId).Append('\n');
                 var results4 = sb2.ToString();
                 sw.Stop();
@@ -2329,13 +2333,13 @@ namespace PerformanceTestApp
             FindPlacesResult? placeFound;
 
             //for (double xx = 0; xx < xCells; xx += 1)
-            while(x < area.Max.Longitude)
+            while (x < area.Max.Longitude)
             {
                 searchArea = new GeoArea(area.Min.Latitude, x - ConstantValues.resolutionCell10, area.Max.Latitude, x + ConstantValues.resolutionCell10);
                 searchPlaces = GetPlaces(searchArea, elements, skipTags: true);
                 //TODO: test trimming this down into strips instead of searching full list every block.
                 //for (double yy = 0; yy < yCells; yy += 1)
-                while(y < area.Max.Latitude)
+                while (y < area.Max.Latitude)
                 {
                     placeFound = AreaTypeInfo.FindPlacesInCell10(x, y, ref searchPlaces);
                     if (placeFound.HasValue)
@@ -2409,7 +2413,76 @@ namespace PerformanceTestApp
             return results;
         }
 
-            public record RecordTest(int a, string b);
+        public static void BcryptSpeedCheck()
+        {
+            Stopwatch sw = new Stopwatch();
+            List<long> results13 = new List<long>(100);
+            List<long> results32 = new List<long>(100);
+            var options13 = new CrypterOptions() {
+                { CrypterOption.Rounds, 13}
+            };
+            var options32 = new CrypterOptions() {
+                { CrypterOption.Rounds, 16}
+            };
+            BlowfishCrypter crypter = new BlowfishCrypter();
+            string salt = "";
+            string results = "";
+
+            for (int i = 0; i < 10; i++)
+            {
+                sw.Restart();
+                Console.WriteLine("making 13-round salt");
+                salt = crypter.GenerateSalt(options13);
+                Console.WriteLine("salt made");
+                results = crypter.Crypt("password", salt);
+                Console.WriteLine("pwd encrypted");
+                sw.Stop();
+                results13.Add(sw.ElapsedMilliseconds);
+                sw.Restart();
+                Console.WriteLine("making 31-round salt");
+                salt = crypter.GenerateSalt(options32);
+                Console.WriteLine("salt made");
+                results = crypter.Crypt("password", salt);
+                Console.WriteLine("pwd encrypted.");
+                sw.Stop();
+                results32.Add(sw.ElapsedMilliseconds);
+                Console.WriteLine("test " + i + " done.");
+            }
+
+            Console.WriteLine("Creating password hashes:");
+            Console.WriteLine("Average 13-round results: " +  results13.Average());
+            Console.WriteLine("Average 31-round results: " + results32.Average());
+            Console.WriteLine("Total times (ms): " + results13.Sum() + " vs  " + results32.Sum());
+
+            salt = crypter.GenerateSalt(options13);
+            var pwd13 = crypter.Crypt("password", salt);
+
+            salt = crypter.GenerateSalt(options32);
+            var pwd32 = crypter.Crypt("password", salt);
+
+            results13.Clear();
+            results32.Clear();
+
+            for (int i = 0; i < 10; i++)
+            {
+                sw.Restart();
+                crypter.Crypt("password", pwd13);
+                sw.Stop();
+                results13.Add(sw.ElapsedMilliseconds);
+                sw.Restart();
+                crypter.Crypt("password", pwd32);
+                sw.Stop();
+                results32.Add(sw.ElapsedMilliseconds);
+            }
+
+            Console.WriteLine("Checking password hashes vs existing entry:");
+            Console.WriteLine("Average 13-round results: " + results13.Average());
+            Console.WriteLine("Average 31-round results: " + results32.Average());
+            Console.WriteLine("Total times (ms): " + results13.Sum() + " vs  " + results32.Sum());
+
+        }
+
+        public record RecordTest(int a, string b);
         public record struct RecordTest2(int a, string b);
         public static void TupleVsRecords()
         {
@@ -2445,9 +2518,6 @@ namespace PerformanceTestApp
                 sw.Stop();
                 Console.WriteLine("recordstructs created in " + sw.ElapsedTicks);
             }
-
-
         }
-
     }
 }
