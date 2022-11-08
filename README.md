@@ -1,5 +1,5 @@
 # PraxisMapper
-An open-source server for location based games. 
+An open-source server for location based games. Follow my on <a rel="me" href="https://mastodon.gamedev.place/@Praxismapper">Mastodon</a>
 
 Powered by OpenStreetMap data.
 
