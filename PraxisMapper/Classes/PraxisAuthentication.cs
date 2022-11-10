@@ -17,7 +17,6 @@ namespace PraxisMapper.Classes
         private readonly RequestDelegate _next;
         private static ConcurrentDictionary<string, AuthData> authTokens = new ConcurrentDictionary<string, AuthData>(); //string is authtoken (Guid)
         public static ConcurrentBag<string> whitelistedPaths = new ConcurrentBag<string>(); 
-        //TODO: How would a plugin get this whitelist exposed to add to if it wanted? It probaly wont, but if it did.
         public PraxisAuthentication(RequestDelegate next)
         {
             this._next = next;
