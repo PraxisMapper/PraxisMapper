@@ -67,7 +67,7 @@ namespace PraxisCore
             public string StyleSet { get; set; }
             public int MatchOrder { get; set; }
             public ICollection<StyleMatchRule> StyleMatchRules { get; set; }
-            public bool IsGameElement { get; set; } // This tag should be used when asking for game areas, not just map tiles. Would let me use a single table for both again.
+            public bool IsGameElement { get; set; } // This tag should be used when asking for game areas, not just map tiles. Would let me use a single table for both again. Arguably, this could just be a second style to search that only contains elements of interest instead of a flag on one.
             public ICollection<StylePaint> PaintOperations { get; set; }
         }
 
@@ -236,6 +236,7 @@ namespace PraxisCore
             public string accountId { get; set; } //could also be deviceId, but probably a string for the account name
             public string password { get; set; }
             public string authToken { get; set; }
+            public DateTime? bannedUntil { get; set; }
         }
     }
 }
