@@ -740,6 +740,9 @@ namespace PraxisCore
             var entry = db.AuthenticationData.Where(a => a.accountId == userId).FirstOrDefault();
             if (entry == null)
                 return false;
+            if (entry.bannedUntil.HasValue && entry.bannedUntil.Value > DateTime.UtcNow)
+                return false;
+
             string checkedPassword = crypter.Crypt(password, entry.password);
             return entry.password == checkedPassword;
         }
