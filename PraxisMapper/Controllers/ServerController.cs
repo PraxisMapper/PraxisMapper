@@ -8,6 +8,7 @@ using PraxisCore;
 using PraxisMapper.Classes;
 using System;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Linq;
 using static PraxisCore.DbTables;
 
@@ -160,6 +161,18 @@ namespace PraxisMapper.Controllers
         {
             var bounds = cache.Get<DbTables.ServerSetting>("settings");
             return PraxisCore.Place.RandomPoint(bounds);
+        }
+
+        [HttpGet]
+        [Route("/[controller]/RandomValues/{plusCode}/{count}")]
+        public List<int> GetRandomValuesForArea(string plusCode, int count)
+        {
+            List<int> values = new List<int>(count);
+            var random = plusCode.GetSeededRandom();
+            for (int i = 0; i < count; i++)
+                values.Add(random.Next());
+
+            return values;
         }
     }
 }
