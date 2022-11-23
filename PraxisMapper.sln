@@ -19,7 +19,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PraxisSlippyPlugin", "Praxi
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PraxisVersionPlugin", "PraxisVersionPlugin\PraxisVersionPlugin.csproj", "{0C4FE956-E86B-41CC-AED0-1C6DBECAD63F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PraxisMunicipalityPlugin", "PraxisMunicipalityPlugin\PraxisMunicipalityPlugin.csproj", "{B93D905C-565C-43FE-B8F7-24294E84EF53}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PraxisMunicipalityPlugin", "PraxisMunicipalityPlugin\PraxisMunicipalityPlugin.csproj", "{B93D905C-565C-43FE-B8F7-24294E84EF53}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PraxisScavengerHuntPlugin", "PraxisScavengerHuntPlugin\PraxisScavengerHuntPlugin.csproj", "{EF4991D7-F606-4473-9C1E-CDE6277BEAAE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -63,6 +65,10 @@ Global
 		{B93D905C-565C-43FE-B8F7-24294E84EF53}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B93D905C-565C-43FE-B8F7-24294E84EF53}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B93D905C-565C-43FE-B8F7-24294E84EF53}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EF4991D7-F606-4473-9C1E-CDE6277BEAAE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EF4991D7-F606-4473-9C1E-CDE6277BEAAE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EF4991D7-F606-4473-9C1E-CDE6277BEAAE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EF4991D7-F606-4473-9C1E-CDE6277BEAAE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
