@@ -32,6 +32,9 @@ namespace PraxisMunicipalityPlugin.Controllers
             var db = new PraxisContext();
             var location = plusCode.ToPolygon();
             var places = db.Places.Include(p => p.Tags).Where(p => location.Intersects(p.ElementGeometry) && p.Tags.Any(pp => pp.Key == "admin_level")).ToList();
+            if (places == null || places.Count == 0)
+                return "";
+
             var smallestPlace = places.OrderByDescending(p => p.Tags.FirstOrDefault(t => t.Key == "admin_level").Value.ToInt()).FirstOrDefault();
 
             return TagParser.GetPlaceName(smallestPlace.Tags);
