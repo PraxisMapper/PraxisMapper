@@ -23,6 +23,11 @@ namespace PraxisMunicipalityPlugin.Controllers
             }
         }
 
+        //NOTE: This function may not appear to work correctly for rural players. But, it does!
+        //Turns out, a lot of smaller towns/villages/hamlets/2 shacks at an intersection/etc. sized cities don't have well defined boundaries,
+        //and on a map are just a point to put the name label. With no way to even guess what the correct size or area is. They resolve up to the township or county covering them.
+        //(Terms and meanings may vary with country, but this behavior is likely to be common globally).
+
         [HttpGet]
         [Route("/[controller]/Municipality/{plusCode}")]
         [Route("/[controller]/Muni/{plusCode}")]
