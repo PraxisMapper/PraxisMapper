@@ -16,7 +16,8 @@ namespace PraxisMapper.Classes
     {
         private readonly RequestDelegate _next;
         private static ConcurrentDictionary<string, AuthData> authTokens = new ConcurrentDictionary<string, AuthData>(); //string is authtoken (Guid)
-        public static ConcurrentBag<string> whitelistedPaths = new ConcurrentBag<string>(); 
+        public static ConcurrentBag<string> whitelistedPaths = new ConcurrentBag<string>();
+        public static HashSet<string> admins = new HashSet<string>();
         public PraxisAuthentication(RequestDelegate next)
         {
             this._next = next;
@@ -29,7 +30,6 @@ namespace PraxisMapper.Classes
             if (!whitelistedPaths.Any(p => path.Contains(p)))
             {
                 var key = context.Request.Headers.FirstOrDefault(h => h.Key == "AuthKey");
-
                 if (key.Key == null || !authTokens.ContainsKey(key.Value))
                 {
                     if (PraxisMapper.Startup.Configuration.GetValue<bool>("enablePerformanceTracker"))
@@ -83,6 +83,21 @@ namespace PraxisMapper.Classes
             }
             foreach (var d in toRemoveAuth)
                 authTokens.TryRemove(d, out var ignore);
+        }
+
+        public static void GetAuthInfo(HttpResponse response, out string account, out string password)
+        {
+            account = "";
+            password = "";
+            if (response.Headers.ContainsKey("X-account"))
+                account = response.Headers["X-account"].ToString();
+            if (response.Headers.ContainsKey("X-internalPwd"))
+                password = response.Headers["X-internalPwd"].ToString();
+        }
+
+        public static bool IsAdmin(string accountId)
+        {
+            return admins.Contains(accountId);
         }
     }
 
