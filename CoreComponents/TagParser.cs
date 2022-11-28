@@ -106,7 +106,8 @@ namespace PraxisCore
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "*", Value = "*", MatchType = "default" }}
             };
-            MapTiles.Initialize();
+            if (MapTiles != null)
+                MapTiles.Initialize();
         }
 
         /// <summary>
