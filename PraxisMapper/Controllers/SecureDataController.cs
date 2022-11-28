@@ -160,6 +160,5 @@ namespace PraxisMapper.Controllers
 
             GenericData.IncrementSecureAreaData(plusCode, key, password, changeAmount, expirationTimer);
         }
-
     }
 }
