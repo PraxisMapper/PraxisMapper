@@ -236,6 +236,7 @@ namespace PraxisCore
             public string accountId { get; set; } //could also be deviceId, but probably a string for the account name
             public string password { get; set; }
             public string authToken { get; set; }
+            public bool isAdmin { get; set; } = false;
             public DateTime? bannedUntil { get; set; }
         }
     }
