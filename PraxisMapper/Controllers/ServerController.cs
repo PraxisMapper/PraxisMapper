@@ -155,7 +155,7 @@ namespace PraxisMapper.Controllers
             return false;
         }
 
-        [HttpPut]
+        [HttpGet]
         [Route("/[controller]/RandomPoint")]
         public string RandomPoint()
         {
