@@ -14,7 +14,6 @@ using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using static PraxisCore.ConstantValues;
 using static PraxisCore.DbTables;
@@ -161,10 +160,9 @@ namespace Larry
                     Log.WriteLog("Loading " + filename + " at " + DateTime.Now);
                     PbfReader r = new PbfReader();
                     r.outputPath = config["OutputDataFolder"];
-                    r.styleSet = config["TagParserStyleSet"];
+                    r.styleSet = style;
                     r.processingMode = config["processingMode"]; // "normal" and "center" allowed
-                    r.saveToTsv = config["UseTsvOutput"] == "True";
-                    r.saveToDB = false; //This is slower than doing both steps separately because loading to the DB is single-threaded this way.
+                    r.saveToDB = false; //we want these as separate files for later.
                     r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
                     r.reprocessFile = config["reprocessFiles"] == "True";
                     r.splitByStyleSet = true;
@@ -315,7 +313,6 @@ namespace Larry
                 r.outputPath = config["OutputDataFolder"];
                 r.styleSet = config["TagParserStyleSet"];
                 r.processingMode = config["processingMode"]; // "normal" and "center" allowed
-                r.saveToTsv = config["UseTsvOutput"] == "True";
                 r.saveToDB = false; //This is slower than doing both steps separately because loading to the DB is single-threaded this way.
                 r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
                 r.reprocessFile = config["reprocessFiles"] == "True";
