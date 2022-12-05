@@ -25,7 +25,7 @@ namespace PraxisCore.PbfReader
         //FeatureInterpreter instead of theirs. 
 
         //TODO: fix processAllNodes dying on writes without the async setup.
-        
+
         static int initialCapacity = 8009; //ConcurrentDictionary says initial capacity shouldn't be divisible by a small prime number, so i picked the prime closes to 8,000 for initial capacity
         static int initialConcurrency = Environment.ProcessorCount;
 
@@ -291,22 +291,16 @@ namespace PraxisCore.PbfReader
         public void ProcessAllNodeBlocks(long maxNodeBlock)
         {
             //Throw each node block into its own thread.
-            for(int block = 1; block < maxNodeBlock; block++)
             Parallel.For(1, maxNodeBlock, (block) => //parallel here dies on planet.osm.pbf. Moved to make groups parallel.
             {
                 var blockData = GetBlock(block);
-                //var thisblockTask = Task.Run(() => { 
-                    var geoData = GetTaggedNodesFromBlock(blockData, onlyMatchedAreas); 
-                    if (geoData != null) 
-                        ProcessReaderResults(geoData, block, 0); 
-                //});
-                //if (blockData.primitivegroup.Count > 1)
-                    //thisblockTask.Wait();
+                var geoData = GetTaggedNodesFromBlock(blockData, onlyMatchedAreas);
+                if (geoData != null)
+                    ProcessReaderResults(geoData, block, 0);
 
                 activeBlocks.TryRemove(block, out blockData);
                 blockData = null;
-            } 
-            );
+            });
         }
 
         private void IndexFile()
@@ -353,7 +347,7 @@ namespace PraxisCore.PbfReader
                     var pb2 = DecodeBlock(thisblob);
 
                     for (int i = 0; i < pb2.primitivegroup.Count; i++) //Planet.osm uses several primitivegroups per block, extracts usually use one.
-                    { 
+                    {
                         var group = pb2.primitivegroup[i];
                         {
                             if (group.ways.Count > 0)
@@ -367,7 +361,7 @@ namespace PraxisCore.PbfReader
                                 indexInfos.Add(new IndexInfo(passedBC, i, 3, group.relations.First().id, group.relations.Last().id));
                             }
                             else if (group.dense != null)
-                            {                                
+                            {
                                 indexInfos.Add(new IndexInfo(passedBC, i, 1, group.dense.id[0], group.dense.id.Sum()));
                             }
                         }
@@ -384,7 +378,7 @@ namespace PraxisCore.PbfReader
             SaveIndexInfo(indexList);
             SplitIndexData(indexList);
             SaveBlockInfo();
-            
+
             sw.Stop();
             Log.WriteLog("File indexed in " + sw.Elapsed);
         }
@@ -575,7 +569,7 @@ namespace PraxisCore.PbfReader
                             var wayKey = FindBlockInfoForWay(idToFind, out int indexPosition, hint);
                             hint = indexPosition;
                             if (wayBlocks2.TryAdd(indexPosition, wayKey))
-                            c.Member = MakeCompleteWay(idToFind, hint, false);
+                                c.Member = MakeCompleteWay(idToFind, hint, false);
                             break;
                         case Relation.MemberType.RELATION: //ignore meta-relations
                             break;
@@ -869,7 +863,7 @@ namespace PraxisCore.PbfReader
             //This should save a lot of time searching the list when I have already found some blocks
             //and shoudn't waste too much time if it isn't in a block already found.
             //foreach (var h in hints)
-            
+
 
             //ways will hit a couple thousand blocks, nodes hit hundred of thousands of blocks.
             //This might help performance on ways, but will be much more noticeable on nodes.
