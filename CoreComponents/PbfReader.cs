@@ -23,6 +23,8 @@ namespace PraxisCore.PbfReader
         //The 6th generation of logic for pulling geometry out of a pbf file. This one is written specfically for PraxisMapper, and
         //doesn't depend on OsmSharp for reading the raw data now. OsmSharp's still used for object types now that there's our own
         //FeatureInterpreter instead of theirs. 
+
+        //TODO: fix processAllNodes dying on writes without the async setup.
         
         static int initialCapacity = 8009; //ConcurrentDictionary says initial capacity shouldn't be divisible by a small prime number, so i picked the prime closes to 8,000 for initial capacity
         static int initialConcurrency = Environment.ProcessorCount;
@@ -31,7 +33,7 @@ namespace PraxisCore.PbfReader
         public bool onlyMatchedAreas = false; //if true, only process geometry if the tags come back with IsGamplayElement== true;
         public string processingMode = "normal"; //normal: use geometry as it exists. Center: save the center point of any geometry provided instead of its actual value.
         public string styleSet = "mapTiles"; //which style set to use when parsing entries
-        public bool keepIndexFiles = false;
+        public bool keepIndexFiles = true;
         public bool splitByStyleSet = false;
 
         public string outputPath = "";
@@ -80,6 +82,8 @@ namespace PraxisCore.PbfReader
 
         CancellationTokenSource tokensource = new CancellationTokenSource();
         CancellationToken token;
+
+        object nodeLock = new object();
 
         public PbfReader()
         {
@@ -287,16 +291,22 @@ namespace PraxisCore.PbfReader
         public void ProcessAllNodeBlocks(long maxNodeBlock)
         {
             //Throw each node block into its own thread.
-            Parallel.For(1, maxNodeBlock, (block) =>
+            for(int block = 1; block < maxNodeBlock; block++)
+            Parallel.For(1, maxNodeBlock, (block) => //parallel here dies on planet.osm.pbf. Moved to make groups parallel.
             {
                 var blockData = GetBlock(block);
-                var geoData = GetTaggedNodesFromBlock(blockData, onlyMatchedAreas);
-                if (geoData == null)
-                    return;
+                //var thisblockTask = Task.Run(() => { 
+                    var geoData = GetTaggedNodesFromBlock(blockData, onlyMatchedAreas); 
+                    if (geoData != null) 
+                        ProcessReaderResults(geoData, block, 0); 
+                //});
+                //if (blockData.primitivegroup.Count > 1)
+                    //thisblockTask.Wait();
 
-                ProcessReaderResults(geoData, block, 0);
-                nodesProcessed++;
-            });
+                activeBlocks.TryRemove(block, out blockData);
+                blockData = null;
+            } 
+            );
         }
 
         private void IndexFile()
@@ -715,17 +725,18 @@ namespace PraxisCore.PbfReader
         /// <param name="block">the block of Nodes to search through</param>
         /// <param name="ignoreUnmatched">if true, skip nodes that have tags that only match the default TaParser style.</param>
         /// <returns>a list of Nodes with tags, which may have a length of 0.</returns>
-        private List<OsmSharp.Node> GetTaggedNodesFromBlock(PrimitiveBlock block, bool ignoreUnmatched = false)
+        private ConcurrentBag<OsmSharp.Node> GetTaggedNodesFromBlock(PrimitiveBlock block, bool ignoreUnmatched = false)
         {
-            List<OsmSharp.Node> taggedNodes = new List<OsmSharp.Node>(block.primitivegroup.Sum(p => p.dense.keys_vals.Count) - block.primitivegroup.Sum(p => p.dense.id.Count) / 2); //precise count
-            for (int b = 0; b < block.primitivegroup.Count; b++)
+            ConcurrentBag<OsmSharp.Node> taggedNodes = new ConcurrentBag<OsmSharp.Node>();
+            Parallel.For(0, block.primitivegroup.Count, (b) =>
             {
+                nodesProcessed++;
                 var dense = block.primitivegroup[b].dense;
 
                 //Shortcut: if dense.keys.count == dense.id.count, there's no tagged nodes at all here (0 means 'no keys', and all 0's means every entry has no keys)
                 if (dense.keys_vals.Count == dense.id.Count)
-                    continue;
-                
+                    return;
+
                 var granularity = block.granularity;
                 var lat_offset = block.lat_offset;
                 var lon_offset = block.lon_offset;
@@ -747,7 +758,7 @@ namespace PraxisCore.PbfReader
                         Tuple.Create(entryCounter,
                         Encoding.UTF8.GetString(stringData[dense.keys_vals[i++]]), //i++ returns i, but increments the value.
                         Encoding.UTF8.GetString(stringData[dense.keys_vals[i]])
-                    )); 
+                    ));
                 }
                 var decodedTags = idKeyVal.ToLookup(k => k.Item1, v => new OsmSharp.Tags.Tag(v.Item2, v.Item3));
                 var lastTaggedNode = idKeyVal.Last().Item1;
@@ -788,7 +799,7 @@ namespace PraxisCore.PbfReader
                     if (index >= lastTaggedNode)
                         break;
                 }
-            }
+            });
 
             return taggedNodes;
         }
@@ -1325,7 +1336,9 @@ namespace PraxisCore.PbfReader
                 {
                     if (dataSet.Value.Length > 0)
                     {
-                        Parallel.Invoke(
+                        //This just TANKS the system when it gets to nodes on planet.osm.pbf. Async might let stuff overwrite each other. No-lock kills the app, and a lock eats ram until the system falls over.
+                        lock (nodeLock) //This only needs a lock for nodes because that's the only part that does writes in parallel, but the lock cost is trivial when its not used by nodes.
+                            Parallel.Invoke(
                             () => File.AppendAllText(saveFilename + dataSet.Key + ".geomData", dataSet.Value.ToString()),
                             () => File.AppendAllText(saveFilename + dataSet.Key + ".tagsData", tagDataByMatch[dataSet.Key].ToString())
                         );
@@ -1345,10 +1358,12 @@ namespace PraxisCore.PbfReader
                 }
                 try
                 {
-                    Parallel.Invoke(
-                        () => File.AppendAllText(saveFilename + ".geomData", geometryBuilds.ToString()),
-                        () => File.AppendAllText(saveFilename + ".tagsData", tagBuilds.ToString())
-                    );
+                    {
+                        Parallel.Invoke(
+                            () => File.AppendAllText(saveFilename + ".geomData", geometryBuilds.ToString()),
+                            () => File.AppendAllText(saveFilename + ".tagsData", tagBuilds.ToString())
+                        );
+                    }
                 }
                 catch (Exception ex)
                 {
