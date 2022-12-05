@@ -1,6 +1,7 @@
 ﻿using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Prepared;
 using OsmSharp.Complete;
+using OsmSharp.Tags;
 using ProtoBuf;
 using System;
 using System.Collections.Concurrent;
@@ -176,7 +177,7 @@ namespace PraxisCore.PbfReader
                 {
                     filenameHeader += relationId.ToString() + "-";
                     //Get the source relation first
-                    var relation = GetCompleteRelation(relationId);
+                    var relation = MakeCompleteRelation(relationId);
                     var NTSrelation = GeometrySupport.ConvertOsmEntryToPlace(relation);
                     bounds = NTSrelation.ElementGeometry.EnvelopeInternal;
                     var pgf = new PreparedGeometryFactory();
@@ -263,7 +264,7 @@ namespace PraxisCore.PbfReader
                     foreach (var relId in group.relations)
                     {
                         Log.WriteLog("Loading relation with " + relId.memids.Count + " members");
-                        geoListOfOne.Add(GetCompleteRelation(relId.id, onlyMatchedAreas, thisBlock));
+                        geoListOfOne.Add(MakeCompleteRelation(relId.id, onlyMatchedAreas, thisBlock));
                         ProcessReaderResults(geoListOfOne, block, i);
                         activeBlocks.Clear();
                         geoListOfOne.Clear();
@@ -492,13 +493,23 @@ namespace PraxisCore.PbfReader
             return null;
         }
 
+        TagsCollection GetTags(List<byte[]> stringTable, List<uint> keys, List<uint> vals)
+        {
+            var tags = new TagsCollection(keys.Count);
+            for (int i = 0; i < keys.Count; i++)
+            {
+                tags.Add(new Tag(Encoding.UTF8.GetString(stringTable[(int)keys[i]]), Encoding.UTF8.GetString(stringTable[(int)vals[i]])));
+            }
+            return tags;
+        }
+
         /// <summary>
         /// Processes the requested relation into an OSMSharp CompleteRelation from the currently opened file
         /// </summary>
         /// <param name="relationId">the relation to load and process</param>
         /// <param name="ignoreUnmatched">if true, skip entries that don't get a TagParser match applied to them.</param>
         /// <returns>an OSMSharp CompleteRelation, or null if entries are missing, the elements were unmatched and ignoreUnmatched is true, or there were errors creating the object.</returns>
-        private CompleteRelation GetCompleteRelation(long relationId, bool ignoreUnmatched = false, PrimitiveBlock relationBlock = null)
+        private CompleteRelation MakeCompleteRelation(long relationId, bool ignoreUnmatched = false, PrimitiveBlock relationBlock = null)
         {
             try
             {
@@ -515,7 +526,7 @@ namespace PraxisCore.PbfReader
                 //its not one i can process.
                 foreach (var role in rel.roles_sid)
                 {
-                    string roleType = System.Text.Encoding.UTF8.GetString(relationBlock.stringtable.s[role]);
+                    string roleType = Encoding.UTF8.GetString(relationBlock.stringtable.s[role]);
                     if (roleType == "inner" || roleType == "outer")
                     {
                         canProcess = true; //I need at least one outer, and inners require outers.
@@ -530,14 +541,7 @@ namespace PraxisCore.PbfReader
                 //I have to knows my tags BEFORE doing the rest of the processing.
                 CompleteRelation r = new CompleteRelation();
                 r.Id = relationId;
-                r.Tags = new OsmSharp.Tags.TagsCollection(rel.keys.Count);
-
-                for (int i = 0; i < rel.keys.Count; i++)
-                {
-                    r.Tags.Add(new OsmSharp.Tags.Tag(
-                        Encoding.UTF8.GetString(stringData[(int)rel.keys[i]]),
-                        Encoding.UTF8.GetString(stringData[(int)rel.vals[i]])));
-                }
+                r.Tags = GetTags(relationBlock.stringtable.s, rel.keys, rel.vals);
 
                 if (ignoreUnmatched)
                 {
@@ -654,12 +658,10 @@ namespace PraxisCore.PbfReader
             {
                 CompleteWay finalway = new CompleteWay();
                 finalway.Id = way.id;
-                finalway.Tags = new OsmSharp.Tags.TagsCollection(way.keys.Count);
-
                 //We always need to apply tags here, so we can either skip after (if IgnoredUmatched is set) or to pass along tag values correctly.
-                for (int i = 0; i < way.keys.Count; i++)
-                    finalway.Tags.Add(new OsmSharp.Tags.Tag(System.Text.Encoding.UTF8.GetString(stringTable[(int)way.keys[i]]), System.Text.Encoding.UTF8.GetString(stringTable[(int)way.vals[i]])));
+                finalway.Tags = GetTags(stringTable, way.keys, way.vals);
 
+                
                 if (ignoreUnmatched)
                 {
                     if (TagParser.GetStyleForOsmWay(finalway.Tags, styleSet).Name == TagParser.defaultStyle.Name)
@@ -1025,7 +1027,7 @@ namespace PraxisCore.PbfReader
                 {
                     //Some relation blocks can hit 22GB of RAM on their own. Low-resource machines will fail, and should roll into the LastChance path automatically.
                     foreach (var r in primgroup.relations)
-                        relList.Add(Task.Run(() => { results.Add(GetCompleteRelation(r.id, onlyTagMatchedEntries, block)); totalProcessEntries++; }));
+                        relList.Add(Task.Run(() => { results.Add(MakeCompleteRelation(r.id, onlyTagMatchedEntries, block)); totalProcessEntries++; }));
                 }
                 else if (primgroup.ways != null && primgroup.ways.Count > 0)
                 {
@@ -1383,7 +1385,7 @@ namespace PraxisCore.PbfReader
                 sw.Start();
                 PrepareFile(filename);
 
-                var relation = GetCompleteRelation(relationId);
+                var relation = MakeCompleteRelation(relationId);
                 Close();
                 sw.Stop();
                 Log.WriteLog("Processing completed at " + DateTime.Now + ", session lasted " + sw.Elapsed);
