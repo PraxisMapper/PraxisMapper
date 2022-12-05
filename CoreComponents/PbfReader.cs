@@ -25,8 +25,6 @@ namespace PraxisCore.PbfReader
         //doesn't depend on OsmSharp for reading the raw data now. OsmSharp's still used for object types now that there's our own
         //FeatureInterpreter instead of theirs. 
 
-        //TODO: fix processAllNodes dying on writes without the async setup.
-
         static int initialCapacity = 8009; //ConcurrentDictionary says initial capacity shouldn't be divisible by a small prime number, so i picked the prime closes to 8,000 for initial capacity
         static int initialConcurrency = Environment.ProcessorCount;
 
@@ -497,9 +495,8 @@ namespace PraxisCore.PbfReader
         {
             var tags = new TagsCollection(keys.Count);
             for (int i = 0; i < keys.Count; i++)
-            {
                 tags.Add(new Tag(Encoding.UTF8.GetString(stringTable[(int)keys[i]]), Encoding.UTF8.GetString(stringTable[(int)vals[i]])));
-            }
+
             return tags;
         }
 
