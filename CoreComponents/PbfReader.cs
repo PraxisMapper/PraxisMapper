@@ -390,10 +390,7 @@ namespace PraxisCore.PbfReader
             foreach (var line in data)
             {
                 string[] subData2 = line.Split(":");
-                if (subData2.Length != 5)
-                    System.Diagnostics.Debugger.Break();
-                else
-                    indexes.Add(new IndexInfo(subData2[0].ToInt(), subData2[1].ToInt(), (byte)subData2[2].ToInt(), subData2[3].ToLong(), subData2[4].ToLong()));
+                indexes.Add(new IndexInfo(subData2[0].ToInt(), subData2[1].ToInt(), (byte)subData2[2].ToInt(), subData2[3].ToLong(), subData2[4].ToLong()));
             }
             SplitIndexData(indexes);
         }
@@ -549,28 +546,23 @@ namespace PraxisCore.PbfReader
 
                 int capacity = rel.memids.Count;
                 r.Members = new CompleteRelationMember[capacity];
-                //List<int> wayBlockHints = new List<int>(capacity);
                 int hint = -1;
-                Dictionary<int, IndexInfo> wayBlocks2 = new Dictionary<int, IndexInfo>(capacity); //This might not work, since multiple entries share a block id.
 
-                //memIds is delta-encoded
                 long idToFind = 0;
                 for (int i = 0; i < capacity; i++)
                 {
-                    idToFind += rel.memids[i];
+                    idToFind += rel.memids[i]; //memIds is delta-encoded
                     Relation.MemberType typeToFind = rel.types[i];
                     CompleteRelationMember c = new CompleteRelationMember();
                     c.Role = Encoding.UTF8.GetString(stringData[rel.roles_sid[i]]);
                     switch (typeToFind)
                     {
-                        case Relation.MemberType.NODE:
-                            //The FeatureInterpreter doesn't use nodes from a relation. COULD do this to include where to put text or whatnot.
+                        case Relation.MemberType.NODE://The FeatureInterpreter doesn't use nodes from a relation. COULD do this to include where to put text or whatnot.
                             break;
                         case Relation.MemberType.WAY:
                             var wayKey = FindBlockInfoForWay(idToFind, out int indexPosition, hint);
                             hint = indexPosition;
-                            if (wayBlocks2.TryAdd(indexPosition, wayKey))
-                                c.Member = MakeCompleteWay(idToFind, hint, false);
+                            c.Member = MakeCompleteWay(idToFind, hint, false);
                             break;
                         case Relation.MemberType.RELATION: //ignore meta-relations
                             break;

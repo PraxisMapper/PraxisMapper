@@ -30,7 +30,6 @@ using OsmSharp.Complete;
 using OsmSharp.Tags;
 using System.Collections.Generic;
 using System.Linq;
-using OsmSharp.Geo;
 using OsmSharp;
 using static PraxisCore.Singletons;
 
@@ -41,7 +40,6 @@ namespace PraxisCore
     /// </summary>
     public class PMFeatureInterpreter
     {
-
         /// <summary>
         /// The list of tags that normally indicate an area unless specified otherwise.
         /// </summary>
@@ -64,25 +62,17 @@ namespace PraxisCore
                     //No addditional processing on tags is needed here.
                     var n = osmObject as Node;
                     return new Point(new Coordinate(n.Longitude.Value, n.Latitude.Value));
-                    //return new Point((osmObject as OsmSharp.Node).GetCoordinate());
                     break;
                 case OsmGeoType.Way:
-                    if (osmObject.Tags == null || osmObject.Tags.Count == 0)
-                        return null;
-
                     bool isArea = false;
                     // check for a closed line if area.
-                    //var coordinates = (osmObject as CompleteWay).GetCoordinates();
                     var coordinates = Converters.NodeArrayToCoordArray((osmObject as CompleteWay).Nodes);
                     if (coordinates.Length > 1 && coordinates[0].Equals2D(coordinates[coordinates.Length - 1]))
                     { // This might be an area, or just a line that ends where it starts. Look at tags to decide.
                         if (osmObject.Tags.ContainsAnyKey(areaTags)) //These tags normally default to an area regardless of the value provided.
                             isArea = true;
-                        string areaVal = "";
-                        if (osmObject.Tags.TryGetValue("area", out areaVal))
-                        { // explicitly indicated that this is or isn't an area.
+                        if (osmObject.Tags.TryGetValue("area", out string areaVal))
                             isArea = areaVal == "true";
-                        }
                     }
 
                     if (isArea && coordinates.Length >= 4) // not a linearring, needs at least four coordinates, with first and last identical.
@@ -96,15 +86,11 @@ namespace PraxisCore
 
                     break;
                 case OsmGeoType.Relation:
-                    if (osmObject.Tags == null || osmObject.Tags.Count == 0)
-                        return null;
-
                     if (!osmObject.Tags.TryGetValue("type", out var typeValue))
                         return null;
 
                     var relation = (osmObject as CompleteRelation);
 
-                    //{ // there is a type in this relation.
                     if (typeValue == "multipolygon" || typeValue == "linearring")
                     { // this relation is a multipolygon.
                         return InterpretMultipolygonRelationNoRecursion(relation);
@@ -113,11 +99,15 @@ namespace PraxisCore
                     { // this relation is a boundary.
                         return InterpretMultipolygonRelationNoRecursion(relation);
                     }
-                    //}
+                    else
+                    {
+                        Log.WriteLog("Relation entry is of type " + typeValue + ", unsupported.");
+                    }
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
             }
+            Log.WriteLog("This shouldn't have happened.");
             return null;
         }
 
@@ -143,9 +133,7 @@ namespace PraxisCore
             {
                 switch (typeValue)
                 {
-                    // there is a type in this relation.
                     case "multipolygon":
-                    // this relation is a boundary.
                     case "boundary": // this relation is a multipolygon.
                         isArea = true;
                         break;
@@ -162,8 +150,7 @@ namespace PraxisCore
         private static List<Polygon> BuildRings(List<CompleteWay> ways)
         {
             //This is where I look at points to try and combine these.
-            var closedWays = new List<CompleteWay>(ways.Count);
-            closedWays = ways.Where(w => w.Nodes.First().Id == w.Nodes.Last().Id).ToList();
+            var closedWays = ways.Where(w => w.Nodes.First().Id == w.Nodes.Last().Id).ToList();
             var polys = new List<Polygon>(ways.Count);
 
             foreach (var c in closedWays)
@@ -195,7 +182,10 @@ namespace PraxisCore
             //Build outer rings first
             outerRings = BuildRings(outerways);
             if (outerRings == null || outerRings.Count == 0)
+            {
+                Log.WriteLog("Couldn't build outer rings.");
                 return null;
+            }
 
             Geometry outer;
             if (outerRings.Count == 1)
@@ -205,8 +195,7 @@ namespace PraxisCore
 
             if (innerways.Count > 0)
             {
-                List<Polygon> innerRings = new List<Polygon>(innerways.Count);
-                innerRings = BuildRings(innerways);
+                List<Polygon> innerRings = BuildRings(innerways);
                 Geometry inner = factory.CreateMultiPolygon(innerRings.ToArray());
                 outer = outer.Difference(inner);
             }
@@ -242,6 +231,7 @@ namespace PraxisCore
                         outers.Add(member.Member as CompleteWay);
                         break;
                     default:
+                        //This would have been a Node or Relation member, which aren't supported here, or a "Site" relation.
                         break;
                 }
             }
@@ -277,19 +267,18 @@ namespace PraxisCore
             while (closedShape == false)
             {
                 var lineToAdd = shapeList.FirstOrDefault(s => s.Nodes.First().Id == nextStartnode.Id);
-                if (lineToAdd == null)
-                {
+                if (lineToAdd != null)
+                    currentShape.AddRange(lineToAdd.Nodes.Skip(1));
+                else
+                { 
                     //check other direction
                     lineToAdd = shapeList.FirstOrDefault(s => s.Nodes.Last().Id == nextStartnode.Id);
-                    if (lineToAdd == null)
-                    {
-                        return null;
-                    }
+                    if (lineToAdd != null)
+                        currentShape.AddRange(lineToAdd.Nodes.Reverse().Skip(1));//This way was drawn backwards relative to the original way.
                     else
-                        lineToAdd.Nodes = lineToAdd.Nodes.Reverse().ToArray(); //This way was drawn backwards relative to the original way.
+                        return null;
                 }
-                currentShape.AddRange(lineToAdd.Nodes.Skip(1));
-                nextStartnode = lineToAdd.Nodes.Last();
+                nextStartnode = currentShape.Last();
                 shapeList.Remove(lineToAdd);
 
                 if (nextStartnode.Id == originalStartPoint.Id)
@@ -306,7 +295,6 @@ namespace PraxisCore
 
             var coordArray = Converters.NodeArrayToCoordArray(currentShape);
             var poly = factory.CreatePolygon(coordArray);
-            //var poly = factory.CreatePolygon(currentShape.Select(s => new Coordinate((float)s.Longitude, (float)s.Latitude)).ToArray());
             poly = GeometrySupport.CCWCheck(poly);
             if (poly == null)
             {
