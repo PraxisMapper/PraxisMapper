@@ -83,7 +83,6 @@ namespace PraxisCore
                     { // no area tag leads to just a line.
                         return new LineString(coordinates);
                     }
-
                     break;
                 case OsmGeoType.Relation:
                     if (!osmObject.Tags.TryGetValue("type", out var typeValue))
@@ -91,23 +90,19 @@ namespace PraxisCore
 
                     var relation = (osmObject as CompleteRelation);
 
-                    if (typeValue == "multipolygon" || typeValue == "linearring")
-                    { // this relation is a multipolygon.
-                        return InterpretMultipolygonRelationNoRecursion(relation);
-                    }
-                    else if (typeValue == "boundary" && relation.Tags.Contains("boundary", "administrative"))
-                    { // this relation is a boundary.
+                    if (typeValue == "multipolygon" || typeValue == "linearring" || typeValue == "boundary") //Boundaries are about 7% of all relations.
+                    { // this relation is a multipolygon or a boundary (that can be treated the same)
                         return InterpretMultipolygonRelationNoRecursion(relation);
                     }
                     else
                     {
                         Log.WriteLog("Relation entry is of type " + typeValue + ", unsupported.");
+                        return null;
                     }
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
             }
-            Log.WriteLog("This shouldn't have happened.");
             return null;
         }
 
