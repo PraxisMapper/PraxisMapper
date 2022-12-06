@@ -6,6 +6,7 @@ using ProtoBuf;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -650,7 +651,7 @@ namespace PraxisCore.PbfReader
                 //We always need to apply tags here, so we can either skip after (if IgnoredUmatched is set) or to pass along tag values correctly.
                 finalway.Tags = GetTags(stringTable, way.keys, way.vals);
 
-                
+
                 if (ignoreUnmatched)
                 {
                     if (TagParser.GetStyleForOsmWay(finalway.Tags, styleSet).Name == TagParser.defaultStyle.Name)
@@ -1317,17 +1318,18 @@ namespace PraxisCore.PbfReader
                         tagDataByMatch[areatype].Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(t.Key).Append('\t').Append(t.Value.Replace("\r", "").Replace("\n", "")).Append("\r\n"); //Might also need to sanitize / and ' ?
                 }
 
-                foreach (var dataSet in geomDataByMatch)
+                lock (nodeLock) //This only needs a lock for nodes because that's the only part that does writes in parallel, but the lock cost is trivial when its not used by nodes.
                 {
-                    if (dataSet.Value.Length > 0)
+                    var writeTasks = new List<Task>(geomDataByMatch.Count * 2);
+                    foreach (var dataSet in geomDataByMatch)
                     {
-                        //This just TANKS the system when it gets to nodes on planet.osm.pbf. Async might let stuff overwrite each other. No-lock kills the app, and a lock eats ram until the system falls over.
-                        lock (nodeLock) //This only needs a lock for nodes because that's the only part that does writes in parallel, but the lock cost is trivial when its not used by nodes.
-                            Parallel.Invoke(
-                            () => File.AppendAllText(saveFilename + dataSet.Key + ".geomData", dataSet.Value.ToString()),
-                            () => File.AppendAllText(saveFilename + dataSet.Key + ".tagsData", tagDataByMatch[dataSet.Key].ToString())
-                        );
+                        if (dataSet.Value.Length > 0)
+                        {
+                            writeTasks.Add(Task.Run(() => File.AppendAllText(saveFilename + dataSet.Key + ".geomData", dataSet.Value.ToString())));
+                            writeTasks.Add(Task.Run(() => File.AppendAllText(saveFilename + dataSet.Key + ".tagsData", tagDataByMatch[dataSet.Key].ToString())));
+                        }
                     }
+                    Task.WaitAll(writeTasks.ToArray());
                 }
             }
             else
