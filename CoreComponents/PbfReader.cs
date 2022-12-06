@@ -7,12 +7,14 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace PraxisCore.PbfReader
 {
@@ -207,7 +209,7 @@ namespace PraxisCore.PbfReader
                                 {
                                     ProcessReaderResults(geoData, block, i);
                                 }
-                                SaveCurrentBlockAndGroup(block, i);
+                                SaveCurrentBlockAndGroup(block - 1, i);
                                 swGroup.Stop();
                                 if (group.relations.Count > 0)
                                     timeListRelations.Add(swGroup.Elapsed);
@@ -1448,6 +1450,32 @@ namespace PraxisCore.PbfReader
 
             if (displayStatus)
                 ShowWaitInfo();
+            CheckForThrashing();
+        }
+
+        public void CheckForThrashing()
+        {
+            Task.Run(() =>
+            {
+                while (!token.IsCancellationRequested)
+                {
+                    Process proc = Process.GetCurrentProcess();
+                    var data = GC.GetGCMemoryInfo();
+                    long currentRAM = proc.PrivateMemorySize64;
+                    long systemRAM = data.TotalAvailableMemoryBytes;
+
+                    if (currentRAM > (systemRAM * .8))
+                    {
+                        Log.WriteLog("Force-dumping half of block cache to minimize swap-file thrashing");
+                        foreach (var block in activeBlocks)
+                            if (block.Key % 2 == 0)
+                                activeBlocks.TryRemove(block.Key, out var ignore);
+
+                        GC.Collect();
+                    }
+                    Thread.Sleep(30000);
+                }
+            }, token);
         }
     }
 }
