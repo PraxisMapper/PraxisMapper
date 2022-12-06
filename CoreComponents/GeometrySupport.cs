@@ -38,7 +38,7 @@ namespace PraxisCore
                 return null;
 
             if (p.NumPoints < 4)
-                //can't determine orientation, because this point was shortened to an awkward line.
+                //can't determine orientation, because this poly was shortened to an awkward line.
                 return null;
 
             //NTS specs also requires holes in a polygon to be in clockwise order, opposite the outer shell.
