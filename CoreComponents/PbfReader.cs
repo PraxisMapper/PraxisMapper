@@ -502,6 +502,15 @@ namespace PraxisCore.PbfReader
             return tags;
         }
 
+        TagsCollection GetTags(List<byte[]> stringTable, List<uint> keys, List<uint> vals)
+        {
+            var tags = new TagsCollection(keys.Count);
+            for (int i = 0; i < keys.Count; i++)
+                tags.Add(new Tag(Encoding.UTF8.GetString(stringTable[(int)keys[i]]), Encoding.UTF8.GetString(stringTable[(int)vals[i]])));
+
+            return tags;
+        }
+
         /// <summary>
         /// Processes the requested relation into an OSMSharp CompleteRelation from the currently opened file
         /// </summary>
@@ -655,6 +664,7 @@ namespace PraxisCore.PbfReader
                 //We always need to apply tags here, so we can either skip after (if IgnoredUmatched is set) or to pass along tag values correctly.
                 finalway.Tags = GetTags(way.keys, way.vals);
 
+
                 if (ignoreUnmatched)
                 {
                     if (TagParser.GetStyleForOsmWay(finalway.Tags, styleSet).Name == TagParser.defaultStyle.Name)
@@ -729,11 +739,11 @@ namespace PraxisCore.PbfReader
                 var granularity = block.granularity;
                 var lat_offset = block.lat_offset;
                 var lon_offset = block.lon_offset;
-                var stringData = block.stringtable.s;
+                var stringData = block.stringtable.s.Select(st => Encoding.UTF8.GetString(st)).ToArray();
 
                 //sort out tags ahead of time.
                 int entryCounter = 0;
-                List<Tuple<int, string, string>> idKeyVal = new List<Tuple<int, string, string>>((dense.keys_vals.Count - dense.id.Count) / 2);
+                List<Tuple<int, string, string>> idKeyVal = new List<Tuple<int, string, string>>((dense.keys_vals.Count - dense.id.Count) / 2); //This could be a Dict<id, tags>
                 for (int i = 0; i < dense.keys_vals.Count; i++)
                 {
                     if (dense.keys_vals[i] == 0)
@@ -745,8 +755,8 @@ namespace PraxisCore.PbfReader
 
                     idKeyVal.Add(
                         Tuple.Create(entryCounter,
-                        currentBlockStringTable[dense.keys_vals[i++]], //i++ returns i, but increments the value.
-                        currentBlockStringTable[dense.keys_vals[i]]
+                        stringData[dense.keys_vals[i++]], //i++ returns i, but increments the value.
+                        stringData[dense.keys_vals[i]]
                     ));
                 }
                 var decodedTags = idKeyVal.ToLookup(k => k.Item1, v => new OsmSharp.Tags.Tag(v.Item2, v.Item3));
