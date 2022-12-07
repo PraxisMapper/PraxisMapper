@@ -1468,7 +1468,7 @@ namespace PraxisCore.PbfReader
                     {
                         Log.WriteLog("Force-dumping half of block cache to minimize swap-file thrashing");
                         foreach (var block in activeBlocks)
-                            if (block.Key % 2 == 0)
+                            if (Random.Shared.Next() % 2 == 0)
                                 activeBlocks.TryRemove(block.Key, out var ignore);
 
                         GC.Collect();
