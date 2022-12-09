@@ -49,7 +49,7 @@ namespace PraxisCore
         /// <summary>
         /// Interprets an OSM-object and returns the corresponding geometry. Returns null on a failure.
         /// </summary>
-        public Geometry Interpret(ICompleteOsmGeo osmObject)
+        public static Geometry Interpret(ICompleteOsmGeo osmObject)
         {
             // DISCLAIMER: this is a very very very simple geometry interpreter and
             // contains hardcoded all relevant tags.
@@ -110,7 +110,7 @@ namespace PraxisCore
         /// Returns true if the given tags collection contains tags that could represents an area. waterway=river or waterway=stream could be potential false positives,
         /// but can't be confirmed without the actual geometry or the area=* tag set to true or false.
         /// </summary>
-        public bool IsPotentiallyArea(TagsCollectionBase tags)
+        public static bool IsPotentiallyArea(TagsCollectionBase tags)
         {
             if (tags == null || tags.Count == 0)
                 return false; // no tags, assume no area.
@@ -170,7 +170,7 @@ namespace PraxisCore
         /// <param name="outerways">The list of outer ways. Must not be empty.</param>
         /// <param name="innerways">The list of inner ways. Maybe empty </param>
         /// <returns></returns>
-        private Geometry BuildGeometry(List<CompleteWay> outerways, List<CompleteWay> innerways)
+        private static Geometry BuildGeometry(List<CompleteWay> outerways, List<CompleteWay> innerways)
         {
             List<Polygon> outerRings;
 
@@ -203,7 +203,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="relation">The CompleteRelation to process</param>
         /// <returns>the Geometry to use in the application elsewhere, or null if an error occurred generating the Geometry. </returns>
-        private Geometry InterpretMultipolygonRelationNoRecursion(CompleteRelation relation)
+        private static Geometry InterpretMultipolygonRelationNoRecursion(CompleteRelation relation)
         {
             //Feature feature = null;
             if (relation.Members == null)
@@ -261,13 +261,14 @@ namespace PraxisCore
             currentShape.AddRange(firstShape.Nodes);
             while (closedShape == false)
             {
-                var lineToAdd = shapeList.FirstOrDefault(s => s.Nodes.First().Id == nextStartnode.Id);
+                var nextId = nextStartnode.Id;
+                var lineToAdd = shapeList.FirstOrDefault(s => s.Nodes[0].Id == nextId);
                 if (lineToAdd != null)
                     currentShape.AddRange(lineToAdd.Nodes.Skip(1));
                 else
                 { 
                     //check other direction
-                    lineToAdd = shapeList.FirstOrDefault(s => s.Nodes.Last().Id == nextStartnode.Id);
+                    lineToAdd = shapeList.FirstOrDefault(s => s.Nodes.Last().Id == nextId);
                     if (lineToAdd != null)
                         currentShape.AddRange(lineToAdd.Nodes.Reverse().Skip(1));//This way was drawn backwards relative to the original way.
                     else

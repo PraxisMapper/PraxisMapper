@@ -14,7 +14,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace PraxisCore.PbfReader
 {
@@ -664,7 +663,6 @@ namespace PraxisCore.PbfReader
                 //We always need to apply tags here, so we can either skip after (if IgnoredUmatched is set) or to pass along tag values correctly.
                 finalway.Tags = GetTags(way.keys, way.vals);
 
-
                 if (ignoreUnmatched)
                 {
                     if (TagParser.GetStyleForOsmWay(finalway.Tags, styleSet).Name == TagParser.defaultStyle.Name)
@@ -676,9 +674,9 @@ namespace PraxisCore.PbfReader
                 //This is significantly faster than doing a GetBlock per node when 1 block has mulitple entries
                 //its a little complicated but a solid performance boost.
                 long idToFind = 0; //more deltas 
-                Dictionary<int, IndexInfo> nodeInfoEntries = new Dictionary<int, IndexInfo>(); //hint(position in array), IndexInfo
+                Dictionary<int, IndexInfo> nodeInfoEntries = new Dictionary<int, IndexInfo>(way.refs.Count); //hint(position in array), IndexInfo
                 int hint = -1; //last result for previous node.
-                Dictionary<long, int> nodesByIndexInfo = new Dictionary<long, int>(); //nodeId, hint(Position in array)
+                Dictionary<long, int> nodesByIndexInfo = new Dictionary<long, int>(way.refs.Count); //nodeId, hint(Position in array)
 
                 for (int i = 0; i < way.refs.Count; i++)
                 {
@@ -743,24 +741,19 @@ namespace PraxisCore.PbfReader
 
                 //sort out tags ahead of time.
                 int entryCounter = 0;
-                List<Tuple<int, string, string>> idKeyVal = new List<Tuple<int, string, string>>((dense.keys_vals.Count - dense.id.Count) / 2); //This could be a Dict<id, tags>
+                List<Tuple<int, Tag>> idKeyVal = new List<Tuple<int, Tag>>((dense.keys_vals.Count - dense.id.Count) / 2);
                 for (int i = 0; i < dense.keys_vals.Count; i++)
                 {
                     if (dense.keys_vals[i] == 0)
                     {
-                        //skip to next entry.
-                        entryCounter++;
+                        entryCounter++; //skip to next entry.
                         continue;
                     }
 
-                    idKeyVal.Add(
-                        Tuple.Create(entryCounter,
-                        stringData[dense.keys_vals[i++]], //i++ returns i, but increments the value.
-                        stringData[dense.keys_vals[i]]
-                    ));
+                    idKeyVal.Add(Tuple.Create(entryCounter,new Tag(stringData[dense.keys_vals[i++]], stringData[dense.keys_vals[i]]))); //i++ returns i, but increments the value.
                 }
-                var decodedTags = idKeyVal.ToLookup(k => k.Item1, v => new OsmSharp.Tags.Tag(v.Item2, v.Item3));
-                var lastTaggedNode = idKeyVal.Last().Item1;
+                var decodedTags = idKeyVal.ToLookup(k => k.Item1, v => v.Item2);
+                var lastTaggedNode = entryCounter;
 
                 var index = -1;
                 long nodeId = 0;
@@ -776,9 +769,7 @@ namespace PraxisCore.PbfReader
                     if (!decodedTags[index].Any())
                         continue;
 
-                    //now, start loading keys/values
-                    OsmSharp.Tags.TagsCollection tc = new OsmSharp.Tags.TagsCollection(decodedTags[index]);
-
+                    var tc = new OsmSharp.Tags.TagsCollection(decodedTags[index]); //Tags are needed first, so pull them out here for the ignoreUnmatched check.
                     if (ignoreUnmatched)
                     {
                         if (TagParser.GetStyleForOsmWay(tc, styleSet) == TagParser.defaultStyle)
@@ -869,7 +860,6 @@ namespace PraxisCore.PbfReader
             //and shoudn't waste too much time if it isn't in a block already found.
             //foreach (var h in hints)
 
-
             //ways will hit a couple thousand blocks, nodes hit hundred of thousands of blocks.
             //This might help performance on ways, but will be much more noticeable on nodes.
             int min = 0;
@@ -884,7 +874,6 @@ namespace PraxisCore.PbfReader
                 var check = nodeIndex[current];
                 if ((check.minId <= nodeId) && (nodeId <= check.maxId))
                     return check;
-
                 else if (check.minId > nodeId) //this ways minimum is larger than our way, shift maxs down
                     max = current;
                 else if (check.maxId < nodeId) //this ways maximum is smaller than our way, shift min up.
