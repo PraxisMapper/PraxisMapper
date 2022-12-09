@@ -54,7 +54,7 @@ namespace PraxisCore
             //NOTE: a rough analysis suggests that about 1/3 of entries are 'tertiary' roads and another third are 'building'
             //BUT buildings can often be marked with another interesting property, like retail, tourism, or historical, and I'd prefer those match first.
             //So I will re-order this to handle tertiary first, then the gameElements that might be buildings, then plain buildings, and the remaining elements after that.
-            //This should mean that 60%+ of elements match in 6 checks or less.
+            //This should mean that 60%+ of elements match in 6 checks or less. 
             //MapTiles: Roads of varying sizes and colors to match OSM colors
             new StyleEntry() { MatchOrder = 10, Name ="tertiary", StyleSet = "mapTiles", //This is MatchOrde 1 because its one of the most common entries, is the correct answer 30% of the time.
                 PaintOperations = new List<StylePaint>() {
@@ -89,6 +89,13 @@ namespace PraxisCore
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "tourism", Value = "*", MatchType = "equals" }}
             },
+            new StyleEntry() { IsGameElement = true, MatchOrder = 49, Name ="wreck", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "A52A2A", FileName="Wreck.png", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
+                },
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "historic", Value = "wreck", MatchType = "equals" }}
+            },
             new StyleEntry() { IsGameElement = true, MatchOrder = 50, Name ="historical", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "B3B3B3", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
@@ -111,7 +118,7 @@ namespace PraxisCore
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "building", Value = "*", MatchType = "equals" },
                     new StyleMatchRule() { Key = "name", Value = "*", MatchType = "equals" }
-                } 
+                }
             },
             new StyleEntry() { MatchOrder = 70, Name ="building", StyleSet = "mapTiles", //NOTE: making this matchOrder=2 makes map tiles draw faster, but hides some gameplay-element colors.
                 PaintOperations = new List<StylePaint>() {
@@ -154,13 +161,13 @@ namespace PraxisCore
                     new StyleMatchRule() {Key = "natural", Value = "beach|shoal", MatchType = "or" },
                     new StyleMatchRule() {Key = "leisure", Value="beach_resort", MatchType="or"}
             } },
-            
+
             new StyleEntry() { IsGameElement = true, MatchOrder = 120, Name ="natureReserve", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "124504", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "leisure", Value = "nature_reserve", MatchType = "equals" }} 
+                    new StyleMatchRule() { Key = "leisure", Value = "nature_reserve", MatchType = "equals" }}
             },
             new StyleEntry() {IsGameElement = true, MatchOrder = 130, Name ="cemetery", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
@@ -168,7 +175,7 @@ namespace PraxisCore
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "landuse", Value = "cemetery", MatchType = "or" },
-                    new StyleMatchRule() {Key="amenity", Value="grave_yard", MatchType="or" } } 
+                    new StyleMatchRule() {Key="amenity", Value="grave_yard", MatchType="or" } }
             },
             new StyleEntry() { MatchOrder = 140, Name ="trailFilled", StyleSet = "mapTiles", IsGameElement = false, //This exists to make the map look correct, but these are so few removing them as game elements should not impact games.
                 PaintOperations = new List<StylePaint>() {
@@ -193,24 +200,25 @@ namespace PraxisCore
                     new StylePaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidthDegrees=0.0000125F, LinePattern= "10|5", LayerId = 70 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" }} 
+                    new StyleMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" }}
             },
             new StyleEntry() { MatchOrder = 170, Name ="parking", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "EEEEEE", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MinDrawRes = ConstantValues.zoom12DegPerPixelX}
                 },
-                StyleMatchRules = new List<StyleMatchRule>() { 
-                    new StyleMatchRule() { Key = "amenity", Value = "parking", MatchType = "equals" }} },
-
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "amenity", Value = "parking", MatchType = "equals" }} 
+            },
             //New generic entries for mapping by color
             new StyleEntry() { MatchOrder = 180, Name ="greenspace",  StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "cdebb0", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "landuse", Value = "grass|farmland|farmyard|meadow|vineyard|recreation_ground|village_green", MatchType = "or" },
-                    new StyleMatchRule() { Key = "natural", Value = "scrub|heath|grassland", MatchType = "or" },
+                    new StyleMatchRule() { Key = "landuse", Value = "grass|meadow|vineyard|recreation_ground|village_green", MatchType = "or" },
+                    new StyleMatchRule() { Key = "natural", Value = "heath|grassland", MatchType = "or" },
                     new StyleMatchRule() { Key = "leisure", Value = "garden", MatchType = "or" },
+                    new StyleMatchRule() { Key = "golf", Value = "tee|fairway|driving_range", MatchType = "or" },
             }},
             new StyleEntry() { MatchOrder = 190, Name ="alsobeach",  StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
@@ -351,33 +359,232 @@ namespace PraxisCore
                 new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
                 new StyleMatchRule() { Key="area", Value="yes", MatchType="equals"}
             }},
+            //New in Release 8: Additional styles for more accurate map tiles.
+            new StyleEntry() { MatchOrder = 340, Name ="tree", StyleSet = "mapTiles", //Trees are transparent, so they blend the color of what's under thenm.
+                PaintOperations = new List<StylePaint>() { //TODO: consider scaling to 32x32px at zoom 20. Do the math to conver that to degrees.
+                    new StylePaint() { HtmlColorCode = "42aedfa3", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 97, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "42a52a2a", FillOrStroke = "fill", LineWidthDegrees=0.000001425F, LinePattern= "solid", LayerId = 96, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key="natural", Value="tree", MatchType="equals"}
+            }},
+            new StyleEntry() { MatchOrder = 350, Name ="landfill", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "b6b592", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key="landuse", Value="landfill", MatchType="equals"}
+            }},
+            new StyleEntry() { MatchOrder = 360, Name ="farmland", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "eef0d5", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key="landuse", Value="farmland", MatchType="or"},
+                new StyleMatchRule() { Key="landuse", Value="greenhouse_horticulture", MatchType="or"},
+            }},
+            new StyleEntry() { MatchOrder = 370, Name ="farmyard", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "f5dcba", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key="landuse", Value="farmyard", MatchType="equals"},
+            }},
+            new StyleEntry() { MatchOrder = 380, Name ="scrub", StyleSet = "mapTiles", //TODO: import pattern.
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "c8d7ab", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key="natural", Value="scrub", MatchType="equals"},
+            }},
+            new StyleEntry() { MatchOrder = 390, Name ="garages", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "dfddce", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key="landuse", Value="garages", MatchType="equals"},
+            }},
+            new StyleEntry() { MatchOrder = 400, Name ="military", StyleSet = "mapTiles", //TODO import pattern.
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "ff5555", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key="landuse", Value="military", MatchType="equals"},
+            }},
+            new StyleEntry() { MatchOrder = 410, Name ="sportspitch", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "aae0cb", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key="leisure", Value="pitch|track", MatchType="any"},
+            }},
+            new StyleEntry() { MatchOrder = 420, Name ="golfgreen", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "aae0cb", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key="golf", Value="green", MatchType="equals"},
+            }},
+            new StyleEntry() { MatchOrder = 430, Name ="golfcourse", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "def6c0", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key="leisure", Value="golf_course|miniature_golf", MatchType="any"},
+            }},
+
+            new StyleEntry() { MatchOrder = 440, Name ="stadium", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "dffce2", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key="leisure", Value="sports_centre|stadium", MatchType="or"},
+                new StyleMatchRule() { Key="landuse", Value="recreation_ground", MatchType="or"},
+            }},
+            new StyleEntry() { MatchOrder = 440, Name ="railway", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "ffc0cb", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key="landuse", Value="railway", MatchType="equals"},
+            }},
+            new StyleEntry() { MatchOrder = 450, Name ="airportapron", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "dbdbe1", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key="aeroway", Value="apron", MatchType="equals"},
+            }},
+            new StyleEntry() { MatchOrder = 451, Name ="airportrunway", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "bbbbcc", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key="aeroway", Value="runway|taxiway|helipad", MatchType="equals"}, //TODO: helipad is the same color, but has a symbol.
+            }},
+            new StyleEntry() { MatchOrder = 453, Name ="airporterminal", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "c5b7ad", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key="aeroway", Value="terminal", MatchType="or"},
+                new StyleMatchRule() { Key="building", Value="train_station", MatchType="or"},
+                new StyleMatchRule() { Key="aerialway", Value="station", MatchType="or"},
+                new StyleMatchRule() { Key="public_transport", Value="station", MatchType="or"},
+            }},
+            new StyleEntry() { MatchOrder = 460, Name ="raceway", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "ffc0cb", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key="highway", Value="raceway", MatchType="equals"},
+            }},
+            new StyleEntry() { MatchOrder = 470, Name ="placeofworship", StyleSet = "mapTiles", //TODO more before building style entry.
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "d0d0d0", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key="amenity", Value="place_of_worship", MatchType="or"},
+                new StyleMatchRule() { Key="landuse", Value="religious", MatchType="or"},
+            }},
+            new StyleEntry() { MatchOrder = 480, Name ="camping", StyleSet = "mapTiles", //TODO: move before tourism entry.
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "def6c0", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key="tourism", Value="camp_site|caravan_site", MatchType="any"},
+            }},
+            new StyleEntry() { MatchOrder = 490, Name ="heath", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "d6d99f", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key="natural", Value="heath", MatchType="equals"},
+            }},
+            new StyleEntry() { MatchOrder = 500, Name ="sand", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "f5e9c6", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key="natural", Value="sand", MatchType="or"},
+                new StyleMatchRule() { Key="golf", Value="bunker", MatchType="or"},
+            }},
+            new StyleEntry() { MatchOrder = 510, Name ="glacier", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "ddecec", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key="natural", Value="glacier", MatchType="equals"},
+            }},
+            new StyleEntry() { MatchOrder = 520, Name ="aerodrome", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "e9e7e2", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key="aeroway", Value="aerodrome", MatchType="or"},
+                new StyleMatchRule() { Key="amenity", Value="ferry_terminal", MatchType="or"},
+                new StyleMatchRule() { Key="amenity", Value="bus_station", MatchType="or"},
+            }},
+            new StyleEntry() { MatchOrder = 530, Name ="restarea", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "f9c6c6", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+                {
+                    new StyleMatchRule() { Key="highway", Value="services|rest_area", MatchType="any"},
+             }},
+            new StyleEntry() { MatchOrder = 540, Name ="bridge", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "f9c6c6", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+                {
+                    new StyleMatchRule() { Key="man_made", Value="bridge", MatchType="equals"},
+            }},
+            new StyleEntry() { MatchOrder = 550, Name ="power", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "f9c6c6", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+                {
+                    new StyleMatchRule() { Key="power", Value="generator|substation|plant", MatchType="any"},
+            }},
+
+
 
             //additional areas that I can work out info on go here, though they may not necessarily be the most interesting areas to handle.
             //single color terrains:
-            //Aeroway:apron: dbdbe1
-            //aeroway:runway: bbbbcc
-            //aeroway:taxiway: bbbbcc
-            //aeroway:terminal: c5b7ad
-            //highway:raceway: ffc0cb (might also be a line)
-            //landuse:farmland: eef0d5 (currently a subtype of Greenspace) (also landuse:greenhouse_horticulture)
-            //landuse:farmyard: f5dcba (currently a subtype of Greenspace)
-            //landuse:garages dfddce
-            //@scrub: #c8d7ab;  (currently Greenspace)
-            //@orchard: #aedfa3; // also vineyard, plant_nursery
-            //@military: #f55;
-            //@place_of_worship: #d0d0d0; // also landuse_religious
-            //@pitch: #aae0cb;    sports pitch/track, also golf_green
-            //@campsite: #def6c0; // also caravan_site, picnic_site, golf_course
-            //most golf features are 'grass' by color.
-            //landuse:landfill  b6b592
-            //landuse:railway ebdbe8 (same color as industrial, space people shouldnt be in.)
-            //bridges are 'black' but thats not #000000 on the actual rendering.
             //manmade:clearcut: grass (requires forest to be darker green)
             //allotments: c9e1bf
-            //natural:tree : greenspace color, but a single marker, 30x30pc at zoom 20 (TODO: calc that to my lineWidth value in lat/lng degrees.
 
+            //patterns to work in:
+            //orchard
+            //golf rough.
+            //military
+            //military danger zone
 
-            //line info:
 
 
             //NOTE: hiding elements of a given type is done by drawing those elements in a transparent color
@@ -386,15 +593,15 @@ namespace PraxisCore
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "F2EFE9", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 101 }
                 },
-                StyleMatchRules = new List<StyleMatchRule>() { 
+                StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "*", Value = "*", MatchType = "none" }} },
 
             new StyleEntry() { MatchOrder = 10000, Name ="unmatched",  StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100 }
                 },
-                StyleMatchRules = new List<StyleMatchRule>() { 
-                    new StyleMatchRule() { Key = "*", Value = "*", MatchType = "default" }} 
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "*", Value = "*", MatchType = "default" }}
             },
 
             //TODO: these need their sizes adjusted to be wider. Right now, in degrees, the overlap is nearly invisible unless you're at zoom 20.
