@@ -20,7 +20,6 @@ namespace PraxisCore
 
         private static readonly NetTopologySuite.NtsGeometryServices s = new NetTopologySuite.NtsGeometryServices(PrecisionModel.Floating.Value, 4326);
         private static readonly NetTopologySuite.IO.WKTReader geomTextReader = new NetTopologySuite.IO.WKTReader(s); // {DefaultSRID = 4326 };
-        private static readonly PMFeatureInterpreter featureInterpreter = new PMFeatureInterpreter();
 
         public static GeoArea MakeBufferedGeoArea(GeoArea original)
         {
@@ -143,7 +142,7 @@ namespace PraxisCore
 
             try
             {
-                var geometry = featureInterpreter.Interpret(g); 
+                var geometry = PMFeatureInterpreter.Interpret(g); 
                 if (geometry == null)
                 {
                     Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + "-" + TagParser.GetPlaceName(g.Tags) + " didn't interpret into a Geometry object", Log.VerbosityLevels.Errors);
