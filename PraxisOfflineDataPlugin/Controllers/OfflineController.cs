@@ -11,6 +11,9 @@ namespace PraxisOfflineDataPlugin.Controllers
     [Route("[controller]")]
     public class OfflineController : Controller, IPraxisPlugin
     {
+        //NOTE: for more accurate data, I could save cell10 info in the final dictionary.
+        //THis would be be better saved for a Cell6 or smaller area, but that could be generated on demand once,
+        //then saved and sent on every other request.
         [HttpGet]
         [Route("/[controller]/Small/{plusCode6}")]
         public string GetSmallTerrainData(string plusCode6)
@@ -136,12 +139,14 @@ namespace PraxisOfflineDataPlugin.Controllers
                 }
                 if (terrainDict[cell2].Count == 0)
                     terrainDict[cell2].TryRemove(cell2, out var ignore);
+
+                //NOTE and TODO: if I want to save files per Cell2, here is where I should write terrainDict, then remove the current Cell2 entry and loop.
             }
 
             return JsonSerializer.Serialize(terrainDict);
         }
 
-        private Dictionary<string, int> GetTerrainIndex()
+        private Dictionary<string, int> GetTerrainIndex() //TODO make style a parameter
         {
             var dict = new Dictionary<string, int>();
             foreach (var entry in TagParser.allStyleGroups["mapTiles"])
