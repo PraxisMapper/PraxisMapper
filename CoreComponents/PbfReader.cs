@@ -1323,18 +1323,13 @@ namespace PraxisCore.PbfReader
                         tagDataByMatch[areatype].Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(t.Key).Append('\t').Append(t.Value.Replace("\r", "").Replace("\n", "")).Append("\r\n"); //Might also need to sanitize / and ' ?
                 }
 
-                lock (nodeLock) //This only needs a lock for nodes because that's the only part that does writes in parallel, but the lock cost is trivial when its not used by nodes.
+                foreach (var dataSet in geomDataByMatch)
                 {
-                    var writeTasks = new List<Task>(geomDataByMatch.Count * 2);
-                    foreach (var dataSet in geomDataByMatch)
+                    if (dataSet.Value.Length > 0)
                     {
-                        if (dataSet.Value.Length > 0)
-                        {
-                            writeTasks.Add(Task.Run(() => File.AppendAllText(saveFilename + dataSet.Key + ".geomData", dataSet.Value.ToString())));
-                            writeTasks.Add(Task.Run(() => File.AppendAllText(saveFilename + dataSet.Key + ".tagsData", tagDataByMatch[dataSet.Key].ToString())));
-                        }
+                        QueueWriteTask(saveFilename + dataSet.Key + ".geomData", dataSet.Value);
+                        QueueWriteTask(saveFilename + dataSet.Key + ".tagsData", tagDataByMatch[dataSet.Key]);
                     }
-                    Task.WaitAll(writeTasks.ToArray());
                 }
             }
             else
@@ -1350,12 +1345,8 @@ namespace PraxisCore.PbfReader
                 }
                 try
                 {
-                    {
-                        Parallel.Invoke(
-                            () => File.AppendAllText(saveFilename + ".geomData", geometryBuilds.ToString()),
-                            () => File.AppendAllText(saveFilename + ".tagsData", tagBuilds.ToString())
-                        );
-                    }
+                    QueueWriteTask(saveFilename + ".geomData", geometryBuilds);
+                    QueueWriteTask(saveFilename + ".tagsData", tagBuilds);
                 }
                 catch (Exception ex)
                 {
@@ -1479,6 +1470,20 @@ namespace PraxisCore.PbfReader
                     Thread.Sleep(30000);
                 }
             }, token);
+        }
+
+        ConcurrentDictionary<string, SemaphoreSlim> fileLocks = new ConcurrentDictionary<string, SemaphoreSlim>();
+        public async void QueueWriteTask(string filename, StringBuilder data)
+        {
+            Task.Run(() =>
+            {
+                if (!fileLocks.ContainsKey(filename))
+                    fileLocks.TryAdd(filename, new SemaphoreSlim(1));
+
+                fileLocks[filename].Wait();
+                File.AppendAllText(filename, data.ToString());
+                fileLocks[filename].Release();
+            });
         }
     }
 }
