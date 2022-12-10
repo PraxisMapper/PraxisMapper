@@ -86,8 +86,6 @@ namespace PraxisCore.PbfReader
 
         object nodeLock = new object();
 
-        string[] currentBlockStringTable;
-
         public PbfReader()
         {
             token = tokensource.Token;
@@ -492,15 +490,6 @@ namespace PraxisCore.PbfReader
             return null;
         }
 
-        TagsCollection GetTags(List<uint> keys, List<uint> vals)
-        {
-            var tags = new TagsCollection(keys.Count);
-            for (int i = 0; i < keys.Count; i++)
-                tags.Add(new Tag(currentBlockStringTable[(int)keys[i]], currentBlockStringTable[(int)vals[i]]));
-
-            return tags;
-        }
-
         TagsCollection GetTags(List<byte[]> stringTable, List<uint> keys, List<uint> vals)
         {
             var tags = new TagsCollection(keys.Count);
@@ -533,7 +522,7 @@ namespace PraxisCore.PbfReader
                 //its not one i can process.
                 foreach (var role in rel.roles_sid)
                 {
-                    string roleType = currentBlockStringTable[role];
+                    string roleType = Encoding.UTF8.GetString(relationBlock.stringtable.s[role]);
                     if (roleType == "inner" || roleType == "outer")
                     {
                         canProcess = true; //I need at least one outer, and inners require outers.
@@ -548,7 +537,7 @@ namespace PraxisCore.PbfReader
                 //I have to knows my tags BEFORE doing the rest of the processing.
                 CompleteRelation r = new CompleteRelation();
                 r.Id = relationId;
-                r.Tags = GetTags(rel.keys, rel.vals);
+                r.Tags = GetTags(relationBlock.stringtable.s, rel.keys, rel.vals);
 
                 if (ignoreUnmatched)
                 {
@@ -639,7 +628,7 @@ namespace PraxisCore.PbfReader
                 if (way == null)
                     return null; //way wasn't in the block it was supposed to be in.
 
-                return MakeCompleteWay(way, ignoreUnmatched);
+                return MakeCompleteWay(way, wayBlock.stringtable.s, ignoreUnmatched);
             }
             catch (Exception ex)
             {
@@ -654,14 +643,15 @@ namespace PraxisCore.PbfReader
         /// <param name="way">the way, in PBF form</param>
         /// <param name="ignoreUnmatched">if true, returns null if this element's tags only match the default style.</param>
         /// <returns>the CompleteWay object requested, or null if skipUntagged or ignoreUnmatched checks skip this elements, or if there is an error processing the way</returns>
-        private CompleteWay MakeCompleteWay(Way way, bool ignoreUnmatched = false)
+        private CompleteWay MakeCompleteWay(Way way, List<byte[]> stringTable, bool ignoreUnmatched = false)
         {
             try
             {
                 CompleteWay finalway = new CompleteWay();
                 finalway.Id = way.id;
                 //We always need to apply tags here, so we can either skip after (if IgnoredUmatched is set) or to pass along tag values correctly.
-                finalway.Tags = GetTags(way.keys, way.vals);
+                finalway.Tags = GetTags(stringTable, way.keys, way.vals);
+
 
                 if (ignoreUnmatched)
                 {
@@ -737,7 +727,7 @@ namespace PraxisCore.PbfReader
                 var granularity = block.granularity;
                 var lat_offset = block.lat_offset;
                 var lon_offset = block.lon_offset;
-                var stringData = block.stringtable.s.Select(st => Encoding.UTF8.GetString(st)).ToArray();
+                var stringData = block.stringtable.s;
 
                 //sort out tags ahead of time.
                 int entryCounter = 0;
@@ -750,7 +740,13 @@ namespace PraxisCore.PbfReader
                         continue;
                     }
 
-                    idKeyVal.Add(Tuple.Create(entryCounter,new Tag(stringData[dense.keys_vals[i++]], stringData[dense.keys_vals[i]]))); //i++ returns i, but increments the value.
+                    idKeyVal.Add(
+                        Tuple.Create(entryCounter,
+                        new Tag(
+                            Encoding.UTF8.GetString(stringData[dense.keys_vals[i++]]), //i++ returns i, but increments the value.
+                            Encoding.UTF8.GetString(stringData[dense.keys_vals[i]])
+                        )
+                    ));
                 }
                 var decodedTags = idKeyVal.ToLookup(k => k.Item1, v => v.Item2);
                 var lastTaggedNode = entryCounter;
@@ -1015,7 +1011,6 @@ namespace PraxisCore.PbfReader
                 //Attempting to clear up some memory slightly faster, but this should be redundant.
                 relList.Clear();
                 var block = GetBlock(blockId);
-                currentBlockStringTable = block.stringtable.s.Select(st => Encoding.UTF8.GetString(st)).ToArray();
                 if (primgroup.relations != null && primgroup.relations.Count > 0)
                 {
                     //Some relation blocks can hit 22GB of RAM on their own. Low-resource machines will fail, and should roll into the LastChance path automatically.
@@ -1026,7 +1021,7 @@ namespace PraxisCore.PbfReader
                 {
                     foreach (var r in primgroup.ways)
                     {
-                        relList.Add(Task.Run(() => { results.Add(MakeCompleteWay(r, onlyTagMatchedEntries)); totalProcessEntries++; }));
+                        relList.Add(Task.Run(() => { results.Add(MakeCompleteWay(r, block.stringtable.s, onlyTagMatchedEntries)); totalProcessEntries++; }));
                     }
                 }
                 else
