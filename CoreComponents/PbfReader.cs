@@ -185,6 +185,7 @@ namespace PraxisCore.PbfReader
                 }
 
                 int nextGroup = FindLastCompletedGroup() + 1; //saves -1 at the start of a block, so add this to 0.
+                int currentCount = 0;
 
                 if (!lowResourceMode) //typical path
                 {
@@ -206,7 +207,7 @@ namespace PraxisCore.PbfReader
                                 //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
                                 if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
                                 {
-                                    ProcessReaderResults(geoData, block, i);
+                                    currentCount = ProcessReaderResults(geoData, block, i);
                                 }
                                 SaveCurrentBlockAndGroup(block - 1, i);
                                 swGroup.Stop();
@@ -214,7 +215,7 @@ namespace PraxisCore.PbfReader
                                     timeListRelations.Add(swGroup.Elapsed);
                                 else
                                     timeListWays.Add(swGroup.Elapsed);
-                                Log.WriteLog("Block " + block + " Group " + i + " processed in " + swGroup.Elapsed);
+                                Log.WriteLog("Block " + block + " Group " + i + " processed " + currentCount + " in " + swGroup.Elapsed);
                             }
                             catch
                             {
@@ -537,7 +538,7 @@ namespace PraxisCore.PbfReader
                 //I have to knows my tags BEFORE doing the rest of the processing.
                 CompleteRelation r = new CompleteRelation();
                 r.Id = relationId;
-                r.Tags = GetTags(relationBlock.stringtable.s, rel.keys, rel.vals);
+                r.Tags = GetTags(stringData, rel.keys, rel.vals);
 
                 if (ignoreUnmatched)
                 {
@@ -564,7 +565,7 @@ namespace PraxisCore.PbfReader
                         case Relation.MemberType.WAY:
                             var wayKey = FindBlockInfoForWay(idToFind, out int indexPosition, hint);
                             hint = indexPosition;
-                            c.Member = MakeCompleteWay(idToFind, hint, false);
+                            c.Member = MakeCompleteWay(idToFind, hint, false, true);
                             break;
                         case Relation.MemberType.RELATION: //ignore meta-relations
                             break;
@@ -616,7 +617,7 @@ namespace PraxisCore.PbfReader
         /// <param name="hints">a list of currently loaded blocks to check before doing a full BTree search for entries</param>
         /// <param name="ignoreUnmatched">if true, returns null if this element's tags only match the default style.</param>
         /// <returns>the CompleteWay object requested, or null if skipUntagged or ignoreUnmatched checks skip this elements, or if there is an error processing the way</returns>
-        private CompleteWay MakeCompleteWay(long wayId, int hint = -1, bool ignoreUnmatched = false)
+        private CompleteWay MakeCompleteWay(long wayId, int hint = -1, bool ignoreUnmatched = false, bool skipTags = false) //skipTags is for relations, where the way's tags don't matter.
         {
             try
             {
@@ -628,7 +629,7 @@ namespace PraxisCore.PbfReader
                 if (way == null)
                     return null; //way wasn't in the block it was supposed to be in.
 
-                return MakeCompleteWay(way, wayBlock.stringtable.s, ignoreUnmatched);
+                return MakeCompleteWay(way, wayBlock.stringtable.s, ignoreUnmatched, skipTags);
             }
             catch (Exception ex)
             {
@@ -643,32 +644,35 @@ namespace PraxisCore.PbfReader
         /// <param name="way">the way, in PBF form</param>
         /// <param name="ignoreUnmatched">if true, returns null if this element's tags only match the default style.</param>
         /// <returns>the CompleteWay object requested, or null if skipUntagged or ignoreUnmatched checks skip this elements, or if there is an error processing the way</returns>
-        private CompleteWay MakeCompleteWay(Way way, List<byte[]> stringTable, bool ignoreUnmatched = false)
+        private CompleteWay MakeCompleteWay(Way way, List<byte[]> stringTable, bool ignoreUnmatched = false, bool skipTags = false)
         {
             try
             {
                 CompleteWay finalway = new CompleteWay();
                 finalway.Id = way.id;
                 //We always need to apply tags here, so we can either skip after (if IgnoredUmatched is set) or to pass along tag values correctly.
-                finalway.Tags = GetTags(stringTable, way.keys, way.vals);
-
-
-                if (ignoreUnmatched)
+                if (!skipTags)
                 {
-                    if (TagParser.GetStyleForOsmWay(finalway.Tags, styleSet).Name == TagParser.defaultStyle.Name)
-                        return null; //don't process this one, we said not to load entries that aren't already in our style list.
+                    finalway.Tags = GetTags(stringTable, way.keys, way.vals);
+
+                    if (ignoreUnmatched)
+                    {
+                        if (TagParser.GetStyleForOsmWay(finalway.Tags, styleSet).Name == TagParser.defaultStyle.Name)
+                            return null; //don't process this one, we said not to load entries that aren't already in our style list.
+                    }
                 }
 
                 //NOTES:
                 //This gets all the entries we want from each node, then loads those all in 1 pass per referenced block.
                 //This is significantly faster than doing a GetBlock per node when 1 block has mulitple entries
                 //its a little complicated but a solid performance boost.
+                int entryCount = way.refs.Count;
                 long idToFind = 0; //more deltas 
-                Dictionary<int, IndexInfo> nodeInfoEntries = new Dictionary<int, IndexInfo>(way.refs.Count); //hint(position in array), IndexInfo
+                Dictionary<int, IndexInfo> nodeInfoEntries = new Dictionary<int, IndexInfo>(entryCount); //hint(position in array), IndexInfo
                 int hint = -1; //last result for previous node.
-                Dictionary<long, int> nodesByIndexInfo = new Dictionary<long, int>(way.refs.Count); //nodeId, hint(Position in array)
+                Dictionary<long, int> nodesByIndexInfo = new Dictionary<long, int>(entryCount); //nodeId, hint(Position in array)
 
-                for (int i = 0; i < way.refs.Count; i++)
+                for (int i = 0; i < entryCount; i++)
                 {
                     idToFind += way.refs[i];
                     var blockInfo = FindBlockInfoForNode(idToFind, out var index, hint);
@@ -678,10 +682,10 @@ namespace PraxisCore.PbfReader
                 }
                 var nodesByBlockGroup = nodesByIndexInfo.ToLookup(k => k.Value, v => v.Key); //hint(Position in array), nodeIDs
 
-                finalway.Nodes = new OsmSharp.Node[way.refs.Count];
+                finalway.Nodes = new OsmSharp.Node[entryCount];
                 //Each way is already in its own thread, I think making each of those fire off 1 thread per node block referenced is excessive.
                 //and may well hurt performance in most cases due to overhead and locking the concurrentdictionary than it gains.
-                Dictionary<long, OsmSharp.Node> AllNodes = new Dictionary<long, OsmSharp.Node>(way.refs.Count);
+                Dictionary<long, OsmSharp.Node> AllNodes = new Dictionary<long, OsmSharp.Node>(entryCount);
                 foreach (var block in nodesByBlockGroup)
                 {
                     var someNodes = GetAllNeededNodesInBlockGroup(nodeInfoEntries[block.Key], block.OrderBy(b => b).ToArray());
@@ -691,7 +695,7 @@ namespace PraxisCore.PbfReader
 
                 //Iterate over the list of referenced Nodes again, but this time to assign created nodes to the final results.
                 idToFind = 0;
-                for (int i = 0; i < way.refs.Count; i++)
+                for (int i = 0; i < entryCount; i++)
                 {
                     idToFind += way.refs[i]; //delta coding.
                     finalway.Nodes[i] = AllNodes[idToFind];
@@ -1255,14 +1259,15 @@ namespace PraxisCore.PbfReader
         /// <param name="saveToDb">If true, insert the items directly to the database instead of exporting to files.</param>
         /// <param name="onlyTagMatchedElements">if true, only loads in elements that dont' match the default entry for a TagParser style set</param>
         /// <returns>the Task handling the conversion process</returns>
-        public void ProcessReaderResults(IEnumerable<ICompleteOsmGeo> items, long blockId, int groupId)
+        public int ProcessReaderResults(IEnumerable<ICompleteOsmGeo> items, long blockId, int groupId)
         {
             //This one is easy, we just dump the geodata to the file.
+            int actualCount = 0;
             string saveFilename = outputPath + Path.GetFileNameWithoutExtension(fi.Name) + "-" + blockId + "-" + groupId;
             ConcurrentBag<DbTables.Place> elements = new ConcurrentBag<DbTables.Place>();
 
             if (items == null || !items.Any())
-                return;
+                return 0;
 
             relList = new ConcurrentBag<Task>();
             foreach (var r in items)
@@ -1276,7 +1281,7 @@ namespace PraxisCore.PbfReader
                 elements = new ConcurrentBag<DbTables.Place>(elements.Where(e => boundsEntry.Intersects(e.ElementGeometry)));
 
             if (elements.IsEmpty)
-                return;
+                return 0;
 
             //Single check per block to fix points having 0 size.
             if (elements.First().SourceItemType == 1)
@@ -1287,13 +1292,15 @@ namespace PraxisCore.PbfReader
                 foreach (var e in elements)
                     e.ElementGeometry = e.ElementGeometry.Centroid;
 
+            actualCount = elements.Count;
+
             if (saveToDB) //If this is on, we skip the file-writing part and send this data directly to the DB. Single threaded, but doesn't waste disk space with intermediate files.
             {
                 var db = new PraxisContext();
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
                 db.Places.AddRange(elements);
                 db.SaveChanges();
-                return;
+                return actualCount;
             }
             else if (splitByStyleSet)
             {
@@ -1356,7 +1363,7 @@ namespace PraxisCore.PbfReader
                 }
             }
 
-            return; //some invalid options were passed and we didnt run through anything.
+            return actualCount; //some invalid options were passed and we didnt run through anything.
         }
 
         /// <summary>
