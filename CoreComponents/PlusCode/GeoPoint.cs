@@ -14,11 +14,11 @@ namespace Google.OpenLocationCode
         /// <exception cref="ArgumentException">If longitude is out of range -180 to 180.</exception>
         public GeoPoint(double latitude, double longitude)
         {
-            if (latitude < -90 || latitude > 90) throw new ArgumentException("latitude is out of range -90 to 90");
-            if (longitude < -180 || longitude > 180) throw new ArgumentException("longitude is out of range -180 to 180");
+            //if (latitude < -90 || latitude > 90) throw new ArgumentException("latitude is out of range -90 to 90");
+            //if (longitude < -180 || longitude > 180) throw new ArgumentException("longitude is out of range -180 to 180");
 
-            Latitude = latitude;
-            Longitude = longitude;
+            Latitude = Math.Min(90, Math.Max(-90, latitude));
+            Longitude = Math.Min(180, Math.Max(-180, longitude));
         }
 
         /// <summary>

@@ -1,4 +1,5 @@
 ﻿using CryptSharp;
+using EFCore.BulkExtensions;
 using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -8,12 +9,14 @@ using PraxisCore;
 using PraxisCore.PbfReader;
 using PraxisCore.Support;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using static PraxisCore.ConstantValues;
 using static PraxisCore.DbTables;
@@ -46,7 +49,6 @@ namespace Larry
             }
             
             Log.WriteLog("Larry started at " + DateTime.Now);
-
             if (args.Length == 0)
             {
                 Log.WriteLog("You must pass an arguement to this application", Log.VerbosityLevels.High);
@@ -259,6 +261,11 @@ namespace Larry
                 SetEnvValues();
             }
 
+            if (args.Any(a => a == "-makeOfflineFiles"))
+            {
+                MakeOfflineFilesCell8();
+            }
+
             //This is not currently finished or testing in the current setup. Will return in a future release.
             //if (args.Any(a => a.StartsWith("-populateEmptyArea:")))
             //{
@@ -342,6 +349,8 @@ namespace Larry
             List<string> geomFilenames = Directory.EnumerateFiles(config["OutputDataFolder"], "*.geomData").ToList();
             List<string> tagsFilenames = Directory.EnumerateFiles(config["OutputDataFolder"], "*.tagsData").ToList();
 
+            db.DropIndexes();
+
             if (config["KeepElementsInMemory"] == "True") //ignore DB, doing some one-off operation.
             {
                 //Skip database work. Use an in-memory list for a temporary operation.
@@ -383,7 +392,7 @@ namespace Larry
                 {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
-                    var mariaPath = fileName.Replace("\\", "\\\\"); //TODO: this may need some cross-platform attention if I have to keep this particular mode up. EF7 might support bulk inserts and make this redundant.
+                    var mariaPath = fileName.Replace("\\", "\\\\"); //TODO: this may need some cross-platform attention if I have to keep this particular mode up.
                     db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' IGNORE INTO TABLE Places fields terminated by '\t' lines terminated by '\r\n' (sourceItemID, sourceItemType, @elementGeometry, AreaSize, privacyId) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
                     sw.Stop();
                     Log.WriteLog("Geometry loaded from " + fileName + " in " + sw.Elapsed);
@@ -407,28 +416,35 @@ namespace Larry
                 if (singleThread)
                     options.MaxDegreeOfParallelism = 1;
 
-                Parallel.ForEach(geomFilenames, options,  fileName => 
+                //Parallel.ForEach(geomFilenames, options,  fileName => 
+                foreach(var fileName in geomFilenames) 
                 {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
-                    var db = new PraxisContext();
+                    db = new PraxisContext();
                     db.Database.SetCommandTimeout(Int32.MaxValue);
                     db.ChangeTracker.AutoDetectChangesEnabled = false;
                     var lines = File.ReadAllLines(fileName); //Might be faster to use streams and dodge the memory allocation?
+                    var newPlaces = new List<PraxisCore.DbTables.Place> (lines.Count());
+                    Log.WriteLog("Converting entries from file...");
                     foreach (var line in lines)
                     {
                         db.Places.Add(GeometrySupport.ConvertSingleTsvPlace(line));
+                        //newPlaces.Add(GeometrySupport.ConvertSingleTsvPlace(line));
                     }
+                    Log.WriteLog("Saving to db...");
                     db.SaveChanges();
+                    //db.BulkInsert<Place>(newPlaces);
                     sw.Stop();
                     Log.WriteLog("Geometry loaded from " + fileName + " in " + sw.Elapsed);
                     File.Move(fileName, fileName + "done");
-                });
-                Parallel.ForEach(tagsFilenames, options, fileName =>
+                } //);
+                //Parallel.ForEach(tagsFilenames, options, fileName =>
+                foreach(var fileName in tagsFilenames)
                 {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
-                    var db = new PraxisContext();
+                    db = new PraxisContext();
                     db.Database.SetCommandTimeout(Int32.MaxValue);
                     db.ChangeTracker.AutoDetectChangesEnabled = false;
                     var lines = File.ReadAllLines(fileName);
@@ -440,7 +456,7 @@ namespace Larry
                     sw.Stop();
                     Log.WriteLog("Tags loaded from " + fileName + " in " + sw.Elapsed);
                     File.Move(fileName, fileName + "done");
-                });
+                }//);
             }
 
             fullProcess.Stop();
@@ -661,6 +677,136 @@ namespace Larry
             {
                 File.Move(file, file.Substring(0, file.Length - 4));
             }
+        }
+
+        private static Dictionary<string, int> GetTerrainIndex() //TODO make style a parameter
+        {
+            var dict = new Dictionary<string, int>();
+            foreach (var entry in TagParser.allStyleGroups["mapTiles"])
+            {
+                if (entry.Value.IsGameElement)
+                {
+                    dict.Add(entry.Key, dict.Count() + 1);
+                }
+            }
+            return dict;
+        }
+
+        static List<string> GetCellCombos()
+        {
+            var list = new List<string>(400);
+            foreach (var Yletter in OpenLocationCode.CodeAlphabet)
+                foreach (var Xletter in OpenLocationCode.CodeAlphabet)
+                {
+                    list.Add(String.Concat(Yletter, Xletter));
+                }
+
+            return list;
+        }
+
+        static List<string> GetCell2Combos()
+        {
+            var list = new List<string>(400);
+            foreach (var Yletter in OpenLocationCode.CodeAlphabet.Take(9))
+                foreach (var Xletter in OpenLocationCode.CodeAlphabet.Take(18))
+                {
+                    list.Add(String.Concat(Yletter, Xletter));
+                }
+
+            return list;
+        }
+
+        public static void MakeOfflineFilesCell8()
+        {
+            var db = new PraxisContext();
+            var terrainDict = new ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<string, string>>>>();
+            var index = GetTerrainIndex();
+            //To avoid creating a new type, I add the index data as its own entry, and put all the data in the first key under "index".
+            terrainDict["index"] = new ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<string, string>>>();
+            terrainDict["index"][String.Join("|", index.Select(i => i.Key + "," + i.Value))] = new ConcurrentDictionary<string, ConcurrentDictionary<string, string>>();
+
+            foreach (var cell2 in GetCell2Combos())
+            {
+                var place2 = cell2.ToPolygon();
+                var placeTest = db.Places.Any(p => p.ElementGeometry.Intersects(place2)); //DoPlacesExist in a single line.
+                if (!placeTest)
+                    continue;
+
+                terrainDict[cell2] = new ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<string, string>>>();
+                foreach (var cell4 in GetCellCombos())
+                {
+                    var place4 = (cell2 + cell4).ToPolygon();
+                    var placeTest4 = db.Places.Any(p => p.ElementGeometry.Intersects(place4)); //DoPlacesExist in a single line.
+                    if (!placeTest4)
+                        continue;
+
+                    terrainDict[cell2][cell4] = new ConcurrentDictionary<string, ConcurrentDictionary<string, string>>();
+                    foreach (var cell6 in GetCellCombos())
+                    {
+                        try
+                        {
+                            string pluscode6 = cell2 + cell4 + cell6;
+                            GeoArea box6 = pluscode6.ToGeoArea();
+                            var quickplaces = PraxisCore.Place.GetPlaces(box6);
+                            if (quickplaces.Count == 0)
+                                continue;
+
+                            terrainDict[cell2][cell4][cell6] = new ConcurrentDictionary<string, string>();
+
+                            //foreach (var place in quickplaces)
+                                //if (place.ElementGeometry.Coordinates.Count() > 1000)
+                                    //place.ElementGeometry = place.ElementGeometry.Intersection(box6.ToPolygon());
+
+
+                            Parallel.ForEach(GetCellCombos(), (cell8) =>
+                            {
+                                string pluscode = pluscode6 + cell8;
+                                GeoArea box = pluscode.ToGeoArea();
+                                var places = PraxisCore.Place.GetPlaces(box, quickplaces);
+                                if (places.Count == 0)
+                                    return;
+
+                                places = places.Where(p => p.IsGameElement).ToList();
+                                if (places.Count == 0)
+                                    return;
+                                //var terrainInfo = AreaTypeInfo.SearchArea(ref box, ref places);
+                                var terrainsPresent = places.Select(p => p.GameElementName).Distinct().ToList();
+                                //r terrainsPresent = terrainInfo.Select(t => t.data.areaType).Distinct().ToList();
+
+                                if (terrainsPresent.Count() > 0)
+                                {
+                                    string concatTerrain = String.Join("|", terrainsPresent.Select(t => index[t])); //indexed ID of each type.
+                                    terrainDict[cell2][cell4][cell6][cell8] = concatTerrain;
+                                }
+                            });
+                            if (terrainDict[cell2][cell4][cell6].Count == 0)
+                                terrainDict[cell2][cell4].TryRemove(cell6, out var ignore);
+                        }
+                        catch(Exception ex)
+                        {
+                            Log.WriteLog("error making file for " + cell2 + cell4 + cell6 + ":" + ex.Message);
+                        }
+                    }
+                    if (terrainDict[cell2][cell4].Count == 0)
+                        terrainDict[cell2].TryRemove(cell4, out var ignore);
+                    //else
+                    //{
+                    //    File.WriteAllText(config["OutputDataFolder"] + cell2 + cell4 + ".json", JsonSerializer.Serialize(terrainDict));
+                    //    terrainDict[cell2].TryRemove(cell4, out var xx);
+                    //    Log.WriteLog("Made file for " + cell2 + cell4 + " at " + DateTime.Now);
+                    //}
+                }
+                if (terrainDict[cell2].Count == 0)
+                    terrainDict[cell2].TryRemove(cell2, out var ignore);
+                else
+                {
+                    File.WriteAllText(config["OutputDataFolder"] + cell2 + ".json", JsonSerializer.Serialize(terrainDict));
+                    terrainDict.TryRemove(cell2, out var xx);
+                    Log.WriteLog("Made file for " + cell2 + " at " + DateTime.Now);
+                }
+            }
+
+            //return JsonSerializer.Serialize(terrainDict);
         }
     }
 }
