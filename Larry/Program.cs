@@ -608,7 +608,7 @@ namespace Larry
                 var shapeData = sf.GetShapeDataD(i);
                 var poly = Converters.ShapefileRecordToPolygon(shapeData);
                 geometryBuilds.Append(100000000000 + i).Append('\t').Append('2').Append('\t').Append(poly.AsText()).Append('\t').Append(poly.Area).Append('\t').Append(Guid.NewGuid()).Append("\r\n");
-                tagBuilds.Append(100000000000 + i).Append('\t').Append('2').Append('\t').Append("natural").Append('\t').Append("coastline").Append("\r\n"); 
+                tagBuilds.Append(100000000000 + i).Append('\t').Append('2').Append('\t').Append("natural").Append('\t').Append("water").Append("\r\n"); 
             }
             File.WriteAllText(fileBaseName + ".geomData", geometryBuilds.ToString());
             File.WriteAllText(fileBaseName + ".tagData", tagBuilds.ToString());

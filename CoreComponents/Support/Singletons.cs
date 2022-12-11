@@ -132,7 +132,7 @@ namespace PraxisCore
                     new StylePaint() { HtmlColorCode = "aad3df", FillOrStroke = "fill", LineWidthDegrees=0.0000625F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() {Key = "natural", Value = "water|strait|bay|coastline", MatchType = "or"},
+                    new StyleMatchRule() {Key = "natural", Value = "water|strait|bay", MatchType = "or"}, //Coastline intentionally removed, as those are saved to the water polygon shapefiles and it's much more reasonable to simply import those and tag them as natural=water
                     new StyleMatchRule() {Key = "waterway", Value ="*", MatchType="or" },
                     new StyleMatchRule() {Key = "landuse", Value ="basin", MatchType="or" },
                     new StyleMatchRule() {Key = "leisure", Value ="swimming_pool", MatchType="or" },
@@ -442,7 +442,6 @@ namespace PraxisCore
             {
                 new StyleMatchRule() { Key="leisure", Value="golf_course|miniature_golf", MatchType="any"},
             }},
-
             new StyleEntry() { MatchOrder = 440, Name ="stadium", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "dffce2", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
@@ -802,7 +801,7 @@ namespace PraxisCore
                     new StylePaint() { HtmlColorCode = "CC0000FF", FillOrStroke = "stroke", LineWidthDegrees=0.0001875F, LinePattern= "solid", LayerId = 99 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() {Key = "natural", Value = "water|strait|bay|coastline", MatchType = "or"},
+                    new StyleMatchRule() {Key = "natural", Value = "water|strait|bay", MatchType = "or"},
                     new StyleMatchRule() {Key = "waterway", Value ="*", MatchType="or" },
                     new StyleMatchRule() {Key = "landuse", Value ="basin", MatchType="or" },
                     new StyleMatchRule() {Key = "leisure", Value ="swimming_pool", MatchType="or" },
