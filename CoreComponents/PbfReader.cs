@@ -1,4 +1,5 @@
-﻿using NetTopologySuite.Geometries;
+﻿using Microsoft.EntityFrameworkCore.Query.Internal;
+using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Prepared;
 using OsmSharp.Complete;
 using OsmSharp.Tags;
@@ -14,6 +15,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using static PraxisCore.DbTables;
 
 namespace PraxisCore.PbfReader
 {
@@ -32,7 +34,7 @@ namespace PraxisCore.PbfReader
 
         public bool saveToDB = false;
         public bool onlyMatchedAreas = false; //if true, only process geometry if the tags come back with IsGamplayElement== true;
-        public string processingMode = "normal"; //normal: use geometry as it exists. Center: save the center point of any geometry provided instead of its actual value.
+        public string processingMode = "normal"; //normal: use geometry as it exists. center: save the center point of any geometry provided instead of its actual value. minimize: reduce accuracy to save storage space.
         public string styleSet = "mapTiles"; //which style set to use when parsing entries
         public bool keepIndexFiles = true;
         public bool splitByStyleSet = false;
@@ -122,33 +124,70 @@ namespace PraxisCore.PbfReader
             tokensource.Cancel();
         }
 
-        private void ReprocessFileToCenters(string filename)
+        private void ReprocessFile(string filename)
         {
             //load up each line of a file from a previous run, and then re-process it according to the current settings.
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
             Log.WriteLog("Loading " + filename + " for processing at " + DateTime.Now);
             var fr = File.OpenRead(filename);
             var sr = new StreamReader(fr);
+            var fr2 = File.OpenRead(filename.Replace("geom", "tags"));
+            var sr2 = new StreamReader(fr2);
             sw.Start();
             var reprocFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + Path.GetFileNameWithoutExtension(filename) + "-reprocessed.geomData", FileMode.OpenOrCreate));
+            var reprocTagsFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + Path.GetFileNameWithoutExtension(filename).Replace("geom", "tags") + "-reprocessed.tagsData", FileMode.OpenOrCreate));
 
             while (!sr.EndOfStream)
             {
                 StringBuilder sb = new StringBuilder();
+                StringBuilder sbTags = new StringBuilder();
                 string entry = sr.ReadLine();
+                string tagEntry = sr2.ReadLine();
                 DbTables.Place md = GeometrySupport.ConvertSingleTsvPlace(entry);
 
                 if (bounds != null && (!bounds.Intersects(md.ElementGeometry.EnvelopeInternal)))
                     continue;
 
                 if (processingMode == "center")
+                { 
                     md.ElementGeometry = md.ElementGeometry.Centroid;
+                    sb.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(md.AreaSize).Append('\t').Append(md.PrivacyId).Append("\r\n");
+                    reprocFileStream.WriteLine(sb.ToString());
+                }
+                else if (processingMode == "minimize")
+                {
+                    md.ElementGeometry = NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(md.ElementGeometry, ConstantValues.resolutionCell10); //rounds off any points too close together.
+                    md.ElementGeometry = NetTopologySuite.Precision.GeometryPrecisionReducer.Reduce(md.ElementGeometry, PrecisionModel.FloatingSingle.Value); // reduces point accuracy to ~7 digits.
 
-                sb.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(md.AreaSize).Append('\t').Append(md.PrivacyId).Append("\r\n");
-                reprocFileStream.WriteLine(sb.ToString());
+                    while(tagEntry.StartsWith(md.SourceItemID.ToString()))
+                    {
+                        string[] pieces = tagEntry.Split('\t');
+                        md.Tags.Add(new PlaceTags() { Key = pieces[2], Value = pieces[3], SourceItemId = 1, SourceItemType = 2 });
+                        tagEntry = sr2.ReadLine();
+                    }
+
+                    //Reduce tags to the name (if present) and a single entry to match on a style set.
+                    var match = TagParser.GetStyleForOsmWay(md.Tags, styleSet);
+                    var name = TagParser.GetPlaceName(md.Tags);
+                    md.Tags.Clear();
+                    if (!string.IsNullOrEmpty(name))
+                        md.Tags.Add(new PlaceTags() { Key = "name", Value = name });
+                    md.Tags.Add(new PlaceTags() { Key = "styleset", Value = match.Name });
+
+                    sb.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(md.AreaSize).Append('\t').Append(md.PrivacyId).Append("\r\n");
+                    reprocFileStream.WriteLine(sb.ToString());
+
+                    foreach(var tag in md.Tags)
+                        sbTags.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(tag.Key).Append('\t').Append(tag.Value).Append("\r\n");
+                    reprocTagsFileStream.WriteLine(sbTags.ToString());
+                }
+
+                
             }
             sr.Close(); sr.Dispose(); fr.Close(); fr.Dispose();
+            sr2.Close(); sr2.Dispose(); fr2.Close(); fr2.Dispose();
             reprocFileStream.Close(); reprocFileStream.Dispose();
+            reprocTagsFileStream.Close(); reprocTagsFileStream.Dispose();
         }
 
         /// <summary>
@@ -162,7 +201,7 @@ namespace PraxisCore.PbfReader
             {
                 if (reprocessFile)
                 {
-                    ReprocessFileToCenters(filename);
+                    ReprocessFile(filename);
                     return;
                 }
 
@@ -1470,6 +1509,16 @@ namespace PraxisCore.PbfReader
                     Thread.Sleep(30000);
                 }
             }, token);
+        }
+
+        Geometry ReduceStorageSize(Geometry g)
+        {
+            //Make the target geometry take up less storage space, so I can hold more data on a smaller server.
+            //reduces accuracy enough to make data unsuitable for rendering maptiles.
+
+            NetTopologySuite.Precision.GeometryPrecisionReducer gpr = new NetTopologySuite.Precision.GeometryPrecisionReducer(new PrecisionModel(PrecisionModels.FloatingSingle));
+            g = gpr.Reduce(g);
+            return g;
         }
 
         ConcurrentDictionary<string, SemaphoreSlim> fileLocks = new ConcurrentDictionary<string, SemaphoreSlim>();
