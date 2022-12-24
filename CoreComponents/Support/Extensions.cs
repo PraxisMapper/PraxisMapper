@@ -329,7 +329,26 @@ namespace PraxisCore
 
         public static GeoArea PadGeoArea(this GeoArea g, double padding)
         {
-            return new GeoArea(g.SouthLatitude - padding, g.WestLongitude - padding, g.NorthLatitude + padding, g.EastLongitude + padding);
+            return new GeoArea(Math.Max(-90, g.SouthLatitude - padding), Math.Max(-180, g.WestLongitude - padding), Math.Min(90, g.NorthLatitude + padding), Math.Min(180, g.EastLongitude + padding));
+        }
+
+        public static List<string> GetSubCells(this string plusCode)
+        {
+            var list = new List<string>(400);
+            if (plusCode.Length < 10)
+            {
+                foreach (var Yletter in OpenLocationCode.CodeAlphabet)
+                    foreach (var Xletter in OpenLocationCode.CodeAlphabet)
+                    {
+                        list.Add(plusCode + Yletter + Xletter);
+                    }
+            }
+            else
+            {
+                foreach (var letter in OpenLocationCode.CodeAlphabet)
+                    list.Add(plusCode + letter);
+            }
+            return list;
         }
     }
 }
