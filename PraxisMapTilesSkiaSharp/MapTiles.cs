@@ -402,16 +402,25 @@ namespace PraxisCore
                         //If this type has an icon, use it. Otherwise draw a circle in that type's color.
                         if (!string.IsNullOrEmpty(w.paintOp.FileName))
                         {
-                            SKBitmap icon = SKBitmap.Decode(TagParser.cachedBitmaps[w.paintOp.FileName]); //TODO optimize by making icons in Initialize.
+                            SKBitmap icon = SKBitmap.Decode(TagParser.cachedBitmaps[w.paintOp.FileName]); //TODO optimize by running SKBitmap.Decone on icons in Initialize.
                             canvas.DrawBitmap(icon, convertedPoint[0]);
                         }
                         else
                         {
-                            var circleRadius = (float)(ConstantValues.resolutionCell10 / stats.degreesPerPixelX / 2); //I want points to be drawn as 1 Cell10 in diameter.
+                            var circleRadius = (float)(w.paintOp.LineWidthDegrees / stats.degreesPerPixelX); //I want points to be drawn as 1 Cell10 in diameter usually, but should be adjustable.
                             canvas.DrawCircle(convertedPoint[0], circleRadius, paint);
                             //TODO re-add outline paint to this DLL not TagParser.
                             //canvas.DrawCircle(convertedPoint[0], circleRadius, TagParser.outlinePaint); 
                         }
+                        //SVG code. TODO get this working.
+                        //if (w.paintOp.FileName.EndsWith("svg"))
+                        //{
+                        //    var svg = new SkiaSharp.SKSvg(new SKSize(32, 32)); //TODO: work out scale factor or leave unscaled?  Also Why isnt this found? its in the core!
+                        //    svg.load(w.paintOp.FileName);
+
+                        //    canvas.DrawPicture(svg, convertedPoint);
+
+                        //}
                         break;
                     default:
                         Log.WriteLog("Unknown geometry type found, not drawn.");

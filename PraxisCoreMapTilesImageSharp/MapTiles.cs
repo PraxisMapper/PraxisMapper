@@ -414,7 +414,7 @@ namespace PraxisCore
                         }
                         else
                         {
-                            var circleRadius = (float)w.lineWidthPixels; //(float)(ConstantValues.resolutionCell10 / stats.degreesPerPixelX / 2); //I wanted points to be drawn as 1 Cell10 in diameter, but maybe that adjusts now?
+                            var circleRadius = (float)(w.paintOp.LineWidthDegrees / stats.pixelsPerDegreeX); //was w.lineWidthPixels, but I think i want this to scale.
                             var shape = new SixLabors.ImageSharp.Drawing.EllipsePolygon(
                                 PointToPointF(thisGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY),
                                 new SizeF(circleRadius, circleRadius));
