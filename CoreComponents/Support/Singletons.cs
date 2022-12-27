@@ -901,6 +901,13 @@ namespace PraxisCore
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() {Key="generated", Value="praxisMapper", MatchType="equals"},
             }},
+            new StyleEntry() { IsGameElement = true, MatchOrder = 14, Name ="artsCulture", StyleSet = "suggestedGameplay",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
+                },
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "amenity", Value = "theatre|concert hall|arts centre|planetarium", MatchType = "or" }} //TODO: expand this. Might need to swap order with tourism to catch several other entries.
+            },
             //background is a mandatory style entry name, but its transparent here..
             new StyleEntry() { MatchOrder = 10000, Name ="background",  StyleSet = "suggestedGameplay",
                 PaintOperations = new List<StylePaint>() {
@@ -1015,6 +1022,13 @@ namespace PraxisCore
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() {Key="suggstedmini", Value="generated", MatchType="equals"},
             }},
+            new StyleEntry() { IsGameElement = true, MatchOrder = 14, Name ="artsCulture", StyleSet = "suggestedmini",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
+                },
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() {Key="suggstedmini", Value="artsCulture", MatchType="equals"},
+            },
             //background is a mandatory style entry name, but its transparent here..
             new StyleEntry() { MatchOrder = 10000, Name ="background",  StyleSet = "suggestedmini",
                 PaintOperations = new List<StylePaint>() {
