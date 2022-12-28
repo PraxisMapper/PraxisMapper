@@ -1028,7 +1028,7 @@ namespace PraxisCore
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() {Key="suggstedmini", Value="artsCulture", MatchType="equals"},
-            },
+            }},
             //background is a mandatory style entry name, but its transparent here..
             new StyleEntry() { MatchOrder = 10000, Name ="background",  StyleSet = "suggestedmini",
                 PaintOperations = new List<StylePaint>() {
