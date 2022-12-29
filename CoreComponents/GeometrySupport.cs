@@ -224,6 +224,7 @@ namespace PraxisCore
             entry.ElementGeometry = GeometryFromWKT(source.SplitNext('\t').ToString());
             entry.AreaSize = source.SplitNext('\t').ToDouble();
             entry.PrivacyId = Guid.Parse(source);
+            entry.Tags = new List<PlaceTags>();
 
             return entry;
         }

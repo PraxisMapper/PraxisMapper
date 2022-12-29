@@ -61,7 +61,8 @@ namespace PraxisCore
                     //I have already filtered nodes down to only ones with tags that matter.
                     //No addditional processing on tags is needed here.
                     var n = osmObject as Node;
-                    return new Point(new Coordinate(n.Longitude.Value, n.Latitude.Value));
+                    return factory.CreatePoint(new Coordinate(n.Longitude.Value, n.Latitude.Value));
+                    //return new Point(, geometryFactory);
                     break;
                 case OsmGeoType.Way:
                     bool isArea = false;
@@ -77,11 +78,13 @@ namespace PraxisCore
 
                     if (isArea && coordinates.Length >= 4) // not a linearring, needs at least four coordinates, with first and last identical.
                     { // area tags leads to simple polygon
-                        return new LinearRing(coordinates);
+                        //return new LinearRing(coordinates);
+                        return factory.CreateLinearRing(coordinates);
                     }
                     else if (coordinates.Length >= 2) // not a linestring, needs at least two coordinates.
                     { // no area tag leads to just a line.
-                        return new LineString(coordinates);
+                        //return new LineString(coordinates, factory);
+                        return factory.CreateLineString(coordinates);
                     }
                     break;
                 case OsmGeoType.Relation:
