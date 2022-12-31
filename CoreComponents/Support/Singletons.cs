@@ -210,17 +210,17 @@ namespace PraxisCore
                     new StyleMatchRule() { Key = "amenity", Value = "parking", MatchType = "equals" }}
             },
             //New generic entries for mapping by color
-            new StyleEntry() { MatchOrder = 180, Name ="greenspace",  StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 180, Name ="grass",  StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "cdebb0", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "landuse", Value = "grass|meadow|vineyard|recreation_ground|village_green", MatchType = "or" },
+                    new StyleMatchRule() { Key = "landuse", Value = "grass|meadow|recreation_ground|village_green", MatchType = "or" },
                     new StyleMatchRule() { Key = "natural", Value = "heath|grassland", MatchType = "or" },
                     new StyleMatchRule() { Key = "leisure", Value = "garden", MatchType = "or" },
                     new StyleMatchRule() { Key = "golf", Value = "tee|fairway|driving_range", MatchType = "or" },
             }},
-            new StyleEntry() { MatchOrder = 190, Name ="alsobeach",  StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 190, Name ="sand",  StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "D7B526", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100 }
                 },
@@ -228,13 +228,13 @@ namespace PraxisCore
                     new StyleMatchRule() { Key = "natural", Value = "sand|shingle|dune|scree", MatchType = "or" },
                     new StyleMatchRule() { Key = "surface", Value = "sand", MatchType = "or" }
             }},
-            new StyleEntry() { MatchOrder = 200, Name ="darkgreenspace",  StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 200, Name ="forest",  StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "ADD19E", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "natural", Value = "wood", MatchType = "or" },
-                    new StyleMatchRule() { Key = "landuse", Value = "forest|orchard", MatchType = "or" },
+                    new StyleMatchRule() { Key = "landuse", Value = "forest", MatchType = "or" },
             }},
             new StyleEntry() { MatchOrder = 210, Name ="industrial",  StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
@@ -570,15 +570,39 @@ namespace PraxisCore
                 {
                     new StyleMatchRule() { Key="power", Value="generator|substation|plant", MatchType="any"},
             }},
+            new StyleEntry() { MatchOrder = 560, Name ="tree_row", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "99add19e", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+                {
+                    new StyleMatchRule() { Key="natural", Value="tree_row", MatchType="equals"},
+            }}, 
+            new StyleEntry() { MatchOrder = 570, Name ="orchard", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "aedfa3", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+                {
+                    new StyleMatchRule() { Key="landuse", Value="orchard|vineyard|plant_nursery", MatchType="any"},
+            }},
+            new StyleEntry() { MatchOrder = 570, Name ="allotments", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "c9e1bf", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+                {
+                    new StyleMatchRule() { Key="landuse", Value="allotments", MatchType="any"},
+            }},
+
 
 
 
             //additional areas that I can work out info on go here, though they may not necessarily be the most interesting areas to handle.
             //single color terrains:
-            //manmade:clearcut: grass (requires forest to be darker green)
-            //allotments: c9e1bf
+            //manmade:clearcut: grass (requires forest to be darker green), but this also isnt mapped on OSMCarto
 
-            //patterns to work in:
+            //patterns to work in: (colors present)
             //orchard
             //golf rough.
             //military
