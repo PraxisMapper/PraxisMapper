@@ -194,6 +194,19 @@ namespace PraxisCore
             return new FindPlaceResult(olc.CodeDigits, area);
         }
 
+        public static FindPlaceResult? FindPlaceInCell10(string plusCode, ref List<DbTables.Place> places)
+        {
+            //singular function, only returns the smallest area in a cell.
+            var box = plusCode.ToGeoArea();
+            var entriesHere = GetPlaces(box, places, skipTags: true);
+
+            if (entriesHere.Count == 0)
+                return null;
+
+            var area = DetermineAreaPlace(entriesHere);
+            return new FindPlaceResult(plusCode, area);
+        }
+
         public static DbTables.Place GetSinglePlaceFromArea(string plusCode)
         {
             //for individual Cell10 or Cell11 checks. Existing terrain calls only do Cell10s in a Cell8 or larger area.
