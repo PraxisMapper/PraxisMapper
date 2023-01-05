@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Query.Internal;
+﻿using Azure;
+using Microsoft.EntityFrameworkCore.Query.Internal;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Prepared;
 using OsmSharp.Complete;
@@ -143,6 +144,9 @@ namespace PraxisCore.PbfReader
                 StringBuilder sbTags = new StringBuilder();
                 string entry = sr.ReadLine();
                 string tagEntry = sr2.ReadLine();
+                if (entry == "")
+                    continue;
+
                 DbTables.Place md = GeometrySupport.ConvertSingleTsvPlace(entry);
 
                 if (bounds != null && (!bounds.Intersects(md.ElementGeometry.EnvelopeInternal)))
@@ -154,32 +158,50 @@ namespace PraxisCore.PbfReader
                     sb.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(md.AreaSize).Append('\t').Append(md.PrivacyId).Append("\r\n");
                     reprocFileStream.WriteLine(sb.ToString());
                 }
-                else if (processingMode == "minimize")
+                else if (processingMode == "minimize") //This may be removed in the near future, since this has a habit of making invalid geometry.
                 {
-                    md.ElementGeometry = NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(md.ElementGeometry, ConstantValues.resolutionCell10); //rounds off any points too close together.
-                    md.ElementGeometry = NetTopologySuite.Precision.GeometryPrecisionReducer.Reduce(md.ElementGeometry, PrecisionModel.FloatingSingle.Value); // reduces point accuracy to ~7 digits.
-
-                    while(tagEntry.StartsWith(md.SourceItemID.ToString()))
+                    styleSet = "suggestedmini"; //Forcing for now on this option.
+                    var originalGeo = md.ElementGeometry;
+                    var originalTags = new List<PlaceTags>();
+                    var precisionModel = new PrecisionModel(1000000); //scale forces Fixed accuracy, this goes to 6 digits, accurate to .11 meters. Good enough for gameplay, not for zoomed in maps.
+                    var reducer = new NetTopologySuite.Precision.GeometryPrecisionReducer(precisionModel);
+                    try
                     {
-                        string[] pieces = tagEntry.Split('\t');
-                        md.Tags.Add(new PlaceTags() { Key = pieces[2], Value = pieces[3], SourceItemId = 1, SourceItemType = 2 });
-                        tagEntry = sr2.ReadLine();
+                        md.ElementGeometry = NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(md.ElementGeometry, ConstantValues.resolutionCell10); //rounds off any points too close together.
+                        md.ElementGeometry = reducer.Reduce(md.ElementGeometry);
+
+                        while (tagEntry.StartsWith(md.SourceItemID.ToString()))
+                        {
+                            string[] pieces = tagEntry.Split('\t');
+                            //md.Tags.Add(new PlaceTags() { Key = pieces[2], Value = pieces[3], SourceItemId = 1, SourceItemType = 2 });
+                            originalTags.Add(new PlaceTags() { Key = pieces[2], Value = pieces[3], SourceItemId = 1, SourceItemType = 2 });
+                            tagEntry = sr2.ReadLine();
+                        }
+
+                        //Reduce tags to the name (if present) and a single entry to match on a style set.
+                        var match = TagParser.GetStyleForOsmWay(originalTags, styleSet);
+                        var name = TagParser.GetPlaceName(originalTags);
+                        md.Tags.Clear();
+                        if (!string.IsNullOrEmpty(name))
+                            md.Tags.Add(new PlaceTags() { Key = "name", Value = name });
+                        md.Tags.Add(new PlaceTags() { Key = "styleset", Value = match.Name });
+
+                        sb.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(md.AreaSize).Append('\t').Append(md.PrivacyId).Append("\r\n");
+                        reprocFileStream.Write(sb.ToString());
+
+                        foreach (var tag in md.Tags)
+                            sbTags.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(tag.Key).Append('\t').Append(tag.Value).Append("\r\n");
+                        reprocTagsFileStream.Write(sbTags.ToString());
                     }
-
-                    //Reduce tags to the name (if present) and a single entry to match on a style set.
-                    var match = TagParser.GetStyleForOsmWay(md.Tags, styleSet);
-                    var name = TagParser.GetPlaceName(md.Tags);
-                    md.Tags.Clear();
-                    if (!string.IsNullOrEmpty(name))
-                        md.Tags.Add(new PlaceTags() { Key = "name", Value = name });
-                    md.Tags.Add(new PlaceTags() { Key = "styleset", Value = match.Name });
-
-                    sb.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(md.AreaSize).Append('\t').Append(md.PrivacyId).Append("\r\n");
-                    reprocFileStream.WriteLine(sb.ToString());
-
-                    foreach(var tag in md.Tags)
-                        sbTags.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(tag.Key).Append('\t').Append(tag.Value).Append("\r\n");
-                    reprocTagsFileStream.WriteLine(sbTags.ToString());
+                    catch(Exception ex)
+                    {
+                        Log.WriteLog("Couldn't reduce element " + md.SourceItemID + ", saving as-is (" + ex.Message + ")");
+                        reprocFileStream.Write(md.SourceItemID + '\t' + md.SourceItemType + '\t' + originalGeo.AsText() + '\t' + md.AreaSize + '\t' + md.PrivacyId + "\r\n");
+                        foreach (var t in originalTags)
+                        {
+                            reprocTagsFileStream.Write(md.SourceItemID + '\t' + md.SourceItemType + '\t' +t.Key + '\t' + t.Value +"\r\n");
+                        }
+                    }
                 }
 
                 
@@ -1123,13 +1145,21 @@ namespace PraxisCore.PbfReader
 
         private async void SaveIndexInfo(List<IndexInfo> index)
         {
-            string filename = outputPath + fi.Name + ".indexinfo";
-            string[] data = new string[index.Count];
-            for (int i = 0; i < data.Length; i++)
+            try
             {
-                data[i] = index[i].blockId + ":" + index[i].groupId + ":" + index[i].groupType + ":" + index[i].minId + ":" + index[i].maxId;
+                string filename = outputPath + fi.Name + ".indexinfo";
+                string[] data = new string[index.Count];
+                for (int i = 0; i < data.Length; i++)
+                {
+                    data[i] = index[i].blockId + ":" + index[i].groupId + ":" + index[i].groupType + ":" + index[i].minId + ":" + index[i].maxId;
+                }
+                File.WriteAllLines(filename, data);
             }
-            File.WriteAllLines(filename, data);
+            catch(Exception ex)
+            {
+                //Log.WriteLog("Failed on SaveIndexInfo: " + ex.Message + ex.StackTrace);
+                //We probably got called from a folder we don't have write permisisons into.
+            }
         }
 
         /// <summary>
@@ -1137,20 +1167,28 @@ namespace PraxisCore.PbfReader
         /// </summary>
         private async void SaveBlockInfo()
         {
-            string filename = outputPath + fi.Name + ".blockinfo";
-            //now deserialize
-            string[] data = new string[blockPositions.Count];
-            for (int i = 0; i < data.Length; i++)
+            try
             {
-                data[i] = i + ":" + blockPositions[i] + ":" + blockSizes[i];
+                string filename = outputPath + fi.Name + ".blockinfo";
+                //now deserialize
+                string[] data = new string[blockPositions.Count];
+                for (int i = 0; i < data.Length; i++)
+                {
+                    data[i] = i + ":" + blockPositions[i] + ":" + blockSizes[i];
+                }
+                File.WriteAllLines(filename, data);
             }
-            File.WriteAllLines(filename, data);
+            catch (Exception ex)
+            {
+                //Log.WriteLog("Failed on SaveBlockInfo: " + ex.Message + ex.StackTrace);
+                //We probably got called from a folder we don't have write permisisons into.
+            }
         }
 
-        /// <summary>
-        /// Loads indexed data from a previous run from file, to skip reprocessing the entire file.
-        /// </summary>
-        private void LoadBlockInfo()
+            /// <summary>
+            /// Loads indexed data from a previous run from file, to skip reprocessing the entire file.
+            /// </summary>
+            private void LoadBlockInfo()
         {
             try
             {
@@ -1197,8 +1235,15 @@ namespace PraxisCore.PbfReader
         /// <param name="blockID">the block most recently processed</param>
         private void SaveCurrentBlockAndGroup(long blockID, int groupId)
         {
+            try { 
             string filename = outputPath + fi.Name + ".progress";
             File.WriteAllTextAsync(filename, blockID.ToString() + ":" + groupId);
+            }
+            catch (Exception ex)
+            {
+                //Log.WriteLog("Failed on SaveCurrentBlockAndGroupInfo: " + ex.Message + ex.StackTrace);
+                //We probably got called from a folder we don't have write permisisons into.
+            }
         }
 
         //Loads the most recently completed block from a file to resume without doing duplicate work.
