@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,6 +9,7 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using NetTopologySuite.Geometries.Prepared;
 using PraxisCore;
+using PraxisCore.PbfReader;
 using PraxisCore.Support;
 using PraxisMapper.Classes;
 using System;
@@ -222,6 +224,20 @@ namespace PraxisMapper
                     System.Threading.Thread.Sleep(1800000); // 30 minutes in milliseconds
                 }
             });
+
+            //if the DB is empty, attmept to auto-load from a pbf file. This removes a couple of manual steps from smaller games, even if it takes a few extra minutes.
+            if (db.Places.Count() == 0)
+            {
+                Log.WriteLog("No data loaded, attempting to auto-load");
+                var candidates = Directory.EnumerateFiles(".", "*.pbf");
+                if (candidates.Any())
+                {
+                    PbfReader reader = new PbfReader();
+                    reader.saveToDB = true;                   
+                    reader.ProcessFile(candidates.First());
+                }
+                Log.WriteLog("Done populating DB from " + candidates.First());
+            }
 
             PraxisPerformanceTracker.LogInfoToPerfData("Startup", "PraxisMapper online.");
             Log.WriteLog("PraxisMapper configured and running.");
