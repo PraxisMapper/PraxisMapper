@@ -161,6 +161,7 @@ namespace PraxisMapper
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IMemoryCache cache)
         {
             var db = new PraxisContext();
+            db.MakePraxisDB(); //Does nothing if DB already exists, creates DB if not.
 
             if (env.IsDevelopment())
             {
@@ -237,6 +238,7 @@ namespace PraxisMapper
                     reader.ProcessFile(candidates.First());
                 }
                 Log.WriteLog("Done populating DB from " + candidates.First());
+                db.SetServerBounds(0);
             }
 
             PraxisPerformanceTracker.LogInfoToPerfData("Startup", "PraxisMapper online.");
