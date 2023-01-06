@@ -55,6 +55,8 @@ namespace PraxisMapper
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            BuildAndLoadDB();
+
             services.AddControllers();
             services.AddMvc();
             //services.AddCoreComponentServiceCollection(); //injects the DbContext and other services into this collection. (Eventually, still working on that)
@@ -157,11 +159,32 @@ namespace PraxisMapper
             });
         }
 
+        private void BuildAndLoadDB()
+        {
+            var db = new PraxisContext();
+            db.MakePraxisDB(); //Does nothing if DB already exists, creates DB if not.
+
+            //if the DB is empty, attmept to auto-load from a pbf file. This removes a couple of manual steps from smaller games, even if it takes a few extra minutes.
+            if (db.Places.Count() == 0)
+            {
+                Log.WriteLog("No data loaded, attempting to auto-load");
+                var candidates = Directory.EnumerateFiles(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "*.pbf");
+                if (candidates.Any())
+                {
+                    PbfReader reader = new PbfReader();
+                    reader.saveToDB = true;
+                    reader.ProcessFile(candidates.First());
+                    Log.WriteLog("Done populating DB from " + candidates.First());
+                    db.SetServerBounds(0);
+                }
+            }
+
+        }
+
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IMemoryCache cache)
         {
             var db = new PraxisContext();
-            db.MakePraxisDB(); //Does nothing if DB already exists, creates DB if not.
 
             if (env.IsDevelopment())
             {
