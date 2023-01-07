@@ -220,12 +220,12 @@ namespace PraxisCore
                     new StyleMatchRule() { Key = "leisure", Value = "garden", MatchType = "or" },
                     new StyleMatchRule() { Key = "golf", Value = "tee|fairway|driving_range", MatchType = "or" },
             }},
-            new StyleEntry() { MatchOrder = 190, Name ="sand",  StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 190, Name ="sandColored",  StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "D7B526", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "natural", Value = "sand|shingle|dune|scree", MatchType = "or" },
+                    new StyleMatchRule() { Key = "natural", Value = "shingle|dune|scree", MatchType = "or" },
                     new StyleMatchRule() { Key = "surface", Value = "sand", MatchType = "or" }
             }},
             new StyleEntry() { MatchOrder = 200, Name ="forest",  StyleSet = "mapTiles",
