@@ -16,6 +16,8 @@ namespace PraxisMastodonPlugin.Controllers
         string accountName = "annoucements";
         string serverName = "https://us.praxismapper.org";
 
+        MastodonPost tempPost = new MastodonPost() { id = new Guid("12345678-9ABC-DEF0-1234-567890ABCDEF"), contents = "test post!", published = DateTime.UtcNow };
+
          //TODO: persist list of followers and posts.
 
         public MastondonController()
@@ -50,6 +52,7 @@ namespace PraxisMastodonPlugin.Controllers
         public string Inbox()
         {
             //Only accept follow requests, and do so automatically. This doesn't persist.
+            //TODO: a minimum response to get this working.
             return "";
         }
 
@@ -65,11 +68,14 @@ namespace PraxisMastodonPlugin.Controllers
                 string result = "{\"id\": \"" + serverName + "/" + accountName + "/outbox?page=true\", \"type\": \"OrderedCollectionPage\", \"partOf\": \"" + serverName + "/" + accountName + "/outbox\", \"orderedItems\":[";
                 //Foreach item, insert to entry.
                 var outbox = GenericData.GetGlobalData<List<MastodonPost>>("mastodonOutbox");
+                //TODO: a minimum response to get this working. Temporarily shoving in a fixed answer.
+                outbox = new List<MastodonPost>() { tempPost };
                 if (outbox != null)
                     foreach(var p in outbox)
                         result += ConvertPostToJSONLD(p) + ",";
+                
 
-                result +="]}";
+                result += "]}";
                 return result;
             }           
 
@@ -94,7 +100,7 @@ namespace PraxisMastodonPlugin.Controllers
                 "\"id\":\"" + post.id.ToString() + "/activity\"" +
                 "\"type\": \"Create\"" +
                 "\"actor\":\"" + serverName + "\\" + accountName + "\"" +
-                "\"published\":\"" + DateTime.UtcNow.ToIso8601() + "\"" +
+                "\"published\":\"" + post.published.ToIso8601() + "\"" +
                 "\"to\": [\"https://www.w3.org/ns/activitystreams#Public\"]," +
                 "\"cc\": [\"" + serverName + "/" + accountName + "/followers\"]," +
                 "\"object\": \"" + serverName + "/" + accountName + "/statuses/" + post.id.ToString() + "\"" +

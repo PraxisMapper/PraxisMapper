@@ -5,6 +5,7 @@
     {
         public Guid id;
         public string contents;
+        public DateTime published;
     }
 
     
