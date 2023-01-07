@@ -51,6 +51,23 @@ namespace PraxisCore
         /// </summary>
         public static List<StyleEntry> defaultStyleEntries = new List<StyleEntry>()
         {
+
+            //NOTE:
+            //Drawing order rules: bigger numbers are drawn first == smaller numbers get drawn over bigger numbers for LayerId. Smaller areas will be drawn after (on top of) larger areas in the same layer.
+            //10000: unmatched (transparent)
+            //9999: background (always present, added into the draw list by processing.)
+            //100: MOST area elements.
+            //99: tertiary top-layer, area element outlines
+            //98: tertiary bottom-layer
+            //97: secondary top, tree top
+            //96: secondary bottom, tree bottom
+            //95: primary top
+            //94: primary bottom
+            //93: motorway top
+            //92: motorway bottom
+            //70: admin boundaries, if they weren't transparent.
+
+
             //NOTE: a rough analysis suggests that about 1/3 of entries are 'tertiary' roads and another third are 'building'
             //BUT buildings can often be marked with another interesting property, like retail, tourism, or historical, and I'd prefer those match first.
             //So I will re-order this to handle tertiary first, then the gameElements that might be buildings, then plain buildings, and the remaining elements after that.
@@ -371,7 +388,7 @@ namespace PraxisCore
             }},
             new StyleEntry() { MatchOrder = 350, Name ="landfill", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "b6b592", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "b6b592", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
                 StyleMatchRules = new List<StyleMatchRule>()
             {
@@ -379,7 +396,7 @@ namespace PraxisCore
             }},
             new StyleEntry() { MatchOrder = 360, Name ="farmland", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "eef0d5", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "eef0d5", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
                 StyleMatchRules = new List<StyleMatchRule>()
             {
@@ -388,7 +405,7 @@ namespace PraxisCore
             }},
             new StyleEntry() { MatchOrder = 370, Name ="farmyard", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "f5dcba", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "f5dcba", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
                 StyleMatchRules = new List<StyleMatchRule>()
             {
@@ -396,7 +413,7 @@ namespace PraxisCore
             }},
             new StyleEntry() { MatchOrder = 380, Name ="scrub", StyleSet = "mapTiles", //TODO: import pattern.
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "c8d7ab", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "c8d7ab", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
                 StyleMatchRules = new List<StyleMatchRule>()
             {
@@ -404,7 +421,7 @@ namespace PraxisCore
             }},
             new StyleEntry() { MatchOrder = 390, Name ="garages", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "dfddce", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "dfddce", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
                 StyleMatchRules = new List<StyleMatchRule>()
             {
@@ -412,7 +429,7 @@ namespace PraxisCore
             }},
             new StyleEntry() { MatchOrder = 400, Name ="military", StyleSet = "mapTiles", //TODO import pattern.
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "ff5555", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "ff5555", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
                 StyleMatchRules = new List<StyleMatchRule>()
             {
@@ -420,7 +437,7 @@ namespace PraxisCore
             }},
             new StyleEntry() { MatchOrder = 410, Name ="sportspitch", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "aae0cb", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "aae0cb", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
                 StyleMatchRules = new List<StyleMatchRule>()
             {
@@ -428,7 +445,7 @@ namespace PraxisCore
             }},
             new StyleEntry() { MatchOrder = 420, Name ="golfgreen", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "aae0cb", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "aae0cb", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
                 StyleMatchRules = new List<StyleMatchRule>()
             {
@@ -436,7 +453,7 @@ namespace PraxisCore
             }},
             new StyleEntry() { MatchOrder = 430, Name ="golfcourse", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "def6c0", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "def6c0", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
                 StyleMatchRules = new List<StyleMatchRule>()
             {
@@ -444,7 +461,7 @@ namespace PraxisCore
             }},
             new StyleEntry() { MatchOrder = 440, Name ="stadium", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "dffce2", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "dffce2", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
                 StyleMatchRules = new List<StyleMatchRule>()
             {
@@ -453,7 +470,7 @@ namespace PraxisCore
             }},
             new StyleEntry() { MatchOrder = 440, Name ="railway", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "ffc0cb", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "ffc0cb", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
                 StyleMatchRules = new List<StyleMatchRule>()
             {
@@ -461,7 +478,7 @@ namespace PraxisCore
             }},
             new StyleEntry() { MatchOrder = 450, Name ="airportapron", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "dbdbe1", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "dbdbe1", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
                 StyleMatchRules = new List<StyleMatchRule>()
             {
@@ -469,7 +486,7 @@ namespace PraxisCore
             }},
             new StyleEntry() { MatchOrder = 451, Name ="airportrunway", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "bbbbcc", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "bbbbcc", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
                 StyleMatchRules = new List<StyleMatchRule>()
             {
@@ -477,7 +494,7 @@ namespace PraxisCore
             }},
             new StyleEntry() { MatchOrder = 453, Name ="airporterminal", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "c5b7ad", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "c5b7ad", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
                 StyleMatchRules = new List<StyleMatchRule>()
             {
@@ -488,7 +505,7 @@ namespace PraxisCore
             }},
             new StyleEntry() { MatchOrder = 460, Name ="raceway", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "ffc0cb", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "ffc0cb", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
                 StyleMatchRules = new List<StyleMatchRule>()
             {
@@ -496,7 +513,7 @@ namespace PraxisCore
             }},
             new StyleEntry() { MatchOrder = 470, Name ="placeofworship", StyleSet = "mapTiles", //TODO more before building style entry.
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "d0d0d0", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "d0d0d0", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
                 StyleMatchRules = new List<StyleMatchRule>()
             {
@@ -505,7 +522,7 @@ namespace PraxisCore
             }},
             new StyleEntry() { MatchOrder = 480, Name ="camping", StyleSet = "mapTiles", //TODO: move before tourism entry.
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "def6c0", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "def6c0", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
                 StyleMatchRules = new List<StyleMatchRule>()
             {
@@ -513,7 +530,7 @@ namespace PraxisCore
             }},
             new StyleEntry() { MatchOrder = 490, Name ="heath", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "d6d99f", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "d6d99f", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
                 StyleMatchRules = new List<StyleMatchRule>()
             {
@@ -521,7 +538,7 @@ namespace PraxisCore
             }},
             new StyleEntry() { MatchOrder = 500, Name ="sand", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "f5e9c6", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "f5e9c6", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
                 StyleMatchRules = new List<StyleMatchRule>()
             {
@@ -530,7 +547,7 @@ namespace PraxisCore
             }},
             new StyleEntry() { MatchOrder = 510, Name ="glacier", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "ddecec", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "ddecec", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
                 StyleMatchRules = new List<StyleMatchRule>()
             {
@@ -538,7 +555,7 @@ namespace PraxisCore
             }},
             new StyleEntry() { MatchOrder = 520, Name ="aerodrome", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "e9e7e2", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "e9e7e2", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
                 StyleMatchRules = new List<StyleMatchRule>()
             {
@@ -548,7 +565,7 @@ namespace PraxisCore
             }},
             new StyleEntry() { MatchOrder = 530, Name ="restarea", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "f9c6c6", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "f9c6c6", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
                 StyleMatchRules = new List<StyleMatchRule>()
                 {
@@ -564,7 +581,7 @@ namespace PraxisCore
             }},
             new StyleEntry() { MatchOrder = 550, Name ="power", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "f9c6c6", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "f9c6c6", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
                 StyleMatchRules = new List<StyleMatchRule>()
                 {
@@ -572,7 +589,7 @@ namespace PraxisCore
             }},
             new StyleEntry() { MatchOrder = 560, Name ="tree_row", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "99add19e", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "99add19e", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
                 StyleMatchRules = new List<StyleMatchRule>()
                 {
@@ -580,7 +597,7 @@ namespace PraxisCore
             }}, 
             new StyleEntry() { MatchOrder = 570, Name ="orchard", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "aedfa3", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "aedfa3", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
                 StyleMatchRules = new List<StyleMatchRule>()
                 {
@@ -588,7 +605,7 @@ namespace PraxisCore
             }},
             new StyleEntry() { MatchOrder = 570, Name ="allotments", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "c9e1bf", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "c9e1bf", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
                 StyleMatchRules = new List<StyleMatchRule>()
                 {
