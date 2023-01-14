@@ -102,7 +102,7 @@ namespace PraxisCore
                     && stats.degreesPerPixelX > po.MinDrawRes //dppX should be between max and min draw range.
                     && !(po.HtmlColorCode.Length == 8 && po.HtmlColorCode.StartsWith("00")) //color is NOT transparent.
                     )
-                    list.Add(new CompletePaintOp(elementGeometry, areaSize, po, "", po.LineWidthDegrees * stats.pixelsPerDegreeX));
+                    list.Add(new CompletePaintOp(elementGeometry, areaSize, po, "", po.FixedWidth == 0 ? po.LineWidthDegrees * stats.pixelsPerDegreeX :  po.FixedWidth));
         }
 
         /// <summary>
