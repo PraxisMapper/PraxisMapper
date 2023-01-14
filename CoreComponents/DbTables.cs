@@ -88,6 +88,9 @@ namespace PraxisCore
             //The below are copied from the original object.These get used to create the SKPaint/Pen/Brush object once at startup, then that paint object is used from then on.
             public string HtmlColorCode { get; set; } //This STARTS with the alpha color, and ImageSharp prefers it END with the alpha color. Handled by the PraxisMapTilesImageSharp library.
             public string FillOrStroke { get; set; }
+            /// <summary>
+            /// The width to draw the outline, in degrees. For Points, this is the diameter of the circle drawn.
+            /// </summary>
             public float LineWidthDegrees { get; set; } 
             public string LinePattern { get; set; } //If 'solid' or blank, solid line. If not, split string into float[] on |
             public string FileName { get; set; } //A path to an image file that will be used as a repeating pattern. Null for solid colors.
@@ -95,6 +98,7 @@ namespace PraxisCore
             public double MaxDrawRes { get; set; } = 4; //skip drawing this item if resPerPixelX is above this value. (EX: tertiary roads don't draw at distant zooms
             public bool Randomize { get; set; } //if true, assign a random color at draw-time.
             public bool FromTag { get; set; } //if set, read the string for the color value at draw-time.
+            public int FixedWidth { get; set; } = 0; //If > 0, always draw the element at this size. Intended for lines that should be equally visible at all zooms, like the Exercise Tracker path drawing.
         }
 
         public class ServerSetting
@@ -140,6 +144,8 @@ namespace PraxisCore
             public string GameElementName { get; set; } //Placeholder for TagParser to load up the name of the matching style for this element, but don't save it to the DB so we can change it on the fly.
             public double AreaSize { get; set; } //For sorting purposes. Draw smaller areas over larger areas.
             public Guid PrivacyId { get; set; } = Guid.NewGuid(); //Pass this Id to clients, so we can attempt to block attaching players to locations in the DB.
+            public double DrawSizeHint { get; set; } //optimization. This is estimated pixels to draw at standard scale. Calculate your floor if you zoom in or out differently, and skip loading if its too small to see.
+
             public override string ToString()
             {
                 return (SourceItemType == 3 ? "Relation " : SourceItemType == 2 ? "Way " : "Node ") +  SourceItemID.ToString() + " " + TagParser.GetPlaceName(Tags);
