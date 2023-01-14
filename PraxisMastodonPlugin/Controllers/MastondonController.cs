@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using PraxisCore;
 using PraxisCore.Support;
+using static PraxisMastodonPlugin.MastodonGlobals;
 
 namespace PraxisMastodonPlugin.Controllers
 {
@@ -13,10 +14,12 @@ namespace PraxisMastodonPlugin.Controllers
         //May need to implement Startup to load followers (and/or old posts?)
 
         //TODO: do I need to add an endpoint to anything for other servers to verify a public key?
-        string accountName = "annoucements";
-        string serverName = "https://us.praxismapper.org";
+
+        //This public key was slapped together specifically for testing this. TODO: Replace this once I have proven this plugin works, support loading it from a file or from the DB
+        string keyData = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0Zx+mA4k4xKKRGHpn5v+\nCxayBIIfdcc4HS7RHZ/CXC3KOUh5XljRcGvMdIIUFrnUpECT44yVYeU28opoPtar\neNL3ea19cBVhjyyclWx8sAFmZvA5eqfdxcxR8yrgcEVGPRU+px1D2chO1tPmCpP6\nE/5/S8L2LiuR/EYrpvhbJWqsqJyfxUoakXmuaWJPv/f7CWnRJQ/gEuPlqXYeH3gY\n4WSECf9kM/dpcy/EnUaAJ/np26kclOhp7kOQH2qcMCe+s5DAJIWWf3wpjIeabEYP\nehKyI84kCwk5YIGnrLHECRq0EYUUHmio39urgNdiSE5X/Mdl86H5U3yDRirVtSCs\nXQIDAQAB\n-----END PUBLIC KEY-----";
 
         MastodonPost tempPost = new MastodonPost() { id = new Guid("12345678-9ABC-DEF0-1234-567890ABCDEF"), contents = "test post!", published = DateTime.UtcNow };
+        
 
          //TODO: persist list of followers and posts.
 
@@ -38,22 +41,24 @@ namespace PraxisMastodonPlugin.Controllers
 
         [HttpGet]
         [Route("/serverActor")] //Original name
-        [Route("/announcements")] //Current working name. TODO: make this the accountName value.
+        [Route("/announcements")] //Current working name. TODO: make this the accountName value, if routes can be assigned with variables.
         public string ServerActor()
         {
             return "{'@context': ['https://www.w3.org/ns/activitystreams','https://w3id.org/security/v1']," +
                 "'id': 'https://us.praxismapper.org/serverActor','type': 'Application','preferredUsername': '" + accountName + "','inbox': '" + serverName + "/inbox'," +
-                "'publicKey': {'id': '" + serverName + "/" + accountName + "#main-key','owner': '" + serverName + "/" + accountName + "','publicKeyPem': '-----BEGIN PUBLIC KEY-----...-----END PUBLIC KEY-----'}"
-                //TODO: generate placeholder keys.
+                "'publicKey': {'id': '" + serverName + "/" + accountName + "#main-key','owner': '" + serverName + "/" + accountName + "','publicKeyPem': '" + keyData + "'}"
                 + "}";
         }
 
+        [HttpPost]
         [Route("/announcements/inbox")]
         public string Inbox()
         {
             //Only accept follow requests, and do so automatically. This doesn't persist.
             //TODO: a minimum response to get this working.
-            return "";
+            //if request is "type":"Follow", then add "Actor" to the list of followers, reply with an "Accept" activity (or send to their inbox? (add "/inbox" to the end of actor)).
+
+            return "OK"; //the expected answer on a POST here.
         }
 
         [Route("/announcements/outbox")]
@@ -69,6 +74,7 @@ namespace PraxisMastodonPlugin.Controllers
                 //Foreach item, insert to entry.
                 var outbox = GenericData.GetGlobalData<List<MastodonPost>>("mastodonOutbox");
                 //TODO: a minimum response to get this working. Temporarily shoving in a fixed answer.
+                //TODO: might be able to increase perf by checking what server each follower is on, and grouping/batching those into a single request per server.
                 outbox = new List<MastodonPost>() { tempPost };
                 if (outbox != null)
                     foreach(var p in outbox)
@@ -108,6 +114,13 @@ namespace PraxisMastodonPlugin.Controllers
 
             return result;
 
+        }
+
+        public string SignPost()
+        {
+
+
+            return "";
         }
     }
 }
