@@ -25,28 +25,15 @@ namespace PraxisMapper.Classes
 
         public async Task Invoke(HttpContext context)
         {
-            //TODO: allow any request from localhost? or make Slippy login first?
-            var path = context.Request.Path.Value;
-            if (!whitelistedPaths.Any(p => path.Contains(p)))
+            AuthData data;
+            var key = context.Request.Headers.FirstOrDefault(h => h.Key == "AuthKey");
+            if (key.Value.Count > 0)
             {
-                var key = context.Request.Headers.FirstOrDefault(h => h.Key == "AuthKey");
-                if (key.Key == null || !authTokens.ContainsKey(key.Value))
-                {
-                    if (PraxisMapper.Startup.Configuration.GetValue<bool>("enablePerformanceTracker"))
-                    {
-                        var db = new PraxisContext();
-                        db.PerformanceInfo.Add(new DbTables.PerformanceInfo() { Notes = "Auth Failed for " + context.Request.Path, FunctionName = "PraxisAuth", CalledAt = DateTime.UtcNow });
-                        db.SaveChangesAsync();
-                    }
-
-                    context.Abort();
-                    return;
-                }
-                
-                var data = authTokens[key.Value];
+                data = authTokens[key.Value];
 
                 context.Response.Headers.Add("X-account", data.accountId);
                 context.Response.Headers.Add("X-internalPwd", data.intPassword);
+
                 context.Response.OnStarting(() =>
                 {
                     context.Response.Headers.Remove("X-account");
@@ -58,6 +45,24 @@ namespace PraxisMapper.Classes
                 {
                     authTokens.TryRemove(key.Value, out var ignore);
                     context.Response.StatusCode = StatusCodes.Status419AuthenticationTimeout;
+                    return;
+                }
+            }
+
+            var path = context.Request.Path.Value;
+            if (!whitelistedPaths.Any(p => path.Contains(p)))
+            {
+                
+                if (key.Key == null || !authTokens.ContainsKey(key.Value))
+                {
+                    if (PraxisMapper.Startup.Configuration.GetValue<bool>("enablePerformanceTracker"))
+                    {
+                        var db = new PraxisContext();
+                        db.PerformanceInfo.Add(new DbTables.PerformanceInfo() { Notes = "Auth Failed for " + context.Request.Path, FunctionName = "PraxisAuth", CalledAt = DateTime.UtcNow });
+                        db.SaveChangesAsync();
+                    }
+
+                    context.Abort();
                     return;
                 }
             }
