@@ -28,10 +28,17 @@ namespace PraxisCore
             foreach (var b in TagParser.cachedBitmaps)
                 cachedBitmaps.Add(b.Key, SKBitmap.Decode(b.Value));
 
+            int maxId = 1;
             foreach (var g in TagParser.allStyleGroups)
-                foreach(var s in g.Value)
-                    foreach(var p in s.Value.PaintOperations)
+                foreach (var s in g.Value)
+                    foreach (var p in s.Value.PaintOperations)
+                    {
+                        if (p.Id == 0)
+                        {
+                            p.Id = maxId++;
+                        }
                         cachedPaints.Add(p.Id, SetPaintForTPP(p));
+                    }
         }
 
         /// <summary>
@@ -327,7 +334,7 @@ namespace PraxisCore
 
             foreach (var w in paintOps.OrderByDescending(p => p.paintOp.LayerId).ThenByDescending(p => p.areaSize))
             {
-                paint = cachedPaints[w.paintOp.Id]; //SetPaintForTPP(w.paintOp); // w.paintOp.paint;
+                paint = cachedPaints[w.paintOp.Id];
 
                 if (w.paintOp.FromTag) //FromTag is for when you are saving color data directly to each element, instead of tying it to a styleset.
                     paint.Color = SKColor.Parse(w.tagValue);
