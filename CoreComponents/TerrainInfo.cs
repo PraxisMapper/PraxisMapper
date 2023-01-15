@@ -10,11 +10,10 @@ using static PraxisCore.StandaloneDbTables;
 
 namespace PraxisCore
 {
-    //this is data on an Area (PlusCode cell), but the info is usually from a Place, perhaps AreaPlaceInfo is a better name even if its slightly confusing? 
     /// <summary>
-    /// Functions that search or sort the gameplay on map style type of areas.
+    /// Functions that search or sort the gameplay on the TagParser entries of Places, most often by Area.
     /// </summary>
-    public static class AreaTypeInfo
+    public static class TerrainInfo
     {
         //The new version, which returns a sorted list of places, smallest to largest, for when a single space contains multiple entries (default ScavengerHunt logic)
         /// <summary>
@@ -38,7 +37,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="entriesHere">the list of elements to pull data from</param>
         /// <returns>A list of name, areatype, and elementIds for a client</returns>
-        public static List<TerrainData> DetermineAreaPlaces(List<DbTables.Place> entriesHere)
+        public static List<TerrainData> DetermineAreaTerrains(List<DbTables.Place> entriesHere)
         {
             //Which Place in this given Area is the one that should be displayed on the game/map as the name? picks the smallest one.
             //This one return all entries, for a game mode that might need all of them.
@@ -55,7 +54,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="entriesHere">the list of elements to pull data from</param>
         /// <returns>the name, areatype, and client facing ID of the OSM element to use</returns>
-        public static TerrainData DetermineAreaPlace(List<DbTables.Place> entriesHere)
+        public static TerrainData DetermineAreaTerrain(List<DbTables.Place> entriesHere)
         {
             //Which Place in this given Area is the one that should be displayed on the game/map as the name? picks the smallest one.
             //This one only returns the smallest entry, for games that only need to check the most interesting area in a cell.
@@ -167,7 +166,7 @@ namespace PraxisCore
             if (entriesHere.Count == 0)
                 return null;
 
-            var area = DetermineAreaPlaces(entriesHere);
+            var area = DetermineAreaTerrains(entriesHere);
             string olc = new OpenLocationCode(lat, lon).CodeDigits;
             return new FindPlacesResult(olc, area);
 
@@ -190,7 +189,7 @@ namespace PraxisCore
             if (entriesHere.Count == 0)
                 return null;
 
-            var area = DetermineAreaPlace(entriesHere);
+            var area = DetermineAreaTerrain(entriesHere);
             return new FindPlaceResult(olc.CodeDigits, area);
         }
 
@@ -203,7 +202,7 @@ namespace PraxisCore
             if (entriesHere.Count == 0)
                 return null;
 
-            var area = DetermineAreaPlace(entriesHere);
+            var area = DetermineAreaTerrain(entriesHere);
             return new FindPlaceResult(plusCode, area);
         }
 

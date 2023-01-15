@@ -127,14 +127,14 @@ namespace Larry
                 List<DbTables.Place> oneEntry = new List<DbTables.Place>();
                 oneEntry.Add(trail);
 
-                var overlapped = AreaTypeInfo.SearchArea(ref thisPath, ref oneEntry);
+                var overlapped = PraxisCore.TerrainInfo.SearchArea(ref thisPath, ref oneEntry);
                 if (overlapped.Count > 0)
                 {
                     tdSmalls.TryAdd(TagParser.GetPlaceName(trail.Tags), new TerrainDataSmall() { Name = TagParser.GetPlaceName(trail.Tags), areaType = trail.GameElementName });
                 }
                 foreach (var o in overlapped)
                 {
-                    var ti = new TerrainInfo();
+                    var ti = new StandaloneDbTables.TerrainInfo();
                     ti.PlusCode = o.plusCode.Substring(removableLetters, 10 - removableLetters);
                     ti.TerrainDataSmall = new List<TerrainDataSmall>();
                     ti.TerrainDataSmall.Add(tdSmalls[o.data.Name]);
