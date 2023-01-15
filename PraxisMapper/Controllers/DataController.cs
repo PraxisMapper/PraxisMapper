@@ -262,7 +262,7 @@ namespace PraxisMapper.Controllers
             StringBuilder sb = new StringBuilder();
             //pluscode|name|type|PrivacyID 
 
-            var data = AreaTypeInfo.SearchArea(ref box, ref places);
+            var data = TerrainInfo.SearchArea(ref box, ref places);
             foreach (var d in data)
                 sb.Append(d.plusCode).Append('|').Append(d.data.Name).Append('|').Append(d.data.areaType).Append('|').Append(d.data.PrivacyId).Append('\n');
             var results = sb.ToString();
@@ -288,7 +288,7 @@ namespace PraxisMapper.Controllers
             StringBuilder sb = new StringBuilder();
             //pluscode|name|type|privacyID
 
-            var data = AreaTypeInfo.SearchAreaFull(ref box, ref places);
+            var data = TerrainInfo.SearchAreaFull(ref box, ref places);
             foreach (var d in data)
                 foreach (var v in d.data)
                     sb.Append(d.plusCode).Append('|').Append(v.Name).Append('|').Append(v.areaType).Append('|').Append(v.PrivacyId).Append('\n');
@@ -303,7 +303,7 @@ namespace PraxisMapper.Controllers
             //for individual Cell10 or Cell11 checks. Existing terrain calls only do Cell10s in a Cell8 or larger area.
             //Might be better in PraxisCore to be reused.
 
-            var place = AreaTypeInfo.GetSinglePlaceFromArea(plusCode);
+            var place = TerrainInfo.GetSinglePlaceFromArea(plusCode);
             var name = TagParser.GetPlaceName(place.Tags);
             StringBuilder sb = new StringBuilder();
             sb.Append(plusCode).Append('|').Append(name).Append('|').Append(place.GameElementName).Append('|').Append(place.PrivacyId);

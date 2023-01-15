@@ -2305,7 +2305,7 @@ namespace PerformanceTestApp
                 //new search:
                 sw.Restart();
                 var sb2 = new StringBuilder();
-                var results3 = AreaTypeInfo.SearchAreaFull(ref area, ref places);
+                var results3 = PraxisCore.TerrainInfo.SearchAreaFull(ref area, ref places);
                 foreach (var d in results3)
                     foreach (var v in d.data)
                         sb2.Append(d.plusCode).Append('|').Append(v.Name).Append('|').Append(v.areaType).Append('|').Append(v.PrivacyId).Append('\n');
@@ -2341,7 +2341,7 @@ namespace PerformanceTestApp
                 //for (double yy = 0; yy < yCells; yy += 1)
                 while (y < area.Max.Latitude)
                 {
-                    placeFound = AreaTypeInfo.FindPlacesInCell10(x, y, ref searchPlaces);
+                    placeFound = PraxisCore.TerrainInfo.FindPlacesInCell10(x, y, ref searchPlaces);
                     if (placeFound.HasValue)
                         results.Add(placeFound.Value);
 

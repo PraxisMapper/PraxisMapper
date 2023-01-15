@@ -56,7 +56,7 @@ namespace PraxisOfflineDataPlugin.Controllers
                 places = places.Where(p => p.IsGameElement).ToList();
                 if (places.Count == 0)
                     return;
-                var terrainInfo = AreaTypeInfo.SearchArea(ref box, ref places);
+                var terrainInfo = TerrainInfo.SearchArea(ref box, ref places);
                 var terrainsPresent = terrainInfo.Select(t => t.data.areaType).Distinct().ToList();
 
                 if (terrainsPresent.Count() > 0)
@@ -122,7 +122,7 @@ namespace PraxisOfflineDataPlugin.Controllers
                             places = places.Where(p => p.IsGameElement).ToList();
                             if (places.Count == 0)
                                 return;
-                            var terrainInfo = AreaTypeInfo.SearchArea(ref box, ref places);
+                            var terrainInfo = TerrainInfo.SearchArea(ref box, ref places);
                             var terrainsPresent = terrainInfo.Select(t => t.data.areaType).Distinct().ToList();
 
                             if (terrainsPresent.Count() > 0)
