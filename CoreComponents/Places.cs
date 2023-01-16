@@ -49,20 +49,20 @@ namespace PraxisCore
                 db.Database.SetCommandTimeout(new TimeSpan(0, 5, 0));
                 if (skipTags) //Should make the load slightly faster if we're parsing existing items that already got tags applied
                 {
-                    places = db.Places.Where(md => location.Intersects(md.ElementGeometry) && md.AreaSize >= filterSize && (includePoints || md.SourceItemType != 1)).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length).ToList();
+                    places = db.Places.Where(md => location.Intersects(md.ElementGeometry) && md.DrawSizeHint >= filterSize && (includePoints || md.SourceItemType != 1)).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length).ToList();
                     //return places; //Jump out before we do ApplyTags
                 }
                 else
                 {
-                    places = db.Places.Include(s => s.Tags).Where(md => location.Intersects(md.ElementGeometry) && md.AreaSize >= filterSize && (includePoints || md.SourceItemType != 1)).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length).ToList();
+                    places = db.Places.Include(s => s.Tags).Where(md => location.Intersects(md.ElementGeometry) && md.DrawSizeHint >= filterSize && (includePoints || md.SourceItemType != 1)).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length).ToList();
                     TagParser.ApplyTags(places, styleSet); //populates the fields we don't save to the DB.
                 }
             }
             else
             {
-                //We should always have the tags here.
+                //We should always have the tags here. 
                 var location = Converters.GeoAreaToPreparedPolygon(area);
-                places = source.Where(md => location.Intersects(md.ElementGeometry) && md.AreaSize >= filterSize && (includePoints || md.SourceItemType != 1)).ToList();
+                places = source.Where(md => location.Intersects(md.ElementGeometry) && md.DrawSizeHint >= filterSize && (includePoints || md.SourceItemType != 1)).ToList();
             }
 
             //if (!skipTags)
@@ -300,7 +300,7 @@ namespace PraxisCore
         /// <param name="area">the GeoArea to select elements from.</param>
         /// <param name="places">A list of OSM Elements to search. If null, loaded from the database based on the area provided.</param>
         /// <returns>a list of OSM Elements with the requested style in the given area.</returns>
-        public static List<DbTables.Place> GetPlacesByStyle(string type, GeoArea area, List<DbTables.Place> places = null)
+        public static List<DbTables.Place> GetPlacesByStyle(string type, GeoArea area, List<DbTables.Place> places = null) //TODO this should take StyleSet as a param and pass that to GetPlaces
         {
             if (places == null)
                 places = GetPlaces(area);

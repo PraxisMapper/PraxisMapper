@@ -58,7 +58,7 @@ namespace PraxisCore
             model.Entity<PlayerData>().HasIndex(p => p.DataKey);
             model.Entity<PlayerData>().HasIndex(p => p.Expiration);
 
-            model.Entity<DbTables.Place>().HasIndex(m => m.AreaSize); //Enables server-side sorting on biggest-to-smallest draw order.
+            model.Entity<DbTables.Place>().HasIndex(m => m.DrawSizeHint); //Enables server-side sorting on biggest-to-smallest draw order.
             model.Entity<DbTables.Place>().HasIndex(m => m.SourceItemID);
             model.Entity<DbTables.Place>().HasIndex(m => m.SourceItemType);
             model.Entity<DbTables.Place>().HasIndex(m => m.PrivacyId);
@@ -103,7 +103,7 @@ namespace PraxisCore
         public static string SlippyMapTileIndex = "CREATE SPATIAL INDEX SlippyMapTileSpatialIndex ON SlippyMapTiles(areaCovered)";
         public static string StoredElementsIndex = "CREATE SPATIAL INDEX PlacesIndex ON Places(elementGeometry)";
         public static string customDataPlusCodesIndex = "CREATE SPATIAL INDEX areaGameDataSpatialIndex ON AreaGameData(geoAreaIndex)";
-        public static string areaSizeIndex = "CREATE OR REPLACE INDEX IX_Places_AreaSize on Places (AreaSize)";
+        public static string drawSizeHintIndex = "CREATE OR REPLACE INDEX IX_Places_DrawSizeHint on Places (DrawSizeHint)"; //NOTE: isn't dropped automatically.
         public static string privacyIdIndex = "CREATE OR REPLACE INDEX IX_Places_privacyId on Places (privacyId)";
         public static string sourceItemIdIndex = "CREATE OR REPLACE INDEX IX_Places_sourceItemID on Places (sourceItemID)";
         public static string sourceItemTypeIndex = "CREATE OR REPLACE INDEX IX_Places_sourceItemType on Places (sourceItemType)";
@@ -229,7 +229,7 @@ namespace PraxisCore
                 Database.ExecuteSqlRaw(StoredElementsIndex);
 
                 //now also add the automatic ones we took out in DropIndexes.
-                Database.ExecuteSqlRaw(areaSizeIndex);
+                Database.ExecuteSqlRaw(drawSizeHintIndex);
                 Database.ExecuteSqlRaw(sourceItemIdIndex);
                 Database.ExecuteSqlRaw(sourceItemTypeIndex);
                 Database.ExecuteSqlRaw(tagKeyIndex);
@@ -383,7 +383,7 @@ namespace PraxisCore
                         {
                             //update the geometry for this object.
                             existingData.ElementGeometry = entry.ElementGeometry;
-                            existingData.AreaSize = entry.AreaSize;
+                            existingData.DrawSizeHint = entry.DrawSizeHint;
                             expireTiles = true;
                         }
                         //This doesn't work. SequenceEquals returns false on identical sets of tags and values.
@@ -466,7 +466,7 @@ namespace PraxisCore
                         {
                             //update the geometry for this object.
                             existingData.ElementGeometry = entry.ElementGeometry;
-                            existingData.AreaSize = entry.AreaSize;
+                            existingData.DrawSizeHint = entry.DrawSizeHint;
                         }
                         if (!(existingData.Tags.Count == entry.Tags.Count && existingData.Tags.All(t => entry.Tags.Any(tt => tt.Equals(t)))))
                         {

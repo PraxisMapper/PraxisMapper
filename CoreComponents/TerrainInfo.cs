@@ -28,7 +28,7 @@ namespace PraxisCore
             if (!allowPoints)
                 entries = entries.Where(e => e.SourceItemType != 1).ToList(); // .ElementGeometry.GeometryType != "Point")
 
-            entries = entries.OrderBy(e => e.AreaSize).ToList(); //I want lines to show up before areas in most cases, so this should do that.
+            entries = entries.OrderBy(e => e.DrawSizeHint).ToList(); //I want lines to show up before areas in most cases, so this should do that.
             return entries;
         }
 
