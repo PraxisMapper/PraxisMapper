@@ -484,11 +484,11 @@ namespace PraxisCore
             SKPaint paint = new SKPaint();
 
             //I guess what I want here is a list of an object with an elementGeometry object for the shape, and a paintOp attached to it
-            var pass1 = drawnItems.Select(d => new { d.AreaSize, d.ElementGeometry, paintOp = styles[d.GameElementName].PaintOperations });
+            var pass1 = drawnItems.Select(d => new { d.DrawSizeHint, d.ElementGeometry, paintOp = styles[d.GameElementName].PaintOperations });
             var pass2 = new List<CompletePaintOp>(drawnItems.Count * 2);
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
-                    pass2.Add(new CompletePaintOp(op.ElementGeometry, op.AreaSize, po, "", po.LineWidthDegrees * stats.pixelsPerDegreeX));
+                    pass2.Add(new CompletePaintOp(op.ElementGeometry, op.DrawSizeHint, po, "", po.LineWidthDegrees * stats.pixelsPerDegreeX));
 
 
             foreach (var w in pass2.OrderByDescending(p => p.paintOp.LayerId).ThenByDescending(p => p.areaSize))

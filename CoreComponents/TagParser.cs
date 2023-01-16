@@ -22,7 +22,7 @@ namespace PraxisCore
         public static Dictionary<string, byte[]> cachedBitmaps = new Dictionary<string, byte[]>(); //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
         public static Dictionary<string, Dictionary<string, StyleEntry>> allStyleGroups = new Dictionary<string, Dictionary<string, StyleEntry>>();
 
-        private static IMapTiles MapTiles; 
+        private static IMapTiles MapTiles;
 
         //TODO: this might need an ID and then added to allStyleGroups.
         public static StyleEntry outlineStyle = new StyleEntry()
@@ -51,7 +51,7 @@ namespace PraxisCore
                 styles = Singletons.defaultStyleEntries;
 
                 long i = 1;
-                foreach(var s in styles)
+                foreach (var s in styles)
                     foreach (var p in s.PaintOperations)
                         p.Id = i++;
             }
@@ -72,7 +72,7 @@ namespace PraxisCore
                                 p.Id = i++;
                             foreach (var p in s.StyleMatchRules)
                                 p.Id = i++;
-                         }
+                        }
                     }
 
                     var bitmaps = db.StyleBitmaps.ToList();
@@ -338,7 +338,7 @@ namespace PraxisCore
                 !t.Key.StartsWith("tiger:") &&
                 !t.Key.StartsWith("turn:") &&
                 !t.Key.StartsWith("was:") &&
-                !t.Key.StartsWith("website") 
+                !t.Key.StartsWith("website")
                 )
                 .Select(t => new PlaceTags() { Key = t.Key, Value = t.Value }).ToList();
         }
@@ -348,7 +348,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="tagsO">the tags to search</param>
         /// <returns>a Name value if one is found, or an empty string if not</returns>
-        public static string GetPlaceName(TagsCollectionBase tagsO) 
+        public static string GetPlaceName(TagsCollectionBase tagsO)
         {
             if (tagsO.Count == 0)
                 return "";
@@ -405,6 +405,14 @@ namespace PraxisCore
                 p.IsGameElement = style.IsGameElement;
             }
             return places;
+        }
+
+        public static DbTables.Place ApplyTags(DbTables.Place place, string styleSet)
+        {
+            var style = GetStyleForOsmWay(place.Tags, styleSet);
+            place.GameElementName = style.Name;
+            place.IsGameElement = style.IsGameElement;
+            return place;
         }
 
         /// <summary>

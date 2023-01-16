@@ -1,8 +1,11 @@
 ﻿using Google.OpenLocationCode;
+using Microsoft.Identity.Client.Extensions.Msal;
 using NetTopologySuite.Geometries;
 using OsmSharp;
+using PraxisCore.Support;
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.IO;
 using System.Linq;
 using static PraxisCore.ConstantValues;
@@ -166,13 +169,47 @@ namespace PraxisCore
                     var poly = factory.CreatePolygon((LinearRing)place.ElementGeometry);
                     place.ElementGeometry = poly;
                 }
-                place.AreaSize = place.ElementGeometry.Length > 0 ? place.ElementGeometry.Length : resolutionCell10;
+
+                TagParser.ApplyTags(place, "mapTiles"); 
+                //TODO: functionalize this somewhere else, this should be reusable per style set if necessary.
+                if (place.GameElementName == "unmatched" || place.GameElementName == "background")
+                {
+                    //skip, leave value at 0.
+                }
+                else
+                {
+                    place.DrawSizeHint = CalclateDrawSizeHint(place);
+                }
                 return place;
             }
             catch(Exception ex)
             {
                 Log.WriteLog("Error: Item " + g.Id + " failed to process. " + ex.Message);
                 return null;
+            }
+        }
+
+        public static double CalclateDrawSizeHint(DbTables.Place place)
+        {
+            var paintOp = TagParser.allStyleGroups["mapTiles"][place.GameElementName].PaintOperations;
+            var pixelMultiplier = IMapTiles.GameTileScale; //X * Y;
+            var totalPixels = 0;// how many pixels this item is expected to take up on a gameplay tile (Cell8 size image, Cell11 resolution * mapTileScaleFactor in the config.)
+                                //Default: A Cell11 is 4 pixels large. We absolutely do NOT want to load anything smaller than 1 pixel.
+                                //Remember: A cell10 is 4x5 pixels baseline this way, we use the resolution of a Cell10 to average that out
+
+            if (place.ElementGeometry.Area > 0)
+                return (place.ElementGeometry.Area / ConstantValues.squareCell10Area) * pixelMultiplier;
+            else if (place.ElementGeometry.Length > 0)
+            {
+                var lineWidth = paintOp.Max(p => p.LineWidthDegrees);
+                var rectSize = lineWidth * place.ElementGeometry.Length;
+                return (rectSize / ConstantValues.squareCell10Area) * pixelMultiplier;
+            }
+            else
+            {
+                var pointRadius = paintOp.Max(p => p.LineWidthDegrees); //for Points, this is the radius of the circle being drawn.
+                var pointRadiusPixels = ((pointRadius * pointRadius * float.Pi) / ConstantValues.squareCell10Area) * pixelMultiplier;
+                return pointRadiusPixels;
             }
         }
 
@@ -222,8 +259,9 @@ namespace PraxisCore
             entry.SourceItemID = source.SplitNext('\t').ToLong();
             entry.SourceItemType = source.SplitNext('\t').ToInt();
             entry.ElementGeometry = GeometryFromWKT(source.SplitNext('\t').ToString());
-            entry.AreaSize = source.SplitNext('\t').ToDouble();
-            entry.PrivacyId = Guid.Parse(source);
+            //entry.AreaSize = source.SplitNext('\t').ToDouble();
+            entry.PrivacyId = Guid.Parse(source.SplitNext('\t'));
+            entry.DrawSizeHint = source.ToDouble();
             entry.Tags = new List<PlaceTags>();
 
             return entry;

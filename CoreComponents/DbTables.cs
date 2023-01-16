@@ -142,7 +142,6 @@ namespace PraxisCore
             public bool IsGameElement { get; set; } //Gets determined by styles, shouldn't be a persisted property. Only used to make standalone DB right now.
             [NotMapped]
             public string GameElementName { get; set; } //Placeholder for TagParser to load up the name of the matching style for this element, but don't save it to the DB so we can change it on the fly.
-            public double AreaSize { get; set; } //For sorting purposes. Draw smaller areas over larger areas.
             public Guid PrivacyId { get; set; } = Guid.NewGuid(); //Pass this Id to clients, so we can attempt to block attaching players to locations in the DB.
             public double DrawSizeHint { get; set; } //optimization. This is estimated pixels to draw at standard scale. Calculate your floor if you zoom in or out differently, and skip loading if its too small to see.
 
@@ -240,10 +239,11 @@ namespace PraxisCore
         {
             public long Id { get; set; }
             public string accountId { get; set; } //could also be deviceId, but probably a string for the account name
-            public string password { get; set; }
+            public string password { get; set; } //The password the account uses to get an AuthToken
             public string authToken { get; set; }
             public bool isAdmin { get; set; } = false;
             public DateTime? bannedUntil { get; set; }
+            //public string internalPassword { get; set; } //the string PraxisMapper uses to encrypt player data from the server owner without some token effort.
         }
     }
 }

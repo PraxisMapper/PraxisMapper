@@ -2,6 +2,7 @@
 using EFCore.BulkExtensions;
 using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.Extensions.Configuration;
 using NetTopologySuite;
 using NetTopologySuite.Geometries;
@@ -105,8 +106,8 @@ namespace Larry
                 SetEnvValues();
                 var db = new PraxisContext();
                 createDb();
-                db.DropIndexes();
-                processPbfs();
+                TagParser.Initialize(true, null);
+                processPbfs(); //TODO: this no longer works if we don't have the default mapTiles styles loaded.
                 loadProcessedData();
                 db.SetServerBounds(long.Parse(config["UseOneRelationID"]));
                 Log.WriteLog("Server setup complete in " + sw.Elapsed);
@@ -151,6 +152,33 @@ namespace Larry
                 //Fire up the Kestral exe to get the server working
                 //Open up a browser to the adminview slippytile page.
                 //}
+            }
+
+            //NOTE: this seems to drop out a lot of geometry, so I may not want to suppor tthis after all.
+            if (args.Any(a => a.StartsWith("-shrinkFiles")))
+            {
+                List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.geomData").ToList();
+                foreach (string filename in filenames)
+                {
+                    Log.WriteLog("Loading " + filename + " at " + DateTime.Now);
+                    PbfReader r = new PbfReader();
+                    r.outputPath = config["OutputDataFolder"];
+                    r.processingMode = config["processingMode"]; // "normal" and "center" and 'minimize' allowed
+                    r.saveToDB = false; //we want these as separate files for later.
+                    r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
+                    r.reprocessFile = true;
+
+                    if (config["ResourceUse"] == "low")
+                    {
+                        r.lowResourceMode = true;
+                    }
+                    else if (config["ResourceUse"] == "high")
+                    {
+                        r.keepAllBlocksInRam = true; //Faster performance, but files use vastly more RAM than they do HD space. 200MB file = ~6GB total RAM last I checked.
+                    }
+                    r.ProcessFile(filename, long.Parse(config["UseOneRelationID"]));
+                    File.Move(filename, filename + "done");
+                }
             }
 
             if (args.Any(a => a.StartsWith("-splitPbfByStyle:")))
@@ -319,7 +347,7 @@ namespace Larry
                 PbfReader r = new PbfReader();
                 r.outputPath = config["OutputDataFolder"];
                 r.styleSet = config["TagParserStyleSet"];
-                r.processingMode = config["processingMode"]; // "normal" and "center" allowed
+                r.processingMode = config["processingMode"]; // "normal" and "center" and "minimize" allowed
                 r.saveToDB = false; //This is slower than doing both steps separately because loading to the DB is single-threaded this way.
                 r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
                 r.reprocessFile = config["reprocessFiles"] == "True";
@@ -393,7 +421,7 @@ namespace Larry
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
                     var mariaPath = fileName.Replace("\\", "\\\\"); //TODO: this may need some cross-platform attention if I have to keep this particular mode up.
-                    db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' IGNORE INTO TABLE Places fields terminated by '\t' lines terminated by '\r\n' (sourceItemID, sourceItemType, @elementGeometry, AreaSize, privacyId) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
+                    db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' IGNORE INTO TABLE Places fields terminated by '\t' lines terminated by '\r\n' (sourceItemID, sourceItemType, @elementGeometry, privacyId, DrawSizeHint) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
                     sw.Stop();
                     Log.WriteLog("Geometry loaded from " + fileName + " in " + sw.Elapsed);
                     File.Move(fileName, fileName + "done");
@@ -808,5 +836,86 @@ namespace Larry
 
             //return JsonSerializer.Serialize(terrainDict);
         }
+
+        public void ReduceServerSize() //Extremely similar to the PBFReader reprocessing, but online instead of against files.
+        {
+            var db = new PraxisContext();
+            var groupsDone = 0;
+            var groupSize = 1000;
+            bool keepGoing = true;
+            while (keepGoing)
+            {
+                var places = db.Places.Include(p => p.Tags).Where(p => p.DrawSizeHint > 4000).Skip(groupsDone * groupSize).Take(groupsDone).ToList();
+                if (places.Count < groupSize)
+                    keepGoing = false;
+
+                foreach (var place in places)
+                {
+                    place.ElementGeometry = NetTopologySuite.Precision.GeometryPrecisionReducer.Reduce(NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(place.ElementGeometry, ConstantValues.resolutionCell10), PrecisionModel.FloatingSingle.Value);
+                    var match = TagParser.GetStyleForOsmWay(place.Tags, "mapTiles");
+                    var name = TagParser.GetPlaceName(place.Tags);
+                    place.Tags.Clear();
+                    if (!string.IsNullOrEmpty(name))
+                        place.Tags.Add(new PlaceTags() { Key = "name", Value = name });
+                    place.Tags.Add(new PlaceTags() { Key = "styleset", Value = match.Name });
+                }
+                Log.WriteLog("Saving " + groupSize + " changes");
+                db.SaveChanges();
+            }
+        }
+
+        public void RecalcDrawSizeHints()
+        {
+            //TODO: write something that lets me quick and easy batch commands on the entities.
+            var db = new PraxisContext();
+            var groupsDone = 0;
+            var groupSize = 1000;
+            bool keepGoing = true;
+            while (keepGoing)
+            {
+                var places = db.Places.Include(p => p.Tags).Where(p => p.DrawSizeHint > 4000).Skip(groupsDone * groupSize).Take(groupsDone).ToList();
+                if (places.Count < groupSize)
+                    keepGoing = false;
+
+                foreach (var place in places)
+                {
+                    place.DrawSizeHint = GeometrySupport.CalclateDrawSizeHint(TagParser.ApplyTags(place, "mapTiles"));
+                }
+                Log.WriteLog("Saving " + groupSize + " changes");
+                db.SaveChanges();
+            }
+        }
+
+        public void BatchOp(Action<DbTables.Place> a)
+        {
+            var db = new PraxisContext();
+            var groupsDone = 0;
+            var groupSize = 1000;
+            bool keepGoing = true;
+            while (keepGoing)
+            {
+                var places = db.Places.Include(p => p.Tags).Where(p => p.DrawSizeHint > 4000).Skip(groupsDone * groupSize).Take(groupsDone).ToList();
+                if (places.Count < groupSize)
+                    keepGoing = false;
+
+                foreach (var place in places)
+                {
+                    a(place);
+                }
+                Log.WriteLog("Saving " + groupSize + " changes");
+                db.SaveChanges();
+            }
+        }
+
+        public Action<DbTables.Place> CalcDrawSizeHint = (p) => { p.DrawSizeHint = GeometrySupport.CalclateDrawSizeHint(TagParser.ApplyTags(p, "mapTiles")); };
+        public Action<DbTables.Place> ReduceSize = (place) => {
+            place.ElementGeometry = NetTopologySuite.Precision.GeometryPrecisionReducer.Reduce(NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(place.ElementGeometry, ConstantValues.resolutionCell10), PrecisionModel.FloatingSingle.Value);
+            var match = TagParser.GetStyleForOsmWay(place.Tags, "mapTiles");
+            var name = TagParser.GetPlaceName(place.Tags);
+            place.Tags.Clear();
+            if (!string.IsNullOrEmpty(name))
+                place.Tags.Add(new PlaceTags() { Key = "name", Value = name });
+            place.Tags.Add(new PlaceTags() { Key = "styleset", Value = match.Name });
+        };
     }
 }

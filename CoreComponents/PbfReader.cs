@@ -155,7 +155,7 @@ namespace PraxisCore.PbfReader
                 if (processingMode == "center")
                 { 
                     md.ElementGeometry = md.ElementGeometry.Centroid;
-                    sb.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(md.AreaSize).Append('\t').Append(md.PrivacyId).Append("\r\n");
+                    sb.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(md.PrivacyId).Append("\r\n");
                     reprocFileStream.WriteLine(sb.ToString());
                 }
                 else if (processingMode == "minimize") //This may be removed in the near future, since this has a habit of making invalid geometry.
@@ -186,7 +186,7 @@ namespace PraxisCore.PbfReader
                             md.Tags.Add(new PlaceTags() { Key = "name", Value = name });
                         md.Tags.Add(new PlaceTags() { Key = "styleset", Value = match.Name });
 
-                        sb.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(md.AreaSize).Append('\t').Append(md.PrivacyId).Append("\r\n");
+                        sb.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(md.PrivacyId).Append("\r\n");
                         reprocFileStream.Write(sb.ToString());
 
                         foreach (var tag in md.Tags)
@@ -196,7 +196,7 @@ namespace PraxisCore.PbfReader
                     catch(Exception ex)
                     {
                         Log.WriteLog("Couldn't reduce element " + md.SourceItemID + ", saving as-is (" + ex.Message + ")");
-                        reprocFileStream.Write(md.SourceItemID + '\t' + md.SourceItemType + '\t' + originalGeo.AsText() + '\t' + md.AreaSize + '\t' + md.PrivacyId + "\r\n");
+                        reprocFileStream.Write(md.SourceItemID + '\t' + md.SourceItemType + '\t' + originalGeo.AsText() + '\t' + md.PrivacyId + '\t' + md.DrawSizeHint + "\r\n");
                         foreach (var t in originalTags)
                         {
                             reprocTagsFileStream.Write(md.SourceItemID + '\t' + md.SourceItemType + '\t' +t.Key + '\t' + t.Value +"\r\n");
@@ -1367,10 +1367,10 @@ namespace PraxisCore.PbfReader
             if (elements.IsEmpty)
                 return 0;
 
-            //Single check per block to fix points having 0 size.
-            if (elements.First().SourceItemType == 1)
-                foreach (var e in elements)
-                    e.AreaSize = ConstantValues.resolutionCell10;
+            ////Single check per block to fix points having 0 size. TODO might be unnecessary if DRawSizeHint works
+            //if (elements.First().SourceItemType == 1)
+            //    foreach (var e in elements)
+            //        e.AreaSize = ConstantValues.resolutionCell10; //TODO: confirm that points with a size of 0 arent supposed to be drawn.
 
             if (processingMode == "center")
                 foreach (var e in elements)
@@ -1402,7 +1402,7 @@ namespace PraxisCore.PbfReader
                 {
                     var areatype = TagParser.GetAreaType(md.Tags, styleSet);
                     var name = TagParser.GetPlaceName(md.Tags);
-                    geomDataByMatch[areatype].Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(md.AreaSize).Append('\t').Append(Guid.NewGuid()).Append("\r\n");
+                    geomDataByMatch[areatype].Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(Guid.NewGuid()).Append('\t').Append(md.DrawSizeHint).Append("\r\n");
                     foreach (var t in md.Tags)
                         tagDataByMatch[areatype].Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(t.Key).Append('\t').Append(t.Value.Replace("\r", "").Replace("\n", "")).Append("\r\n"); //Might also need to sanitize / and ' ?
                 }
@@ -1423,7 +1423,7 @@ namespace PraxisCore.PbfReader
                 StringBuilder tagBuilds = new StringBuilder(40000); //40kb, tags are usually smaller than geometry.
                 foreach (var md in elements)
                 {
-                    geometryBuilds.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(md.AreaSize).Append('\t').Append(Guid.NewGuid()).Append("\r\n");
+                    geometryBuilds.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(Guid.NewGuid()).Append('\t').Append(md.DrawSizeHint).Append("\r\n");
                     foreach (var t in md.Tags)
                         tagBuilds.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(t.Key).Append('\t').Append(t.Value.Replace("\r", "").Replace("\n", "")).Append("\r\n"); //Might also need to sanitize / and ' ?
                 }
