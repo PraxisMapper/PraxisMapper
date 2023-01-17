@@ -332,7 +332,7 @@ namespace PraxisCore
             canvas.Scale(1, -1, stats.imageSizeX / 2, stats.imageSizeY / 2);
             SKPaint paint = new SKPaint();
 
-            foreach (var w in paintOps.OrderByDescending(p => p.paintOp.LayerId).ThenByDescending(p => p.areaSize))
+            foreach (var w in paintOps.OrderByDescending(p => p.paintOp.LayerId).ThenByDescending(p => p.drawSizeHint))
             {
                 paint = cachedPaints[w.paintOp.Id];
 
@@ -491,7 +491,7 @@ namespace PraxisCore
                     pass2.Add(new CompletePaintOp(op.ElementGeometry, op.DrawSizeHint, po, "", po.LineWidthDegrees * stats.pixelsPerDegreeX));
 
 
-            foreach (var w in pass2.OrderByDescending(p => p.paintOp.LayerId).ThenByDescending(p => p.areaSize))
+            foreach (var w in pass2.OrderByDescending(p => p.paintOp.LayerId).ThenByDescending(p => p.drawSizeHint))
             {
                 paint = cachedPaints[w.paintOp.Id];
                 if (paint.Color.Alpha == 0)

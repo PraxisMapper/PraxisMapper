@@ -17,7 +17,7 @@ namespace PraxisCore
     {
         //The new version, which returns a sorted list of places, smallest to largest, for when a single space contains multiple entries (default ScavengerHunt logic)
         /// <summary>
-        /// Sorts the given list by AreaSize. Larger elements should be drawn first, so smaller areas will appear over them on maptiles.
+        /// Sorts the given list by DrawSizeHint. Larger elements should be drawn first, so smaller areas will appear over them on maptiles.
         /// </summary>
         /// <param name="entries">The list of entries to sort by</param>
         /// <param name="allowPoints">If true, include points in the return list as size 0. If false, filters those out from the returned list.</param>

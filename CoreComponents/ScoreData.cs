@@ -66,7 +66,6 @@ namespace PraxisCore
         {
             //This code specifically will calculate the correct score based on the place's GeometryType.
             //Points are always 1. Lines are scores by how many Cell10s long they are. Areas are 1 per square Cell10 they cover.
-            //AreaSize doesn't distinguish between the 3, so I still calculate it here.
             //The core function for scoring.
             var containedAreaSize = place.Area; //The area, in square degrees
             if (containedAreaSize == 0)
