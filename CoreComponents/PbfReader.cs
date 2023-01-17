@@ -1,4 +1,5 @@
-﻿using Azure;
+﻿using AsyncKeyedLock;
+using Azure;
 using Microsoft.EntityFrameworkCore.Query.Internal;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Prepared;
@@ -88,6 +89,12 @@ namespace PraxisCore.PbfReader
         CancellationToken token;
 
         object nodeLock = new object();
+
+        private readonly AsyncKeyedLocker<string> fileLocks = new AsyncKeyedLocker<string>(o =>
+        {
+            o.PoolSize = 20;
+            o.PoolInitialFill = 1;
+        });
 
         public PbfReader()
         {
@@ -1561,17 +1568,14 @@ namespace PraxisCore.PbfReader
             return g;
         }
 
-        ConcurrentDictionary<string, SemaphoreSlim> fileLocks = new ConcurrentDictionary<string, SemaphoreSlim>();
-        public async void QueueWriteTask(string filename, StringBuilder data)
+        public async Task QueueWriteTask(string filename, StringBuilder data)
         {
-            Task.Run(() =>
+            await Task.Run(async () =>
             {
-                if (!fileLocks.ContainsKey(filename))
-                    fileLocks.TryAdd(filename, new SemaphoreSlim(1));
-
-                fileLocks[filename].Wait();
-                File.AppendAllText(filename, data.ToString());
-                fileLocks[filename].Release();
+                using (await fileLocks.LockAsync(filename).ConfigureAwait(false))
+                {
+                    File.AppendAllText(filename, data.ToString());
+                }
             });
         }
     }
