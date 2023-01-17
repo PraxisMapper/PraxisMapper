@@ -2193,7 +2193,6 @@ namespace PerformanceTestApp
                 entry.SourceItemID = parts[0].ToLong();
                 entry.SourceItemType = parts[1].ToInt();
                 entry.ElementGeometry = GeometrySupport.GeometryFromWKT(parts[2]);
-                //entry.AreaSize = parts[3].ToDouble();
                 entry.PrivacyId = Guid.Parse(parts[3]);
                 entry.DrawSizeHint = double.Parse(parts[4]);
                 timer.Stop();
@@ -2205,7 +2204,6 @@ namespace PerformanceTestApp
                 e2.SourceItemID = source.SplitNext('\t').ToLong();
                 e2.SourceItemType = source.SplitNext('\t').ToInt();
                 e2.ElementGeometry = GeometryFromWKT(source.SplitNext('\t').ToString());
-                //e2.AreaSize = source.SplitNext('\t').ToDouble();
                 e2.PrivacyId = Guid.Parse(source.SplitNext('\t'));
                 e2.DrawSizeHint = double.Parse(source);
                 timer.Stop();
@@ -2223,7 +2221,6 @@ namespace PerformanceTestApp
             entry.SourceItemID = source.SplitNext('\t').ToLong();
             entry.SourceItemType = source.SplitNext('\t').ToInt();
             entry.ElementGeometry = GeometryFromWKT(source.SplitNext('\t').ToString());
-            //entry.AreaSize = source.SplitNext('\t').ToDouble();
             entry.PrivacyId = Guid.Parse(source.SplitNext('\t'));
             entry.DrawSizeHint = double.Parse(source);
 
@@ -2253,7 +2250,6 @@ namespace PerformanceTestApp
             entry.SourceItemID = source.SplitNext('\t').ToLong();
             entry.SourceItemType = source.SplitNext('\t').ToInt();
             entry.ElementGeometry = GeometryFromWKT(source.SplitNext('\t').ToString());
-            //entry.AreaSize = source.SplitNext('\t').ToDouble();
             entry.PrivacyId = Guid.Parse(source.SplitNext('\t'));
             entry.DrawSizeHint = double.Parse(source);
 

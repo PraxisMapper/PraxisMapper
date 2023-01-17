@@ -103,7 +103,7 @@ namespace PraxisCore
         public static string SlippyMapTileIndex = "CREATE SPATIAL INDEX SlippyMapTileSpatialIndex ON SlippyMapTiles(areaCovered)";
         public static string StoredElementsIndex = "CREATE SPATIAL INDEX PlacesIndex ON Places(elementGeometry)";
         public static string customDataPlusCodesIndex = "CREATE SPATIAL INDEX areaGameDataSpatialIndex ON AreaGameData(geoAreaIndex)";
-        public static string drawSizeHintIndex = "CREATE OR REPLACE INDEX IX_Places_DrawSizeHint on Places (DrawSizeHint)"; //NOTE: isn't dropped automatically.
+        public static string drawSizeHintIndex = "CREATE OR REPLACE INDEX IX_Places_DrawSizeHint on Places (DrawSizeHint)"; 
         public static string privacyIdIndex = "CREATE OR REPLACE INDEX IX_Places_privacyId on Places (privacyId)";
         public static string sourceItemIdIndex = "CREATE OR REPLACE INDEX IX_Places_sourceItemID on Places (sourceItemID)";
         public static string sourceItemTypeIndex = "CREATE OR REPLACE INDEX IX_Places_sourceItemType on Places (sourceItemType)";
@@ -121,7 +121,7 @@ namespace PraxisCore
         public static string DropSlippyMapTileIndex = "DROP INDEX IF EXISTS SlippyMapTileSpatialIndex on SlippyMapTiles";
         public static string DropStoredElementsIndex = "DROP INDEX IF EXISTS PlacesIndex on Places";
         public static string DropcustomDataPlusCodesIndex = "DROP INDEX IF EXISTS areaGameDataSpatialIndex on AreaGameData";
-        public static string DropStoredElementsAreaSizeIndex = "DROP INDEX IF EXISTS IX_Places_AreaSize on Places";
+        public static string DropStoredElementsHintSizeIndex = "DROP INDEX IF EXISTS IX_Places_DrawSizeHint on Places";
         public static string DropStoredElementsPrivacyIdIndex = "DROP INDEX IF EXISTS IX_Places_privacyId on Places";
         public static string DropStoredElementsSourceItemIdIndex = "DROP INDEX IF EXISTS IX_Places_sourceItemID on Places";
         public static string DropStoredElementsSourceItemTypeIndex = "DROP INDEX IF EXISTS IX_Places_sourceItemType on Places";
@@ -244,7 +244,7 @@ namespace PraxisCore
             Database.ExecuteSqlRaw(DropStoredElementsIndex);
             Database.ExecuteSqlRaw(DropSlippyMapTileIndex);
             Database.ExecuteSqlRaw(DropcustomDataPlusCodesIndex);
-            Database.ExecuteSqlRaw(DropStoredElementsAreaSizeIndex);
+            Database.ExecuteSqlRaw(DropStoredElementsHintSizeIndex);
             Database.ExecuteSqlRaw(DropStoredElementsPrivacyIdIndex);
             Database.ExecuteSqlRaw(DropStoredElementsSourceItemTypeIndex);
             Database.ExecuteSqlRaw(DropStoredElementsSourceItemIdIndex);

@@ -191,24 +191,25 @@ namespace PraxisCore
 
         public static double CalclateDrawSizeHint(DbTables.Place place)
         {
+            //The default assumption here is that a Cell11 is 1 pixel for gameplay tiles. (Multiplied by GameTileScale)
+            //So we take the area of the drawn element in degrees, divide by the size of a square Cell11, and multiply by GameTileScale.
+            //That's how many pixels an individual element would take up at typical scale. MapTiles will skip anything below 1.
+            //The value of what to skip will be automatically adjusted based on the area being drawn.
             var paintOp = TagParser.allStyleGroups["mapTiles"][place.GameElementName].PaintOperations;
-            var pixelMultiplier = IMapTiles.GameTileScale; //X * Y;
-            var totalPixels = 0;// how many pixels this item is expected to take up on a gameplay tile (Cell8 size image, Cell11 resolution * mapTileScaleFactor in the config.)
-                                //Default: A Cell11 is 4 pixels large. We absolutely do NOT want to load anything smaller than 1 pixel.
-                                //Remember: A cell10 is 4x5 pixels baseline this way, we use the resolution of a Cell10 to average that out
+            var pixelMultiplier = IMapTiles.GameTileScale;
 
             if (place.ElementGeometry.Area > 0)
-                return (place.ElementGeometry.Area / ConstantValues.squareCell10Area) * pixelMultiplier;
+                return (place.ElementGeometry.Area / ConstantValues.squareCell11Area) * pixelMultiplier;
             else if (place.ElementGeometry.Length > 0)
             {
                 var lineWidth = paintOp.Max(p => p.LineWidthDegrees);
                 var rectSize = lineWidth * place.ElementGeometry.Length;
-                return (rectSize / ConstantValues.squareCell10Area) * pixelMultiplier;
+                return (rectSize / ConstantValues.squareCell11Area) * pixelMultiplier;
             }
             else
             {
                 var pointRadius = paintOp.Max(p => p.LineWidthDegrees); //for Points, this is the radius of the circle being drawn.
-                var pointRadiusPixels = ((pointRadius * pointRadius * float.Pi) / ConstantValues.squareCell10Area) * pixelMultiplier;
+                var pointRadiusPixels = ((pointRadius * pointRadius * float.Pi) / ConstantValues.squareCell11Area) * pixelMultiplier;
                 return pointRadiusPixels;
             }
         }
@@ -259,7 +260,6 @@ namespace PraxisCore
             entry.SourceItemID = source.SplitNext('\t').ToLong();
             entry.SourceItemType = source.SplitNext('\t').ToInt();
             entry.ElementGeometry = GeometryFromWKT(source.SplitNext('\t').ToString());
-            //entry.AreaSize = source.SplitNext('\t').ToDouble();
             entry.PrivacyId = Guid.Parse(source.SplitNext('\t'));
             entry.DrawSizeHint = source.ToDouble();
             entry.Tags = new List<PlaceTags>();

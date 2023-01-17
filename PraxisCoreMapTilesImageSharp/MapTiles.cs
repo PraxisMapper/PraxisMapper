@@ -327,7 +327,7 @@ namespace PraxisCore
             //THIS is the core drawing function, and other version should call this so there's 1 function that handles the inner loop.
             //baseline image data stuff           
             var image = new Image<Rgba32>(stats.imageSizeX, stats.imageSizeY);
-            foreach (var w in paintOps.OrderByDescending(p => p.paintOp.LayerId).ThenByDescending(p => p.areaSize))
+            foreach (var w in paintOps.OrderByDescending(p => p.paintOp.LayerId).ThenByDescending(p => p.drawSizeHint))
             {
                 //I need paints for fill commands and images. 
                 var paint = cachedPaints[w.paintOp.Id];

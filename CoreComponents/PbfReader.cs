@@ -1367,11 +1367,6 @@ namespace PraxisCore.PbfReader
             if (elements.IsEmpty)
                 return 0;
 
-            ////Single check per block to fix points having 0 size. TODO might be unnecessary if DRawSizeHint works
-            //if (elements.First().SourceItemType == 1)
-            //    foreach (var e in elements)
-            //        e.AreaSize = ConstantValues.resolutionCell10; //TODO: confirm that points with a size of 0 arent supposed to be drawn.
-
             if (processingMode == "center")
                 foreach (var e in elements)
                     e.ElementGeometry = e.ElementGeometry.Centroid;

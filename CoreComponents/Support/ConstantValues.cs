@@ -38,6 +38,7 @@
         public const double resolutionCell2 = 20; 
 
         public const double squareCell10Area = resolutionCell10 * resolutionCell10; //for area-control calculations.
+        public const double squareCell11Area = resolutionCell11Lat * resolutionCell11Lon; //for area-control calculations.
 
         //Slippy map tile zoom levels to degrees per pixel at 512x512 (double numbers for 256x256)
         //NOTE: odd levels can be worked out by dividing a zoom level by 2 (EX: zoom14 / 2 = zoom15)
