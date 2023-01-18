@@ -125,7 +125,7 @@ namespace PraxisCore
                     new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "amenity", Value = "theatre|concert hall|arts centre|planetarium", MatchType = "or" }} //TODO: expand this. Might need to swap order with tourism to catch several other entries.
+                    new StyleMatchRule() { Key = "amenity", Value = "theatre|concert hall|arts centre|planetarium|library|public_bookcase|community_centre|conference_centre|exhibition_centre|events_venue", MatchType = "or" }} //TODO: expand this. Might need to swap order with tourism to catch several other entries.
             },
             new StyleEntry() { MatchOrder = 69, Name ="namedBuilding", StyleSet = "mapTiles", IsGameElement = true,
                 PaintOperations = new List<StylePaint>() {
