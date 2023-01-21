@@ -85,6 +85,11 @@ namespace Larry
                 db.ResetStyles();
             }
 
+            if (args.Any(a => a == "-rollDefaultPasswords"))
+            {
+                SetDefaultPasswords();
+            }
+
             if (!args.Any(a => a == "-makeServerDb")) //This will not be available until after creating the DB slightly later.
                 TagParser.Initialize(config["ForceStyleDefaults"] == "True", MapTiles); //This last bit of config must be done after DB creation check
 
@@ -104,10 +109,11 @@ namespace Larry
                 System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                 sw.Start();
                 SetEnvValues();
+                SetDefaultPasswords();
                 var db = new PraxisContext();
                 createDb();
                 TagParser.Initialize(true, null);
-                processPbfs(); //TODO: this no longer works if we don't have the default mapTiles styles loaded.
+                processPbfs();
                 loadProcessedData();
                 db.SetServerBounds(long.Parse(config["UseOneRelationID"]));
                 Log.WriteLog("Server setup complete in " + sw.Elapsed);
@@ -292,6 +298,11 @@ namespace Larry
             if (args.Any(a => a == "-makeOfflineFiles"))
             {
                 MakeOfflineFilesCell8();
+            }
+
+            if (args.Any(a => a == "-recalcDrawHints"))
+            {
+                RecalcDrawSizeHints();
             }
 
             //This is not currently finished or testing in the current setup. Will return in a future release.
@@ -837,6 +848,23 @@ namespace Larry
             //return JsonSerializer.Serialize(terrainDict);
         }
 
+        public static void SetDefaultPasswords()
+        {
+            //expected to be run when in the same folder as PraxisMapper.exe and it's appsetings.json file.
+            //May also make a self-signed cert for testing purposes.  System.Security.Cryptography.X509Certificates.CertificateRequest.
+
+            if (!File.Exists("appsettings.json"))
+                return;
+
+            var fileText = File.ReadAllText("appsettings.json");
+            var fileParts = fileText.Split("setThisPassword");
+            var newFileText = "";
+            for (int i = 0; i < fileParts.Length - 1; i++)
+                newFileText += fileParts[i] + Guid.NewGuid();
+            newFileText += fileParts.Last();
+            File.WriteAllText("appsettings.json", newFileText);
+        }
+
         public void ReduceServerSize() //Extremely similar to the PBFReader reprocessing, but online instead of against files.
         {
             var db = new PraxisContext();
@@ -845,7 +873,7 @@ namespace Larry
             bool keepGoing = true;
             while (keepGoing)
             {
-                var places = db.Places.Include(p => p.Tags).Where(p => p.DrawSizeHint > 4000).Skip(groupsDone * groupSize).Take(groupsDone).ToList();
+                var places = db.Places.Include(p => p.Tags).Where(p => p.DrawSizeHint > 4000).Skip(groupsDone * groupSize).Take(groupSize).ToList();
                 if (places.Count < groupSize)
                     keepGoing = false;
 
@@ -861,28 +889,36 @@ namespace Larry
                 }
                 Log.WriteLog("Saving " + groupSize + " changes");
                 db.SaveChanges();
+                groupsDone++;
             }
         }
 
-        public void RecalcDrawSizeHints()
+        public static void RecalcDrawSizeHints()
         {
             //TODO: write something that lets me quick and easy batch commands on the entities.
             var db = new PraxisContext();
             var groupsDone = 0;
-            var groupSize = 1000;
+            var groupSize = 10000;
             bool keepGoing = true;
+            long lastEntry = 0; //This appears to be faster than Skip. Should confirm.
             while (keepGoing)
             {
-                var places = db.Places.Include(p => p.Tags).Where(p => p.DrawSizeHint > 4000).Skip(groupsDone * groupSize).Take(groupsDone).ToList();
+                //var places = db.Places.Include(p => p.Tags).Skip(groupsDone * groupSize).Take(groupSize).ToList();
+                var places = db.Places.Include(p => p.Tags).Where(p => db.Places.OrderBy(pp => pp.Id).Where(pp => pp.Id > lastEntry).Select(pp => pp.Id).Take(groupSize).Contains(p.Id)).ToList();
                 if (places.Count < groupSize)
                     keepGoing = false;
 
+                lastEntry = places.Max(p => p.Id);
+
                 foreach (var place in places)
                 {
-                    place.DrawSizeHint = GeometrySupport.CalclateDrawSizeHint(TagParser.ApplyTags(place, "mapTiles"));
+                    var newHint = GeometrySupport.CalclateDrawSizeHint(TagParser.ApplyTags(place, "mapTiles"));
+                    if (newHint != place.DrawSizeHint)
+                        place.DrawSizeHint = newHint;
                 }
-                Log.WriteLog("Saving " + groupSize + " changes");
                 db.SaveChanges();
+                Log.WriteLog("Checked " + groupSize * (groupsDone + 1) + " entries");
+                groupsDone++;
             }
         }
 
@@ -894,7 +930,7 @@ namespace Larry
             bool keepGoing = true;
             while (keepGoing)
             {
-                var places = db.Places.Include(p => p.Tags).Where(p => p.DrawSizeHint > 4000).Skip(groupsDone * groupSize).Take(groupsDone).ToList();
+                var places = db.Places.Include(p => p.Tags).Where(p => p.DrawSizeHint > 4000).Skip(groupsDone * groupSize).Take(groupSize).ToList();
                 if (places.Count < groupSize)
                     keepGoing = false;
 
@@ -904,6 +940,7 @@ namespace Larry
                 }
                 Log.WriteLog("Saving " + groupSize + " changes");
                 db.SaveChanges();
+                groupsDone++;
             }
         }
 
