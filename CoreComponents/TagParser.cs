@@ -43,6 +43,14 @@ namespace PraxisCore
         /// <param name="onlyDefaults">if true, skip loading the styles from the DB and use Praxismapper's defaults </param>
         public static void Initialize(bool onlyDefaults = false, IMapTiles mapTiles = null)
         {
+            Singletons.defaultStyleEntries.AddRange(Styles.adminBounds.style);
+            Singletons.defaultStyleEntries.AddRange(Styles.mapTiles.style);
+            Singletons.defaultStyleEntries.AddRange(Styles.outlines.style);
+            Singletons.defaultStyleEntries.AddRange(Styles.paintTown.style);
+            Singletons.defaultStyleEntries.AddRange(Styles.suggestedGameplay.style);
+            Singletons.defaultStyleEntries.AddRange(Styles.suggestedMini.style);
+            Singletons.defaultStyleEntries.AddRange(Styles.teamColor.style);
+
             MapTiles = mapTiles;
             List<StyleEntry> styles;
 
@@ -293,7 +301,7 @@ namespace PraxisCore
         /// <summary>
         /// Filters out a bunch of tags PraxisMapper will not use. 
         /// </summary>
-        /// <param name="rawTags"The initial tags from a CompleteGeo object></param>
+        /// <param name="rawTags"> The initial tags from a CompleteGeo object</param>
         /// <returns>A list of ElementTags with the undesired tags removed.</returns>
         public static List<PlaceTags> getFilteredTags(TagsCollectionBase rawTags)
         {
@@ -426,6 +434,30 @@ namespace PraxisCore
             var hash = System.Security.Cryptography.MD5.HashData(value);
             string results = BitConverter.ToString(hash, 0, 3);
             return results;
+        }
+
+        //TODO: test these insert methods.
+        public static void InsertStyle(StyleEntry s)
+        {
+            var db = new PraxisContext();
+            db.StyleEntries.Add(s);
+            db.SaveChanges();
+
+            if (allStyleGroups.TryGetValue(s.StyleSet, out var group))
+            {
+                group.Add(s.Name, s);
+            }
+            else
+            {
+                var newDict = new Dictionary<string, StyleEntry> { { s.Name, s }};
+                allStyleGroups.Add(s.StyleSet, newDict);
+            }
+        }
+
+        public static void InsertStyleList(List<StyleEntry> styles)
+        {
+            foreach(var style in styles)
+                InsertStyle(style);
         }
     }
 }
