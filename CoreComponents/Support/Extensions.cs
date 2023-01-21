@@ -143,6 +143,15 @@ namespace PraxisCore
         {
             return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(input.ToLower());
         }
+        /// <summary>
+        /// Converts a DateTime to a format accepted by most JSON-parsing applications, following ISO 8601
+        /// </summary>
+        /// <param name="dateTime"></param>
+        /// <returns>a string that looks like 2022-01-13T16:25:35Z</returns>
+        public static string ToIso8601(this DateTime dateTime)
+        {
+            return dateTime.ToString("u").Replace(" ", "T");
+        }
 
         /// <summary>
         /// Convert a string to its Unicode(UTF-16) byte format.
@@ -257,7 +266,7 @@ namespace PraxisCore
         }
 
         public static T FromJsonBytesTo<T>(this byte[] data)
-        {
+        {  
             if (data.Length == 0)
                 return default(T);
             return JsonSerializer.Deserialize<T>(data.ToUTF8String());
@@ -349,6 +358,21 @@ namespace PraxisCore
                     list.Add(plusCode + letter);
             }
             return list;
+        }
+
+        public static double MetersDistanceTo(this GeoPoint p, GeoPoint otherPoint)
+        {
+            return GeometrySupport.MetersDistanceTo(p, otherPoint);
+        }
+
+        public static double MetersDistanceTo(this GeoArea g, GeoArea otherArea)
+        {
+            return GeometrySupport.MetersDistanceTo(g.Center, otherArea.Center);
+        }
+
+        public static double MetersDistanceTo(this string g, string otherPlusCode)
+        {
+            return GeometrySupport.MetersDistanceTo(g.ToGeoArea().Center, otherPlusCode.ToGeoArea().Center);
         }
     }
 }
