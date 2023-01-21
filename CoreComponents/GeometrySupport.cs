@@ -277,5 +277,34 @@ namespace PraxisCore
             entry.Value = source.ToString();
             return entry;
         }
+
+        public static double MetersDistanceTo(GeoPoint p, GeoPoint otherPoint)
+        {
+            //Haversine math.
+            const double earthRadius = 6367000.0;
+            var calcLat = Math.Sin((otherPoint.Latitude.ToRadians() - p.Latitude.ToRadians()) * 0.5);
+            var calcLon = Math.Sin((otherPoint.Longitude.ToRadians() - p.Longitude.ToRadians()) * 0.5);
+            var latCos = Math.Cos(p.Latitude.ToRadians());
+            var q = (calcLat * calcLat) + (calcLon * calcLon) * (Math.Cos(otherPoint.Latitude.ToRadians()) * Math.Cos(p.Latitude.ToRadians()));
+            var d = 2 * earthRadius * Math.Asin(Math.Sqrt(q));
+            return d;
+        }
+
+        /// <summary>
+        /// Returns the speed traveled between 2 points given the times the points were recorded in meters per second.
+        /// </summary>
+        /// <param name="point1"></param>
+        /// <param name="time1"></param>
+        /// <param name="point2"></param>
+        /// <param name="time2"></param>
+        /// <returns>speed in meters per second travelled between these 2 points</returns>
+        public static double SpeedCheck(GeoPoint point1, DateTime time1, GeoPoint point2, DateTime time2)
+        {
+            var time = Math.Abs((time1 - time2).TotalSeconds);
+            var distance = MetersDistanceTo(point1, point2);
+            var speed = distance / time; //Speed is meters/second.
+
+            return speed;
+        }
     }
 }
