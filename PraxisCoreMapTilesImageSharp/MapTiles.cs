@@ -295,7 +295,7 @@ namespace PraxisCore
         /// <param name="styleSet">the style rules to use when drawing</param>
         /// <param name="filterSmallAreas">if true, removes elements from the drawing that take up fewer than 8 pixels.</param>
         /// <returns></returns>
-        public byte[] DrawAreaAtSize(ImageStats stats, List<DbTables.Place> drawnItems = null, string styleSet = "mapTiles", bool filterSmallAreas = true)
+        public byte[] DrawAreaAtSize(ImageStats stats, List<DbTables.Place> drawnItems = null, string styleSet = "mapTiles")
         {
             //This is the new core drawing function. Takes in an area, the items to draw, and the size of the image to draw. 
             //The drawn items get their paint pulled from the TagParser's list. If I need multiple match lists, I'll need to make a way
@@ -304,19 +304,19 @@ namespace PraxisCore
             //I need a slightly different function for using AreaGameData, or another optional parameter here
 
             //This should just get the paint ops then call the core drawing function.
-            double minimumSize = 0;
-            if (filterSmallAreas)
-            {
-                minimumSize = stats.degreesPerPixelX * 8; //don't draw small elements. THis runs on perimeter/length
-            }
+            //double minimumSize = 0;
+            //if (filterSmallAreas)
+            //{
+                //minimumSize = stats.degreesPerPixelX * 8; //don't draw small elements. THis runs on perimeter/length
+            //}
 
             //Single points are excluded separately so that small areas or lines can still be drawn when points aren't.
-            bool includePoints = true;
-            if (stats.degreesPerPixelX > ConstantValues.zoom14DegPerPixelX)
-                includePoints = false;
+            //bool includePoints = true;
+            //if (stats.degreesPerPixelX > ConstantValues.zoom14DegPerPixelX)
+                //includePoints = false;
 
             if (drawnItems == null)
-                drawnItems = GetPlaces(stats.area, filterSize: minimumSize, includePoints: includePoints);
+                drawnItems = GetPlaces(stats.area, filterSize: stats.filterSize);
 
             var paintOps = MapTileSupport.GetPaintOpsForPlaces(drawnItems, styleSet, stats);
             return DrawAreaAtSize(stats, paintOps);

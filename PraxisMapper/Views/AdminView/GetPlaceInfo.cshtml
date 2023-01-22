@@ -12,7 +12,7 @@ Name: @ViewBag.areaname <br />
 Gameplay Area Type: @ViewBag.type <br />
 Areas contained in maptile area: @ViewBag.placeCount <br />
 Gameplay Areas:<br />
-@ViewBag.areasByType
+@Html.Raw(ViewBag.areasByType)
 
 
 Rendering time: @ViewBag.timeToDraw

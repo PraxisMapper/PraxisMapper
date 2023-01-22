@@ -66,14 +66,12 @@ namespace PraxisMapper.Controllers
                 istats = new ImageStats(mapArea, (int)(newSize * ratio), newSize);
             }
 
-
-
             sw.Start();
             var places = Place.GetPlaces(mapArea, filterSize: istats.filterSize);
             sw.Stop();
             ViewBag.loadTime = sw.Elapsed;
 
-            TagParser.ApplyTags(places, "mapTiles");
+            //TagParser.ApplyTags(places, "mapTiles");
 
             
             sw.Restart();
@@ -117,19 +115,19 @@ namespace PraxisMapper.Controllers
                 geoarea.WestLongitude - ConstantValues.resolutionCell10,
                 geoarea.NorthLatitude + ConstantValues.resolutionCell10,
                 geoarea.EastLongitude + ConstantValues.resolutionCell10); //add some padding to the edges.
-            ImageStats istats = new ImageStats(geoarea, (int)(geoarea.LongitudeWidth / ConstantValues.resolutionCell11Lon), (int)(geoarea.LatitudeHeight / ConstantValues.resolutionCell11Lat));
-
+            
+            ImageStats istats = new ImageStats(geoarea, (int)(geoarea.LongitudeWidth / ConstantValues.resolutionCell11Lon) * (int)IMapTiles.GameTileScale, (int)(geoarea.LatitudeHeight / ConstantValues.resolutionCell11Lat) * (int)IMapTiles.GameTileScale);
             //sanity check: we don't want to draw stuff that won't fit in memory, so check for size and cap it if needed
-            if (istats.imageSizeX * istats.imageSizeY > 8000000)
+            if ((long)istats.imageSizeX * istats.imageSizeY > 16000000)
             {
-                var ratio = geoarea.LongitudeWidth / geoarea.LatitudeHeight; //W:H,
-                var newSize = (istats.imageSizeY > 2000 ? 2000 : istats.imageSizeY);
+                var ratio = (double)istats.imageSizeX / istats.imageSizeY; //W:H,
+                int newSize = (istats.imageSizeY > 2000 ? 2000 : istats.imageSizeY);
                 istats = new ImageStats(geoarea, (int)(newSize * ratio), newSize);
             }
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
             sw.Start();
             //var tileSvg = MapTiles.DrawAreaAtSizeSVG(istats); ViewBag.UseSvg = true;
-            var places = Place.GetPlaces(istats.area);
+            var places = Place.GetPlaces(istats.area, filterSize: istats.filterSize);
             var tile = MapTiles.DrawAreaAtSize(istats, places); ViewBag.UseSvg = false;
             sw.Stop();
 
@@ -143,7 +141,7 @@ namespace PraxisMapper.Controllers
             var grouped = places.GroupBy(p => p.GameElementName);
             string areasByType = "";
             foreach (var g in grouped)
-                areasByType += g.Key + g.Count() + "<br />";
+                areasByType += g.Key + ": " + g.Count() + "<br />";
 
             ViewBag.areasByType = areasByType;
 
