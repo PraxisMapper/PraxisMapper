@@ -19,8 +19,8 @@ namespace PraxisCore
     public class MapTiles : IMapTiles
     {
         //These need to exist because the interface defines them.
-        public static int MapTileSizeSquare = 512; 
-        public static double GameTileScale = 2;
+        public static int MapTileSizeSquare = 512;
+        public static double GameTileScale = 4;
         public static double bufferSize = resolutionCell10; 
 
         //static SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
