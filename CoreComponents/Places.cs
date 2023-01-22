@@ -307,7 +307,7 @@ namespace PraxisCore
             return places.Where(p => p.GameElementName == type).ToList();
         }
 
-        public static List<Tuple<double, DbTables.Place>> GetNearbyPlacesAtDistance(string type, string plusCode, double distanceMid)
+        public static List<Tuple<double, DbTables.Place>> GetNearbyPlacesAtDistance(string plusCode, double distanceMid)
         {
             //TODO: test this out for performance. Spatial index should work for Distance but calculating it 3 times might not be very fast
             var db = new PraxisContext();
@@ -316,6 +316,7 @@ namespace PraxisCore
             var distanceMin = distanceMid / 2;
             var distanceMax = distanceMid + distanceMin;
             List<Tuple<double, DbTables.Place>> results = db.Places
+                .Include(o => o.Tags)
                 .Where(o => distanceMin < o.ElementGeometry.Distance(ntsPoint) && o.ElementGeometry.Distance(ntsPoint) < distanceMax)
                 .OrderByDescending(o => Math.Abs(distanceMid - o.ElementGeometry.Distance(ntsPoint)))
                 .Select(o => Tuple.Create(o.ElementGeometry.Distance(ntsPoint), o))
