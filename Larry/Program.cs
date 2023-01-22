@@ -551,8 +551,9 @@ namespace Larry
             }
 
             Log.WriteLog("Loading all places from DB");
-            var places = GetPlaces(geoArea);
             var iStats = new ImageStats(geoArea, xSize, ySize);
+            var places = GetPlaces(geoArea, filterSize:iStats.filterSize);
+            
             Log.WriteLog("Generating paint operations");
             var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, "mapTiles", iStats);
             Log.WriteLog("Drawing image");
