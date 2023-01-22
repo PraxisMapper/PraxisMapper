@@ -48,6 +48,58 @@ namespace PraxisMapper.Controllers
             return View();
         }
 
+        [Route("/[controller]/GetAreaInfo/{plusCode}")]
+        public ActionResult GetAreaInfo(string plusCode)
+        {
+            //NOTE: this code is better than the code for GetPlaceInfo, use this as the basis for functionalizing it.
+            ViewBag.areaName = plusCode;
+            System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+            var db = new PraxisContext();
+            var mapArea = plusCode.ToGeoArea();
+
+            ImageStats istats = new ImageStats(mapArea, (int)(mapArea.LongitudeWidth / ConstantValues.resolutionCell11Lon) * (int)IMapTiles.GameTileScale, (int)(mapArea.LatitudeHeight / ConstantValues.resolutionCell11Lat) * (int)IMapTiles.GameTileScale);
+            //sanity check: we don't want to draw stuff that won't fit in memory, so check for size and cap it if needed
+            if ((long)istats.imageSizeX * istats.imageSizeY > 16000000)
+            {
+                var ratio = (double)istats.imageSizeX / istats.imageSizeY; //W:H,
+                int newSize = (istats.imageSizeY > 2000 ? 2000 : istats.imageSizeY);
+                istats = new ImageStats(mapArea, (int)(newSize * ratio), newSize);
+            }
+
+
+
+            sw.Start();
+            var places = Place.GetPlaces(mapArea, filterSize: istats.filterSize);
+            sw.Stop();
+            ViewBag.loadTime = sw.Elapsed;
+
+            TagParser.ApplyTags(places, "mapTiles");
+
+            
+            sw.Restart();
+            //var tileSvg = MapTiles.DrawAreaAtSizeSVG(istats); ViewBag.UseSvg = true;
+            //var places = Place.GetPlaces(istats.area);
+            var tile = MapTiles.DrawAreaAtSize(istats, places); ViewBag.UseSvg = false;
+            sw.Stop();
+
+            ViewBag.imageString = "data:image/png;base64," + Convert.ToBase64String(tile);
+            //ViewBag.imageString = tileSvg.Substring(39); //skip the <xml> tag
+            ViewBag.timeToDraw = sw.Elapsed;
+            ViewBag.placeCount = 0;
+            ViewBag.areasByType = "";
+
+            ViewBag.placeCount = places.Count;
+            var grouped = places.GroupBy(p => p.GameElementName);
+            string areasByType = "";
+            foreach (var g in grouped)
+                areasByType += g.Key + ": " + g.Count() + "<br />";
+
+            ViewBag.areasByType = areasByType;
+
+            return View();
+        }
+
+
         [Route("/[controller]/GetPlaceInfo/{sourceElementId}/{sourceElementType}")]
         public ActionResult GetPlaceInfo(long sourceElementId, int sourceElementType)
         {
