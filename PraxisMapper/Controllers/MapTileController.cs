@@ -143,7 +143,7 @@ namespace PraxisMapper.Controllers
                 }
 
                 //Make tile
-                var places = GetPlacesForTile(info, null, styleSet, false);
+                var places = GetPlaces(info, null, styleSet, false);
                 var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, styleSet, info);
                 tileData = FinishSlippyMapTile(info, paintOps, tileKey, styleSet);
 
@@ -184,7 +184,7 @@ namespace PraxisMapper.Controllers
                 }
 
                 //Make tile
-                var places = GetPlacesForTile(info, null, styleSet);
+                var places = GetPlaces(info, null, styleSet);
                 var paintOps = MapTileSupport.GetPaintOpsForPlacesData(dataKey, styleSet, info);
                 tileData = FinishSlippyMapTile(info, paintOps, tileKey, styleSet);
 
@@ -223,7 +223,7 @@ namespace PraxisMapper.Controllers
                 }
 
                 //Make tile
-                var places = GetPlacesForTile(info, null, styleSet);
+                var places = GetPlaces(info, null, styleSet);
                 var paintOps = MapTileSupport.GetPaintOpsForAreaData(dataKey, styleSet, info);
                 tileData = FinishSlippyMapTile(info, paintOps, tileKey, styleSet);
 
@@ -272,7 +272,7 @@ namespace PraxisMapper.Controllers
                 }
 
                 //Make tile
-                var places = GetPlacesForTile(info, null, styleSet, false);
+                var places = GetPlaces(info, null, styleSet, false);
                 var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, styleSet, info);
                 tileData = FinishMapTile(info, paintOps, code, styleSet);
 
@@ -310,7 +310,7 @@ namespace PraxisMapper.Controllers
                 }
 
                 //Make tile
-                var places = GetPlacesForTile(info, null, styleSet, false);
+                var places = GetPlaces(info, null, styleSet, false);
                 var paintOps = MapTileSupport.GetPaintOpsForAreaData(dataKey, styleSet, info);
                 tileData = FinishMapTile(info, paintOps, code, styleSet);
 
@@ -348,7 +348,7 @@ namespace PraxisMapper.Controllers
                 }
 
                 //Make tile
-                var places = GetPlacesForTile(info, null, styleSet, false);
+                var places = GetPlaces(info, null, styleSet, false);
                 var paintOps = MapTileSupport.GetPaintOpsForPlacesData(dataKey, styleSet, info);
                 tileData = FinishMapTile(info, paintOps, code, styleSet);
 
@@ -444,7 +444,6 @@ namespace PraxisMapper.Controllers
             stats.imageSizeY = gridSize * 60;
             stats.degreesPerPixelX = stats.area.LongitudeWidth / stats.imageSizeX;
             stats.degreesPerPixelY = stats.area.LatitudeHeight / stats.imageSizeY;
-            stats.drawPoints = true;
             var circleSize = stats.degreesPerPixelX * 25;
 
             List<CompletePaintOp> testCircles = new List<CompletePaintOp>();

@@ -31,42 +31,40 @@ namespace PraxisCore
         /// <param name="filterSize">Removes any areas with a length or perimeter over this value. Defaults to 0 to include everything.</param>
         /// <param name="styleSet">A style set to run the found locations through for identification.</param>
         /// <param name="skipTags">If true, skips over tagging elements. A performance boost when you have a List to narrow down already.</param>
-        /// <param name="includePoints">If false, removes Points from the source before returning the results</param>
+        /// <param name="skipGeometry">If true, elementGeometry will not be loaded from the database. Defaults to false.</param>
         /// <returns>A list of Places that intersect the area, have a perimter greater than or equal to filtersize.</returns>
-        public static List<DbTables.Place> GetPlaces(GeoArea area, List<DbTables.Place> source = null, double filterSize = 0, string styleSet = "mapTiles", bool skipTags = false, bool includePoints = true)
+        public static List<DbTables.Place> GetPlaces(GeoArea area, List<DbTables.Place> source = null, double filterSize = 0, string styleSet = "mapTiles", bool skipTags = false, bool skipGeometry = false)
         {
-            //parameters i will need to restore later.
+            //parameters i will need to restore later?
             //bool includeGenerated = false;
 
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
             //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
+            IQueryable<DbTables.Place> queryable;
+
             List<DbTables.Place> places;
             if (source == null)
             {
-                var paddedArea = GeometrySupport.MakeBufferedGeoArea(area);
-                var location = Converters.GeoAreaToPolygon(paddedArea); //Prepared items don't work on a DB lookup.
                 var db = new PraxisContext();
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
                 db.Database.SetCommandTimeout(new TimeSpan(0, 5, 0));
-                if (skipTags) //Should make the load slightly faster if we're parsing existing items that already got tags applied
-                {
-                    places = db.Places.Where(md => location.Intersects(md.ElementGeometry) && md.DrawSizeHint >= filterSize && (includePoints || md.SourceItemType != 1)).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length).ToList();
-                    //return places; //Jump out before we do ApplyTags
-                }
-                else
-                {
-                    places = db.Places.Include(s => s.Tags).Where(md => location.Intersects(md.ElementGeometry) && md.DrawSizeHint >= filterSize && (includePoints || md.SourceItemType != 1)).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length).ToList();
-                    TagParser.ApplyTags(places, styleSet); //populates the fields we don't save to the DB.
-                }
+                queryable = db.Places;
             }
             else
-            {
-                //We should always have the tags here. 
-                var location = Converters.GeoAreaToPreparedPolygon(area);
-                places = source.Where(md => location.Intersects(md.ElementGeometry) && md.DrawSizeHint >= filterSize && (includePoints || md.SourceItemType != 1)).ToList();
-            }
+                queryable = source.AsQueryable();
 
-            //if (!skipTags)
-                //TagParser.ApplyTags(places, styleSet); //populates the fields we don't save to the DB.
+            if (!skipTags)
+                queryable = queryable.Include(q => q.Tags);
+
+            var paddedArea = GeometrySupport.MakeBufferedGeoArea(area);
+            var location = Converters.GeoAreaToPolygon(paddedArea); //Prepared items don't work on a DB lookup.
+            queryable = queryable.Where(md => location.Intersects(md.ElementGeometry) && md.DrawSizeHint >= filterSize).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length);
+
+            if (skipGeometry)
+                queryable = queryable.Select(q => new DbTables.Place() { DrawSizeHint = q.DrawSizeHint, Id = q.Id, PrivacyId = q.PrivacyId, SourceItemID = q.SourceItemID, SourceItemType = q.SourceItemType, Tags = q.Tags });
+
+            places = queryable.ToList();
+            TagParser.ApplyTags(places, styleSet);
             return places;
         }
 
@@ -77,10 +75,11 @@ namespace PraxisCore
         /// <param name="source">Null to load from the database, or a List of Places to narrow down</param>
         /// <param name="styleSet">A TagParser style set to run the found locations through for identification.</param>
         /// <param name="skipTags">If true, skips over tagging elements. A performance boost when you have a List to narrow down already.</param>
+        /// /// <param name="skipGeometry">If true, elementGeometry will not be loaded from the database. Defaults to false.</param>
         /// <returns>A list of Places that intersect the area, have a perimter greater than or equal to filtersize.</returns>
-        public static List<DbTables.Place> GetPlacesForTile(ImageStats stats, List<DbTables.Place> source = null, string styleSet = "mapTiles", bool skipTags = false)
+        public static List<DbTables.Place> GetPlaces(ImageStats stats, List<DbTables.Place> source = null, string styleSet = "mapTiles", bool skipTags = false, bool skipGeometry = false)
         {
-            return GetPlaces(stats.area, source, stats.filterSize, styleSet, skipTags, stats.drawPoints);
+            return GetPlaces(stats.area, source, stats.filterSize, styleSet, skipTags, skipGeometry);
         }
 
         //Note: This should have the padding added to area before this is called, if checking for tiles that need regenerated.
@@ -108,6 +107,7 @@ namespace PraxisCore
             return places;
         }
 
+        //NOTE: This should probably be moved off to a plugin and not be core logic anymore.
         /// <summary>
         /// Auto-generate some places to be used as gameplay elements in otherwise sparse areas. Given an 8 digit PlusCode, creates and warps some standard shapes in the Cell.
         /// </summary>

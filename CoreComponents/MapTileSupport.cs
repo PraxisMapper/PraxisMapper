@@ -75,8 +75,7 @@ namespace PraxisCore
             //then get all the area
 
             var info = new ImageStats(area);
-            info.drawPoints = true;
-            var places = GetPlacesForTile(info);
+            var places = GetPlaces(info);
             var paintOps = GetPaintOpsForPlaces(places, styleSet, info);
             return MapTiles.DrawAreaAtSize(info, paintOps);
         }
@@ -91,7 +90,7 @@ namespace PraxisCore
         public static byte[] DrawPlusCode(string area, List<CompletePaintOp> paintOps, string styleSet = "mapTiles")
         {
             var info = new ImageStats(area);
-            info.drawPoints = true;
+
             return MapTiles.DrawAreaAtSize(info, paintOps);
         }
 
