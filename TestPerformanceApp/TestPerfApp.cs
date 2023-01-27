@@ -990,12 +990,12 @@ namespace PerformanceTestApp
             Log.WriteLog("Loaded all Delaware items in " + sw.ElapsedMilliseconds + "ms");
 
             sw.Start();
-            for (var i = 0; i < 10000; i++)
-            {
+            //for (var i = 0; i < 10000; i++)
+            //{
                 //write 1000 random entries;
-                var entry = CreateInterestingPlaces("22334455", false);
-                dbPG.Places.AddRange(entry);
-            }
+                //var entry = CreateInterestingPlaces("22334455", false);
+                //dbPG.Places.AddRange(entry);
+            //}
             dbPG.SaveChanges();
             sw.Stop();
             Log.WriteLog("10,000 random writes done in " + sw.ElapsedMilliseconds + "ms");
