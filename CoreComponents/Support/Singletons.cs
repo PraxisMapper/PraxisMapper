@@ -14,19 +14,6 @@ namespace PraxisCore
         public static PreparedGeometryFactory pgf = new PreparedGeometryFactory();
         public static bool SimplifyAreas = false;
 
-        /// <summary>
-        /// The predefined list of shapes to generate areas in. 4 basic geometric shapes.
-        /// </summary>
-        public static List<List<Coordinate>> possibleShapes = new List<List<Coordinate>>() //When generating gameplay areas in empty Cell8s
-        {
-            new List<Coordinate>() { new Coordinate(0, 0), new Coordinate(.5, 1), new Coordinate(1, 0)}, //triangle.
-            new List<Coordinate>() { new Coordinate(0, 0), new Coordinate(0, 1), new Coordinate(1, 1), new Coordinate(1, 0) }, //square.
-            new List<Coordinate>() { new Coordinate(.2, 0), new Coordinate(0, .8), new Coordinate(.5, 1), new Coordinate(1, .8), new Coordinate(.8, 0) }, //roughly a pentagon.
-            new List<Coordinate>() { new Coordinate(.5, 0), new Coordinate(0, .33), new Coordinate(0, .66), new Coordinate(.5, 1), new Coordinate(1, .66), new Coordinate(1, .33) }, //roughly a hexagon.
-            //TODO: more shapes, ideally more interesting than simple polygons? Star? Heart? Arc?
-
-        };
-
         //A * value is a wildcard that means any value counts as a match for that key. If the tag exists, its value is irrelevant. Cannot be used in NOT checks.
         //A * key is a rule that will not match based on tag values, as no key will == *. Used for backgrounds and special styles called up by name.
         //types vary:
@@ -41,10 +28,6 @@ namespace PraxisCore
 
         /// <summary>
         /// The baseline set of TagParser styles. 
-        
-        
-        
-        
         /// </list>
         /// </summary>
         public static List<StyleEntry> defaultStyleEntries = new List<StyleEntry>();

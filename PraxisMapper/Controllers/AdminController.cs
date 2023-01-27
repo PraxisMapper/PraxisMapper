@@ -29,7 +29,6 @@ namespace PraxisMapper.Controllers
         public override void OnActionExecuting(ActionExecutingContext context)
         {
             base.OnActionExecuting(context);
-            //TODO: determine if user is admin. 
             PraxisAuthentication.GetAuthInfo(Response, out var accountId, out var password);
             if (!PraxisAuthentication.IsAdmin(accountId) && !HttpContext.Request.Host.IsLocalIpAddress())
                 HttpContext.Abort();

@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using System.Net;
 
 namespace PraxisCore
 {
@@ -14,7 +15,7 @@ namespace PraxisCore
             //This is an 8 code, I think
             //First 2 are a 9x18 grid, so i need some words there. Remember chars might be backwards for axes, so this might be 18x9
             //could also consider a unique list of 163-ish words for this?
-            string[] adjectiveN = new string[9] {"", "", "", "", "", "", "", "", "" }; //index 0
+            string[] adjectiveN = new string[9] { "", "", "", "", "", "", "", "", "" }; //index 0
             string[] adjectiveE = new string[18] { "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" }; //index 1
 
             //next 2 will becomes directional.
@@ -35,7 +36,7 @@ namespace PraxisCore
                 directions += "South";
             else
                 if (directions == "")
-                    directions += "Central";
+                directions += "Central";
 
 
             //rest is 20x20, which has 400 possible total combinations each.
@@ -46,24 +47,5 @@ namespace PraxisCore
 
             return "";
         }
-
-        public static void LoadCustomData()
-        {
-            //For loading in your own fixed-place files outside of OSM. Probably most useful for dedicated area games like above.
-        }
-
-        //Unused so far. Keeping as a potential future feature.
-        //public static GeoPoint ProxyLocation(double lat, double lon, GeoArea bounds)
-        //{
-        //    //Treat the user like they're in the real-world location
-        //    //Mod their location by the box size, then add that to the minimum to get their new location
-        //    var shiftX = lon % bounds.LongitudeWidth;
-        //    var shiftY = lat % bounds.LatitudeHeight;
-
-        //    double newLat = bounds.SouthLatitude + shiftY;
-        //    double newLon = bounds.WestLongitude + shiftX;
-
-        //    return new GeoPoint(newLat, newLon);
-        //}
     }
 }

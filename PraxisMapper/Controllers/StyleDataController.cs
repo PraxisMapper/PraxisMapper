@@ -163,7 +163,7 @@ namespace PraxisMapper.Controllers
                 return;
 
             //now generate a place here.
-            PraxisCore.Place.CreateInterestingPlaces(plusCode, true);
+            //PraxisCore.Place.CreateInterestingPlaces(plusCode, true);
         }
     }
 }
