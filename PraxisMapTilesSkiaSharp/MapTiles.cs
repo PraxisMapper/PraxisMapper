@@ -96,11 +96,8 @@ namespace PraxisCore
             strokePaint.StrokeWidth = 3;
             strokePaint.Style = SKPaintStyle.Stroke;
             strokePaint.TextAlign = SKTextAlign.Center;
-            //TagParser.ApplyTags(items);
 
-            var placeInfo = PraxisCore.Standalone.Standalone.GetPlaceInfo(items.Where(i =>
-            i.IsGameElement
-            ).ToList());
+            var placeInfo = Standalone.Standalone.GetPlaceInfo(items.Where(i => i.IsGameElement).ToList());
 
             //this is for rectangles.
             foreach (var pi in placeInfo)
@@ -409,7 +406,7 @@ namespace PraxisCore
                         //If this type has an icon, use it. Otherwise draw a circle in that type's color.
                         if (!string.IsNullOrEmpty(w.paintOp.FileName))
                         {
-                            SKBitmap icon = SKBitmap.Decode(TagParser.cachedBitmaps[w.paintOp.FileName]); //TODO optimize by running SKBitmap.Decone on icons in Initialize.
+                            SKBitmap icon = SKBitmap.Decode(TagParser.cachedBitmaps[w.paintOp.FileName]); //TODO optimize by running SKBitmap.Decode on icons in Initialize.
                             canvas.DrawBitmap(icon, convertedPoint[0]);
                         }
                         else
@@ -440,7 +437,7 @@ namespace PraxisCore
             var skms = new SKManagedWStream(ms);
             bitmap.Encode(skms, SKEncodedImageFormat.Png, 100);
             var results = ms.ToArray();
-            skms.Dispose(); ms.Close(); ms.Dispose();
+            skms.Dispose(); ms.Close(); ms.Dispose(); canvas.Dispose(); bitmap.Dispose();
             return results;
         }
 

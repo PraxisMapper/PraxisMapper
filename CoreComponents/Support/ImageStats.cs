@@ -17,7 +17,6 @@ namespace PraxisCore.Support
         public int imageSizeY { get; set; }
         public double degreesPerPixelX { get; set; }
         public double degreesPerPixelY { get; set; }
-        public bool drawPoints { get; set; }
         public double filterSize { get; set; }
         public double pixelsPerDegreeX { get; set; }
         public double pixelsPerDegreeY { get; set; }
@@ -44,8 +43,6 @@ namespace PraxisCore.Support
             pixelsPerDegreeX = imageSizeX / area.LongitudeWidth;
             pixelsPerDegreeY = imageSizeY / area.LatitudeHeight;
 
-            drawPoints = pixelsPerDegreeX > 32000;
-
             filterSize = (degreesPerPixelY / ConstantValues.resolutionCell11Lat) * IMapTiles.GameTileScale;
         }
         
@@ -69,7 +66,6 @@ namespace PraxisCore.Support
             pixelsPerDegreeX = imageSizeX / area.LongitudeWidth;
             pixelsPerDegreeY = imageSizeY / area.LatitudeHeight;
 
-            drawPoints = pixelsPerDegreeX > 32000;
             filterSize = (degreesPerPixelY / ConstantValues.resolutionCell11Lat) * IMapTiles.GameTileScale;
         }
 
@@ -109,7 +105,6 @@ namespace PraxisCore.Support
             pixelsPerDegreeX = imageSize / areaWidthDegrees;
             pixelsPerDegreeY = imageSize / areaHeightDegrees;
 
-            drawPoints = pixelsPerDegreeX > 32000;
             filterSize = (degreesPerPixelY / ConstantValues.resolutionCell11Lat) * IMapTiles.GameTileScale;
         }
     }
