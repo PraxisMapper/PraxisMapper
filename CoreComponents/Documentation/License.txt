@@ -10,10 +10,10 @@ ImageSharp is Apache 2.0 licensed
 OpenStreetMap data is covered by the Open Data Commons Open Database License (https://www.openstreetmap.org/copyright)
 and © OpenStreetMap contributors 
 (Intermediate data files resulting from Larry's processing commands, and any MapTiles created from code using PraxisCore also use that license, as a derivative work)
-Mapstyles based on OpenStreetMap-Carto, which is public doman (CC0 1.0)
+MapTiles styles based on OpenStreetMap-Carto, which is public doman (CC0 1.0)
 
 All projects in this solution not mentioned above are released under the Apache 2.0 license
-Copyright 2020-2022 Drake Williams
+Copyright 2020-2023 Drake Williams
 (unless indicated otherwise)
 
 Licensed under the Apache License, Version 2.0 (the "License");
