@@ -28,7 +28,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="AsyncKeyedLock" Version="6.1.0" />
+    <PackageReference Include="AsyncKeyedLock" Version="6.1.1" />
     <PackageReference Include="CryptSharpOfficial" Version="2.1.0" />
     <PackageReference Include="EFCore.BulkExtensions.MySql" Version="6.6.5" />
     <PackageReference Include="Huitian.EGIS.ShapeFileLib" Version="4.5.6" />
