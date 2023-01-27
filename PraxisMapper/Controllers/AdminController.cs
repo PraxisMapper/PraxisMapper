@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using PraxisCore;
+using PraxisMapper.Classes;
 using System;
 using System.Linq;
 
@@ -24,7 +26,16 @@ namespace PraxisMapper.Controllers
             cache = _cache;
         }
 
-        
+        public override void OnActionExecuting(ActionExecutingContext context)
+        {
+            base.OnActionExecuting(context);
+            //TODO: determine if user is admin. 
+            PraxisAuthentication.GetAuthInfo(Response, out var accountId, out var password);
+            if (!PraxisAuthentication.IsAdmin(accountId) && !HttpContext.Request.Host.IsLocalIpAddress())
+                HttpContext.Abort();
+        }
+
+
         [HttpGet]
         [Route("/[controller]/PerfData/{password}")]
         public string PerfData(string password)
