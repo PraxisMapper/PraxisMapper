@@ -120,11 +120,12 @@ namespace PraxisMapper.Controllers
             var db = new PraxisContext();
             if (GenericData.CheckPassword(accountId, password))
             {
+                int authTimeout = Configuration["authTimeoutSeconds"].ToInt();
                 Guid token = Guid.NewGuid();
                 var intPassword = GenericData.GetInternalPassword(accountId, password);
                 PraxisAuthentication.RemoveEntry(accountId);
-                PraxisAuthentication.AddEntry(new AuthData(accountId, intPassword, token.ToString(), DateTime.UtcNow.AddSeconds(1800)));
-                return new AuthDataResponse(token, 1800);
+                PraxisAuthentication.AddEntry(new AuthData(accountId, intPassword, token.ToString(), DateTime.UtcNow.AddSeconds(authTimeout)));
+                return new AuthDataResponse(token, authTimeout);
             }
             return null;
         }

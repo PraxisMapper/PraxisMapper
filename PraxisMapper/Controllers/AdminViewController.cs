@@ -7,6 +7,8 @@ using System;
 using System.Linq;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.Extensions.Configuration;
+using System.Collections.Generic;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
 
 namespace PraxisMapper.Controllers
 {
@@ -49,50 +51,55 @@ namespace PraxisMapper.Controllers
         }
 
         [Route("/[controller]/GetAreaInfo/{plusCode}")]
-        public ActionResult GetAreaInfo(string plusCode)
+        [Route("/[controller]/GetAreaInfo/{plusCode}/{filterSize}")]
+        public ActionResult GetAreaInfo(string plusCode, int filterSize = -1)
         {
             //NOTE: this code is better than the code for GetPlaceInfo, use this as the basis for functionalizing it.
             ViewBag.areaName = plusCode;
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-            var db = new PraxisContext();
             var mapArea = plusCode.ToGeoArea();
+            int imageMaxEdge = Configuration["adminPreviewImageMaxEdge"].ToInt();
+            long maxImagePixels = Configuration["maxImagePixels"].ToLong();
 
             ImageStats istats = new ImageStats(mapArea, (int)(mapArea.LongitudeWidth / ConstantValues.resolutionCell11Lon) * (int)IMapTiles.GameTileScale, (int)(mapArea.LatitudeHeight / ConstantValues.resolutionCell11Lat) * (int)IMapTiles.GameTileScale);
             //sanity check: we don't want to draw stuff that won't fit in memory, so check for size and cap it if needed
-            if ((long)istats.imageSizeX * istats.imageSizeY > 16000000)
+            if ((long)istats.imageSizeX * istats.imageSizeY > maxImagePixels)
             {
                 var ratio = (double)istats.imageSizeX / istats.imageSizeY; //W:H,
-                int newSize = (istats.imageSizeY > 2000 ? 2000 : istats.imageSizeY);
+                int newSize = (istats.imageSizeY > imageMaxEdge ? imageMaxEdge : istats.imageSizeY);
                 istats = new ImageStats(mapArea, (int)(newSize * ratio), newSize);
             }
 
+            if (filterSize >= 0)
+                istats.filterSize = filterSize;
+
+            //MapTile data
             sw.Start();
-            var places = Place.GetPlaces(mapArea, filterSize: istats.filterSize);
+            var places = Place.GetPlaces(istats);
+            
+
+            var tile = MapTiles.DrawAreaAtSize(istats, places);
+            sw.Stop();
+            ViewBag.timeToDraw = sw.Elapsed;
+
+            //Reload all elements, to get accurate counts on what wasn't drawn.
+            sw.Restart();
+            places = Place.GetPlaces(mapArea, filterSize: 0, skipGeometry: true);
             sw.Stop();
             ViewBag.loadTime = sw.Elapsed;
-
-            //TagParser.ApplyTags(places, "mapTiles");
-
-            
-            sw.Restart();
-            //var tileSvg = MapTiles.DrawAreaAtSizeSVG(istats); ViewBag.UseSvg = true;
-            //var places = Place.GetPlaces(istats.area);
-            var tile = MapTiles.DrawAreaAtSize(istats, places); ViewBag.UseSvg = false;
-            sw.Stop();
-
-            ViewBag.imageString = "data:image/png;base64," + Convert.ToBase64String(tile);
-            //ViewBag.imageString = tileSvg.Substring(39); //skip the <xml> tag
-            ViewBag.timeToDraw = sw.Elapsed;
-            ViewBag.placeCount = 0;
-            ViewBag.areasByType = "";
-
             ViewBag.placeCount = places.Count;
             var grouped = places.GroupBy(p => p.GameElementName);
+
+            ViewBag.imageString = "data:image/png;base64," + Convert.ToBase64String(tile);
+            ViewBag.areasByType = "";
+
             string areasByType = "";
             foreach (var g in grouped)
                 areasByType += g.Key + ": " + g.Count() + "<br />";
 
             ViewBag.areasByType = areasByType;
+            places.Clear();
+            places = null;
 
             return View();
         }
@@ -106,6 +113,9 @@ namespace PraxisMapper.Controllers
             if (area == null)
                 return View();
 
+            int imageMaxEdge = Configuration["adminPreviewImageMaxEdge"].ToInt();
+            long maxImagePixels = Configuration["maxImagePixels"].ToLong();
+
             TagParser.ApplyTags(new System.Collections.Generic.List<DbTables.Place>() { area }, "mapTiles");
             ViewBag.areaname = TagParser.GetPlaceName(area.Tags);
             ViewBag.type = area.GameElementName;
@@ -118,21 +128,19 @@ namespace PraxisMapper.Controllers
             
             ImageStats istats = new ImageStats(geoarea, (int)(geoarea.LongitudeWidth / ConstantValues.resolutionCell11Lon) * (int)IMapTiles.GameTileScale, (int)(geoarea.LatitudeHeight / ConstantValues.resolutionCell11Lat) * (int)IMapTiles.GameTileScale);
             //sanity check: we don't want to draw stuff that won't fit in memory, so check for size and cap it if needed
-            if ((long)istats.imageSizeX * istats.imageSizeY > 16000000)
+            if ((long)istats.imageSizeX * istats.imageSizeY > maxImagePixels)
             {
                 var ratio = (double)istats.imageSizeX / istats.imageSizeY; //W:H,
-                int newSize = (istats.imageSizeY > 2000 ? 2000 : istats.imageSizeY);
+                int newSize = (istats.imageSizeY > imageMaxEdge ? imageMaxEdge : istats.imageSizeY);
                 istats = new ImageStats(geoarea, (int)(newSize * ratio), newSize);
             }
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
             sw.Start();
-            //var tileSvg = MapTiles.DrawAreaAtSizeSVG(istats); ViewBag.UseSvg = true;
             var places = Place.GetPlaces(istats.area, filterSize: istats.filterSize);
             var tile = MapTiles.DrawAreaAtSize(istats, places); ViewBag.UseSvg = false;
             sw.Stop();
 
             ViewBag.imageString = "data:image/png;base64," + Convert.ToBase64String(tile);
-            //ViewBag.imageString = tileSvg.Substring(39); //skip the <xml> tag
             ViewBag.timeToDraw = sw.Elapsed;
             ViewBag.placeCount = 0;
             ViewBag.areasByType = "";
@@ -178,6 +186,57 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/EditGeography")]
         public ActionResult EditGeography()
         {
+            return View();
+        }
+
+        [Route("/[controller]/StyleTest")]
+        public ActionResult StyleTest()
+        {
+            List<byte[]> previews = new List<byte[]>();
+            List<string> names = new List<string>();
+            //this is already on MapTile controller, might move it. or expand it to show all styles.
+            foreach (var styleDataKVP in TagParser.allStyleGroups)
+            {
+                var styleData = styleDataKVP.Value.ToList();
+                //Draw style as an X by X grid of circles, where X is square root of total sets
+                int gridSize = (int)Math.Ceiling(Math.Sqrt(styleData.Count()));
+
+                ImageStats stats = new ImageStats("234567"); //Constructor is ignored, all the values are overridden.
+                stats.imageSizeX = gridSize * 60;
+                stats.imageSizeY = gridSize * 60;
+                stats.degreesPerPixelX = stats.area.LongitudeWidth / stats.imageSizeX;
+                stats.degreesPerPixelY = stats.area.LatitudeHeight / stats.imageSizeY;
+                var circleSize = stats.degreesPerPixelX * 25;
+
+                List<CompletePaintOp> testCircles = new List<CompletePaintOp>();
+
+                var spacingX = stats.area.LongitudeWidth / gridSize;
+                var spacingY = stats.area.LatitudeHeight / gridSize;
+
+                for (int x = 0; x < gridSize; x++)
+                    for (int y = 0; y < gridSize; y++)
+                    {
+                        var index = (y * gridSize) + x;
+                        if (index < styleData.Count)
+                        {
+                            var circlePosX = stats.area.WestLongitude + (spacingX * .5) + (spacingX * x);
+                            var circlePosY = stats.area.NorthLatitude - (spacingY * .5) - (spacingY * y);
+                            var circle = new NetTopologySuite.Geometries.Point(circlePosX, circlePosY).Buffer(circleSize);
+                            foreach (var op in styleData[index].Value.PaintOperations)
+                            {
+                                var entry = new CompletePaintOp() { paintOp = op, elementGeometry = circle, lineWidthPixels = 3 };
+                                testCircles.Add(entry);
+                            }
+                        }
+                    }
+
+                var test = MapTiles.DrawAreaAtSize(stats, testCircles);
+                previews.Add(test);
+                names.Add(styleDataKVP.Key);
+            }
+            ViewBag.previews = previews;
+            ViewBag.names = names;
+
             return View();
         }
     }
