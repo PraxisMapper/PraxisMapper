@@ -73,8 +73,6 @@ namespace PraxisCore
             return IsInBounds(bounds, OpenLocationCode.DecodeValid(plusCode));
         }
 
-
-
         /// <summary>
         /// Determine if a Lat/Lon coordinate pair intersects with the data contained in the server.
         /// </summary>
