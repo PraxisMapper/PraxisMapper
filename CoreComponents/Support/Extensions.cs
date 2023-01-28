@@ -336,11 +336,22 @@ namespace PraxisCore
             return new Random(hash);
         }
 
+        /// <summary>
+        /// Adds the padding value to all sides of a GeoArea
+        /// </summary>
+        /// <param name="g">the original GeoArea</param>
+        /// <param name="padding">size in degrees to pad the GeoArea</param>
+        /// <returns>new GeoArea with the padding added to the original's area</returns>
         public static GeoArea PadGeoArea(this GeoArea g, double padding)
         {
             return new GeoArea(Math.Max(-90, g.SouthLatitude - padding), Math.Max(-180, g.WestLongitude - padding), Math.Min(90, g.NorthLatitude + padding), Math.Min(180, g.EastLongitude + padding));
         }
 
+        /// <summary>
+        /// Given a PlusCode, this adds the next set of characters to create all child entries. (EX:22 gives a list of 2222, 2223, 2224, etc)
+        /// </summary>
+        /// <param name="plusCode">A PlusCode</param>
+        /// <returns>A list of the PlusCodes contained in the given PlusCode one step down</returns>
         public static List<string> GetSubCells(this string plusCode)
         {
             var list = new List<string>(400);
@@ -360,16 +371,34 @@ namespace PraxisCore
             return list;
         }
 
+        /// <summary>
+        /// returns the distance in meters between 2 GeoPoints
+        /// </summary>
+        /// <param name="p">the first GeoPoint</param>
+        /// <param name="otherPoint">the GeoPoint to measure to</param>
+        /// <returns>distance in meters between the 2 GeoPoints</returns>
         public static double MetersDistanceTo(this GeoPoint p, GeoPoint otherPoint)
         {
             return GeometrySupport.MetersDistanceTo(p, otherPoint);
         }
 
+        /// <summary>
+        /// returns the distance in meters between the center of 2 GeoAreas
+        /// </summary>
+        /// <param name="g">the first GeoArea</param>
+        /// <param name="otherArea">the GeoArea to measure to</param>
+        /// <returns>the distance in meters between the 2 GeoArea's centers</returns>
         public static double MetersDistanceTo(this GeoArea g, GeoArea otherArea)
         {
             return GeometrySupport.MetersDistanceTo(g.Center, otherArea.Center);
         }
 
+        /// <summary>
+        /// returns the distance in meters between the center of 2 PlusCodes
+        /// </summary>
+        /// <param name="g">the first PlusCode</param>
+        /// <param name="otherPlusCode">the PlusCode to measure to.</param>
+        /// <returns>the distance in meters between the center of the 2 PlusCodes</returns>
         public static double MetersDistanceTo(this string g, string otherPlusCode)
         {
             return GeometrySupport.MetersDistanceTo(g.ToGeoArea().Center, otherPlusCode.ToGeoArea().Center);
