@@ -16,27 +16,12 @@ namespace PraxisCore
     public static class TerrainInfo
     {
         //The new version, which returns a sorted list of places, smallest to largest, for when a single space contains multiple entries (default ScavengerHunt logic)
-        /// <summary>
-        /// Sorts the given list by DrawSizeHint. Larger elements should be drawn first, so smaller areas will appear over them on maptiles.
-        /// </summary>
-        /// <param name="entries">The list of entries to sort by</param>
-        /// <param name="allowPoints">If true, include points in the return list as size 0. If false, filters those out from the returned list.</param>
-        /// <returns>The sorted list of entries</returns>
-        public static List<DbTables.Place> SortGameElements(List<DbTables.Place> entries, bool allowPoints = true)
-        {
-            //I sort entries on loading from the Database. It's possible this step is unnecessary if everything else runs in order, just using last instead of first.
-            if (!allowPoints)
-                entries = entries.Where(e => e.SourceItemType != 1).ToList(); // .ElementGeometry.GeometryType != "Point")
-
-            entries = entries.OrderBy(e => e.DrawSizeHint).ToList(); //I want lines to show up before areas in most cases, so this should do that.
-            return entries;
-        }
 
         /// <summary>
-        /// Get the areatype (as defined by TagParser) for each OSM element in the list, along with name and client-facing ID.
+        /// Get the StyleName (as defined by TagParser) for each Place in the list, along with name and client-facing ID.
         /// </summary>
         /// <param name="entriesHere">the list of elements to pull data from</param>
-        /// <returns>A list of name, areatype, and elementIds for a client</returns>
+        /// <returns>A list of name, StyleNAme, and elementIds for a client</returns>
         public static List<TerrainData> DetermineAreaTerrains(List<DbTables.Place> entriesHere)
         {
             //Which Place in this given Area is the one that should be displayed on the game/map as the name? picks the smallest one.
@@ -44,7 +29,7 @@ namespace PraxisCore
             var results = new List<TerrainData>(entriesHere.Count);
             foreach (var e in entriesHere)
             {
-                results.Add(new TerrainData(TagParser.GetPlaceName(e.Tags), e.StyleName, e.PrivacyId));
+                results.Add(new TerrainData(TagParser.GetName(e), e.StyleName, e.PrivacyId));
             }
             return results;
         }
@@ -59,7 +44,7 @@ namespace PraxisCore
             //Which Place in this given Area is the one that should be displayed on the game/map as the name? picks the smallest one.
             //This one only returns the smallest entry, for games that only need to check the most interesting area in a cell.
             var entry = entriesHere.Last();
-            return new TerrainData(TagParser.GetPlaceName(entry.Tags), entry.StyleName, entry.PrivacyId);
+            return new TerrainData(TagParser.GetName(entry), entry.StyleName, entry.PrivacyId);
         }
 
         /// <summary>
@@ -209,26 +194,22 @@ namespace PraxisCore
         public static DbTables.Place GetSinglePlaceFromArea(string plusCode)
         {
             //for individual Cell10 or Cell11 checks. Existing terrain calls only do Cell10s in a Cell8 or larger area.
-
-            //Self contained set of calls here
-            var db = new PraxisContext();
-            var poly = plusCode.ToPolygon();
-            var place = db.Places.Include(s => s.Tags).Where(md => poly.Intersects(md.ElementGeometry)).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length).Last();
-
+            var place = GetPlaces(plusCode.ToGeoArea()).LastOrDefault();
             return place;
         }
 
-        public static DbTables.Place GetSingleGameplayPlaceFromArea(string plusCode, string styleSet = "mapTiles")
-        {
-            //for individual Cell10 or Cell11 checks. Existing terrain calls only do Cell10s in a Cell8 or larger area.
-            //Self contained set of calls here
-            var db = new PraxisContext();
-            var poly = plusCode.ToPolygon();
-            var places = db.Places.Include(s => s.Tags).Where(md => poly.Intersects(md.ElementGeometry)).ToList();
-            TagParser.ApplyTags(places, styleSet);
-            var place = places.Where(p => p.IsGameElement).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length).LastOrDefault();
+        //public static DbTables.Place GetSingleGameplayPlaceFromArea(string plusCode, string styleSet = "mapTiles")
+        //{
+        //    //for individual Cell10 or Cell11 checks. Existing terrain calls only do Cell10s in a Cell8 or larger area.
+        //    //Self contained set of calls here
+        //    var db = new PraxisContext();
+        //    var poly = plusCode.ToPolygon();
+        //    //var place = GetPlaces(plusCode.ToGeoArea()).LastOrDefault(); //very close, but can return non-gameplay place
+        //    var places = db.Places.Include(s => s.Tags).Where(md => poly.Intersects(md.ElementGeometry)).ToList(); 
+        //    TagParser.ApplyTags(places, styleSet);
+        //    var place = places.Where(p => p.IsGameElement).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length).LastOrDefault();
 
-            return place;
-        }
+        //    return place;
+        //}
     }
 }

@@ -117,7 +117,7 @@ namespace PraxisMapper.Controllers
             long maxImagePixels = Configuration["maxImagePixels"].ToLong();
 
             TagParser.ApplyTags(new List<DbTables.Place>() { area }, "mapTiles");
-            ViewBag.areaname = TagParser.GetPlaceName(area.Tags);
+            ViewBag.areaname = TagParser.GetName(area);
             ViewBag.type = area.StyleName;
             ViewBag.geoType = area.ElementGeometry.GeometryType;
             ViewBag.tags = String.Join(", ", area.Tags.Select(t => t.Key + ":" + t.Value));

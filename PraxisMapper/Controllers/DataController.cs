@@ -304,7 +304,7 @@ namespace PraxisMapper.Controllers
             //Might be better in PraxisCore to be reused.
 
             var place = TerrainInfo.GetSinglePlaceFromArea(plusCode);
-            var name = TagParser.GetPlaceName(place.Tags);
+            var name = TagParser.GetName(place);
             StringBuilder sb = new StringBuilder();
             sb.Append(plusCode).Append('|').Append(name).Append('|').Append(place.StyleName).Append('|').Append(place.PrivacyId);
 

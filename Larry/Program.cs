@@ -859,8 +859,8 @@ namespace Larry
                 foreach (var place in places)
                 {
                     place.ElementGeometry = NetTopologySuite.Precision.GeometryPrecisionReducer.Reduce(NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(place.ElementGeometry, ConstantValues.resolutionCell10), PrecisionModel.FloatingSingle.Value);
-                    var match = TagParser.GetStyleForOsmWay(place.Tags, "mapTiles");
-                    var name = TagParser.GetPlaceName(place.Tags);
+                    var match = TagParser.GetStyleEntry(place, "mapTiles");
+                    var name = TagParser.GetName(place);
                     place.Tags.Clear();
                     if (!string.IsNullOrEmpty(name))
                         place.Tags.Add(new PlaceTags() { Key = "name", Value = name });
@@ -926,8 +926,8 @@ namespace Larry
         public Action<DbTables.Place> CalcDrawSizeHint = (p) => { p.DrawSizeHint = GeometrySupport.CalculateDrawSizeHint(TagParser.ApplyTags(p, "mapTiles")); };
         public Action<DbTables.Place> ReduceSize = (place) => {
             place.ElementGeometry = NetTopologySuite.Precision.GeometryPrecisionReducer.Reduce(NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(place.ElementGeometry, ConstantValues.resolutionCell10), PrecisionModel.FloatingSingle.Value);
-            var match = TagParser.GetStyleForOsmWay(place.Tags, "mapTiles");
-            var name = TagParser.GetPlaceName(place.Tags);
+            var match = TagParser.GetStyleEntry(place, "mapTiles");
+            var name = TagParser.GetName(place);
             place.Tags.Clear();
             if (!string.IsNullOrEmpty(name))
                 place.Tags.Add(new PlaceTags() { Key = "name", Value = name });

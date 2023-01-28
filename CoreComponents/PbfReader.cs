@@ -179,8 +179,8 @@ namespace PraxisCore.PbfReader
                         }
 
                         //Reduce tags to the name (if present) and a single entry to match on a style set.
-                        var match = TagParser.GetStyleForOsmWay(originalTags, styleSet);
-                        var name = TagParser.GetPlaceName(originalTags);
+                        var match = TagParser.GetStyleEntry(originalTags, styleSet);
+                        var name = TagParser.GetName(originalTags);
                         md.Tags.Clear();
                         if (!string.IsNullOrEmpty(name))
                             md.Tags.Add(new PlaceTags() { Key = "name", Value = name });
@@ -320,7 +320,7 @@ namespace PraxisCore.PbfReader
             for (int i = nextgroup; i < thisBlock.primitivegroup.Count; i++)
             {
                 var group = thisBlock.primitivegroup[i];
-                var geoListOfOne = new List<ICompleteOsmGeo>();
+                var geoListOfOne = new List<CompleteOsmGeo>();
                 if (group.relations.Count > 0)
                 {
                     foreach (var relId in group.relations)
@@ -345,7 +345,7 @@ namespace PraxisCore.PbfReader
                 else if (group.nodes.Count > 0)
                 {
                     var nodes = GetTaggedNodesFromBlock(thisBlock, onlyMatchedAreas);
-                    ProcessReaderResults(nodes, block, i);
+                    ProcessReaderResults((IEnumerable<CompleteOsmGeo>)nodes, block, i);
                 }
                 SaveCurrentBlockAndGroup(block, i);
             }
@@ -359,7 +359,7 @@ namespace PraxisCore.PbfReader
                 var blockData = GetBlock(block);
                 var geoData = GetTaggedNodesFromBlock(blockData, onlyMatchedAreas);
                 if (geoData != null)
-                    ProcessReaderResults(geoData, block, 0);
+                    ProcessReaderResults((IEnumerable<CompleteOsmGeo>)geoData, block, 0);
 
                 activeBlocks.TryRemove(block, out blockData);
                 blockData = null;
@@ -603,8 +603,8 @@ namespace PraxisCore.PbfReader
 
                 if (ignoreUnmatched)
                 {
-                    var tpe = TagParser.GetStyleForOsmWay(r.Tags, styleSet);
-                    if (tpe.Name == TagParser.defaultStyle.Name)
+                    var stylename = TagParser.GetStyleName(r, styleSet);
+                    if (stylename == TagParser.defaultStyle.Name)
                         return null; //This is 'unmatched', skip processing this entry.
                 }
 
@@ -718,7 +718,7 @@ namespace PraxisCore.PbfReader
 
                     if (ignoreUnmatched)
                     {
-                        if (TagParser.GetStyleForOsmWay(finalway.Tags, styleSet).Name == TagParser.defaultStyle.Name)
+                        if (TagParser.GetStyleName(finalway, styleSet) == TagParser.defaultStyle.Name)
                             return null; //don't process this one, we said not to load entries that aren't already in our style list.
                     }
                 }
@@ -833,7 +833,7 @@ namespace PraxisCore.PbfReader
                     var tc = new OsmSharp.Tags.TagsCollection(decodedTags[index]); //Tags are needed first, so pull them out here for the ignoreUnmatched check.
                     if (ignoreUnmatched)
                     {
-                        if (TagParser.GetStyleForOsmWay(tc, styleSet) == TagParser.defaultStyle)
+                        if (TagParser.GetStyleEntry(tc, styleSet) == TagParser.defaultStyle)
                             continue;
                     }
 
@@ -1067,10 +1067,10 @@ namespace PraxisCore.PbfReader
             throw new Exception("Relation Not Found");
         }
 
-        public ConcurrentBag<ICompleteOsmGeo> GetGeometryFromGroup(int blockId, PrimitiveGroup primgroup, bool onlyTagMatchedEntries = false)
+        public ConcurrentBag<CompleteOsmGeo> GetGeometryFromGroup(int blockId, PrimitiveGroup primgroup, bool onlyTagMatchedEntries = false)
         {
             //This grabs the chosen block, populates everything in it to an OsmSharp.Complete object and returns that list
-            ConcurrentBag<ICompleteOsmGeo> results = new ConcurrentBag<ICompleteOsmGeo>();
+            ConcurrentBag<CompleteOsmGeo> results = new ConcurrentBag<CompleteOsmGeo>();
             try
             {
                 //Attempting to clear up some memory slightly faster, but this should be redundant.
@@ -1099,7 +1099,7 @@ namespace PraxisCore.PbfReader
                         {
                             var nodes = GetTaggedNodesFromBlock(block, onlyTagMatchedEntries);
                             totalProcessEntries += nodes.Count;
-                            results = new ConcurrentBag<ICompleteOsmGeo>(nodes);
+                            results = new ConcurrentBag<CompleteOsmGeo>((IEnumerable<CompleteOsmGeo>)nodes);
                         }
                         catch (Exception ex)
                         {
@@ -1343,7 +1343,7 @@ namespace PraxisCore.PbfReader
         /// <param name="saveToDb">If true, insert the items directly to the database instead of exporting to files.</param>
         /// <param name="onlyTagMatchedElements">if true, only loads in elements that dont' match the default entry for a TagParser style set</param>
         /// <returns>the Task handling the conversion process</returns>
-        public int ProcessReaderResults(IEnumerable<ICompleteOsmGeo> items, long blockId, int groupId)
+        public int ProcessReaderResults(IEnumerable<CompleteOsmGeo> items, long blockId, int groupId)
         {
             //This one is easy, we just dump the geodata to the file.
             int actualCount = 0;
@@ -1395,8 +1395,8 @@ namespace PraxisCore.PbfReader
                 //Save to separate files based on which style set entry each one matched up to.
                 foreach (var md in elements)
                 {
-                    var areatype = TagParser.GetAreaType(md.Tags, styleSet);
-                    var name = TagParser.GetPlaceName(md.Tags);
+                    var areatype = TagParser.GetStyleEntry(md, styleSet).Name;
+                    var name = TagParser.GetName(md);
                     geomDataByMatch[areatype].Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(Guid.NewGuid()).Append('\t').Append(md.DrawSizeHint).Append("\r\n");
                     foreach (var t in md.Tags)
                         tagDataByMatch[areatype].Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(t.Key).Append('\t').Append(t.Value.Replace("\r", "").Replace("\n", "")).Append("\r\n"); //Might also need to sanitize / and ' ?

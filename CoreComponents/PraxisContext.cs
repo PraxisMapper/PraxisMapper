@@ -391,8 +391,8 @@ namespace PraxisCore
                         {
                             existingData.StyleName = entry.StyleName;
                             existingData.Tags = entry.Tags;
-                            var styleA = TagParser.GetStyleForOsmWay(existingData.Tags);
-                            var styleB = TagParser.GetStyleForOsmWay(entry.Tags);
+                            var styleA = TagParser.GetStyleEntry(existingData);
+                            var styleB = TagParser.GetStyleEntry(entry);
                             if (styleA != styleB)
                                 expireTiles = true; //don't force a redraw on tags unless we change our drawing rules.
                         }

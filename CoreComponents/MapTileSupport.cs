@@ -1,18 +1,17 @@
 ﻿using Google.OpenLocationCode;
+using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
+using PraxisCore.Support;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using static PraxisCore.ConstantValues;
 using static PraxisCore.DbTables;
 using static PraxisCore.Place;
-using PraxisCore.Support;
-using System.Collections.Concurrent;
-using Microsoft.EntityFrameworkCore;
-using System.Threading.Tasks;
-using System.Numerics;
-using System.Data;
 
 namespace PraxisCore
 {
@@ -153,7 +152,7 @@ namespace PraxisCore
             //This one will be slightly slower since it runs TagParser on each entry, but that lets us have a fallback value if we don't find a specific entry.
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
-            var pass1 = places.Select(d => new { d.DrawSizeHint, d.ElementGeometry, paintOp = styles[TagParser.GetStyleForOsmWay(d.Tags, styleSet).Name].PaintOperations });
+            var pass1 = places.Select(d => new { d.DrawSizeHint, d.ElementGeometry, paintOp = styles[TagParser.GetStyleName(d, styleSet)].PaintOperations });
             var pass2 = new List<CompletePaintOp>(places.Count * 2);
             pass2.Add(bgOp);
             foreach (var op in pass1)
@@ -383,6 +382,16 @@ namespace PraxisCore
             existingResults.GenerationID++;
             db.SaveChanges();
             return existingResults.GenerationID;
+        }
+
+        public static byte[] GetExistingTileImage(string code, string styleSet)
+        {
+            var db = new PraxisContext();
+            var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.StyleSet == styleSet);
+            if (existingResults == null || existingResults.ExpireOn < DateTime.UtcNow)
+                return null;
+
+            return existingResults.TileData;
         }
     }
 }

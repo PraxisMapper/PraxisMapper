@@ -147,7 +147,7 @@ namespace PraxisCore
 
             public override string ToString()
             {
-                return (SourceItemType == 3 ? "Relation " : SourceItemType == 2 ? "Way " : "Node ") +  SourceItemID.ToString() + " " + TagParser.GetPlaceName(Tags);
+                return (SourceItemType == 3 ? "Relation " : SourceItemType == 2 ? "Way " : "Node ") +  SourceItemID.ToString() + " " + TagParser.GetName(Tags);
             }
 
             public Place Clone()
