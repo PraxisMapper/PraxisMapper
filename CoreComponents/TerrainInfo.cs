@@ -44,7 +44,7 @@ namespace PraxisCore
             var results = new List<TerrainData>(entriesHere.Count);
             foreach (var e in entriesHere)
             {
-                results.Add(new TerrainData(TagParser.GetPlaceName(e.Tags), e.GameElementName, e.PrivacyId));
+                results.Add(new TerrainData(TagParser.GetPlaceName(e.Tags), e.StyleName, e.PrivacyId));
             }
             return results;
         }
@@ -59,7 +59,7 @@ namespace PraxisCore
             //Which Place in this given Area is the one that should be displayed on the game/map as the name? picks the smallest one.
             //This one only returns the smallest entry, for games that only need to check the most interesting area in a cell.
             var entry = entriesHere.Last();
-            return new TerrainData(TagParser.GetPlaceName(entry.Tags), entry.GameElementName, entry.PrivacyId);
+            return new TerrainData(TagParser.GetPlaceName(entry.Tags), entry.StyleName, entry.PrivacyId);
         }
 
         /// <summary>

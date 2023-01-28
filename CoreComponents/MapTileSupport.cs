@@ -115,7 +115,7 @@ namespace PraxisCore
         {
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
-            var pass1 = places.Select(d => new { d.DrawSizeHint, d.ElementGeometry, paintOp = styles[d.GameElementName].PaintOperations });
+            var pass1 = places.Select(d => new { d.DrawSizeHint, d.ElementGeometry, paintOp = styles[d.StyleName].PaintOperations });
             var pass2 = new List<CompletePaintOp>(places.Count * 2);
             pass2.Add(bgOp);
             foreach (var op in pass1)
@@ -136,7 +136,7 @@ namespace PraxisCore
             //NOTE: this is being passed in an Area as a Geometry. The name needs clarified to show its drawing a maptile based on the gameplay data for places in that area.
             var db = new PraxisContext();
             var poly = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(stats.area));
-            var elements = db.PlaceGameData.Include(d => d.Place).Where(d => d.DataKey == dataKey && poly.Intersects(d.Place.ElementGeometry)).ToList();
+            var elements = db.PlaceData.Include(d => d.Place).Where(d => d.DataKey == dataKey && poly.Intersects(d.Place.ElementGeometry)).ToList();
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
             var pass1 = elements.Select(d => new { d.Place.DrawSizeHint, d.Place.ElementGeometry, paintOp = styles[d.DataValue.ToUTF8String()].PaintOperations, d.DataValue });
@@ -174,7 +174,7 @@ namespace PraxisCore
         {
             var db = new PraxisContext();
             var poly = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(stats.area));
-            var elements = db.AreaGameData.Where(d => d.DataKey == dataKey && poly.Intersects(d.GeoAreaIndex)).ToList();
+            var elements = db.AreaData.Where(d => d.DataKey == dataKey && poly.Intersects(d.GeoAreaIndex)).ToList();
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
             var pass1 = elements.Select(d => new { d.GeoAreaIndex.Area, d.GeoAreaIndex, paintOp = styles[d.DataValue.ToUTF8String()].PaintOperations, d.DataValue });
@@ -198,7 +198,7 @@ namespace PraxisCore
         {
             var db = new PraxisContext();
             var poly = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(stats.area));
-            var elements = db.AreaGameData.Where(d => d.DataKey == dataKey && poly.Intersects(d.GeoAreaIndex)).ToList();
+            var elements = db.AreaData.Where(d => d.DataKey == dataKey && poly.Intersects(d.GeoAreaIndex)).ToList();
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
             var pass1 = elements.Select(d => new { d.GeoAreaIndex.Area, d.GeoAreaIndex, paintOp = styles["tag"].PaintOperations, d.DataValue });

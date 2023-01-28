@@ -88,7 +88,7 @@ namespace PraxisMapper.Controllers
             sw.Stop();
             ViewBag.loadTime = sw.Elapsed;
             ViewBag.placeCount = places.Count;
-            var grouped = places.GroupBy(p => p.GameElementName);
+            var grouped = places.GroupBy(p => p.StyleName);
 
             ViewBag.imageString = "data:image/png;base64," + Convert.ToBase64String(tile);
             ViewBag.areasByType = "";
@@ -116,15 +116,13 @@ namespace PraxisMapper.Controllers
             int imageMaxEdge = Configuration["adminPreviewImageMaxEdge"].ToInt();
             long maxImagePixels = Configuration["maxImagePixels"].ToLong();
 
-            TagParser.ApplyTags(new System.Collections.Generic.List<DbTables.Place>() { area }, "mapTiles");
+            TagParser.ApplyTags(new List<DbTables.Place>() { area }, "mapTiles");
             ViewBag.areaname = TagParser.GetPlaceName(area.Tags);
-            ViewBag.type = area.GameElementName;
+            ViewBag.type = area.StyleName;
+            ViewBag.geoType = area.ElementGeometry.GeometryType;
+            ViewBag.tags = String.Join(", ", area.Tags.Select(t => t.Key + ":" + t.Value));
 
-            var geoarea = Converters.GeometryToGeoArea(area.ElementGeometry.Envelope);
-            geoarea = new Google.OpenLocationCode.GeoArea(geoarea.SouthLatitude - ConstantValues.resolutionCell10,
-                geoarea.WestLongitude - ConstantValues.resolutionCell10,
-                geoarea.NorthLatitude + ConstantValues.resolutionCell10,
-                geoarea.EastLongitude + ConstantValues.resolutionCell10); //add some padding to the edges.
+            var geoarea = Converters.GeometryToGeoArea(area.ElementGeometry.Envelope).PadGeoArea(ConstantValues.resolutionCell10);
             
             ImageStats istats = new ImageStats(geoarea, (int)(geoarea.LongitudeWidth / ConstantValues.resolutionCell11Lon) * (int)IMapTiles.GameTileScale, (int)(geoarea.LatitudeHeight / ConstantValues.resolutionCell11Lat) * (int)IMapTiles.GameTileScale);
             //sanity check: we don't want to draw stuff that won't fit in memory, so check for size and cap it if needed
@@ -146,7 +144,7 @@ namespace PraxisMapper.Controllers
             ViewBag.areasByType = "";
             
             ViewBag.placeCount = places.Count;
-            var grouped = places.GroupBy(p => p.GameElementName);
+            var grouped = places.GroupBy(p => p.StyleName);
             string areasByType = "";
             foreach (var g in grouped)
                 areasByType += g.Key + ": " + g.Count() + "<br />";
@@ -174,7 +172,7 @@ namespace PraxisMapper.Controllers
             Models.EditData model = new Models.EditData();
             var db = new PraxisContext();
             model.accessKey = "?PraxisAuthKey=" + Configuration["serverAuthKey"];
-            model.globalDataKeys = db.GlobalDataEntries.Select(g => new SelectListItem(g.DataKey, g.DataValue.ToUTF8String())).ToList();
+            model.globalDataKeys = db.GlobalData.Select(g => new SelectListItem(g.DataKey, g.DataValue.ToUTF8String())).ToList();
             model.playerKeys = db.PlayerData.Select(p => p.DeviceID).Distinct().Select(g => new SelectListItem(g, g)).ToList();
 
             model.stylesetKeys = db.StyleEntries.Select(t => t.StyleSet).Distinct().Select(t => new SelectListItem(t, t)).ToList();

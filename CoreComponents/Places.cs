@@ -107,139 +107,6 @@ namespace PraxisCore
             return places;
         }
 
-        ////NOTE: This should probably be moved off to a plugin and not be core logic anymore.
-        ///// <summary>
-        ///// Auto-generate some places to be used as gameplay elements in otherwise sparse areas. Given an 8 digit PlusCode, creates and warps some standard shapes in the Cell.
-        ///// </summary>
-        ///// <param name="plusCode">The area to generate shape(s) in</param>
-        ///// <param name="autoSave">If true, saves the areas to the database immediately.</param>
-        ///// <returns>The list of places created for the given area.</returns>
-        //public static List<DbTables.Place> CreateInterestingPlaces(string plusCode, bool autoSave = true)
-        //{
-        //    //expected to receive a Cell8
-        //    // populate it with some interesting regions for players.
-        //    CodeArea cell8 = OpenLocationCode.DecodeValid(plusCode); //Reminder: area is .0025 degrees on a Cell8
-        //    int shapeCount = 1; // 2; //number of shapes to apply to the Cell8
-        //    double shapeWarp = .3; //percentage a shape is allowed to have each vertexs drift by.
-        //    List<DbTables.Place> areasToAdd = new List<DbTables.Place>();
-
-        //    for (int i = 0; i < shapeCount; i++)
-        //    {
-        //        //Pick a shape
-        //        var masterShape = possibleShapes.OrderBy(s => Random.Shared.Next()).First();
-        //        var shapeToAdd = masterShape.Select(s => new Coordinate(s)).ToList();
-        //        var scaleFactor = Random.Shared.Next(10, 36) * .01; //Math.Clamp(r.Next, .1, .35); //Ensure that we get a value that isn't terribly useless. 2 shapes can still cover 70%+ of an empty area this way.
-        //        var positionFactorX = Random.Shared.NextDouble() * resolutionCell8;
-        //        var positionFactorY = Random.Shared.NextDouble() * resolutionCell8;
-        //        foreach (Coordinate c in shapeToAdd)
-        //        {
-        //            //scale it to our resolution
-        //            c.X *= resolutionCell8;
-        //            c.Y *= resolutionCell8;
-
-        //            //multiply this by some factor smaller than 1, so it doesn't take up the entire Cell
-        //            //If we use NextDouble() here, it scales each coordinate randomly, which would look very unpredictable. Use the results of one call twice to scale proportionally. 
-        //            //but ponder how good/bad it looks for various shapes if each coordinate is scaled differently.
-        //            c.X *= scaleFactor;
-        //            c.Y *= scaleFactor;
-
-        //            //Rotate the coordinate set some random number of degrees?
-        //            //TODO: how to rotate these?
-
-        //            //Place the shape somewhere randomly by adding the same X/Y value less than the resolution to each point
-        //            c.X += positionFactorX;
-        //            c.Y += positionFactorY;
-
-        //            //Fuzz each vertex by adding some random distance on each axis less than 30% of the cell's size in either direction.
-        //            //10% makes the shapes much more recognizable, but not as interesting. Will continue looking into parameters here to help adjust that.
-        //            c.X += (Random.Shared.NextDouble() * resolutionCell8 * shapeWarp) * (Random.Shared.Next() % 2 == 0 ? 1 : -1);
-        //            c.Y += (Random.Shared.NextDouble() * resolutionCell8 * shapeWarp) * (Random.Shared.Next() % 2 == 0 ? 1 : -1);
-
-        //            //Let us know if this shape overlaps a neighboring cell. We probably want to make sure we re-draw map tiles if it does.
-        //            if (c.X > .0025 || c.Y > .0025)
-        //                Log.WriteLog("Coordinate for shape " + i + " in Cell8 " + plusCode + " will be out of bounds: " + c.X + " " + c.Y, Log.VerbosityLevels.High);
-
-        //            //And now add the minimum values for the given Cell8 to finish up coordinates.
-        //            c.X += cell8.Min.Longitude;
-        //            c.Y += cell8.Min.Latitude;
-        //        }
-
-        //        //ShapeToAdd now has a randomized layout, convert it to a polygon.
-        //        shapeToAdd.Add(shapeToAdd.First()); //make it a closed shape
-        //        var polygon = factory.CreatePolygon(shapeToAdd.ToArray());
-        //        polygon = CCWCheck(polygon); //Sometimes squares still aren't CCW? or this gets un-done somewhere later?
-        //        if (!polygon.IsValid || !polygon.Shell.IsCCW)
-        //        {
-        //            Log.WriteLog("Invalid geometry generated, retrying", Log.VerbosityLevels.High);
-        //            i--;
-        //            continue;
-        //        }
-
-        //        if (!polygon.CoveredBy(Converters.GeoAreaToPolygon(cell8)))
-        //        {
-        //            //This should only ever require checking the map tile north/east of the current one, even though the vertex fuzzing can potentially move things negative slightly.
-        //            Log.WriteLog("This polygon is outside of the Cell8 by " + (cell8.Max.Latitude - shapeToAdd.Max(s => s.Y)) + "/" + (cell8.Max.Longitude - shapeToAdd.Max(s => s.X)), Log.VerbosityLevels.High);
-        //        }
-        //        if (polygon != null)
-        //        {
-        //            DbTables.Place gmd = new DbTables.Place();
-        //            gmd.ElementGeometry = polygon;
-        //            gmd.GameElementName = "generated";
-        //            gmd.Tags.Add(new PlaceTags() { Key = "praxisGenerated", Value = "true" } );
-        //            areasToAdd.Add(gmd); //this is the line that makes some objects occasionally not be CCW that were CCW before. Maybe its the cast to the generic Geometry item?
-        //        }
-        //        else
-        //        {
-        //            //Inform me that I did something wrong.
-        //            Log.WriteLog("failed to convert a randomized shape to a polygon.", Log.VerbosityLevels.Errors);
-        //            continue;
-        //        }
-        //    }
-
-        //    //Making this function self-contained
-        //    if (autoSave)
-        //    {
-        //        var db = new PraxisContext();
-        //        foreach (var area in areasToAdd)
-        //        {
-        //            area.ElementGeometry = CCWCheck((Polygon)area.ElementGeometry); //fixes errors that reappeared above
-        //        }
-        //        db.Places.AddRange(areasToAdd);
-        //        db.SaveChanges();
-        //    }
-
-        //    return areasToAdd;
-        //}
-
-        /// <summary>
-        /// A debugging function, writres some information an element using its OSM id (or internal primary key) to load from the database.
-        /// </summary>
-        /// <param name="id">the PlaceId or SourceElementId of an area to load.</param>
-        /// <returns>a string with some details on the area in question.</returns>
-        public static string LoadDataOnPlace(long id)
-        {
-            //Debugging helper call. Loads up some information on an area and display it.
-            //Not currently used anywhere.
-            var db = new PraxisContext();
-            var entries = db.Places.Where(m => m.Id == id || m.SourceItemID == id).ToList();
-            string results = "";
-            foreach (var entry in entries)
-            {
-                var shape = entry.ElementGeometry;
-
-                results += "Name: " + TagParser.GetPlaceName(entry.Tags) + Environment.NewLine;
-                results += "Game Type: " + TagParser.GetAreaType(entry.Tags.ToList()) + Environment.NewLine;
-                results += "Geometry Type: " + shape.GeometryType + Environment.NewLine;
-                results += "OSM Type: " + entry.SourceItemType + Environment.NewLine;
-                results += "Area Tags: " + String.Join(",", entry.Tags.Select(t => t.Key + ":" + t.Value));
-                results += "IsValid? : " + shape.IsValid + Environment.NewLine;
-                results += "Area: " + shape.Area + Environment.NewLine; //Not documented, but I believe this is the area in square degrees. Is that a real unit?
-                results += "As Text: " + shape.AsText() + Environment.NewLine;
-            }
-
-            return results;
-        }
-
         /// <summary>
         /// Scans the database to determine the outer boundaries of locations in it.
         /// </summary>
@@ -304,24 +171,38 @@ namespace PraxisCore
         {
             if (places == null)
                 places = GetPlaces(area);
-            return places.Where(p => p.GameElementName == type).ToList();
+            return places.Where(p => p.StyleName == type).ToList();
         }
 
-        public static List<Tuple<double, DbTables.Place>> GetNearbyPlacesAtDistance(string plusCode, double distanceMid)
+        /// <summary>
+        /// Returns a Tuple of Places and their distance (in degrees) from the given PlusCode, ordered by the minimum distance between the 2.
+        /// </summary>
+        /// <param name="plusCode">The PlusCode to search from. Uses the center of the PlusCode </param>
+        /// <param name="distance">The distance in degrees to use as the basis for the search</param>
+        /// <returns></returns>
+        public static List<Tuple<double, DbTables.Place>> GetNearbyPlaces(string plusCode, double distance)
         {
-            //TODO: test this out for performance. Spatial index should work for Distance but calculating it 3 times might not be very fast
+            return GetNearbyPlaces(plusCode.ToGeoArea().ToPoint(), distance);
+        }
+
+        /// <summary>
+        /// Returns a Tuple of Places and their distance (in degrees) from the given point, ordered by the minimum distance between the 2.
+        /// </summary>
+        /// <param name="ntsPoint">the Point to use when searching.</param>
+        /// <param name="distance">The distance in degrees to use as the basis for the search</param>
+        /// <returns></returns>
+        public static List<Tuple<double, DbTables.Place>> GetNearbyPlaces(Point ntsPoint, double distance)
+        {
+            //This is the fastest way to do this. The DB takes much longer to calculate distances, so we just check what intersects the distance we were looking for,
+            //then calculate the distance on all of those elements
             var db = new PraxisContext();
-            var geopoint = OpenLocationCode.DecodeValid(plusCode).Center;
-            var ntsPoint = new Point(geopoint.Longitude, geopoint.Latitude);
-            var distanceMin = distanceMid / 2;
-            var distanceMax = distanceMid + distanceMin;
-            List<Tuple<double, DbTables.Place>> results = db.Places
+            var distancePoly = ntsPoint.Buffer(distance);
+            var dbresults = db.Places
                 .Include(o => o.Tags)
-                .Where(o => distanceMin < o.ElementGeometry.Distance(ntsPoint) && o.ElementGeometry.Distance(ntsPoint) < distanceMax)
-                .OrderByDescending(o => Math.Abs(distanceMid - o.ElementGeometry.Distance(ntsPoint)))
-                .Select(o => Tuple.Create(o.ElementGeometry.Distance(ntsPoint), o))
+                .Where(o => o.ElementGeometry.Intersects(distancePoly))
                 .ToList();
 
+            List<Tuple<double, DbTables.Place>> results = dbresults.Select(o => Tuple.Create(o.ElementGeometry.Distance(ntsPoint), o)).OrderByDescending(o => o.Item1).ToList();
             return results;
         }
 

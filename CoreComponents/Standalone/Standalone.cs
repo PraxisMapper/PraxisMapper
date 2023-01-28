@@ -34,7 +34,7 @@ namespace PraxisCore.Standalone
                 //var calcRadius = (place.elementGeometry.EnvelopeInternal.Width + place.elementGeometry.EnvelopeInternal.Height) / 4;
                 var pi = new PlaceInfo2() {
                     Name = TagParser.GetPlaceName(place.Tags),
-                    areaType = place.GameElementName,
+                    areaType = place.StyleName,
                     latCenter = center.Y,
                     lonCenter = center.X,
                     height = place.ElementGeometry.EnvelopeInternal.Height,

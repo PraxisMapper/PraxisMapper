@@ -1,11 +1,8 @@
 ﻿using Google.OpenLocationCode;
-using Microsoft.Identity.Client.Extensions.Msal;
 using NetTopologySuite.Geometries;
 using OsmSharp;
-using PraxisCore.Support;
 using System;
 using System.Collections.Generic;
-using System.Data.Common;
 using System.IO;
 using System.Linq;
 using static PraxisCore.ConstantValues;
@@ -26,7 +23,7 @@ namespace PraxisCore
 
         public static GeoArea MakeBufferedGeoArea(GeoArea original)
         {
-            return original.PadGeoArea(IMapTiles.BufferSize); // new GeoArea(original.SouthLatitude - IMapTiles.BufferSize, original.WestLongitude - IMapTiles.BufferSize, original.NorthLatitude + IMapTiles.BufferSize, original.EastLongitude + IMapTiles.BufferSize);
+            return original.PadGeoArea(IMapTiles.BufferSize);
         }
 
         /// <summary>
@@ -133,15 +130,15 @@ namespace PraxisCore
         }
 
         /// <summary>
-        /// Create a database StoredOsmElement from an OSMSharp Complete object.
+        /// Create a database Place from an OSMSharp Complete object.
         /// </summary>
         /// <param name="g">the CompleteOSMGeo object to prepare to save to the DB</param>
-        /// <returns>the StoredOsmElement ready to save to the DB</returns>
+        /// <returns>the Place ready to save to the DB</returns>
         public static DbTables.Place ConvertOsmEntryToPlace(OsmSharp.Complete.ICompleteOsmGeo g)
         {
             var tags = TagParser.getFilteredTags(g.Tags);
             if (tags == null || tags.Count == 0)
-                return null; //For nodes, don't store every untagged node.
+                return null; //untagged elements are not useful, do not store them.
 
             try
             {
@@ -170,15 +167,14 @@ namespace PraxisCore
                     place.ElementGeometry = poly;
                 }
 
-                TagParser.ApplyTags(place, "mapTiles"); 
-                //TODO: functionalize this somewhere else, this should be reusable per style set if necessary.
-                if (place.GameElementName == "unmatched" || place.GameElementName == "background")
+                TagParser.ApplyTags(place, "mapTiles");
+                if (place.StyleName == "unmatched" || place.StyleName == "background")
                 {
                     //skip, leave value at 0.
                 }
                 else
                 {
-                    place.DrawSizeHint = CalclateDrawSizeHint(place);
+                    place.DrawSizeHint = CalculateDrawSizeHint(place);
                 }
                 return place;
             }
@@ -189,13 +185,13 @@ namespace PraxisCore
             }
         }
 
-        public static double CalclateDrawSizeHint(DbTables.Place place)
+        public static double CalculateDrawSizeHint(DbTables.Place place)
         {
             //The default assumption here is that a Cell11 is 1 pixel for gameplay tiles. (Multiplied by GameTileScale)
             //So we take the area of the drawn element in degrees, divide by the size of a square Cell11, and multiply by GameTileScale.
             //That's how many pixels an individual element would take up at typical scale. MapTiles will skip anything below 1.
             //The value of what to skip will be automatically adjusted based on the area being drawn.
-            var paintOp = TagParser.allStyleGroups["mapTiles"][place.GameElementName].PaintOperations;
+            var paintOp = TagParser.allStyleGroups["mapTiles"][place.StyleName].PaintOperations;
             var pixelMultiplier = IMapTiles.GameTileScale;
 
             if (place.ElementGeometry.Area > 0)
@@ -205,6 +201,11 @@ namespace PraxisCore
                 var lineWidth = paintOp.Max(p => p.LineWidthDegrees);
                 var rectSize = lineWidth * place.ElementGeometry.Length;
                 return (rectSize / ConstantValues.squareCell11Area) * pixelMultiplier;
+            }
+            else if (paintOp.Any(p => !string.IsNullOrEmpty(p.FileName)))
+            {
+                //I need a way to find out how big this image is.
+                return 32; // for now, just guessing that I made these 32x32 images.
             }
             else
             {
@@ -278,13 +279,18 @@ namespace PraxisCore
             return entry;
         }
 
+        /// <summary>
+        /// Calculates an accurate distance to 2 points, in meters.
+        /// </summary>
+        /// <param name="p">First point</param>
+        /// <param name="otherPoint">Second point</param>
+        /// <returns>distance in meters between the given points on Earth</returns>
         public static double MetersDistanceTo(GeoPoint p, GeoPoint otherPoint)
         {
             //Haversine math.
             const double earthRadius = 6367000.0;
             var calcLat = Math.Sin((otherPoint.Latitude.ToRadians() - p.Latitude.ToRadians()) * 0.5);
             var calcLon = Math.Sin((otherPoint.Longitude.ToRadians() - p.Longitude.ToRadians()) * 0.5);
-            var latCos = Math.Cos(p.Latitude.ToRadians());
             var q = (calcLat * calcLat) + (calcLon * calcLon) * (Math.Cos(otherPoint.Latitude.ToRadians()) * Math.Cos(p.Latitude.ToRadians()));
             var d = 2 * earthRadius * Math.Asin(Math.Sqrt(q));
             return d;
@@ -305,6 +311,25 @@ namespace PraxisCore
             var speed = distance / time; //Speed is meters/second.
 
             return speed;
+        }
+
+        public static void FindNearest(string plusCode, string styleSet, string type)
+        {
+            //TODO: compare with Place.GetNearbyPlacesAtDistance() for performance and simplicity.
+
+            var db = new PraxisContext();
+            //we will search within a Cell6 area 
+            var plusCodePoly = plusCode.ToPolygon();
+            var searchArea = plusCode.ToGeoArea().PadGeoArea(ConstantValues.resolutionCell6 / 2);
+            var places = Place.GetPlaces(searchArea, styleSet: styleSet);
+            places = places.Where(p => p.StyleName == type).OrderBy(p => p.ElementGeometry.Distance(plusCodePoly)).ToList();
+
+
+            //versus:
+            //var allEntries = Place.GetNearbyPlacesAtDistance(type, plusCode, ConstantValues.resolutionCell6 / 2);
+
+
+
         }
     }
 }
