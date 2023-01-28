@@ -138,6 +138,7 @@ namespace PraxisCore
             [Required]
             public Geometry ElementGeometry { get; set; }
             public ICollection<PlaceTags> Tags { get; set; }
+            public ICollection<PlaceGameData> GameData { get; set; }
             [NotMapped]
             public bool IsGameElement { get; set; } //Gets determined by styles, shouldn't be a persisted property. Only used to make standalone DB right now.
             [NotMapped]
@@ -175,25 +176,6 @@ namespace PraxisCore
                 return other.Key == Key && other.Value == Value;
             }
         }
-
-        //We can auto-create scavenger hunts from tags for the stand-alone game. 
-        //Can do the same here, if we define a hunt as a tag and an area.
-        //Manual scavenger hunts need to be a list of places (either a point or a shape, and a name/description of the place to go.)
-
-        //public class ScavengerHunt
-        //{
-        //    public long id { get; set; }
-        //    public string name { get; set; }
-        //    public ICollection<ScavengerHuntEntry> entries { get; set; }
-        //}
-
-        //public class ScavengerHuntEntry
-        //{
-        //    public long id { get; set; }
-        //    public ScavengerHunt ScavengerHunt { get; set; }
-        //    public string description { get; set; }
-        //    public string StoredOsmElementId { get; set; } //This means we have to add a point/polygon if it's not an existing OSM entry.
-        //}
 
         public class AreaGameData
         {
