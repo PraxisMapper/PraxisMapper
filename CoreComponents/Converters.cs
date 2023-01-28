@@ -143,23 +143,5 @@ namespace PraxisCore
             var poly = new Polygon(new LinearRing(coordArray));
             return poly;
         }
-
-        public static Point GeometryToCenterPoint(Geometry g)
-        {
-            return g.Centroid;
-        }
-
-        //Incomplete, slippy tiles require some compromises for this to work
-        //public static void GetSlippyTileForPoint(GeoArea buffered, int zoomLevel)
-        //{
-        //    var intersectCheck = Converters.GeoAreaToPolygon(buffered);
-
-        //    //start drawing maptiles and sorting out data.
-        //    var swCornerLon = Converters.GetSlippyXFromLon(intersectCheck.EnvelopeInternal.MinX, zoomLevel);
-        //    var neCornerLon = Converters.GetSlippyXFromLon(intersectCheck.EnvelopeInternal.MaxX, zoomLevel);
-        //    var swCornerLat = Converters.GetSlippyYFromLat(intersectCheck.EnvelopeInternal.MinY, zoomLevel);
-        //    var neCornerLat = Converters.GetSlippyYFromLat(intersectCheck.EnvelopeInternal.MaxY, zoomLevel);
-
-        //}
     }
 }
