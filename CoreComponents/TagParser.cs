@@ -394,6 +394,19 @@ namespace PraxisCore
             return GetName(place.Tags);
         }
 
+        public static string GetTagValue(DbTables.Place place, string key)
+        {
+            var tag = place.Tags.FirstOrDefault(t => t.Key == key);
+            if (tag != null && tag.Value != null)
+                return tag.Value;
+
+            var data = place.PlaceData.FirstOrDefault(p => p.DataKey == key);
+            if (data != null && data.DataValue != null)
+                return data.DataValue.ToUTF8String();
+
+            return "";
+        }
+
         /// <summary>
         /// Get a link to a Place's wikipedia page, if tagged with a wiki tag.
         /// </summary>
