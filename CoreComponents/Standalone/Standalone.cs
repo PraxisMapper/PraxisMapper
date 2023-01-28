@@ -13,6 +13,8 @@ using System.Collections.Concurrent;
 namespace PraxisCore.Standalone
 {
     //Stuff related to make a standalone, separate DB for offline games.
+    //This isn't necessarily considered core functionality, but it continues to be the kind of thing that sticks in my head as a solution to some problems.
+    //so this code remains in the project. 
     public static class Standalone
     {
         /// <summary>
