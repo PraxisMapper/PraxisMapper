@@ -1,6 +1,5 @@
 ﻿using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Query;
 using NetTopologySuite.Geometries;
 using System;
 using System.Collections.Generic;
@@ -25,9 +24,9 @@ namespace PraxisCore
         public DbSet<StyleMatchRule> StyleMatchRules { get; set; }
         public DbSet<StylePaint> StylePaints { get; set; }
         public DbSet<PlaceTags> PlaceTags { get; set; } 
-        public DbSet<PlaceGameData> PlaceGameData { get; set; }
-        public DbSet<AreaGameData> AreaGameData { get; set; }
-        public DbSet<GlobalDataEntries> GlobalDataEntries { get; set; }
+        public DbSet<PlaceData> PlaceData { get; set; }
+        public DbSet<AreaData> AreaData { get; set; }
+        public DbSet<GlobalData> GlobalData { get; set; }
         public DbSet<StyleBitmap> StyleBitmaps { get; set; }
         public DbSet<AntiCheatEntry> AntiCheatEntries { get; set; }
         public DbSet<AuthenticationData> AuthenticationData { get; set; }
@@ -75,14 +74,14 @@ namespace PraxisCore
             model.Entity<PlaceTags>().HasOne(m => m.Place).WithMany(m => m.Tags).HasForeignKey(m => new { m.SourceItemId, m.SourceItemType }).HasPrincipalKey(m => new { m.SourceItemID, m.SourceItemType });
 
 
-            model.Entity<PlaceGameData>().HasIndex(m => m.DataKey);
-            model.Entity<PlaceGameData>().HasIndex(m => m.PlaceId);
-            model.Entity<PlaceGameData>().HasIndex(m => m.Expiration);
+            model.Entity<PlaceData>().HasIndex(m => m.DataKey);
+            model.Entity<PlaceData>().HasIndex(m => m.PlaceId);
+            model.Entity<PlaceData>().HasIndex(m => m.Expiration);
 
-            model.Entity<AreaGameData>().HasIndex(m => m.DataKey);
-            model.Entity<AreaGameData>().HasIndex(m => m.PlusCode);
-            model.Entity<AreaGameData>().HasIndex(m => m.GeoAreaIndex);
-            model.Entity<AreaGameData>().HasIndex(m => m.Expiration);
+            model.Entity<AreaData>().HasIndex(m => m.DataKey);
+            model.Entity<AreaData>().HasIndex(m => m.PlusCode);
+            model.Entity<AreaData>().HasIndex(m => m.GeoAreaIndex);
+            model.Entity<AreaData>().HasIndex(m => m.Expiration);
 
             model.Entity<AntiCheatEntry>().HasIndex(m => m.filename);
 
@@ -102,7 +101,7 @@ namespace PraxisCore
         public static string MapTileIndex = "CREATE SPATIAL INDEX MapTileSpatialIndex ON MapTiles(areaCovered)";
         public static string SlippyMapTileIndex = "CREATE SPATIAL INDEX SlippyMapTileSpatialIndex ON SlippyMapTiles(areaCovered)";
         public static string StoredElementsIndex = "CREATE SPATIAL INDEX PlacesIndex ON Places(elementGeometry)";
-        public static string customDataPlusCodesIndex = "CREATE SPATIAL INDEX areaGameDataSpatialIndex ON AreaGameData(geoAreaIndex)";
+        public static string customDataPlusCodesIndex = "CREATE SPATIAL INDEX areaGameDataSpatialIndex ON AreaData(geoAreaIndex)";
         public static string drawSizeHintIndex = "CREATE OR REPLACE INDEX IX_Places_DrawSizeHint on Places (DrawSizeHint)"; 
         public static string privacyIdIndex = "CREATE OR REPLACE INDEX IX_Places_privacyId on Places (privacyId)";
         public static string sourceItemIdIndex = "CREATE OR REPLACE INDEX IX_Places_sourceItemID on Places (sourceItemID)";
@@ -120,7 +119,7 @@ namespace PraxisCore
         public static string DropMapTileIndex = "DROP INDEX IF EXISTS MapTileSpatialIndex on MapTiles";
         public static string DropSlippyMapTileIndex = "DROP INDEX IF EXISTS SlippyMapTileSpatialIndex on SlippyMapTiles";
         public static string DropStoredElementsIndex = "DROP INDEX IF EXISTS PlacesIndex on Places";
-        public static string DropcustomDataPlusCodesIndex = "DROP INDEX IF EXISTS areaGameDataSpatialIndex on AreaGameData";
+        public static string DropcustomDataPlusCodesIndex = "DROP INDEX IF EXISTS areaDataSpatialIndex on AreaData";
         public static string DropStoredElementsHintSizeIndex = "DROP INDEX IF EXISTS IX_Places_DrawSizeHint on Places";
         public static string DropStoredElementsPrivacyIdIndex = "DROP INDEX IF EXISTS IX_Places_privacyId on Places";
         public static string DropStoredElementsSourceItemIdIndex = "DROP INDEX IF EXISTS IX_Places_sourceItemID on Places";
@@ -390,7 +389,7 @@ namespace PraxisCore
                         //if (!existingData.Tags.OrderBy(t => t.Key).SequenceEqual(entry.Tags.OrderBy(t => t.Key)))
                         if (!(existingData.Tags.Count == entry.Tags.Count && existingData.Tags.All(t => entry.Tags.Any(tt => tt.Equals(t)))))
                         {
-                            existingData.GameElementName = entry.GameElementName;
+                            existingData.StyleName = entry.StyleName;
                             existingData.Tags = entry.Tags;
                             var styleA = TagParser.GetStyleForOsmWay(existingData.Tags);
                             var styleB = TagParser.GetStyleForOsmWay(entry.Tags);
@@ -470,7 +469,7 @@ namespace PraxisCore
                         }
                         if (!(existingData.Tags.Count == entry.Tags.Count && existingData.Tags.All(t => entry.Tags.Any(tt => tt.Equals(t)))))
                         {
-                            existingData.GameElementName = entry.GameElementName;
+                            existingData.StyleName = entry.StyleName;
                             existingData.Tags = entry.Tags;
                         }
                     }

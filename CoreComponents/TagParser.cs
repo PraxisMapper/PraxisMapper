@@ -13,6 +13,15 @@ namespace PraxisCore
     //Labels (text), Fill, Features, Area, HillShading.
     //I would need better area-vs-feature detection (OSMSharp has this,and I think I included that in my code)
 
+    //A * value is a wildcard that means any value counts as a match for that key. If the tag exists, its value is irrelevant. Cannot be used in NOT checks.
+    //A * key is a rule that will not match based on tag values, as no key will == *. Used for backgrounds and special styles called up by name.
+    //types vary:
+    //any: one of the pipe delimited values in the value is present for the given key.
+    //equals: the one specific value exists on that key. Slightly faster than Any when matching a single key, but trivially so.
+    //or: as long as one of the rules with or is true, accept this entry as a match. each Or entry should be treated as its own 'any' for parsing purposes.
+    //not: this rule must be FALSE for the style to be applied.
+    //default: always true.
+
     /// <summary>
     /// Determines an element's gameplay type and rules for drawing it on maptiles, along with tracking styles.
     /// </summary>
@@ -23,19 +32,6 @@ namespace PraxisCore
         public static Dictionary<string, Dictionary<string, StyleEntry>> allStyleGroups = new Dictionary<string, Dictionary<string, StyleEntry>>();
 
         private static IMapTiles MapTiles;
-
-        //TODO: this might need an ID and then added to allStyleGroups.
-        public static StyleEntry outlineStyle = new StyleEntry()
-        {
-            MatchOrder = 9998,
-            Name = "outline",
-            StyleSet = "special",
-            PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "000000", FillOrStroke = "stroke", LineWidthDegrees=2, LinePattern= "solid", LayerId = 101 }
-                },
-            StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "*", Value = "*", MatchType = "none" }}
-        };
 
         /// <summary>
         /// Call once when the server or app is started. Loads all the styles and caches baseline data for later use.
@@ -409,7 +405,7 @@ namespace PraxisCore
             foreach (var p in places)
             {
                 var style = GetStyleForOsmWay(p.Tags, styleSet);
-                p.GameElementName = style.Name;
+                p.StyleName = style.Name;
                 p.IsGameElement = style.IsGameElement;
             }
             return places;
@@ -418,7 +414,7 @@ namespace PraxisCore
         public static DbTables.Place ApplyTags(DbTables.Place place, string styleSet)
         {
             var style = GetStyleForOsmWay(place.Tags, styleSet);
-            place.GameElementName = style.Name;
+            place.StyleName = style.Name;
             place.IsGameElement = style.IsGameElement;
             return place;
         }

@@ -49,7 +49,7 @@ namespace PraxisCore
             public DateTime LoggedAt { get; set; }
         }
 
-        public class GlobalDataEntries //This is here so devs won't need a secondary DB for small stuff.
+        public class GlobalData //Arbitrary data storage
         { 
             public int Id { get; set; }
             public string DataKey { get; set; }
@@ -137,11 +137,11 @@ namespace PraxisCore
             [Required]
             public Geometry ElementGeometry { get; set; }
             public ICollection<PlaceTags> Tags { get; set; }
-            public ICollection<PlaceGameData> GameData { get; set; }
+            public ICollection<PlaceData> PlaceData { get; set; }
             [NotMapped]
             public bool IsGameElement { get; set; } //Gets determined by styles, shouldn't be a persisted property.
             [NotMapped]
-            public string GameElementName { get; set; } //Placeholder for TagParser to load up the name of the matching style for this element, but don't save it to the DB so we can change it on the fly.
+            public string StyleName { get; set; } //Placeholder for TagParser to load up the name of the matching style for this element, but don't save it to the DB so we can change it on the fly.
             public Guid PrivacyId { get; set; } = Guid.NewGuid(); //Pass this Id to clients, so we can attempt to block attaching players to locations in the DB.
             public double DrawSizeHint { get; set; } //optimization. This is estimated pixels to draw at standard scale. Calculate your floor if you zoom in or out differently, and skip loading if its too small to see.
 
@@ -176,7 +176,7 @@ namespace PraxisCore
             }
         }
 
-        public class AreaGameData
+        public class AreaData
         {
             //for storing collection data server-side per plus-code
             public long Id { get; set; }
@@ -189,7 +189,7 @@ namespace PraxisCore
             public byte[] DataValue { get; set; } //Holds byte data for both normal and encrypted entries. 
         }
 
-        public class PlaceGameData
+        public class PlaceData
         {
             //for storing collection data server-side per existing map area. Join on that table to get geometry area.
             public long Id { get; set; } //internal primary key

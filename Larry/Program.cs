@@ -563,28 +563,6 @@ namespace Larry
             Log.WriteLog("Image saved to disk");
         }
 
-        //Removed for now because I do not currently use it for any of my game modes, but I may still want to use this or something based on this in the future.
-        //private static void populateEmptyAreas(string cell6)
-        //{
-        //    var db = new PraxisContext();
-        //    CodeArea box6 = OpenLocationCode.DecodeValid(cell6);
-        //    var location6 = Converters.GeoAreaToPolygon(box6);
-        //    var places = db.StoredOsmElements.Where(md => md.elementGeometry.Intersects(location6)).ToList(); //TODO: filter this down to only areas with IsGameElement == true
-        //    var fakeplaces = places.Where(p => p.IsGenerated).ToList();
-
-        //    for (int x = 0; x < 20; x++)
-        //    {
-        //        for (int y = 0; y < 20; y++)
-        //        {
-        //            string cell8 = cell6 + OpenLocationCode.CodeAlphabet[x] + OpenLocationCode.CodeAlphabet[y];
-        //            CodeArea box = OpenLocationCode.DecodeValid(cell8);
-        //            var location = Converters.GeoAreaToPolygon(box);
-        //            if (!places.Any(md => md.elementGeometry.Intersects(location)) && !fakeplaces.Any(md => md.elementGeometry.Intersects(location)))
-        //                CreateInterestingPlaces(cell8);
-        //        }
-        //    }
-        //}
-
         private static void ApplyConfigValues()
         {
             PraxisContext.connectionString = config["DbConnectionString"];
@@ -810,7 +788,7 @@ namespace Larry
                                 if (places.Count == 0)
                                     return;
                                 //var terrainInfo = AreaTypeInfo.SearchArea(ref box, ref places);
-                                var terrainsPresent = places.Select(p => p.GameElementName).Distinct().ToList();
+                                var terrainsPresent = places.Select(p => p.StyleName).Distinct().ToList();
                                 //r terrainsPresent = terrainInfo.Select(t => t.data.areaType).Distinct().ToList();
 
                                 if (terrainsPresent.Count() > 0)
@@ -913,7 +891,7 @@ namespace Larry
 
                 foreach (var place in places)
                 {
-                    var newHint = GeometrySupport.CalclateDrawSizeHint(TagParser.ApplyTags(place, "mapTiles"));
+                    var newHint = GeometrySupport.CalculateDrawSizeHint(TagParser.ApplyTags(place, "mapTiles"));
                     if (newHint != place.DrawSizeHint)
                         place.DrawSizeHint = newHint;
                 }
@@ -945,7 +923,7 @@ namespace Larry
             }
         }
 
-        public Action<DbTables.Place> CalcDrawSizeHint = (p) => { p.DrawSizeHint = GeometrySupport.CalclateDrawSizeHint(TagParser.ApplyTags(p, "mapTiles")); };
+        public Action<DbTables.Place> CalcDrawSizeHint = (p) => { p.DrawSizeHint = GeometrySupport.CalculateDrawSizeHint(TagParser.ApplyTags(p, "mapTiles")); };
         public Action<DbTables.Place> ReduceSize = (place) => {
             place.ElementGeometry = NetTopologySuite.Precision.GeometryPrecisionReducer.Reduce(NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(place.ElementGeometry, ConstantValues.resolutionCell10), PrecisionModel.FloatingSingle.Value);
             var match = TagParser.GetStyleForOsmWay(place.Tags, "mapTiles");

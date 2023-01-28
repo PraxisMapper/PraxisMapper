@@ -257,7 +257,7 @@ namespace PraxisMapper.Controllers
             if (!DataCheck.IsInBounds(box))
                 return "";
             var places = GetPlaces(box, styleSet: styleSet);
-            places = places.Where(p => p.GameElementName != TagParser.defaultStyle.Name).ToList();
+            places = places.Where(p => p.StyleName != TagParser.defaultStyle.Name).ToList();
 
             StringBuilder sb = new StringBuilder();
             //pluscode|name|type|PrivacyID 
@@ -283,7 +283,7 @@ namespace PraxisMapper.Controllers
             if (!DataCheck.IsInBounds(box))
                 return "";
             var places = GetPlaces(box, styleSet: styleSet); //All the places in this Cell8
-            places = places.Where(p => p.GameElementName != TagParser.defaultStyle.Name).ToList();
+            places = places.Where(p => p.StyleName != TagParser.defaultStyle.Name).ToList();
 
             StringBuilder sb = new StringBuilder();
             //pluscode|name|type|privacyID
@@ -306,7 +306,7 @@ namespace PraxisMapper.Controllers
             var place = TerrainInfo.GetSinglePlaceFromArea(plusCode);
             var name = TagParser.GetPlaceName(place.Tags);
             StringBuilder sb = new StringBuilder();
-            sb.Append(plusCode).Append('|').Append(name).Append('|').Append(place.GameElementName).Append('|').Append(place.PrivacyId);
+            sb.Append(plusCode).Append('|').Append(name).Append('|').Append(place.StyleName).Append('|').Append(place.PrivacyId);
 
             return sb.ToString();
         }

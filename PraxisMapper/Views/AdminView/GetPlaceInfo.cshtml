@@ -10,6 +10,8 @@ Area Info:
 
 Name: @ViewBag.areaname <br />
 Gameplay Area Type: @ViewBag.type <br />
+Geometry type: @ViewBag.geoType<br />
+Tags: @ViewBag.tags
 Areas contained in maptile area: @ViewBag.placeCount <br />
 Gameplay Areas:<br />
 @Html.Raw(ViewBag.areasByType)
@@ -17,10 +19,5 @@ Gameplay Areas:<br />
 
 Rendering time: @ViewBag.timeToDraw
 <br />
-@if(ViewBag.UseSvg){
-    <object type="image/svg+xml" data="@ViewBag.imageString"></object>
-    @Html.Raw(ViewBag.imageString)
-}
-else{
+
     <img src="@ViewBag.imageString" />
-}

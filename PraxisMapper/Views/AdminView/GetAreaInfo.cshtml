@@ -9,17 +9,12 @@ Area Info:
 <br />
 
 PlusCode: @ViewBag.areaname <br />
-Areas contained in maptile area: @ViewBag.placeCount <br />
+Areas loaded in maptile area: @ViewBag.placeCount <br />
 Gameplay Areas:<br />
 @Html.Raw(ViewBag.areasByType)
 
 Loading time: @ViewBag.loadTime<br />
 Rendering time: @ViewBag.timeToDraw
 <br />
-@if(ViewBag.UseSvg){
-    <object type="image/svg+xml" data="@ViewBag.imageString"></object>
-    @Html.Raw(ViewBag.imageString)
-}
-else{
-    <img src="@ViewBag.imageString" />
-}
+
+<img src="@ViewBag.imageString" />

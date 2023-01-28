@@ -92,7 +92,7 @@ namespace PerformanceTestApp
             //TestConvertFromTsv();
             //TestSearchArea();
             //TupleVsRecords(); //looks like recordstructs are way faster
-            BcryptSpeedCheck();
+            //BcryptSpeedCheck();
 
 
             //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
@@ -2408,7 +2408,7 @@ namespace PerformanceTestApp
             //This one return all entries, for a game mode that might need all of them.
             var results = new List<TerrainDataStandalone>(entriesHere.Count);
             foreach (var e in entriesHere)
-                results.Add(new TerrainDataStandalone() { Name = TagParser.GetPlaceName(e.Tags), areaType = e.GameElementName, PrivacyId = e.PrivacyId });
+                results.Add(new TerrainDataStandalone() { Name = TagParser.GetPlaceName(e.Tags), areaType = e.StyleName, PrivacyId = e.PrivacyId });
 
             return results;
         }
