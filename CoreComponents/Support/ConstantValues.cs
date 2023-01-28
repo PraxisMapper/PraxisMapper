@@ -19,7 +19,7 @@
         //Count of cells by size, globally
         //2: 162 (18x9 grid)
         //4: 64,800
-        //6: 25,920,000 //Max unique hashable entries with 32-bit int is 4,200,000,000
+        //6: 25,920,000 //Max unique hashable entries with 32-bit int is ~4,200,000,000
         //8: 10,368,000,000
         //10: 4,147,200,000,000
         //11: 82,944,000,000,000 (* 20, instead of * 400 per level starting at 11)
