@@ -1,19 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 using static PraxisCore.DbTables;
 
 namespace PraxisCore.Styles
 {
+    /// <summary>
+    /// An abbreviated version of the default mapTiles style, that only draws elements likely to be good places for gameplay.
+    /// </summary>
     public static class suggestedGameplay
     {
         //suggestedGameplay: Bolder colored overlay for places that are probably OK for public interaction.
         public static List<StyleEntry> style = new List<StyleEntry>()
         {
-            // Overlay style to show areas that PraxisMapper thinks are good places for gameplay.
-            // Includes generated areas.
             new StyleEntry() { IsGameElement = true,  MatchOrder = 1, Name ="water", StyleSet = "suggestedGameplay",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "CC0062FF", FillOrStroke = "fill", LineWidthDegrees=0.0000625F, LinePattern= "solid", LayerId = 100 },

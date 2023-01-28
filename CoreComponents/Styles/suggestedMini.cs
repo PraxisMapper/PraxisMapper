@@ -1,12 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 using static PraxisCore.DbTables;
 
 namespace PraxisCore.Styles
 {
+    /// <summary>
+    /// A condensed version of suggestedGameplay, with 1 tag per element. Intended for using after Larry has been run with a command to reduce storage size.
+    /// </summary>
     public static class suggestedMini
     {
         public static List<StyleEntry> style = new List<StyleEntry>()

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 using static PraxisCore.DbTables;
 
 namespace PraxisCore.Styles
@@ -26,7 +22,7 @@ namespace PraxisCore.Styles
             //94: primary bottom
             //93: motorway top
             //92: motorway bottom
-            //70: admin boundaries, if they weren't transparent.
+            //60-70: admin boundaries, if they weren't transparent.
 
 
             //NOTE: a rough analysis suggests that about 1/3 of entries are 'tertiary' roads and another third are 'building'

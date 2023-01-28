@@ -1,12 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 using static PraxisCore.DbTables;
 
 namespace PraxisCore.Styles
 {
+    /// <summary>
+    /// An example of how to load color data from a tag on an element. 
+    /// </summary>
     public static class paintTown
     {
         //paintTown: A simple styleset that pulls the color to use from the tag provided

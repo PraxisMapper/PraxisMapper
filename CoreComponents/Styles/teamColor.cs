@@ -1,12 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 using static PraxisCore.DbTables;
 
 namespace PraxisCore.Styles
 {
+    /// <summary>
+    /// Style with 3 default team colors for use in team-based games. Use GetPaintOpsForPlacesData to load team info from PlaceGameData instead of Tags.
+    /// </summary>
     public static class teamColor
     {
         //teamColor: 3 predefined styles to allow for Red(1), Green(2) and Blue(3) teams in a game. Set a tag to the color's ID and then call a DrawCustomX function with this style.
