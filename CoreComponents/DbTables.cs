@@ -47,7 +47,6 @@ namespace PraxisCore
             public string Message { get; set; }
             public string StackTrace { get; set; }
             public DateTime LoggedAt { get; set; }
-
         }
 
         public class GlobalDataEntries //This is here so devs won't need a secondary DB for small stuff.
@@ -97,7 +96,7 @@ namespace PraxisCore
             public double MinDrawRes { get; set; } = 0;//skip drawing this item if  resPerPixelX is below this value. (what doesn't draw zoomed in on OSM? name text?
             public double MaxDrawRes { get; set; } = 4; //skip drawing this item if resPerPixelX is above this value. (EX: tertiary roads don't draw at distant zooms
             public bool Randomize { get; set; } //if true, assign a random color at draw-time.
-            public bool FromTag { get; set; } //if set, read the string for the color value at draw-time.
+            public bool FromTag { get; set; } //if set, read the string for the color value at draw-time from the tag named here.
             public int FixedWidth { get; set; } = 0; //If > 0, always draw the element at this size. Intended for lines that should be equally visible at all zooms, like the Exercise Tracker path drawing.
         }
 
@@ -140,7 +139,7 @@ namespace PraxisCore
             public ICollection<PlaceTags> Tags { get; set; }
             public ICollection<PlaceGameData> GameData { get; set; }
             [NotMapped]
-            public bool IsGameElement { get; set; } //Gets determined by styles, shouldn't be a persisted property. Only used to make standalone DB right now.
+            public bool IsGameElement { get; set; } //Gets determined by styles, shouldn't be a persisted property.
             [NotMapped]
             public string GameElementName { get; set; } //Placeholder for TagParser to load up the name of the matching style for this element, but don't save it to the DB so we can change it on the fly.
             public Guid PrivacyId { get; set; } = Guid.NewGuid(); //Pass this Id to clients, so we can attempt to block attaching players to locations in the DB.
