@@ -54,7 +54,7 @@ namespace PraxisCore
                 queryable = source.AsQueryable();
 
             if (!skipTags)
-                queryable = queryable.Include(q => q.Tags);
+                queryable = queryable.Include(q => q.Tags).Include(q => q.PlaceData);
 
             var paddedArea = GeometrySupport.MakeBufferedGeoArea(area);
             var location = Converters.GeoAreaToPolygon(paddedArea); //Prepared items don't work on a DB lookup.

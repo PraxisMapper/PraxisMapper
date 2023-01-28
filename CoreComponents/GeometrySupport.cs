@@ -134,7 +134,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="g">the CompleteOSMGeo object to prepare to save to the DB</param>
         /// <returns>the Place ready to save to the DB</returns>
-        public static DbTables.Place ConvertOsmEntryToPlace(OsmSharp.Complete.ICompleteOsmGeo g)
+        public static DbTables.Place ConvertOsmEntryToPlace(OsmSharp.Complete.CompleteOsmGeo g)
         {
             var tags = TagParser.getFilteredTags(g.Tags);
             if (tags == null || tags.Count == 0)
@@ -145,7 +145,7 @@ namespace PraxisCore
                 var geometry = PMFeatureInterpreter.Interpret(g); 
                 if (geometry == null)
                 {
-                    Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + "-" + TagParser.GetPlaceName(g.Tags) + " didn't interpret into a Geometry object", Log.VerbosityLevels.Errors);
+                    Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + "-" + TagParser.GetName(g) + " didn't interpret into a Geometry object", Log.VerbosityLevels.Errors);
                     return null;
                 }
                 var place = new DbTables.Place();

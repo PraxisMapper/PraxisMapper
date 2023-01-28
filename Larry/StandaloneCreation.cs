@@ -75,10 +75,10 @@ namespace Larry
             }
             string commonStart = minCode.Substring(0, removableLetters);
 
-            var wikiList = allPlaces.Where(a => a.Tags.Any(t => t.Key == "wikipedia") && TagParser.GetPlaceName(a.Tags) != "").Select(a => TagParser.GetPlaceName(a.Tags)).Distinct().ToList();
+            var wikiList = allPlaces.Where(a => a.Tags.Any(t => t.Key == "wikipedia") && TagParser.GetName(a) != "").Select(a => TagParser.GetName(a)).Distinct().ToList();
             //Leaving this nearly wide open, since it's not the main driver of DB size.
-            var basePlaces = allPlaces.Where(a => TagParser.GetPlaceName(a.Tags) != "" || a.StyleName != "unmatched").ToList(); //.Where(a => a.name != "").ToList();// && (a.IsGameElement || wikiList.Contains(a.name))).ToList();
-            var distinctNames = basePlaces.Select(p => TagParser.GetPlaceName(p.Tags)).Distinct().ToList();//This distinct might be causing things in multiple pieces to only detect one of them, not all of them?
+            var basePlaces = allPlaces.Where(a => TagParser.GetName(a) != "" || a.StyleName != "unmatched").ToList(); //.Where(a => a.name != "").ToList();// && (a.IsGameElement || wikiList.Contains(a.name))).ToList();
+            var distinctNames = basePlaces.Select(p => TagParser.GetName(p)).Distinct().ToList();//This distinct might be causing things in multiple pieces to only detect one of them, not all of them?
 
             var placeInfo = PraxisCore.Standalone.Standalone.GetPlaceInfo(basePlaces);
             //Remove trails later.
@@ -117,7 +117,7 @@ namespace Larry
                 if (skipEntries.Contains(trail.SourceItemID))
                     continue; //Don't per-cell index this one, we shifted it's envelope to handle it instead.
 
-                if (TagParser.GetPlaceName(trail.Tags) == "")
+                if (TagParser.GetName(trail) == "")
                     continue; //So sorry, but there's too damn many roads without names inflating DB size without being useful as-is.
 
                 var p = placeDictionary[trail.SourceItemID];
@@ -130,7 +130,7 @@ namespace Larry
                 var overlapped = PraxisCore.TerrainInfo.SearchArea(ref thisPath, ref oneEntry);
                 if (overlapped.Count > 0)
                 {
-                    tdSmalls.TryAdd(TagParser.GetPlaceName(trail.Tags), new TerrainDataSmall() { Name = TagParser.GetPlaceName(trail.Tags), areaType = trail.StyleName });
+                    tdSmalls.TryAdd(TagParser.GetName(trail), new TerrainDataSmall() { Name = TagParser.GetName(trail), areaType = trail.StyleName });
                 }
                 foreach (var o in overlapped)
                 {

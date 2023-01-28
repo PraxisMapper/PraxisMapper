@@ -1,4 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using OsmSharp;
+using OsmSharp.Complete;
 using OsmSharp.Tags;
 using System;
 using System.Collections.Generic;
@@ -114,19 +116,46 @@ namespace PraxisCore
                 MapTiles.Initialize();
         }
 
+        public static StyleEntry GetStyleEntry(List<AreaData> data, string styleSet = "mapTiles")
+        {
+            var areaDict = data.ToDictionary(k => k.DataKey, v => v.DataValue.ToUTF8String());
+            return GetStyleEntry(areaDict, styleSet);
+        }
+
+        public static StyleEntry GetStyleEntry(string plusCode, string styleSet = "mapTiles")
+        {
+            var db = new PraxisContext();
+            var areaData = db.AreaData.Where(a => a.PlusCode == plusCode).ToList();
+            var areaDict = areaData.ToDictionary(k => k.DataKey, v => v.DataValue.ToUTF8String());
+            return GetStyleEntry(areaDict, styleSet);
+        }
+
+        public static StyleEntry GetStyleEntry(DbTables.Place place, string styleSet = "mapTiles")
+        {
+            var allTags = new Dictionary<string, string>(place.Tags.Count + place.PlaceData.Count);
+            foreach (var t in place.Tags)
+                allTags.TryAdd(t.Key, t.Value);
+
+            foreach (var d in place.PlaceData)
+                if (d.IvData == null) //dont add encrypted entries.
+                    allTags.TryAdd(d.DataKey, d.DataValue.ToUTF8String());
+
+            return GetStyleEntry(allTags, styleSet);
+        }
+
         /// <summary>
         /// Returns the style to use on an element given its tags and a styleset to search against.
         /// </summary>
         /// <param name="tags">the tags attached to a Place to search. A list will be converted to a dictionary and error out if duplicate keys are present in the tags.</param>
         /// <param name="styleSet">the styleset with the rules for parsing elements</param>
         /// <returns>The StyleEntry that matches the rules and tags given, or a defaultStyle if none match.</returns>
-        public static StyleEntry GetStyleForOsmWay(ICollection<PlaceTags> tags, string styleSet = "mapTiles")
+        public static StyleEntry GetStyleEntry(ICollection<PlaceTags> tags, string styleSet = "mapTiles")
         {
             if (tags == null || tags.Count == 0)
                 return defaultStyle;
 
             Dictionary<string, string> dTags = tags.ToDictionary(k => k.Key, v => v.Value);
-            return GetStyleForOsmWay(dTags, styleSet);
+            return GetStyleEntry(dTags, styleSet);
         }
 
         /// <summary>
@@ -135,7 +164,7 @@ namespace PraxisCore
         /// <param name="tags">the tags attached to a Place to search</param>
         /// <param name="styleSet">the styleset with the rules for parsing elements</param>
         /// <returns>The StyleEntry that matches the rules and tags given, or a defaultStyle if none match.</returns>
-        public static StyleEntry GetStyleForOsmWay(Dictionary<string, string> tags, string styleSet = "mapTiles")
+        private static StyleEntry GetStyleEntry(Dictionary<string, string> tags, string styleSet = "mapTiles")
         {
             if (tags == null || tags.Count == 0)
                 return defaultStyle;
@@ -155,58 +184,39 @@ namespace PraxisCore
         /// <param name="tags">the tags attached to a CompleteGeo object to search</param>
         /// <param name="styleSet">the styleset with the rules for parsing elements</param>
         /// <returns>The TagParserEntry that matches the rules and tags given, or a defaultStyle if none match.</returns>
-        public static StyleEntry GetStyleForOsmWay(TagsCollectionBase tags, string styleSet = "mapTiles")
+        public static StyleEntry GetStyleEntry(TagsCollectionBase tags, string styleSet = "mapTiles") //named correctly, this one runs from PbfReader.
         {
             var tempTags = tags.ToDictionary(k => k.Key, v => v.Value);
-            return GetStyleForOsmWay(tempTags, styleSet);
+            return GetStyleEntry(tempTags, styleSet);
         }
 
-        /// <summary>
-        /// Determines the name of the matching style for a CompleteGeo object
-        /// </summary>
-        /// <param name="tags">the tags attached to a completeGeo object</param>
-        /// <param name="styleSet">the styleset to match against</param>
-        /// <returns>The name of the style from the given styleSet that matches the CompleteGeo's tags</returns>
-        public static string GetAreaType(TagsCollectionBase tags, string styleSet = "mapTiles")
+        public static StyleEntry GetStyleEntry(CompleteOsmGeo osm, string styleSet = "mapTiles")
         {
-            var tempTags = tags.Select(t => new PlaceTags() { Key = t.Key, Value = t.Value }).ToList();
-            return GetAreaType(tempTags);
+            var tempTags = osm.Tags.ToDictionary(k => k.Key, v => v.Value);
+            return GetStyleEntry(tempTags, styleSet);
         }
 
-        /// <summary>
-        /// Determines if the name of the matching style for a Place object
-        /// </summary>
-        /// <param name="tags">the tags attached to a Place object</param>
-        /// <param name="styleSet">the styleset to match against</param>
-        /// <returns>The name of the style from the given styleSet that matches the Place tags</returns>
-        public static string GetAreaType(ICollection<PlaceTags> tags, string styleSet = "mapTiles")
+        public static StyleEntry GetStyleEntry(OsmGeo osm, string styleSet = "mapTiles")
         {
-            if (tags == null || tags.Count == 0)
-                return defaultStyle.Name;
-
-            foreach (var drawingRules in allStyleGroups[styleSet])
-                if (MatchOnTags(drawingRules.Value, tags))
-                    return drawingRules.Value.Name;
-
-            return defaultStyle.Name;
+            var tempTags = osm.Tags.ToDictionary(k => k.Key, v => v.Value);
+            return GetStyleEntry(tempTags, styleSet);
         }
 
-        /// <summary>
-        /// Determines if the name of the matching style for a Place object
-        /// </summary>
-        /// <param name="tags">the tags attached to a Place object</param>
-        /// <param name="styleSet">the styleset to match against</param>
-        /// <returns>The name of the style from the given styleSet that matches the Place tags</returns>
-        public static string GetAreaType(Dictionary<string, string> tags, string styleSet = "mapTiles")
+        public static string GetStyleName(CompleteOsmGeo osm, string styleSet = "mapTiles")
         {
-            if (tags == null || tags.Count == 0)
-                return defaultStyle.Name;
+            var tempTags = osm.Tags.ToDictionary(k => k.Key, v => v.Value);
+            return GetStyleEntry(tempTags, styleSet).Name;
+        }
 
-            foreach (var drawingRules in allStyleGroups[styleSet])
-                if (MatchOnTags(drawingRules.Value, tags))
-                    return drawingRules.Value.Name;
+        public static string GetStyleName(OsmGeo osm, string styleSet = "mapTiles")
+        {
+            var tempTags = osm.Tags.ToDictionary(k => k.Key, v => v.Value);
+            return GetStyleEntry(tempTags, styleSet).Name;
+        }
 
-            return defaultStyle.Name;
+        public static string GetStyleName(DbTables.Place place, string styleSet = "mapTiles")
+        {
+            return GetStyleEntry(place, styleSet).Name;
         }
 
         /// <summary>
@@ -352,11 +362,11 @@ namespace PraxisCore
         /// </summary>
         /// <param name="tagsO">the tags to search</param>
         /// <returns>a Name value if one is found, or an empty string if not</returns>
-        public static string GetPlaceName(TagsCollectionBase tagsO)
+        public static string GetName(CompleteOsmGeo geo)
         {
-            if (tagsO.Count == 0)
+            if (geo.Tags.Count == 0)
                 return "";
-            var retVal = tagsO.GetValue("name");
+            var retVal = geo.Tags.GetValue("name");
             if (retVal == null)
                 retVal = "";
 
@@ -368,7 +378,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="tagsO">the tags to search</param>
         /// <returns>a Name value if one is found, or an empty string if not</returns>
-        public static string GetPlaceName(ICollection<PlaceTags> tagsO)
+        public static string GetName(ICollection<PlaceTags> tagsO)
         {
             if (tagsO.Count == 0)
                 return "";
@@ -377,6 +387,11 @@ namespace PraxisCore
                 return "";
 
             return retVal.Value;
+        }
+
+        public static string GetName(DbTables.Place place)
+        {
+            return GetName(place.Tags);
         }
 
         /// <summary>
@@ -404,16 +419,14 @@ namespace PraxisCore
         {
             foreach (var p in places)
             {
-                var style = GetStyleForOsmWay(p.Tags, styleSet);
-                p.StyleName = style.Name;
-                p.IsGameElement = style.IsGameElement;
+                ApplyTags(p, styleSet);
             }
             return places;
         }
 
         public static DbTables.Place ApplyTags(DbTables.Place place, string styleSet)
         {
-            var style = GetStyleForOsmWay(place.Tags, styleSet);
+            var style = GetStyleEntry(place, styleSet);
             place.StyleName = style.Name;
             place.IsGameElement = style.IsGameElement;
             return place;
@@ -445,14 +458,14 @@ namespace PraxisCore
             }
             else
             {
-                var newDict = new Dictionary<string, StyleEntry> { { s.Name, s }};
+                var newDict = new Dictionary<string, StyleEntry> { { s.Name, s } };
                 allStyleGroups.Add(s.StyleSet, newDict);
             }
         }
 
-        public static void InsertStyleList(List<StyleEntry> styles)
+        public static void InsertStyles(List<StyleEntry> styles)
         {
-            foreach(var style in styles)
+            foreach (var style in styles)
                 InsertStyle(style);
         }
     }

@@ -752,17 +752,17 @@ namespace PerformanceTestApp
             List<OsmSharp.Relation> filteredEntries;
             if (areaType == null)
                 filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
-                    TagParser.GetAreaType(p.Tags) != "")
+                    TagParser.GetStyleName(p) != "")
                 .Select(p => (OsmSharp.Relation)p)
                 .ToList();
             else if (areaType == "admin")
                 filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
-                    TagParser.GetAreaType(p.Tags).StartsWith(areaType))
+                    TagParser.GetStyleName(p).StartsWith(areaType))
                 .Select(p => (OsmSharp.Relation)p)
                 .ToList();
             else
                 filteredEntries = progress.Where(p => p.Type == OsmGeoType.Relation &&
-                TagParser.GetAreaType(p.Tags) == areaType
+                TagParser.GetStyleName(p) == areaType
             )
                 .Select(p => (OsmSharp.Relation)p)
                 .ToList();
@@ -1410,194 +1410,190 @@ namespace PerformanceTestApp
             Log.WriteLog("DB cleaned at " + DateTime.Now);
         }
 
-        public static void TestTagParser()
-        {
-            //For future reference: default was the code from the previous commit, 
-            //alt is the code checked in with this change. over 1,000 loops its faster on all the scenarios tested
-            //usually running in about half the time.
-            Log.WriteLog("perf-testing tag parser options");
-            var asm2 = Assembly.LoadFrom(@"PraxisMapTilesImageSharp.dll");
-            var mtImage = (IMapTiles)Activator.CreateInstance(asm2.GetType("PraxisCore.MapTiles")); //Not actually used to draw, but I need to initialize TagParser.
-            TagParser.Initialize(false, mtImage);
-            System.Threading.Thread.Sleep(100);
-            List<PlaceTags> emptyList = new List<PlaceTags>();
-            Stopwatch sw = new Stopwatch();
-            sw.Start();
-            for (var i = 0; i < 100000; i++)
-                foreach (var style in TagParser.allStyleGroups.First().Value)
-                    TagParser.GetStyleForOsmWay(emptyList);
-            //TagParser.MatchOnTags(style, emptyList);
-            sw.Stop();
-            Log.WriteLog("100000 empty lists run in " + sw.ElapsedTicks + " ticks with default (" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
+        //Removed while I update TagParser to include searching the PlaceData entries.
+        //public static void TestTagParser()
+        //{
+        //    //For future reference: default was the code from the previous commit, 
+        //    //alt is the code checked in with this change. over 1,000 loops its faster on all the scenarios tested
+        //    //usually running in about half the time.
+        //    Log.WriteLog("perf-testing tag parser options");
+        //    var asm2 = Assembly.LoadFrom(@"PraxisMapTilesImageSharp.dll");
+        //    var mtImage = (IMapTiles)Activator.CreateInstance(asm2.GetType("PraxisCore.MapTiles")); //Not actually used to draw, but I need to initialize TagParser.
+        //    TagParser.Initialize(false, mtImage);
+        //    System.Threading.Thread.Sleep(100);
+        //    List<PlaceTags> emptyList = new List<PlaceTags>();
+        //    Stopwatch sw = new Stopwatch();
+        //    sw.Start();
+        //    for (var i = 0; i < 100000; i++)
+        //        foreach (var style in TagParser.allStyleGroups.First().Value)
+        //            TagParser.GetStyleForPlace(emptyList);
+        //    //TagParser.MatchOnTags(style, emptyList);
+        //    sw.Stop();
+        //    Log.WriteLog("100000 empty lists run in " + sw.ElapsedTicks + " ticks with default (" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
 
-            //sw.Restart();
-            //for (var i = 0; i < 1000; i++)
-            //    foreach (var style in TagParser.styles)
-            //        TagParser.MatchOnTagsAlt(style, emptyList);
-            //sw.Stop();
-            //Log.WriteLog("1000 empty lists run in " + sw.ElapsedTicks + " ticks with alt");
+        //    //sw.Restart();
+        //    //for (var i = 0; i < 1000; i++)
+        //    //    foreach (var style in TagParser.styles)
+        //    //        TagParser.MatchOnTagsAlt(style, emptyList);
+        //    //sw.Stop();
+        //    //Log.WriteLog("1000 empty lists run in " + sw.ElapsedTicks + " ticks with alt");
 
-            //test with a set that matches on the default entry only.
-            List<PlaceTags> defaultSingle = new List<PlaceTags>();
-            defaultSingle.Add(new PlaceTags() { Key = "badEntry", Value = "mustBeDefault" });
+        //    //test with a set that matches on the default entry only.
+        //    List<PlaceTags> defaultSingle = new List<PlaceTags>();
+        //    defaultSingle.Add(new PlaceTags() { Key = "badEntry", Value = "mustBeDefault" });
 
-            sw.Restart();
-            for (var i = 0; i < 100000; i++)
-                foreach (var style in TagParser.allStyleGroups.First().Value)
-                    TagParser.GetStyleForOsmWay(defaultSingle);
-            //TagParser.MatchOnTags(style, defaultSingle);
-            sw.Stop();
-            Log.WriteLog("100000 single entry default-match lists run in " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
+        //    sw.Restart();
+        //    for (var i = 0; i < 100000; i++)
+        //        foreach (var style in TagParser.allStyleGroups.First().Value)
+        //            TagParser.GetStyleForPlace(defaultSingle);
+        //    //TagParser.MatchOnTags(style, defaultSingle);
+        //    sw.Stop();
+        //    Log.WriteLog("100000 single entry default-match lists run in " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
 
-            //sw.Restart();
-            //for (var i = 0; i < 1000; i++)
-            //    foreach (var style in TagParser.styles)
-            //        TagParser.MatchOnTagsAlt(style, defaultSingle);
-            //sw.Stop();
-            //Log.WriteLog("1000 default-match lists run in " + sw.ElapsedTicks + " ticks with alt");
+        //    //sw.Restart();
+        //    //for (var i = 0; i < 1000; i++)
+        //    //    foreach (var style in TagParser.styles)
+        //    //        TagParser.MatchOnTagsAlt(style, defaultSingle);
+        //    //sw.Stop();
+        //    //Log.WriteLog("1000 default-match lists run in " + sw.ElapsedTicks + " ticks with alt");
 
-            //test with a set that has a lot of tags.
-            List<PlaceTags> biglist = new List<PlaceTags>();
-            biglist.Add(new PlaceTags() { Key = "badEntry", Value = "nothing" });
-            biglist.Add(new PlaceTags() { Key = "place", Value = "neighborhood" });
-            biglist.Add(new PlaceTags() { Key = "natual", Value = "hill" });
-            biglist.Add(new PlaceTags() { Key = "lanes", Value = "7" });
-            biglist.Add(new PlaceTags() { Key = "placeholder", Value = "stuff" });
-            biglist.Add(new PlaceTags() { Key = "screensize", Value = "small" });
-            biglist.Add(new PlaceTags() { Key = "twoMore", Value = "entries" });
-            biglist.Add(new PlaceTags() { Key = "andHere", Value = "WeGo" });
-            biglist.Add(new PlaceTags() { Key = "waterway", Value = "river" });
+        //    //test with a set that has a lot of tags.
+        //    List<PlaceTags> biglist = new List<PlaceTags>();
+        //    biglist.Add(new PlaceTags() { Key = "badEntry", Value = "nothing" });
+        //    biglist.Add(new PlaceTags() { Key = "place", Value = "neighborhood" });
+        //    biglist.Add(new PlaceTags() { Key = "natual", Value = "hill" });
+        //    biglist.Add(new PlaceTags() { Key = "lanes", Value = "7" });
+        //    biglist.Add(new PlaceTags() { Key = "placeholder", Value = "stuff" });
+        //    biglist.Add(new PlaceTags() { Key = "screensize", Value = "small" });
+        //    biglist.Add(new PlaceTags() { Key = "twoMore", Value = "entries" });
+        //    biglist.Add(new PlaceTags() { Key = "andHere", Value = "WeGo" });
+        //    biglist.Add(new PlaceTags() { Key = "waterway", Value = "river" });
 
-            sw.Restart();
-            for (var i = 0; i < 100000; i++)
-                foreach (var style in TagParser.allStyleGroups.First().Value)
-                    TagParser.GetStyleForOsmWay(biglist);
-            //TagParser.MatchOnTags(style, defaultSingle);
-            sw.Stop();
-            Log.WriteLog("100000 8-tag match-water lists run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
+        //    sw.Restart();
+        //    for (var i = 0; i < 100000; i++)
+        //        foreach (var style in TagParser.allStyleGroups.First().Value)
+        //            TagParser.GetStyleForPlace(biglist);
+        //    //TagParser.MatchOnTags(style, defaultSingle);
+        //    sw.Stop();
+        //    Log.WriteLog("100000 8-tag match-water lists run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
 
-            biglist.Remove(biglist.Last()); //Remove the water-match tag.
-            biglist.Add(new PlaceTags() { Key = "other", Value = "tag" });
+        //    biglist.Remove(biglist.Last()); //Remove the water-match tag.
+        //    biglist.Add(new PlaceTags() { Key = "other", Value = "tag" });
 
-            sw.Restart();
-            for (var i = 0; i < 100000; i++)
-                foreach (var style in TagParser.allStyleGroups.First().Value)
-                    TagParser.GetStyleForOsmWay(biglist);
-            //TagParser.MatchOnTags(style, defaultSingle);
-            sw.Stop();
-            Log.WriteLog("100000 8-tag default match lists run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
+        //    sw.Restart();
+        //    for (var i = 0; i < 100000; i++)
+        //        foreach (var style in TagParser.allStyleGroups.First().Value)
+        //            TagParser.GetStyleForPlace(biglist);
+        //    //TagParser.MatchOnTags(style, defaultSingle);
+        //    sw.Stop();
+        //    Log.WriteLog("100000 8-tag default match lists run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
 
-            var biglist2 = biglist.Select(b => b).ToList();
-            biglist2.Add(new PlaceTags() { Key = "2badEntry", Value = "nothing" });
-            biglist2.Add(new PlaceTags() { Key = "2place", Value = "neighborhood" });
-            biglist2.Add(new PlaceTags() { Key = "2natual", Value = "hill" });
-            biglist2.Add(new PlaceTags() { Key = "2lanes", Value = "7" });
-            biglist2.Add(new PlaceTags() { Key = "2placeholder", Value = "stuff" });
-            biglist2.Add(new PlaceTags() { Key = "2screensize", Value = "small" });
-            biglist2.Add(new PlaceTags() { Key = "2twoMore", Value = "entries" });
-            biglist2.Add(new PlaceTags() { Key = "2andHere", Value = "WeGo" });
-            biglist2.Add(new PlaceTags() { Key = "2waterway", Value = "river" });
-            biglist2.Add(new PlaceTags() { Key = "32badEntry", Value = "nothing" });
-            biglist2.Add(new PlaceTags() { Key = "32place", Value = "neighborhood" });
-            biglist2.Add(new PlaceTags() { Key = "32natual", Value = "hill" });
-            biglist2.Add(new PlaceTags() { Key = "32lanes", Value = "7" });
-            biglist2.Add(new PlaceTags() { Key = "32placeholder", Value = "stuff" });
-            biglist2.Add(new PlaceTags() { Key = "32screensize", Value = "small" });
-            biglist2.Add(new PlaceTags() { Key = "32twoMore", Value = "entries" });
-            biglist2.Add(new PlaceTags() { Key = "32andHere", Value = "WeGo" });
-            biglist2.Add(new PlaceTags() { Key = "32waterway", Value = "river" });
-            biglist2.Add(new PlaceTags() { Key = "42badEntry", Value = "nothing" });
-            biglist2.Add(new PlaceTags() { Key = "42place", Value = "neighborhood" });
-            biglist2.Add(new PlaceTags() { Key = "42natual", Value = "hill" });
-            biglist2.Add(new PlaceTags() { Key = "42lanes", Value = "7" });
-            biglist2.Add(new PlaceTags() { Key = "42placeholder", Value = "stuff" });
-            biglist2.Add(new PlaceTags() { Key = "42screensize", Value = "small" });
-            biglist2.Add(new PlaceTags() { Key = "42twoMore", Value = "entries" });
-            biglist2.Add(new PlaceTags() { Key = "42andHere", Value = "WeGo" });
-            biglist2.Add(new PlaceTags() { Key = "42waterway", Value = "river" });
-            biglist2.Add(new PlaceTags() { Key = "52badEntry", Value = "nothing" });
-            biglist2.Add(new PlaceTags() { Key = "52place", Value = "neighborhood" });
-            biglist2.Add(new PlaceTags() { Key = "52natual", Value = "hill" });
-            biglist2.Add(new PlaceTags() { Key = "52lanes", Value = "7" });
-            biglist2.Add(new PlaceTags() { Key = "52placeholder", Value = "stuff" });
-            biglist2.Add(new PlaceTags() { Key = "52screensize", Value = "small" });
-            biglist2.Add(new PlaceTags() { Key = "52twoMore", Value = "entries" });
-            biglist2.Add(new PlaceTags() { Key = "52andHere", Value = "WeGo" });
-            biglist2.Add(new PlaceTags() { Key = "52waterway", Value = "river" });
+        //    var biglist2 = biglist.Select(b => b).ToList();
+        //    biglist2.Add(new PlaceTags() { Key = "2badEntry", Value = "nothing" });
+        //    biglist2.Add(new PlaceTags() { Key = "2place", Value = "neighborhood" });
+        //    biglist2.Add(new PlaceTags() { Key = "2natual", Value = "hill" });
+        //    biglist2.Add(new PlaceTags() { Key = "2lanes", Value = "7" });
+        //    biglist2.Add(new PlaceTags() { Key = "2placeholder", Value = "stuff" });
+        //    biglist2.Add(new PlaceTags() { Key = "2screensize", Value = "small" });
+        //    biglist2.Add(new PlaceTags() { Key = "2twoMore", Value = "entries" });
+        //    biglist2.Add(new PlaceTags() { Key = "2andHere", Value = "WeGo" });
+        //    biglist2.Add(new PlaceTags() { Key = "2waterway", Value = "river" });
+        //    biglist2.Add(new PlaceTags() { Key = "32badEntry", Value = "nothing" });
+        //    biglist2.Add(new PlaceTags() { Key = "32place", Value = "neighborhood" });
+        //    biglist2.Add(new PlaceTags() { Key = "32natual", Value = "hill" });
+        //    biglist2.Add(new PlaceTags() { Key = "32lanes", Value = "7" });
+        //    biglist2.Add(new PlaceTags() { Key = "32placeholder", Value = "stuff" });
+        //    biglist2.Add(new PlaceTags() { Key = "32screensize", Value = "small" });
+        //    biglist2.Add(new PlaceTags() { Key = "32twoMore", Value = "entries" });
+        //    biglist2.Add(new PlaceTags() { Key = "32andHere", Value = "WeGo" });
+        //    biglist2.Add(new PlaceTags() { Key = "32waterway", Value = "river" });
+        //    biglist2.Add(new PlaceTags() { Key = "42badEntry", Value = "nothing" });
+        //    biglist2.Add(new PlaceTags() { Key = "42place", Value = "neighborhood" });
+        //    biglist2.Add(new PlaceTags() { Key = "42natual", Value = "hill" });
+        //    biglist2.Add(new PlaceTags() { Key = "42lanes", Value = "7" });
+        //    biglist2.Add(new PlaceTags() { Key = "42placeholder", Value = "stuff" });
+        //    biglist2.Add(new PlaceTags() { Key = "42screensize", Value = "small" });
+        //    biglist2.Add(new PlaceTags() { Key = "42twoMore", Value = "entries" });
+        //    biglist2.Add(new PlaceTags() { Key = "42andHere", Value = "WeGo" });
+        //    biglist2.Add(new PlaceTags() { Key = "42waterway", Value = "river" });
+        //    biglist2.Add(new PlaceTags() { Key = "52badEntry", Value = "nothing" });
+        //    biglist2.Add(new PlaceTags() { Key = "52place", Value = "neighborhood" });
+        //    biglist2.Add(new PlaceTags() { Key = "52natual", Value = "hill" });
+        //    biglist2.Add(new PlaceTags() { Key = "52lanes", Value = "7" });
+        //    biglist2.Add(new PlaceTags() { Key = "52placeholder", Value = "stuff" });
+        //    biglist2.Add(new PlaceTags() { Key = "52screensize", Value = "small" });
+        //    biglist2.Add(new PlaceTags() { Key = "52twoMore", Value = "entries" });
+        //    biglist2.Add(new PlaceTags() { Key = "52andHere", Value = "WeGo" });
+        //    biglist2.Add(new PlaceTags() { Key = "52waterway", Value = "river" });
 
-            sw.Restart();
-            for (var i = 0; i < 100000; i++)
-                foreach (var style in TagParser.allStyleGroups.First().Value)
-                    TagParser.GetStyleForOsmWay(biglist2);
-            //TagParser.MatchOnTags(style, defaultSingle);
-            sw.Stop();
-            Log.WriteLog("100000 48-tag default match lists run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
+        //    sw.Restart();
+        //    for (var i = 0; i < 100000; i++)
+        //        foreach (var style in TagParser.allStyleGroups.First().Value)
+        //            TagParser.GetStyleForPlace(biglist2);
+        //    //TagParser.MatchOnTags(style, defaultSingle);
+        //    sw.Stop();
+        //    Log.WriteLog("100000 48-tag default match lists run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
 
-            //sw.Restart();
-            //for (var i = 0; i < 1000; i++)
-            //    foreach (var style in TagParser.styles)
-            //        TagParser.MatchOnTagsAlt(style, defaultSingle);
-            //sw.Stop();
-            //Log.WriteLog("1000 big match on water lists run in " + sw.ElapsedTicks + " ticks with alt");
+        //    //sw.Restart();
+        //    //for (var i = 0; i < 1000; i++)
+        //    //    foreach (var style in TagParser.styles)
+        //    //        TagParser.MatchOnTagsAlt(style, defaultSingle);
+        //    //sw.Stop();
+        //    //Log.WriteLog("1000 big match on water lists run in " + sw.ElapsedTicks + " ticks with alt");
 
-            Log.WriteLog("Using dictionary instead of list:");
-            Dictionary<string, string> searchDict = new Dictionary<string, string>();
+        //    Log.WriteLog("Using dictionary instead of list:");
+        //    Dictionary<string, string> searchDict = new Dictionary<string, string>();
 
-            sw.Restart();
-            for (var i = 0; i < 100000; i++)
-                foreach (var style in TagParser.allStyleGroups.First().Value)
-                    TagParser.GetStyleForOsmWay(searchDict);
-            sw.Stop();
-            Log.WriteLog("100000 empty dicts run in " + sw.ElapsedTicks + " ticks with default (" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
+        //    sw.Restart();
+        //    for (var i = 0; i < 100000; i++)
+        //        foreach (var style in TagParser.allStyleGroups.First().Value)
+        //            TagParser.GetStyle(searchDict);
+        //    sw.Stop();
+        //    Log.WriteLog("100000 empty dicts run in " + sw.ElapsedTicks + " ticks with default (" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
 
-            searchDict.Add("badEntry", "mustBeDefault");
+        //    searchDict.Add("badEntry", "mustBeDefault");
 
-            sw.Restart();
-            for (var i = 0; i < 100000; i++)
-                foreach (var style in TagParser.allStyleGroups.First().Value)
-                    TagParser.GetStyleForOsmWay(searchDict);
-            sw.Stop();
-            Log.WriteLog("100000 single entry default-matchdicts run in " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
+        //    sw.Restart();
+        //    for (var i = 0; i < 100000; i++)
+        //        foreach (var style in TagParser.allStyleGroups.First().Value)
+        //            TagParser.GetStyle(searchDict);
+        //    sw.Stop();
+        //    Log.WriteLog("100000 single entry default-matchdicts run in " + sw.ElapsedTicks + " ticks (" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
 
-            searchDict = biglist.ToDictionary(k => k.Key, v => v.Value);
+        //    searchDict = biglist.ToDictionary(k => k.Key, v => v.Value);
 
-            sw.Restart();
-            for (var i = 0; i < 100000; i++)
-                foreach (var style in TagParser.allStyleGroups.First().Value)
-                    TagParser.GetStyleForOsmWay(searchDict);
-            sw.Stop();
-            Log.WriteLog("100000 8-tag match-default dicts run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
+        //    sw.Restart();
+        //    for (var i = 0; i < 100000; i++)
+        //        foreach (var style in TagParser.allStyleGroups.First().Value)
+        //            TagParser.GetStyle(searchDict);
+        //    sw.Stop();
+        //    Log.WriteLog("100000 8-tag match-default dicts run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
 
-            searchDict.Add("waterway", "natural");
-            sw.Restart();
-            for (var i = 0; i < 100000; i++)
-                foreach (var style in TagParser.allStyleGroups.First().Value)
-                    TagParser.GetStyleForOsmWay(searchDict);
-            sw.Stop();
-            Log.WriteLog("100000 9-tag match-water dicts run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
+        //    searchDict.Add("waterway", "natural");
+        //    sw.Restart();
+        //    for (var i = 0; i < 100000; i++)
+        //        foreach (var style in TagParser.allStyleGroups.First().Value)
+        //            TagParser.GetStyle(searchDict);
+        //    sw.Stop();
+        //    Log.WriteLog("100000 9-tag match-water dicts run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
 
-            searchDict = biglist2.ToDictionary(k => k.Key, v => v.Value);
-            sw.Restart();
-            for (var i = 0; i < 100000; i++)
-                foreach (var style in TagParser.allStyleGroups.First().Value)
-                    TagParser.GetStyleForOsmWay(searchDict);
-            sw.Stop();
-            Log.WriteLog("100000 45-tag match-default dicts run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
-
-
-            searchDict.Add("waterway", "natural");
-            sw.Restart();
-            for (var i = 0; i < 100000; i++)
-                foreach (var style in TagParser.allStyleGroups.First().Value)
-                    TagParser.GetStyleForOsmWay(searchDict);
-            sw.Stop();
-            Log.WriteLog("100000 46-tag match-water dicts run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
+        //    searchDict = biglist2.ToDictionary(k => k.Key, v => v.Value);
+        //    sw.Restart();
+        //    for (var i = 0; i < 100000; i++)
+        //        foreach (var style in TagParser.allStyleGroups.First().Value)
+        //            TagParser.GetStyle(searchDict);
+        //    sw.Stop();
+        //    Log.WriteLog("100000 45-tag match-default dicts run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
 
 
-
-
-
-        }
+        //    searchDict.Add("waterway", "natural");
+        //    sw.Restart();
+        //    for (var i = 0; i < 100000; i++)
+        //        foreach (var style in TagParser.allStyleGroups.First().Value)
+        //            TagParser.GetStyle(searchDict);
+        //    sw.Stop();
+        //    Log.WriteLog("100000 46-tag match-water dicts run in " + sw.ElapsedTicks + " ticks(" + sw.ElapsedMilliseconds / 100000.0 + "ms avg)");
+        //}
 
         public static void TestCropVsNoCropDraw(string CellToTest)
         {
@@ -2408,7 +2404,7 @@ namespace PerformanceTestApp
             //This one return all entries, for a game mode that might need all of them.
             var results = new List<TerrainDataStandalone>(entriesHere.Count);
             foreach (var e in entriesHere)
-                results.Add(new TerrainDataStandalone() { Name = TagParser.GetPlaceName(e.Tags), areaType = e.StyleName, PrivacyId = e.PrivacyId });
+                results.Add(new TerrainDataStandalone() { Name = TagParser.GetName(e), areaType = e.StyleName, PrivacyId = e.PrivacyId });
 
             return results;
         }

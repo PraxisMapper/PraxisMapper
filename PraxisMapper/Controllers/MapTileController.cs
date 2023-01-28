@@ -55,20 +55,6 @@ namespace PraxisMapper.Controllers
             return existingResults.TileData;
         }
 
-        //NOTE: this may be better served being in MapTileSupport.
-        public byte[] getExistingTile(string code, string styleSet)
-        {
-            if (!SaveMapTiles())
-                return null;
-
-            var db = new PraxisContext();
-            var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.StyleSet == styleSet);
-            if (existingResults == null || existingResults.ExpireOn < DateTime.UtcNow)
-                return null;
-
-            return existingResults.TileData;
-        }
-
         private byte[] FinishSlippyMapTile(ImageStats info, List<CompletePaintOp> paintOps, string tileKey, string styleSet)
         {
             byte[] results = null;
@@ -100,19 +86,8 @@ namespace PraxisMapper.Controllers
 
             if (SaveMapTiles())
             {
-                var db = new PraxisContext();
-                var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.StyleSet == styleSet);
-                if (existingResults == null)
-                {
-                    existingResults = new MapTile() { PlusCode = code, StyleSet = styleSet, AreaCovered = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(info.area)) };
-                    db.MapTiles.Add(existingResults);
-                }
-
-                existingResults.ExpireOn = DateTime.UtcNow.AddYears(10);
-                existingResults.TileData = results;
-                existingResults.GenerationID++;
-                db.SaveChanges();
-                cache.Set("gen" + code + styleSet, existingResults.GenerationID);
+                var currentGen = MapTileSupport.SaveMapTile(code, styleSet, results);
+                cache.Set("gen" + code + styleSet, currentGen);
             }
 
             return results;
@@ -157,7 +132,7 @@ namespace PraxisMapper.Controllers
             }
         }
 
-        //This might not be a real useful function? Or it might need a better name.
+        //This is for drawing tiles based off of entries in the PlaceData table instead of PlaceTags.
         [HttpGet]
         [Route("/[controller]/DrawSlippyTileCustomElements/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
         [Route("/[controller]/SlippyCustomElements/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
@@ -264,15 +239,18 @@ namespace PraxisMapper.Controllers
                     return StatusCode(500);
                 }
 
-                byte[] tileData = getExistingTile(code, styleSet);
+                byte[] tileData = MapTileSupport.GetExistingTileImage(code, styleSet);
                 if (tileData != null)
                 {
                     Response.Headers.Add("X-notes", "cached");
                     return File(tileData, "image/png");
                 }
 
+                //NOTE: this is very similar, but doesn't save.
+                //var data = MapTileSupport.DrawPlusCode(code, styleSet);
+
                 //Make tile
-                var places = GetPlaces(info, null, styleSet, false);
+                var places = GetPlaces(info, null, styleSet);
                 var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, styleSet, info);
                 tileData = FinishMapTile(info, paintOps, code, styleSet);
 
@@ -302,7 +280,7 @@ namespace PraxisMapper.Controllers
                     return StatusCode(500);
                 }
 
-                byte[] tileData = getExistingTile(code, styleSet);
+                byte[] tileData = MapTileSupport.GetExistingTileImage(code, styleSet);
                 if (tileData != null)
                 {
                     Response.Headers.Add("X-notes", "cached");
@@ -310,7 +288,7 @@ namespace PraxisMapper.Controllers
                 }
 
                 //Make tile
-                var places = GetPlaces(info, null, styleSet, false);
+                var places = GetPlaces(info, null, styleSet);
                 var paintOps = MapTileSupport.GetPaintOpsForAreaData(dataKey, styleSet, info);
                 tileData = FinishMapTile(info, paintOps, code, styleSet);
 
@@ -340,7 +318,7 @@ namespace PraxisMapper.Controllers
                     return StatusCode(500);
                 }
 
-                byte[] tileData = getExistingTile(code, styleSet);
+                byte[] tileData = MapTileSupport.GetExistingTileImage(code, styleSet);
                 if (tileData != null)
                 {
                     Response.Headers.Add("X-notes", "cached");
