@@ -1,12 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 using static PraxisCore.DbTables;
 
 namespace PraxisCore.Styles
 {
+    /// <summary>
+    /// Draws all elements with a black and white outline. Useful for debugging. May require using filterSize=0 in calls to GetPlaces.
+    /// </summary>
     public static class outlines
     {
         //outlines: Draws a black border outline for all elements

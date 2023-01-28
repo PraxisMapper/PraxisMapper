@@ -1,12 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 using static PraxisCore.DbTables;
 
 namespace PraxisCore.Styles
 {
+    /// <summary>
+    /// Only draws administrative boundaries, of all sizes. Names follow typical rules for the USA.
+    /// </summary>
     public static class adminBounds
     {
         //adminBounds: Draws only admin boundaries, all levels supported but names match USA's common usage of them
