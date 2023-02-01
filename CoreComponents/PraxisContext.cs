@@ -95,18 +95,18 @@ namespace PraxisCore
 
         //A trigger to ensure all data inserted is valid by MSSQL Server rules.
         public static string MapDataValidTriggerMSSQL = "CREATE TRIGGER dbo.MakeValid ON dbo.MapData AFTER INSERT AS BEGIN UPDATE dbo.MapData SET place = place.MakeValid() WHERE MapDataId in (SELECT MapDataId from inserted) END";
-        public static string GeneratedMapDataValidTriggerMSSQL = "CREATE TRIGGER dbo.GenereatedMapDataMakeValid ON dbo.GeneratedMapData AFTER INSERT AS BEGIN UPDATE dbo.GeneratedMapData SET place = place.MakeValid() WHERE GeneratedMapDataId in (SELECT GeneratedMapDataId from inserted) END";
+        //public static string GeneratedMapDataValidTriggerMSSQL = "CREATE TRIGGER dbo.GenereatedMapDataMakeValid ON dbo.GeneratedMapData AFTER INSERT AS BEGIN UPDATE dbo.GeneratedMapData SET place = place.MakeValid() WHERE GeneratedMapDataId in (SELECT GeneratedMapDataId from inserted) END";
 
-        //An index that I don't think EFCore can create correctly automatically.
+        //indexes that I don't think EFCore can create correctly automatically.
         public static string MapTileIndex = "CREATE SPATIAL INDEX MapTileSpatialIndex ON MapTiles(areaCovered)";
         public static string SlippyMapTileIndex = "CREATE SPATIAL INDEX SlippyMapTileSpatialIndex ON SlippyMapTiles(areaCovered)";
         public static string StoredElementsIndex = "CREATE SPATIAL INDEX PlacesIndex ON Places(elementGeometry)";
-        public static string customDataPlusCodesIndex = "CREATE SPATIAL INDEX areaGameDataSpatialIndex ON AreaData(geoAreaIndex)";
-        public static string drawSizeHintIndex = "CREATE OR REPLACE INDEX IX_Places_DrawSizeHint on Places (DrawSizeHint)"; 
-        public static string privacyIdIndex = "CREATE OR REPLACE INDEX IX_Places_privacyId on Places (privacyId)";
-        public static string sourceItemIdIndex = "CREATE OR REPLACE INDEX IX_Places_sourceItemID on Places (sourceItemID)";
-        public static string sourceItemTypeIndex = "CREATE OR REPLACE INDEX IX_Places_sourceItemType on Places (sourceItemType)";
-        public static string tagKeyIndex = "CREATE OR REPLACE INDEX IX_PlaceTags_Key on PlaceTags (`Key`)";
+        public static string customDataPlusCodesIndex = "CREATE SPATIAL INDEX areaDataSpatialIndex ON AreaData(geoAreaIndex)";
+        public static string drawSizeHintIndex = "CREATE OR REPLACE INDEX IX_Places_DrawSizeHint on Places(DrawSizeHint)"; 
+        public static string privacyIdIndex = "CREATE OR REPLACE INDEX IX_Places_privacyId on Places(privacyId)";
+        public static string sourceItemIdIndex = "CREATE OR REPLACE INDEX IX_Places_sourceItemID on Places(sourceItemID)";
+        public static string sourceItemTypeIndex = "CREATE OR REPLACE INDEX IX_Places_sourceItemType on Places(sourceItemType)";
+        public static string tagKeyIndex = "CREATE OR REPLACE INDEX IX_PlaceTags_Key on PlaceTags(`Key`)";
 
         //PostgreSQL uses its own CREATE INDEX syntax
         public static string MapTileIndexPG = "CREATE INDEX maptiles_geom_idx ON public.\"MapTiles\" USING GIST(\"areaCovered\")";
@@ -154,7 +154,7 @@ namespace PraxisCore
 
             if (serverMode == "SQLServer")
             {
-                Database.ExecuteSqlRaw(GeneratedMapDataValidTriggerMSSQL);
+                //Database.ExecuteSqlRaw(GeneratedMapDataValidTriggerMSSQL);
             }
             if (serverMode == "MariaDB")
             {
