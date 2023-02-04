@@ -401,7 +401,7 @@ namespace PraxisCore
                 return tag.Value;
 
             var data = place.PlaceData.FirstOrDefault(p => p.DataKey == key);
-            if (data != null && data.DataValue != null)
+            if (data != null && data.DataValue != null && data.Expiration >= DateTime.UtcNow)
                 return data.DataValue.ToUTF8String();
 
             return "";
