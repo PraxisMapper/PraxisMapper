@@ -93,6 +93,23 @@ namespace PraxisCore
             return MapTiles.DrawAreaAtSize(info, paintOps);
         }
 
+        //future version of GetPaintOps that should let me consolidate functions in the future
+        private static void GetPaintOpsInner(ref List<CompletePaintOp> list, DbTables.Place place, ICollection<StylePaint> midOps, ImageStats stats, string dataKey = "")
+        {
+            foreach (var po in midOps)
+                if (stats.degreesPerPixelX < po.MaxDrawRes
+                    && stats.degreesPerPixelX > po.MinDrawRes //dppX should be between max and min draw range.
+                    && !(po.HtmlColorCode.Length == 8 && po.HtmlColorCode.StartsWith("00")) //color is NOT transparent.
+                    )
+                    list.Add(new CompletePaintOp(
+                        place.ElementGeometry,
+                        place.DrawSizeHint,
+                        po,
+                        po.FromTag ? TagParser.GetTagValue(place, "tag") : "",
+                        po.FixedWidth == 0 ? po.LineWidthDegrees * stats.pixelsPerDegreeX : po.FixedWidth)
+                    );
+        }
+
         private static void GetPaintOps(ref List<CompletePaintOp> list, double areaSize, Geometry elementGeometry, ICollection<StylePaint> midOps, ImageStats stats)
         {
             foreach (var po in midOps)
@@ -101,6 +118,31 @@ namespace PraxisCore
                     && !(po.HtmlColorCode.Length == 8 && po.HtmlColorCode.StartsWith("00")) //color is NOT transparent.
                     )
                     list.Add(new CompletePaintOp(elementGeometry, areaSize, po, "", po.FixedWidth == 0 ? po.LineWidthDegrees * stats.pixelsPerDegreeX :  po.FixedWidth));
+        }
+
+        //and this is the future replacement version of GetPAintOpsForPlaces that should consolidate some of the calls. Needs a version for areas still.
+        public static List<CompletePaintOp> GetPaintOps(List<DbTables.Place> places, string styleSet, ImageStats stats, string dataKey = "")
+        {
+            //TODO: add support here for reading FromTag styles? This needs to be checked.
+            // -- should be done the step below, for inner ops.
+            //TODO: add DataValue parameter when drawing from data. SHOULD happen automatically now that i add placeData to the tags, since that will set the style name.
+            // --This will let me remove the PaintTown version of GetPaintOps
+            // --the dataKey used to be passed in, and the value of the tag in dataKey was used as the style name
+
+            //TagParser will already have run for the style set, so everything will have StyleName filled in. That will also include entries from Data instead of Tags.
+            //so the only check should be to see if the style is FromTag, and then load it from the tag?
+            //This might be done, actually, and the issue isn't that this logic needed extra work as much as drawing by areas is a special case and TagParser needed to load Data.
+            //May want a version that takes areas and draws those, but that should stick to the naming schemes of just GetPaintOps and let parameters decide.
+
+            var styles = TagParser.allStyleGroups[styleSet];
+            var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
+            var pass1 = places.Select(d => new { place = d, paintOp = styles[d.StyleName].PaintOperations });
+            var pass2 = new List<CompletePaintOp>(places.Count * 2);
+            pass2.Add(bgOp);
+            foreach (var op in pass1)
+                GetPaintOpsInner(ref pass2, op.place, op.paintOp, stats, dataKey);
+
+            return pass2;
         }
 
         /// <summary>
