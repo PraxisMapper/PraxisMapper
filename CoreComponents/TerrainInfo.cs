@@ -1,12 +1,10 @@
 ﻿using Google.OpenLocationCode;
-using Microsoft.EntityFrameworkCore;
 using PraxisCore.Support;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using static PraxisCore.ConstantValues;
 using static PraxisCore.Place;
-using static PraxisCore.StandaloneDbTables;
 
 namespace PraxisCore
 {
@@ -21,7 +19,7 @@ namespace PraxisCore
         /// Get the StyleName (as defined by TagParser) for each Place in the list, along with name and client-facing ID.
         /// </summary>
         /// <param name="entriesHere">the list of elements to pull data from</param>
-        /// <returns>A list of name, StyleNAme, and elementIds for a client</returns>
+        /// <returns>A list of name, StyleName, and elementIds for a client</returns>
         public static List<TerrainData> DetermineAreaTerrains(List<DbTables.Place> entriesHere)
         {
             //Which Place in this given Area is the one that should be displayed on the game/map as the name? picks the smallest one.
@@ -61,8 +59,6 @@ namespace PraxisCore
             if (elements.Count == 0)
                 return results;
 
-            //var xCells = area.LongitudeWidth / resolutionCell10;
-            //var yCells = area.LatitudeHeight / resolutionCell10;
             double x = area.Min.Longitude;
             double y = area.Min.Latitude;
 
@@ -70,12 +66,10 @@ namespace PraxisCore
             List<DbTables.Place> searchPlaces;
             FindPlaceResult? placeFound;
 
-            //for (double xx = 0; xx < xCells; xx++) 
             while (x < area.Max.Longitude)
             {
                 searchArea = new GeoArea(area.Min.Latitude, x - resolutionCell10, area.Max.Latitude, x + resolutionCell10);
                 searchPlaces = GetPlaces(searchArea, elements, skipTags: true);
-                //for (double yy = 0; yy < yCells; yy++) 
                 while (y < area.Max.Latitude)
                 {
                     placeFound = FindPlaceInCell10(x, y, ref searchPlaces);
@@ -105,8 +99,6 @@ namespace PraxisCore
             //Plural function, returns all entries for each cell10.
             List<FindPlacesResult> results = new List<FindPlacesResult>(400); //starting capacity for a full Cell8
 
-            //var xCells = area.LongitudeWidth / resolutionCell10;
-            //var yCells = area.LatitudeHeight / resolutionCell10;
             double x = area.Min.Longitude;
             double y = area.Min.Latitude;
 
@@ -114,12 +106,10 @@ namespace PraxisCore
             List<DbTables.Place> searchPlaces;
             FindPlacesResult? placeFound;
 
-            //for (double xx = 0; xx < xCells; xx++)
             while (x < area.Max.Longitude)
             {
                 searchArea = new GeoArea(area.Min.Latitude, x - resolutionCell10, area.Max.Latitude, x + resolutionCell10);
                 searchPlaces = GetPlaces(searchArea, elements, skipTags: true);
-                //for (double yy = 0; yy < yCells; yy++)
                 while (y < area.Max.Latitude)
                 {
                     placeFound = FindPlacesInCell10(x, y, ref searchPlaces);

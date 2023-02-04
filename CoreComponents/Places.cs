@@ -1,19 +1,16 @@
-﻿using PraxisCore.Support;
-using Google.OpenLocationCode;
+﻿using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
+using PraxisCore.Support;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using static PraxisCore.ConstantValues;
 using static PraxisCore.DbTables;
-using static PraxisCore.GeometrySupport;
-using static PraxisCore.Singletons;
 
 namespace PraxisCore
 {
     /// <summary>
-    /// Places are OpenStreetMap Relations, Ways, or Nodes with tags of interest.
+    /// Places are OpenStreetMap Relations, Ways, or Nodes with tags of interest. DbTables.Place holds the actual data.
     /// </summary>
     public static class Place
     {
@@ -35,9 +32,6 @@ namespace PraxisCore
         /// <returns>A list of Places that intersect the area, have a perimter greater than or equal to filtersize.</returns>
         public static List<DbTables.Place> GetPlaces(GeoArea area, List<DbTables.Place> source = null, double filterSize = 0, string styleSet = "mapTiles", bool skipTags = false, bool skipGeometry = false)
         {
-            //parameters i will need to restore later?
-            //bool includeGenerated = false;
-
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
             //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
             IQueryable<DbTables.Place> queryable;
@@ -57,7 +51,7 @@ namespace PraxisCore
                 queryable = queryable.Include(q => q.Tags).Include(q => q.PlaceData);
 
             var paddedArea = GeometrySupport.MakeBufferedGeoArea(area);
-            var location = Converters.GeoAreaToPolygon(paddedArea); //Prepared items don't work on a DB lookup.
+            var location = Converters.GeoAreaToPolygon(paddedArea); 
             queryable = queryable.Where(md => location.Intersects(md.ElementGeometry) && md.DrawSizeHint >= filterSize).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length);
 
             if (skipGeometry)
@@ -91,20 +85,13 @@ namespace PraxisCore
         /// <returns>true if any Places intersect the given GeoArea, false if not.</returns>
         public static bool DoPlacesExist(GeoArea area, List<DbTables.Place> source = null)
         {
-            //As GetPlaces, but only checks if there are entries.
             var location = Converters.GeoAreaToPolygon(area);
-            bool places;
             if (source == null)
             {
                 var db = new PraxisContext();
-                places = db.Places.Any(md => md.ElementGeometry.Intersects(location));
-                return places;
+                return db.Places.Any(md => md.ElementGeometry.Intersects(location));
             }
-            else
-            {
-                places = source.Any(md => md.ElementGeometry.Intersects(location));
-            }
-            return places;
+            return source.Any(md => md.ElementGeometry.Intersects(location));
         }
 
         /// <summary>
@@ -199,6 +186,7 @@ namespace PraxisCore
             var distancePoly = ntsPoint.Buffer(distance);
             var dbresults = db.Places
                 .Include(o => o.Tags)
+                .Include(o => o.PlaceData)
                 .Where(o => o.ElementGeometry.Intersects(distancePoly))
                 .ToList();
 
