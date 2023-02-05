@@ -28,5 +28,13 @@ namespace PraxisCore
             if (entityLock.counter <= 0)
                 updateLocks.TryRemove(lockId, out entityLock);
         }
+
+        public static void DropUpdateLock(string lockId)
+        {
+            var entityLock = updateLocks[lockId];
+            entityLock.counter--; 
+            if (entityLock.counter <= 0)
+                updateLocks.TryRemove(lockId, out entityLock);
+        }
     }
 }
