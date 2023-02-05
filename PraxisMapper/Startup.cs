@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -139,8 +138,8 @@ namespace PraxisMapper
                 {
                     PraxisAuthentication.DropExpiredEntries();
 
-                    db.Database.ExecuteSqlRaw("DELETE FROM PlaceGameData WHERE expiration IS NOT NULL AND expiration < NOW()");
-                    db.Database.ExecuteSqlRaw("DELETE FROM AreaGameData WHERE expiration IS NOT NULL AND expiration < NOW()");
+                    db.Database.ExecuteSqlRaw("DELETE FROM PlaceData WHERE expiration IS NOT NULL AND expiration < NOW()");
+                    db.Database.ExecuteSqlRaw("DELETE FROM AreaData WHERE expiration IS NOT NULL AND expiration < NOW()");
                     db.Database.ExecuteSqlRaw("DELETE FROM PlayerData WHERE expiration IS NOT NULL AND expiration < NOW()");
                     //remember, don't delete map tiles here, since those track how many times they've been redrawn so the client knows when to ask for the image again.
 
