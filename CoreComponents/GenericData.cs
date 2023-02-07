@@ -4,13 +4,11 @@ using Microsoft.EntityFrameworkCore;
 using PraxisCore.Support;
 using System;
 using System.Buffers;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Pipelines;
 using System.Linq;
 using System.Security.Cryptography;
-using System.Threading;
 using static PraxisCore.DbTables;
 
 namespace PraxisCore
@@ -30,8 +28,6 @@ namespace PraxisCore
         /// <returns>true if data was saved, false if data was not.</returns>
         /// 
         public static Aes baseSec = Aes.Create();
-        //NOTE: this should get changed in the near future. RWLS may not work the same in IIS as it does on a desktop app due to thread pools and RWLS's thread affinity checks.
-        static ConcurrentDictionary<string, ReaderWriterLockSlim> locks = new ConcurrentDictionary<string, ReaderWriterLockSlim>();
 
         public static bool SetAreaData(string plusCode, string key, string value, double? expiration = null)
         {
@@ -559,116 +555,130 @@ namespace PraxisCore
             return results;
         }
 
-        public static ReaderWriterLockSlim GetLock(string key)
-        {
-            locks.TryAdd(key, new ReaderWriterLockSlim());
-            var thisLock = locks[key];
-            thisLock.EnterWriteLock();
-            return thisLock;
-        }
-        public static void ReleaseLock(string key, ReaderWriterLockSlim thisLock)
-        {
-            thisLock.ExitWriteLock();
-            if (thisLock.WaitingWriteCount == 0)
-                locks.TryRemove(key, out thisLock);
-        }
-
         public static void IncrementGlobalData(string key, double value)
         {
             string lockKey = "global" + key;
-            var ourLock = GetLock(lockKey);
+            var ourLock = SimpleLockable.GetUpdateLock(lockKey);
 
-            var data = GetGlobalData(key);
-            double val = 0;
-            Double.TryParse(data.ToString(), out val);
-            val += value;
-            SetGlobalData(key, val.ToString());
-
-            ReleaseLock(lockKey, ourLock);
+            try
+            {
+                var data = GetGlobalData(key);
+                double val = 0;
+                Double.TryParse(data.ToString(), out val);
+                val += value;
+                SetGlobalData(key, val.ToString());
+            }
+            finally
+            {
+                SimpleLockable.DropUpdateLock(lockKey, ourLock);
+            }
         }
 
         public static void IncrementPlayerData(string playerId, string key, double value, double? expiration = null)
         {
             string lockKey = playerId + key;
-            var ourLock = GetLock(lockKey);
+            var ourLock = SimpleLockable.GetUpdateLock(lockKey);
 
+            try { 
             var data = GetPlayerData(playerId, key);
             double val = 0;
             Double.TryParse(data.ToString(), out val);
             val += value;
             SetPlayerData(playerId, key, val.ToString(), expiration);
-
-            ReleaseLock(lockKey, ourLock);
+            }
+            finally
+            {
+                SimpleLockable.DropUpdateLock(lockKey, ourLock);
+            }
         }
 
         public static void IncrementPlaceData(Guid placeId, string key, double value, double? expiration = null)
         {
             string lockKey = placeId + key;
-            var ourLock = GetLock(lockKey);
-
+            var ourLock = SimpleLockable.GetUpdateLock(lockKey);
+            try { 
             var data = GetPlaceData(placeId, key);
             double val = 0;
             Double.TryParse(data.ToString(), out val);
             val += value;
             SetPlaceData(placeId, key, val.ToString(), expiration);
-
-            ReleaseLock(lockKey, ourLock);
+            }
+            finally
+            {
+                SimpleLockable.DropUpdateLock(lockKey, ourLock);
+            }
         }
 
         public static void IncrementAreaData(string plusCode, string key, double value, double? expiration = null)
         {
             string lockKey = plusCode + key;
-            var ourLock = GetLock(lockKey);
+            var ourLock = SimpleLockable.GetUpdateLock(lockKey);
 
+            try { 
             var data = GetAreaData(plusCode, key);
             double val = 0;
             Double.TryParse(data.ToString(), out val);
             val += value;
             SetAreaData(plusCode, key, val.ToString(), expiration);
-
-            ReleaseLock(lockKey, ourLock);
+            }
+            finally
+            {
+                SimpleLockable.DropUpdateLock(lockKey, ourLock);
+            }
         }
 
         public static void IncrementSecurePlayerData(string playerId, string password, string key, double value, double? expiration = null)
         {
             string lockKey = "playerSecure" + key;
-            var ourLock = GetLock(lockKey);
+            var ourLock = SimpleLockable.GetUpdateLock(lockKey);
 
+            try { 
             var data = GetSecurePlayerData(playerId, key, password);
             double val = 0;
             Double.TryParse(data.ToString(), out val);
             val += value;
             SetSecurePlayerData(playerId, key, val.ToString(), password, expiration);
-
-            ReleaseLock(lockKey, ourLock);
+            }
+            finally
+            {
+                SimpleLockable.DropUpdateLock(lockKey, ourLock);
+            }
         }
 
         public static void IncrementSecurePlaceData(Guid placeId, string password, string key, double value, double? expiration = null)
         {
             string lockKey = "placeSecure" + key;
-            var ourLock = GetLock(lockKey);
+            var ourLock = SimpleLockable.GetUpdateLock(lockKey);
 
+            try { 
             var data = GetSecurePlaceData(placeId, key, password);
             double val = 0;
             Double.TryParse(data.ToString(), out val);
             val += value;
             SetSecurePlaceData(placeId, key, val.ToString(), password, expiration);
-
-            ReleaseLock(lockKey, ourLock);
+            }
+            finally
+            {
+                SimpleLockable.DropUpdateLock(lockKey, ourLock);
+            }
         }
 
         public static void IncrementSecureAreaData(string plusCode, string password, string key, double value, double? expiration = null)
         {
             string lockKey = "areaSecure" + key;
-            var ourLock = GetLock(lockKey);
+            var ourLock = SimpleLockable.GetUpdateLock(lockKey);
 
+            try { 
             var data = GetSecureAreaData(plusCode, key, password);
             double val = 0;
             Double.TryParse(data.ToString(), out val);
             val += value;
             SetSecureAreaData(plusCode, key, val.ToString(), password, expiration);
-
-            ReleaseLock(lockKey, ourLock);
+            }
+            finally
+            {
+                SimpleLockable.DropUpdateLock(lockKey, ourLock);
+            }
         }
 
         public static byte[] EncryptValue(byte[] value, string password, out byte[] IVs)
@@ -711,14 +721,12 @@ namespace PraxisCore
 
         public static bool EncryptPassword(string userId, string password, int rounds)
         {
-            //TODO: I might want to set the IV column on this entry to some invalid entry, so that it doesnt show up in /All results.
             var options = new CrypterOptions() {
                 { CrypterOption.Rounds, rounds}
             };
             BlowfishCrypter crypter = new BlowfishCrypter();
             var salt = crypter.GenerateSalt(options);
             var results = crypter.Crypt(password, salt);
-            //GenericData.SetPlayerData(userId, "password", results);
             var db = new PraxisContext();
             var entry = db.AuthenticationData.Where(a => a.accountId == userId).FirstOrDefault();
             if (entry == null)
@@ -726,8 +734,10 @@ namespace PraxisCore
                 entry = new DbTables.AuthenticationData();
                 db.AuthenticationData.Add(entry);
                 entry.accountId = userId;
+                entry.dataPassword = EncryptValue(Guid.NewGuid().ToByteArray(), password, out var IVs).ToUTF8String();
+                entry.dataIV = IVs;
             }
-            entry.password = results;
+            entry.loginPassword = results;
             db.SaveChanges();
 
             return true;
@@ -743,13 +753,18 @@ namespace PraxisCore
             if (entry.bannedUntil.HasValue && entry.bannedUntil.Value > DateTime.UtcNow)
                 return false;
 
-            string checkedPassword = crypter.Crypt(password, entry.password);
-            return entry.password == checkedPassword;
+            string checkedPassword = crypter.Crypt(password, entry.loginPassword);
+            return entry.loginPassword == checkedPassword;
         }
 
         public static string GetInternalPassword(string userId, string password)
         {
-            return GetSecurePlayerData(userId, "password", password).ToUTF8String();
+            var db = new PraxisContext();
+            var entry = db.AuthenticationData.Where(a => a.accountId == userId).FirstOrDefault();
+            var intPwd = DecryptValue(entry.dataIV, entry.dataPassword.ToByteArrayUTF8(), password).ToUTF8String();
+
+            return intPwd;
         }
+        
     }
 }
