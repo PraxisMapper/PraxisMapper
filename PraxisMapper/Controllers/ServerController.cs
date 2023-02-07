@@ -117,7 +117,6 @@ namespace PraxisMapper.Controllers
         public AuthDataResponse Login(string accountId, string password)
         {
             Response.Headers.Add("X-noPerfTrack", "Server/Login/VARSREMOVED");
-            var db = new PraxisContext();
             if (GenericData.CheckPassword(accountId, password))
             {
                 int authTimeout = Configuration["authTimeoutSeconds"].ToInt();
@@ -141,7 +140,6 @@ namespace PraxisMapper.Controllers
             if (exists)
                 return false;
 
-            GenericData.SetSecurePlayerData(accountId, "password", Guid.NewGuid().ToString().ToByteArrayASCII(), password);
             return GenericData.EncryptPassword(accountId, password, Configuration.GetValue<int>("PasswordRounds"));
         }
 
@@ -151,7 +149,27 @@ namespace PraxisMapper.Controllers
         {
             Response.Headers.Add("X-noPerfTrack", "Server/ChangePassword/VARSREMOVED");
             if (GenericData.CheckPassword(accountId, passwordOld))
-                return GenericData.EncryptPassword(accountId, passwordNew, Configuration.GetValue<int>("PasswordRounds"));
+            {
+                GenericData.EncryptPassword(accountId, passwordNew, Configuration.GetValue<int>("PasswordRounds"));
+
+                var db = new PraxisContext();
+                var entries = db.PlayerData.Where(p => p.DeviceID == accountId && p.IvData != null).ToList();
+                foreach (var entry in entries)
+                {
+                    try
+                    {
+                        var data = GenericData.DecryptValue(entry.IvData, entry.DataValue, passwordOld);
+                        entry.DataValue = GenericData.EncryptValue(data, passwordNew, out var newIVs);
+                        entry.IvData = newIVs;
+                    }
+                    catch
+                    {
+                        //skip this one, its not using this password.
+                    }
+                }
+                db.SaveChanges();
+                return true;
+            }
 
             return false;
         }
