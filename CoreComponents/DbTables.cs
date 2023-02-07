@@ -220,11 +220,11 @@ namespace PraxisCore
         {
             public long Id { get; set; }
             public string accountId { get; set; } //could also be deviceId, but probably a string for the account name
-            public string password { get; set; } //The password the account uses to get an AuthToken
-            public string authToken { get; set; }
+            public string loginPassword { get; set; } //The external password the account uses to get an AuthToken
+            public string dataPassword { get; set; } //The internal password the account uses to read/write secure data entries for the player. Inaccesssible to the server owner.
+            public byte[] dataIV { get; set; } // encryption values for dataPassword.
             public bool isAdmin { get; set; } = false;
             public DateTime? bannedUntil { get; set; }
-            //public string internalPassword { get; set; } //the string PraxisMapper uses to encrypt player data from the server owner without some token effort.
         }
     }
 }
