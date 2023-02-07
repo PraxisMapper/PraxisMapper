@@ -14,6 +14,7 @@ namespace PraxisCore
             updateLocks.TryAdd(lockedKey, new SimpleLockable());
             var entityLock = updateLocks[lockedKey];
             entityLock.counter++;
+            System.Threading.Monitor.Enter(entityLock);
             return entityLock;
         }
 
@@ -30,6 +31,7 @@ namespace PraxisCore
             entityLock.counter--; 
             if (entityLock.counter <= 0)
                 updateLocks.TryRemove(lockId, out entityLock);
+            System.Threading.Monitor.Exit(entityLock);
         }
     }
 }
