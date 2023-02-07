@@ -734,10 +734,10 @@ namespace PraxisCore
                 entry = new DbTables.AuthenticationData();
                 db.AuthenticationData.Add(entry);
                 entry.accountId = userId;
-                entry.dataPassword = EncryptValue(Guid.NewGuid().ToByteArray(), password, out var IVs).ToUTF8String();
-                entry.dataIV = IVs;
             }
             entry.loginPassword = results;
+            entry.dataPassword = EncryptValue(Guid.NewGuid().ToByteArray(), password, out var IVs).ToUTF8String();
+            entry.dataIV = IVs;
             db.SaveChanges();
 
             return true;
