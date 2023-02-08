@@ -195,12 +195,12 @@ namespace PraxisCore
             var pixelMultiplier = IMapTiles.GameTileScale;
 
             if (place.ElementGeometry.Area > 0)
-                return (place.ElementGeometry.Area / ConstantValues.squareCell11Area) * pixelMultiplier;
+                return (place.ElementGeometry.Area / (ConstantValues.squareCell11Area / pixelMultiplier));
             else if (place.ElementGeometry.Length > 0)
             {
                 var lineWidth = paintOp.Max(p => p.LineWidthDegrees);
                 var rectSize = lineWidth * place.ElementGeometry.Length;
-                return (rectSize / ConstantValues.squareCell11Area) * pixelMultiplier;
+                return (rectSize / (ConstantValues.squareCell11Area / pixelMultiplier));
             }
             else if (paintOp.Any(p => !string.IsNullOrEmpty(p.FileName)))
             {
@@ -210,7 +210,7 @@ namespace PraxisCore
             else
             {
                 var pointRadius = paintOp.Max(p => p.LineWidthDegrees); //for Points, this is the radius of the circle being drawn.
-                var pointRadiusPixels = ((pointRadius * pointRadius * float.Pi) / ConstantValues.squareCell11Area) * pixelMultiplier;
+                var pointRadiusPixels = ((pointRadius * pointRadius * float.Pi) / (ConstantValues.squareCell11Area / pixelMultiplier));
                 return pointRadiusPixels;
             }
         }
