@@ -41,6 +41,7 @@ namespace PraxisCore
         /// <param name="onlyDefaults">if true, skip loading the styles from the DB and use Praxismapper's defaults </param>
         public static void Initialize(bool onlyDefaults = false, IMapTiles mapTiles = null)
         {
+            Singletons.defaultStyleEntries.Clear();
             Singletons.defaultStyleEntries.AddRange(Styles.adminBounds.style);
             Singletons.defaultStyleEntries.AddRange(Styles.mapTiles.style);
             Singletons.defaultStyleEntries.AddRange(Styles.outlines.style);
