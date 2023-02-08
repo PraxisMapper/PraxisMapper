@@ -12,8 +12,6 @@ namespace PraxisCore
         public static PreparedGeometryFactory pgf = new PreparedGeometryFactory();
         public static bool SimplifyAreas = false;
 
-
-
         /// <summary>
         /// The baseline set of TagParser styles. 
         /// </summary>

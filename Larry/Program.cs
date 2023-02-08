@@ -57,6 +57,9 @@ namespace Larry
                 return;
             }
 
+            string dbName = config["DbConnectionString"].Split(";").First(s => s.StartsWith("database"));
+            Log.WriteLog("Using connection for " + dbName);
+
             //if (args.Any(a => a.StartsWith("-getPbf:")))
             //{
             //    //Wants 3 pieces. Drops in placeholders if some are missing. Giving no parameters downloads Ohio.
@@ -77,12 +80,6 @@ namespace Larry
             if (args.Any(a => a == "-resetGeomData"))
             {
                 ResetFiles(config["OutputDataFolder"]);
-            }
-
-            if (args.Any(a => a == "-resetStyles"))
-            {
-                var db = new PraxisContext();
-                db.ResetStyles();
             }
 
             if (args.Any(a => a == "-rollDefaultPasswords"))
@@ -111,8 +108,8 @@ namespace Larry
                 SetEnvValues();
                 SetDefaultPasswords();
                 var db = new PraxisContext();
-                createDb();
                 TagParser.Initialize(true, null);
+                createDb();
                 processPbfs();
                 loadProcessedData();
                 db.SetServerBounds(long.Parse(config["UseOneRelationID"]));
@@ -158,6 +155,12 @@ namespace Larry
                 //Fire up the Kestral exe to get the server working
                 //Open up a browser to the adminview slippytile page.
                 //}
+            }
+
+            if (args.Any(a => a == "-resetStyles"))
+            {
+                var db = new PraxisContext();
+                db.ResetStyles();
             }
 
             //NOTE: this seems to drop out a lot of geometry, so I may not want to suppor tthis after all.
@@ -518,7 +521,7 @@ namespace Larry
             Log.WriteLog("image drawn from memory in " + sw.Elapsed);
         }
 
-        private static void DrawPosterOfServer()
+        private static void DrawPosterOfServer(int xSize = 24, int ySize = 36, int dpi = 300)
         {
             var db = new PraxisContext();
             var bounds = db.ServerSettings.First();
@@ -529,18 +532,16 @@ namespace Larry
             //if the longer side is > 36", scale both down by the difference?
 
             //36x24 is target poster size, at 300 dpi, our image size will allow for a half-inch of margin on both axes.
-            var dpi = 300;
-            var maxXSide = 35 * dpi;
-            var maxYSide = 23 * dpi;
-            var xSize = 0;
-            var ySize = 0;
+            var maxXSide = (xSize - 1) * dpi;
+            var maxYSide = (ySize - 1) * dpi;
 
+            //TODO: removed orientation scaling, let parameters decide that?
             var heightScale = geoArea.LatitudeHeight / geoArea.LongitudeWidth; //Y pixels per X pixel
             if (heightScale > 1) // Y axis is longer than X axis
             {
                 heightScale = geoArea.LongitudeWidth / geoArea.LatitudeHeight;
-                maxXSide = 23 * dpi;
-                maxYSide = 35 * dpi;
+                maxXSide = (ySize - 1) * dpi;
+                maxYSide = (xSize - 1) * dpi;
                 ySize = maxYSide;
                 xSize = (int)(maxXSide * heightScale);
             }
@@ -552,6 +553,7 @@ namespace Larry
 
             Log.WriteLog("Loading all places from DB");
             var iStats = new ImageStats(geoArea, xSize, ySize);
+            iStats.filterSize *= .5; //For increased accuracy on the bigger image, we're gonna load things that would draw as half a pixel.
             var places = GetPlaces(geoArea, filterSize:iStats.filterSize);
             
             Log.WriteLog("Generating paint operations");

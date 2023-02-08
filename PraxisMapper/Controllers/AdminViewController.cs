@@ -1,14 +1,14 @@
-﻿using PraxisCore;
-using PraxisCore.Support;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using PraxisCore;
+using PraxisCore.Support;
 using PraxisMapper.Classes;
 using System;
-using System.Linq;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.Extensions.Configuration;
 using System.Collections.Generic;
-using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
+using System.Linq;
 
 namespace PraxisMapper.Controllers
 {
@@ -22,6 +22,13 @@ namespace PraxisMapper.Controllers
             Configuration = config;
             MapTiles = mapTiles;
         }
+        public override void OnActionExecuting(ActionExecutingContext context)
+        {
+            base.OnActionExecuting(context);
+            PraxisAuthentication.GetAuthInfo(Response, out var accountId, out var password);
+            if (!PraxisAuthentication.IsAdmin(accountId) && !HttpContext.Request.Host.IsLocalIpAddress())
+                HttpContext.Abort();
+        }        
 
         [HttpGet]
         [Route("/[controller]")]
