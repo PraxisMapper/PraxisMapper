@@ -1,6 +1,4 @@
-﻿using Azure;
-using Microsoft.EntityFrameworkCore.Query.Internal;
-using NetTopologySuite.Geometries;
+﻿using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Prepared;
 using OsmSharp.Complete;
 using OsmSharp.Tags;
@@ -68,7 +66,6 @@ namespace PraxisCore.PbfReader
         long firstWayBlock = 0;
         int startNodeBtreeIndex = 0; //Only set, not read from.
         int startWayBtreeIndex = 0;
-        int nodeHintsMax = 12;
 
         int nodeIndexEntries = 0;
         int wayIndexEntries = 0;
@@ -86,8 +83,6 @@ namespace PraxisCore.PbfReader
 
         CancellationTokenSource tokensource = new CancellationTokenSource();
         CancellationToken token;
-
-        object nodeLock = new object();
 
         public PbfReader()
         {
