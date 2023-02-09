@@ -521,38 +521,16 @@ namespace Larry
             Log.WriteLog("image drawn from memory in " + sw.Elapsed);
         }
 
-        private static void DrawPosterOfServer(int xSize = 24, int ySize = 36, int dpi = 300)
+        private static void DrawPosterOfServer(int xInches = 24, int yInches = 36, int dpi = 300)
         {
             var db = new PraxisContext();
             var bounds = db.ServerSettings.First();
 
             var geoArea = new GeoArea(bounds.SouthBound, bounds.WestBound, bounds.NorthBound, bounds.EastBound);
-            //do the math to scale image.
-            //the smaller side is set to 24", the larger size scales up proportionally up to a max of 36"
-            //if the longer side is > 36", scale both down by the difference?
-
-            //36x24 is target poster size, at 300 dpi, our image size will allow for a half-inch of margin on both axes.
-            var maxXSide = (xSize - 1) * dpi;
-            var maxYSide = (ySize - 1) * dpi;
-
-            //TODO: removed orientation scaling, let parameters decide that?
-            var heightScale = geoArea.LatitudeHeight / geoArea.LongitudeWidth; //Y pixels per X pixel
-            if (heightScale > 1) // Y axis is longer than X axis
-            {
-                heightScale = geoArea.LongitudeWidth / geoArea.LatitudeHeight;
-                maxXSide = (ySize - 1) * dpi;
-                maxYSide = (xSize - 1) * dpi;
-                ySize = maxYSide;
-                xSize = (int)(maxXSide * heightScale);
-            }
-            else
-            {
-                xSize = maxXSide;
-                ySize = (int)(maxYSide * heightScale);
-            }
-
+            var iStats = new ImageStats(geoArea, (int)(geoArea.LongitudeWidth * 5000), (int)(geoArea.LatitudeHeight * 5000)); //temp values to scale correctly.
+            iStats.ScaleToFit(xInches * dpi, yInches * dpi);
             Log.WriteLog("Loading all places from DB");
-            var iStats = new ImageStats(geoArea, xSize, ySize);
+            
             iStats.filterSize *= .5; //For increased accuracy on the bigger image, we're gonna load things that would draw as half a pixel.
             var places = GetPlaces(geoArea, filterSize:iStats.filterSize);
             
@@ -562,7 +540,7 @@ namespace Larry
             var image = MapTiles.DrawAreaAtSize(iStats, paintOps);
 
             File.WriteAllBytes("ServerPoster.png", image);
-            Log.WriteLog("Image saved to disk");
+            Log.WriteLog("Image saved to disk as ServerPoster.png");
         }
 
         private static void ApplyConfigValues()
