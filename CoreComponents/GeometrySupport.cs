@@ -187,9 +187,9 @@ namespace PraxisCore
 
         public static double CalculateDrawSizeHint(DbTables.Place place)
         {
-            //The default assumption here is that a Cell11 is 1 pixel for gameplay tiles. (Multiplied by GameTileScale)
+            //The default assumption here is that a Cell11 is 1 pixel for gameplay tiles before factoring in GameTileScale.
             //So we take the area of the drawn element in degrees, divide by the size of a square Cell11, and multiply by GameTileScale.
-            //That's how many pixels an individual element would take up at typical scale. MapTiles will skip anything below 1.
+            //That's how many pixels an individual element would take up at typical scale. MapTiles will skip anything below 1. (Slippy tiles scale proportionally)
             //The value of what to skip will be automatically adjusted based on the area being drawn.
             var paintOp = TagParser.allStyleGroups["mapTiles"][place.StyleName].PaintOperations;
             var pixelMultiplier = IMapTiles.GameTileScale;
