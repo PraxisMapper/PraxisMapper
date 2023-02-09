@@ -56,13 +56,7 @@ namespace PraxisCore.Support
             imageSizeY = imageHeight;
 
             area = geoArea;
-            degreesPerPixelX = area.LongitudeWidth / imageSizeX;
-            degreesPerPixelY = area.LatitudeHeight / imageSizeY;
-
-            pixelsPerDegreeX = imageSizeX / area.LongitudeWidth;
-            pixelsPerDegreeY = imageSizeY / area.LatitudeHeight;
-
-            filterSize = (degreesPerPixelY / ConstantValues.resolutionCell11Lat) * IMapTiles.GameTileScale;
+            CalculateDimentions();
         }
 
         /// <summary>
@@ -87,21 +81,38 @@ namespace PraxisCore.Support
             var lat_rads_s = Math.Atan(Math.Sinh(Math.PI * (1 - 2 * (yTile + 1) / n)));
             var lat_degree_s = lat_rads_s * 180 / Math.PI;
 
-            var areaHeightDegrees = lat_degree_n - lat_degree_s;
-            var areaWidthDegrees = 360 / n;
-
             area = new GeoArea(lat_degree_s, lon_degree_w, lat_degree_n, lon_degree_e);
 
             imageSizeX = imageSize;
             imageSizeY = imageSize;
 
-            degreesPerPixelX = areaWidthDegrees / imageSize;
-            degreesPerPixelY = areaHeightDegrees / imageSize;
+            CalculateDimentions();
+        }
 
-            pixelsPerDegreeX = imageSize / areaWidthDegrees;
-            pixelsPerDegreeY = imageSize / areaHeightDegrees;
+        public void CalculateDimentions()
+        {
+            degreesPerPixelX = area.LongitudeWidth / imageSizeX;
+            degreesPerPixelY = area.LatitudeHeight / imageSizeY;
+
+            pixelsPerDegreeX = imageSizeX / area.LongitudeWidth;
+            pixelsPerDegreeY = imageSizeY / area.LatitudeHeight;
 
             filterSize = (degreesPerPixelY / ConstantValues.resolutionCell11Lat) * IMapTiles.GameTileScale;
+        }
+
+        public void ScaleToFit(int maxX, int maxY)
+        {
+            var currentRatio = imageSizeX / (double)imageSizeY;
+            var newRatio = maxX / (double)maxY;
+
+            var xScale = maxX / (double)imageSizeX;
+            var yScale = maxY / (double)imageSizeY;
+            var useScale = Math.Min(xScale, yScale);
+
+            imageSizeX = (int)(imageSizeX * useScale);
+            imageSizeY = (int)(imageSizeY * useScale);
+
+            CalculateDimentions();
         }
     }
 }
