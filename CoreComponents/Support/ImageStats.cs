@@ -128,10 +128,10 @@ namespace PraxisCore.Support
         }
 
         /// <summary>
-        /// Resize the requested image, given new maximum sizes. This scales proportionally, so the new image bounds may not match both maximums.
+        /// Resize the requested image, given new maximum sizes in pixels. This scales proportionally, so the new image bounds may not match both maximums.
         /// </summary>
-        /// <param name="maxX">the maximum width the image should scale to</param>
-        /// <param name="maxY">the maximum height the image should scale to</param>
+        /// <param name="maxX">the maximum width the image should scale to, in pixels</param>
+        /// <param name="maxY">the maximum height the image should scale to, in pixels</param>
         public void ScaleToFit(int maxX, int maxY)
         {
             var xScale = maxX / (double)imageSizeX;
