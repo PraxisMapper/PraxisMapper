@@ -1558,17 +1558,8 @@ namespace PraxisCore.PbfReader
 
         public async void QueueWriteTask(string filename, StringBuilder data)
         {
-            Task.Run(() =>
-            {
-                SimpleLockable.GetUpdateLock(filename);
-                try
-                {
-                    File.AppendAllText(filename, data.ToString());
-                }
-                finally
-                {
-                    SimpleLockable.DropUpdateLock(filename);
-                }
+            SimpleLockable.LockedTask(filename, () => {
+                File.AppendAllText(filename, data.ToString());
             });
         }
     }
