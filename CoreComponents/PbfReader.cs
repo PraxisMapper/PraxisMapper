@@ -1556,17 +1556,19 @@ namespace PraxisCore.PbfReader
             return g;
         }
 
-        ConcurrentDictionary<string, SemaphoreSlim> fileLocks = new ConcurrentDictionary<string, SemaphoreSlim>();
         public async void QueueWriteTask(string filename, StringBuilder data)
         {
             Task.Run(() =>
             {
-                if (!fileLocks.ContainsKey(filename))
-                    fileLocks.TryAdd(filename, new SemaphoreSlim(1));
-
-                fileLocks[filename].Wait();
-                File.AppendAllText(filename, data.ToString());
-                fileLocks[filename].Release();
+                SimpleLockable.GetUpdateLock(filename);
+                try
+                {
+                    File.AppendAllText(filename, data.ToString());
+                }
+                finally
+                {
+                    SimpleLockable.DropUpdateLock(filename);
+                }
             });
         }
     }
