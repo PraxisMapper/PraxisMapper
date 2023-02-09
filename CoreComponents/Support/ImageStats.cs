@@ -9,14 +9,38 @@ namespace PraxisCore.Support
 
     public class ImageStats
     {
+        /// <summary>
+        /// The width of the output image in pixels
+        /// </summary>
         public int imageSizeX { get; set; }
+        /// <summary>
+        /// the height of the output image in pixels
+        /// </summary>
         public int imageSizeY { get; set; }
+        /// <summary>
+        /// Internal measurement value for determining what gets drawn
+        /// </summary>
         public double degreesPerPixelX { get; set; }
+        /// <summary>
+        /// Internal measurement value for determining what gets drawn
+        /// </summary>
         public double degreesPerPixelY { get; set; }
+        /// <summary>
+        /// When drawing, do not load items from the database that would take up fewer than this many pixels in the final image.
+        /// </summary>
         public double filterSize { get; set; }
+        /// <summary>
+        /// Internal measurement value for determining what gets drawn
+        /// </summary>
         public double pixelsPerDegreeX { get; set; }
+        /// <summary>
+        /// Internal measurement value for determining what gets drawn
+        /// </summary>
         public double pixelsPerDegreeY { get; set; }
-
+        
+        /// <summary>
+        /// The GeoArea contained in the image to be drawn.
+        /// </summary>
         public GeoArea area { get; set; }
 
         /// <summary>
@@ -89,6 +113,9 @@ namespace PraxisCore.Support
             CalculateDimentions();
         }
 
+        /// <summary>
+        /// Recalcuate the internal values used to determine what gets drawn in the image. 
+        /// </summary>
         public void CalculateDimentions()
         {
             degreesPerPixelX = area.LongitudeWidth / imageSizeX;
@@ -100,11 +127,13 @@ namespace PraxisCore.Support
             filterSize = (degreesPerPixelY / ConstantValues.resolutionCell11Lat) * IMapTiles.GameTileScale;
         }
 
+        /// <summary>
+        /// Resize the requested image, given new maximum sizes. This scales proportionally, so the new image bounds may not match both maximums.
+        /// </summary>
+        /// <param name="maxX">the maximum width the image should scale to</param>
+        /// <param name="maxY">the maximum height the image should scale to</param>
         public void ScaleToFit(int maxX, int maxY)
         {
-            var currentRatio = imageSizeX / (double)imageSizeY;
-            var newRatio = maxX / (double)maxY;
-
             var xScale = maxX / (double)imageSizeX;
             var yScale = maxY / (double)imageSizeY;
             var useScale = Math.Min(xScale, yScale);
