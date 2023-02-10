@@ -581,8 +581,7 @@ namespace PraxisCore
         {
             SimpleLockable.PerformWithLock(placeId + key, () => {
                 var data = GetPlaceData(placeId, key);
-                double val = 0;
-                Double.TryParse(data.ToUTF8String(), out val);
+                Double.TryParse(data.ToUTF8String(), out double val);
                 val += value;
                 SetPlaceData(placeId, key, val.ToString(), expiration);
             });
@@ -592,8 +591,7 @@ namespace PraxisCore
         {
             SimpleLockable.PerformWithLock(plusCode + key, () => {
                 var data = GetAreaData(plusCode, key);
-                double val = 0;
-                Double.TryParse(data.ToUTF8String(), out val);
+                Double.TryParse(data.ToUTF8String(), out double val);
                 val += value;
                 SetAreaData(plusCode, key, val.ToString(), expiration);
                 ;
