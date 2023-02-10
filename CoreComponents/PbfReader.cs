@@ -1558,7 +1558,7 @@ namespace PraxisCore.PbfReader
 
         public async void QueueWriteTask(string filename, StringBuilder data)
         {
-            SimpleLockable.LockedTask(filename, () => {
+            SimpleLockable.PerformWithLockAsTask(filename, () => {
                 File.AppendAllText(filename, data.ToString());
             });
         }
