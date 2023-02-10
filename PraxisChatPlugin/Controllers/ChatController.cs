@@ -35,18 +35,15 @@ namespace PraxisChatPlugin.Controllers
                 return null;
 
             var message = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength).FromJsonBytesTo<string>();
-            List<string> chat;
-            var chatLock = SimpleLockable.GetUpdateLock(region + "chatLog");
-            lock (chatLock)
-            {
+            List<string> chat = new List<string>();
+            SimpleLockable.PerformWithLock(region + "chatLog", () => {
                 chat = GenericData.GetAreaData<List<string>>(region, "chatLog");
                 chat.Add(accountId + ": " + message);
                 if (chat.Count > chatLengthLines)
                     chat = chat.TakeLast(chatLengthLines).ToList();
 
                 GenericData.SetAreaDataJson(region, "chatLog", chat.ToJsonByteArray());
-            }
-            SimpleLockable.DropUpdateLock(region + "chatLog");
+            });
 
             return chat;
         }
@@ -70,18 +67,15 @@ namespace PraxisChatPlugin.Controllers
                 return null;
 
             var message = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength).FromJsonBytesTo<string>();
-            List<string> chat;
-            var chatLock = SimpleLockable.GetUpdateLock(channel + "chatLog");
-            lock (chatLock)
-            {
+            List<string> chat = new List<string>();
+            SimpleLockable.PerformWithLock(channel + "chatLog", () => {
                 chat = GenericData.GetGlobalData<List<string>>(channel + "chatLog");
                 chat.Add(accountId + ": " + message);
                 if (chat.Count > chatLengthLines)
                     chat = chat.TakeLast(chatLengthLines).ToList();
 
                 GenericData.SetGlobalDataJson(channel + "chatLog", chat.ToJsonByteArray());
-            }
-            SimpleLockable.DropUpdateLock(channel + "chatLog");
+            });
 
             return chat;
         }
@@ -96,14 +90,11 @@ namespace PraxisChatPlugin.Controllers
                 return;
 
             var message = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength).FromJsonBytesTo<string>();
-            var chatLock = SimpleLockable.GetUpdateLock(region + "chatLog");
-            lock (chatLock)
-            {
+            SimpleLockable.PerformWithLock(region + "chatLog", () => {
                 var chat = GenericData.GetAreaData<List<string>>(region, "chatLog");
                 chat.Remove(message);
                 GenericData.SetAreaDataJson(region, "chatLog", chat.ToJsonByteArray());
-            }
-            SimpleLockable.DropUpdateLock(region + "chatLog");
+            });
         }
 
         [HttpDelete]
@@ -115,14 +106,11 @@ namespace PraxisChatPlugin.Controllers
                 return;
 
             var message = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength).FromJsonBytesTo<string>();
-            var chatLock = SimpleLockable.GetUpdateLock(channel + "chatLog");
-            lock (chatLock)
-            {
+            SimpleLockable.PerformWithLock(channel + "chatLog", () => {
                 var chat = GenericData.GetGlobalData<List<string>>(channel + "chatLog");
                 chat.Remove(message);
                 GenericData.SetGlobalDataJson(channel + "chatLog", chat.ToJsonByteArray());
-            }
-            SimpleLockable.DropUpdateLock(channel + "chatLog");
+            });
         }
 
         [HttpPut]

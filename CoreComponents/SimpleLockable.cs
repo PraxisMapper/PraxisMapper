@@ -34,7 +34,7 @@ namespace PraxisCore
             System.Threading.Monitor.Exit(entityLock);
         }
 
-        public static void LockedAction(string lockId, Action a)
+        public static void PerformWithLock(string lockId, Action a)
         {
             updateLocks.TryAdd(lockId, new SimpleLockable());
             var entityLock = updateLocks[lockId];
@@ -53,9 +53,9 @@ namespace PraxisCore
             }
         }
 
-        public static Task LockedTask(string lockedKey, Action a)
+        public static Task PerformWithLockAsTask(string lockedKey, Action a)
         {
-            return Task.Run(() => LockedAction(lockedKey, a));
+            return Task.Run(() => PerformWithLock(lockedKey, a));
         }
     }
 }
