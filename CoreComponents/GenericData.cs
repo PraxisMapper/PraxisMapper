@@ -557,128 +557,77 @@ namespace PraxisCore
 
         public static void IncrementGlobalData(string key, double value)
         {
-            string lockKey = "global" + key;
-            var ourLock = SimpleLockable.GetUpdateLock(lockKey);
-
-            try
+            SimpleLockable.PerformWithLock("global" + key, () =>
             {
                 var data = GetGlobalData(key);
-                double val = 0;
-                Double.TryParse(data.ToString(), out val);
+                Double.TryParse(data.ToUTF8String(), out double val);
                 val += value;
                 SetGlobalData(key, val.ToString());
-            }
-            finally
-            {
-                SimpleLockable.DropUpdateLock(lockKey, ourLock);
-            }
+            });
         }
 
         public static void IncrementPlayerData(string playerId, string key, double value, double? expiration = null)
         {
-            string lockKey = playerId + key;
-            var ourLock = SimpleLockable.GetUpdateLock(lockKey);
-
-            try { 
-            var data = GetPlayerData(playerId, key);
-            double val = 0;
-            Double.TryParse(data.ToString(), out val);
-            val += value;
-            SetPlayerData(playerId, key, val.ToString(), expiration);
-            }
-            finally
+            SimpleLockable.PerformWithLock(playerId + key, () =>
             {
-                SimpleLockable.DropUpdateLock(lockKey, ourLock);
-            }
+                var data = GetPlayerData(playerId, key);
+                Double.TryParse(data.ToUTF8String(), out double val);
+                val += value;
+                SetPlayerData(playerId, key, val.ToString(), expiration);
+            });
         }
 
         public static void IncrementPlaceData(Guid placeId, string key, double value, double? expiration = null)
         {
-            string lockKey = placeId + key;
-            var ourLock = SimpleLockable.GetUpdateLock(lockKey);
-            try { 
-            var data = GetPlaceData(placeId, key);
-            double val = 0;
-            Double.TryParse(data.ToString(), out val);
-            val += value;
-            SetPlaceData(placeId, key, val.ToString(), expiration);
-            }
-            finally
-            {
-                SimpleLockable.DropUpdateLock(lockKey, ourLock);
-            }
+            SimpleLockable.PerformWithLock(placeId + key, () => {
+                var data = GetPlaceData(placeId, key);
+                double val = 0;
+                Double.TryParse(data.ToUTF8String(), out val);
+                val += value;
+                SetPlaceData(placeId, key, val.ToString(), expiration);
+            });
         }
 
         public static void IncrementAreaData(string plusCode, string key, double value, double? expiration = null)
         {
-            string lockKey = plusCode + key;
-            var ourLock = SimpleLockable.GetUpdateLock(lockKey);
-
-            try { 
-            var data = GetAreaData(plusCode, key);
-            double val = 0;
-            Double.TryParse(data.ToString(), out val);
-            val += value;
-            SetAreaData(plusCode, key, val.ToString(), expiration);
-            }
-            finally
-            {
-                SimpleLockable.DropUpdateLock(lockKey, ourLock);
-            }
+            SimpleLockable.PerformWithLock(plusCode + key, () => {
+                var data = GetAreaData(plusCode, key);
+                double val = 0;
+                Double.TryParse(data.ToUTF8String(), out val);
+                val += value;
+                SetAreaData(plusCode, key, val.ToString(), expiration);
+                ;
+            });
         }
 
         public static void IncrementSecurePlayerData(string playerId, string password, string key, double value, double? expiration = null)
         {
-            string lockKey = "playerSecure" + key;
-            var ourLock = SimpleLockable.GetUpdateLock(lockKey);
-
-            try { 
-            var data = GetSecurePlayerData(playerId, key, password);
-            double val = 0;
-            Double.TryParse(data.ToString(), out val);
-            val += value;
-            SetSecurePlayerData(playerId, key, val.ToString(), password, expiration);
-            }
-            finally
-            {
-                SimpleLockable.DropUpdateLock(lockKey, ourLock);
-            }
+            SimpleLockable.PerformWithLock(playerId + "secure" + key, () => {
+                var data = GetSecurePlayerData(playerId, key, password);
+                Double.TryParse(data.ToUTF8String(), out double val);
+                val += value;
+                SetSecurePlayerData(playerId, key, val.ToString(), password, expiration);
+            });
         }
 
         public static void IncrementSecurePlaceData(Guid placeId, string password, string key, double value, double? expiration = null)
         {
-            string lockKey = "placeSecure" + key;
-            var ourLock = SimpleLockable.GetUpdateLock(lockKey);
-
-            try { 
-            var data = GetSecurePlaceData(placeId, key, password);
-            double val = 0;
-            Double.TryParse(data.ToString(), out val);
-            val += value;
-            SetSecurePlaceData(placeId, key, val.ToString(), password, expiration);
-            }
-            finally
-            {
-                SimpleLockable.DropUpdateLock(lockKey, ourLock);
-            }
+            SimpleLockable.PerformWithLock(placeId + "secure" + key, () => {
+                var data = GetSecurePlaceData(placeId, key, password);
+                Double.TryParse(data.ToUTF8String(), out double val);
+                val += value;
+                SetSecurePlaceData(placeId, key, val.ToString(), password, expiration);
+            });
         }
 
         public static void IncrementSecureAreaData(string plusCode, string password, string key, double value, double? expiration = null)
         {
-            string lockKey = "areaSecure" + key;
-            var ourLock = SimpleLockable.GetUpdateLock(lockKey);
-
-            try { 
-            var data = GetSecureAreaData(plusCode, key, password);
-            double val = 0;
-            Double.TryParse(data.ToString(), out val);
-            val += value;
-            SetSecureAreaData(plusCode, key, val.ToString(), password, expiration);
-            }
-            finally
-            {
-                SimpleLockable.DropUpdateLock(lockKey, ourLock);
-            }
+            SimpleLockable.PerformWithLock(plusCode + "secure" + key, () => {
+                var data = GetSecureAreaData(plusCode, key, password);
+                Double.TryParse(data.ToUTF8String(), out double val);
+                val += value;
+                SetSecureAreaData(plusCode, key, val.ToString(), password, expiration);
+            });
         }
 
         public static byte[] EncryptValue(byte[] value, string password, out byte[] IVs)
