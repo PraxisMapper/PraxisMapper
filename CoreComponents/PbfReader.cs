@@ -315,7 +315,7 @@ namespace PraxisCore.PbfReader
             for (int i = nextgroup; i < thisBlock.primitivegroup.Count; i++)
             {
                 var group = thisBlock.primitivegroup[i];
-                var geoListOfOne = new List<CompleteOsmGeo>();
+                var geoListOfOne = new List<ICompleteOsmGeo>();
                 if (group.relations.Count > 0)
                 {
                     foreach (var relId in group.relations)
@@ -354,7 +354,7 @@ namespace PraxisCore.PbfReader
                 var blockData = GetBlock(block);
                 var geoData = GetTaggedNodesFromBlock(blockData, onlyMatchedAreas);
                 if (geoData != null)
-                    ProcessReaderResults((IEnumerable<CompleteOsmGeo>)geoData, block, 0);
+                    ProcessReaderResults(geoData, block, 0);
 
                 activeBlocks.TryRemove(block, out blockData);
                 blockData = null;
@@ -476,10 +476,40 @@ namespace PraxisCore.PbfReader
             PrimitiveBlock results;
             if (!activeBlocks.TryGetValue(blockId, out results))
             {
-                results = GetBlockFromFile(blockId);
-                activeBlocks.TryAdd(blockId, results);
-                accessedBlocks.TryAdd(blockId, true);
+                //get lock, and check again.
+                SimpleLockable.PerformWithLock(blockId.ToString(), () =>
+                {
+                    //check again, other thread may have acquired the data while we waited on a lock
+                    if (!activeBlocks.TryGetValue(blockId, out results))
+                    {
+                        results = GetBlockFromFile(blockId);
+                        activeBlocks.TryAdd(blockId, results);
+                        accessedBlocks.TryAdd(blockId, true);
+                    }
+                });
             }
+            return results;
+
+            //    var blockLock = SimpleLockable.GetLock(blockId.ToString());
+            //    if (blockLock.counter > 1)
+            //    {
+            //        //we're already loading this, don't act.
+            //        //lock (blockLock) { } //wait for previous op to complete
+            //        SimpleLockable.DropLock(blockId.ToString(), blockLock);
+            //        activeBlocks.TryGetValue(blockId, out results);
+            //        return results;
+            //    }
+            //    else
+            //    {
+            //        lock (blockLock)
+            //        {
+            //            results = GetBlockFromFile(blockId);
+            //            activeBlocks.TryAdd(blockId, results);
+            //            accessedBlocks.TryAdd(blockId, true);
+            //        }
+            //        SimpleLockable.DropLock(blockId.ToString(), blockLock);
+            //    }
+            //}
 
             return results;
         }
@@ -772,17 +802,17 @@ namespace PraxisCore.PbfReader
         /// <param name="block">the block of Nodes to search through</param>
         /// <param name="ignoreUnmatched">if true, skip nodes that have tags that only match the default TaParser style.</param>
         /// <returns>a list of Nodes with tags, which may have a length of 0.</returns>
-        private ConcurrentBag<OsmSharp.Node> GetTaggedNodesFromBlock(PrimitiveBlock block, bool ignoreUnmatched = false)
+        private List<OsmSharp.Node> GetTaggedNodesFromBlock(PrimitiveBlock block, bool ignoreUnmatched = false)
         {
-            ConcurrentBag<OsmSharp.Node> taggedNodes = new ConcurrentBag<OsmSharp.Node>();
-            Parallel.For(0, block.primitivegroup.Count, (b) =>
+            List<OsmSharp.Node> taggedNodes = new List<OsmSharp.Node>(block.primitivegroup.Sum(p => p.dense.keys_vals.Count) - block.primitivegroup.Sum(p => p.dense.id.Count) / 2); //precise count
+            for(int b = 0; b < block.primitivegroup.Count; b++)
             {
                 nodesProcessed++;
                 var dense = block.primitivegroup[b].dense;
 
                 //Shortcut: if dense.keys.count == dense.id.count, there's no tagged nodes at all here (0 means 'no keys', and all 0's means every entry has no keys)
                 if (dense.keys_vals.Count == dense.id.Count)
-                    return;
+                    continue;
 
                 var granularity = block.granularity;
                 var lat_offset = block.lat_offset;
@@ -845,7 +875,7 @@ namespace PraxisCore.PbfReader
                     if (index >= lastTaggedNode)
                         break;
                 }
-            });
+            }
 
             return taggedNodes;
         }
@@ -1338,7 +1368,7 @@ namespace PraxisCore.PbfReader
         /// <param name="saveToDb">If true, insert the items directly to the database instead of exporting to files.</param>
         /// <param name="onlyTagMatchedElements">if true, only loads in elements that dont' match the default entry for a TagParser style set</param>
         /// <returns>the Task handling the conversion process</returns>
-        public int ProcessReaderResults(IEnumerable<CompleteOsmGeo> items, long blockId, int groupId)
+        public int ProcessReaderResults(IEnumerable<ICompleteOsmGeo> items, long blockId, int groupId)
         {
             //This one is easy, we just dump the geodata to the file.
             int actualCount = 0;
