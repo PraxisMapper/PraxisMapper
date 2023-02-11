@@ -82,7 +82,7 @@ namespace PraxisCore
             var db = new PraxisContext();
             var row = db.AreaData.FirstOrDefault(p => p.PlusCode == plusCode && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
-                return new byte[0];
+                return Array.Empty<byte>();
             return row.DataValue;
         }
 
@@ -144,7 +144,7 @@ namespace PraxisCore
             var db = new PraxisContext();
             var row = db.PlaceData.Include(p => p.Place).FirstOrDefault(p => p.Place.PrivacyId == elementId && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
-                return new byte[0];
+                return Array.Empty<byte>();
             return row.DataValue;
         }
 
@@ -164,7 +164,7 @@ namespace PraxisCore
             var db = new PraxisContext();
             var row = db.PlayerData.FirstOrDefault(p => p.DeviceID == playerId && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
-                return new byte[0];
+                return Array.Empty<byte>();
             return row.DataValue;
         }
 
@@ -307,7 +307,7 @@ namespace PraxisCore
             var db = new PraxisContext();
             var row = db.GlobalData.FirstOrDefault(s => s.DataKey == key);
             if (row == null)
-                return new byte[0];
+                return Array.Empty<byte>();
             return row.DataValue;
         }
 
@@ -413,7 +413,7 @@ namespace PraxisCore
             var db = new PraxisContext();
             var row = db.AreaData.FirstOrDefault(p => p.PlusCode == plusCode && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
-                return new byte[0];
+                return Array.Empty<byte>();
 
             return DecryptValue(row.IvData, row.DataValue, password);
         }
@@ -435,7 +435,7 @@ namespace PraxisCore
             var db = new PraxisContext();
             var row = db.PlayerData.FirstOrDefault(p => p.DeviceID == playerId && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
-                return new byte[0];
+                return Array.Empty<byte>();
             return DecryptValue(row.IvData, row.DataValue, password);
         }
 
@@ -496,7 +496,7 @@ namespace PraxisCore
             var db = new PraxisContext();
             var row = db.PlaceData.Include(p => p.Place).FirstOrDefault(p => p.Place.PrivacyId == elementId && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
-                return new byte[0];
+                return Array.Empty<byte>();
             return DecryptValue(row.IvData, row.DataValue, password);
         }
 

@@ -558,6 +558,43 @@ namespace Google.OpenLocationCode
             return DecodeValid(TrimCode(code));
         }
 
+        public static CodeArea DecodeValid(ReadOnlySpan<char> codeDigits)
+        {
+            // Initialise the values. We work them out as integers and convert them to doubles at the end.
+            long latVal = -LatitudeMax * LatIntegerMultiplier;
+            long lngVal = -LongitudeMax * LngIntegerMultiplier;
+            // Define the place value for the digits. We'll divide this down as we work through the code.
+            long latPlaceVal = LatMspValue;
+            long lngPlaceVal = LngMspValue;
+
+            int pairPartLength = Math.Min(codeDigits.Length, PairCodeLength);
+            int codeLength = Math.Min(codeDigits.Length, MaxDigitCount);
+            for (int i = 0; i < pairPartLength; i += 2)
+            {
+                latPlaceVal /= EncodingBase;
+                lngPlaceVal /= EncodingBase;
+                latVal += DigitValueOf(codeDigits[i]) * latPlaceVal;
+                lngVal += DigitValueOf(codeDigits[i + 1]) * lngPlaceVal;
+            }
+            for (int i = PairCodeLength; i < codeLength; i++)
+            {
+                latPlaceVal /= GridRows;
+                lngPlaceVal /= GridColumns;
+                int digit = DigitValueOf(codeDigits[i]);
+                int row = digit / GridColumns;
+                int col = digit % GridColumns;
+                latVal += row * latPlaceVal;
+                lngVal += col * lngPlaceVal;
+            }
+            return new CodeArea(
+                (double)latVal / LatIntegerMultiplier,
+                (double)lngVal / LngIntegerMultiplier,
+                (double)(latVal + latPlaceVal) / LatIntegerMultiplier,
+                (double)(lngVal + lngPlaceVal) / LngIntegerMultiplier,
+                codeLength
+            );
+        }
+
         public static CodeArea DecodeValid(string codeDigits)
         {
             // Initialise the values. We work them out as integers and convert them to doubles at the end.

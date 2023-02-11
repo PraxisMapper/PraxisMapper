@@ -246,6 +246,11 @@ namespace PraxisCore
             return OpenLocationCode.DecodeValid(s);
         }
 
+        public static CodeArea ToGeoArea(this ReadOnlySpan<char> s)
+        {
+            return OpenLocationCode.DecodeValid(s);
+        }
+
         public static GeoArea ToGeoArea(this Geometry g)
         {
             return Converters.GeometryToGeoArea(g);

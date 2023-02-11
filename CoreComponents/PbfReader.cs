@@ -64,13 +64,13 @@ namespace PraxisCore.PbfReader
 
         int nextBlockId = 0;
         long firstWayBlock = 0;
-        int startNodeBtreeIndex = 0; //Only set, not read from.
+        int startNodeBtreeIndex = 0; 
         int startWayBtreeIndex = 0;
+        int startRelationBtreeIndex = 0;
 
         int nodeIndexEntries = 0;
         int wayIndexEntries = 0;
         int relationIndexEntries = 0;
-        int startRelationBtreeIndex = 0;
 
         ConcurrentBag<Task> relList = new ConcurrentBag<Task>(); //Individual, smaller tasks.
         ConcurrentBag<TimeSpan> timeListRelations = new ConcurrentBag<TimeSpan>(); //how long each Group took to process.
@@ -454,7 +454,7 @@ namespace PraxisCore.PbfReader
             SplitIndexData(indexes);
         }
 
-        private void SplitIndexData(List<IndexInfo> indexes)
+        private static void SplitIndexData(List<IndexInfo> indexes)
         {
             nodeIndex = indexes.Where(i => i.groupType == 1).OrderBy(i => i.minId).ToList();
             wayIndex = indexes.Where(i => i.groupType == 2).OrderBy(i => i.minId).ToList();
@@ -547,7 +547,7 @@ namespace PraxisCore.PbfReader
             return null;
         }
 
-        TagsCollection GetTags(List<byte[]> stringTable, List<uint> keys, List<uint> vals)
+        static TagsCollection GetTags(List<byte[]> stringTable, List<uint> keys, List<uint> vals)
         {
             var tags = new TagsCollection(keys.Count);
             for (int i = 0; i < keys.Count; i++)
@@ -1315,9 +1315,9 @@ namespace PraxisCore.PbfReader
 
                         double relationTimeLeft = 0;
                         double wayTimeLeft = 0;
-                        if (timeListRelations.Count > 0 && timeListWays.Count == 0)
+                        if (timeListRelations.IsEmpty && timeListWays.IsEmpty)
                             relationTimeLeft = timeListRelations.Average(t => t.TotalSeconds) * (relGroups - timeListRelations.Count);
-                        if (timeListWays.Count > 0)
+                        if (timeListWays.Any())
                             wayTimeLeft = timeListWays.Average(t => t.TotalSeconds) * (wayGroups - timeListWays.Count);
 
                         if (relationTimeLeft > 0)
@@ -1546,7 +1546,7 @@ namespace PraxisCore.PbfReader
             }, token);
         }
 
-        Geometry ReduceStorageSize(Geometry g)
+        static Geometry ReduceStorageSize(Geometry g)
         {
             //Make the target geometry take up less storage space, so I can hold more data on a smaller server.
             //reduces accuracy enough to make data unsuitable for rendering maptiles.
@@ -1556,7 +1556,7 @@ namespace PraxisCore.PbfReader
             return g;
         }
 
-        public async void QueueWriteTask(string filename, StringBuilder data)
+        public static async void QueueWriteTask(string filename, StringBuilder data)
         {
             SimpleLockable.PerformWithLockAsTask(filename, () => {
                 File.AppendAllText(filename, data.ToString());

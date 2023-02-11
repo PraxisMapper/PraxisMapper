@@ -59,6 +59,48 @@ namespace PraxisCore
             Y = (int)(Y * IMapTiles.GameTileScale);
         }
 
+        public static void GetPlusCodeImagePixelSize(ReadOnlySpan<char> code, out int X, out int Y)
+        {
+            switch (code.Length)
+            {
+                case 10:
+                    X = 4;
+                    Y = 5;
+                    break;
+                case 8:
+                    X = 80;
+                    Y = 100;
+                    break;
+                case 6:
+                    X = 1600;
+                    Y = 2000;
+                    break;
+                case 4: //This is likely to use up more RAM than most PCs have, especially at large scales.
+                    X = 32000;
+                    Y = 40000;
+                    break;
+                default:
+                    X = 0;
+                    Y = 0;
+                    break;
+            }
+            X = (int)(X * IMapTiles.GameTileScale);
+            Y = (int)(Y * IMapTiles.GameTileScale);
+        }
+
+        public static byte[] DrawPlusCode(ReadOnlySpan<char> area, string styleSet = "mapTiles")
+        {
+            //This might be a cleaner version of my V4 function, for working with CellX sized tiles..
+            //This will draw at a Cell11 resolution automatically.
+            //Split it into a few functions.
+            //then get all the area
+
+            var info = new ImageStats(area);
+            var places = GetPlaces(info);
+            var paintOps = GetPaintOpsForPlaces(places, styleSet, info);
+            return MapTiles.DrawAreaAtSize(info, paintOps);
+        }
+
         /// <summary>
         /// Get the image for a PlusCode. Can optionally draw in a specific style set.
         /// </summary>
@@ -90,6 +132,12 @@ namespace PraxisCore
         {
             var info = new ImageStats(area);
 
+            return MapTiles.DrawAreaAtSize(info, paintOps);
+        }
+
+        public static byte[] DrawPlusCode(ReadOnlySpan<char> area, List<CompletePaintOp> paintOps, string styleSet = "mapTiles")
+        {
+            var info = new ImageStats(area);
             return MapTiles.DrawAreaAtSize(info, paintOps);
         }
 
@@ -325,7 +373,7 @@ namespace PraxisCore
 
                     if (saveToFiles)
                     {
-                        File.WriteAllBytes("GameTiles\\" + plusCode8 + ".png", tile);
+                        File.WriteAllBytes("GameTiles\\" + plusCode.CodeDigits.Substring(0,8) + ".png", tile);
                     }
                     else
                     {
