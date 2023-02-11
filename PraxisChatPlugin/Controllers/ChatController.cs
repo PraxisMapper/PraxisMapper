@@ -28,21 +28,21 @@ namespace PraxisChatPlugin.Controllers
         [Route("/[controller]/Region/{region}")]
         public List<string> WriteRegionChat(string region)
         {
-            //user comes from PraxisAuth.
-            //message may come from body.
             PraxisAuthentication.GetAuthInfo(Response, out var accountId, out var password);
             if (IsUserBanned(accountId))
                 return null;
 
-            var message = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength).FromJsonBytesTo<string>();
+            var message = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength).ToUTF8String();
             List<string> chat = new List<string>();
             SimpleLockable.PerformWithLock(region + "chatLog", () => {
                 chat = GenericData.GetAreaData<List<string>>(region, "chatLog");
+                if (chat == null)
+                    chat = new List<string>();
                 chat.Add(accountId + ": " + message);
                 if (chat.Count > chatLengthLines)
                     chat = chat.TakeLast(chatLengthLines).ToList();
 
-                GenericData.SetAreaDataJson(region, "chatLog", chat.ToJsonByteArray());
+                GenericData.SetAreaDataJson(region, "chatLog", chat);
             });
 
             return chat;
@@ -66,15 +66,17 @@ namespace PraxisChatPlugin.Controllers
             if (IsUserBanned(accountId))
                 return null;
 
-            var message = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength).FromJsonBytesTo<string>();
+            var message = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength).ToUTF8String();
             List<string> chat = new List<string>();
             SimpleLockable.PerformWithLock(channel + "chatLog", () => {
                 chat = GenericData.GetGlobalData<List<string>>(channel + "chatLog");
+                if (chat == null)
+                    chat = new List<string>();
                 chat.Add(accountId + ": " + message);
                 if (chat.Count > chatLengthLines)
                     chat = chat.TakeLast(chatLengthLines).ToList();
 
-                GenericData.SetGlobalDataJson(channel + "chatLog", chat.ToJsonByteArray());
+                GenericData.SetGlobalDataJson(channel + "chatLog", chat);
             });
 
             return chat;
@@ -89,11 +91,11 @@ namespace PraxisChatPlugin.Controllers
             if (!PraxisAuthentication.IsAdmin(accountId))
                 return;
 
-            var message = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength).FromJsonBytesTo<string>();
+            var message = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength).ToUTF8String();
             SimpleLockable.PerformWithLock(region + "chatLog", () => {
                 var chat = GenericData.GetAreaData<List<string>>(region, "chatLog");
                 chat.Remove(message);
-                GenericData.SetAreaDataJson(region, "chatLog", chat.ToJsonByteArray());
+                GenericData.SetAreaDataJson(region, "chatLog", chat);
             });
         }
 
@@ -105,11 +107,11 @@ namespace PraxisChatPlugin.Controllers
             if (!PraxisAuthentication.IsAdmin(accountId))
                 return;
 
-            var message = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength).FromJsonBytesTo<string>();
+            var message = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength).ToUTF8String();
             SimpleLockable.PerformWithLock(channel + "chatLog", () => {
                 var chat = GenericData.GetGlobalData<List<string>>(channel + "chatLog");
                 chat.Remove(message);
-                GenericData.SetGlobalDataJson(channel + "chatLog", chat.ToJsonByteArray());
+                GenericData.SetGlobalDataJson(channel + "chatLog", chat);
             });
         }
 
