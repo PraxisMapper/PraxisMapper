@@ -13,7 +13,7 @@ namespace PraxisCore
     //per https://lists.openstreetmap.org/pipermail/talk/2008-February/023419.html
     // Mapnik uses at least 5 layers internally for its tiles. (roughly, in top to bottom order)
     //Labels (text), Fill, Features, Area, HillShading.
-    //I would need better area-vs-feature detection (OSMSharp has this,and I think I included that in my code)
+    //I would need better Fill-vs-area-vs-feature detection (I think I only really handle areas and features)
 
     //A * value is a wildcard that means any value counts as a match for that key. If the tag exists, its value is irrelevant. Cannot be used in NOT checks.
     //A * key is a rule that will not match based on tag values, as no key will == *. Used for backgrounds and special styles called up by name.
@@ -22,7 +22,7 @@ namespace PraxisCore
     //equals: the one specific value exists on that key. Slightly faster than Any when matching a single key, but trivially so.
     //or: as long as one of the rules with or is true, accept this entry as a match. each Or entry should be treated as its own 'any' for parsing purposes.
     //not: this rule must be FALSE for the style to be applied.
-    //default: always true.
+    //default: always true. Must be the last entry in the list of styles to check.
 
     /// <summary>
     /// Determines an element's gameplay type and rules for drawing it on maptiles, along with tracking styles.
@@ -363,7 +363,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="tagsO">the tags to search</param>
         /// <returns>a Name value if one is found, or an empty string if not</returns>
-        public static string GetName(CompleteOsmGeo geo)
+        public static string GetName(ICompleteOsmGeo geo)
         {
             if (geo.Tags.Count == 0)
                 return "";
