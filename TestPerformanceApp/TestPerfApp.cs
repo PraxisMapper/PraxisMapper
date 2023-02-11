@@ -857,7 +857,8 @@ namespace PerformanceTestApp
             var dictionary = list.ToDictionary(k => k.Id, v => v);
             var conDict = new ConcurrentDictionary<long, OsmSharp.Way>();
             foreach (var entry in list)
-                conDict.Append(new KeyValuePair<long, OsmSharp.Way>(entry.Id.Value, entry));
+                conDict.TryAdd(entry.Id.Value, entry);
+            //conDict.Append(new KeyValuePair<long, OsmSharp.Way>(entry.Id.Value, entry));
 
             sw.Restart();
             var data3 = lookup.AsParallel().Select(l => l.First()).ToList();
@@ -1311,7 +1312,7 @@ namespace PerformanceTestApp
             if (mode == "SQLServer")
             {
                 db.Database.ExecuteSqlRaw(PraxisContext.MapDataValidTriggerMSSQL);
-                db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataValidTriggerMSSQL);
+                //db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataValidTriggerMSSQL);
             }
             if (mode == "MariaDB")
             {

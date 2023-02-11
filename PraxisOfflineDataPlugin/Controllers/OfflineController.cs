@@ -25,7 +25,7 @@ namespace PraxisOfflineDataPlugin.Controllers
                 return "";
 
             foreach (var place in quickplaces)
-                if (place.ElementGeometry.Coordinates.Count() > 1000)
+                if (place.ElementGeometry.Coordinates.Length > 1000)
                     place.ElementGeometry = place.ElementGeometry.Intersection(box6.ToPolygon());
 
             string cell2 = plusCode6.Substring(0, 2);
@@ -59,7 +59,7 @@ namespace PraxisOfflineDataPlugin.Controllers
                 var terrainInfo = TerrainInfo.SearchArea(ref box, ref places);
                 var terrainsPresent = terrainInfo.Select(t => t.data.areaType).Distinct().ToList();
 
-                if (terrainsPresent.Count() > 0)
+                if (terrainsPresent.Count > 0)
                 {
                     string concatTerrain = String.Join("|", terrainsPresent.Select(t => index[t]));
                     terrainDict[cell2][cell4][cell6][cell8] = concatTerrain;
@@ -108,7 +108,7 @@ namespace PraxisOfflineDataPlugin.Controllers
                         terrainDict[cell2][cell4][cell6] = new ConcurrentDictionary<string, string>();
 
                         foreach (var place in quickplaces)
-                            if (place.ElementGeometry.Coordinates.Count() > 1000)
+                            if (place.ElementGeometry.Coordinates.Length > 1000)
                                 place.ElementGeometry = place.ElementGeometry.Intersection(box6.ToPolygon());
 
                         Parallel.ForEach(GetCellCombos(), (cell8) =>
@@ -125,19 +125,19 @@ namespace PraxisOfflineDataPlugin.Controllers
                             var terrainInfo = TerrainInfo.SearchArea(ref box, ref places);
                             var terrainsPresent = terrainInfo.Select(t => t.data.areaType).Distinct().ToList();
 
-                            if (terrainsPresent.Count() > 0)
+                            if (terrainsPresent.Count > 0)
                             {
                                 string concatTerrain = String.Join("|", terrainsPresent.Select(t => index[t])); //indexed ID of each type.
                                 terrainDict[cell2][cell4][cell6][cell8] = concatTerrain;
                             }
                         });
-                        if (terrainDict[cell2][cell4][cell6].Count == 0)
+                        if (terrainDict[cell2][cell4][cell6].IsEmpty)
                             terrainDict[cell2][cell4].TryRemove(cell6, out var ignore);
                     }
-                    if (terrainDict[cell2][cell4].Count == 0)
+                    if (terrainDict[cell2][cell4].IsEmpty)
                         terrainDict[cell2].TryRemove(cell4, out var ignore);
                 }
-                if (terrainDict[cell2].Count == 0)
+                if (terrainDict[cell2].IsEmpty)
                     terrainDict[cell2].TryRemove(cell2, out var ignore);
 
                 //NOTE and TODO: if I want to save files per Cell2, here is where I should write terrainDict, then remove the current Cell2 entry and loop.
@@ -146,20 +146,20 @@ namespace PraxisOfflineDataPlugin.Controllers
             return JsonSerializer.Serialize(terrainDict);
         }
 
-        private Dictionary<string, int> GetTerrainIndex() //TODO make style a parameter
+        private static Dictionary<string, int> GetTerrainIndex() //TODO make style a parameter
         {
             var dict = new Dictionary<string, int>();
             foreach (var entry in TagParser.allStyleGroups["mapTiles"])
             {
                 if (entry.Value.IsGameElement)
                 {
-                    dict.Add(entry.Key, dict.Count() + 1);
+                    dict.Add(entry.Key, dict.Count + 1);
                 }
             }
             return dict;
         }
 
-        List<string> GetCellCombos()
+        static List<string> GetCellCombos()
         {
             var list = new List<string>(400);
             foreach (var Yletter in OpenLocationCode.CodeAlphabet)
@@ -171,7 +171,7 @@ namespace PraxisOfflineDataPlugin.Controllers
             return list;
         }
 
-        List<string> GetCell2Combos()
+        static List<string> GetCell2Combos()
         {
             var list = new List<string>(400);
             foreach (var Yletter in OpenLocationCode.CodeAlphabet.Take(9))

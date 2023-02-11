@@ -204,7 +204,7 @@ namespace PraxisMapper.Controllers
             {
                 var styleData = styleDataKVP.Value.ToList();
                 //Draw style as an X by X grid of circles, where X is square root of total sets
-                int gridSize = (int)Math.Ceiling(Math.Sqrt(styleData.Count()));
+                int gridSize = (int)Math.Ceiling(Math.Sqrt(styleData.Count));
 
                 ImageStats stats = new ImageStats("234567"); //Constructor is ignored, all the values are overridden.
                 stats.imageSizeX = gridSize * 60;
