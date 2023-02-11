@@ -43,6 +43,25 @@ namespace PraxisCore.Support
         /// </summary>
         public GeoArea area { get; set; }
 
+        public ImageStats(ReadOnlySpan<char> plusCode)
+        {
+            //Convenience method.
+            area = plusCode.ToGeoArea();
+            MapTileSupport.GetPlusCodeImagePixelSize(plusCode, out int x, out int y);
+
+            imageSizeX = x;
+            imageSizeY = y;
+
+            degreesPerPixelX = area.LongitudeWidth / imageSizeX;
+            degreesPerPixelY = area.LatitudeHeight / imageSizeY;
+
+            pixelsPerDegreeX = imageSizeX / area.LongitudeWidth;
+            pixelsPerDegreeY = imageSizeY / area.LatitudeHeight;
+
+            filterSize = (degreesPerPixelY / ConstantValues.resolutionCell11Lat) * IMapTiles.GameTileScale;
+        }
+
+
         /// <summary>
         /// Creates a new ImageStats for a given PlusCode based on the default settings for the app.
         /// Plus Codes are usually rendered at a 4:5 aspect ratio in Praxismapper due to defining a base pixel as an 11-char PlusCode

@@ -144,7 +144,7 @@ namespace PraxisCore.Standalone
                 {
                     //make map tile.
                     var plusCode = new OpenLocationCode(y, x, 10);
-                    var plusCode8 = plusCode.CodeDigits.Substring(0, 8);
+                    var plusCode8 = plusCode.CodeDigits.AsSpan(0, 8);
                     var plusCodeArea = OpenLocationCode.DecodeValid(plusCode8);
 
                     var areaForTile = new GeoArea(new GeoPoint(plusCodeArea.SouthLatitude, plusCodeArea.WestLongitude), new GeoPoint(plusCodeArea.NorthLatitude, plusCodeArea.EastLongitude));
@@ -163,8 +163,8 @@ namespace PraxisCore.Standalone
                     {
                         //This split helps (but does not alleviate) Solar2D performance.
                         //A county-sized app will function this way, though sometimes when zoomed out it will not load all map tiles on an android device.
-                        Directory.CreateDirectory(relationID + "Tiles\\" + plusCode8.Substring(0, 6));
-                        System.IO.File.WriteAllBytes(relationID + "Tiles\\" + plusCode8.Substring(0, 6) + "\\" + plusCode8.Substring(6, 2) + ".pngTile", tile); //Solar2d also can't load pngs directly from an apk file in android, but the rule is extension based.
+                        Directory.CreateDirectory(relationID + "Tiles\\" + plusCode.CodeDigits.Substring(0, 6));
+                        System.IO.File.WriteAllBytes(relationID + "Tiles\\" + plusCode.CodeDigits.Substring(0, 6) + "\\" + plusCode.CodeDigits.Substring(6, 2) + ".pngTile", tile); //Solar2d also can't load pngs directly from an apk file in android, but the rule is extension based.
                     }
 
                     mapTileCounter++;
