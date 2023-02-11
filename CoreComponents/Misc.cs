@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using System.Net;
 
 namespace PraxisCore
@@ -46,6 +47,13 @@ namespace PraxisCore
 
 
             return "";
+        }
+        
+        //This can probably be moved somewhere else, but it should be exposed as a regular function in addition to an extension.
+        public static Random GetSeededRandom(string plusCode)
+        {
+            var hash = plusCode.GetDeterministicHashCode();
+            return new Random(hash);
         }
     }
 }
