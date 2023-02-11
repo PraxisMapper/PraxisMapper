@@ -467,7 +467,7 @@ namespace Larry
                     db.Database.SetCommandTimeout(Int32.MaxValue);
                     db.ChangeTracker.AutoDetectChangesEnabled = false;
                     var lines = File.ReadAllLines(fileName); //Might be faster to use streams and dodge the memory allocation?
-                    var newPlaces = new List<PraxisCore.DbTables.Place> (lines.Count());
+                    var newPlaces = new List<DbTables.Place> (lines.Length);
                     Log.WriteLog("Converting entries from file...");
                     foreach (var line in lines)
                     {
@@ -684,7 +684,7 @@ namespace Larry
             {
                 if (entry.Value.IsGameElement)
                 {
-                    dict.Add(entry.Key, dict.Count() + 1);
+                    dict.Add(entry.Key, dict.Count + 1);
                 }
             }
             return dict;
@@ -771,13 +771,13 @@ namespace Larry
                                 var terrainsPresent = places.Select(p => p.StyleName).Distinct().ToList();
                                 //r terrainsPresent = terrainInfo.Select(t => t.data.areaType).Distinct().ToList();
 
-                                if (terrainsPresent.Count() > 0)
+                                if (terrainsPresent.Count > 0)
                                 {
                                     string concatTerrain = String.Join("|", terrainsPresent.Select(t => index[t])); //indexed ID of each type.
                                     terrainDict[cell2][cell4][cell6][cell8] = concatTerrain;
                                 }
                             });
-                            if (terrainDict[cell2][cell4][cell6].Count == 0)
+                            if (terrainDict[cell2][cell4][cell6].IsEmpty)
                                 terrainDict[cell2][cell4].TryRemove(cell6, out var ignore);
                         }
                         catch(Exception ex)
@@ -785,7 +785,7 @@ namespace Larry
                             Log.WriteLog("error making file for " + cell2 + cell4 + cell6 + ":" + ex.Message);
                         }
                     }
-                    if (terrainDict[cell2][cell4].Count == 0)
+                    if (terrainDict[cell2][cell4].IsEmpty)
                         terrainDict[cell2].TryRemove(cell4, out var ignore);
                     //else
                     //{
@@ -794,7 +794,7 @@ namespace Larry
                     //    Log.WriteLog("Made file for " + cell2 + cell4 + " at " + DateTime.Now);
                     //}
                 }
-                if (terrainDict[cell2].Count == 0)
+                if (terrainDict[cell2].IsEmpty)
                     terrainDict[cell2].TryRemove(cell2, out var ignore);
                 else
                 {
@@ -824,7 +824,7 @@ namespace Larry
             File.WriteAllText("appsettings.json", newFileText);
         }
 
-        public void ReduceServerSize() //Extremely similar to the PBFReader reprocessing, but online instead of against files.
+        public static void ReduceServerSize() //Extremely similar to the PBFReader reprocessing, but online instead of against files.
         {
             var db = new PraxisContext();
             var groupsDone = 0;
@@ -881,7 +881,7 @@ namespace Larry
             }
         }
 
-        public void BatchOp(Action<DbTables.Place> a)
+        public static void BatchOp(Action<DbTables.Place> a)
         {
             var db = new PraxisContext();
             var groupsDone = 0;
