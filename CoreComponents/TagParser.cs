@@ -459,7 +459,6 @@ namespace PraxisCore
             return results;
         }
 
-        //TODO: test these insert methods.
         public static void InsertStyle(StyleEntry s)
         {
             var db = new PraxisContext();
