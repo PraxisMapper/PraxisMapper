@@ -134,7 +134,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="g">the CompleteOSMGeo object to prepare to save to the DB</param>
         /// <returns>the Place ready to save to the DB</returns>
-        public static DbTables.Place ConvertOsmEntryToPlace(OsmSharp.Complete.CompleteOsmGeo g)
+        public static DbTables.Place ConvertOsmEntryToPlace(OsmSharp.Complete.ICompleteOsmGeo g)
         {
             var tags = TagParser.getFilteredTags(g.Tags);
             if (tags == null || tags.Count == 0)
