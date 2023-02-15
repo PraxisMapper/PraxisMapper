@@ -1,17 +1,15 @@
-﻿using PraxisCore;
-using PraxisCore.Support;
-using Google.OpenLocationCode;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
-using NetTopologySuite.Geometries.Prepared;
+using PraxisCore;
+using PraxisCore.Support;
 using PraxisMapper.Classes;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using static PraxisCore.DbTables;
 using static PraxisCore.Place;
-using System.Collections.Generic;
-using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace PraxisMapper.Controllers
 {
