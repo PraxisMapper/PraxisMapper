@@ -42,13 +42,13 @@ namespace PraxisCore
         public static bool SetAreaData(string plusCode, string key, byte[] value, double? expiration = null)
         {
             var db = new PraxisContext();
-            if (db.PlayerData.Any(p => p.DeviceID == key))
+            if (db.PlayerData.Any(p => p.accountId == key))
                 return false;
 
             if (value.Length < 128)
             {
                 string valString = value.ToUTF8String();
-                if (db.PlayerData.Any(p => p.DeviceID == valString))
+                if (db.PlayerData.Any(p => p.accountId == valString))
                     return false;
             }
 
@@ -112,7 +112,7 @@ namespace PraxisCore
         public static bool SetPlaceData(Guid elementId, string key, byte[] value, double? expiration = null)
         {
             var db = new PraxisContext();
-            if (db.PlayerData.Any(p => p.DeviceID == key))
+            if (db.PlayerData.Any(p => p.accountId == key))
                 return false;
 
             var row = db.PlaceData.Include(p => p.Place).FirstOrDefault(p => p.Place.PrivacyId == elementId && p.DataKey == key);
@@ -162,7 +162,7 @@ namespace PraxisCore
         public static byte[] GetPlayerData(string playerId, string key)
         {
             var db = new PraxisContext();
-            var row = db.PlayerData.FirstOrDefault(p => p.DeviceID == playerId && p.DataKey == key);
+            var row = db.PlayerData.FirstOrDefault(p => p.accountId == playerId && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
                 return Array.Empty<byte>();
             return row.DataValue;
@@ -206,12 +206,12 @@ namespace PraxisCore
                 || (Guid.TryParse(guidString, out tempCheck) && db.Places.Any(osm => osm.PrivacyId == tempCheck)))
                 return false; //reject attaching a player to a Place
 
-            var row = db.PlayerData.FirstOrDefault(p => p.DeviceID == playerId && p.DataKey == key);
+            var row = db.PlayerData.FirstOrDefault(p => p.accountId == playerId && p.DataKey == key);
             if (row == null)
             {
                 row = new DbTables.PlayerData();
                 row.DataKey = key;
-                row.DeviceID = playerId;
+                row.accountId = playerId;
                 db.PlayerData.Add(row);
             }
             if (expiration.HasValue)
@@ -288,10 +288,10 @@ namespace PraxisCore
         public static List<CustomDataPlayerResult> GetAllPlayerData(string deviceID)
         {
             var db = new PraxisContext();
-            var data = db.PlayerData.Where(p => p.DeviceID == deviceID)
+            var data = db.PlayerData.Where(p => p.accountId == deviceID)
                 .ToList()
                 .Where(row => row.Expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.UtcNow && row.IvData == null)
-                .Select(d => new CustomDataPlayerResult(d.DeviceID, d.DataKey, d.DataValue.ToUTF8String()))
+                .Select(d => new CustomDataPlayerResult(d.accountId, d.DataKey, d.DataValue.ToUTF8String()))
                 .ToList();
 
             return data;
@@ -342,7 +342,7 @@ namespace PraxisCore
                 valString = value.ToUTF8String();
 
             var db = new PraxisContext();
-            if (db.PlayerData.Any(p => p.DeviceID == key || p.DeviceID == valString))
+            if (db.PlayerData.Any(p => p.accountId == key || p.accountId == valString))
                 trackingPlayer = true;
 
             if (DataCheck.IsPlusCode(key) || DataCheck.IsPlusCode(valString))
@@ -433,7 +433,7 @@ namespace PraxisCore
         public static byte[] GetSecurePlayerData(string playerId, string key, string password)
         {
             var db = new PraxisContext();
-            var row = db.PlayerData.FirstOrDefault(p => p.DeviceID == playerId && p.DataKey == key);
+            var row = db.PlayerData.FirstOrDefault(p => p.accountId == playerId && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
                 return Array.Empty<byte>();
             return DecryptValue(row.IvData, row.DataValue, password);
@@ -468,12 +468,12 @@ namespace PraxisCore
             var encryptedValue = EncryptValue(value, password, out byte[] IVs);
 
             var db = new PraxisContext();
-            var row = db.PlayerData.FirstOrDefault(p => p.DeviceID == playerId && p.DataKey == key);
+            var row = db.PlayerData.FirstOrDefault(p => p.accountId == playerId && p.DataKey == key);
             if (row == null)
             {
                 row = new DbTables.PlayerData();
                 row.DataKey = key;
-                row.DeviceID = playerId;
+                row.accountId = playerId;
                 db.PlayerData.Add(row);
             }
             if (expiration.HasValue)

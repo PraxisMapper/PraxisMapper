@@ -11,7 +11,7 @@ namespace PraxisCore
         public class PlayerData
         {
             public int PlayerDataID { get; set; }
-            public string DeviceID { get; set; }
+            public string accountId { get; set; }
             public string DataKey { get; set; }
             public DateTime? Expiration { get; set; }
             public byte[] IvData { get; set; } //Only set if data is encrypted.
