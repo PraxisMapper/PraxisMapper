@@ -93,7 +93,7 @@ namespace PraxisMapper.Controllers
             var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
 
             var db = new PraxisContext();
-            var IP = Request.HttpContext.Connection.RemoteIpAddress.ToString(); //NOTE: may become deviceID after testing if that's better.
+            var IP = Request.HttpContext.Connection.RemoteIpAddress.ToString(); 
 
             if (!Classes.PraxisAntiCheat.antiCheatStatus.ContainsKey(IP))
                 Classes.PraxisAntiCheat.antiCheatStatus.TryAdd(IP, new Classes.AntiCheatInfo());

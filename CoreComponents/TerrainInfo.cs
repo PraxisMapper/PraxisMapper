@@ -168,18 +168,18 @@ namespace PraxisCore
             return new FindPlaceResult(olc.CodeDigits, area);
         }
 
-        public static FindPlaceResult? FindPlaceInCell10(string plusCode, ref List<DbTables.Place> places)
-        {
-            //singular function, only returns the smallest area in a cell.
-            var box = plusCode.ToGeoArea();
-            var entriesHere = GetPlaces(box, places, skipTags: true);
+        //public static FindPlaceResult? FindPlaceInCell10(string plusCode, ref List<DbTables.Place> places)
+        //{
+        //    //singular function, only returns the smallest area in a cell.
+        //    var box = plusCode.ToGeoArea();
+        //    var entriesHere = GetPlaces(box, places, skipTags: true);
 
-            if (entriesHere.Count == 0)
-                return null;
+        //    if (entriesHere.Count == 0)
+        //        return null;
 
-            var area = DetermineAreaTerrain(entriesHere);
-            return new FindPlaceResult(plusCode, area);
-        }
+        //    var area = DetermineAreaTerrain(entriesHere);
+        //    return new FindPlaceResult(plusCode, area);
+        //}
 
         public static DbTables.Place GetSinglePlaceFromArea(string plusCode)
         {
