@@ -53,7 +53,7 @@ namespace PraxisCore
             protected override void OnModelCreating(ModelBuilder model)
             {
             //Create indexes here.
-            model.Entity<PlayerData>().HasIndex(p => p.DeviceID);
+            model.Entity<PlayerData>().HasIndex(p => p.accountId);
             model.Entity<PlayerData>().HasIndex(p => p.DataKey);
             model.Entity<PlayerData>().HasIndex(p => p.Expiration);
 

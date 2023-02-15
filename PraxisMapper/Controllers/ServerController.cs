@@ -1,7 +1,4 @@
-﻿using Azure;
-using Azure.Core;
-using Google.OpenLocationCode;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using PraxisCore;
@@ -59,7 +56,7 @@ namespace PraxisMapper.Controllers
                 return 0;
 
             var db = new PraxisContext();
-            var removing = db.PlayerData.Where(p => p.DeviceID == accountId).ToArray();
+            var removing = db.PlayerData.Where(p => p.accountId == accountId).ToArray();
             db.PlayerData.RemoveRange(removing);
 
             var removeAccount = db.AuthenticationData.Where(p => p.accountId == accountId).ToList();
@@ -153,7 +150,7 @@ namespace PraxisMapper.Controllers
                 GenericData.EncryptPassword(accountId, passwordNew, Configuration.GetValue<int>("PasswordRounds"));
 
                 var db = new PraxisContext();
-                var entries = db.PlayerData.Where(p => p.DeviceID == accountId && p.IvData != null).ToList();
+                var entries = db.PlayerData.Where(p => p.accountId == accountId && p.IvData != null).ToList();
                 foreach (var entry in entries)
                 {
                     try
