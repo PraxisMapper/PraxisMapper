@@ -1,18 +1,13 @@
 ﻿using Google.OpenLocationCode;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
-using NetTopologySuite.Geometries.Prepared;
 using PraxisCore;
 using System;
 using System.Buffers;
-using System.Collections.Concurrent;
 using System.Linq;
 using System.Text;
-using System.Threading;
-using static PraxisCore.DbTables;
 using static PraxisCore.Place;
 
 namespace PraxisMapper.Controllers
@@ -76,27 +71,27 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpPut]
-        [Route("/[controller]/SetPlayerData/{deviceId}/{key}/{value}")]
-        [Route("/[controller]/SetPlayerData/{deviceId}/{key}/{value}/{expiresIn}")]
-        [Route("/[controller]/Player/{deviceId}/{key}/")]
-        [Route("/[controller]/Player/{deviceId}/{key}/{value}")]
-        [Route("/[controller]/Player/{deviceId}/{key}/{value}/{expiresIn}")]
-        public bool SetPlayerData(string deviceId, string key, string value, double? expiresIn = null)
+        [Route("/[controller]/SetPlayerData/{accountId}/{key}/{value}")]
+        [Route("/[controller]/SetPlayerData/{accountId}/{key}/{value}/{expiresIn}")]
+        [Route("/[controller]/Player/{accountId}/{key}/")]
+        [Route("/[controller]/Player/{accountId}/{key}/{value}")]
+        [Route("/[controller]/Player/{accountId}/{key}/{value}/{expiresIn}")]
+        public bool SetPlayerData(string accountId, string key, string value, double? expiresIn = null)
         {
             if (value == null)
             {
                 var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
-                return GenericData.SetPlayerData(deviceId, key, endData, expiresIn);
+                return GenericData.SetPlayerData(accountId, key, endData, expiresIn);
             }
-            return GenericData.SetPlayerData(deviceId, key, value, expiresIn);
+            return GenericData.SetPlayerData(accountId, key, value, expiresIn);
         }
 
         [HttpGet]
-        [Route("/[controller]/GetPlayerData/{deviceId}/{key}")]
-        [Route("/[controller]/Player/{deviceId}/{key}")]
-        public void GetPlayerData(string deviceId, string key)
+        [Route("/[controller]/GetPlayerData/{accountId}/{key}")]
+        [Route("/[controller]/Player/{accountId}/{key}")]
+        public void GetPlayerData(string accountId, string key)
         {
-            var data = GenericData.GetPlayerData(deviceId, key);
+            var data = GenericData.GetPlayerData(accountId, key);
             Response.BodyWriter.Write(data);
             return;
         }
@@ -131,14 +126,14 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
-        [Route("/[controller]/GetAllPlayerData/{deviceId}")]
-        [Route("/[controller]/Player/All/{deviceId}")]
-        public string GetAllPlayerData(string deviceId)
+        [Route("/[controller]/GetAllPlayerData/{accountId}")]
+        [Route("/[controller]/Player/All/{accountId}")]
+        public string GetAllPlayerData(string accountId)
         {
-            var data = GenericData.GetAllPlayerData(deviceId);
+            var data = GenericData.GetAllPlayerData(accountId);
             StringBuilder sb = new StringBuilder();
             foreach (var d in data)
-                sb.Append(d.deviceId).Append('|').Append(d.key).Append('|').Append(d.value).Append('\n');
+                sb.Append(d.accountId).Append('|').Append(d.key).Append('|').Append(d.value).Append('\n');
 
             return sb.ToString();
         }
@@ -207,11 +202,11 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpPut]
-        [Route("/[controller]/IncrementPlayerData/{deviceId}/{key}/{changeAmount}")]
-        [Route("/[controller]/Player/Increment/{deviceId}/{key}/{changeAmount}")]
-        public void IncrementPlayerData(string deviceId, string key, double changeAmount, double? expirationTimer = null)
+        [Route("/[controller]/IncrementPlayerData/{accountId}/{key}/{changeAmount}")]
+        [Route("/[controller]/Player/Increment/{accountId}/{key}/{changeAmount}")]
+        public void IncrementPlayerData(string accountId, string key, double changeAmount, double? expirationTimer = null)
         {
-            GenericData.IncrementPlayerData(deviceId, key, changeAmount, expirationTimer);
+            GenericData.IncrementPlayerData(accountId, key, changeAmount, expirationTimer);
         }
 
         [HttpPut]

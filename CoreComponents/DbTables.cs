@@ -219,7 +219,7 @@ namespace PraxisCore
         public class AuthenticationData
         {
             public long Id { get; set; }
-            public string accountId { get; set; } //could also be deviceId, but probably a string for the account name
+            public string accountId { get; set; }
             public string loginPassword { get; set; } //The external password the account uses to get an AuthToken
             public string dataPassword { get; set; } //The internal password the account uses to read/write secure data entries for the player. Inaccesssible to the server owner.
             public byte[] dataIV { get; set; } // encryption values for dataPassword.

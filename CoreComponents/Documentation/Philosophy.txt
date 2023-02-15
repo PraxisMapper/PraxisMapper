@@ -89,7 +89,7 @@ The goal is that identification of an individual user requires additional, exter
 Tracking activity by team, assuming population of teams is sufficiently large, should obfuscate individual behaior. Doubly so if players are allowed to freely change teams.
 The single most damaging option for security is enabling PerformanceTracker, which could provide a more thorough view of server activity if the server and/or database are compromised, primarily based on timestamps
 (at which point, an attacker would insert their own malicious code anyways)
-The short rule is: an insecure request cannot include both a location and a unique deviceID. Only one or the other. Anonymous identities/handles do not completely remove the concerns associated with this.
+The short rule is: an insecure request cannot include both a location and a unique accountID. Only one or the other. Anonymous identities/handles do not completely remove the concerns associated with this.
 While lots of parts of the Philosophy section are going to sound like a hard-line stance (and they should, they're philosophical points rather than practical compromises), this security one might seem the least reasonable.
 Essentially, every game in the last 5+ years requires an account to keep track of your data on, and those offer lots of personalization, and a straight reading would say that you shouldn't even make accounts for players, because that could tie them to a location.
 The big reason for this push is because people will want to run a game, probably for a small number of people, and not want to (or properly be able to) manage security perfectly.

@@ -19,7 +19,7 @@ namespace PraxisCore
     public static class GenericData
     {
         /// <summary>
-        /// Saves a key/value pair to a given PlusCode. Will reject a pair containing a player's deviceId in the database.
+        /// Saves a key/value pair to a given PlusCode. Will reject a pair containing a player's accountId in the database.
         /// </summary>
         /// <param name="plusCode">A valid PlusCode, excluding the + symbol.</param>
         /// <param name="key">The key to save to the database. Keys are unique, and you cannot have multiples of the same key.</param>
@@ -92,7 +92,7 @@ namespace PraxisCore
         }
 
         /// <summary>
-        /// Saves a key/value pair to a given map element. Will reject a pair containing a player's deviceId in the database.
+        /// Saves a key/value pair to a given map element. Will reject a pair containing a player's accountId in the database.
         /// </summary>
         /// <param name="elementId">the Guid exposed to clients to identify the map element.</param>
         /// <param name="key">The key to save to the database for the map element.</param>
@@ -154,9 +154,9 @@ namespace PraxisCore
         }
 
         /// <summary>
-        /// Get the value from a key/value pair saved on a player's deviceId. Expired entries will be ignored.
+        /// Get the value from a key/value pair saved on a player's accountId. Expired entries will be ignored.
         /// </summary>
-        /// <param name="playerId">the player-specific ID used. Expected to be a unique DeviceID to identify a phone, per that device's rules.</param>
+        /// <param name="playerId">the player-specific ID used. Expected to be a unique accountID to identify a phone, per that device's rules.</param>
         /// <param name="key">The key to load data from for the playerId.</param>
         /// <returns>The value saved to the key, or an empty byte[] if no key/value pair was found.</returns>
         public static byte[] GetPlayerData(string playerId, string key)
@@ -187,7 +187,7 @@ namespace PraxisCore
         }
 
         /// <summary>
-        /// Saves a key/value pair to a given player's DeviceID. Will reject a pair containing a PlusCode or map element Id.
+        /// Saves a key/value pair to a given player's accountID. Will reject a pair containing a PlusCode or map element Id.
         /// </summary>
         /// <param name="playerId"></param>
         /// <param name="key">The key to save to the database. Keys are unique, and you cannot have multiples of the same key.</param>
@@ -283,12 +283,12 @@ namespace PraxisCore
         /// <summary>
         /// Returns all data attached to a player's device ID
         /// </summary>
-        /// <param name="deviceID">the device associated with a player</param>
-        /// <returns>List of reuslts with deviceId, keys, and values</returns>
-        public static List<CustomDataPlayerResult> GetAllPlayerData(string deviceID)
+        /// <param name="accountID">the device associated with a player</param>
+        /// <returns>List of results with accountId, keys, and values</returns>
+        public static List<CustomDataPlayerResult> GetAllPlayerData(string accountID)
         {
             var db = new PraxisContext();
-            var data = db.PlayerData.Where(p => p.accountId == deviceID)
+            var data = db.PlayerData.Where(p => p.accountId == accountID)
                 .ToList()
                 .Where(row => row.Expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.UtcNow && row.IvData == null)
                 .Select(d => new CustomDataPlayerResult(d.accountId, d.DataKey, d.DataValue.ToUTF8String()))
@@ -424,16 +424,16 @@ namespace PraxisCore
         }
 
         /// <summary>
-        /// Get the value from a key/value pair saved on a player's deviceId encrypted with the given password. Expired entries will be ignored.
+        /// Get the value from a key/value pair saved on a player's accountId encrypted with the given password. Expired entries will be ignored.
         /// </summary>
-        /// <param name="playerId">the player-specific ID used. Expected to be a unique DeviceID to identify a phone, per that device's rules.</param>
+        /// <param name="accountId">the player-specific ID used. Expected to be a unique accountId to identify a player.</param>
         /// <param name="key">The key to load data from for the playerId.</param>
         /// <param name="password">The password used to encrypt the value originally.</param>
         /// <returns>The value saved to the key with the password given, or an empty string if no key/value pair was found or the password is incorrect.</returns>
-        public static byte[] GetSecurePlayerData(string playerId, string key, string password)
+        public static byte[] GetSecurePlayerData(string accountId, string key, string password)
         {
             var db = new PraxisContext();
-            var row = db.PlayerData.FirstOrDefault(p => p.accountId == playerId && p.DataKey == key);
+            var row = db.PlayerData.FirstOrDefault(p => p.accountId == accountId && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
                 return Array.Empty<byte>();
             return DecryptValue(row.IvData, row.DataValue, password);
