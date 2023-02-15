@@ -65,29 +65,29 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpPut]
-        [Route("/[controller]/SetSecurePlayerData/{deviceId}/{key}/{value}/{password}")]
-        [Route("/[controller]/SetSecurePlayerData/{deviceId}/{key}/{value}/{password}/{expiresIn}")]
-        [Route("/[controller]/Player/{deviceId}/{key}/{password}")]
-        [Route("/[controller]/Player/{deviceId}/{key}/{value}/{password}")]
-        [Route("/[controller]/Player/{deviceId}/{key}/{value}/{password}/{expiresIn}")]
-        public bool SetSecurePlayerData(string deviceId, string key, string value, string password, double? expiresIn = null)
+        [Route("/[controller]/SetSecurePlayerData/{accountId}/{key}/{value}/{password}")]
+        [Route("/[controller]/SetSecurePlayerData/{accountId}/{key}/{value}/{password}/{expiresIn}")]
+        [Route("/[controller]/Player/{accountId}/{key}/{password}")]
+        [Route("/[controller]/Player/{accountId}/{key}/{value}/{password}")]
+        [Route("/[controller]/Player/{accountId}/{key}/{value}/{password}/{expiresIn}")]
+        public bool SetSecurePlayerData(string accountId, string key, string value, string password, double? expiresIn = null)
         {
-            Response.Headers.Add("X-noPerfTrack", "SecureData/Player/" + deviceId.ToString() + "/VALUESREMOVED-PUT");
+            Response.Headers.Add("X-noPerfTrack", "SecureData/Player/" + accountId.ToString() + "/VALUESREMOVED-PUT");
 
             if (value == null)
             {
                 var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
-                return GenericData.SetSecurePlayerData(deviceId, key, endData, password, expiresIn);
+                return GenericData.SetSecurePlayerData(accountId, key, endData, password, expiresIn);
             }
-            return GenericData.SetSecurePlayerData(deviceId, key, value, password, expiresIn);
+            return GenericData.SetSecurePlayerData(accountId, key, value, password, expiresIn);
         }
 
         [HttpGet]
-        [Route("/[controller]/Player/{deviceId}/{key}/{password}")]
-        public void GetSecurePlayerData(string deviceId, string key, string password)
+        [Route("/[controller]/Player/{accountId}/{key}/{password}")]
+        public void GetSecurePlayerData(string accountId, string key, string password)
         {
             Response.Headers.Add("X-noPerfTrack", "SecureData/Player/VALUESREMOVED-GET");
-            byte[] rawData = GenericData.GetSecurePlayerData(deviceId, key, password);
+            byte[] rawData = GenericData.GetSecurePlayerData(accountId, key, password);
             Response.BodyWriter.Write(rawData);
             return;
         }

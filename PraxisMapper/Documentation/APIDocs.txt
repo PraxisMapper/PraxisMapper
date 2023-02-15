@@ -40,21 +40,21 @@ Distance/{elementId}/{lat}/{lon} - Return the distance in degrees from the given
 Global/{key} - Loads the value for a given key from the global set.
 Place/{elementId}/{key} - Loads the value for a given key attached to a Place
 Place/All/{elementId} - Loads all key/value pairs attached to a given Place. Results are 1 entry per line, in "PlaceId|key|value" format
-Player/{deviceId}/{key} - Loads the value for a given key attached to a player.
+Player/{accountId}/{key} - Loads the value for a given key attached to a player.
 Score/{elementId} - Calculates a default score for a Place, which is the # of Cell10s it is long (for a line) or covers in surface area. (for a closed shape).
 ServerBounds/ - Loads the boundaries of the gameplay area for a server as pipe separated doubles in a string, format "south|west|north|east". The server will reject requests from outside this area. The value is set during database creation, and is a rectangle covering all OSM Elements in the database.
 Terrain/{plusCode} - For each Cell10 in the given PlusCode, gets the info on the smallest intersecting Place. 1 line per Cell10, format "Cell10|PlaceName|gameElementName|privacyID". 
 Terrain/All/{plusCode} - For each Cell10 in the given PlusCode, gets the info on all intersecting Place. 1 line per Element per Cell10, format "Cell10|PlaceName|gameElementName|privacyID". 
 
 PUT:
-Area/{plusCode}/{key}/{value}/{expiresIn} -  Saves a key/value pair to the server attached to a PlusCode. Cannot be a player's deviceId.
+Area/{plusCode}/{key}/{value}/{expiresIn} -  Saves a key/value pair to the server attached to a PlusCode. Cannot be a player's accountId.
 Area/Increment/{plusCode}/{key}/{changeAmount} - For a PlusCode's key/value pair, change the numerical value by changeAmount. Ensures that all simultaneous requests to Increment this value will be applied correctly.
-Global/{key}/{value} - Saves a key/value pair to the server's global set without reference to anything else. Cannot be a combination of a player's deviceId and a PlusCode or a PlaceId.
+Global/{key}/{value} - Saves a key/value pair to the server's global set without reference to anything else. Cannot be a combination of a player's accountId and a PlusCode or a PlaceId.
 Global/Increment/{key}/{changeAmount} - For a global key/value pair, change the numerical value by changeAmount. Ensures that all simultaneous requests to Increment this value will be applied correctly.
-Place/{elementId}/{key}/{value}/{expiresIn} -Saves a key/value pair to the server attached to a Place. Cannot be a player's deviceId.
+Place/{elementId}/{key}/{value}/{expiresIn} -Saves a key/value pair to the server attached to a Place. Cannot be a player's accountId.
 Place/Increment/{elementId}/{key}/{changeAmount} - For a Place's key/value pair, change the numerical value by changeAmount. Ensures that all simultaneous requests to Increment this value will be applied correctly.
-Player/{deviceId}/{key}/{value}/{expiresIn} - Saves a key/value pair to the server attached to a player's deviceId. Cannot be a PlusCode or a Place's ID.
-Player/Increment/{deviceId}/{key}/{changeAmount} - For a players key/value pair, change the numerical value by changeAmount. Ensures that all simultaneous requests to Increment this value will be applied correctly.
+Player/{accountId}/{key}/{value}/{expiresIn} - Saves a key/value pair to the server attached to a player's accountId. Cannot be a PlusCode or a Place's ID.
+Player/Increment/{accountId}/{key}/{changeAmount} - For a players key/value pair, change the numerical value by changeAmount. Ensures that all simultaneous requests to Increment this value will be applied correctly.
 
 
 MapTile:
@@ -79,15 +79,15 @@ If you must attach a player to a location somehow, use the SecureData endpoints 
 
 GET:
 Area/{plusCode}/{key}/{password} - Load a key from the PlusCode given if the password is correct.
-Password/{devicedId}/{password} - Check to see if a password is correct for a given deviceId.
+Password/{accountId}/{password} - Check to see if a password is correct for a given accountId.
 Place/{elementId}/{key}/{password} - Load a key from the element given if the password is correct.
-Player/{deviceId}/{key}/{password} - Load a key from the playerId given if the password is correct. Note that this is not sufficiently secure for an account password.
+Player/{accountId}/{key}/{password} - Load a key from the playerId given if the password is correct. Note that this is not sufficiently secure for an account password.
 
 PUT:
 Area/{plusCode}/{key}/{value}/{password}/{expiresIn} - Save a key value pair to the given PlusCode, with the supplied password to read it later. If expiresIn is set, data will not be relayed to clients after that many seconds have passed.
-Password/{devicedId}/{password} - Set the password for a deviceId using a stronger algorithm than the other SecureData functions. Writes to the 'password' key for the given deviceId. Intended to be used as a login method if you want to use accounts instead of hardwareIds to validate a player.
+Password/{accountId}/{password} - Set the password for a accountId using a stronger algorithm than the other SecureData functions. Writes to the 'password' key for the given accountId. Intended to be used as a login method if you want to use accounts instead of hardwareIds to validate a player.
 Place/{elementId}/{key}/{value}/{password}/{expiresIn} - Save a key value pair to the given element, with the supplied password to read it later. If expiresIn is set, data will not be relayed to clients after that many seconds have passed.
-Player/{deviceId}/{key}/{value}/{password}/{expiresIn} - Save a key value pair to the given playerID, with the supplied password to read it later. If expiresIn is set, data will not be relayed to clients after that many seconds have passed. This endpoint is not sufficiently secure for establishing or storing an account password, use "EncryptUserPassword" for that instead.
+Player/{accountId}/{key}/{value}/{password}/{expiresIn} - Save a key value pair to the given playerID, with the supplied password to read it later. If expiresIn is set, data will not be relayed to clients after that many seconds have passed. This endpoint is not sufficiently secure for establishing or storing an account password, use "EncryptUserPassword" for that instead.
 
 
 Slippy:
