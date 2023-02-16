@@ -655,6 +655,11 @@ namespace PraxisCore
             return ms.ToArray();
         }
 
+        public static byte[] ReadBody(PipeReader br, long? contentLength)
+        {
+            return ReadBody(br, (int)contentLength);
+        }
+
         public static byte[] ReadBody(PipeReader br, int contentLength)
         {
             var rr = br.ReadAtLeastAsync(contentLength);
