@@ -83,7 +83,8 @@ namespace PraxisCore
         /// <returns>A long form of s</returns>
         public static long ToLong(this string s)
         {
-            return long.Parse(s);  //temp;
+            long.TryParse(s, out long result);
+            return result;
         }
 
         /// <summary>
@@ -93,7 +94,8 @@ namespace PraxisCore
         /// <returns>A long form of s</returns>
         public static long ToLong(this ReadOnlySpan<char> s)
         {
-            return long.Parse(s);
+            long.TryParse(s, out long result);
+            return result;
         }
 
         /// <summary>
