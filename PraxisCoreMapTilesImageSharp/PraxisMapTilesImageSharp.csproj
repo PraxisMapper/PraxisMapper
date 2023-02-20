@@ -13,13 +13,17 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="SixLabors.ImageSharp" Version="3.0.0-alpha.0.71" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.0.0-alpha.0.92" />
     <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="1.0.0-beta15.3" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\CoreComponents\PraxisCore.csproj" />
   </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="copy /Y &quot;$(TargetDir)$(ProjectName).dll&quot; &quot;$(SolutionDir)\PraxisMapper\bin\$(Configuration)\net7.0\$(ProjectName).dll&quot;&#xD;&#xA;copy /Y &quot;$(TargetDir)$(ProjectName).pdb&quot; &quot;$(SolutionDir)\PraxisMapper\bin\$(Configuration)\net7.0\$(ProjectName).pdb&quot;" />
+  </Target>
 
 </Project>
  
