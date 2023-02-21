@@ -1,13 +1,6 @@
 ﻿using Google.OpenLocationCode;
-using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
-using System.Formats.Asn1;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
-using System.Transactions;
 
 namespace PraxisCore
 {
@@ -97,7 +90,7 @@ namespace PraxisCore
             return thisTile;
         }
 
-        public void SaveCustomGridAreaData(CustomGridResults data, string key, string value, DateTime? expiration = null)
+        public static void SaveCustomGridAreaData(CustomGridResults data, string key, string value, DateTime? expiration = null)
         {
             var db = new PraxisContext();
             var saveData = new DbTables.AreaData() { DataKey = key, DataValue = value.ToByteArrayUTF8(), Expiration = expiration, PlusCode = GetCustomGridName(data), GeoAreaIndex = data.tile.ToPolygon() };
