@@ -460,6 +460,7 @@ namespace PraxisCore
         public static long SaveMapTile(string code, string styleSet, byte[] image)
         {
             var db = new PraxisContext();
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.StyleSet == styleSet);
             if (existingResults == null)
             {
