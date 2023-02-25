@@ -42,6 +42,7 @@ namespace PraxisCore
         public static bool SetAreaData(string plusCode, string key, byte[] value, double? expiration = null)
         {
             var db = new PraxisContext();
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             if (db.PlayerData.Any(p => p.accountId == key))
                 return false;
 
@@ -112,6 +113,7 @@ namespace PraxisCore
         public static bool SetPlaceData(Guid elementId, string key, byte[] value, double? expiration = null)
         {
             var db = new PraxisContext();
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             if (db.PlayerData.Any(p => p.accountId == key))
                 return false;
 
@@ -201,6 +203,7 @@ namespace PraxisCore
 
             var guidString = value.ToUTF8String();
             var db = new PraxisContext();
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             Guid tempCheck = new Guid();
             if ((Guid.TryParse(key, out tempCheck) && db.Places.Any(osm => osm.PrivacyId == tempCheck))
                 || (Guid.TryParse(guidString, out tempCheck) && db.Places.Any(osm => osm.PrivacyId == tempCheck)))
@@ -342,6 +345,7 @@ namespace PraxisCore
                 valString = value.ToUTF8String();
 
             var db = new PraxisContext();
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             if (db.PlayerData.Any(p => p.accountId == key || p.accountId == valString))
                 trackingPlayer = true;
 
@@ -380,6 +384,7 @@ namespace PraxisCore
         public static bool SetSecureAreaData(string plusCode, string key, byte[] value, string password, double? expiration = null)
         {
             var db = new PraxisContext();
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             byte[] encryptedValue = EncryptValue(value, password, out byte[] IVs);
 
             var row = db.AreaData.FirstOrDefault(p => p.PlusCode == plusCode && p.DataKey == key);
@@ -468,6 +473,7 @@ namespace PraxisCore
             var encryptedValue = EncryptValue(value, password, out byte[] IVs);
 
             var db = new PraxisContext();
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var row = db.PlayerData.FirstOrDefault(p => p.accountId == playerId && p.DataKey == key);
             if (row == null)
             {
@@ -528,6 +534,7 @@ namespace PraxisCore
         {
             byte[] encryptedValue = EncryptValue(value, password, out byte[] IVs);
             var db = new PraxisContext();
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
 
             var row = db.PlaceData.Include(p => p.Place).FirstOrDefault(p => p.Place.PrivacyId == elementId && p.DataKey == key);
             if (row == null)
@@ -680,6 +687,7 @@ namespace PraxisCore
             var salt = crypter.GenerateSalt(options);
             var results = crypter.Crypt(password, salt);
             var db = new PraxisContext();
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var entry = db.AuthenticationData.Where(a => a.accountId == userId).FirstOrDefault();
             if (entry == null)
             {
