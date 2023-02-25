@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 using static PraxisCore.DbTables;
-using static PraxisCore.StandaloneDbTables;
+using static PraxisCore.Standalone.StandaloneDbTables;
 
 namespace PraxisCore.Support
 {
