@@ -6,7 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using static PraxisCore.DbTables;
-using static PraxisCore.StandaloneDbTables;
+using static PraxisCore.Standalone.StandaloneDbTables;
 using static PraxisCore.ConstantValues;
 using System.Collections.Concurrent;
 
