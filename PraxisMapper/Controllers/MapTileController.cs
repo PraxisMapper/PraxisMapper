@@ -61,6 +61,7 @@ namespace PraxisMapper.Controllers
             if (SaveMapTiles())
             {
                 var db = new PraxisContext();
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
                 var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.StyleSet == styleSet);
                 if (existingResults == null)
                 {
