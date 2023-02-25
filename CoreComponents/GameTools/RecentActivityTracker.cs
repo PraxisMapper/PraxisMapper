@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace PraxisCore
+namespace PraxisCore.GameTools
 {
     public class RecentActivityTracker
     {
@@ -27,7 +27,7 @@ namespace PraxisCore
             }
             else
                 history.Add(plusCode10, DateTime.UtcNow.AddHours(hourDelay));
-            
+
             history = history.Where(h => h.Value > DateTime.UtcNow).ToDictionary(k => k.Key, v => v.Value);
             return grant;
         }
