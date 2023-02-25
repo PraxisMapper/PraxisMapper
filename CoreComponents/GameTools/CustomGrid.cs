@@ -1,8 +1,9 @@
 ﻿using Google.OpenLocationCode;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
-namespace PraxisCore
+namespace PraxisCore.GameTools
 {
     public class CustomGrid
     {
@@ -24,7 +25,7 @@ namespace PraxisCore
             var gridX = 360 / size; // 360 / .5 = 720 tiles on X axis. 360 / 4 = 90 tiles.
         }
 
-        public CustomGridResults FindGridCode(double lat, double lon, int tileCount, int layerCount =1)
+        public CustomGridResults FindGridCode(double lat, double lon, int tileCount, int layerCount = 1)
         {
             //Reminder: opposite of exponent is logarithm
             var totalMultiplier = tileCount ^ layerCount;
@@ -45,12 +46,12 @@ namespace PraxisCore
                 longMath /= tileCount;
                 latMath /= tileCount;
 
-                southPoint += (yPos * (tileCount ^ i));
-                westPoint += (xPos * (tileCount ^ i));
+                southPoint += yPos * (tileCount ^ i);
+                westPoint += xPos * (tileCount ^ i);
             }
 
             //Create GeoArea for this tile as well. 
-            var tileLength = 360 /  totalMultiplier; //360 / (20 ^ 5 = 3,200,000) = 0.000 01125 degrees. Not quite. 00225 is for Cell8, also a little off. Might be because there's no round off here.
+            var tileLength = 360 / totalMultiplier; //360 / (20 ^ 5 = 3,200,000) = 0.000 01125 degrees. Not quite. 00225 is for Cell8, also a little off. Might be because there's no round off here.
             GeoArea thisTile = new GeoArea(southPoint, westPoint, southPoint + tileLength, westPoint + tileLength);
 
 
@@ -61,11 +62,11 @@ namespace PraxisCore
         public static string GetCustomGridName(CustomGridResults data)
         {
             string name = "";
-            foreach(var t in data.coordPairs)
+            foreach (var t in data.coordPairs)
             {
                 name += t.Item1.ToString() + "-" + t.Item2.ToString() + "|";
             }
-            return name.Substring(0, name.Length -1);
+            return name.Substring(0, name.Length - 1);
         }
 
         public GeoArea DecodeCustomGrid(List<Tuple<int, int>> values, int tileCount, int layerCount)
@@ -75,7 +76,7 @@ namespace PraxisCore
             double lon = -180;
 
             int totalMultiplier = 0;
-            double tileLength  = 0;
+            double tileLength = 0;
             //foreach layer, add the size of the tile to both lat and lon to get the SW corner of the tile. On the final tile, add half again if you want the center point of that tile instead.
             for (int i = 0; i < layerCount; i++)
             {
@@ -95,6 +96,29 @@ namespace PraxisCore
             var db = new PraxisContext();
             var saveData = new DbTables.AreaData() { DataKey = key, DataValue = value.ToByteArrayUTF8(), Expiration = expiration, PlusCode = GetCustomGridName(data), GeoAreaIndex = data.tile.ToPolygon() };
             db.AreaData.Add(saveData);
+            db.SaveChanges();
+        }
+
+        public static void SaveCustomGridSecureAreaData(CustomGridResults data, string key, string password, object value, double? expiration = null) {
+            var db = new PraxisContext();
+            byte[] encryptedValue = GenericData.EncryptValue(value.ToJsonByteArray(), password, out byte[] IVs);
+            string name = GetCustomGridName(data);
+
+            var row = db.AreaData.FirstOrDefault(p => p.PlusCode == name && p.DataKey == key);
+            if (row == null) {
+                row = new DbTables.AreaData();
+                row.DataKey = key;
+                row.PlusCode = GetCustomGridName(data);
+                row.GeoAreaIndex = data.tile.ToPolygon();
+                db.AreaData.Add(row);
+            }
+            if (expiration.HasValue)
+                row.Expiration = DateTime.UtcNow.AddSeconds(expiration.Value);
+            else
+                row.Expiration = null;
+
+            row.DataValue = encryptedValue;
+            row.IvData = IVs;
             db.SaveChanges();
         }
     }
