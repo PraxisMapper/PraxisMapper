@@ -39,7 +39,7 @@ namespace PraxisCore
         /// <returns>a Polygon covering the GeoArea provided</returns>
         public static Geometry GeoAreaToPolygon(GeoArea plusCodeArea)
         {
-            return factory.CreatePolygon(GeoAreaToCoordArray(plusCodeArea));
+            return geometryFactory.CreatePolygon(GeoAreaToCoordArray(plusCodeArea));
         }
 
         /// <summary>
@@ -49,7 +49,7 @@ namespace PraxisCore
         /// <returns>a PreparedPolygon covering the GeoArea provided.</returns>
         public static IPreparedGeometry GeoAreaToPreparedPolygon(GeoArea plusCodeArea)
         {
-            return pgf.Create(GeoAreaToPolygon(plusCodeArea));
+            return preparedGeometryFactory.Create(GeoAreaToPolygon(plusCodeArea));
         }
 
         /// <summary>

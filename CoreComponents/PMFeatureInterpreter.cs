@@ -61,7 +61,7 @@ namespace PraxisCore
                     //I have already filtered nodes down to only ones with tags that matter.
                     //No addditional processing on tags is needed here.
                     var n = osmObject as Node;
-                    return factory.CreatePoint(new Coordinate(n.Longitude.Value, n.Latitude.Value));
+                    return geometryFactory.CreatePoint(new Coordinate(n.Longitude.Value, n.Latitude.Value));
                     //return new Point(, geometryFactory);
                     break;
                 case OsmGeoType.Way:
@@ -79,12 +79,12 @@ namespace PraxisCore
                     if (isArea && coordinates.Length >= 4) // not a linearring, needs at least four coordinates, with first and last identical.
                     { // area tags leads to simple polygon
                         //return new LinearRing(coordinates);
-                        return factory.CreateLinearRing(coordinates);
+                        return geometryFactory.CreateLinearRing(coordinates);
                     }
                     else if (coordinates.Length >= 2) // not a linestring, needs at least two coordinates.
                     { // no area tag leads to just a line.
                         //return new LineString(coordinates, factory);
-                        return factory.CreateLineString(coordinates);
+                        return geometryFactory.CreateLineString(coordinates);
                     }
                     break;
                 case OsmGeoType.Relation:
@@ -154,7 +154,7 @@ namespace PraxisCore
             foreach (var c in closedWays)
             {
                 ways.Remove(c);
-                polys.Add(factory.CreatePolygon(Converters.NodeArrayToCoordArray(c.Nodes)));
+                polys.Add(geometryFactory.CreatePolygon(Converters.NodeArrayToCoordArray(c.Nodes)));
             }
 
             while (ways.Count > 0)
@@ -189,12 +189,12 @@ namespace PraxisCore
             if (outerRings.Count == 1)
                 outer = outerRings.First();
             else
-                outer = factory.CreateMultiPolygon(outerRings.ToArray());
+                outer = geometryFactory.CreateMultiPolygon(outerRings.ToArray());
 
             if (innerways.Count > 0)
             {
                 List<Polygon> innerRings = BuildRings(innerways);
-                Geometry inner = factory.CreateMultiPolygon(innerRings.ToArray());
+                Geometry inner = geometryFactory.CreateMultiPolygon(innerRings.ToArray());
                 outer = outer.Difference(inner);
             }
 
@@ -293,7 +293,7 @@ namespace PraxisCore
             }
 
             var coordArray = Converters.NodeArrayToCoordArray(currentShape);
-            var poly = factory.CreatePolygon(coordArray);
+            var poly = geometryFactory.CreatePolygon(coordArray);
             poly = GeometrySupport.CCWCheck(poly);
             if (poly == null)
             {
