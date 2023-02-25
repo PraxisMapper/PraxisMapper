@@ -163,7 +163,7 @@ namespace PraxisCore
                 if (place.ElementGeometry.GeometryType == "LinearRing" || (place.ElementGeometry.GeometryType == "LineString" && place.ElementGeometry.Coordinates.First() == place.ElementGeometry.Coordinates.Last()))
                 {
                     //I want to update all LinearRings to Polygons, and let the style determine if they're Filled or Stroked.
-                    var poly = factory.CreatePolygon((LinearRing)place.ElementGeometry);
+                    var poly = geometryFactory.CreatePolygon((LinearRing)place.ElementGeometry);
                     place.ElementGeometry = poly;
                 }
 

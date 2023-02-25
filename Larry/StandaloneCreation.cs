@@ -1,11 +1,12 @@
 ﻿using Google.OpenLocationCode;
 using PraxisCore;
+using PraxisCore.Standalone;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using static PraxisCore.DbTables;
-using static PraxisCore.StandaloneDbTables;
+using static PraxisCore.Standalone.StandaloneDbTables;
 
 namespace Larry
 {

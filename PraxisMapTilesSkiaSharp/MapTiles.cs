@@ -1,5 +1,6 @@
 ﻿using Google.OpenLocationCode;
 using NetTopologySuite.Geometries;
+using PraxisCore.Standalone;
 using PraxisCore.Support;
 using SkiaSharp;
 using static PraxisCore.ConstantValues;
@@ -630,7 +631,7 @@ namespace PraxisCore
             return points;
         }
 
-        public static SKPoint PlaceInfoToSKPoint(PraxisCore.StandaloneDbTables.PlaceInfo2 pi, ImageStats imgstats)
+        public static SKPoint PlaceInfoToSKPoint(StandaloneDbTables.PlaceInfo2 pi, ImageStats imgstats)
         {
             SkiaSharp.SKPoint point = new SkiaSharp.SKPoint();
             point.X = (float)((pi.lonCenter - imgstats.area.WestLongitude) * (1 / imgstats.degreesPerPixelX));
@@ -638,7 +639,7 @@ namespace PraxisCore
             return point;
         }
 
-        public static SKPoint[] PlaceInfoToSKPoints(PraxisCore.StandaloneDbTables.PlaceInfo2 pi, ImageStats info)
+        public static SKPoint[] PlaceInfoToSKPoints(StandaloneDbTables.PlaceInfo2 pi, ImageStats info)
         {
             float heightMod = (float)pi.height / 2;
             float widthMod = (float)pi.width / 2;

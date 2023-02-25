@@ -564,7 +564,7 @@ namespace Larry
 
             if (config["UseHighAccuracy"] != "True")
             {
-                factory = NtsGeometryServices.Instance.CreateGeometryFactory(new PrecisionModel(1000000), 4326); //SRID matches 10-character Plus code values.  Precision model means round all points to 7 decimal places to not exceed float's useful range.
+                geometryFactory = NtsGeometryServices.Instance.CreateGeometryFactory(new PrecisionModel(1000000), 4326); //SRID matches 10-character Plus code values.  Precision model means round all points to 7 decimal places to not exceed float's useful range.
                 SimplifyAreas = true; //rounds off points that are within a Cell10's distance of each other. Makes fancy architecture and highly detailed paths less pretty on map tiles, but works for gameplay data.
             }
 
@@ -805,6 +805,27 @@ namespace Larry
             }
 
             //return JsonSerializer.Serialize(terrainDict);
+        }
+
+        public static bool IsTerrainPresent(string styleSet, string terrain, string cell) 
+        {
+            //This will be a DB query based on a style that doesn't have a NOT criteria.
+            var db = new PraxisContext();
+
+            var style = TagParser.allStyleGroups[styleSet][terrain].StyleMatchRules;
+            var firstSTyle = style.First();
+
+            var queryTag = firstSTyle.Key;
+            var queryVals = firstSTyle.Value.Split('|');
+            var queryType = firstSTyle.MatchType;
+
+            var area = cell.ToPolygon();
+            var results = db.PlaceTags.Include(p => p.Place).Any(p => p.Key == queryTag && queryVals.Contains(p.Value));
+            //this could be done on a list of places
+
+
+
+            return false;
         }
 
         public static void SetDefaultPasswords()
