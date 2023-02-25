@@ -634,7 +634,7 @@ namespace PraxisCore
             baseSec.GenerateIV();
             IVs = baseSec.IV;
             var crypter = baseSec.CreateEncryptor(passwordBytes, IVs);
-
+            
             var ms = new MemoryStream();
             using (CryptoStream cs = new CryptoStream(ms, crypter, CryptoStreamMode.Write))
                 cs.Write(value, 0, value.Length);
@@ -645,9 +645,9 @@ namespace PraxisCore
         public static byte[] DecryptValue(byte[] IVs, byte[] value, string password)
         {
             byte[] passwordBytes = SHA256.HashData(password.ToByteArrayUTF8());
-         
-            var crypter = baseSec.CreateDecryptor(passwordBytes, IVs);
 
+            var crypter = baseSec.CreateDecryptor(passwordBytes, IVs);
+            
             var ms = new MemoryStream();
             using (CryptoStream cs = new CryptoStream(ms, crypter, CryptoStreamMode.Write))
                 cs.Write(value);
@@ -688,7 +688,8 @@ namespace PraxisCore
                 entry.accountId = userId;
             }
             entry.loginPassword = results;
-            entry.dataPassword = EncryptValue(Guid.NewGuid().ToByteArray(), password, out var IVs).ToUTF8String();
+            var bytes = EncryptValue(Guid.NewGuid().ToByteArray(), password, out var IVs);
+            entry.dataPassword = System.Convert.ToBase64String(bytes);
             entry.dataIV = IVs;
             db.SaveChanges();
 
@@ -713,7 +714,8 @@ namespace PraxisCore
         {
             var db = new PraxisContext();
             var entry = db.AuthenticationData.Where(a => a.accountId == userId).FirstOrDefault();
-            var intPwd = DecryptValue(entry.dataIV, entry.dataPassword.ToByteArrayUTF8(), password).ToUTF8String();
+            var bytes = System.Convert.FromBase64String(entry.dataPassword);
+            var intPwd = new Guid(DecryptValue(entry.dataIV, bytes, password)).ToString();
 
             return intPwd;
         }
