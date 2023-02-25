@@ -462,18 +462,19 @@ namespace PraxisCore
         public static void InsertStyle(StyleEntry s)
         {
             var db = new PraxisContext();
-            db.StyleEntries.Add(s);
-            db.SaveChanges();
-
             if (allStyleGroups.TryGetValue(s.StyleSet, out var group))
             {
-                group.Add(s.Name, s);
+                if (group.TryAdd(s.Name, s)) {
+                    db.StyleEntries.Add(s);
+                }
             }
             else
             {
                 var newDict = new Dictionary<string, StyleEntry> { { s.Name, s } };
                 allStyleGroups.Add(s.StyleSet, newDict);
+                db.StyleEntries.Add(s);
             }
+            db.SaveChanges();
         }
 
         public static void InsertStyles(List<StyleEntry> styles)
