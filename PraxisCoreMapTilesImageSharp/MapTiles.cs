@@ -1,5 +1,6 @@
 ﻿using Google.OpenLocationCode;
 using NetTopologySuite.Geometries;
+using PraxisCore.Standalone;
 using PraxisCore.Support;
 using SixLabors.Fonts;
 using SixLabors.ImageSharp;
@@ -509,7 +510,7 @@ namespace PraxisCore
             return new SixLabors.ImageSharp.PointF((float)((coord.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((coord.Y - drawingArea.SouthLatitude) * (1 / resolutionY)));
         }
 
-        public static Rectangle PlaceInfoToRect(PraxisCore.StandaloneDbTables.PlaceInfo2 pi, ImageStats info)
+        public static Rectangle PlaceInfoToRect(StandaloneDbTables.PlaceInfo2 pi, ImageStats info)
         {
             //TODO test this.
             Rectangle r = new Rectangle();
