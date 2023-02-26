@@ -11,7 +11,7 @@ namespace Larry
         //So, I'll choose Plan B: save everything into one database, and make a copy of the DB in user-writable space on the device.
         //This is a little redundant on space usage, but a big county is ~2 MB for the database.
         public virtual DbSet<MapTileDB> MapTiles { get; set; }
-        public virtual DbSet<TerrainInfo> TerrainInfo { get; set; }
+        public virtual DbSet<StandaloneTerrainInfo> TerrainInfo { get; set; }
         public virtual DbSet<Bounds> Bounds { get; set; }
         public virtual DbSet<PlusCodesVisited> PlusCodesVisited { get; set; }
         public virtual DbSet<PlayerStats> PlayerStats { get; set; }
@@ -48,7 +48,7 @@ namespace Larry
             //set indexed and names and such here.
             model.Entity<MapTileDB>().HasIndex(p => p.PlusCode);
 
-            model.Entity<TerrainInfo>().HasIndex(p => p.PlusCode);
+            model.Entity<StandaloneTerrainInfo>().HasIndex(p => p.PlusCode);
             
             model.Entity<TerrainDataSmall>().HasIndex(p => p.Name);
 
