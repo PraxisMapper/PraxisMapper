@@ -1,4 +1,5 @@
 ﻿using Google.OpenLocationCode;
+using NetTopologySuite.Geometries;
 using PraxisCore.Support;
 using System;
 using System.Collections.Generic;
@@ -6,8 +7,7 @@ using System.Linq;
 using static PraxisCore.ConstantValues;
 using static PraxisCore.Place;
 
-namespace PraxisCore
-{
+namespace PraxisCore {
     /// <summary>
     /// Functions that search or sort the gameplay on the TagParser entries of Places, most often by Area.
     /// </summary>
@@ -51,8 +51,7 @@ namespace PraxisCore
         /// <param name="area">GeoArea from a decoded PlusCode</param>
         /// <param name="elements">A list of OSM elements</param>
         /// <returns>returns a dictionary using PlusCode as the key and name/areatype/client facing Id of the smallest element intersecting that PlusCode</returns>
-        public static List<FindPlaceResult> SearchArea(ref GeoArea area, ref List<DbTables.Place> elements)
-        {
+        public static List<FindPlaceResult> SearchArea(ref GeoArea area, ref List<DbTables.Place> elements) {
             List<FindPlaceResult> results = new List<FindPlaceResult>(400); //starting capacity for a full Cell8
 
             //Singular function, returns 1 item entry per cell10.
@@ -65,13 +64,13 @@ namespace PraxisCore
             GeoArea searchArea;
             List<DbTables.Place> searchPlaces;
             FindPlaceResult? placeFound;
+            Polygon searchAreaPoly = null;
 
-            while (x < area.Max.Longitude)
-            {
+            while (x < area.Max.Longitude) {
                 searchArea = new GeoArea(area.Min.Latitude, x - resolutionCell10, area.Max.Latitude, x + resolutionCell10);
-                searchPlaces = GetPlaces(searchArea, elements, skipTags: true);
-                while (y < area.Max.Latitude)
-                {
+                searchAreaPoly = searchArea.ToPolygon();
+                searchPlaces = elements.Where(e => e.ElementGeometry.Intersects(searchAreaPoly)).ToList();
+                while (y < area.Max.Latitude) {
                     placeFound = FindPlaceInCell10(x, y, ref searchPlaces);
                     if (placeFound.HasValue)
                         results.Add(placeFound.Value);
@@ -103,18 +102,21 @@ namespace PraxisCore
             double y = area.Min.Latitude;
 
             GeoArea searchArea;
+            Polygon searchAreaPoly = null;
             List<DbTables.Place> searchPlaces;
-            FindPlacesResult? placeFound;
+            FindPlacesResult? placesFound;
+            
 
             while (x < area.Max.Longitude)
             {
                 searchArea = new GeoArea(area.Min.Latitude, x - resolutionCell10, area.Max.Latitude, x + resolutionCell10);
-                searchPlaces = GetPlaces(searchArea, elements, skipTags: true);
+                searchAreaPoly = searchArea.ToPolygon();
+                searchPlaces = elements.Where(e => e.ElementGeometry.Intersects(searchAreaPoly)).ToList();
                 while (y < area.Max.Latitude)
                 {
-                    placeFound = FindPlacesInCell10(x, y, ref searchPlaces);
-                    if (placeFound.HasValue)
-                        results.Add(placeFound.Value);
+                    placesFound = FindPlacesInCell10(x, y, ref searchPlaces);
+                    if (placesFound.HasValue)
+                        results.Add(placesFound.Value);
 
                     y = Math.Round(y + resolutionCell10, 6); //Round ensures we get to the next pluscode in the event of floating point errors.
                 }
@@ -135,15 +137,16 @@ namespace PraxisCore
         public static FindPlacesResult? FindPlacesInCell10(double lon, double lat, ref List<DbTables.Place> places)
         {
             //Plural function, gets all areas in each cell10.
-            var box = new GeoArea(new GeoPoint(lat, lon), new GeoPoint(lat + resolutionCell10, lon + resolutionCell10));
-            var entriesHere = GetPlaces(box, places, skipTags: true);
+            var olc = new OpenLocationCode(lat, lon);
+            var box = olc.Decode();
+            var geoPoly = box.ToPolygon();
+            var entriesHere = places.Where(p => p.ElementGeometry.Intersects(geoPoly)).ToList();
 
             if (entriesHere.Count == 0)
                 return null;
 
             var area = DetermineAreaTerrains(entriesHere);
-            string olc = new OpenLocationCode(lat, lon).CodeDigits;
-            return new FindPlacesResult(olc, area);
+            return new FindPlacesResult(olc.CodeDigits, area);
 
         }
 
@@ -156,10 +159,11 @@ namespace PraxisCore
         /// <returns>a tuple of the 10-digit plus code and the name/areatype/client facing ID for the smallest element in that pluscode.</returns>
         public static FindPlaceResult? FindPlaceInCell10(double x, double y, ref List<DbTables.Place> places)
         {
-            //singular function, only returns the smallest area in a cell.
+            //singular function, only returns the smallest area in a cell.           
             var olc = new OpenLocationCode(y, x);
             var box = olc.Decode();
-            var entriesHere = GetPlaces(box, places, skipTags: true);
+            var geoPoly = box.ToPolygon();
+            var entriesHere = places.Where(p => p.ElementGeometry.Intersects(geoPoly)).ToList();
 
             if (entriesHere.Count == 0)
                 return null;
@@ -168,18 +172,6 @@ namespace PraxisCore
             return new FindPlaceResult(olc.CodeDigits, area);
         }
 
-        //public static FindPlaceResult? FindPlaceInCell10(string plusCode, ref List<DbTables.Place> places)
-        //{
-        //    //singular function, only returns the smallest area in a cell.
-        //    var box = plusCode.ToGeoArea();
-        //    var entriesHere = GetPlaces(box, places, skipTags: true);
-
-        //    if (entriesHere.Count == 0)
-        //        return null;
-
-        //    var area = DetermineAreaTerrain(entriesHere);
-        //    return new FindPlaceResult(plusCode, area);
-        //}
 
         public static DbTables.Place GetSinglePlaceFromArea(string plusCode)
         {
