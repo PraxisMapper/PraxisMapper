@@ -14,7 +14,7 @@ namespace PraxisCore.Standalone
             public int layer { get; set; } //I might want to do variant maptiles where each area cliamed adds an overlay to the base map tile, this tracks which stacking order this goes in.
         }
 
-        public class TerrainInfo //read-only for the destination app.
+        public class StandaloneTerrainInfo //read-only for the destination app.
         {
             public long id { get; set; }
             public string PlusCode { get; set; } //now is a Cell6 instead of a Cell10
@@ -41,7 +41,7 @@ namespace PraxisCore.Standalone
             public long id { get; set; }
             public string Name { get; set; }
             public string areaType { get; set; } //the game element name
-            public List<TerrainInfo> TerrainInfo { get; set; }
+            public List<StandaloneTerrainInfo> TerrainInfo { get; set; }
             public override string ToString()
             {
                 return Name + ":" + areaType;

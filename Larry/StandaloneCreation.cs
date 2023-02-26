@@ -135,7 +135,7 @@ namespace Larry
                 }
                 foreach (var o in overlapped)
                 {
-                    var ti = new StandaloneDbTables.TerrainInfo();
+                    var ti = new StandaloneDbTables.StandaloneTerrainInfo();
                     ti.PlusCode = o.plusCode.Substring(removableLetters, 10 - removableLetters);
                     ti.TerrainDataSmall = new List<TerrainDataSmall>();
                     ti.TerrainDataSmall.Add(tdSmalls[o.data.Name]);
