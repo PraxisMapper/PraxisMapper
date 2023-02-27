@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using static PraxisCore.DbTables;
 using static PraxisCore.Standalone.StandaloneDbTables;
 
 namespace Larry
@@ -17,8 +16,6 @@ namespace Larry
 
         public static void CreateStandaloneDB(long relationID = 0, GeoArea bounds = null, bool saveToDB = false, bool saveToFolder = true)
         {
-            //TODO: could rename TerrainInfo to TrailInfo, terrainDataSmall to trailData
-
             string name = "";
             if (bounds != null)
                 name = Math.Truncate(bounds.SouthLatitude) + "_" + Math.Truncate(bounds.WestLongitude) + "_" + Math.Truncate(bounds.NorthLatitude) + "_" + Math.Truncate(bounds.EastLongitude) + ".sqlite";
@@ -53,7 +50,7 @@ namespace Larry
             var intersectCheck = Converters.GeoAreaToPolygon(buffered);
             bool pullFromPbf = false; //Set via arg at startup? or setting file?
             if (!pullFromPbf)
-                allPlaces = PraxisCore.Place.GetPlaces(buffered);
+                allPlaces = Place.GetPlaces(buffered);
             else
             {
                 //need a file to read from.
@@ -81,7 +78,7 @@ namespace Larry
             var basePlaces = allPlaces.Where(a => TagParser.GetName(a) != "" || a.StyleName != "unmatched").ToList(); //.Where(a => a.name != "").ToList();// && (a.IsGameElement || wikiList.Contains(a.name))).ToList();
             var distinctNames = basePlaces.Select(p => TagParser.GetName(p)).Distinct().ToList();//This distinct might be causing things in multiple pieces to only detect one of them, not all of them?
 
-            var placeInfo = PraxisCore.Standalone.Standalone.GetPlaceInfo(basePlaces);
+            var placeInfo = Standalone.GetPlaceInfo(basePlaces);
             //Remove trails later.
             //SHORTCUT: for roads that are a straight-enough line (under 1 Cell10 in width or height)
             //just treat them as being 1 Cell10 in that axis, and skip tracking them by each Cell10 they cover.
@@ -102,7 +99,7 @@ namespace Larry
 
             //to save time, i need to index which areas are in which Cell6.
             //So i know which entries I can skip when running.
-            var indexCell6 = PraxisCore.Standalone.Standalone.IndexAreasPerCell6(buffered, basePlaces);
+            var indexCell6 = Standalone.IndexAreasPerCell6(buffered, basePlaces);
             var indexes = indexCell6.SelectMany(i => i.Value.Select(v => new PlaceIndex() { PlusCode = i.Key, placeInfoId = placeDictionary[v.SourceItemID].id })).ToList();
             sqliteDb.PlaceIndexs.AddRange(indexes);
 
@@ -128,17 +125,17 @@ namespace Larry
                 List<DbTables.Place> oneEntry = new List<DbTables.Place>();
                 oneEntry.Add(trail);
 
-                var overlapped = PraxisCore.TerrainInfo.SearchArea(ref thisPath, ref oneEntry);
+                var overlapped = AreaStyle.GetAreaDetails(ref thisPath, ref oneEntry);
                 if (overlapped.Count > 0)
                 {
                     tdSmalls.TryAdd(TagParser.GetName(trail), new TerrainDataSmall() { Name = TagParser.GetName(trail), areaType = trail.StyleName });
                 }
                 foreach (var o in overlapped)
                 {
-                    var ti = new StandaloneDbTables.StandaloneTerrainInfo();
+                    var ti = new StandaloneTerrainInfo();
                     ti.PlusCode = o.plusCode.Substring(removableLetters, 10 - removableLetters);
                     ti.TerrainDataSmall = new List<TerrainDataSmall>();
-                    ti.TerrainDataSmall.Add(tdSmalls[o.data.Name]);
+                    ti.TerrainDataSmall.Add(tdSmalls[o.data.name]);
                     sqliteDb.TerrainInfo.Add(ti);
                 }
                 sqliteDb.SaveChanges();
@@ -150,7 +147,7 @@ namespace Larry
             Log.WriteLog("Trails processed at " + DateTime.Now);
 
             //make scavenger hunts
-            var sh = PraxisCore.Standalone.Standalone.GetScavengerHunts(allPlaces);
+            var sh = Standalone.GetScavengerHunts(allPlaces);
             sqliteDb.ScavengerHunts.AddRange(sh);
             sqliteDb.SaveChanges();
             Log.WriteLog("Auto-created scavenger hunt entries at " + DateTime.Now);
@@ -164,8 +161,8 @@ namespace Larry
             sqliteDb.SaveChanges();
 
             //now we have the list of places we need to be concerned with. 
-            System.IO.Directory.CreateDirectory(relationID + "Tiles");
-            PraxisCore.Standalone.Standalone.DrawMapTilesStandalone(relationID, buffered, allPlaces, saveToFolder);
+            Directory.CreateDirectory(relationID + "Tiles");
+            Standalone.DrawMapTilesStandalone(relationID, buffered, allPlaces, saveToFolder);
             sqliteDb.SaveChanges();
             Log.WriteLog("Maptiles drawn at " + DateTime.Now);
 

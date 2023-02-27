@@ -5,10 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Prepared;
 using OsmSharp;
-using OsmSharp.API;
 using OsmSharp.Streams;
 using PraxisCore;
-using PraxisCore.PbfReader;
 using PraxisCore.Support;
 using SkiaSharp;
 using System;
@@ -18,14 +16,13 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Numerics;
 using System.Reflection;
 using System.Text;
 using static PraxisCore.DbTables;
 using static PraxisCore.GeometrySupport;
 using static PraxisCore.Place;
 using static PraxisCore.Singletons;
-using static PraxisCore.StandaloneDbTables;
+using static PraxisCore.Standalone.StandaloneDbTables;
 
 namespace PerformanceTestApp
 {
@@ -1075,7 +1072,7 @@ namespace PerformanceTestApp
                 if (sw.ElementGeometry.GeometryType == "LinearRing" || (sw.ElementGeometry.GeometryType == "LineString" && sw.ElementGeometry.Coordinates.First() == sw.ElementGeometry.Coordinates.Last()))
                 {
                     //I want to update all LinearRings to Polygons, and let the style determine if they're Filled or Stroked.
-                    var poly = factory.CreatePolygon((LinearRing)sw.ElementGeometry);
+                    var poly = Singletons.geometryFactory.CreatePolygon((LinearRing)sw.ElementGeometry);
                     sw.ElementGeometry = poly;
                 }
                 return sw;
@@ -2302,19 +2299,19 @@ namespace PerformanceTestApp
                 //new search:
                 sw.Restart();
                 var sb2 = new StringBuilder();
-                var results3 = PraxisCore.TerrainInfo.SearchAreaFull(ref area, ref places);
+                var results3 = PraxisCore.AreaStyle.GetAreaDetailsAll(ref area, ref places);
                 foreach (var d in results3)
                     foreach (var v in d.data)
-                        sb2.Append(d.plusCode).Append('|').Append(v.Name).Append('|').Append(v.areaType).Append('|').Append(v.PrivacyId).Append('\n');
+                        sb2.Append(d.plusCode).Append('|').Append(v.name).Append('|').Append(v.style).Append('|').Append(v.privacyId).Append('\n');
                 var results4 = sb2.ToString();
                 sw.Stop();
                 Console.WriteLine("New search ran in " + sw.ElapsedMilliseconds);
             }
         }
 
-        public static List<FindPlacesResult> SearchAreaNew(ref GeoArea area, ref List<DbTables.Place> elements)
+        public static List<AreaDetailAll> SearchAreaNew(ref GeoArea area, ref List<DbTables.Place> elements)
         {
-            List<FindPlacesResult> results = new List<FindPlacesResult>(400); //starting capacity for a full Cell8
+            List<AreaDetailAll> results = new List<AreaDetailAll>(400); //starting capacity for a full Cell8
 
             //Singular function, returns 1 item entry per cell10.
             if (elements.Count == 0)
@@ -2327,7 +2324,7 @@ namespace PerformanceTestApp
 
             GeoArea searchArea;
             List<DbTables.Place> searchPlaces;
-            FindPlacesResult? placeFound;
+            AreaDetailAll? placeFound;
 
             //for (double xx = 0; xx < xCells; xx += 1)
             while (x < area.Max.Longitude)
@@ -2338,7 +2335,7 @@ namespace PerformanceTestApp
                 //for (double yy = 0; yy < yCells; yy += 1)
                 while (y < area.Max.Latitude)
                 {
-                    placeFound = PraxisCore.TerrainInfo.FindPlacesInCell10(x, y, ref searchPlaces);
+                    placeFound = PraxisCore.AreaStyle.GetAreaDetailAllForCell10(x, y, ref searchPlaces);
                     if (placeFound.HasValue)
                         results.Add(placeFound.Value);
 

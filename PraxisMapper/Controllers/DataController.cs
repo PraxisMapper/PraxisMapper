@@ -257,9 +257,9 @@ namespace PraxisMapper.Controllers
             StringBuilder sb = new StringBuilder();
             //pluscode|name|type|PrivacyID 
 
-            var data = TerrainInfo.SearchArea(ref box, ref places);
+            var data = AreaStyle.GetAreaDetails(ref box, ref places);
             foreach (var d in data)
-                sb.Append(d.plusCode).Append('|').Append(d.data.Name).Append('|').Append(d.data.areaType).Append('|').Append(d.data.PrivacyId).Append('\n');
+                sb.Append(d.plusCode).Append('|').Append(d.data.name).Append('|').Append(d.data.style).Append('|').Append(d.data.privacyId).Append('\n');
             var results = sb.ToString();
             cache.Set("Terrain" + plusCode, results, new TimeSpan(0, 0, 30));
             return results;
@@ -283,10 +283,10 @@ namespace PraxisMapper.Controllers
             StringBuilder sb = new StringBuilder();
             //pluscode|name|type|privacyID
 
-            var data = TerrainInfo.SearchAreaFull(ref box, ref places);
+            var data = AreaStyle.GetAreaDetailsAll(ref box, ref places);
             foreach (var d in data)
                 foreach (var v in d.data)
-                    sb.Append(d.plusCode).Append('|').Append(v.Name).Append('|').Append(v.areaType).Append('|').Append(v.PrivacyId).Append('\n');
+                    sb.Append(d.plusCode).Append('|').Append(v.name).Append('|').Append(v.style).Append('|').Append(v.privacyId).Append('\n');
             var results = sb.ToString();
             cache.Set("TerrainAll" + plusCode, results, new TimeSpan(0, 0, 30));
             return results;
@@ -298,7 +298,7 @@ namespace PraxisMapper.Controllers
             //for individual Cell10 or Cell11 checks. Existing terrain calls only do Cell10s in a Cell8 or larger area.
             //Might be better in PraxisCore to be reused.
 
-            var place = TerrainInfo.GetSinglePlaceFromArea(plusCode);
+            var place = AreaStyle.GetSinglePlaceFromArea(plusCode);
             var name = TagParser.GetName(place);
             StringBuilder sb = new StringBuilder();
             sb.Append(plusCode).Append('|').Append(name).Append('|').Append(place.StyleName).Append('|').Append(place.PrivacyId);
