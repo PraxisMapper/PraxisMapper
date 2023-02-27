@@ -12,8 +12,8 @@ namespace PraxisCore.Support
     public record struct CustomDataAreaResult(string plusCode, string key, string value);
     public record struct CustomDataPlaceResult(Guid elementId, string key, string value);
     public record struct CustomDataPlayerResult(string accountId, string key, string value);
-    public readonly record struct TerrainData(string Name, string areaType, Guid PrivacyId);
-    public readonly record struct FindPlaceResult(string plusCode, TerrainData data);
-    public readonly record struct FindPlacesResult(string plusCode, List<TerrainData> data);
+    public readonly record struct AreaInfo(string name, string style, Guid privacyId);
+    public readonly record struct AreaDetail(string plusCode, AreaInfo data);
+    public readonly record struct AreaDetailAll(string plusCode, List<AreaInfo> data);
 
 }

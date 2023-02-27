@@ -7,27 +7,24 @@ using System.Linq;
 using static PraxisCore.ConstantValues;
 using static PraxisCore.Place;
 
-namespace PraxisCore {
+namespace PraxisCore
+{
     /// <summary>
-    /// Functions that search or sort the gameplay on the TagParser entries of Places, most often by Area.
+    /// Functions that search or sort Places by their TagParser styles, displaying information by Area. Usually done for Cell10s.
     /// </summary>
-    public static class TerrainInfo
+    public static class AreaStyle
     {
-        //The new version, which returns a sorted list of places, smallest to largest, for when a single space contains multiple entries (default ScavengerHunt logic)
-
         /// <summary>
         /// Get the StyleName (as defined by TagParser) for each Place in the list, along with name and client-facing ID.
         /// </summary>
         /// <param name="entriesHere">the list of elements to pull data from</param>
         /// <returns>A list of name, StyleName, and elementIds for a client</returns>
-        public static List<TerrainData> DetermineAreaTerrains(List<DbTables.Place> entriesHere)
+        public static List<AreaInfo> DetermineAreaInfos(List<DbTables.Place> entriesHere)
         {
-            //Which Place in this given Area is the one that should be displayed on the game/map as the name? picks the smallest one.
-            //This one return all entries, for a game mode that might need all of them.
-            var results = new List<TerrainData>(entriesHere.Count);
+            var results = new List<AreaInfo>(entriesHere.Count);
             foreach (var e in entriesHere)
             {
-                results.Add(new TerrainData(TagParser.GetName(e), e.StyleName, e.PrivacyId));
+                results.Add(new AreaInfo(TagParser.GetName(e), e.StyleName, e.PrivacyId));
             }
             return results;
         }
@@ -37,22 +34,23 @@ namespace PraxisCore {
         /// </summary>
         /// <param name="entriesHere">the list of elements to pull data from</param>
         /// <returns>the name, areatype, and client facing ID of the OSM element to use</returns>
-        public static TerrainData DetermineAreaTerrain(List<DbTables.Place> entriesHere)
+        public static AreaInfo DetermineAreaInfo(List<DbTables.Place> entriesHere)
         {
             //Which Place in this given Area is the one that should be displayed on the game/map as the name? picks the smallest one.
             //This one only returns the smallest entry, for games that only need to check the most interesting area in a cell.
+            //loading data through GetPlaces() will sort them largest to smallest, so we dont sort again here.
             var entry = entriesHere.Last();
-            return new TerrainData(TagParser.GetName(entry), entry.StyleName, entry.PrivacyId);
+            return new AreaInfo(TagParser.GetName(entry), entry.StyleName, entry.PrivacyId);
         }
 
         /// <summary>
-        /// Find which element in the list intersect with which PlusCodes inside the area. Returns one element per PlusCode
+        /// Find which element in the list intersect with which PlusCodes inside the area. Returns one element (the smallest) per Cell10 in the area.
         /// </summary>
         /// <param name="area">GeoArea from a decoded PlusCode</param>
         /// <param name="elements">A list of OSM elements</param>
         /// <returns>returns a dictionary using PlusCode as the key and name/areatype/client facing Id of the smallest element intersecting that PlusCode</returns>
-        public static List<FindPlaceResult> SearchArea(ref GeoArea area, ref List<DbTables.Place> elements) {
-            List<FindPlaceResult> results = new List<FindPlaceResult>(400); //starting capacity for a full Cell8
+        public static List<AreaDetail> GetAreaDetails(ref GeoArea area, ref List<DbTables.Place> elements) {
+            List<AreaDetail> results = new List<AreaDetail>(400); //starting capacity for a full Cell8
 
             //Singular function, returns 1 item entry per cell10.
             if (elements.Count == 0)
@@ -63,7 +61,7 @@ namespace PraxisCore {
 
             GeoArea searchArea;
             List<DbTables.Place> searchPlaces;
-            FindPlaceResult? placeFound;
+            AreaDetail? placeFound;
             Polygon searchAreaPoly = null;
 
             while (x < area.Max.Longitude) {
@@ -71,7 +69,7 @@ namespace PraxisCore {
                 searchAreaPoly = searchArea.ToPolygon();
                 searchPlaces = elements.Where(e => e.ElementGeometry.Intersects(searchAreaPoly)).ToList();
                 while (y < area.Max.Latitude) {
-                    placeFound = FindPlaceInCell10(x, y, ref searchPlaces);
+                    placeFound = GetAreaDetailForCell10(x, y, ref searchPlaces);
                     if (placeFound.HasValue)
                         results.Add(placeFound.Value);
 
@@ -90,13 +88,13 @@ namespace PraxisCore {
         /// <param name="area">GeoArea from a decoded PlusCode</param>
         /// <param name="elements">A list of OSM elements</param>
         /// <returns>returns a dictionary using PlusCode as the key and name/areatype/client facing Id of all element intersecting that PlusCode</returns>
-        public static List<FindPlacesResult> SearchAreaFull(ref GeoArea area, ref List<DbTables.Place> elements)
+        public static List<AreaDetailAll> GetAreaDetailsAll(ref GeoArea area, ref List<DbTables.Place> elements)
         {
             if (elements.Count == 0)
                 return null;
 
             //Plural function, returns all entries for each cell10.
-            List<FindPlacesResult> results = new List<FindPlacesResult>(400); //starting capacity for a full Cell8
+            List<AreaDetailAll> results = new List<AreaDetailAll>(400); //starting capacity for a full Cell8
 
             double x = area.Min.Longitude;
             double y = area.Min.Latitude;
@@ -104,9 +102,8 @@ namespace PraxisCore {
             GeoArea searchArea;
             Polygon searchAreaPoly = null;
             List<DbTables.Place> searchPlaces;
-            FindPlacesResult? placesFound;
+            AreaDetailAll? placesFound;
             
-
             while (x < area.Max.Longitude)
             {
                 searchArea = new GeoArea(area.Min.Latitude, x - resolutionCell10, area.Max.Latitude, x + resolutionCell10);
@@ -114,7 +111,7 @@ namespace PraxisCore {
                 searchPlaces = elements.Where(e => e.ElementGeometry.Intersects(searchAreaPoly)).ToList();
                 while (y < area.Max.Latitude)
                 {
-                    placesFound = FindPlacesInCell10(x, y, ref searchPlaces);
+                    placesFound = GetAreaDetailAllForCell10(x, y, ref searchPlaces);
                     if (placesFound.HasValue)
                         results.Add(placesFound.Value);
 
@@ -134,7 +131,7 @@ namespace PraxisCore {
         /// <param name="lat">latitude in degrees</param>
         /// <param name="places">list of OSM elements</param>
         /// <returns>a tuple of the 10-digit plus code and a list of name/areatype/client facing ID for each element in that pluscode.</returns>
-        public static FindPlacesResult? FindPlacesInCell10(double lon, double lat, ref List<DbTables.Place> places)
+        public static AreaDetailAll? GetAreaDetailAllForCell10(double lon, double lat, ref List<DbTables.Place> places)
         {
             //Plural function, gets all areas in each cell10.
             var olc = new OpenLocationCode(lat, lon);
@@ -145,8 +142,8 @@ namespace PraxisCore {
             if (entriesHere.Count == 0)
                 return null;
 
-            var area = DetermineAreaTerrains(entriesHere);
-            return new FindPlacesResult(olc.CodeDigits, area);
+            var area = DetermineAreaInfos(entriesHere);
+            return new AreaDetailAll(olc.CodeDigits, area);
 
         }
 
@@ -157,7 +154,7 @@ namespace PraxisCore {
         /// <param name="lat">latitude in degrees</param>
         /// <param name="places">list of OSM elements</param>
         /// <returns>a tuple of the 10-digit plus code and the name/areatype/client facing ID for the smallest element in that pluscode.</returns>
-        public static FindPlaceResult? FindPlaceInCell10(double x, double y, ref List<DbTables.Place> places)
+        public static AreaDetail? GetAreaDetailForCell10(double x, double y, ref List<DbTables.Place> places)
         {
             //singular function, only returns the smallest area in a cell.           
             var olc = new OpenLocationCode(y, x);
@@ -168,10 +165,9 @@ namespace PraxisCore {
             if (entriesHere.Count == 0)
                 return null;
 
-            var area = DetermineAreaTerrain(entriesHere);
-            return new FindPlaceResult(olc.CodeDigits, area);
+            var area = DetermineAreaInfo(entriesHere);
+            return new AreaDetail(olc.CodeDigits, area);
         }
-
 
         public static DbTables.Place GetSinglePlaceFromArea(string plusCode)
         {
@@ -179,19 +175,5 @@ namespace PraxisCore {
             var place = GetPlaces(plusCode.ToGeoArea()).LastOrDefault();
             return place;
         }
-
-        //public static DbTables.Place GetSingleGameplayPlaceFromArea(string plusCode, string styleSet = "mapTiles")
-        //{
-        //    //for individual Cell10 or Cell11 checks. Existing terrain calls only do Cell10s in a Cell8 or larger area.
-        //    //Self contained set of calls here
-        //    var db = new PraxisContext();
-        //    var poly = plusCode.ToPolygon();
-        //    //var place = GetPlaces(plusCode.ToGeoArea()).LastOrDefault(); //very close, but can return non-gameplay place
-        //    var places = db.Places.Include(s => s.Tags).Where(md => poly.Intersects(md.ElementGeometry)).ToList(); 
-        //    TagParser.ApplyTags(places, styleSet);
-        //    var place = places.Where(p => p.IsGameElement).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length).LastOrDefault();
-
-        //    return place;
-        //}
     }
 }
