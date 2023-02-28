@@ -31,9 +31,6 @@ namespace PraxisCore
         /// <param name="entityLock">the SimpleLock acquired with GetLock</param>
         public static void DropLock(string lockId, SimpleLockable entityLock)
         {
-            if (entityLock == null)
-                Debugger.Break();
-
             entityLock.counter--;
             System.Threading.Monitor.Exit(entityLock);
             if (entityLock.counter <= 0)
@@ -47,10 +44,11 @@ namespace PraxisCore
         public static void DropLock(string lockId)
         {
             var entityLock = updateLocks[lockId];
-            entityLock.counter--; 
+            entityLock.counter--;
+            System.Threading.Monitor.Exit(entityLock);
             if (entityLock.counter <= 0)
                 updateLocks.TryRemove(lockId, out entityLock);
-            System.Threading.Monitor.Exit(entityLock);
+            
         }
 
         public static void PerformWithLock(string lockId, Action a)
@@ -64,7 +62,7 @@ namespace PraxisCore
                 a();
                 entityLock.counter--;
                 if (entityLock.counter <= 0)
-                    updateLocks.TryRemove(lockId, out var ignore);
+                    updateLocks.TryRemove(lockId, out _);
             }
             finally
             {
