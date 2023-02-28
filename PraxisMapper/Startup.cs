@@ -195,9 +195,7 @@ namespace PraxisMapper
             app.UseRouting();
             app.UseResponseCompression();
 
-            if (maintenanceMessage != "")
-                app.UsePraxisMaintenanceMessage(maintenanceMessage);
-
+            app.UsePraxisMaintenanceMessage(maintenanceMessage);
             app.UseGlobalErrorHandler();
 
             if (useHeaderCheck)
