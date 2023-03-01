@@ -477,10 +477,7 @@ namespace PraxisCore {
         }
 
         public static Rectangle PlaceInfoToRect(StandaloneDbTables.PlaceInfo2 pi, ImageStats info) {
-            //TODO test this.
             Rectangle r = new Rectangle();
-            //float heightMod = (float)pi.height / 2;
-            //float widthMod = (float)pi.width / 2;
             r.Width = (int)(pi.width * info.pixelsPerDegreeX);
             r.Height = (int)(pi.height * info.pixelsPerDegreeY);
             r.X = (int)(pi.lonCenter * info.pixelsPerDegreeX);

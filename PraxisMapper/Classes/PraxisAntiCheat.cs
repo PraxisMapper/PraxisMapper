@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace PraxisMapper.Classes {
@@ -24,7 +23,7 @@ namespace PraxisMapper.Classes {
 
         public async Task Invoke(HttpContext context) {
 
-            if (!context.Request.Path.Value.ToLower().Contains("anticheat")) //TODO finalize paths.
+            if (!context.Request.Path.Value.ToLower().Contains("anticheat"))
             {
                 //do anti-cheat lookup.
                 //TODO: correct logic

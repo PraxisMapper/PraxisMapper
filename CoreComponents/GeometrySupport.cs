@@ -312,24 +312,5 @@ namespace PraxisCore
 
             return speed;
         }
-
-        public static void FindNearest(string plusCode, string styleSet, string type)
-        {
-            //TODO: compare with Place.GetNearbyPlacesAtDistance() for performance and simplicity.
-
-            var db = new PraxisContext();
-            //we will search within a Cell6 area 
-            var plusCodePoly = plusCode.ToPolygon();
-            var searchArea = plusCode.ToGeoArea().PadGeoArea(ConstantValues.resolutionCell6 / 2);
-            var places = Place.GetPlaces(searchArea, styleSet: styleSet);
-            places = places.Where(p => p.StyleName == type).OrderBy(p => p.ElementGeometry.Distance(plusCodePoly)).ToList();
-
-
-            //versus:
-            //var allEntries = Place.GetNearbyPlacesAtDistance(type, plusCode, ConstantValues.resolutionCell6 / 2);
-
-
-
-        }
     }
 }

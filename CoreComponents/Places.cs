@@ -154,10 +154,10 @@ namespace PraxisCore
         /// <param name="area">the GeoArea to select elements from.</param>
         /// <param name="places">A list of OSM Elements to search. If null, loaded from the database based on the area provided.</param>
         /// <returns>a list of OSM Elements with the requested style in the given area.</returns>
-        public static List<DbTables.Place> GetPlacesByStyle(string type, GeoArea area, List<DbTables.Place> places = null) //TODO this should take StyleSet as a param and pass that to GetPlaces
+        public static List<DbTables.Place> GetPlacesByStyle(string type, GeoArea area, List<DbTables.Place> places = null, string styleSet = "mapTiles")
         {
             if (places == null)
-                places = GetPlaces(area);
+                places = GetPlaces(area, styleSet: styleSet);
             return places.Where(p => p.StyleName == type).ToList();
         }
 

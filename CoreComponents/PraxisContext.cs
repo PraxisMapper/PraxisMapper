@@ -378,7 +378,7 @@ namespace PraxisCore
 
                         bool expireTiles = false;
                         //NOTE: sometimes EqualsTopologically fails. But anything that's an invalid geometry should not have been written to the file in the first place.
-                        if (!existingData.ElementGeometry.EqualsTopologically(entry.ElementGeometry)) //TODO: this might need to be EqualsExact?
+                        if (!existingData.ElementGeometry.EqualsTopologically(entry.ElementGeometry))
                         {
                             //update the geometry for this object.
                             existingData.ElementGeometry = entry.ElementGeometry;
@@ -461,7 +461,7 @@ namespace PraxisCore
                     if (existingData != null)
                     {
                         //NOTE: sometimes EqualsTopologically fails. But anything that's an invalid geometry should not have been written to the file in the first place.
-                        if (!existingData.ElementGeometry.EqualsTopologically(entry.ElementGeometry)) //TODO: this might need to be EqualsExact?
+                        if (!existingData.ElementGeometry.EqualsTopologically(entry.ElementGeometry))
                         {
                             //update the geometry for this object.
                             existingData.ElementGeometry = entry.ElementGeometry;

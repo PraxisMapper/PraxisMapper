@@ -1,17 +1,15 @@
-﻿using PraxisCore.Support;
-using Google.OpenLocationCode;
+﻿using Google.OpenLocationCode;
+using PraxisCore.Support;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using static PraxisCore.DbTables;
-using static PraxisCore.Standalone.StandaloneDbTables;
 using static PraxisCore.ConstantValues;
-using System.Collections.Concurrent;
+using static PraxisCore.Standalone.StandaloneDbTables;
 
-namespace PraxisCore.Standalone
-{
+namespace PraxisCore.Standalone {
     //Stuff related to make a standalone, separate DB for offline games.
     //This isn't necessarily considered core functionality, but it continues to be the kind of thing that sticks in my head as a solution to some problems.
     //so this code remains in the project. 
@@ -58,7 +56,6 @@ namespace PraxisCore.Standalone
         /// <returns>the list of scavenger hunt entries</returns>
         public static List<ScavengerHuntStandalone> GetScavengerHunts(List<DbTables.Place> allPlaces)
         {
-            //TODO: This is going to need updated for the new TagParser rules. testing at the minimum
             var results = new List<ScavengerHuntStandalone>();
             var wikiList = allPlaces.Where(a => a.Tags.Any(t => t.Key == "wikipedia") && TagParser.GetName(a) != "").Select(a => TagParser.GetName(a)).Distinct().ToList();
             //Create automatic scavenger hunt entries.

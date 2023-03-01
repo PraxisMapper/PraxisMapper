@@ -391,7 +391,7 @@ namespace PraxisCore {
                             //TODO re-add outline paint to this DLL not TagParser.
                             //canvas.DrawCircle(convertedPoint[0], circleRadius, TagParser.outlinePaint); 
                         }
-                        //SVG code. TODO get this working.
+                        //SVG code.
                         //if (w.paintOp.FileName.EndsWith("svg"))
                         //{
                         //    var svg = new SkiaSharp.SKSvg(new SKSize(32, 32)); //TODO: work out scale factor or leave unscaled?  Also Why isnt this found? its in the core!
@@ -519,7 +519,7 @@ namespace PraxisCore {
                         var convertedPoint = PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                         //If this type has an icon, use it. Otherwise draw a circle in that type's color.
                         if (!string.IsNullOrEmpty(w.paintOp.FileName)) {
-                            SKBitmap icon = SKBitmap.Decode(TagParser.cachedBitmaps[w.paintOp.FileName]); //TODO optimize by creating in Initialize
+                            SKBitmap icon = cachedBitmaps[w.paintOp.FileName];
                             canvas.DrawBitmap(icon, convertedPoint[0]);
                         }
                         else {

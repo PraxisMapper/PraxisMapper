@@ -135,10 +135,10 @@ namespace PraxisOfflineDataPlugin.Controllers {
             return JsonSerializer.Serialize(terrainDict);
         }
 
-        private static Dictionary<string, int> GetTerrainIndex() //TODO make style a parameter
+        private static Dictionary<string, int> GetTerrainIndex(string style = "mapTiles")
         {
             var dict = new Dictionary<string, int>();
-            foreach (var entry in TagParser.allStyleGroups["mapTiles"]) {
+            foreach (var entry in TagParser.allStyleGroups[style]) {
                 if (entry.Value.IsGameElement) {
                     dict.Add(entry.Key, dict.Count + 1);
                 }

@@ -383,7 +383,7 @@ namespace Larry {
                 foreach (var fileName in geomFilenames) {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
-                    var mariaPath = fileName.Replace("\\", "\\\\"); //TODO: this may need some cross-platform attention if I have to keep this particular mode up.
+                    var mariaPath = fileName.Replace("\\", "\\\\"); //TODO: this may need some cross-platform attention.
                     db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' IGNORE INTO TABLE Places fields terminated by '\t' lines terminated by '\r\n' (sourceItemID, sourceItemType, @elementGeometry, privacyId, DrawSizeHint) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
                     sw.Stop();
                     Log.WriteLog("Geometry loaded from " + fileName + " in " + sw.Elapsed);
@@ -601,10 +601,10 @@ namespace Larry {
             }
         }
 
-        private static Dictionary<string, int> GetTerrainIndex() //TODO make style a parameter
+        private static Dictionary<string, int> GetTerrainIndex(string style = "mapTiles")
         {
             var dict = new Dictionary<string, int>();
-            foreach (var entry in TagParser.allStyleGroups["mapTiles"]) {
+            foreach (var entry in TagParser.allStyleGroups[style]) {
                 if (entry.Value.IsGameElement) {
                     dict.Add(entry.Key, dict.Count + 1);
                 }
