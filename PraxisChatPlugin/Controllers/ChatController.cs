@@ -3,12 +3,10 @@ using PraxisCore;
 using PraxisCore.Support;
 using PraxisMapper.Classes;
 
-namespace PraxisChatPlugin.Controllers
-{
+namespace PraxisChatPlugin.Controllers {
     [ApiController]
     [Route("[controller]")]
-    public class ChatController : Controller, IPraxisPlugin
-    {
+    public class ChatController : Controller, IPraxisPlugin {
         int chatLengthLines = 100;
 
         public ChatController() //TODO: cache chat for performance, allow configuration.
@@ -17,8 +15,7 @@ namespace PraxisChatPlugin.Controllers
 
         [HttpGet]
         [Route("/[controller]/Region/{region}")]
-        public List<string> ReadRegionChat(string region)
-        {
+        public List<string> ReadRegionChat(string region) {
             //region is a PlusCode 2-8 chars long.
             var chat = GenericData.GetAreaData<List<string>>(region, "chatLog");
             return chat;
@@ -26,8 +23,7 @@ namespace PraxisChatPlugin.Controllers
 
         [HttpPut]
         [Route("/[controller]/Region/{region}")]
-        public List<string> WriteRegionChat(string region)
-        {
+        public List<string> WriteRegionChat(string region) {
             PraxisAuthentication.GetAuthInfo(Response, out var accountId, out var password);
             if (IsUserBanned(accountId))
                 return null;
@@ -50,8 +46,7 @@ namespace PraxisChatPlugin.Controllers
 
         [HttpGet]
         [Route("/[controller]/Channel/{channel}")]
-        public List<string> ReadChannelChat(string channel)
-        {
+        public List<string> ReadChannelChat(string channel) {
             //channel is any string.
             var chat = GenericData.GetGlobalData<List<string>>(channel + "chatLog");
             return chat;
@@ -60,8 +55,7 @@ namespace PraxisChatPlugin.Controllers
 
         [HttpPut]
         [Route("/[controller]/Channel/{channel}")]
-        public List<string> WriteChannelChat(string channel)
-        {
+        public List<string> WriteChannelChat(string channel) {
             PraxisAuthentication.GetAuthInfo(Response, out var accountId, out var password);
             if (IsUserBanned(accountId))
                 return null;
@@ -85,8 +79,7 @@ namespace PraxisChatPlugin.Controllers
 
         [HttpDelete]
         [Route("/[controller]/Region/{region}")]
-        public void DeleteRegionMessage(string region)
-        {
+        public void DeleteRegionMessage(string region) {
             PraxisAuthentication.GetAuthInfo(Response, out var accountId, out var password);
             if (!PraxisAuthentication.IsAdmin(accountId))
                 return;
@@ -101,8 +94,7 @@ namespace PraxisChatPlugin.Controllers
 
         [HttpDelete]
         [Route("/[controller]/Channel/{channel}")]
-        public void DeleteChannelMessage(string channel)
-        {
+        public void DeleteChannelMessage(string channel) {
             PraxisAuthentication.GetAuthInfo(Response, out var accountId, out var password);
             if (!PraxisAuthentication.IsAdmin(accountId))
                 return;
@@ -117,8 +109,7 @@ namespace PraxisChatPlugin.Controllers
 
         [HttpPut]
         [Route("/[controller]/ChatBan/{username}")]
-        public string ChatBanUser(string username)
-        {
+        public string ChatBanUser(string username) {
             PraxisAuthentication.GetAuthInfo(Response, out var accountId, out var password);
             if (!PraxisAuthentication.IsAdmin(accountId))
                 return "No";
@@ -127,8 +118,7 @@ namespace PraxisChatPlugin.Controllers
             return "OK";
         }
 
-        public bool IsUserBanned(string username)
-        {
+        public bool IsUserBanned(string username) {
             var result = GenericData.GetPlayerData<bool>(username, "isChatBanned");
             return result;
         }

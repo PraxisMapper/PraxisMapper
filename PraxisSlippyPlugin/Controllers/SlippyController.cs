@@ -1,23 +1,17 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using PraxisCore.Support;
-using System;
 
-namespace PraxisMapper.Controllers
-{
+namespace PraxisMapper.Controllers {
     [Route("[controller]")]
-    public class SlippyController : Controller, IPraxisPlugin
-    {
+    public class SlippyController : Controller, IPraxisPlugin {
         [HttpGet]
         [Route("/[controller]")]
         [Route("/[controller]/Index")]
-        public IActionResult Index()
-        {
-            try
-            {
+        public IActionResult Index() {
+            try {
                 return View("Index");
             }
-            catch(Exception ex)
-            {
+            catch (Exception ex) {
                 return null;
             }
         }
