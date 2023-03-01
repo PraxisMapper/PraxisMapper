@@ -7,27 +7,23 @@ using PraxisMapper.Classes;
 using System;
 using System.Linq;
 
-namespace PraxisMapper.Controllers
-{
+namespace PraxisMapper.Controllers {
     //This is the API controller.
     //View stuff happens in AdminView, Pulling/sending data happens here.
 
     [Route("[controller]")]
     [ApiController]
-    public class AdminController : Controller
-    {
+    public class AdminController : Controller {
         //For stuff the admin would want to do but not allow anyone else to do.
         private readonly IConfiguration Configuration;
         private readonly IMemoryCache cache;
 
-        public AdminController(IConfiguration configuration, IMemoryCache _cache)
-        {
+        public AdminController(IConfiguration configuration, IMemoryCache _cache) {
             Configuration = configuration;
             cache = _cache;
         }
 
-        public override void OnActionExecuting(ActionExecutingContext context)
-        {
+        public override void OnActionExecuting(ActionExecutingContext context) {
             base.OnActionExecuting(context);
             PraxisAuthentication.GetAuthInfo(Response, out var accountId, out var password);
             if (!PraxisAuthentication.IsAdmin(accountId) && !HttpContext.Request.Host.IsLocalIpAddress())
@@ -37,8 +33,7 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/PerfData/{password}")]
-        public string PerfData(string password)
-        {
+        public string PerfData(string password) {
             if (password != Configuration.GetValue<string>("adminPwd"))
                 return "";
 
@@ -48,22 +43,19 @@ namespace PraxisMapper.Controllers
 
             string results = "Performance Info:" + Environment.NewLine;
             results = "Averages:" + Environment.NewLine;
-            foreach (var a in avgs)
-            {
+            foreach (var a in avgs) {
                 results += a.name + ":" + a.avg + Environment.NewLine;
             }
             results += Environment.NewLine;
 
             results += "Maximums:" + Environment.NewLine;
-            foreach (var g in groups)
-            {
-                results += g.Key+ ":" + g.Max(gg => gg.RunTime) + Environment.NewLine;
+            foreach (var g in groups) {
+                results += g.Key + ":" + g.Max(gg => gg.RunTime) + Environment.NewLine;
             }
             results += Environment.NewLine;
 
             results += "Call Counts:" + Environment.NewLine;
-            foreach (var g in groups)
-            {
+            foreach (var g in groups) {
                 results += g.Key + ":" + g.Count() + Environment.NewLine;
             }
 
