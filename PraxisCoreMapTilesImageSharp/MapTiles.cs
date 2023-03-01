@@ -3,26 +3,21 @@ using NetTopologySuite.Geometries;
 using PraxisCore.Standalone;
 using PraxisCore.Support;
 using SixLabors.Fonts;
-using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Drawing;
 using SixLabors.ImageSharp.Drawing.Processing;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
 using static PraxisCore.ConstantValues;
 using static PraxisCore.DbTables;
 using static PraxisCore.Place;
 
-namespace PraxisCore
-{
+namespace PraxisCore {
     /// <summary>
     /// All functions related to generating or expiring map tiles. Both PlusCode sized tiles for gameplay or SlippyMap tiles for a webview.
     /// </summary>
-    public class MapTiles : IMapTiles
-    {
+    public class MapTiles : IMapTiles {
         //These need to exist because the interface defines them.
         public static int MapTileSizeSquare = 512;
         public static double GameTileScale = 4;
-        public static double bufferSize = resolutionCell10; 
+        public static double bufferSize = resolutionCell10;
 
         //static SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
         //static readonly Random r = new Random();
@@ -32,8 +27,7 @@ namespace PraxisCore
 
         static DrawingOptions dOpts;
 
-        public void Initialize()
-        {
+        public void Initialize() {
             IMapTiles.GameTileScale = GameTileScale;
             IMapTiles.BufferSize = bufferSize;
 
@@ -42,9 +36,8 @@ namespace PraxisCore
 
             foreach (var g in TagParser.allStyleGroups)
                 foreach (var s in g.Value)
-                    foreach (var p in s.Value.PaintOperations)
-                    {
-                        cachedPaints.Add(p.Id, SetPaintForTPP(p)); 
+                    foreach (var p in s.Value.PaintOperations) {
+                        cachedPaints.Add(p.Id, SetPaintForTPP(p));
                         cachedGameTilePens.Add(p.Id, SetPenForGameTile(p));
                     }
 
@@ -62,8 +55,7 @@ namespace PraxisCore
         /// Create the Brush object for each style and store it for later use.
         /// </summary>
         /// <param name="tpe">the TagParserPaint object to populate</param>
-        private static IBrush SetPaintForTPP(StylePaint tpe)
-        {
+        private static IBrush SetPaintForTPP(StylePaint tpe) {
             //SkiaSharp now implements rounding line ends, but they're only for Pens
             //(which only work on lines), and my stuff all currently uses a Brush.
 
@@ -79,8 +71,7 @@ namespace PraxisCore
             return paint;
         }
 
-        private static IPen SetPenForGameTile(StylePaint tpe)
-        {
+        private static IPen SetPenForGameTile(StylePaint tpe) {
             //These pens are saved with a fixed drawing width to match game tiles.
             int imgX = 0, imgY = 0;
             MapTileSupport.GetPlusCodeImagePixelSize("22334455", out imgX, out imgY);
@@ -96,8 +87,7 @@ namespace PraxisCore
 
             if (String.IsNullOrWhiteSpace(tpe.LinePattern) || tpe.LinePattern == "solid")
                 p = new Pen(Rgba32.ParseHex(htmlColor), tpe.LineWidthDegrees * (float)info.pixelsPerDegreeX);
-            else
-            {
+            else {
                 float[] linesAndGaps = tpe.LinePattern.Split('|').Select(t => float.Parse(t)).ToArray();
                 p = new Pen(Rgba32.ParseHex(htmlColor), tpe.LineWidthDegrees * (float)info.pixelsPerDegreeX, linesAndGaps);
             }
@@ -113,8 +103,7 @@ namespace PraxisCore
         /// <param name="info">the image information for drawing</param>
         /// <param name="items">the elements to draw.</param>
         /// <returns>byte array of the generated .png tile image</returns>
-        public byte[] DrawOfflineEstimatedAreas(ImageStats info, List<DbTables.Place> items)
-        {
+        public byte[] DrawOfflineEstimatedAreas(ImageStats info, List<DbTables.Place> items) {
             //TODO retest this.
             var image = new Image<Rgba32>(info.imageSizeX, info.imageSizeY);
             var bgColor = Rgba32.ParseHex("00000000");
@@ -127,8 +116,7 @@ namespace PraxisCore
             ).ToList());
 
             //this is for rectangles.
-            foreach (var pi in placeInfo)
-            {
+            foreach (var pi in placeInfo) {
                 var rect = PlaceInfoToRect(pi, info);
                 fillColor = Rgba32.ParseHex(TagParser.PickStaticColorForArea(pi.Name));
                 image.Mutate(x => x.Fill(fillColor, rect));
@@ -136,8 +124,7 @@ namespace PraxisCore
             }
 
             image.Mutate(x => x.Flip(FlipMode.Vertical)); ; //inverts the inverted image again!
-            foreach (var pi in placeInfo)
-            {
+            foreach (var pi in placeInfo) {
                 //NOTE: would be better to load fonts once and share that for the app's lifetime.
                 var fonts = new SixLabors.Fonts.FontCollection();
                 var family = fonts.Add("fontHere.ttf");
@@ -157,8 +144,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="totalArea">the GeoArea to draw lines in</param>
         /// <returns>the byte array for the maptile png file</returns>
-        public byte[] DrawCell8GridLines(GeoArea totalArea)
-        {
+        public byte[] DrawCell8GridLines(GeoArea totalArea) {
             int imageSizeX = IMapTiles.SlippyTileSizeSquare;
             int imageSizeY = IMapTiles.SlippyTileSizeSquare;
             Image<Rgba32> image = new Image<Rgba32>(imageSizeX, imageSizeY);
@@ -207,8 +193,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="totalArea">the GeoArea to draw lines in</param>
         /// <returns>the byte array for the maptile png file</returns>
-        public byte[] DrawCell10GridLines(GeoArea totalArea)
-        {
+        public byte[] DrawCell10GridLines(GeoArea totalArea) {
 
             int imageSizeX = IMapTiles.SlippyTileSizeSquare;
             int imageSizeY = IMapTiles.SlippyTileSizeSquare;
@@ -258,8 +243,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="pointListAsString">a string of points separate by , and | </param>
         /// <returns>the png file with the path drawn over the mapdata in the area.</returns>
-        public byte[] DrawUserPath(string pointListAsString)
-        {
+        public byte[] DrawUserPath(string pointListAsString) {
             //String is formatted as Lat,Lon~Lat,Lon~ repeating. Characters chosen to not be percent-encoded if submitted as part of the URL.
             //first, convert this to a list of latlon points
             string[] pointToConvert = pointListAsString.Split("|");
@@ -296,8 +280,7 @@ namespace PraxisCore
         /// <param name="styleSet">the style rules to use when drawing</param>
         /// <param name="filterSmallAreas">if true, removes elements from the drawing that take up fewer than 8 pixels.</param>
         /// <returns></returns>
-        public byte[] DrawAreaAtSize(ImageStats stats, List<DbTables.Place> drawnItems = null, string styleSet = "mapTiles")
-        {
+        public byte[] DrawAreaAtSize(ImageStats stats, List<DbTables.Place> drawnItems = null, string styleSet = "mapTiles") {
             //This is the new core drawing function. Takes in an area, the items to draw, and the size of the image to draw. 
             //The drawn items get their paint pulled from the TagParser's list. If I need multiple match lists, I'll need to make a way
             //to pick which list of tagparser rules to use.
@@ -308,13 +291,13 @@ namespace PraxisCore
             //double minimumSize = 0;
             //if (filterSmallAreas)
             //{
-                //minimumSize = stats.degreesPerPixelX * 8; //don't draw small elements. THis runs on perimeter/length
+            //minimumSize = stats.degreesPerPixelX * 8; //don't draw small elements. THis runs on perimeter/length
             //}
 
             //Single points are excluded separately so that small areas or lines can still be drawn when points aren't.
             //bool includePoints = true;
             //if (stats.degreesPerPixelX > ConstantValues.zoom14DegPerPixelX)
-                //includePoints = false;
+            //includePoints = false;
 
             if (drawnItems == null)
                 drawnItems = GetPlaces(stats.area, filterSize: stats.filterSize);
@@ -323,19 +306,16 @@ namespace PraxisCore
             return DrawAreaAtSize(stats, paintOps);
         }
 
-        public byte[] DrawAreaAtSize(ImageStats stats, List<CompletePaintOp> paintOps)
-        {
+        public byte[] DrawAreaAtSize(ImageStats stats, List<CompletePaintOp> paintOps) {
             //THIS is the core drawing function, and other version should call this so there's 1 function that handles the inner loop.
             //baseline image data stuff           
             var image = new Image<Rgba32>(stats.imageSizeX, stats.imageSizeY);
-            foreach (var w in paintOps.OrderByDescending(p => p.paintOp.LayerId).ThenByDescending(p => p.drawSizeHint))
-            {
+            foreach (var w in paintOps.OrderByDescending(p => p.paintOp.LayerId).ThenByDescending(p => p.drawSizeHint)) {
                 //I need paints for fill commands and images. 
                 var paint = cachedPaints[w.paintOp.Id];
                 var pen = cachedGameTilePens[w.paintOp.Id];
 
-                if (stats.area.LongitudeWidth != resolutionCell8 || w.paintOp.Randomize || w.paintOp.FromTag)
-                {
+                if (stats.area.LongitudeWidth != resolutionCell8 || w.paintOp.Randomize || w.paintOp.FromTag) {
                     //recreate pen for this operation instead of using cached pen.
                     if (w.paintOp.Randomize) //To randomize the color on every Draw call.
                         w.paintOp.HtmlColorCode = "99" + ((byte)Random.Shared.Next(0, 255)).ToString() + ((byte)Random.Shared.Next(0, 255)).ToString() + ((byte)Random.Shared.Next(0, 255)).ToString();
@@ -346,8 +326,7 @@ namespace PraxisCore
                     //TODO: use stats to see if this image is scaled to gameTile values, and if so then use cached pre-made pens?
                     if (String.IsNullOrWhiteSpace(w.paintOp.LinePattern) || w.paintOp.LinePattern == "solid")
                         pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), (float)w.lineWidthPixels);
-                    else
-                    {
+                    else {
                         float[] linesAndGaps = w.paintOp.LinePattern.Split('|').Select(t => float.Parse(t)).ToArray();
                         pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), (float)w.lineWidthPixels, linesAndGaps);
                     }
@@ -364,12 +343,10 @@ namespace PraxisCore
                 if (thisGeometry.Coordinates.Length == 0) //After trimming, linestrings may not have any points in the drawing area.
                     continue;
 
-                switch (thisGeometry.GeometryType)
-                {
+                switch (thisGeometry.GeometryType) {
                     case "Polygon":
                         //after trimming this might not work out as well. Don't draw broken/partial polygons? or only as lines?
-                        if (thisGeometry.Coordinates.Length > 2)
-                        {
+                        if (thisGeometry.Coordinates.Length > 2) {
                             var drawThis = PolygonToDrawingPolygon(thisGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                             if (w.paintOp.FillOrStroke == "fill")
                                 image.Mutate(x => x.Fill(dOpts, paint, drawThis));
@@ -378,8 +355,7 @@ namespace PraxisCore
                         }
                         break;
                     case "MultiPolygon":
-                        foreach (NetTopologySuite.Geometries.Polygon p2 in ((MultiPolygon)thisGeometry).Geometries)
-                        {
+                        foreach (NetTopologySuite.Geometries.Polygon p2 in ((MultiPolygon)thisGeometry).Geometries) {
                             var drawThis2 = PolygonToDrawingPolygon(p2, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                             if (w.paintOp.FillOrStroke == "fill")
                                 image.Mutate(x => x.Fill(dOpts, paint, drawThis2));
@@ -398,8 +374,7 @@ namespace PraxisCore
                             image.Mutate(x => x.DrawLines(dOpts, pen, line));
                         break;
                     case "MultiLineString":
-                        foreach (var p3 in ((MultiLineString)thisGeometry).Geometries)
-                        {
+                        foreach (var p3 in ((MultiLineString)thisGeometry).Geometries) {
                             var line2 = LineToDrawingLine(p3, stats);
                             image.Mutate(x => x.DrawLines(dOpts, pen, line2));
                         }
@@ -407,14 +382,12 @@ namespace PraxisCore
                     case "Point":
                         var convertedPoint = PointToPointF(thisGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                         //If this type has an icon, use it. Otherwise draw a circle in that type's color.
-                        if (!string.IsNullOrEmpty(w.paintOp.FileName))
-                        {
+                        if (!string.IsNullOrEmpty(w.paintOp.FileName)) {
                             //TODO test that this draws in correct position.
                             Image i2 = cachedBitmaps[w.paintOp.FileName];
                             image.Mutate(x => x.DrawImage(i2, (SixLabors.ImageSharp.Point)convertedPoint, 1));
                         }
-                        else
-                        {
+                        else {
                             var circleRadius = (float)(w.paintOp.LineWidthDegrees / stats.pixelsPerDegreeX); //was w.lineWidthPixels, but I think i want this to scale.
                             var shape = new SixLabors.ImageSharp.Drawing.EllipsePolygon(
                                 PointToPointF(thisGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY),
@@ -439,8 +412,7 @@ namespace PraxisCore
         /// <summary>
         /// ImageSharp doesn't support this at all. Throws NotImplementedException when called.
         /// </summary>
-        public string DrawAreaAtSizeSVG(ImageStats stats, List<DbTables.Place> drawnItems = null, Dictionary<string, StyleEntry> styles = null, bool filterSmallAreas = true)
-        {
+        public string DrawAreaAtSizeSVG(ImageStats stats, List<DbTables.Place> drawnItems = null, Dictionary<string, StyleEntry> styles = null, bool filterSmallAreas = true) {
             throw new NotImplementedException();
         }
 
@@ -451,8 +423,7 @@ namespace PraxisCore
         /// <param name="bottomTile">the tile to use as the base of the image. Expected to be opaque.</param>
         /// <param name="topTile">The tile to layer on top. Expected to be at least partly transparent or translucent.</param>
         /// <returns></returns>
-        public byte[] LayerTiles(ImageStats info, byte[] bottomTile, byte[] topTile)
-        {
+        public byte[] LayerTiles(ImageStats info, byte[] bottomTile, byte[] topTile) {
             Image i1 = Image.Load(bottomTile);
             Image i2 = Image.Load(topTile);
 
@@ -467,21 +438,18 @@ namespace PraxisCore
         /// </summary>
         /// <param name="styleSet">the name of the style set to pull the background color from</param>
         /// <returns>the Rgba32 saved into the requested background paint object.</returns>
-        public static Rgba32 GetStyleBgColorString(string styleSet)
-        {
+        public static Rgba32 GetStyleBgColorString(string styleSet) {
             var color = Rgba32.ParseHex(TagParser.allStyleGroups[styleSet]["background"].PaintOperations.First().HtmlColorCode);
             return color;
         }
 
-        public static IPath PolygonToDrawingPolygon(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
-        {
+        public static IPath PolygonToDrawingPolygon(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY) {
             var lineSegmentList = new List<LinearLineSegment>();
             NetTopologySuite.Geometries.Polygon p = (NetTopologySuite.Geometries.Polygon)place;
             var typeConvertedPoints = p.ExteriorRing.Coordinates.Select(o => new SixLabors.ImageSharp.PointF((float)((o.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / resolutionY))));
             var path = new SixLabors.ImageSharp.Drawing.Path(new LinearLineSegment(typeConvertedPoints.ToArray())).AsClosedPath();
 
-            foreach (var hole in p.InteriorRings)
-            {
+            foreach (var hole in p.InteriorRings) {
                 typeConvertedPoints = hole.Coordinates.Select(o => new SixLabors.ImageSharp.PointF((float)((o.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / resolutionY))));
                 var tempHole = new SixLabors.ImageSharp.Drawing.Path(new LinearLineSegment(typeConvertedPoints.ToArray())).AsClosedPath();
                 path = path.Clip(tempHole);
@@ -489,8 +457,7 @@ namespace PraxisCore
             return path;
         }
 
-        public static LinearLineSegment PolygonToDrawingLine(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
-        {
+        public static LinearLineSegment PolygonToDrawingLine(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY) {
             //NOTE: this doesn't handle holes if you add them to the end in the reverse order. Those must be handled by a function in ImageSharp.
             var typeConvertedPoints = place.Coordinates.Select(o => new SixLabors.ImageSharp.PointF((float)((o.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / resolutionY))));
             LinearLineSegment part = new LinearLineSegment(typeConvertedPoints.ToArray());
@@ -504,14 +471,12 @@ namespace PraxisCore
             return typeConvertedPoints.ToArray();
         }
 
-        public static SixLabors.ImageSharp.PointF PointToPointF(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY)
-        {
+        public static SixLabors.ImageSharp.PointF PointToPointF(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY) {
             var coord = place.Coordinate;
             return new SixLabors.ImageSharp.PointF((float)((coord.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((coord.Y - drawingArea.SouthLatitude) * (1 / resolutionY)));
         }
 
-        public static Rectangle PlaceInfoToRect(StandaloneDbTables.PlaceInfo2 pi, ImageStats info)
-        {
+        public static Rectangle PlaceInfoToRect(StandaloneDbTables.PlaceInfo2 pi, ImageStats info) {
             //TODO test this.
             Rectangle r = new Rectangle();
             //float heightMod = (float)pi.height / 2;

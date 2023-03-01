@@ -7,13 +7,11 @@ using static PraxisCore.ConstantValues;
 using static PraxisCore.DbTables;
 using static PraxisCore.Place;
 
-namespace PraxisCore
-{
+namespace PraxisCore {
     /// <summary>
     /// All functions related to generating or expiring map tiles. Both PlusCode sized tiles for gameplay or SlippyMap tiles for a webview.
     /// </summary>
-    public class MapTiles : IMapTiles
-    {
+    public class MapTiles : IMapTiles {
         //These need to exist because the interface defines them.
         public static int MapTileSizeSquare = 512;
         public static double GameTileScale = 2;
@@ -22,20 +20,17 @@ namespace PraxisCore
         static readonly SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
         static readonly Random r = new Random();
         static Dictionary<string, SKBitmap> cachedBitmaps = new Dictionary<string, SKBitmap>(); //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
-        static Dictionary<long, SKPaint> cachedPaints = new Dictionary<long, SKPaint>(); 
+        static Dictionary<long, SKPaint> cachedPaints = new Dictionary<long, SKPaint>();
 
-        public void Initialize()
-        {
+        public void Initialize() {
             foreach (var b in TagParser.cachedBitmaps)
                 cachedBitmaps.Add(b.Key, SKBitmap.Decode(b.Value));
 
             int maxId = 1;
             foreach (var g in TagParser.allStyleGroups)
                 foreach (var s in g.Value)
-                    foreach (var p in s.Value.PaintOperations)
-                    {
-                        if (p.Id == 0)
-                        {
+                    foreach (var p in s.Value.PaintOperations) {
+                        if (p.Id == 0) {
                             p.Id = maxId++;
                         }
                         cachedPaints.Add(p.Id, SetPaintForTPP(p));
@@ -46,8 +41,7 @@ namespace PraxisCore
         /// Create the SKPaint object for each style and store it in the requested object.
         /// </summary>
         /// <param name="tpe">the TagParserPaint object to populate</param>
-        private static SKPaint SetPaintForTPP(StylePaint tpe)
-        {
+        private static SKPaint SetPaintForTPP(StylePaint tpe) {
             var paint = new SKPaint();
 
             paint.StrokeJoin = SKStrokeJoin.Round;
@@ -59,14 +53,12 @@ namespace PraxisCore
                 paint.Style = SKPaintStyle.Stroke;
             paint.StrokeWidth = tpe.LineWidthDegrees;
             paint.StrokeCap = SKStrokeCap.Round;
-            if (tpe.LinePattern != "solid")
-            {
+            if (tpe.LinePattern != "solid") {
                 float[] linesAndGaps = tpe.LinePattern.Split('|').Select(t => float.Parse(t)).ToArray();
                 paint.PathEffect = SKPathEffect.CreateDash(linesAndGaps, 0);
                 paint.StrokeCap = SKStrokeCap.Butt;
             }
-            if (!string.IsNullOrEmpty(tpe.FileName))
-            {
+            if (!string.IsNullOrEmpty(tpe.FileName)) {
                 SKBitmap fillPattern = cachedBitmaps[tpe.FileName];
                 //cachedBitmaps.TryAdd(tpe.fileName, fillPattern); //For icons.
                 SKShader tiling = SKShader.CreateBitmap(fillPattern, SKShaderTileMode.Repeat, SKShaderTileMode.Repeat); //For fill patterns.
@@ -81,8 +73,7 @@ namespace PraxisCore
         /// <param name="info">the image information for drawing</param>
         /// <param name="items">the elements to draw.</param>
         /// <returns>byte array of the generated .png tile image</returns>
-        public byte[] DrawOfflineEstimatedAreas(ImageStats info, List<DbTables.Place> items)
-        {
+        public byte[] DrawOfflineEstimatedAreas(ImageStats info, List<DbTables.Place> items) {
             SKBitmap bitmap = new SKBitmap(info.imageSizeX, info.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
             SKCanvas canvas = new SKCanvas(bitmap);
             var bgColor = SKColors.Transparent;
@@ -101,17 +92,15 @@ namespace PraxisCore
             var placeInfo = Standalone.Standalone.GetPlaceInfo(items.Where(i => i.IsGameElement).ToList());
 
             //this is for rectangles.
-            foreach (var pi in placeInfo)
-            {
+            foreach (var pi in placeInfo) {
                 var rect = PlaceInfoToRect(pi, info);
-                fillpaint.Color =  SKColor.Parse(TagParser.PickStaticColorForArea(pi.Name));
+                fillpaint.Color = SKColor.Parse(TagParser.PickStaticColorForArea(pi.Name));
                 canvas.DrawRect(rect, fillpaint);
                 canvas.DrawRect(rect, strokePaint);
             }
 
             canvas.Scale(1, -1, info.imageSizeX / 2, info.imageSizeY / 2); //inverts the inverted image again!
-            foreach (var pi in placeInfo)
-            {
+            foreach (var pi in placeInfo) {
                 var rect = PlaceInfoToRect(pi, info);
                 canvas.DrawText(pi.Name, rect.MidX, info.imageSizeY - rect.MidY, strokePaint);
             }
@@ -129,8 +118,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="totalArea">the GeoArea to draw lines in</param>
         /// <returns>the byte array for the maptile png file</returns>
-        public byte[] DrawCell8GridLines(GeoArea totalArea)
-        {
+        public byte[] DrawCell8GridLines(GeoArea totalArea) {
             int imageSizeX = IMapTiles.SlippyTileSizeSquare;
             int imageSizeY = IMapTiles.SlippyTileSizeSquare;
             SKBitmap bitmap = new SKBitmap(imageSizeX, imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
@@ -188,8 +176,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="totalArea">the GeoArea to draw lines in</param>
         /// <returns>the byte array for the maptile png file</returns>
-        public byte[] DrawCell10GridLines(GeoArea totalArea)
-        {
+        public byte[] DrawCell10GridLines(GeoArea totalArea) {
             int imageSizeX = IMapTiles.SlippyTileSizeSquare;
             int imageSizeY = IMapTiles.SlippyTileSizeSquare;
             SKBitmap bitmap = new SKBitmap(imageSizeX, imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
@@ -247,8 +234,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="pointListAsString">a string of points separate by , and | </param>
         /// <returns>the png file with the path drawn over the mapdata in the area.</returns>
-        public byte[] DrawUserPath(string pointListAsString)
-        {
+        public byte[] DrawUserPath(string pointListAsString) {
             //String is formatted as Lat,Lon~Lat,Lon~ repeating. Characters chosen to not be percent-encoded if submitted as part of the URL.
             //first, convert this to a list of latlon points
             string[] pointToConvert = pointListAsString.Split("|");
@@ -293,8 +279,7 @@ namespace PraxisCore
         /// <param name="styleSet">the style rules to use when drawing</param>
         /// <param name="filterSmallAreas">if true, removes elements from the drawing that take up fewer than 8 pixels.</param>
         /// <returns></returns>
-        public byte[] DrawAreaAtSize(ImageStats stats, List<DbTables.Place> drawnItems = null, string styleSet = "mapTiles")
-        {
+        public byte[] DrawAreaAtSize(ImageStats stats, List<DbTables.Place> drawnItems = null, string styleSet = "mapTiles") {
             //This is the new core drawing function. Takes in an area, the items to draw, and the size of the image to draw. 
             //The drawn items get their paint pulled from the TagParser's list. If I need multiple match lists, I'll need to make a way
             //to pick which list of tagparser rules to use.
@@ -304,13 +289,13 @@ namespace PraxisCore
             //double minimumSize = 0;
             //if (filterSmallAreas)
             //{
-                //minimumSize = stats.degreesPerPixelX * 8; //don't draw small elements. THis runs on perimeter/length
+            //minimumSize = stats.degreesPerPixelX * 8; //don't draw small elements. THis runs on perimeter/length
             //}
 
             //Single points are excluded separately so that small areas or lines can still be drawn when points aren't.
             //bool includePoints = true;
             //if (stats.degreesPerPixelX > ConstantValues.zoom14DegPerPixelX)
-                //includePoints = false;
+            //includePoints = false;
 
             if (drawnItems == null)
                 drawnItems = GetPlaces(stats.area, filterSize: stats.filterSize);
@@ -320,8 +305,7 @@ namespace PraxisCore
         }
 
 
-        public byte[] DrawAreaAtSize(ImageStats stats, List<CompletePaintOp> paintOps)
-        {
+        public byte[] DrawAreaAtSize(ImageStats stats, List<CompletePaintOp> paintOps) {
             //This is the new core drawing function. Once the paint operations have been created, I just draw them here.
             //baseline image data stuff           
             SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
@@ -330,8 +314,7 @@ namespace PraxisCore
             canvas.Scale(1, -1, stats.imageSizeX / 2, stats.imageSizeY / 2);
             SKPaint paint = new SKPaint();
 
-            foreach (var w in paintOps.OrderByDescending(p => p.paintOp.LayerId).ThenByDescending(p => p.drawSizeHint))
-            {
+            foreach (var w in paintOps.OrderByDescending(p => p.paintOp.LayerId).ThenByDescending(p => p.drawSizeHint)) {
                 paint = cachedPaints[w.paintOp.Id];
 
                 if (w.paintOp.FromTag) //FromTag is for when you are saving color data directly to each element, instead of tying it to a styleset.
@@ -342,15 +325,13 @@ namespace PraxisCore
 
                 paint.StrokeWidth = (float)w.lineWidthPixels;
                 var path = new SKPath();
-                switch (w.elementGeometry.GeometryType)
-                {
+                switch (w.elementGeometry.GeometryType) {
                     case "Polygon":
                         var p = w.elementGeometry as Polygon;
                         //if (p.Envelope.Length < (stats.degreesPerPixelX * 4)) //This poly's perimeter is too small to draw
                         //continue;
                         path.AddPoly(PolygonToSKPoints(p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                        foreach (var ir in p.Holes)
-                        {
+                        foreach (var ir in p.Holes) {
                             //if (ir.Envelope.Length < (w.lineWidth * 4)) //This poly's perimeter is less than 2x2 pixels in size.
                             //continue;
                             path.AddPoly(PolygonToSKPoints(ir, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
@@ -358,14 +339,12 @@ namespace PraxisCore
                         canvas.DrawPath(path, paint);
                         break;
                     case "MultiPolygon":
-                        foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries)
-                        {
+                        foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries) {
                             //if (p2.Envelope.Length < (stats.degreesPerPixelX * 4)) //This poly's perimeter is too small to draw
                             //continue;
                             var p2p = p2 as Polygon;
                             path.AddPoly(PolygonToSKPoints(p2p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                            foreach (var ir in p2p.Holes)
-                            {
+                            foreach (var ir in p2p.Holes) {
                                 //if (ir.Envelope.Length < (stats.degreesPerPixelX * 4)) //This poly's perimeter is too small to draw
                                 // continue;
                                 path.AddPoly(PolygonToSKPoints(ir, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
@@ -377,11 +356,9 @@ namespace PraxisCore
                         var firstPoint = w.elementGeometry.Coordinates.First();
                         var lastPoint = w.elementGeometry.Coordinates.Last();
                         var points = PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
-                        if (firstPoint.Equals(lastPoint))
-                        {
+                        if (firstPoint.Equals(lastPoint)) {
                             //This is a closed shape. Check to see if it's supposed to be filled in.
-                            if (paint.Style == SKPaintStyle.Fill)
-                            {
+                            if (paint.Style == SKPaintStyle.Fill) {
                                 path.AddPoly(points);
                                 canvas.DrawPath(path, paint);
                                 continue;
@@ -395,8 +372,7 @@ namespace PraxisCore
                     case "MultiLineString":
                         //if (w.lineWidth < 1) //Don't draw lines we can't see.
                         //continue;
-                        foreach (var p3 in ((MultiLineString)w.elementGeometry).Geometries)
-                        {
+                        foreach (var p3 in ((MultiLineString)w.elementGeometry).Geometries) {
                             var points2 = PolygonToSKPoints(p3, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                             for (var line = 0; line < points2.Length - 1; line++)
                                 canvas.DrawLine(points2[line], points2[line + 1], paint);
@@ -405,13 +381,11 @@ namespace PraxisCore
                     case "Point":
                         var convertedPoint = PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                         //If this type has an icon, use it. Otherwise draw a circle in that type's color.
-                        if (!string.IsNullOrEmpty(w.paintOp.FileName))
-                        {
+                        if (!string.IsNullOrEmpty(w.paintOp.FileName)) {
                             SKBitmap icon = SKBitmap.Decode(TagParser.cachedBitmaps[w.paintOp.FileName]); //TODO optimize by running SKBitmap.Decode on icons in Initialize.
                             canvas.DrawBitmap(icon, convertedPoint[0]);
                         }
-                        else
-                        {
+                        else {
                             var circleRadius = (float)(w.paintOp.LineWidthDegrees / stats.degreesPerPixelX); //I want points to be drawn as 1 Cell10 in diameter usually, but should be adjustable.
                             canvas.DrawCircle(convertedPoint[0], circleRadius, paint);
                             //TODO re-add outline paint to this DLL not TagParser.
@@ -450,8 +424,7 @@ namespace PraxisCore
         /// <param name="styles">a dictionary of TagParserEntries to select to draw</param>
         /// <param name="filterSmallAreas">if true, skips entries below a certain size when drawing.</param>
         /// <returns>a string containing the SVG XML</returns>
-        public string DrawAreaAtSizeSVG(ImageStats stats, List<DbTables.Place> drawnItems = null, Dictionary<string, StyleEntry> styles = null, bool filterSmallAreas = true)
-        {
+        public string DrawAreaAtSizeSVG(ImageStats stats, List<DbTables.Place> drawnItems = null, Dictionary<string, StyleEntry> styles = null, bool filterSmallAreas = true) {
             //This is the new core drawing function. Takes in an area, the items to draw, and the size of the image to draw. 
             //The drawn items get their paint pulled from the TagParser's list. If I need multiple match lists, I'll need to make a way
             //to pick which list of tagparser rules to use.
@@ -488,8 +461,7 @@ namespace PraxisCore
                     pass2.Add(new CompletePaintOp(op.ElementGeometry, op.DrawSizeHint, po, "", po.LineWidthDegrees * stats.pixelsPerDegreeX));
 
 
-            foreach (var w in pass2.OrderByDescending(p => p.paintOp.LayerId).ThenByDescending(p => p.drawSizeHint))
-            {
+            foreach (var w in pass2.OrderByDescending(p => p.paintOp.LayerId).ThenByDescending(p => p.drawSizeHint)) {
                 paint = cachedPaints[w.paintOp.Id];
                 if (paint.Color.Alpha == 0)
                     continue; //This area is transparent, skip drawing it entirely.
@@ -498,8 +470,7 @@ namespace PraxisCore
                     continue; //This area isn't drawn at this scale.
 
                 var path = new SKPath();
-                switch (w.elementGeometry.GeometryType)
-                {
+                switch (w.elementGeometry.GeometryType) {
                     //Polygons without holes are super easy and fast: draw the path.
                     //Polygons with holes require their own bitmap to be drawn correctly and then overlaid onto the canvas.
                     //I want to use paths to fix things for performance reasons, but I have to use Bitmaps because paths apply their blend mode to
@@ -514,8 +485,7 @@ namespace PraxisCore
 
                         break;
                     case "MultiPolygon":
-                        foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries)
-                        {
+                        foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries) {
                             var p2p = p2 as Polygon;
                             path.AddPoly(PolygonToSKPoints(p2p, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                             foreach (var hole in p2p.InteriorRings)
@@ -527,11 +497,9 @@ namespace PraxisCore
                         var firstPoint = w.elementGeometry.Coordinates.First();
                         var lastPoint = w.elementGeometry.Coordinates.Last();
                         var points = PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
-                        if (firstPoint.Equals(lastPoint))
-                        {
+                        if (firstPoint.Equals(lastPoint)) {
                             //This is a closed shape. Check to see if it's supposed to be filled in.
-                            if (paint.Style == SKPaintStyle.Fill)
-                            {
+                            if (paint.Style == SKPaintStyle.Fill) {
                                 path.AddPoly(points);
                                 canvas.DrawPath(path, paint);
                                 continue;
@@ -541,8 +509,7 @@ namespace PraxisCore
                             canvas.DrawLine(points[line], points[line + 1], paint);
                         break;
                     case "MultiLineString":
-                        foreach (var p3 in ((MultiLineString)w.elementGeometry).Geometries)
-                        {
+                        foreach (var p3 in ((MultiLineString)w.elementGeometry).Geometries) {
                             var points2 = PolygonToSKPoints(p3, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                             for (var line = 0; line < points2.Length - 1; line++)
                                 canvas.DrawLine(points2[line], points2[line + 1], paint);
@@ -551,13 +518,11 @@ namespace PraxisCore
                     case "Point":
                         var convertedPoint = PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                         //If this type has an icon, use it. Otherwise draw a circle in that type's color.
-                        if (!string.IsNullOrEmpty(w.paintOp.FileName))
-                        {
+                        if (!string.IsNullOrEmpty(w.paintOp.FileName)) {
                             SKBitmap icon = SKBitmap.Decode(TagParser.cachedBitmaps[w.paintOp.FileName]); //TODO optimize by creating in Initialize
                             canvas.DrawBitmap(icon, convertedPoint[0]);
                         }
-                        else
-                        {
+                        else {
                             var circleRadius = (float)(ConstantValues.resolutionCell10 / stats.degreesPerPixelX / 2); //I want points to be drawn as 1 Cell10 in diameter.
                             canvas.DrawCircle(convertedPoint[0], circleRadius, paint);
                         }
@@ -581,8 +546,7 @@ namespace PraxisCore
         /// <param name="bottomTile">the tile to use as the base of the image. Expected to be opaque.</param>
         /// <param name="topTile">The tile to layer on top. Expected to be at least partly transparent or translucent.</param>
         /// <returns></returns>
-        public byte[] LayerTiles(ImageStats info, byte[] bottomTile, byte[] topTile)
-        {
+        public byte[] LayerTiles(ImageStats info, byte[] bottomTile, byte[] topTile) {
             SkiaSharp.SKBitmap bitmap = new SkiaSharp.SKBitmap(info.imageSizeX, info.imageSizeY, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul);
             SkiaSharp.SKCanvas canvas = new SkiaSharp.SKCanvas(bitmap);
             SkiaSharp.SKPaint paint = new SkiaSharp.SKPaint();
@@ -606,15 +570,14 @@ namespace PraxisCore
         /// </summary>
         /// <param name="styleSet">the name of the style set to pull the background color from</param>
         /// <returns>the SKColor saved into the requested background paint object.</returns>
-        public static SKColor GetStyleBgColor(string styleSet)
-        {
+        public static SKColor GetStyleBgColor(string styleSet) {
             var color = SKColor.Parse(TagParser.allStyleGroups[styleSet]["background"].PaintOperations.First().HtmlColorCode);
             return color;
         }
 
         //public string GetStyleBgColorString(string styleSet)
         //{
-            //return TagParser.allStyleGroups[styleSet]["background"].paintOperations.First().HtmlColorCode;
+        //return TagParser.allStyleGroups[styleSet]["background"].paintOperations.First().HtmlColorCode;
         //}
 
         /// <summary>
@@ -625,22 +588,19 @@ namespace PraxisCore
         /// <param name="degreesPerPixelX">Width of each pixel in degrees</param>
         /// <param name="degreesPerPixelY">Height of each pixel in degrees</param>
         /// <returns>Array of SkPoints for the image information provided.</returns>
-        public static SkiaSharp.SKPoint[] PolygonToSKPoints(Geometry place, GeoArea drawingArea, double degreesPerPixelX, double degreesPerPixelY)
-        {
+        public static SkiaSharp.SKPoint[] PolygonToSKPoints(Geometry place, GeoArea drawingArea, double degreesPerPixelX, double degreesPerPixelY) {
             SkiaSharp.SKPoint[] points = place.Coordinates.Select(o => new SkiaSharp.SKPoint((float)((o.X - drawingArea.WestLongitude) * (1 / degreesPerPixelX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / degreesPerPixelY)))).ToArray();
             return points;
         }
 
-        public static SKPoint PlaceInfoToSKPoint(StandaloneDbTables.PlaceInfo2 pi, ImageStats imgstats)
-        {
+        public static SKPoint PlaceInfoToSKPoint(StandaloneDbTables.PlaceInfo2 pi, ImageStats imgstats) {
             SkiaSharp.SKPoint point = new SkiaSharp.SKPoint();
             point.X = (float)((pi.lonCenter - imgstats.area.WestLongitude) * (1 / imgstats.degreesPerPixelX));
             point.Y = (float)((pi.latCenter - imgstats.area.SouthLatitude) * (1 / imgstats.degreesPerPixelY));
             return point;
         }
 
-        public static SKPoint[] PlaceInfoToSKPoints(StandaloneDbTables.PlaceInfo2 pi, ImageStats info)
-        {
+        public static SKPoint[] PlaceInfoToSKPoints(StandaloneDbTables.PlaceInfo2 pi, ImageStats info) {
             float heightMod = (float)pi.height / 2;
             float widthMod = (float)pi.width / 2;
             var points = new SkiaSharp.SKPoint[5];
@@ -662,8 +622,7 @@ namespace PraxisCore
         /// <param name="pi">PlaceInfo object to convert</param>
         /// <param name="info">ImageStats for the resulting map tile</param>
         /// <returns>The SKRect representing the standaloneDb size of the PlaceInfo</returns>
-        public static SKRect PlaceInfoToRect(StandaloneDbTables.PlaceInfo2 pi, ImageStats info)
-        {
+        public static SKRect PlaceInfoToRect(StandaloneDbTables.PlaceInfo2 pi, ImageStats info) {
             SKRect r = new SKRect();
             float heightMod = (float)pi.height / 2;
             float widthMod = (float)pi.width / 2;
