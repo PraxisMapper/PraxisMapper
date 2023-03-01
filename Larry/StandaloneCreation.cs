@@ -41,7 +41,6 @@ namespace Larry {
             else
                 buffered = bounds;
 
-            //TODO: set a flag to allow this to pull straight from a PBF file? 
             List<DbTables.Place> allPlaces = new List<DbTables.Place>();
             var intersectCheck = Converters.GeoAreaToPolygon(buffered);
             bool pullFromPbf = false; //Set via arg at startup? or setting file?
@@ -101,7 +100,7 @@ namespace Larry {
             //Roads too.
             var tdSmalls = new Dictionary<string, TerrainDataSmall>(); //Possible issue: a trail and a road with the same name would only show up as whichever one got in the DB first.
             var toRemove = new List<PlaceInfo2>();
-            foreach (var trail in basePlaces.Where(p => (p.StyleName == "trail" || p.StyleName == "road"))) //TODO: add rivers here?
+            foreach (var trail in basePlaces.Where(p => (p.StyleName == "trail" || p.StyleName == "road")))
             {
                 if (skipEntries.Contains(trail.SourceItemID))
                     continue; //Don't per-cell index this one, we shifted it's envelope to handle it instead.
