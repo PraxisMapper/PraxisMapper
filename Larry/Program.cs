@@ -27,17 +27,14 @@ using static PraxisCore.Singletons;
 //TODO: Ponder using https://download.bbbike.org/osm/ as a data source to get a custom extract of an area (for when users want a local-focused app, probably via a wizard GUI)
 //OR could use an additional input for filterbox.
 
-namespace Larry
-{
-    class Program
-    {
+namespace Larry {
+    class Program {
         static IConfigurationRoot config;
         static List<DbTables.Place> memorySource;
         static IMapTiles MapTiles;
         static bool singleThread = false;
 
-        static void Main(string[] args)
-        {
+        static void Main(string[] args) {
             var builder = new ConfigurationBuilder()
             .AddJsonFile("Larry.config.json");
             config = builder.Build();
@@ -48,10 +45,9 @@ namespace Larry
             {
                 createDb();
             }
-            
+
             Log.WriteLog("Larry started at " + DateTime.Now);
-            if (args.Length == 0)
-            {
+            if (args.Length == 0) {
                 Log.WriteLog("You must pass an arguement to this application", Log.VerbosityLevels.High);
                 //TODO: list valid commands or point at the docs file
                 return;
@@ -72,37 +68,31 @@ namespace Larry
             //    DownloadPbfFile(level1, level2, level3, config["PbfFolder"]);
             //}
 
-            if (args.Any(a => a == "-resetPbf"))
-            {
+            if (args.Any(a => a == "-resetPbf")) {
                 ResetFiles(config["PbfFolder"]);
             }
 
-            if (args.Any(a => a == "-resetGeomData"))
-            {
+            if (args.Any(a => a == "-resetGeomData")) {
                 ResetFiles(config["OutputDataFolder"]);
             }
 
-            if (args.Any(a => a == "-rollDefaultPasswords"))
-            {
+            if (args.Any(a => a == "-rollDefaultPasswords")) {
                 SetDefaultPasswords();
             }
 
             if (!args.Any(a => a == "-makeServerDb")) //This will not be available until after creating the DB slightly later.
                 TagParser.Initialize(config["ForceStyleDefaults"] == "True", MapTiles); //This last bit of config must be done after DB creation check
 
-            if (args.Any(a => a == "-processPbfs"))
-            {
+            if (args.Any(a => a == "-processPbfs")) {
                 processPbfs();
             }
 
-            if (args.Any(a => a == "-loadProcessedData"))
-            {
+            if (args.Any(a => a == "-loadProcessedData")) {
                 loadProcessedData();
             }
 
             //This is the single command to get a server going, assuming you have done all the setup steps yourself beforehand and your config is correct. 
-            if (args.Any(a => a == "-makeServerDb"))
-            {
+            if (args.Any(a => a == "-makeServerDb")) {
                 System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                 sw.Start();
                 SetEnvValues();
@@ -122,24 +112,20 @@ namespace Larry
                 //This is the wizard command, try to check and do everything at once.
                 Log.WriteLog("Checking for installed DB per config (" + config["DbMode"] + ")");
                 PraxisContext db;
-                try
-                {
+                try {
                     db = new PraxisContext();
                 }
                 //Specific exceptions should hint at what to do, a general one covers ones I dont know how to handle.
-                catch (Exception ex)
-                {
+                catch (Exception ex) {
                     Log.WriteLog("Hit an error checking for the existing database that I'm not sure how to handle:" + ex.Message);
                     return;
                 }
 
                 Log.WriteLog("Creating the Praxis DB per the connection string...");
-                try
-                {
+                try {
                     createDb();
                 }
-                catch (Exception ex)
-                {
+                catch (Exception ex) {
                     //figure out why i can't create. Probably account settings?
                 }
 
@@ -157,18 +143,15 @@ namespace Larry
                 //}
             }
 
-            if (args.Any(a => a == "-resetStyles"))
-            {
+            if (args.Any(a => a == "-resetStyles")) {
                 var db = new PraxisContext();
                 db.ResetStyles();
             }
 
             //NOTE: this seems to drop out a lot of geometry, so I may not want to suppor tthis after all.
-            if (args.Any(a => a.StartsWith("-shrinkFiles")))
-            {
+            if (args.Any(a => a.StartsWith("-shrinkFiles"))) {
                 List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.geomData").ToList();
-                foreach (string filename in filenames)
-                {
+                foreach (string filename in filenames) {
                     Log.WriteLog("Loading " + filename + " at " + DateTime.Now);
                     PbfReader r = new PbfReader();
                     r.outputPath = config["OutputDataFolder"];
@@ -177,12 +160,10 @@ namespace Larry
                     r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
                     r.reprocessFile = true;
 
-                    if (config["ResourceUse"] == "low")
-                    {
+                    if (config["ResourceUse"] == "low") {
                         r.lowResourceMode = true;
                     }
-                    else if (config["ResourceUse"] == "high")
-                    {
+                    else if (config["ResourceUse"] == "high") {
                         r.keepAllBlocksInRam = true; //Faster performance, but files use vastly more RAM than they do HD space. 200MB file = ~6GB total RAM last I checked.
                     }
                     r.ProcessFile(filename, long.Parse(config["UseOneRelationID"]));
@@ -190,12 +171,10 @@ namespace Larry
                 }
             }
 
-            if (args.Any(a => a.StartsWith("-splitPbfByStyle:")))
-            {
+            if (args.Any(a => a.StartsWith("-splitPbfByStyle:"))) {
                 var style = args.First(a => a.StartsWith("-splitPbfByStyle:")).Split(':')[1];
                 List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.pbf").ToList();
-                foreach (string filename in filenames)
-                {
+                foreach (string filename in filenames) {
                     Log.WriteLog("Loading " + filename + " at " + DateTime.Now);
                     PbfReader r = new PbfReader();
                     r.outputPath = config["OutputDataFolder"];
@@ -206,12 +185,10 @@ namespace Larry
                     r.reprocessFile = config["reprocessFiles"] == "True";
                     r.splitByStyleSet = true;
 
-                    if (config["ResourceUse"] == "low")
-                    {
+                    if (config["ResourceUse"] == "low") {
                         r.lowResourceMode = true;
                     }
-                    else if (config["ResourceUse"] == "high")
-                    {
+                    else if (config["ResourceUse"] == "high") {
                         r.keepAllBlocksInRam = true; //Faster performance, but files use vastly more RAM than they do HD space. 200MB file = ~6GB total RAM last I checked.
                     }
                     r.ProcessFile(filename, long.Parse(config["UseOneRelationID"]));
@@ -219,25 +196,21 @@ namespace Larry
                 }
             }
 
-            if (args.Any(a => a == "-updateDatabase"))
-            {
+            if (args.Any(a => a == "-updateDatabase")) {
                 UpdateExistingEntries(config["OutputDataFolder"]);
             }
 
-            if (args.Any(a => a == "-updateDatabaseFast"))
-            {
+            if (args.Any(a => a == "-updateDatabaseFast")) {
                 UpdateExistingEntriesFast(config["OutputDataFolder"]);
             }
 
-            if (args.Any(a => a.StartsWith("-createStandaloneRelation")))
-            {
+            if (args.Any(a => a.StartsWith("-createStandaloneRelation"))) {
                 //This makes a standalone DB for a specific relation passed in as a paramter. 
                 int relationId = Int32.Parse(config["UseOneRelationID"]);
                 StandaloneCreation.CreateStandaloneDB(relationId, null, false, true); //How map tiles are handled is determined by the optional parameters
             }
 
-            if (args.Any(a => a.StartsWith("-createStandaloneBox")))
-            {
+            if (args.Any(a => a.StartsWith("-createStandaloneBox"))) {
                 //This makes a standalone DB for a specific area passed in as a paramter.
                 //If you want to cover a region in a less-specific way, or the best available relation is much larger than you thought, this might be better.
                 string[] bounds = args.First(a => a.StartsWith("-createStandaloneBox")).Split('|');
@@ -247,8 +220,7 @@ namespace Larry
                 StandaloneCreation.CreateStandaloneDB(0, boundsArea, false, true); //How map tiles are handled is determined by the optional parameters
             }
 
-            if (args.Any(a => a.StartsWith("-createStandalonePoint")))
-            {
+            if (args.Any(a => a.StartsWith("-createStandalonePoint"))) {
                 //This makes a standalone DB centered on a specific point, it will grab a Cell6's area around that point.
                 string[] bounds = args.First(a => a.StartsWith("-createStandalonePoint")).Split('|');
 
@@ -259,52 +231,43 @@ namespace Larry
                 StandaloneCreation.CreateStandaloneDB(0, boundsArea, false, true); //How map tiles are handled is determined by the optional parameters
             }
 
-            if (args.Any(a => a == "-autoCreateMapTiles")) 
-            {
+            if (args.Any(a => a == "-autoCreateMapTiles")) {
                 var db = new PraxisContext();
                 var bounds = db.SetServerBounds(long.Parse(config["UseOneRelationID"]));
                 MapTileSupport.PregenMapTilesForArea(bounds);
             }
 
-            if (args.Any(a => a == "-findServerBounds"))
-            {
+            if (args.Any(a => a == "-findServerBounds")) {
                 var db = new PraxisContext();
                 db.SetServerBounds(long.Parse(config["UseOneRelationID"]));
             }
 
-            if (args.Any(a => a.StartsWith("-drawOneImage:")))
-            {
+            if (args.Any(a => a.StartsWith("-drawOneImage:"))) {
                 DrawOneImage(args.First(a => a.StartsWith("-drawOneImage:")).Split(":")[1]);
             }
 
-            if (args.Any(a => a.StartsWith("-processCoastlines:")))
-            {
+            if (args.Any(a => a.StartsWith("-processCoastlines:"))) {
                 string filename = args.First(a => a.StartsWith("-processCoastlines:")).Split(":")[1];
                 ReadCoastlineShapefile(filename);
             }
 
-            if (args.Any(a => a == "-makePosterImage"))
-            {
+            if (args.Any(a => a == "-makePosterImage")) {
                 DrawPosterOfServer();
             }
 
-            if (args.Any(a => a == "-pwdSpeedTest"))
-            {
+            if (args.Any(a => a == "-pwdSpeedTest")) {
                 PwdSpeedTest();
             }
 
-            if (args.Any(a => a == "-setEnvValues"))
-            {
+            if (args.Any(a => a == "-setEnvValues")) {
                 SetEnvValues();
             }
 
-            if (args.Any(a => a == "-makeOfflineFiles"))
-            {
+            if (args.Any(a => a == "-makeOfflineFiles")) {
                 MakeOfflineFilesCell8();
             }
 
-            if (args.Any(a => a == "-recalcDrawHints"))
-            {
+            if (args.Any(a => a == "-recalcDrawHints")) {
                 RecalcDrawSizeHints();
             }
 
@@ -315,21 +278,18 @@ namespace Larry
             //}
         }
 
-        private static void SetEnvValues()
-        {
+        private static void SetEnvValues() {
             Log.WriteLog("Setting preferred NET environment variables for performance. A restart may be required for them to apply.");
             System.Environment.SetEnvironmentVariable("DOTNET_CLI_TELEMETRY_OPTOUT", "1", EnvironmentVariableTarget.Machine);
             System.Environment.SetEnvironmentVariable("COMPlus_TieredCompilation", "1", EnvironmentVariableTarget.Machine);
             System.Environment.SetEnvironmentVariable("DOTNET_TieredPGO", "1", EnvironmentVariableTarget.Machine);
         }
 
-        private static void PwdSpeedTest()
-        {
+        private static void PwdSpeedTest() {
             Log.WriteLog("Determining the correct value for Rounds on this computer for saving passwords...");
             System.Diagnostics.Stopwatch encryptTimer = new System.Diagnostics.Stopwatch();
             int rounds = 6;
-            while (encryptTimer.ElapsedMilliseconds < 250)
-            {
+            while (encryptTimer.ElapsedMilliseconds < 250) {
                 rounds++;
                 var options = new CrypterOptions() {
                         { CrypterOption.Rounds, rounds}
@@ -345,18 +305,15 @@ namespace Larry
             Log.WriteLog("Suggestion: Set the PasswordRounds configuration variable to " + rounds + " in PraxisMapper's appsettings.json file");
         }
 
-        private static void createDb()
-        {
+        private static void createDb() {
             Log.WriteLog("Creating database with current database settings.");
             var db = new PraxisContext();
             db.MakePraxisDB();
         }
 
-        private static void processPbfs()
-        {
+        private static void processPbfs() {
             List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.pbf").ToList();
-            foreach (string filename in filenames)
-            {
+            foreach (string filename in filenames) {
                 Log.WriteLog("Loading " + filename + " at " + DateTime.Now);
                 PbfReader r = new PbfReader();
                 r.outputPath = config["OutputDataFolder"];
@@ -366,12 +323,10 @@ namespace Larry
                 r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
                 r.reprocessFile = config["reprocessFiles"] == "True";
 
-                if (config["ResourceUse"] == "low")
-                {
+                if (config["ResourceUse"] == "low") {
                     r.lowResourceMode = true;
                 }
-                else if (config["ResourceUse"] == "high")
-                {
+                else if (config["ResourceUse"] == "high") {
                     r.keepAllBlocksInRam = true; //Faster performance, but files use vastly more RAM than they do HD space. 200MB file = ~6GB total RAM last I checked.
                 }
                 r.ProcessFile(filename, long.Parse(config["UseOneRelationID"]));
@@ -379,8 +334,7 @@ namespace Larry
             }
         }
 
-        private static void loadProcessedData()
-        {
+        private static void loadProcessedData() {
             Log.WriteLog("Starting load from processed files at " + DateTime.Now);
             System.Diagnostics.Stopwatch fullProcess = new System.Diagnostics.Stopwatch();
             fullProcess.Start();
@@ -396,13 +350,11 @@ namespace Larry
             if (config["KeepElementsInMemory"] == "True") //ignore DB, doing some one-off operation.
             {
                 //Skip database work. Use an in-memory list for a temporary operation.
-                foreach (var fileName in geomFilenames)
-                {
+                foreach (var fileName in geomFilenames) {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     Log.WriteLog("Loading " + fileName + " to memory at " + DateTime.Now);
                     var entries = File.ReadAllLines(fileName);
-                    foreach (var entry in entries)
-                    {
+                    foreach (var entry in entries) {
                         DbTables.Place stored = GeometrySupport.ConvertSingleTsvPlace(entry);
                         memorySource.Add(stored);
                     }
@@ -410,13 +362,11 @@ namespace Larry
                     Log.WriteLog("File loaded to memory in " + sw.Elapsed);
                     sw.Stop();
                 }
-                foreach (var fileName in tagsFilenames)
-                {
+                foreach (var fileName in tagsFilenames) {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     Log.WriteLog("Loading " + fileName + " to memory at " + DateTime.Now);
                     var entries = File.ReadAllLines(fileName);
-                    foreach (var entry in entries)
-                    {
+                    foreach (var entry in entries) {
                         PlaceTags stored = GeometrySupport.ConvertSingleTsvTag(entry);
                         var taggedGeo = memorySource.First(m => m.SourceItemType == stored.SourceItemType && m.SourceItemID == stored.SourceItemId);
                         //MemorySource will need to be a more efficient collection for searching if this is to be a major feature, but this functions.
@@ -430,8 +380,7 @@ namespace Larry
             }
             else if (config["UseMariaDBInFile"] == "True") //Use the LOAD DATA INFILE command to skip the EF for loading.
             {
-                foreach (var fileName in geomFilenames)
-                {
+                foreach (var fileName in geomFilenames) {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
                     var mariaPath = fileName.Replace("\\", "\\\\"); //TODO: this may need some cross-platform attention if I have to keep this particular mode up.
@@ -441,8 +390,7 @@ namespace Larry
                     File.Move(fileName, fileName + "done");
                 }
 
-                foreach (var fileName in tagsFilenames)
-                {
+                foreach (var fileName in tagsFilenames) {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
                     var mariaPath = fileName.Replace("\\", "\\\\");
@@ -459,18 +407,16 @@ namespace Larry
                     options.MaxDegreeOfParallelism = 1;
 
                 //Parallel.ForEach(geomFilenames, options,  fileName => 
-                foreach(var fileName in geomFilenames) 
-                {
+                foreach (var fileName in geomFilenames) {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
                     db = new PraxisContext();
                     db.Database.SetCommandTimeout(Int32.MaxValue);
                     db.ChangeTracker.AutoDetectChangesEnabled = false;
                     var lines = File.ReadAllLines(fileName); //Might be faster to use streams and dodge the memory allocation?
-                    var newPlaces = new List<DbTables.Place> (lines.Length);
+                    var newPlaces = new List<DbTables.Place>(lines.Length);
                     Log.WriteLog("Converting entries from file...");
-                    foreach (var line in lines)
-                    {
+                    foreach (var line in lines) {
                         db.Places.Add(GeometrySupport.ConvertSingleTsvPlace(line));
                         //newPlaces.Add(GeometrySupport.ConvertSingleTsvPlace(line));
                     }
@@ -482,16 +428,14 @@ namespace Larry
                     File.Move(fileName, fileName + "done");
                 } //);
                 //Parallel.ForEach(tagsFilenames, options, fileName =>
-                foreach(var fileName in tagsFilenames)
-                {
+                foreach (var fileName in tagsFilenames) {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
                     db = new PraxisContext();
                     db.Database.SetCommandTimeout(Int32.MaxValue);
                     db.ChangeTracker.AutoDetectChangesEnabled = false;
                     var lines = File.ReadAllLines(fileName);
-                    foreach (var line in lines)
-                    {
+                    foreach (var line in lines) {
                         db.PlaceTags.Add(GeometrySupport.ConvertSingleTsvTag(line));
                     }
                     db.SaveChanges();
@@ -509,8 +453,7 @@ namespace Larry
             Log.WriteLog("Indexes generated in " + fullProcess.Elapsed);
         }
 
-        private static void DrawOneImage(string code)
-        {
+        private static void DrawOneImage(string code) {
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
             sw.Start();
             TagParser.ApplyTags(memorySource, "mapTiles");
@@ -521,8 +464,7 @@ namespace Larry
             Log.WriteLog("image drawn from memory in " + sw.Elapsed);
         }
 
-        private static void DrawPosterOfServer(int xInches = 24, int yInches = 36, int dpi = 300)
-        {
+        private static void DrawPosterOfServer(int xInches = 24, int yInches = 36, int dpi = 300) {
             var db = new PraxisContext();
             var bounds = db.ServerSettings.First();
 
@@ -530,10 +472,10 @@ namespace Larry
             var iStats = new ImageStats(geoArea, (int)(geoArea.LongitudeWidth * 5000), (int)(geoArea.LatitudeHeight * 5000)); //temp values to scale correctly.
             iStats.ScaleToFit(xInches * dpi, yInches * dpi);
             Log.WriteLog("Loading all places from DB");
-            
+
             iStats.filterSize *= .5; //For increased accuracy on the bigger image, we're gonna load things that would draw as half a pixel.
-            var places = GetPlaces(geoArea, filterSize:iStats.filterSize);
-            
+            var places = GetPlaces(geoArea, filterSize: iStats.filterSize);
+
             Log.WriteLog("Generating paint operations");
             var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, "mapTiles", iStats);
             Log.WriteLog("Drawing image");
@@ -543,18 +485,15 @@ namespace Larry
             Log.WriteLog("Image saved to disk as ServerPoster.png");
         }
 
-        private static void ApplyConfigValues()
-        {
+        private static void ApplyConfigValues() {
             PraxisContext.connectionString = config["DbConnectionString"];
             PraxisContext.serverMode = config["DbMode"];
 
-            if (config["MapTilesEngine"] == "SkiaSharp")
-            {
+            if (config["MapTilesEngine"] == "SkiaSharp") {
                 var asm = Assembly.LoadFrom(@"PraxisMapTilesSkiaSharp.dll");
                 MapTiles = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
             }
-            else if (config["MapTilesEngine"] == "ImageSharp")
-            {
+            else if (config["MapTilesEngine"] == "ImageSharp") {
                 var asm2 = Assembly.LoadFrom(@"PraxisMapTilesImageSharp.dll");
                 MapTiles = (IMapTiles)Activator.CreateInstance(asm2.GetType("PraxisCore.MapTiles"));
             }
@@ -562,8 +501,7 @@ namespace Larry
             IMapTiles.SlippyTileSizeSquare = config["slippyTileSize"].ToInt();
             IMapTiles.BufferSize = config["AreaBuffer"].ToDouble();
 
-            if (config["UseHighAccuracy"] != "True")
-            {
+            if (config["UseHighAccuracy"] != "True") {
                 geometryFactory = NtsGeometryServices.Instance.CreateGeometryFactory(new PrecisionModel(1000000), 4326); //SRID matches 10-character Plus code values.  Precision model means round all points to 7 decimal places to not exceed float's useful range.
                 SimplifyAreas = true; //rounds off points that are within a Cell10's distance of each other. Makes fancy architecture and highly detailed paths less pretty on map tiles, but works for gameplay data.
             }
@@ -573,8 +511,7 @@ namespace Larry
             if (config["KeepElementsInMemory"] == "True")
                 memorySource = new List<DbTables.Place>(20000);
 
-            if (config["UseMariaDBInFile"] == "True" && config["DbMode"] != "MariaDB")
-            {
+            if (config["UseMariaDBInFile"] == "True" && config["DbMode"] != "MariaDB") {
                 Log.WriteLog("You set a MariaDB-only option on and aren't using MariaDB! Fix the configs to use MariaDB or disable the InFile setting and run again.", Log.VerbosityLevels.High);
                 return;
             }
@@ -583,8 +520,7 @@ namespace Larry
                 singleThread = true;
         }
 
-        public static void DownloadPbfFile(string topLevel, string subLevel1, string subLevel2, string destinationFolder)
-        {
+        public static void DownloadPbfFile(string topLevel, string subLevel1, string subLevel2, string destinationFolder) {
             //pull a fresh copy of a file from geofabrik.de (or other mirror potentially)
             //save it to the same folder as configured for pbf files (might be passed in)
             //web paths http://download.geofabrik.de/north-america/us/ohio-latest.osm.pbf
@@ -594,34 +530,29 @@ namespace Larry
             wc.DownloadFile("http://download.geofabrik.de/" + topLevel + "/" + subLevel1 + "/" + subLevel2 + "-latest.osm.pbf", destinationFolder + subLevel2 + "-latest.osm.pbf");
         }
 
-        public static void ReadCoastlineShapefile(string shapePath)
-        {
+        public static void ReadCoastlineShapefile(string shapePath) {
             string fileBaseName = config["OutputDataFolder"] + "coastlines";
             EGIS.ShapeFileLib.ShapeFile sf = new EGIS.ShapeFileLib.ShapeFile(shapePath);
             var recordCount = sf.RecordCount;
             StringBuilder geometryBuilds = new StringBuilder();
             StringBuilder tagBuilds = new StringBuilder();
-            for (int i = 0; i < recordCount; i++)
-            {
+            for (int i = 0; i < recordCount; i++) {
                 var shapeData = sf.GetShapeDataD(i);
                 var poly = Converters.ShapefileRecordToPolygon(shapeData);
                 geometryBuilds.Append(100000000000 + i).Append('\t').Append('2').Append('\t').Append(poly.AsText()).Append('\t').Append(poly.Area).Append('\t').Append(Guid.NewGuid()).Append("\r\n");
-                tagBuilds.Append(100000000000 + i).Append('\t').Append('2').Append('\t').Append("natural").Append('\t').Append("water").Append("\r\n"); 
+                tagBuilds.Append(100000000000 + i).Append('\t').Append('2').Append('\t').Append("natural").Append('\t').Append("water").Append("\r\n");
             }
             File.WriteAllText(fileBaseName + ".geomData", geometryBuilds.ToString());
             File.WriteAllText(fileBaseName + ".tagData", tagBuilds.ToString());
         }
 
-        public static void UpdateExistingEntries(string path)
-        {
+        public static void UpdateExistingEntries(string path) {
             List<string> filenames = Directory.EnumerateFiles(path, "*.geomData").ToList();
             ParallelOptions po = new ParallelOptions();
             //if (singleThread)
-                po.MaxDegreeOfParallelism = 1;
-            Parallel.ForEach(filenames, po, (filename) =>
-            {
-                try
-                {
+            po.MaxDegreeOfParallelism = 1;
+            Parallel.ForEach(filenames, po, (filename) => {
+                try {
                     var db = new PraxisContext();
                     Log.WriteLog("Loading " + filename);
                     var entries = GeometrySupport.ReadPlaceFilesToMemory(filename); //tagsData file loaded automatically here.
@@ -630,25 +561,21 @@ namespace Larry
                     File.Move(filename, filename + "Done");
                     Log.WriteLog(filename + " completed at " + DateTime.Now + ", updated " + updated + " rows");
                 }
-                catch (Exception ex)
-                {
+                catch (Exception ex) {
                     Log.WriteLog("Error multithreading: " + ex.Message + ex.StackTrace, Log.VerbosityLevels.Errors);
                 }
             });
         }
 
-        public static void UpdateExistingEntriesFast(string path)
-        {
+        public static void UpdateExistingEntriesFast(string path) {
             List<string> filenames = Directory.EnumerateFiles(path, "*.geomData").ToList();
             ParallelOptions po = new ParallelOptions();
             if (singleThread)
                 po.MaxDegreeOfParallelism = 1;
             else
                 po.MaxDegreeOfParallelism = 4;
-            Parallel.ForEach(filenames, po, (filename) =>
-            {
-                try
-                {
+            Parallel.ForEach(filenames, po, (filename) => {
+                try {
                     var db = new PraxisContext();
                     Log.WriteLog("Loading " + filename);
                     var entries = GeometrySupport.ReadPlaceFilesToMemory(filename); //tagsData file loaded automatically here.
@@ -657,8 +584,7 @@ namespace Larry
                     File.Move(filename, filename + "Done");
                     Log.WriteLog(filename + " completed at " + DateTime.Now + ", updated " + updated + " rows");
                 }
-                catch (Exception ex)
-                {
+                catch (Exception ex) {
                     Log.WriteLog("Error multithreading: " + ex.Message + ex.StackTrace, Log.VerbosityLevels.Errors);
                 }
             });
@@ -668,11 +594,9 @@ namespace Larry
             db.ExpireAllSlippyMapTiles();
         }
 
-        public static void ResetFiles(string folder)
-        {
+        public static void ResetFiles(string folder) {
             List<string> filenames = System.IO.Directory.EnumerateFiles(folder, "*.*Done").ToList();
-            foreach (var file in filenames)
-            {
+            foreach (var file in filenames) {
                 File.Move(file, file.Substring(0, file.Length - 4));
             }
         }
@@ -680,42 +604,35 @@ namespace Larry
         private static Dictionary<string, int> GetTerrainIndex() //TODO make style a parameter
         {
             var dict = new Dictionary<string, int>();
-            foreach (var entry in TagParser.allStyleGroups["mapTiles"])
-            {
-                if (entry.Value.IsGameElement)
-                {
+            foreach (var entry in TagParser.allStyleGroups["mapTiles"]) {
+                if (entry.Value.IsGameElement) {
                     dict.Add(entry.Key, dict.Count + 1);
                 }
             }
             return dict;
         }
 
-        static List<string> GetCellCombos()
-        {
+        static List<string> GetCellCombos() {
             var list = new List<string>(400);
             foreach (var Yletter in OpenLocationCode.CodeAlphabet)
-                foreach (var Xletter in OpenLocationCode.CodeAlphabet)
-                {
+                foreach (var Xletter in OpenLocationCode.CodeAlphabet) {
                     list.Add(String.Concat(Yletter, Xletter));
                 }
 
             return list;
         }
 
-        static List<string> GetCell2Combos()
-        {
+        static List<string> GetCell2Combos() {
             var list = new List<string>(400);
             foreach (var Yletter in OpenLocationCode.CodeAlphabet.Take(9))
-                foreach (var Xletter in OpenLocationCode.CodeAlphabet.Take(18))
-                {
+                foreach (var Xletter in OpenLocationCode.CodeAlphabet.Take(18)) {
                     list.Add(String.Concat(Yletter, Xletter));
                 }
 
             return list;
         }
 
-        public static void MakeOfflineFilesCell8()
-        {
+        public static void MakeOfflineFilesCell8() {
             var db = new PraxisContext();
             var terrainDict = new ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<string, string>>>>();
             var index = GetTerrainIndex();
@@ -723,26 +640,22 @@ namespace Larry
             terrainDict["index"] = new ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<string, string>>>();
             terrainDict["index"][String.Join("|", index.Select(i => i.Key + "," + i.Value))] = new ConcurrentDictionary<string, ConcurrentDictionary<string, string>>();
 
-            foreach (var cell2 in GetCell2Combos())
-            {
+            foreach (var cell2 in GetCell2Combos()) {
                 var place2 = cell2.ToPolygon();
                 var placeTest = db.Places.Any(p => p.ElementGeometry.Intersects(place2)); //DoPlacesExist in a single line.
                 if (!placeTest)
                     continue;
 
                 terrainDict[cell2] = new ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<string, string>>>();
-                foreach (var cell4 in GetCellCombos())
-                {
+                foreach (var cell4 in GetCellCombos()) {
                     var place4 = (cell2 + cell4).ToPolygon();
                     var placeTest4 = db.Places.Any(p => p.ElementGeometry.Intersects(place4)); //DoPlacesExist in a single line.
                     if (!placeTest4)
                         continue;
 
                     terrainDict[cell2][cell4] = new ConcurrentDictionary<string, ConcurrentDictionary<string, string>>();
-                    foreach (var cell6 in GetCellCombos())
-                    {
-                        try
-                        {
+                    foreach (var cell6 in GetCellCombos()) {
+                        try {
                             string pluscode6 = cell2 + cell4 + cell6;
                             GeoArea box6 = pluscode6.ToGeoArea();
                             var quickplaces = PraxisCore.Place.GetPlaces(box6);
@@ -752,12 +665,11 @@ namespace Larry
                             terrainDict[cell2][cell4][cell6] = new ConcurrentDictionary<string, string>();
 
                             //foreach (var place in quickplaces)
-                                //if (place.ElementGeometry.Coordinates.Count() > 1000)
-                                    //place.ElementGeometry = place.ElementGeometry.Intersection(box6.ToPolygon());
+                            //if (place.ElementGeometry.Coordinates.Count() > 1000)
+                            //place.ElementGeometry = place.ElementGeometry.Intersection(box6.ToPolygon());
 
 
-                            Parallel.ForEach(GetCellCombos(), (cell8) =>
-                            {
+                            Parallel.ForEach(GetCellCombos(), (cell8) => {
                                 string pluscode = pluscode6 + cell8;
                                 GeoArea box = pluscode.ToGeoArea();
                                 var places = PraxisCore.Place.GetPlaces(box, quickplaces);
@@ -771,8 +683,7 @@ namespace Larry
                                 var terrainsPresent = places.Select(p => p.StyleName).Distinct().ToList();
                                 //r terrainsPresent = terrainInfo.Select(t => t.data.areaType).Distinct().ToList();
 
-                                if (terrainsPresent.Count > 0)
-                                {
+                                if (terrainsPresent.Count > 0) {
                                     string concatTerrain = String.Join("|", terrainsPresent.Select(t => index[t])); //indexed ID of each type.
                                     terrainDict[cell2][cell4][cell6][cell8] = concatTerrain;
                                 }
@@ -780,8 +691,7 @@ namespace Larry
                             if (terrainDict[cell2][cell4][cell6].IsEmpty)
                                 terrainDict[cell2][cell4].TryRemove(cell6, out var ignore);
                         }
-                        catch(Exception ex)
-                        {
+                        catch (Exception ex) {
                             Log.WriteLog("error making file for " + cell2 + cell4 + cell6 + ":" + ex.Message);
                         }
                     }
@@ -796,8 +706,7 @@ namespace Larry
                 }
                 if (terrainDict[cell2].IsEmpty)
                     terrainDict[cell2].TryRemove(cell2, out var ignore);
-                else
-                {
+                else {
                     File.WriteAllText(config["OutputDataFolder"] + cell2 + ".json", JsonSerializer.Serialize(terrainDict));
                     terrainDict.TryRemove(cell2, out var xx);
                     Log.WriteLog("Made file for " + cell2 + " at " + DateTime.Now);
@@ -807,8 +716,7 @@ namespace Larry
             //return JsonSerializer.Serialize(terrainDict);
         }
 
-        public static bool IsTerrainPresent(string styleSet, string terrain, string cell) 
-        {
+        public static bool IsTerrainPresent(string styleSet, string terrain, string cell) {
             //This will be a DB query based on a style that doesn't have a NOT criteria.
             var db = new PraxisContext();
 
@@ -828,8 +736,7 @@ namespace Larry
             return false;
         }
 
-        public static void SetDefaultPasswords()
-        {
+        public static void SetDefaultPasswords() {
             //expected to be run when in the same folder as PraxisMapper.exe and it's appsetings.json file.
             //May also make a self-signed cert for testing purposes.  System.Security.Cryptography.X509Certificates.CertificateRequest.
 
@@ -851,14 +758,12 @@ namespace Larry
             var groupsDone = 0;
             var groupSize = 1000;
             bool keepGoing = true;
-            while (keepGoing)
-            {
+            while (keepGoing) {
                 var places = db.Places.Include(p => p.Tags).Where(p => p.DrawSizeHint > 4000).Skip(groupsDone * groupSize).Take(groupSize).ToList();
                 if (places.Count < groupSize)
                     keepGoing = false;
 
-                foreach (var place in places)
-                {
+                foreach (var place in places) {
                     place.ElementGeometry = NetTopologySuite.Precision.GeometryPrecisionReducer.Reduce(NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(place.ElementGeometry, ConstantValues.resolutionCell10), PrecisionModel.FloatingSingle.Value);
                     var match = TagParser.GetStyleEntry(place, "mapTiles");
                     var name = TagParser.GetName(place);
@@ -873,16 +778,14 @@ namespace Larry
             }
         }
 
-        public static void RecalcDrawSizeHints()
-        {
+        public static void RecalcDrawSizeHints() {
             //TODO: write something that lets me quick and easy batch commands on the entities.
             var db = new PraxisContext();
             var groupsDone = 0;
             var groupSize = 10000;
             bool keepGoing = true;
             long lastEntry = 0; //This appears to be faster than Skip. Should confirm.
-            while (keepGoing)
-            {
+            while (keepGoing) {
                 //var places = db.Places.Include(p => p.Tags).Skip(groupsDone * groupSize).Take(groupSize).ToList();
                 var places = db.Places.Include(p => p.Tags).Where(p => db.Places.OrderBy(pp => pp.Id).Where(pp => pp.Id > lastEntry).Select(pp => pp.Id).Take(groupSize).Contains(p.Id)).ToList();
                 if (places.Count < groupSize)
@@ -890,8 +793,7 @@ namespace Larry
 
                 lastEntry = places.Max(p => p.Id);
 
-                foreach (var place in places)
-                {
+                foreach (var place in places) {
                     var newHint = GeometrySupport.CalculateDrawSizeHint(TagParser.ApplyTags(place, "mapTiles"));
                     if (newHint != place.DrawSizeHint)
                         place.DrawSizeHint = newHint;
@@ -902,20 +804,17 @@ namespace Larry
             }
         }
 
-        public static void BatchOp(Action<DbTables.Place> a)
-        {
+        public static void BatchOp(Action<DbTables.Place> a) {
             var db = new PraxisContext();
             var groupsDone = 0;
             var groupSize = 1000;
             bool keepGoing = true;
-            while (keepGoing)
-            {
+            while (keepGoing) {
                 var places = db.Places.Include(p => p.Tags).Where(p => p.DrawSizeHint > 4000).Skip(groupsDone * groupSize).Take(groupSize).ToList();
                 if (places.Count < groupSize)
                     keepGoing = false;
 
-                foreach (var place in places)
-                {
+                foreach (var place in places) {
                     a(place);
                 }
                 Log.WriteLog("Saving " + groupSize + " changes");

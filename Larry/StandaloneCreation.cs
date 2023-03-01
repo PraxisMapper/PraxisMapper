@@ -7,15 +7,12 @@ using System.IO;
 using System.Linq;
 using static PraxisCore.Standalone.StandaloneDbTables;
 
-namespace Larry
-{
-    internal class StandaloneCreation
-    {
+namespace Larry {
+    internal class StandaloneCreation {
         //These functions are for taking a PraxisMapper DB and making a workable mobile version. Much less accurate, requires 0 data connectivity.
         //No longer a high priority but I do want to keep this code around.
 
-        public static void CreateStandaloneDB(long relationID = 0, GeoArea bounds = null, bool saveToDB = false, bool saveToFolder = true)
-        {
+        public static void CreateStandaloneDB(long relationID = 0, GeoArea bounds = null, bool saveToDB = false, bool saveToFolder = true) {
             string name = "";
             if (bounds != null)
                 name = Math.Truncate(bounds.SouthLatitude) + "_" + Math.Truncate(bounds.WestLongitude) + "_" + Math.Truncate(bounds.NorthLatitude) + "_" + Math.Truncate(bounds.EastLongitude) + ".sqlite";
@@ -33,8 +30,7 @@ namespace Larry
             Log.WriteLog("Standalone DB created for relation " + relationID + " at " + DateTime.Now);
 
             GeoArea buffered;
-            if (relationID > 0)
-            {
+            if (relationID > 0) {
                 var fullArea = mainDb.Places.FirstOrDefault(m => m.SourceItemID == relationID && m.SourceItemType == 3);
                 if (fullArea == null)
                     return;
@@ -51,8 +47,7 @@ namespace Larry
             bool pullFromPbf = false; //Set via arg at startup? or setting file?
             if (!pullFromPbf)
                 allPlaces = Place.GetPlaces(buffered);
-            else
-            {
+            else {
                 //need a file to read from.
                 //optionally a bounding box on that file.
                 //Starting to think i might want to track some generic parameters I refer to later. like -box|s|w|n|e or -point|lat|long or -singleFile|here.osm.pbf
@@ -64,8 +59,7 @@ namespace Larry
             string minCode = new OpenLocationCode(buffered.SouthLatitude, buffered.WestLongitude).CodeDigits;
             string maxCode = new OpenLocationCode(buffered.NorthLatitude, buffered.EastLongitude).CodeDigits;
             int removableLetters = 0;
-            for (int i = 0; i < 10; i++)
-            {
+            for (int i = 0; i < 10; i++) {
                 if (minCode[i] == maxCode[i])
                     removableLetters++;
                 else
@@ -83,13 +77,10 @@ namespace Larry
             //SHORTCUT: for roads that are a straight-enough line (under 1 Cell10 in width or height)
             //just treat them as being 1 Cell10 in that axis, and skip tracking them by each Cell10 they cover.
             HashSet<long> skipEntries = new HashSet<long>();
-            foreach (var pi in placeInfo.Where(p => p.areaType == "road" || p.areaType == "trail"))
-            {
+            foreach (var pi in placeInfo.Where(p => p.areaType == "road" || p.areaType == "trail")) {
                 //If a road is nearly a straight line, treat it as though it was 1 cell10 wide, and don't index its coverage per-cell later.
-                if (pi.height <= ConstantValues.resolutionCell10 && pi.width >= ConstantValues.resolutionCell10)
-                { pi.height = ConstantValues.resolutionCell10; skipEntries.Add(pi.PlaceId); }
-                else if (pi.height >= ConstantValues.resolutionCell10 && pi.width <= ConstantValues.resolutionCell10)
-                { pi.width = ConstantValues.resolutionCell10; skipEntries.Add(pi.PlaceId); }
+                if (pi.height <= ConstantValues.resolutionCell10 && pi.width >= ConstantValues.resolutionCell10) { pi.height = ConstantValues.resolutionCell10; skipEntries.Add(pi.PlaceId); }
+                else if (pi.height >= ConstantValues.resolutionCell10 && pi.width <= ConstantValues.resolutionCell10) { pi.width = ConstantValues.resolutionCell10; skipEntries.Add(pi.PlaceId); }
             }
 
             sqliteDb.PlaceInfo2s.AddRange(placeInfo);
@@ -126,12 +117,10 @@ namespace Larry
                 oneEntry.Add(trail);
 
                 var overlapped = AreaStyle.GetAreaDetails(ref thisPath, ref oneEntry);
-                if (overlapped.Count > 0)
-                {
+                if (overlapped.Count > 0) {
                     tdSmalls.TryAdd(TagParser.GetName(trail), new TerrainDataSmall() { Name = TagParser.GetName(trail), areaType = trail.StyleName });
                 }
-                foreach (var o in overlapped)
-                {
+                foreach (var o in overlapped) {
                     var ti = new StandaloneTerrainInfo();
                     ti.PlusCode = o.plusCode.Substring(removableLetters, 10 - removableLetters);
                     ti.TerrainDataSmall = new List<TerrainDataSmall>();
@@ -168,7 +157,7 @@ namespace Larry
 
             //Copy the files as necessary to their correct location.
             //if (saveToFolder)
-                //Directory.Move(relationID + "Tiles", config["Solar2dExportFolder"] + "Tiles");
+            //Directory.Move(relationID + "Tiles", config["Solar2dExportFolder"] + "Tiles");
 
             //File.Copy(relationID + ".sqlite", config["Solar2dExportFolder"] + "database.sqlite");
 
