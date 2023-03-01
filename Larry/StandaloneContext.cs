@@ -1,10 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using static PraxisCore.Standalone.StandaloneDbTables;
 
-namespace Larry
-{
-    public partial class StandaloneContext : DbContext
-    {
+namespace Larry {
+    public partial class StandaloneContext : DbContext {
         public string destinationFilename = "Standalone.sqlite";
         //Solar2D's SQLite library only allows for one DB to be open at once. This means my idea to have a split set of DB files will 
         //not be the best plan for performance, since i'd have to open and close the DB connection on every query.
@@ -20,36 +18,30 @@ namespace Larry
         public virtual DbSet<PlaceIndex> PlaceIndexs { get; set; }
         public virtual DbSet<IdleStats> IdleStats { get; set; }
 
-        public StandaloneContext()
-        {
+        public StandaloneContext() {
         }
 
-        public StandaloneContext(string destFile)
-        {
+        public StandaloneContext(string destFile) {
             destinationFilename = destFile + ".sqlite";
         }
 
         public StandaloneContext(DbContextOptions<StandaloneContext> options, string destFile)
-            : base(options)
-        {
+            : base(options) {
             destinationFilename = destFile + ".sqlite";
         }
 
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        {
-            if (!optionsBuilder.IsConfigured)
-            {
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) {
+            if (!optionsBuilder.IsConfigured) {
                 optionsBuilder.UseSqlite("Data Source=" + destinationFilename); // Standalone.sqlite");
             }
         }
 
-        protected override void OnModelCreating(ModelBuilder model)
-        {
+        protected override void OnModelCreating(ModelBuilder model) {
             //set indexed and names and such here.
             model.Entity<MapTileDB>().HasIndex(p => p.PlusCode);
 
             model.Entity<StandaloneTerrainInfo>().HasIndex(p => p.PlusCode);
-            
+
             model.Entity<TerrainDataSmall>().HasIndex(p => p.Name);
 
             model.Entity<PlusCodesVisited>().HasIndex(p => p.PlusCode);
