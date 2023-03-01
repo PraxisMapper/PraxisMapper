@@ -85,7 +85,14 @@ namespace PraxisCore.Styles
                     new StyleMatchRule() {Key="building", Value="retail|commercial", MatchType="or" },
                     new StyleMatchRule() {Key="shop", Value="*", MatchType="or" }
             }},
-            new StyleEntry() { IsGameElement = true, MatchOrder = 9, Name ="tourism", StyleSet = "suggestedGameplay",
+            new StyleEntry() { IsGameElement = true, MatchOrder = 9, Name ="artsCulture", StyleSet = "suggestedGameplay",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
+                },
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "amenity", Value = "theatre|concert hall|arts centre|planetarium|library|public_bookcase|community_centre|conference_centre|exhibition_centre|events_venue", MatchType = "or" }}
+            },
+            new StyleEntry() { IsGameElement = true, MatchOrder = 10, Name ="tourism", StyleSet = "suggestedGameplay",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "CC660033", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 },
                     new StylePaint() { HtmlColorCode = "CCFF0066", FillOrStroke = "stroke", LineWidthDegrees=0.0001875F, LinePattern= "solid", LayerId = 99 }
@@ -93,7 +100,7 @@ namespace PraxisCore.Styles
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "tourism", Value = "*", MatchType = "equals" }}
             },
-            new StyleEntry() { IsGameElement = true, MatchOrder = 10, Name ="historical", StyleSet = "suggestedGameplay",
+            new StyleEntry() { IsGameElement = true, MatchOrder = 11, Name ="historical", StyleSet = "suggestedGameplay",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "CCB3B3B3", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 },
                     new StylePaint() { HtmlColorCode = "CC9D9D9D", FillOrStroke = "stroke", LineWidthDegrees=0.0001875F, LinePattern= "solid", LayerId = 99 }
@@ -117,13 +124,6 @@ namespace PraxisCore.Styles
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() {Key="generated", Value="praxisMapper", MatchType="equals"},
             }},
-            new StyleEntry() { IsGameElement = true, MatchOrder = 14, Name ="artsCulture", StyleSet = "suggestedGameplay",
-                PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
-                },
-                StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "amenity", Value = "theatre|concert hall|arts centre|planetarium|library|public_bookcase|community_centre|conference_centre|exhibition_centre|events_venue", MatchType = "or" }} //TODO: expand this. Might need to swap order with tourism to catch several other entries.
-            },
             //background is a mandatory style entry name, but its transparent here..
             new StyleEntry() { MatchOrder = 10000, Name ="background",  StyleSet = "suggestedGameplay",
                 PaintOperations = new List<StylePaint>() {

@@ -56,6 +56,21 @@ namespace PraxisCore.Styles
                     new StyleMatchRule() {Key="building", Value="retail|commercial", MatchType="or" },
                     new StyleMatchRule() {Key="shop", Value="*", MatchType="or" }
             }},
+            new StyleEntry() { IsGameElement = true, MatchOrder = 35, Name ="artsCulture", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
+                },
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "amenity", Value = "theatre|concert hall|arts centre|planetarium|library|public_bookcase|community_centre|conference_centre|exhibition_centre|events_venue", MatchType = "or" }}
+            },
+            new StyleEntry() { MatchOrder = 39, Name ="camping", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "def6c0", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key="tourism", Value="camp_site|caravan_site", MatchType="any"},
+            }},
             new StyleEntry() { IsGameElement = true, MatchOrder = 40, Name ="tourism", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "660033", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
@@ -77,13 +92,15 @@ namespace PraxisCore.Styles
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "historic", Value = "*", MatchType = "equals" }}
             },
-            new StyleEntry() { IsGameElement = true, MatchOrder = 60, Name ="artsCulture", StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 65, Name ="placeofworship", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
+                    new StylePaint() { HtmlColorCode = "d0d0d0", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
-                StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "amenity", Value = "theatre|concert hall|arts centre|planetarium|library|public_bookcase|community_centre|conference_centre|exhibition_centre|events_venue", MatchType = "or" }} //TODO: expand this. Might need to swap order with tourism to catch several other entries.
-            },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key="amenity", Value="place_of_worship", MatchType="or"},
+                new StyleMatchRule() { Key="landuse", Value="religious", MatchType="or"},
+            }},
             new StyleEntry() { MatchOrder = 69, Name ="namedBuilding", StyleSet = "mapTiles", IsGameElement = true,
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "d1b6a1", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 },
@@ -335,7 +352,7 @@ namespace PraxisCore.Styles
             }},
             //New in Release 8: Additional styles for more accurate map tiles.
             new StyleEntry() { MatchOrder = 340, Name ="tree", StyleSet = "mapTiles", //Trees are transparent, so they blend the color of what's under thenm.
-                PaintOperations = new List<StylePaint>() { //TODO: consider scaling to 32x32px at zoom 20. Do the math to conver that to degrees.
+                PaintOperations = new List<StylePaint>() { //TODO: consider scaling to 32x32px at zoom 20. Do the math to convert that to degrees.
                     new StylePaint() { HtmlColorCode = "42aedfa3", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 97, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                     new StylePaint() { HtmlColorCode = "42a52a2a", FillOrStroke = "fill", LineWidthDegrees=0.000001425F, LinePattern= "solid", LayerId = 96, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
@@ -468,23 +485,7 @@ namespace PraxisCore.Styles
             {
                 new StyleMatchRule() { Key="highway", Value="raceway", MatchType="equals"},
             }},
-            new StyleEntry() { MatchOrder = 470, Name ="placeofworship", StyleSet = "mapTiles", //TODO more before building style entry.
-                PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "d0d0d0", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
-                },
-                StyleMatchRules = new List<StyleMatchRule>()
-            {
-                new StyleMatchRule() { Key="amenity", Value="place_of_worship", MatchType="or"},
-                new StyleMatchRule() { Key="landuse", Value="religious", MatchType="or"},
-            }},
-            new StyleEntry() { MatchOrder = 480, Name ="camping", StyleSet = "mapTiles", //TODO: move before tourism entry.
-                PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "def6c0", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
-                },
-                StyleMatchRules = new List<StyleMatchRule>()
-            {
-                new StyleMatchRule() { Key="tourism", Value="camp_site|caravan_site", MatchType="any"},
-            }},
+            
             new StyleEntry() { MatchOrder = 490, Name ="heath", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "d6d99f", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
