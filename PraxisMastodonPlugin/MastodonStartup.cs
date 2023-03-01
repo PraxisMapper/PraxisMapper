@@ -17,12 +17,10 @@ namespace PraxisMastodonPlugin
             PraxisAuthentication.whitelistedPaths.Add("/announcements"); //should cover all sub-paths.
 
 
-            serverAccount.AccountName = accountName;
-            serverAccount.UserName = accountName;
-            serverAccount.DisplayName = "PraxisMapper Announcements";
-            serverAccount.Note = "Automated Mastodon account for PraxisMapper instance at " + serverName;
+            UserName = accountName;
+            DisplayName = "PraxisMapper Announcements";
+            Note = "Automated Mastodon account for PraxisMapper instance at " + serverName;
 
-            MastodonGlobals.serverAccount.UserName = "announcements";
 
 
             //Set Followers list
