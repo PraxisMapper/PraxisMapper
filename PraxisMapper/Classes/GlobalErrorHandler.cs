@@ -3,25 +3,19 @@ using Microsoft.AspNetCore.Http;
 using System;
 using System.Threading.Tasks;
 
-namespace PraxisMapper.Classes
-{
-    public class ErrorHandlerMiddleware
-    {
+namespace PraxisMapper.Classes {
+    public class ErrorHandlerMiddleware {
         private readonly RequestDelegate _next;
 
-        public ErrorHandlerMiddleware(RequestDelegate next)
-        {
+        public ErrorHandlerMiddleware(RequestDelegate next) {
             _next = next;
         }
 
-        public async Task Invoke(HttpContext context)
-        {
-            try
-            {
+        public async Task Invoke(HttpContext context) {
+            try {
                 await _next(context);
             }
-            catch (Exception error)
-            {
+            catch (Exception error) {
                 ErrorLogger.LogError(error);
                 var response = context.Response;
                 response.ContentType = "text/text";
@@ -33,10 +27,8 @@ namespace PraxisMapper.Classes
         }
     }
 
-    public static class PraxisErrorExtensions
-    {
-        public static IApplicationBuilder UseGlobalErrorHandler(this IApplicationBuilder builder)
-        {
+    public static class PraxisErrorExtensions {
+        public static IApplicationBuilder UseGlobalErrorHandler(this IApplicationBuilder builder) {
             return builder.UseMiddleware<ErrorHandlerMiddleware>();
         }
     }

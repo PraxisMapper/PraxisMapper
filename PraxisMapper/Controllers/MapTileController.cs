@@ -11,37 +11,31 @@ using System.Linq;
 using static PraxisCore.DbTables;
 using static PraxisCore.Place;
 
-namespace PraxisMapper.Controllers
-{
+namespace PraxisMapper.Controllers {
     [Route("[controller]")]
     [ApiController]
-    public class MapTileController : Controller
-    {
+    public class MapTileController : Controller {
         private readonly IConfiguration Configuration;
         private static IMemoryCache cache;
         private IMapTiles MapTiles;
 
-        public MapTileController(IConfiguration configuration, IMemoryCache memoryCacheSingleton, IMapTiles mapTile)
-        {
+        public MapTileController(IConfiguration configuration, IMemoryCache memoryCacheSingleton, IMapTiles mapTile) {
             Configuration = configuration;
             cache = memoryCacheSingleton;
             MapTiles = mapTile;
         }
 
-        public override void OnActionExecuting(ActionExecutingContext context)
-        {
+        public override void OnActionExecuting(ActionExecutingContext context) {
             base.OnActionExecuting(context);
             if (Configuration.GetValue<bool>("enableMapTileEndpoints") == false)
                 HttpContext.Abort();
         }
 
-        private bool SaveMapTiles()
-        {
+        private bool SaveMapTiles() {
             return Configuration.GetValue<bool>("saveMapTiles");
         }
 
-        public byte[] getExistingSlippyTile(string tileKey, string styleSet)
-        {
+        public byte[] getExistingSlippyTile(string tileKey, string styleSet) {
             if (!SaveMapTiles())
                 return null;
 
@@ -53,18 +47,15 @@ namespace PraxisMapper.Controllers
             return existingResults.TileData;
         }
 
-        private byte[] FinishSlippyMapTile(ImageStats info, List<CompletePaintOp> paintOps, string tileKey, string styleSet)
-        {
+        private byte[] FinishSlippyMapTile(ImageStats info, List<CompletePaintOp> paintOps, string tileKey, string styleSet) {
             byte[] results = null;
             results = MapTiles.DrawAreaAtSize(info, paintOps);
 
-            if (SaveMapTiles())
-            {
+            if (SaveMapTiles()) {
                 var db = new PraxisContext();
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
                 var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.StyleSet == styleSet);
-                if (existingResults == null)
-                {
+                if (existingResults == null) {
                     existingResults = new SlippyMapTile() { Values = tileKey, StyleSet = styleSet, AreaCovered = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(info.area)) };
                     db.SlippyMapTiles.Add(existingResults);
                 }
@@ -78,13 +69,11 @@ namespace PraxisMapper.Controllers
             return results;
         }
 
-        private byte[] FinishMapTile(ImageStats info, List<CompletePaintOp> paintOps, string code, string styleSet)
-        {
+        private byte[] FinishMapTile(ImageStats info, List<CompletePaintOp> paintOps, string code, string styleSet) {
             byte[] results = null;
             results = MapTiles.DrawAreaAtSize(info, paintOps);
 
-            if (SaveMapTiles())
-            {
+            if (SaveMapTiles()) {
                 var currentGen = MapTileSupport.SaveMapTile(code, styleSet, results);
                 cache.Set("gen" + code + styleSet, currentGen);
             }
@@ -95,23 +84,19 @@ namespace PraxisMapper.Controllers
         [HttpGet]
         [Route("/[controller]/DrawSlippyTile/{styleSet}/{zoom}/{x}/{y}.png")] //slippy map conventions.
         [Route("/[controller]/Slippy/{styleSet}/{zoom}/{x}/{y}.png")] //slippy map conventions.
-        public ActionResult DrawSlippyTile(int zoom, int x, int y, string styleSet)
-        {
-            try
-            {
+        public ActionResult DrawSlippyTile(int zoom, int x, int y, string styleSet) {
+            try {
                 Response.Headers.Add("X-noPerfTrack", "Maptiles/Slippy/" + styleSet + "/VARSREMOVED");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var info = new ImageStats(zoom, x, y, IMapTiles.SlippyTileSizeSquare);
 
-                if (!DataCheck.IsInBounds(info.area))
-                {
+                if (!DataCheck.IsInBounds(info.area)) {
                     Response.Headers.Add("X-notes", "OOB");
                     return StatusCode(500);
                 }
 
                 byte[] tileData = getExistingSlippyTile(tileKey, styleSet);
-                if (tileData != null)
-                {
+                if (tileData != null) {
                     Response.Headers.Add("X-notes", "cached");
                     return File(tileData, "image/png");
                 }
@@ -124,8 +109,7 @@ namespace PraxisMapper.Controllers
                 Response.Headers.Add("X-notes", Configuration.GetValue<string>("MapTilesEngine"));
                 return File(tileData, "image/png");
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 ErrorLogger.LogError(ex);
                 return StatusCode(500);
             }
@@ -136,23 +120,19 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/DrawSlippyTileCustomElements/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
         [Route("/[controller]/SlippyCustomElements/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
         [Route("/[controller]/SlippyPlaceData/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
-        public ActionResult DrawSlippyTileCustomElements(int x, int y, int zoom, string styleSet, string dataKey)
-        {
+        public ActionResult DrawSlippyTileCustomElements(int x, int y, int zoom, string styleSet, string dataKey) {
             Response.Headers.Add("X-noPerfTrack", "Maptiles/SlippyPlaceData/" + styleSet + "/VARSREMOVED");
-            try
-            {
+            try {
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var info = new ImageStats(zoom, x, y, IMapTiles.SlippyTileSizeSquare);
 
-                if (!DataCheck.IsInBounds(info.area))
-                {
+                if (!DataCheck.IsInBounds(info.area)) {
                     Response.Headers.Add("X-notes", "OOB");
                     return StatusCode(500);
                 }
 
                 byte[] tileData = getExistingSlippyTile(tileKey, styleSet);
-                if (tileData != null)
-                {
+                if (tileData != null) {
                     Response.Headers.Add("X-notes", "cached");
                     return File(tileData, "image/png");
                 }
@@ -165,8 +145,7 @@ namespace PraxisMapper.Controllers
                 Response.Headers.Add("X-notes", Configuration.GetValue<string>("MapTilesEngine"));
                 return File(tileData, "image/png");
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 ErrorLogger.LogError(ex);
                 return StatusCode(500);
             }
@@ -175,23 +154,19 @@ namespace PraxisMapper.Controllers
         [HttpGet]
         [Route("/[controller]/DrawSlippyTileCustomPlusCodes/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
         [Route("/[controller]/SlippyAreaData/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
-        public ActionResult DrawSlippyTileCustomPlusCodes(int x, int y, int zoom, string styleSet, string dataKey)
-        {
+        public ActionResult DrawSlippyTileCustomPlusCodes(int x, int y, int zoom, string styleSet, string dataKey) {
             Response.Headers.Add("X-noPerfTrack", "Maptiles/SlippyAreaData/" + styleSet + "/VARSREMOVED");
-            try
-            {
+            try {
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var info = new ImageStats(zoom, x, y, IMapTiles.SlippyTileSizeSquare);
 
-                if (!DataCheck.IsInBounds(info.area))
-                {
+                if (!DataCheck.IsInBounds(info.area)) {
                     Response.Headers.Add("X-notes", "OOB");
                     return StatusCode(500);
                 }
 
                 byte[] tileData = getExistingSlippyTile(tileKey, styleSet);
-                if (tileData != null)
-                {
+                if (tileData != null) {
                     Response.Headers.Add("X-notes", "cached");
                     return File(tileData, "image/png");
                 }
@@ -204,8 +179,7 @@ namespace PraxisMapper.Controllers
                 Response.Headers.Add("X-notes", Configuration.GetValue<string>("MapTilesEngine"));
                 return File(tileData, "image/png");
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 ErrorLogger.LogError(ex);
                 return StatusCode(500);
             }
@@ -213,8 +187,7 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/DrawPath")]
-        public byte[] DrawPath()
-        {
+        public byte[] DrawPath() {
             //NOTE: URL limitations block this from being a usable REST style path, so this one may require reading data bindings from the body instead
             string path = new System.IO.StreamReader(Request.Body).ReadToEnd();
             return MapTiles.DrawUserPath(path);
@@ -225,22 +198,18 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/DrawPlusCode/{code}")]
         [Route("/[controller]/Area/{code}/{styleSet}")]
         [Route("/[controller]/Area/{code}")]
-        public ActionResult DrawTile(string code, string styleSet = "mapTiles")
-        {
-            Response.Headers.Add("X-noPerfTrack", "Maptiles/Area/"+ styleSet + "/VARSREMOVED");
-            try
-            {
+        public ActionResult DrawTile(string code, string styleSet = "mapTiles") {
+            Response.Headers.Add("X-noPerfTrack", "Maptiles/Area/" + styleSet + "/VARSREMOVED");
+            try {
                 var info = new ImageStats(code);
 
-                if (!DataCheck.IsInBounds(info.area))
-                {
+                if (!DataCheck.IsInBounds(info.area)) {
                     Response.Headers.Add("X-notes", "OOB");
                     return StatusCode(500);
                 }
 
                 byte[] tileData = MapTileSupport.GetExistingTileImage(code, styleSet);
-                if (tileData != null)
-                {
+                if (tileData != null) {
                     Response.Headers.Add("X-notes", "cached");
                     return File(tileData, "image/png");
                 }
@@ -256,8 +225,7 @@ namespace PraxisMapper.Controllers
                 Response.Headers.Add("X-notes", Configuration.GetValue<string>("MapTilesEngine"));
                 return File(tileData, "image/png");
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 ErrorLogger.LogError(ex);
                 return StatusCode(500);
             }
@@ -266,22 +234,18 @@ namespace PraxisMapper.Controllers
         [HttpGet]
         [Route("/[controller]/DrawPlusCodeCustomData/{code}/{styleSet}/{dataKey}")]
         [Route("/[controller]/AreaData/{code}/{styleSet}/{dataKey}")]
-        public ActionResult DrawPlusCodeCustomData(string code, string styleSet, string dataKey)
-        {
+        public ActionResult DrawPlusCodeCustomData(string code, string styleSet, string dataKey) {
             Response.Headers.Add("X-noPerfTrack", "Maptiles/AreaData/" + styleSet + "/VARSREMOVED");
-            try
-            {
+            try {
                 var info = new ImageStats(code);
 
-                if (!DataCheck.IsInBounds(info.area))
-                {
+                if (!DataCheck.IsInBounds(info.area)) {
                     Response.Headers.Add("X-notes", "OOB");
                     return StatusCode(500);
                 }
 
                 byte[] tileData = MapTileSupport.GetExistingTileImage(code, styleSet);
-                if (tileData != null)
-                {
+                if (tileData != null) {
                     Response.Headers.Add("X-notes", "cached");
                     return File(tileData, "image/png");
                 }
@@ -294,8 +258,7 @@ namespace PraxisMapper.Controllers
                 Response.Headers.Add("X-notes", Configuration.GetValue<string>("MapTilesEngine"));
                 return File(tileData, "image/png");
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 ErrorLogger.LogError(ex);
                 return StatusCode(500);
             }
@@ -304,22 +267,18 @@ namespace PraxisMapper.Controllers
         [HttpGet]
         [Route("/[controller]/DrawPlusCodeCustomElements/{code}/{styleSet}/{dataKey}")]
         [Route("/[controller]/AreaPlaceData/{code}/{styleSet}/{dataKey}")] //Draw an area using place data.
-        public ActionResult DrawPlusCodeCustomElements(string code, string styleSet, string dataKey)
-        {
+        public ActionResult DrawPlusCodeCustomElements(string code, string styleSet, string dataKey) {
             Response.Headers.Add("X-noPerfTrack", "Maptiles/AreaPlaceData/" + styleSet + "/VARSREMOVED");
-            try
-            {
+            try {
                 var info = new ImageStats(code);
 
-                if (!DataCheck.IsInBounds(info.area))
-                {
+                if (!DataCheck.IsInBounds(info.area)) {
                     Response.Headers.Add("X-notes", "OOB");
                     return StatusCode(500);
                 }
 
                 byte[] tileData = MapTileSupport.GetExistingTileImage(code, styleSet);
-                if (tileData != null)
-                {
+                if (tileData != null) {
                     Response.Headers.Add("X-notes", "cached");
                     return File(tileData, "image/png");
                 }
@@ -332,8 +291,7 @@ namespace PraxisMapper.Controllers
                 Response.Headers.Add("X-notes", Configuration.GetValue<string>("MapTilesEngine"));
                 return File(tileData, "image/png");
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 ErrorLogger.LogError(ex);
                 return StatusCode(500);
             }
@@ -342,8 +300,7 @@ namespace PraxisMapper.Controllers
         [HttpPut]
         [Route("/[controller]/ExpireTiles/{elementId}/{styleSet}")]
         [Route("/[controller]/Expire/{elementId}/{styleSet}")]
-        public void ExpireTiles(Guid elementId, string styleSet)
-        {
+        public void ExpireTiles(Guid elementId, string styleSet) {
             Response.Headers.Add("X-noPerfTrack", "Maptiles/Expire/VARSREMOVED");
             var db = new PraxisContext();
             db.ExpireMapTiles(elementId, styleSet);
@@ -352,8 +309,7 @@ namespace PraxisMapper.Controllers
         [HttpGet]
         [Route("/[controller]/GetTileGenerationId/{plusCode}/{styleSet}")]
         [Route("/[controller]/Generation/{plusCode}/{styleSet}")]
-        public long GetTileGenerationId(string plusCode, string styleSet)
-        {
+        public long GetTileGenerationId(string plusCode, string styleSet) {
             //Returns generationID on the tile on the server
             //if value is *more* than previous value, client should refresh it.
             //if value is equal to previous value, tile has not changed.
@@ -361,11 +317,10 @@ namespace PraxisMapper.Controllers
             //and once when the generationID value is incremented from the previous value.
             //Avoiding that might require an endpoint for 'please draw this tile' that returns true or false rather than the actual maptile.
             Response.Headers.Add("X-noPerfTrack", "Maptiles/Generation/" + styleSet + "/VARSREMOVED");
-            try
-            {
+            try {
                 //bool valueExists = cache.TryGetValue("gen" + plusCode + styleSet, out long genId);
                 //if (valueExists)
-                    //return genId;
+                //return genId;
 
                 var db = new PraxisContext();
                 long tileGenId = -1;
@@ -376,8 +331,7 @@ namespace PraxisMapper.Controllers
                 //cache.Set("gen" + plusCode + styleSet, tileGenId, new TimeSpan(0, 0, 30));
                 return tileGenId;
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 ErrorLogger.LogError(ex);
                 return -1; //negative answers will be treated as an expiration.
             }
@@ -386,14 +340,12 @@ namespace PraxisMapper.Controllers
         [HttpGet]
         [Route("/[controller]/GetSlippyTileGenerationId/{x}/{y}/{zoom}/{styleSet}")]
         [Route("/[controller]/Generation/{zoom}/{x}/{y}/{styleSet}")]
-        public long GetSlippyTileGenerationId(string x, string y, string zoom, string styleSet)
-        {
+        public long GetSlippyTileGenerationId(string x, string y, string zoom, string styleSet) {
             //Returns generationID on the tile on the server
             //if value is *more* than previous value, client should refresh it.
             //if value is equal to previous value, tile has not changed.
             Response.Headers.Add("X-noPerfTrack", "Maptiles/SlippyGeneration/" + styleSet + "/VARSREMOVED");
-            try
-            {
+            try {
                 var db = new PraxisContext();
                 long tileGenId = -1;
                 var tile = db.SlippyMapTiles.FirstOrDefault(m => m.Values == x + "|" + y + "|" + zoom && m.StyleSet == styleSet);
@@ -401,8 +353,7 @@ namespace PraxisMapper.Controllers
                     tileGenId = tile.GenerationID;
                 return tileGenId;
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 ErrorLogger.LogError(ex);
                 return -1; //negative answers will be treated as an expiration.
             }
@@ -410,8 +361,7 @@ namespace PraxisMapper.Controllers
 
         [HttpGet]
         [Route("/[controller]/StyleTest/{styleSet}")]
-        public ActionResult DrawAllStyleEntries(string styleSet)
-        {
+        public ActionResult DrawAllStyleEntries(string styleSet) {
             var styleData = TagParser.allStyleGroups[styleSet].ToList();
             //Draw style as an X by X grid of circles, where X is square root of total sets
             int gridSize = (int)Math.Ceiling(Math.Sqrt(styleData.Count));
@@ -429,16 +379,13 @@ namespace PraxisMapper.Controllers
             var spacingY = stats.area.LatitudeHeight / gridSize;
 
             for (int x = 0; x < gridSize; x++)
-                for (int y = 0; y < gridSize; y++)
-                {
+                for (int y = 0; y < gridSize; y++) {
                     var index = (y * gridSize) + x;
-                    if (index < styleData.Count)
-                    {
+                    if (index < styleData.Count) {
                         var circlePosX = stats.area.WestLongitude + (spacingX * .5) + (spacingX * x);
                         var circlePosY = stats.area.NorthLatitude - (spacingY * .5) - (spacingY * y);
                         var circle = new NetTopologySuite.Geometries.Point(circlePosX, circlePosY).Buffer(circleSize);
-                        foreach (var op in styleData[index].Value.PaintOperations)
-                        {
+                        foreach (var op in styleData[index].Value.PaintOperations) {
                             var entry = new CompletePaintOp() { paintOp = op, elementGeometry = circle, lineWidthPixels = 3 };
                             testCircles.Add(entry);
                         }

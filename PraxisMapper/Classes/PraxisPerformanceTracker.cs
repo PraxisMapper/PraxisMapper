@@ -4,25 +4,20 @@ using PraxisCore;
 using System;
 using System.Threading.Tasks;
 
-namespace PraxisMapper.Classes
-{
-    public class PraxisPerformanceTracker
-    {
+namespace PraxisMapper.Classes {
+    public class PraxisPerformanceTracker {
         private readonly RequestDelegate _next;
-        public PraxisPerformanceTracker(RequestDelegate next)
-        {
+        public PraxisPerformanceTracker(RequestDelegate next) {
             this._next = next;
         }
 
-        public async Task Invoke(HttpContext context)
-        {
+        public async Task Invoke(HttpContext context) {
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
             sw.Start();
             var pi = new DbTables.PerformanceInfo();
             pi.FunctionName = context.Request.Path;
             pi.CalledAt = DateTime.UtcNow;
-            context.Response.OnStarting(() =>
-            {
+            context.Response.OnStarting(() => {
                 sw.Stop();
                 pi.RunTime = sw.ElapsedMilliseconds;
                 if (context.Response.Headers.ContainsKey("X-notes"))
@@ -39,8 +34,7 @@ namespace PraxisMapper.Classes
             await this._next.Invoke(context).ConfigureAwait(false);
         }
 
-        public static void LogInfoToPerfData(string functionName, string notes)
-        {
+        public static void LogInfoToPerfData(string functionName, string notes) {
             var pi = new DbTables.PerformanceInfo();
             pi.FunctionName = functionName;
             pi.Notes = notes;
@@ -52,10 +46,8 @@ namespace PraxisMapper.Classes
         }
     }
 
-    public static class PraxisPerformanceTrackerExtensions
-    {
-        public static IApplicationBuilder UsePraxisPerformanceTracker(this IApplicationBuilder builder)
-        {
+    public static class PraxisPerformanceTrackerExtensions {
+        public static IApplicationBuilder UsePraxisPerformanceTracker(this IApplicationBuilder builder) {
             return builder.UseMiddleware<PraxisPerformanceTracker>();
         }
     }

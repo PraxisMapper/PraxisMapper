@@ -17,10 +17,8 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 
-namespace PraxisMapper
-{
-    public class Startup
-    {
+namespace PraxisMapper {
+    public class Startup {
         string mapTilesEngine;
         bool usePerfTracker;
         bool useHeaderCheck;
@@ -28,7 +26,7 @@ namespace PraxisMapper
         bool useAntiCheat;
         bool usePlugins;
         string maintenanceMessage = "";
-        public static IConfiguration Configuration { get; set;  }
+        public static IConfiguration Configuration { get; set; }
 
         public Startup(IConfiguration configuration)  //can't use MemoryCache here, have to wait until Configure for services and DI
         {
@@ -52,8 +50,7 @@ namespace PraxisMapper
         }
 
         // This method gets called by the runtime. Use this method to add services to the container.
-        public void ConfigureServices(IServiceCollection services)
-        {
+        public void ConfigureServices(IServiceCollection services) {
             BuildAndLoadDB();
 
             services.AddControllers();
@@ -65,15 +62,13 @@ namespace PraxisMapper
             var executionFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             IMapTiles mapTiles = null;
 
-            if (mapTilesEngine == "SkiaSharp")
-            {
+            if (mapTilesEngine == "SkiaSharp") {
                 Assembly asm;
                 asm = Assembly.LoadFrom(executionFolder + "/PraxisMapTilesSkiaSharp.dll");
                 mapTiles = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
                 services.AddSingleton(typeof(IMapTiles), mapTiles);
             }
-            else if (mapTilesEngine == "ImageSharp")
-            {
+            else if (mapTilesEngine == "ImageSharp") {
                 Assembly asm;
                 asm = Assembly.LoadFrom(executionFolder + "/PraxisMapTilesImageSharp.dll");
                 mapTiles = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
@@ -84,24 +79,18 @@ namespace PraxisMapper
             MapTileSupport.MapTiles = mapTiles;
 
             if (usePlugins)
-                foreach (var potentialPlugin in Directory.EnumerateFiles(executionFolder + "/plugins", "*.dll"))
-                {
-                    try
-                    {
+                foreach (var potentialPlugin in Directory.EnumerateFiles(executionFolder + "/plugins", "*.dll")) {
+                    try {
                         var assembly = Assembly.LoadFile(potentialPlugin);
                         var types = assembly.GetTypes().Where(t => t.IsAssignableTo(typeof(IPraxisPlugin)));
                         var startupTypes = assembly.GetTypes().Where(t => t.IsAssignableTo(typeof(IPraxisStartup)));
-                        if (startupTypes.Any())
-                        {
-                            foreach (var s in startupTypes)
-                            {
-                                try
-                                {
+                        if (startupTypes.Any()) {
+                            foreach (var s in startupTypes) {
+                                try {
                                     var startupMethod = s.GetMethod("Startup");
                                     var results = startupMethod.Invoke(s, null);
                                 }
-                                catch(Exception ex)
-                                {
+                                catch (Exception ex) {
                                     ErrorLogger.LogError(new Exception("Error thrown attempting to load " + potentialPlugin));
                                     while (ex.InnerException != null)
                                         ex = ex.InnerException;
@@ -110,20 +99,17 @@ namespace PraxisMapper
                             }
                         }
 
-                        if (types.Any())
-                        {
+                        if (types.Any()) {
                             Log.WriteLog("Loading plugin " + potentialPlugin);
                             services.AddControllersWithViews().AddApplicationPart(assembly);//.AddRazorRuntimeCompilation();
                                                                                             //foreach (var p in (List<string>)types.First().GetProperty("AuthWhiteList").GetMethod)
                                                                                             //PraxisAuthentication.whitelistedPaths.Add(p);
                         }
-                        else
-                        {
+                        else {
                             assembly = null;
                         }
                     }
-                    catch (Exception ex)
-                    {
+                    catch (Exception ex) {
                         //continue.
                         Log.WriteLog("Error loading " + potentialPlugin + ": " + ex.Message + "|" + ex.StackTrace);
                         ErrorLogger.LogError(ex);
@@ -131,11 +117,9 @@ namespace PraxisMapper
                 }
 
             //Start cleanup threads that fire every half hour.
-            System.Threading.Tasks.Task.Run(() =>
-            {
+            System.Threading.Tasks.Task.Run(() => {
                 var db = new PraxisContext();
-                while (true)
-                {
+                while (true) {
                     PraxisAuthentication.DropExpiredEntries();
 
                     db.Database.ExecuteSqlRaw("DELETE FROM PlaceData WHERE expiration IS NOT NULL AND expiration < NOW()");
@@ -143,8 +127,7 @@ namespace PraxisMapper
                     db.Database.ExecuteSqlRaw("DELETE FROM PlayerData WHERE expiration IS NOT NULL AND expiration < NOW()");
                     //remember, don't delete map tiles here, since those track how many times they've been redrawn so the client knows when to ask for the image again.
 
-                    if (useAntiCheat)
-                    {
+                    if (useAntiCheat) {
                         List<string> toRemove = new List<string>();
                         foreach (var entry in PraxisAntiCheat.antiCheatStatus)
                             if (entry.Value.validUntil < DateTime.Now)
@@ -158,18 +141,15 @@ namespace PraxisMapper
             });
         }
 
-        private void BuildAndLoadDB()
-        {
+        private void BuildAndLoadDB() {
             var db = new PraxisContext();
             db.MakePraxisDB(); //Does nothing if DB already exists, creates DB if not.
 
             //if the DB is empty, attmept to auto-load from a pbf file. This removes a couple of manual steps from smaller games, even if it takes a few extra minutes.
-            if (db.Places.Count() == 0)
-            {
+            if (db.Places.Count() == 0) {
                 Log.WriteLog("No data loaded, attempting to auto-load");
                 var candidates = Directory.EnumerateFiles(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "*.pbf");
-                if (candidates.Any())
-                {
+                if (candidates.Any()) {
                     PbfReader reader = new PbfReader();
                     reader.saveToDB = true;
                     reader.ProcessFile(candidates.First());
@@ -181,12 +161,10 @@ namespace PraxisMapper
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IMemoryCache cache)
-        {
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IMemoryCache cache) {
             var db = new PraxisContext();
 
-            if (env.IsDevelopment())
-            {
+            if (env.IsDevelopment()) {
                 app.UseDeveloperExceptionPage();
             }
 
@@ -201,8 +179,7 @@ namespace PraxisMapper
             if (useHeaderCheck)
                 app.UsePraxisHeaderCheck();
 
-            if (useAuthCheck)
-            {
+            if (useAuthCheck) {
                 app.UsePraxisAuthentication();
                 //PraxisAuthentication.whitelistedPaths.Add("/MapTile"); //May may this toggleable.
                 PraxisAuthentication.whitelistedPaths.Add("/Server/Test"); //Don't require a sucessful login to confirm server is alive.
@@ -213,8 +190,7 @@ namespace PraxisMapper
                 PraxisAuthentication.admins = db.AuthenticationData.Where(a => a.isAdmin).Select(a => a.accountId).ToHashSet();
             }
 
-            if (useAntiCheat)
-            {
+            if (useAntiCheat) {
                 app.UsePraxisAntiCheat();
                 PraxisAntiCheat.expectedCount = db.AntiCheatEntries.Select(c => c.filename).Distinct().Count();
             }
@@ -222,8 +198,7 @@ namespace PraxisMapper
             if (usePerfTracker)
                 app.UsePraxisPerformanceTracker();
 
-            app.UseEndpoints(endpoints =>
-            {
+            app.UseEndpoints(endpoints => {
                 endpoints.MapControllers();
             });
 
@@ -237,24 +212,20 @@ namespace PraxisMapper
             cache.Set<IPreparedGeometry>("serverBounds", serverBounds, entryOptions);
             cache.Set("saveMapTiles", Configuration.GetValue<bool>("saveMapTiles"));
 
-            System.Threading.Tasks.Task.Run(() =>
-            {
-                while (true)
-                {
+            System.Threading.Tasks.Task.Run(() => {
+                while (true) {
                     ((MemoryCache)cache).Compact(.5);
                     System.Threading.Thread.Sleep(1800000); // 30 minutes in milliseconds
                 }
             });
 
             //if the DB is empty, attmept to auto-load from a pbf file. This removes a couple of manual steps from smaller games, even if it takes a few extra minutes.
-            if (db.Places.Count() == 0)
-            {
+            if (db.Places.Count() == 0) {
                 Log.WriteLog("No data loaded, attempting to auto-load");
                 var candidates = Directory.EnumerateFiles(".", "*.pbf");
-                if (candidates.Any())
-                {
+                if (candidates.Any()) {
                     PbfReader reader = new PbfReader();
-                    reader.saveToDB = true;                   
+                    reader.saveToDB = true;
                     reader.ProcessFile(candidates.First());
                 }
                 Log.WriteLog("Done populating DB from " + candidates.First());
