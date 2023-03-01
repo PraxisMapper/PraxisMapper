@@ -6,18 +6,15 @@ using PraxisMapper.Classes;
 using System.Collections.Concurrent;
 using System.Text.Json;
 
-namespace PraxisOfflineDataPlugin.Controllers
-{
+namespace PraxisOfflineDataPlugin.Controllers {
     [Route("[controller]")]
-    public class OfflineController : Controller, IPraxisPlugin
-    {
+    public class OfflineController : Controller, IPraxisPlugin {
         //NOTE: for more accurate data, I could save cell10 info in the final dictionary.
         //THis would be be better saved for a Cell6 or smaller area, but that could be generated on demand once,
         //then saved and sent on every other request.
         [HttpGet]
         [Route("/[controller]/Small/{plusCode6}")]
-        public string GetSmallTerrainData(string plusCode6)
-        {
+        public string GetSmallTerrainData(string plusCode6) {
             Response.Headers.Add("X-noPerfTrack", "Offline/Small/VARSREMOVED");
             GeoArea box6 = plusCode6.ToGeoArea();
             var quickplaces = Place.GetPlaces(box6);
@@ -45,8 +42,7 @@ namespace PraxisOfflineDataPlugin.Controllers
             terrainDict["index"] = new ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<string, string>>>();
             terrainDict["index"][String.Join("|", index.Select(i => i.Key + "," + i.Value))] = new ConcurrentDictionary<string, ConcurrentDictionary<string, string>>();
 
-            Parallel.ForEach(GetCellCombos(), (cell8) =>
-            {
+            Parallel.ForEach(GetCellCombos(), (cell8) => {
                 string pluscode = plusCode6 + cell8;
                 GeoArea box = pluscode.ToGeoArea();
                 var places = Place.GetPlaces(box, quickplaces);
@@ -59,8 +55,7 @@ namespace PraxisOfflineDataPlugin.Controllers
                 var terrainInfo = AreaStyle.GetAreaDetails(ref box, ref places);
                 var terrainsPresent = terrainInfo.Select(t => t.data.style).Distinct().ToList();
 
-                if (terrainsPresent.Count > 0)
-                {
+                if (terrainsPresent.Count > 0) {
                     string concatTerrain = String.Join("|", terrainsPresent.Select(t => index[t]));
                     terrainDict[cell2][cell4][cell6][cell8] = concatTerrain;
                 }
@@ -71,8 +66,7 @@ namespace PraxisOfflineDataPlugin.Controllers
 
         [HttpGet]
         [Route("/[controller]/All")]
-        public string GetAllOfflineData()
-        {
+        public string GetAllOfflineData() {
             //NOTE: this is not intended to be called by users, since this reads the entire database. 
             //This is for an admin to use to create data for an application to reference.
             PraxisAuthentication.GetAuthInfo(Response, out var accountId, out var password);
@@ -86,19 +80,16 @@ namespace PraxisOfflineDataPlugin.Controllers
             terrainDict["index"] = new ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<string, string>>>();
             terrainDict["index"][String.Join("|", index.Select(i => i.Key + "," + i.Value))] = new ConcurrentDictionary<string, ConcurrentDictionary<string, string>>();
 
-            foreach (var cell2 in GetCell2Combos())
-            {
+            foreach (var cell2 in GetCell2Combos()) {
                 var place2 = cell2.ToPolygon();
                 var placeTest = db.Places.Any(p => p.ElementGeometry.Intersects(place2));
                 if (!placeTest)
                     continue;
 
                 terrainDict[cell2] = new ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<string, string>>>();
-                foreach (var cell4 in GetCellCombos())
-                {
+                foreach (var cell4 in GetCellCombos()) {
                     terrainDict[cell2][cell4] = new ConcurrentDictionary<string, ConcurrentDictionary<string, string>>();
-                    foreach (var cell6 in GetCellCombos())
-                    {
+                    foreach (var cell6 in GetCellCombos()) {
                         string pluscode6 = cell2 + cell4 + cell6;
                         GeoArea box6 = pluscode6.ToGeoArea();
                         var quickplaces = Place.GetPlaces(box6);
@@ -111,8 +102,7 @@ namespace PraxisOfflineDataPlugin.Controllers
                             if (place.ElementGeometry.Coordinates.Length > 1000)
                                 place.ElementGeometry = place.ElementGeometry.Intersection(box6.ToPolygon());
 
-                        Parallel.ForEach(GetCellCombos(), (cell8) =>
-                        {
+                        Parallel.ForEach(GetCellCombos(), (cell8) => {
                             string pluscode = pluscode6 + cell8;
                             GeoArea box = pluscode.ToGeoArea();
                             var places = Place.GetPlaces(box, quickplaces);
@@ -125,8 +115,7 @@ namespace PraxisOfflineDataPlugin.Controllers
                             var terrainInfo = AreaStyle.GetAreaDetails(ref box, ref places);
                             var terrainsPresent = terrainInfo.Select(t => t.data.style).Distinct().ToList();
 
-                            if (terrainsPresent.Count > 0)
-                            {
+                            if (terrainsPresent.Count > 0) {
                                 string concatTerrain = String.Join("|", terrainsPresent.Select(t => index[t])); //indexed ID of each type.
                                 terrainDict[cell2][cell4][cell6][cell8] = concatTerrain;
                             }
@@ -149,34 +138,28 @@ namespace PraxisOfflineDataPlugin.Controllers
         private static Dictionary<string, int> GetTerrainIndex() //TODO make style a parameter
         {
             var dict = new Dictionary<string, int>();
-            foreach (var entry in TagParser.allStyleGroups["mapTiles"])
-            {
-                if (entry.Value.IsGameElement)
-                {
+            foreach (var entry in TagParser.allStyleGroups["mapTiles"]) {
+                if (entry.Value.IsGameElement) {
                     dict.Add(entry.Key, dict.Count + 1);
                 }
             }
             return dict;
         }
 
-        static List<string> GetCellCombos()
-        {
+        static List<string> GetCellCombos() {
             var list = new List<string>(400);
             foreach (var Yletter in OpenLocationCode.CodeAlphabet)
-                foreach (var Xletter in OpenLocationCode.CodeAlphabet)
-                {
+                foreach (var Xletter in OpenLocationCode.CodeAlphabet) {
                     list.Add(String.Concat(Yletter, Xletter));
                 }
 
             return list;
         }
 
-        static List<string> GetCell2Combos()
-        {
+        static List<string> GetCell2Combos() {
             var list = new List<string>(400);
             foreach (var Yletter in OpenLocationCode.CodeAlphabet.Take(9))
-                foreach (var Xletter in OpenLocationCode.CodeAlphabet.Take(18))
-                {
+                foreach (var Xletter in OpenLocationCode.CodeAlphabet.Take(18)) {
                     list.Add(String.Concat(Yletter, Xletter));
                 }
 

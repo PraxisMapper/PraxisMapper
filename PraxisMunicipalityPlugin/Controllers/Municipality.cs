@@ -1,23 +1,17 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Identity.Client;
 using PraxisCore;
 using PraxisCore.Support;
-using SkiaSharp;
 
-namespace PraxisMunicipalityPlugin.Controllers
-{
+namespace PraxisMunicipalityPlugin.Controllers {
     [ApiController]
     [Route("[controller]")]
-    public class MunicipalityController : Controller, IPraxisPlugin
-    {
-        public class MuniData
-        {
+    public class MunicipalityController : Controller, IPraxisPlugin {
+        public class MuniData {
             public string name { get; set; }
             public string level { get; set; }
 
-            public MuniData(string n, string l)
-            { 
+            public MuniData(string n, string l) {
                 name = n;
                 level = l;
             }
@@ -31,8 +25,7 @@ namespace PraxisMunicipalityPlugin.Controllers
         [HttpGet]
         [Route("/[controller]/Municipality/{plusCode}")]
         [Route("/[controller]/Muni/{plusCode}")]
-        public string Muni(string plusCode)
-        {
+        public string Muni(string plusCode) {
             Response.Headers.Add("X-noPerfTrack", "Muni/VARSREMOVED");
             var db = new PraxisContext();
             var location = plusCode.ToPolygon();
@@ -49,8 +42,7 @@ namespace PraxisMunicipalityPlugin.Controllers
         [HttpGet]
         [Route("/[controller]/MunicipalityAll/{plusCode}")]
         [Route("/[controller]/MuniAll/{plusCode}")]
-        public List<MuniData> AllMuni(string plusCode)
-        {
+        public List<MuniData> AllMuni(string plusCode) {
             Response.Headers.Add("X-noPerfTrack", "MuniAll/VARSREMOVED");
             var db = new PraxisContext();
             var location = plusCode.ToPolygon();
@@ -64,8 +56,7 @@ namespace PraxisMunicipalityPlugin.Controllers
         [HttpGet]
         [Route("/[controller]/PlaceName/{plusCode}")]
         [Route("/[controller]/Place/{plusCode}")]
-        public string PlaceName(string plusCode)
-        {
+        public string PlaceName(string plusCode) {
             Response.Headers.Add("X-noPerfTrack", "PlaceName/VARSREMOVED");
             var db = new PraxisContext();
             var poly = plusCode.ToPolygon();
