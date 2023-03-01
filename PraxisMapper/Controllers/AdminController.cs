@@ -61,5 +61,16 @@ namespace PraxisMapper.Controllers {
 
             return results;
         }
+
+        [HttpPut]
+        [Route("/[controller]/MaintMessage/{message}")]
+        public bool SetMaintenanceMessage(string message) {
+            PraxisAuthentication.GetAuthInfo(Response, out var accountId, out _);
+            if (!PraxisAuthentication.IsAdmin(accountId) && !Request.Host.IsLocalIpAddress()) {
+                return false;
+            }
+            PraxisMaintenanceMessage.outputMessage = message;
+            return true;
+        }
     }
 }
