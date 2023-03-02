@@ -258,6 +258,7 @@ namespace PraxisCore
             return Converters.GeometryToGeoArea(g);
         }
 
+        //TODO: in NET 8, Might change these to use System.Random.GetItems<T>()
         public static T PickOneRandom<T>(this List<T> parent)
         {
             if (parent == null || parent.Count == 0)
