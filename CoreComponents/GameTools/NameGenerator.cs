@@ -38,7 +38,7 @@ namespace PraxisCore.GameTools {
         public NameGenerator(string plusCode)
         {
             r = plusCode.GetSeededRandom();
-            regex = new Regex("({number}|" + string.Join(" | ", nameSets.Keys) + ")");
+            regex = new Regex("({number}|" + string.Join("|", nameSets.Keys) + ")");
         }
 
         static NameGenerator()
