@@ -8,24 +8,8 @@ namespace PraxisCore.GameTools {
         //EX: calling GenerateName("The {location} of {adjectives}") could return "The Bay of Autumn" as a response. 
         //Users can add their own entries to the name generator by inserting new entries into nameSets and using that key in a template string.
 
-        static List<string> nouns = animals.Union(plants).Union(things).Union(places).ToList();
-        static List<string> firstNames = maleFirstNames.Union(femaleFirstNames).ToList();
-
         //Used as the source for all name generation
-        public static Dictionary<string, List<string>> nameSets = new Dictionary<string, List<string>>() {
-            ["{adjective}"] = adjectives.Union(colors).ToList(),
-            ["{animal}"] = animals,
-            ["{color}"] = colors,
-            ["{femaleFirstName}"] = femaleFirstNames,
-            ["{firstName}"] = firstNames,
-            ["{lastName}"] = lastNames,
-            ["{maleFirstName}"] = maleFirstNames,
-            ["{noun}"] = nouns,
-            ["{place}"] = places,
-            ["{plant}"] = plants,
-            ["{syllable}"] = syllables, //NOTE: this may need to be split into stressed and unstressed syllables, to make more plausible words. 
-            ["{thing}"] = things,
-        };
+        public static Dictionary<string, List<string>> nameSets;
 
         public int GetTotalPossibleResults(string formatString) {
             int results = 1;
@@ -42,17 +26,40 @@ namespace PraxisCore.GameTools {
             return results;
         }
 
-
+        Regex regex;
         readonly Random r;
         public int maxNumberResult { get; set; } = 1000;
 
         public bool UppercaseItems = false;
         public NameGenerator() {
             r = new Random();
+            regex = new Regex("(" + string.Join("|", nameSets.Keys) + ")");
+        }
+
+        static NameGenerator()
+        {
+            List<string> nouns = animals.Union(plants).Union(things).Union(places).ToList();
+            List<string> firstNames = maleFirstNames.Union(femaleFirstNames).ToList();
+            nameSets = new Dictionary<string, List<string>>()
+             {
+                 ["{adjective}"] = adjectives.Union(colors).ToList(), 
+                 ["{animal}"] = animals,
+                 ["{color}"] = colors,
+                 ["{femaleFirstName}"] = femaleFirstNames,
+                 ["{firstName}"] = firstNames,
+                 ["{lastName}"] = lastNames,
+                 ["{maleFirstName}"] = maleFirstNames,
+                 ["{noun}"] = nouns,
+                 ["{place}"] = places,
+                 ["{plant}"] = plants,
+                 ["{syllable}"] = syllables, //NOTE: this may need to be split into stressed and unstressed syllables, to make more plausible words. 
+                 ["{thing}"] = things,
+             };
         }
 
         public NameGenerator(string plusCode) {
             r = plusCode.GetSeededRandom();
+            regex = new Regex("(" + string.Join("|", nameSets.Keys) + ")");
         }
 
         string ReplaceMatch(Match m) {
@@ -66,13 +73,10 @@ namespace PraxisCore.GameTools {
             return result;
         }
 
-        public string GenerateName(string nameTemplate) {
-            var results = nameTemplate;
+        public string GenerateName(string nameTemplate)
+        {
             MatchEvaluator evaluator = new MatchEvaluator(ReplaceMatch);
-            foreach (var wordList in nameSets) {
-                Regex regex = new Regex(wordList.Key);
-                results = regex.Replace(results, ReplaceMatch);
-            }
+            string results = regex.Replace(nameTemplate, ReplaceMatch);
 
             return results;
         }
