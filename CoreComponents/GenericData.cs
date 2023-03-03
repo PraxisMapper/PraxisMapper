@@ -62,6 +62,9 @@ namespace PraxisCore
                 row.GeoAreaIndex = Converters.GeoAreaToPolygon(OpenLocationCode.DecodeValid(plusCode.ToUpper()));
                 db.AreaData.Add(row);
             }
+            else
+                db.Entry(row).State = EntityState.Modified;
+
             if (expiration.HasValue)
                 row.Expiration = DateTime.UtcNow.AddSeconds(expiration.Value);
             else
@@ -126,6 +129,9 @@ namespace PraxisCore
                 row.Place = sourceItem;
                 db.PlaceData.Add(row);
             }
+            else
+                db.Entry(row).State = EntityState.Modified;
+
             if (expiration.HasValue)
                 row.Expiration = DateTime.UtcNow.AddSeconds(expiration.Value);
             else
@@ -217,13 +223,15 @@ namespace PraxisCore
                 row.accountId = playerId;
                 db.PlayerData.Add(row);
             }
+            else
+                db.Entry(row).State = EntityState.Modified;
             if (expiration.HasValue)
                 row.Expiration = DateTime.UtcNow.AddSeconds(expiration.Value);
             else
                 row.Expiration = null;
             row.IvData = null;
             row.DataValue = value;
-            
+
             return db.SaveChanges() == 1;
         }
 
@@ -367,6 +375,9 @@ namespace PraxisCore
                 row.DataKey = key;
                 db.GlobalData.Add(row);
             }
+            else
+                db.Entry(row).State = EntityState.Modified;
+            
             row.DataValue = value;
             return db.SaveChanges() == 1;
         }
@@ -396,6 +407,9 @@ namespace PraxisCore
                 row.GeoAreaIndex = Converters.GeoAreaToPolygon(OpenLocationCode.DecodeValid(plusCode.ToUpper()));
                 db.AreaData.Add(row);
             }
+            else
+                db.Entry(row).State = EntityState.Modified;
+            
             if (expiration.HasValue)
                 row.Expiration = DateTime.UtcNow.AddSeconds(expiration.Value);
             else
@@ -482,6 +496,9 @@ namespace PraxisCore
                 row.accountId = playerId;
                 db.PlayerData.Add(row);
             }
+            else
+                db.Entry(row).State = EntityState.Modified;
+
             if (expiration.HasValue)
                 row.Expiration = DateTime.UtcNow.AddSeconds(expiration.Value);
             else
@@ -545,6 +562,9 @@ namespace PraxisCore
                 row.Place = sourceItem;
                 db.PlaceData.Add(row);
             }
+            else
+                db.Entry(row).State = EntityState.Modified;
+
             if (expiration.HasValue)
                 row.Expiration = DateTime.UtcNow.AddSeconds(expiration.Value);
             else
@@ -695,6 +715,8 @@ namespace PraxisCore
                 db.AuthenticationData.Add(entry);
                 entry.accountId = userId;
             }
+            else
+                db.Entry(entry).State = EntityState.Modified;
             entry.loginPassword = results;
             var bytes = EncryptValue(Guid.NewGuid().ToByteArray(), password, out var IVs);
             entry.dataPassword = System.Convert.ToBase64String(bytes);
