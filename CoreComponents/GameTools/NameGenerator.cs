@@ -33,7 +33,7 @@ namespace PraxisCore.GameTools {
         public bool UppercaseItems = false;
         public NameGenerator() {
             r = new Random();
-            regex = new Regex("(" + string.Join("|", nameSets.Keys) + ")");
+            regex = new Regex("({number}|" + string.Join("|", nameSets.Keys) + ")");
         }
 
         static NameGenerator()
