@@ -4,14 +4,13 @@ using System.Collections.Generic;
 using System.Linq;
 using static PraxisCore.ConstantValues;
 
-namespace PraxisCore
+namespace PraxisCore.GameTools
 {
     /// <summary>
     /// A default implementation for scoring locations. 1 point per 10-digit PlusCode in length or area, minimum of 1.
     /// </summary>
     public static class ScoreData
     {
-        //TODO: these might be slightly faster with StringBuilder during calculations than String.Join after doing all the calculation. Test and check that assumption.
         //Default Scoring rules:
         //Each Cell10 of surface area is 1 Score (would be Points in any other game, but Points is already an overloaded term in this system).
         //OSM Areas are measured in square area, divided by Cell10 area squared. (An area that covers 25 square Cell10s is 25 Score)

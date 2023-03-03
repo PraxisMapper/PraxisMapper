@@ -283,7 +283,7 @@ namespace PraxisMapper.Controllers {
         [Route("/[controller]/GetScoreForPlace/{elementId}")]
         [Route("/[controller]/Score/{elementId}")]
         public long GetScoreForPlace(Guid elementId) {
-            return ScoreData.GetScoreForSinglePlace(elementId);
+            return PraxisCore.GameTools.ScoreData.GetScoreForSinglePlace(elementId);
         }
 
         [HttpGet]
