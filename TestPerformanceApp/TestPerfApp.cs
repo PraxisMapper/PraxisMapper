@@ -2,6 +2,7 @@
 using Google.Common.Geometry;
 using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Prepared;
 using OsmSharp;
@@ -90,6 +91,8 @@ namespace PerformanceTestApp
             //TestSearchArea();
             //TupleVsRecords(); //looks like recordstructs are way faster
             //BcryptSpeedCheck();
+            //TestEncryption();
+            TestFindPlacesPerf();
 
 
             //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
@@ -2474,6 +2477,50 @@ namespace PerformanceTestApp
             Console.WriteLine("Average 31-round results: " + results32.Average());
             Console.WriteLine("Total times (ms): " + results13.Sum() + " vs  " + results32.Sum());
 
+        }
+
+        public static void TestEncryption() {
+            string test = "12345";
+            var enc = GenericData.EncryptValue(test.ToByteArrayUTF8(), "password", out var ivs);
+            var dec = GenericData.DecryptValue(ivs, enc, "password");
+            var decText = dec.ToUTF8String();
+
+            enc = GenericData.EncryptValue(Guid.NewGuid().ToByteArray(), "password", out ivs);
+            dec = GenericData.DecryptValue(ivs, enc, "password");
+            decText = dec.ToUTF8String();
+            var decGuid = new Guid(dec);
+        }
+
+        public static void TestFindPlacesPerf() {
+            GeoArea area = "86HWGGGP".ToGeoArea();
+            var places = GetPlaces(area);
+
+            List<TimeSpan> OGs = new List<TimeSpan>();
+            List<TimeSpan> fasters = new List<TimeSpan>();
+
+            for (int j = 0; j < 10; j++) {
+                Stopwatch sw = new Stopwatch();
+                sw.Start();
+                var results = AreaStyle.GetAreaDetails(ref area, ref places);
+                sw.Stop();
+                OGs.Add(sw.Elapsed);
+                Console.WriteLine("Original searcharea ran in " + sw.ElapsedMilliseconds + "ms");
+                //sw.Restart();
+                //var results2 = TerrainInfo.SearchAreaFaster(ref area, ref places);
+                //sw.Stop();
+                //fasters.Add(sw.Elapsed);
+                //Console.WriteLine("faster searcharea ran in " + sw.ElapsedMilliseconds + "ms");
+                //if (results.Count != results2.Count)
+                //    Console.WriteLine("Invalid! results aren't the same!");
+                //for (int i =0; i < results.Count; i++) {
+                //    if (results[i].plusCode != results2[i].plusCode || results[i].data.Name != results2[i].data.Name || results[i].data.areaType != results2[i].data.areaType || results[i].data.PrivacyId != results2[i].data.PrivacyId)
+                //        Console.WriteLine("Invalid! results aren't the same!");
+                //}
+
+            }
+
+            Console.WriteLine("OG total is " + OGs.Sum(o => o.Milliseconds) + "ms, average is " + OGs.Average(o => o.Milliseconds));
+            //Console.WriteLine("Faster total is " + fasters.Sum(o => o.Milliseconds) + "ns, average is " + fasters.Average(o => o.Milliseconds));
         }
 
         public record RecordTest(int a, string b);
