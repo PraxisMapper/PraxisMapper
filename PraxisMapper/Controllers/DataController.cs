@@ -41,14 +41,20 @@ namespace PraxisMapper.Controllers {
         [Route("/[controller]/Area/{plusCode}/{key}/{value}/{expiresIn}")]
 
         public bool SetPlusCodeData(string plusCode, string key, string value, double? expiresIn = null) {
-            if (!DataCheck.IsInBounds(plusCode))
-                return false;
+            SimpleLockable.PerformWithLock(plusCode + "-" + key, () =>
+            {
+                if (!DataCheck.IsInBounds(plusCode))
+                    return;
 
-            if (value == null) {
-                var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
-                return GenericData.SetAreaData(plusCode, key, endData, expiresIn);
-            }
-            return GenericData.SetAreaData(plusCode, key, value, expiresIn);
+                if (value == null)
+                {
+                    var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
+                    GenericData.SetAreaData(plusCode, key, endData, expiresIn);
+                    return;
+                }
+                GenericData.SetAreaData(plusCode, key, value, expiresIn);
+            });
+            return true;
         }
 
         [HttpGet]
@@ -70,11 +76,17 @@ namespace PraxisMapper.Controllers {
         [Route("/[controller]/Player/{accountId}/{key}/{value}")]
         [Route("/[controller]/Player/{accountId}/{key}/{value}/{expiresIn}")]
         public bool SetPlayerData(string accountId, string key, string value, double? expiresIn = null) {
-            if (value == null) {
-                var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
-                return GenericData.SetPlayerData(accountId, key, endData, expiresIn);
-            }
-            return GenericData.SetPlayerData(accountId, key, value, expiresIn);
+            SimpleLockable.PerformWithLock(accountId + "-" + key, () =>
+            {
+                if (value == null)
+                {
+                    var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
+                    GenericData.SetPlayerData(accountId, key, endData, expiresIn);
+                    return;
+                }
+                GenericData.SetPlayerData(accountId, key, value, expiresIn);
+            });
+            return true;
         }
 
         [HttpGet]
@@ -95,11 +107,17 @@ namespace PraxisMapper.Controllers {
         [Route("/[controller]/Place/{elementId}/{key}/{value}")]
         [Route("/[controller]/Place/{elementId}/{key}/{value}/{expiresIn}")]
         public bool SetStoredElementData(Guid elementId, string key, string value, double? expiresIn = null) {
-            if (value == null) {
-                var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
-                return GenericData.SetPlaceData(elementId, key, endData, expiresIn);
-            }
-            return GenericData.SetPlaceData(elementId, key, value, expiresIn);
+            SimpleLockable.PerformWithLock(elementId + "-" + key, () =>
+            {
+                if (value == null)
+                {
+                    var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
+                    GenericData.SetPlaceData(elementId, key, endData, expiresIn);
+                    return;
+                }
+                GenericData.SetPlaceData(elementId, key, value, expiresIn);
+            });
+            return true;
         }
 
         [HttpGet]
@@ -158,11 +176,17 @@ namespace PraxisMapper.Controllers {
         [Route("/[controller]/Global/{key}")]
         [Route("/[controller]/Global/{key}/{value}")]
         public bool SetGlobalData(string key, string value) {
-            if (value == null) {
-                var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
-                return GenericData.SetGlobalData(key, endData);
-            }
-            return GenericData.SetGlobalData(key, value);
+            SimpleLockable.PerformWithLock("global-" + key, () =>
+            {
+                if (value == null)
+                {
+                    var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
+                    GenericData.SetGlobalData(key, endData);
+                    return;
+                }
+                GenericData.SetGlobalData(key, value);
+            });
+            return true;
         }
 
         [HttpGet]

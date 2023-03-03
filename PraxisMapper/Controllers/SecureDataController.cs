@@ -35,11 +35,16 @@ namespace PraxisMapper.Controllers {
 
         public bool SetSecureElementData(Guid elementId, string key, string value, string password, double? expiresIn = null) {
             Response.Headers.Add("X-noPerfTrack", "SecureData/Place/" + elementId.ToString() + "/VALUESREMOVED-PUT");
-            if (value == null) {
-                var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
-                return GenericData.SetSecurePlaceData(elementId, key, endData, password, expiresIn);
-            }
-            return GenericData.SetSecurePlaceData(elementId, key, value, password, expiresIn);
+            SimpleLockable.PerformWithLock(elementId + "-" + key, () =>
+            {
+                if (value == null)
+                {
+                    var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
+                    GenericData.SetSecurePlaceData(elementId, key, endData, password, expiresIn);
+                }
+                GenericData.SetSecurePlaceData(elementId, key, value, password, expiresIn);
+            });
+            return true;
         }
 
         [HttpGet]
@@ -61,11 +66,17 @@ namespace PraxisMapper.Controllers {
         public bool SetSecurePlayerData(string accountId, string key, string value, string password, double? expiresIn = null) {
             Response.Headers.Add("X-noPerfTrack", "SecureData/Player/" + accountId.ToString() + "/VALUESREMOVED-PUT");
 
-            if (value == null) {
-                var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
-                return GenericData.SetSecurePlayerData(accountId, key, endData, password, expiresIn);
-            }
-            return GenericData.SetSecurePlayerData(accountId, key, value, password, expiresIn);
+            SimpleLockable.PerformWithLock(accountId + "-" + key, () =>
+            {
+                if (value == null)
+                {
+                    var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
+                    GenericData.SetSecurePlayerData(accountId, key, endData, password, expiresIn);
+                    return;
+                }
+                GenericData.SetSecurePlayerData(accountId, key, value, password, expiresIn);
+            });
+            return true;
         }
 
         [HttpGet]
@@ -92,11 +103,17 @@ namespace PraxisMapper.Controllers {
             if (!DataCheck.IsInBounds(plusCode))
                 return false;
 
-            if (value == null) {
-                var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
-                return GenericData.SetSecureAreaData(plusCode, key, endData, password, expiresIn);
-            }
-            return GenericData.SetSecureAreaData(plusCode, key, value, password, expiresIn);
+            SimpleLockable.PerformWithLock(plusCode + "-" + key, () =>
+            {
+                if (value == null)
+                {
+                    var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
+                    GenericData.SetSecureAreaData(plusCode, key, endData, password, expiresIn);
+                    return;
+                }
+                GenericData.SetSecureAreaData(plusCode, key, value, password, expiresIn);
+            });
+            return true;
         }
 
         [HttpGet]
