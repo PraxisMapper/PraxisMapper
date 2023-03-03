@@ -293,3 +293,26 @@ Summary: BCrypt is not meaning fully faster on checking existing entries compare
 NOTE: I checked this because the latest GPUs claimed to be hitting 200k hashes/sec against BCrypt. That's with a Rounds value of 5, after looking closer.
 Against the current-default value of 13 Rounds in PraxisMapper, that's about 800 hashes/sec. Each 1 added to rounds cuts the value in half.
 Given all of this information, I assert that BCrypt and 13 rounds are sufficiently strong defaults to deter decryption of any compromised data.
+
+Testing skipping auto-change detection (Using ~2MB of text data)
+Saved entry to DB normally in 122 ms
+Saved entry to DB manually in 54 ms
+Saved entry to DB normally in 84 ms
+Saved entry to DB manually in 11 ms
+Saved entry to DB normally in 76 ms
+Saved entry to DB manually in 13 ms
+Saved entry to DB normally in 70 ms
+Saved entry to DB manually in 10 ms
+Saved entry to DB normally in 65 ms
+Saved entry to DB manually in 11 ms
+Saved entry to DB normally in 69 ms
+Saved entry to DB manually in 9 ms
+Saved entry to DB normally in 72 ms
+Saved entry to DB manually in 10 ms
+Saved entry to DB normally in 93 ms
+Saved entry to DB manually in 10 ms
+Saved entry to DB normally in 92 ms
+Saved entry to DB manually in 9 ms
+Saved entry to DB normally in 86 ms
+Saved entry to DB manually in 10 ms
+Summary: Manually marking a single row as Modified and saving it instead of relying on change detecting can dramatically increase speed, but does rely on locks being used correctly.

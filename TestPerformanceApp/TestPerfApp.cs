@@ -49,7 +49,7 @@ namespace PerformanceTestApp
             //PraxisContext.connectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;";
 
             PraxisContext.serverMode = "MariaDB";
-            PraxisContext.connectionString = "server=localhost;database=praxis;user=root;password=asdf;";
+            PraxisContext.connectionString = "server=localhost;database=praxis-3;user=root;password=asdf;";
 
             //PraxisContext.serverMode = "PostgreSQL";
             //PraxisContext.connectionString = "server=localhost;database=praxis;user=root;password=asdf;";
@@ -92,7 +92,8 @@ namespace PerformanceTestApp
             //TupleVsRecords(); //looks like recordstructs are way faster
             //BcryptSpeedCheck();
             //TestEncryption();
-            TestFindPlacesPerf();
+            //TestFindPlacesPerf();
+            TestSavePerf();
 
 
             //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
@@ -2560,5 +2561,36 @@ namespace PerformanceTestApp
                 Console.WriteLine("recordstructs created in " + sw.ElapsedTicks);
             }
         }
+
+        public static void TestSavePerf() {
+            StringBuilder teststring = new StringBuilder();
+            for (int i = 0; i < 100000; i++ ) {
+                teststring.Append(Random.Shared.Next());
+            }
+
+            for (int i = 0; i < 10; i++) {
+
+                Stopwatch sw = Stopwatch.StartNew();
+                var db = new PraxisContext();
+                var row = db.PlayerData.First(p => p.PlayerDataID == 41);
+                row.DataValue = teststring.ToString().ToByteArrayUTF8();
+                db.SaveChanges();
+                sw.Stop();
+                Console.WriteLine("Saved entry to DB normally in " + sw.ElapsedMilliseconds + " ms");
+
+                sw = Stopwatch.StartNew();
+                var db2 = new PraxisContext();
+                db2.ChangeTracker.AutoDetectChangesEnabled = false;
+                var row2 = db.PlayerData.First(p => p.PlayerDataID == 41);
+                row2.DataValue = teststring.ToString().ToByteArrayUTF8();
+                db2.Entry(row2).State = EntityState.Modified;
+                db2.SaveChanges();
+                sw.Stop();
+                Console.WriteLine("Saved entry to DB manually in " + sw.ElapsedMilliseconds + " ms");
+            }
+
+
+
+            }
+        }
     }
-}
