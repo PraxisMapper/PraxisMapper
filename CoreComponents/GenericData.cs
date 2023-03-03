@@ -59,7 +59,7 @@ namespace PraxisCore
                 row = new DbTables.AreaData();
                 row.DataKey = key;
                 row.PlusCode = plusCode;
-                row.GeoAreaIndex = Converters.GeoAreaToPolygon(OpenLocationCode.DecodeValid(plusCode.ToUpper()));
+                row.GeoAreaIndex = plusCode.ToPolygon();
                 db.AreaData.Add(row);
             }
             else
@@ -404,7 +404,7 @@ namespace PraxisCore
                 row = new DbTables.AreaData();
                 row.DataKey = key;
                 row.PlusCode = plusCode;
-                row.GeoAreaIndex = Converters.GeoAreaToPolygon(OpenLocationCode.DecodeValid(plusCode.ToUpper()));
+                row.GeoAreaIndex = plusCode.ToPolygon();
                 db.AreaData.Add(row);
             }
             else
@@ -695,6 +695,7 @@ namespace PraxisCore
                 {
                     row = new DbTables.AreaData();
                     row.PlusCode = plusCode;
+                    row.GeoAreaIndex = plusCode.ToPolygon();
                     row.DataKey = key;
                     db.AreaData.Add(row);
                 }
