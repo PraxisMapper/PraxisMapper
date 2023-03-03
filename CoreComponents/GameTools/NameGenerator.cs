@@ -35,6 +35,11 @@ namespace PraxisCore.GameTools {
             r = new Random();
             regex = new Regex("({number}|" + string.Join("|", nameSets.Keys) + ")");
         }
+        public NameGenerator(string plusCode)
+        {
+            r = plusCode.GetSeededRandom();
+            regex = new Regex("({number}|" + string.Join(" | ", nameSets.Keys) + ")");
+        }
 
         static NameGenerator()
         {
@@ -55,11 +60,6 @@ namespace PraxisCore.GameTools {
                  ["{syllable}"] = syllables, //NOTE: this may need to be split into stressed and unstressed syllables, to make more plausible words. 
                  ["{thing}"] = things,
              };
-        }
-
-        public NameGenerator(string plusCode) {
-            r = plusCode.GetSeededRandom();
-            regex = new Regex("(" + string.Join("|", nameSets.Keys) + ")");
         }
 
         string ReplaceMatch(Match m) {
