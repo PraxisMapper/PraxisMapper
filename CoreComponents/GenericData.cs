@@ -184,7 +184,7 @@ namespace PraxisCore
         public static bool SetPlayerData(string playerId, string key, string value, double? expiration = null)
         {
             if (DataCheck.IsPlusCode(value)) //reject attaching Player to Area
-                return false; 
+                return false;
 
             return SetPlayerData(playerId, key, value.ToByteArrayUTF8(), expiration);
         }
@@ -325,7 +325,7 @@ namespace PraxisCore
         public static T GetGlobalData<T>(string key)
         {
             return GetGlobalData(key).FromJsonBytesTo<T>();
-        }    
+        }
 
         public static bool SetGlobalData(string key, string value)
         {
@@ -377,7 +377,7 @@ namespace PraxisCore
             }
             else
                 db.Entry(row).State = EntityState.Modified;
-            
+
             row.DataValue = value;
             return db.SaveChanges() == 1;
         }
@@ -409,7 +409,7 @@ namespace PraxisCore
             }
             else
                 db.Entry(row).State = EntityState.Modified;
-            
+
             if (expiration.HasValue)
                 row.Expiration = DateTime.UtcNow.AddSeconds(expiration.Value);
             else
@@ -547,7 +547,7 @@ namespace PraxisCore
         /// <param name="password">The password to encrypt the value with.</param>
         /// <param name="expiration">If not null, expire this data in this many seconds from now.</param>
         /// <returns>true if data was saved, false if data was not.</returns>
-        public static bool SetSecurePlaceData(Guid elementId, string key, byte[] value,string password, double? expiration = null)
+        public static bool SetSecurePlaceData(Guid elementId, string key, byte[] value, string password, double? expiration = null)
         {
             byte[] encryptedValue = EncryptValue(value, password, out byte[] IVs);
             var db = new PraxisContext();
@@ -586,10 +586,25 @@ namespace PraxisCore
         {
             SimpleLockable.PerformWithLock("global" + key, () =>
             {
-                var data = GetGlobalData(key);
-                Double.TryParse(data.ToUTF8String(), out double val);
+                byte[] sourcevalue = Array.Empty<byte>();
+                var db = new PraxisContext();
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
+                var row = db.GlobalData.FirstOrDefault(s => s.DataKey == key);
+                if (row == null)
+                {
+                    row = new DbTables.GlobalData();
+                    row.DataKey = key;
+                    db.GlobalData.Add(row);
+                }
+                else
+                {
+                    db.Entry(row).State = EntityState.Modified;
+                    sourcevalue = row.DataValue;
+                }
+                Double.TryParse(sourcevalue.ToUTF8String(), out double val);
                 val += value;
-                SetGlobalData(key, val.ToString());
+                row.DataValue = val.ToString().ToByteArrayUTF8();
+                db.SaveChanges();
             });
         }
 
@@ -597,61 +612,228 @@ namespace PraxisCore
         {
             SimpleLockable.PerformWithLock(playerId + key, () =>
             {
-                var data = GetPlayerData(playerId, key);
-                Double.TryParse(data.ToUTF8String(), out double val);
+                byte[] sourcevalue = Array.Empty<byte>();
+                var db = new PraxisContext();
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
+                var row = db.PlayerData.FirstOrDefault(s => s.accountId == playerId && s.DataKey == key);
+                if (row == null)
+                {
+                    row = new DbTables.PlayerData();
+                    row.accountId = playerId;
+                    row.DataKey = key;
+                    db.PlayerData.Add(row);
+                }
+                else if (row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
+                {
+                    db.Entry(row).State = EntityState.Modified;
+                }
+                else
+                {
+                    db.Entry(row).State = EntityState.Modified;
+                    sourcevalue = row.DataValue;
+                }
+
+                if (expiration.HasValue)
+                    row.Expiration = DateTime.UtcNow.AddSeconds(expiration.Value);
+                else
+                    row.Expiration = null;
+
+                Double.TryParse(sourcevalue.ToUTF8String(), out double val);
                 val += value;
-                SetPlayerData(playerId, key, val.ToString(), expiration);
+                row.DataValue = val.ToString().ToByteArrayUTF8();
+                db.SaveChanges();
             });
         }
 
         public static void IncrementPlaceData(Guid placeId, string key, double value, double? expiration = null)
         {
-            SimpleLockable.PerformWithLock(placeId + key, () => {
-                var data = GetPlaceData(placeId, key);
-                Double.TryParse(data.ToUTF8String(), out double val);
+            SimpleLockable.PerformWithLock(placeId + key, () =>
+            {
+                byte[] sourcevalue = Array.Empty<byte>();
+                var db = new PraxisContext();
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
+                var row = db.PlaceData.Include(p => p.Place).FirstOrDefault(p => p.Place.PrivacyId == placeId && p.DataKey == key);
+                if (row == null)
+                {
+                    var sourceItem = db.Places.Where(p => p.PrivacyId == placeId).Select(p => p.Id).FirstOrDefault();
+                    row = new DbTables.PlaceData();
+                    row.PlaceId = sourceItem;
+                    row.DataKey = key;
+                    db.PlaceData.Add(row);
+                }
+                else if (row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
+                {
+                    db.Entry(row).State = EntityState.Modified;
+                }
+                else
+                {
+                    sourcevalue = row.DataValue;
+                    db.Entry(row).State = EntityState.Modified;
+                }
+
+                if (expiration.HasValue)
+                    row.Expiration = DateTime.UtcNow.AddSeconds(expiration.Value);
+                else
+                    row.Expiration = null;
+
+                Double.TryParse(sourcevalue.ToUTF8String(), out double val);
                 val += value;
-                SetPlaceData(placeId, key, val.ToString(), expiration);
+                row.DataValue = val.ToString().ToByteArrayUTF8();
+                db.SaveChanges();
             });
         }
 
         public static void IncrementAreaData(string plusCode, string key, double value, double? expiration = null)
         {
-            SimpleLockable.PerformWithLock(plusCode + key, () => {
-                var data = GetAreaData(plusCode, key);
-                Double.TryParse(data.ToUTF8String(), out double val);
+            SimpleLockable.PerformWithLock(plusCode + key, () =>
+            {
+                byte[] sourcevalue = Array.Empty<byte>();
+                var db = new PraxisContext();
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
+                var row = db.AreaData.FirstOrDefault(s => s.PlusCode == plusCode && s.DataKey == key);
+                if (row == null)
+                {
+                    row = new DbTables.AreaData();
+                    row.PlusCode = plusCode;
+                    row.DataKey = key;
+                    db.AreaData.Add(row);
+                }
+                else if (row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
+                {
+                    db.Entry(row).State = EntityState.Modified;
+                }
+                else
+                {
+                    db.Entry(row).State = EntityState.Modified;
+                    sourcevalue = row.DataValue;
+                }
+
+                if (expiration.HasValue)
+                    row.Expiration = DateTime.UtcNow.AddSeconds(expiration.Value);
+                else
+                    row.Expiration = null;
+
+                Double.TryParse(sourcevalue.ToUTF8String(), out double val);
                 val += value;
-                SetAreaData(plusCode, key, val.ToString(), expiration);
-                ;
+                row.DataValue = val.ToString().ToByteArrayUTF8();
+                db.SaveChanges();
             });
         }
 
         public static void IncrementSecurePlayerData(string playerId, string password, string key, double value, double? expiration = null)
         {
-            SimpleLockable.PerformWithLock(playerId + "secure" + key, () => {
-                var data = GetSecurePlayerData(playerId, key, password);
-                Double.TryParse(data.ToUTF8String(), out double val);
+            SimpleLockable.PerformWithLock(playerId + "secure" + key, () =>
+            {
+                byte[] sourceValue = Array.Empty<byte>();
+                var db = new PraxisContext();
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
+                var row = db.PlayerData.FirstOrDefault(p => p.accountId == playerId && p.DataKey == key);
+                if (row == null)
+                { 
+                    row = new DbTables.PlayerData();
+                    row.accountId = playerId;
+                    row.DataKey = key;
+                    db.PlayerData.Add(row);
+
+                }
+                else if (row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
+                {
+                    db.Entry(row).State = EntityState.Modified;
+                }
+                else
+                {
+                    sourceValue = DecryptValue(row.IvData, row.DataValue, password);
+                    db.Entry(row).State = EntityState.Modified;
+                }
+
+                if (expiration.HasValue)
+                    row.Expiration = DateTime.UtcNow.AddSeconds(expiration.Value);
+                else
+                    row.Expiration = null;
+
+                Double.TryParse(sourceValue.ToUTF8String(), out double val);
                 val += value;
-                SetSecurePlayerData(playerId, key, val.ToString(), password, expiration);
+                row.DataValue = EncryptValue(val.ToString().ToByteArrayUTF8(), password, out byte[] IVs);
+                row.IvData = IVs;
+                db.SaveChanges();
             });
         }
 
         public static void IncrementSecurePlaceData(Guid placeId, string password, string key, double value, double? expiration = null)
         {
-            SimpleLockable.PerformWithLock(placeId + "secure" + key, () => {
-                var data = GetSecurePlaceData(placeId, key, password);
-                Double.TryParse(data.ToUTF8String(), out double val);
+            SimpleLockable.PerformWithLock(placeId + "secure" + key, () =>
+            {
+                byte[] sourceValue = Array.Empty<byte>();
+                var db = new PraxisContext();
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
+                var row = db.PlaceData.Include(p => p.Place).FirstOrDefault(p => p.Place.PrivacyId == placeId && p.DataKey == key);
+                if (row == null)
+                {
+                    var sourceItem = db.Places.Where(p => p.PrivacyId == placeId).Select(p => p.Id).FirstOrDefault();
+                    row = new DbTables.PlaceData();
+                    row.PlaceId = sourceItem;
+                    row.DataKey = key;
+                    db.PlaceData.Add(row);
+
+                }
+                else if (row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
+                {
+                    db.Entry(row).State = EntityState.Modified;
+                }
+                else
+                {
+                    sourceValue = DecryptValue(row.IvData, row.DataValue, password);
+                    db.Entry(row).State = EntityState.Modified;
+                }
+
+                if (expiration.HasValue)
+                    row.Expiration = DateTime.UtcNow.AddSeconds(expiration.Value);
+                else
+                    row.Expiration = null;
+
+                Double.TryParse(sourceValue.ToUTF8String(), out double val);
                 val += value;
-                SetSecurePlaceData(placeId, key, val.ToString(), password, expiration);
+                row.DataValue = EncryptValue(val.ToString().ToByteArrayUTF8(), password, out byte[] IVs);
+                row.IvData = IVs;
+                db.SaveChanges();
             });
         }
 
         public static void IncrementSecureAreaData(string plusCode, string password, string key, double value, double? expiration = null)
         {
-            SimpleLockable.PerformWithLock(plusCode + "secure" + key, () => {
-                var data = GetSecureAreaData(plusCode, key, password);
-                Double.TryParse(data.ToUTF8String(), out double val);
+            SimpleLockable.PerformWithLock(plusCode + "secure" + key, () =>
+            {
+                byte[] sourceValue = Array.Empty<byte>();
+                var db = new PraxisContext();
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
+                var row = db.AreaData.FirstOrDefault(p => p.PlusCode == plusCode && p.DataKey == key);
+                if (row == null)
+                {
+                    row = new DbTables.AreaData();
+                    row.PlusCode = plusCode;
+                    row.DataKey = key;
+                    db.AreaData.Add(row);
+                }
+                else if (row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
+                {
+                    db.Entry(row).State = EntityState.Modified;
+                }
+                else
+                {
+                    sourceValue = DecryptValue(row.IvData, row.DataValue, password);
+                    db.Entry(row).State = EntityState.Modified;
+                }
+
+                if (expiration.HasValue)
+                    row.Expiration = DateTime.UtcNow.AddSeconds(expiration.Value);
+                else
+                    row.Expiration = null;
+
+                Double.TryParse(sourceValue.ToUTF8String(), out double val);
                 val += value;
-                SetSecureAreaData(plusCode, key, val.ToString(), password, expiration);
+                row.DataValue = EncryptValue(val.ToString().ToByteArrayUTF8(), password, out byte[] IVs);
+                row.IvData = IVs;
+                db.SaveChanges();
             });
         }
 
@@ -661,7 +843,7 @@ namespace PraxisCore
             baseSec.GenerateIV();
             IVs = baseSec.IV;
             var crypter = baseSec.CreateEncryptor(passwordBytes, IVs);
-            
+
             var ms = new MemoryStream();
             using (CryptoStream cs = new CryptoStream(ms, crypter, CryptoStreamMode.Write))
                 cs.Write(value, 0, value.Length);
@@ -674,7 +856,7 @@ namespace PraxisCore
             byte[] passwordBytes = SHA256.HashData(password.ToByteArrayUTF8());
 
             var crypter = baseSec.CreateDecryptor(passwordBytes, IVs);
-            
+
             var ms = new MemoryStream();
             using (CryptoStream cs = new CryptoStream(ms, crypter, CryptoStreamMode.Write))
                 cs.Write(value);
@@ -749,6 +931,6 @@ namespace PraxisCore
 
             return intPwd;
         }
-        
+
     }
 }
