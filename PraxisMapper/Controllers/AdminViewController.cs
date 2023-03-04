@@ -36,7 +36,7 @@ namespace PraxisMapper.Controllers {
         [Route("/[controller]/GetMapTileInfo/{zoom}/{x}/{y}")]
         public ActionResult GetMapTileInfo(int x, int y, int zoom) {
             //Draw the map tile, with extra info to send over.
-            ImageStats istats = new ImageStats(zoom, x, y, IMapTiles.SlippyTileSizeSquare);
+            ImageStats istats = new ImageStats(zoom, x, y, MapTileSupport.SlippyTileSizeSquare);
 
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
             sw.Start();
@@ -61,7 +61,7 @@ namespace PraxisMapper.Controllers {
             int imageMaxEdge = Configuration["adminPreviewImageMaxEdge"].ToInt();
             long maxImagePixels = Configuration["maxImagePixels"].ToLong();
 
-            ImageStats istats = new ImageStats(mapArea, (int)(mapArea.LongitudeWidth / ConstantValues.resolutionCell11Lon) * (int)IMapTiles.GameTileScale, (int)(mapArea.LatitudeHeight / ConstantValues.resolutionCell11Lat) * (int)IMapTiles.GameTileScale);
+            ImageStats istats = new ImageStats(mapArea, (int)(mapArea.LongitudeWidth / ConstantValues.resolutionCell11Lon) * (int)MapTileSupport.GameTileScale, (int)(mapArea.LatitudeHeight / ConstantValues.resolutionCell11Lat) * (int)MapTileSupport.GameTileScale);
             //sanity check: we don't want to draw stuff that won't fit in memory, so check for size and cap it if needed
             if ((long)istats.imageSizeX * istats.imageSizeY > maxImagePixels) {
                 var ratio = (double)istats.imageSizeX / istats.imageSizeY; //W:H,
@@ -122,7 +122,7 @@ namespace PraxisMapper.Controllers {
 
             var geoarea = Converters.GeometryToGeoArea(area.ElementGeometry.Envelope).PadGeoArea(ConstantValues.resolutionCell10);
 
-            ImageStats istats = new ImageStats(geoarea, (int)(geoarea.LongitudeWidth / ConstantValues.resolutionCell11Lon) * (int)IMapTiles.GameTileScale, (int)(geoarea.LatitudeHeight / ConstantValues.resolutionCell11Lat) * (int)IMapTiles.GameTileScale);
+            ImageStats istats = new ImageStats(geoarea, (int)(geoarea.LongitudeWidth / ConstantValues.resolutionCell11Lon) * (int)MapTileSupport.GameTileScale, (int)(geoarea.LatitudeHeight / ConstantValues.resolutionCell11Lat) * (int)MapTileSupport.GameTileScale);
             //sanity check: we don't want to draw stuff that won't fit in memory, so check for size and cap it if needed
             if ((long)istats.imageSizeX * istats.imageSizeY > maxImagePixels) {
                 var ratio = (double)istats.imageSizeX / istats.imageSizeY; //W:H,

@@ -14,13 +14,6 @@ namespace PraxisCore {
     /// All functions related to generating or expiring map tiles. Both PlusCode sized tiles for gameplay or SlippyMap tiles for a webview.
     /// </summary>
     public class MapTiles : IMapTiles {
-        //These need to exist because the interface defines them.
-        public static int MapTileSizeSquare = 512;
-        public static double GameTileScale = 4;
-        public static double bufferSize = resolutionCell10;
-
-        //static SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
-        //static readonly Random r = new Random();
         public static Dictionary<string, Image> cachedBitmaps = new Dictionary<string, Image>(); //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
         public static Dictionary<long, IBrush> cachedPaints = new Dictionary<long, IBrush>();
         public static Dictionary<long, IPen> cachedGameTilePens = new Dictionary<long, IPen>();
@@ -28,15 +21,16 @@ namespace PraxisCore {
         static DrawingOptions dOpts;
 
         public void Initialize() {
-            IMapTiles.GameTileScale = GameTileScale;
-            IMapTiles.BufferSize = bufferSize;
-
             foreach (var b in TagParser.cachedBitmaps)
                 cachedBitmaps.Add(b.Key, Image.Load(b.Value));
 
+            int maxId = 1;
             foreach (var g in TagParser.allStyleGroups)
                 foreach (var s in g.Value)
                     foreach (var p in s.Value.PaintOperations) {
+                        if (p.Id == 0) {
+                            p.Id = maxId++;
+                        }
                         cachedPaints.Add(p.Id, SetPaintForTPP(p));
                         cachedGameTilePens.Add(p.Id, SetPenForGameTile(p));
                     }
@@ -56,10 +50,6 @@ namespace PraxisCore {
         /// </summary>
         /// <param name="tpe">the TagParserPaint object to populate</param>
         private static IBrush SetPaintForTPP(StylePaint tpe) {
-            //SkiaSharp now implements rounding line ends, but they're only for Pens
-            //(which only work on lines), and my stuff all currently uses a Brush.
-
-            //It's possible that I want pens instead of brushes for lines with patterns?
             string htmlColor = tpe.HtmlColorCode;
             if (htmlColor.Length == 8)
                 htmlColor = string.Concat(htmlColor.AsSpan(2, 6), htmlColor.AsSpan(0, 2));
@@ -77,7 +67,7 @@ namespace PraxisCore {
             MapTileSupport.GetPlusCodeImagePixelSize("22334455", out imgX, out imgY);
             var info = new ImageStats(OpenLocationCode.DecodeValid("22334455"), imgX, imgY);
 
-            var widthMod = resolutionCell11Lon * IMapTiles.GameTileScale;
+            var widthMod = resolutionCell11Lon * MapTileSupport.GameTileScale;
 
             string htmlColor = tpe.HtmlColorCode;
             if (htmlColor.Length == 8)
@@ -86,10 +76,10 @@ namespace PraxisCore {
             Pen p;
 
             if (String.IsNullOrWhiteSpace(tpe.LinePattern) || tpe.LinePattern == "solid")
-                p = new Pen(Rgba32.ParseHex(htmlColor), tpe.LineWidthDegrees * (float)info.pixelsPerDegreeX);
+                p = new Pen(Rgba32.ParseHex(htmlColor), tpe.FixedWidth != 0 ? tpe.FixedWidth : tpe.LineWidthDegrees * (float)info.pixelsPerDegreeX);
             else {
                 float[] linesAndGaps = tpe.LinePattern.Split('|').Select(t => float.Parse(t)).ToArray();
-                p = new Pen(Rgba32.ParseHex(htmlColor), tpe.LineWidthDegrees * (float)info.pixelsPerDegreeX, linesAndGaps);
+                p = new Pen(Rgba32.ParseHex(htmlColor), tpe.FixedWidth != 0 ? tpe.FixedWidth : tpe.LineWidthDegrees * (float)info.pixelsPerDegreeX, linesAndGaps);
             }
 
             p.EndCapStyle = EndCapStyle.Round;
@@ -104,16 +94,13 @@ namespace PraxisCore {
         /// <param name="items">the elements to draw.</param>
         /// <returns>byte array of the generated .png tile image</returns>
         public byte[] DrawOfflineEstimatedAreas(ImageStats info, List<DbTables.Place> items) {
-            //TODO retest this.
             var image = new Image<Rgba32>(info.imageSizeX, info.imageSizeY);
             var bgColor = Rgba32.ParseHex("00000000");
             image.Mutate(x => x.Fill(bgColor));
             var fillColor = Rgba32.ParseHex("000000");
             var strokeColor = Rgba32.ParseHex("000000");
 
-            var placeInfo = Standalone.Standalone.GetPlaceInfo(items.Where(i =>
-            i.IsGameElement
-            ).ToList());
+            var placeInfo = Standalone.Standalone.GetPlaceInfo(items.Where(i => i.IsGameElement).ToList());
 
             //this is for rectangles.
             foreach (var pi in placeInfo) {
@@ -123,12 +110,12 @@ namespace PraxisCore {
                 image.Mutate(x => x.Draw(strokeColor, 3, rect));
             }
 
+            var fonts = new SixLabors.Fonts.FontCollection();
+            var family = fonts.Add("fontHere.ttf");
+            var font = family.CreateFont(12, FontStyle.Regular);
+
             image.Mutate(x => x.Flip(FlipMode.Vertical)); ; //inverts the inverted image again!
             foreach (var pi in placeInfo) {
-                //NOTE: would be better to load fonts once and share that for the app's lifetime.
-                var fonts = new SixLabors.Fonts.FontCollection();
-                var family = fonts.Add("fontHere.ttf");
-                var font = family.CreateFont(12, FontStyle.Regular);
                 var rect = PlaceInfoToRect(pi, info);
                 image.Mutate(x => x.DrawText(pi.Name, font, strokeColor, new PointF((float)(pi.lonCenter * info.pixelsPerDegreeX), (float)(pi.latCenter * info.pixelsPerDegreeY))));
             }
@@ -145,8 +132,8 @@ namespace PraxisCore {
         /// <param name="totalArea">the GeoArea to draw lines in</param>
         /// <returns>the byte array for the maptile png file</returns>
         public byte[] DrawCell8GridLines(GeoArea totalArea) {
-            int imageSizeX = IMapTiles.SlippyTileSizeSquare;
-            int imageSizeY = IMapTiles.SlippyTileSizeSquare;
+            int imageSizeX = MapTileSupport.SlippyTileSizeSquare;
+            int imageSizeY = MapTileSupport.SlippyTileSizeSquare;
             Image<Rgba32> image = new Image<Rgba32>(imageSizeX, imageSizeY);
             var bgColor = Rgba32.ParseHex("00000000");
             image.Mutate(x => x.Fill(bgColor));
@@ -195,8 +182,8 @@ namespace PraxisCore {
         /// <returns>the byte array for the maptile png file</returns>
         public byte[] DrawCell10GridLines(GeoArea totalArea) {
 
-            int imageSizeX = IMapTiles.SlippyTileSizeSquare;
-            int imageSizeY = IMapTiles.SlippyTileSizeSquare;
+            int imageSizeX = MapTileSupport.SlippyTileSizeSquare;
+            int imageSizeY = MapTileSupport.SlippyTileSizeSquare;
             Image<Rgba32> image = new Image<Rgba32>(imageSizeX, imageSizeY);
             var bgColor = Rgba32.ParseHex("00000000");
             image.Mutate(x => x.Fill(bgColor));
@@ -287,18 +274,6 @@ namespace PraxisCore {
             //This can work for user data by using the linked Places from the items in PlaceGameData.
             //I need a slightly different function for using AreaGameData, or another optional parameter here
 
-            //This should just get the paint ops then call the core drawing function.
-            //double minimumSize = 0;
-            //if (filterSmallAreas)
-            //{
-            //minimumSize = stats.degreesPerPixelX * 8; //don't draw small elements. THis runs on perimeter/length
-            //}
-
-            //Single points are excluded separately so that small areas or lines can still be drawn when points aren't.
-            //bool includePoints = true;
-            //if (stats.degreesPerPixelX > ConstantValues.zoom14DegPerPixelX)
-            //includePoints = false;
-
             if (drawnItems == null)
                 drawnItems = GetPlaces(stats.area, filterSize: stats.filterSize);
 
@@ -307,31 +282,28 @@ namespace PraxisCore {
         }
 
         public byte[] DrawAreaAtSize(ImageStats stats, List<CompletePaintOp> paintOps) {
-            //THIS is the core drawing function, and other version should call this so there's 1 function that handles the inner loop.
-            //baseline image data stuff           
+            //This is the new core drawing function. Once the paint operations have been created, I just draw them here.
+            //baseline image data stuff
             var image = new Image<Rgba32>(stats.imageSizeX, stats.imageSizeY);
             foreach (var w in paintOps.OrderByDescending(p => p.paintOp.LayerId).ThenByDescending(p => p.drawSizeHint)) {
                 //I need paints for fill commands and images. 
                 var paint = cachedPaints[w.paintOp.Id];
                 var pen = cachedGameTilePens[w.paintOp.Id];
 
-                if (stats.area.LongitudeWidth != resolutionCell8 || w.paintOp.Randomize || w.paintOp.FromTag) {
+                if (w.paintOp.Randomize) //To randomize the color on every Draw call.
+                    w.paintOp.HtmlColorCode = "99" + ((byte)Random.Shared.Next(0, 255)).ToString() + ((byte)Random.Shared.Next(0, 255)).ToString() + ((byte)Random.Shared.Next(0, 255)).ToString();
+
+                if (w.paintOp.FromTag) //FromTag is for when you are saving color data directly to each element, instead of tying it to a styleset.
+                    w.paintOp.HtmlColorCode = w.tagValue;
+
+                if (stats.area.LongitudeWidth != resolutionCell8) {
                     //recreate pen for this operation instead of using cached pen.
-                    if (w.paintOp.Randomize) //To randomize the color on every Draw call.
-                        w.paintOp.HtmlColorCode = "99" + ((byte)Random.Shared.Next(0, 255)).ToString() + ((byte)Random.Shared.Next(0, 255)).ToString() + ((byte)Random.Shared.Next(0, 255)).ToString();
-
-                    if (w.paintOp.FromTag) //FromTag is for when you are saving color data directly to each element, instead of tying it to a styleset.
-                        w.paintOp.HtmlColorCode = w.tagValue;
-
-                    //TODO: use stats to see if this image is scaled to gameTile values, and if so then use cached pre-made pens?
                     if (String.IsNullOrWhiteSpace(w.paintOp.LinePattern) || w.paintOp.LinePattern == "solid")
                         pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), (float)w.lineWidthPixels);
                     else {
                         float[] linesAndGaps = w.paintOp.LinePattern.Split('|').Select(t => float.Parse(t)).ToArray();
                         pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), (float)w.lineWidthPixels, linesAndGaps);
                     }
-                    pen.EndCapStyle = EndCapStyle.Round;
-                    pen.JointStyle = JointStyle.Round;
                 }
 
                 //ImageSharp doesn't like humungous areas (16k+ nodes takes a couple minutes), so we have to crop them down here
@@ -383,7 +355,6 @@ namespace PraxisCore {
                         var convertedPoint = PointToPointF(thisGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                         //If this type has an icon, use it. Otherwise draw a circle in that type's color.
                         if (!string.IsNullOrEmpty(w.paintOp.FileName)) {
-                            //TODO test that this draws in correct position.
                             Image i2 = cachedBitmaps[w.paintOp.FileName];
                             image.Mutate(x => x.DrawImage(i2, (SixLabors.ImageSharp.Point)convertedPoint, 1));
                         }

@@ -58,7 +58,7 @@ namespace PraxisCore.Support
             pixelsPerDegreeX = imageSizeX / area.LongitudeWidth;
             pixelsPerDegreeY = imageSizeY / area.LatitudeHeight;
 
-            filterSize = (degreesPerPixelY / ConstantValues.resolutionCell11Lat) * IMapTiles.GameTileScale;
+            filterSize = (degreesPerPixelY / ConstantValues.resolutionCell11Lat) * MapTileSupport.GameTileScale;
         }
 
 
@@ -82,7 +82,7 @@ namespace PraxisCore.Support
             pixelsPerDegreeX = imageSizeX / area.LongitudeWidth;
             pixelsPerDegreeY = imageSizeY / area.LatitudeHeight;
 
-            filterSize = (degreesPerPixelY / ConstantValues.resolutionCell11Lat) * IMapTiles.GameTileScale;
+            filterSize = (degreesPerPixelY / ConstantValues.resolutionCell11Lat) * MapTileSupport.GameTileScale;
         }
         
         /// <summary>
@@ -143,7 +143,7 @@ namespace PraxisCore.Support
             pixelsPerDegreeX = imageSizeX / area.LongitudeWidth;
             pixelsPerDegreeY = imageSizeY / area.LatitudeHeight;
 
-            filterSize = (degreesPerPixelY / ConstantValues.resolutionCell11Lat) * IMapTiles.GameTileScale;
+            filterSize = (degreesPerPixelY / ConstantValues.resolutionCell11Lat) * MapTileSupport.GameTileScale;
         }
 
         /// <summary>

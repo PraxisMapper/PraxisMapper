@@ -88,7 +88,7 @@ namespace PraxisMapper.Controllers {
             try {
                 Response.Headers.Add("X-noPerfTrack", "Maptiles/Slippy/" + styleSet + "/VARSREMOVED");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
-                var info = new ImageStats(zoom, x, y, IMapTiles.SlippyTileSizeSquare);
+                var info = new ImageStats(zoom, x, y, MapTileSupport.SlippyTileSizeSquare);
 
                 if (!DataCheck.IsInBounds(info.area)) {
                     Response.Headers.Add("X-notes", "OOB");
@@ -124,7 +124,7 @@ namespace PraxisMapper.Controllers {
             Response.Headers.Add("X-noPerfTrack", "Maptiles/SlippyPlaceData/" + styleSet + "/VARSREMOVED");
             try {
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
-                var info = new ImageStats(zoom, x, y, IMapTiles.SlippyTileSizeSquare);
+                var info = new ImageStats(zoom, x, y, MapTileSupport.SlippyTileSizeSquare);
 
                 if (!DataCheck.IsInBounds(info.area)) {
                     Response.Headers.Add("X-notes", "OOB");
@@ -158,7 +158,7 @@ namespace PraxisMapper.Controllers {
             Response.Headers.Add("X-noPerfTrack", "Maptiles/SlippyAreaData/" + styleSet + "/VARSREMOVED");
             try {
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
-                var info = new ImageStats(zoom, x, y, IMapTiles.SlippyTileSizeSquare);
+                var info = new ImageStats(zoom, x, y, MapTileSupport.SlippyTileSizeSquare);
 
                 if (!DataCheck.IsInBounds(info.area)) {
                     Response.Headers.Add("X-notes", "OOB");

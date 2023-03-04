@@ -7,10 +7,6 @@ namespace PraxisCore
 {
     public interface IMapTiles
     {
-        public static int SlippyTileSizeSquare;
-        public static double GameTileScale;
-        public static double BufferSize;
-
         public void Initialize(); //Replaces some TagParser stuff, since a lot of drawing optimization happened there.
         public byte[] DrawOfflineEstimatedAreas(ImageStats info, List<DbTables.Place> items);
         public byte[] DrawCell8GridLines(GeoArea totalArea);
