@@ -353,5 +353,16 @@ namespace PraxisCore {
 
             return existingResults.TileData;
         }
+
+        public static ImageStats ScaleBoundsCheck(ImageStats istats, int maxEdge, long maxPixels) {
+            //sanity check: we don't want to draw stuff that won't fit in memory, so check for size and cap it if needed
+            if ((long)istats.imageSizeX * istats.imageSizeY > maxPixels) {
+                var ratio = (double)istats.imageSizeX / istats.imageSizeY; //W:H,
+                int newSize = (istats.imageSizeY > maxEdge ? maxEdge : istats.imageSizeY);
+                istats = new ImageStats(istats.area, (int)(newSize * ratio), newSize);
+            }
+
+            return istats;
+        }
     }
 }

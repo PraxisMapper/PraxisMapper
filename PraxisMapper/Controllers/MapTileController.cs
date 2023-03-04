@@ -91,6 +91,7 @@ namespace PraxisMapper.Controllers {
                 Response.Headers.Add("X-noPerfTrack", "Maptiles/Slippy/" + styleSet + "/VARSREMOVED");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var info = new ImageStats(zoom, x, y, MapTileSupport.SlippyTileSizeSquare);
+                info = MapTileSupport.ScaleBoundsCheck(info, Configuration["adminPreviewImageMaxEdge"].ToInt(), Configuration["maxImagePixels"].ToLong());
 
                 if (!DataCheck.IsInBounds(info.area)) {
                     Response.Headers.Add("X-notes", "OOB");
@@ -125,6 +126,7 @@ namespace PraxisMapper.Controllers {
                 Response.Headers.Add("X-noPerfTrack", "Maptiles/SlippyAreaData/" + styleSet + "/VARSREMOVED");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var info = new ImageStats(zoom, x, y, MapTileSupport.SlippyTileSizeSquare);
+                info = MapTileSupport.ScaleBoundsCheck(info, Configuration["adminPreviewImageMaxEdge"].ToInt(), Configuration["maxImagePixels"].ToLong());
 
                 if (!DataCheck.IsInBounds(info.area)) {
                     Response.Headers.Add("X-notes", "OOB");
@@ -167,6 +169,8 @@ namespace PraxisMapper.Controllers {
             Response.Headers.Add("X-noPerfTrack", "Maptiles/Area/" + styleSet + "/VARSREMOVED");
             try {
                 var info = new ImageStats(code);
+                info = MapTileSupport.ScaleBoundsCheck(info, Configuration["adminPreviewImageMaxEdge"].ToInt(), Configuration["maxImagePixels"].ToLong());
+
 
                 if (!DataCheck.IsInBounds(info.area)) {
                     Response.Headers.Add("X-notes", "OOB");
@@ -200,6 +204,7 @@ namespace PraxisMapper.Controllers {
             Response.Headers.Add("X-noPerfTrack", "Maptiles/AreaData/" + styleSet + "/VARSREMOVED");
             try {
                 var info = new ImageStats(code);
+                info = MapTileSupport.ScaleBoundsCheck(info, Configuration["adminPreviewImageMaxEdge"].ToInt(), Configuration["maxImagePixels"].ToLong());
 
                 if (!DataCheck.IsInBounds(info.area)) {
                     Response.Headers.Add("X-notes", "OOB");
