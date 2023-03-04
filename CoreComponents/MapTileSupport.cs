@@ -186,7 +186,7 @@ namespace PraxisCore {
         /// <param name="saveToFiles">If true, writes to files in the output folder. If false, saves to DB.</param>
         public static void PregenMapTilesForArea(GeoArea areaToDraw, bool saveToFiles = false) {
             //There is a very similar function for this in Standalone.cs, but this one writes back to the main DB.
-            var intersectCheck = Converters.GeoAreaToPolygon(areaToDraw);
+            var intersectCheck = areaToDraw.ToPolygon();
             //start drawing maptiles and sorting out data.
             var swCorner = new OpenLocationCode(intersectCheck.EnvelopeInternal.MinY, intersectCheck.EnvelopeInternal.MinX);
             var neCorner = new OpenLocationCode(intersectCheck.EnvelopeInternal.MaxY, intersectCheck.EnvelopeInternal.MaxX);
@@ -277,7 +277,7 @@ namespace PraxisCore {
             //There is a very similar function for this in Standalone.cs, but this one writes back to the main DB.
             var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
-            var intersectCheck = Converters.GeoAreaToPolygon(buffered);
+            var intersectCheck = buffered.ToPolygon();
 
             //start drawing maptiles and sorting out data.
             var swCornerLon = Converters.GetSlippyXFromLon(intersectCheck.EnvelopeInternal.MinX, zoomLevel);
@@ -303,18 +303,18 @@ namespace PraxisCore {
                     Converters.SlippyXToLon(swCornerLon, zoomLevel) - ConstantValues.resolutionCell8,
                     Converters.SlippyYToLat(y, zoomLevel) + ConstantValues.resolutionCell8,
                     Converters.SlippyXToLon(neCornerLon, zoomLevel) + resolutionCell8);
-                var row = Converters.GeoAreaToPolygon(thisRow);
+                var row = thisRow.ToPolygon();
                 var rowList = GetPlaces(thisRow);
                 var tilesToSave = new ConcurrentBag<SlippyMapTile>();
 
                 Parallel.For(swCornerLon, neCornerLon + 1, (x) => {
                     //make map tile.
                     var info = new ImageStats(zoomLevel, x, y, MapTileSupport.SlippyTileSizeSquare);
-                    var acheck = Converters.GeoAreaToPolygon(info.area); //this is faster than using a PreparedPolygon in testing, which was unexpected.
+                    var acheck =info.area.ToPolygon(); //this is faster than using a PreparedPolygon in testing, which was unexpected.
                     var areaList = rowList.Where(a => acheck.Intersects(a.ElementGeometry)).ToList(); //This one is for the maptile
 
                     var tile = MapTiles.DrawAreaAtSize(info, areaList);
-                    tilesToSave.Add(new SlippyMapTile() { TileData = tile, Values = x + "|" + y + "|" + zoomLevel, ExpireOn = DateTime.UtcNow.AddDays(3650), AreaCovered = Converters.GeoAreaToPolygon(info.area), StyleSet = "mapTiles" });
+                    tilesToSave.Add(new SlippyMapTile() { TileData = tile, Values = x + "|" + y + "|" + zoomLevel, ExpireOn = DateTime.UtcNow.AddDays(3650), AreaCovered = GeometrySupport.MakeBufferedGeoArea(info.area).ToPolygon(), StyleSet = "mapTiles" });
 
                     mapTileCounter++;
                 });
@@ -332,7 +332,7 @@ namespace PraxisCore {
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.StyleSet == styleSet);
             if (existingResults == null) {
-                existingResults = new MapTile() { PlusCode = code, StyleSet = styleSet, AreaCovered = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(code.ToGeoArea())) };
+                existingResults = new MapTile() { PlusCode = code, StyleSet = styleSet, AreaCovered = code.ToPolygon() };
                 db.MapTiles.Add(existingResults);
             }
             else

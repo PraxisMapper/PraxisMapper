@@ -21,7 +21,7 @@ namespace PraxisCore
         /// <returns>true if the 2 parameters intersect, or false if they do not.</returns>
         public static bool IsInBounds(IPreparedGeometry bounds, GeoArea place)
         {
-            if (DisableBoundsCheck || bounds.Intersects(Converters.GeoAreaToPolygon(place)))
+            if (DisableBoundsCheck || bounds.Intersects(place.ToPolygon()))
                 return true;
 
             return false;
@@ -29,7 +29,7 @@ namespace PraxisCore
 
         public static bool IsInBounds(GeoArea place)
         {
-            if (DisableBoundsCheck || bounds.Intersects(Converters.GeoAreaToPolygon(place)))
+            if (DisableBoundsCheck || bounds.Intersects(place.ToPolygon()))
                 return true;
 
             return false;

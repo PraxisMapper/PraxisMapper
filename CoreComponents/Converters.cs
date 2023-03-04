@@ -50,7 +50,7 @@ namespace PraxisCore
         /// <returns>a PreparedPolygon covering the GeoArea provided.</returns>
         public static IPreparedGeometry GeoAreaToPreparedPolygon(GeoArea plusCodeArea)
         {
-            return preparedGeometryFactory.Create(GeoAreaToPolygon(plusCodeArea));
+            return preparedGeometryFactory.Create(plusCodeArea.ToPolygon());
         }
 
         /// <summary>
