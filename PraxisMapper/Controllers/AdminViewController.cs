@@ -62,12 +62,7 @@ namespace PraxisMapper.Controllers {
             long maxImagePixels = Configuration["maxImagePixels"].ToLong();
 
             ImageStats istats = new ImageStats(mapArea, (int)(mapArea.LongitudeWidth / ConstantValues.resolutionCell11Lon) * (int)MapTileSupport.GameTileScale, (int)(mapArea.LatitudeHeight / ConstantValues.resolutionCell11Lat) * (int)MapTileSupport.GameTileScale);
-            //sanity check: we don't want to draw stuff that won't fit in memory, so check for size and cap it if needed
-            if ((long)istats.imageSizeX * istats.imageSizeY > maxImagePixels) {
-                var ratio = (double)istats.imageSizeX / istats.imageSizeY; //W:H,
-                int newSize = (istats.imageSizeY > imageMaxEdge ? imageMaxEdge : istats.imageSizeY);
-                istats = new ImageStats(mapArea, (int)(newSize * ratio), newSize);
-            }
+            istats = MapTileSupport.ScaleBoundsCheck(istats, imageMaxEdge, maxImagePixels);
 
             if (filterSize >= 0)
                 istats.filterSize = filterSize;
