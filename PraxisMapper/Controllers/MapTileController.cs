@@ -117,14 +117,12 @@ namespace PraxisMapper.Controllers {
             }
         }
 
-        //This is for drawing tiles based off of entries in the PlaceData table instead of PlaceTags.
         [HttpGet]
-        [Route("/[controller]/DrawSlippyTileCustomElements/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
-        [Route("/[controller]/SlippyCustomElements/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
-        [Route("/[controller]/SlippyPlaceData/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
-        public ActionResult DrawSlippyTileCustomElements(int x, int y, int zoom, string styleSet, string dataKey) {
-            Response.Headers.Add("X-noPerfTrack", "Maptiles/SlippyPlaceData/" + styleSet + "/VARSREMOVED");
+        [Route("/[controller]/DrawSlippyTileAreaData/{styleSet}/{zoom}/{x}/{y}.png")] //slippy map conventions.
+        [Route("/[controller]/SlippyAreaData/{styleSet}/{zoom}/{x}/{y}.png")] //slippy map conventions.
+        public ActionResult DrawSlippyTileAreaData(int zoom, int x, int y, string styleSet) {
             try {
+                Response.Headers.Add("X-noPerfTrack", "Maptiles/SlippyAreaData/" + styleSet + "/VARSREMOVED");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var info = new ImageStats(zoom, x, y, MapTileSupport.SlippyTileSizeSquare);
 
@@ -140,42 +138,7 @@ namespace PraxisMapper.Controllers {
                 }
 
                 //Make tile
-                var places = GetPlaces(info, null, styleSet);
-                var paintOps = MapTileSupport.GetPaintOpsForPlacesData(dataKey, styleSet, info);
-                tileData = FinishSlippyMapTile(info, paintOps, tileKey, styleSet);
-
-                Response.Headers.Add("X-notes", Configuration.GetValue<string>("MapTilesEngine"));
-                return File(tileData, "image/png");
-            }
-            catch (Exception ex) {
-                ErrorLogger.LogError(ex);
-                return StatusCode(500);
-            }
-        }
-
-        [HttpGet]
-        [Route("/[controller]/DrawSlippyTileCustomPlusCodes/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
-        [Route("/[controller]/SlippyAreaData/{styleSet}/{dataKey}/{zoom}/{x}/{y}.png")] //slippy map conventions.
-        public ActionResult DrawSlippyTileCustomPlusCodes(int x, int y, int zoom, string styleSet, string dataKey) {
-            Response.Headers.Add("X-noPerfTrack", "Maptiles/SlippyAreaData/" + styleSet + "/VARSREMOVED");
-            try {
-                string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
-                var info = new ImageStats(zoom, x, y, MapTileSupport.SlippyTileSizeSquare);
-
-                if (!DataCheck.IsInBounds(info.area)) {
-                    Response.Headers.Add("X-notes", "OOB");
-                    return StatusCode(500);
-                }
-
-                byte[] tileData = getExistingSlippyTile(tileKey, styleSet);
-                if (tileData != null) {
-                    Response.Headers.Add("X-notes", "cached");
-                    return File(tileData, "image/png");
-                }
-
-                //Make tile
-                var places = GetPlaces(info, null, styleSet);
-                var paintOps = MapTileSupport.GetPaintOpsForAreaData(dataKey, styleSet, info);
+                var paintOps = MapTileSupport.GetPaintOpsForAreas(styleSet, info);
                 tileData = FinishSlippyMapTile(info, paintOps, tileKey, styleSet);
 
                 Response.Headers.Add("X-notes", Configuration.GetValue<string>("MapTilesEngine"));
@@ -216,9 +179,6 @@ namespace PraxisMapper.Controllers {
                     return File(tileData, "image/png");
                 }
 
-                //NOTE: this is very similar, but doesn't save.
-                //var data = MapTileSupport.DrawPlusCode(code, styleSet);
-
                 //Make tile
                 var places = GetPlaces(info, null, styleSet);
                 var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, styleSet, info);
@@ -234,9 +194,9 @@ namespace PraxisMapper.Controllers {
         }
 
         [HttpGet]
-        [Route("/[controller]/DrawPlusCodeCustomData/{code}/{styleSet}/{dataKey}")]
-        [Route("/[controller]/AreaData/{code}/{styleSet}/{dataKey}")]
-        public ActionResult DrawPlusCodeCustomData(string code, string styleSet, string dataKey) {
+        [Route("/[controller]/AreaData/{code}/{styleSet}")]
+        [Route("/[controller]/AreaData/{code}")]
+        public ActionResult DrawTileAreaData(string code, string styleSet = "mapTiles") {
             Response.Headers.Add("X-noPerfTrack", "Maptiles/AreaData/" + styleSet + "/VARSREMOVED");
             try {
                 var info = new ImageStats(code);
@@ -253,41 +213,7 @@ namespace PraxisMapper.Controllers {
                 }
 
                 //Make tile
-                var places = GetPlaces(info, null, styleSet);
-                var paintOps = MapTileSupport.GetPaintOpsForAreaData(dataKey, styleSet, info);
-                tileData = FinishMapTile(info, paintOps, code, styleSet);
-
-                Response.Headers.Add("X-notes", Configuration.GetValue<string>("MapTilesEngine"));
-                return File(tileData, "image/png");
-            }
-            catch (Exception ex) {
-                ErrorLogger.LogError(ex);
-                return StatusCode(500);
-            }
-        }
-
-        [HttpGet]
-        [Route("/[controller]/DrawPlusCodeCustomElements/{code}/{styleSet}/{dataKey}")]
-        [Route("/[controller]/AreaPlaceData/{code}/{styleSet}/{dataKey}")] //Draw an area using place data.
-        public ActionResult DrawPlusCodeCustomElements(string code, string styleSet, string dataKey) {
-            Response.Headers.Add("X-noPerfTrack", "Maptiles/AreaPlaceData/" + styleSet + "/VARSREMOVED");
-            try {
-                var info = new ImageStats(code);
-
-                if (!DataCheck.IsInBounds(info.area)) {
-                    Response.Headers.Add("X-notes", "OOB");
-                    return StatusCode(500);
-                }
-
-                byte[] tileData = MapTileSupport.GetExistingTileImage(code, styleSet);
-                if (tileData != null) {
-                    Response.Headers.Add("X-notes", "cached");
-                    return File(tileData, "image/png");
-                }
-
-                //Make tile
-                var places = GetPlaces(info, null, styleSet, false);
-                var paintOps = MapTileSupport.GetPaintOpsForPlacesData(dataKey, styleSet, info);
+                var paintOps = MapTileSupport.GetPaintOpsForAreas(styleSet, info);
                 tileData = FinishMapTile(info, paintOps, code, styleSet);
 
                 Response.Headers.Add("X-notes", Configuration.GetValue<string>("MapTilesEngine"));

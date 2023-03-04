@@ -4,8 +4,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace PraxisCore
-{
+namespace PraxisCore {
     public class DbTables
     {
         public class PlayerData
