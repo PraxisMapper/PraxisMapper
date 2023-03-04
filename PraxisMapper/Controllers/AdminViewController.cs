@@ -115,7 +115,7 @@ namespace PraxisMapper.Controllers {
             ViewBag.geoType = area.ElementGeometry.GeometryType;
             ViewBag.tags = String.Join(", ", area.Tags.Select(t => t.Key + ":" + t.Value));
 
-            var geoarea = Converters.GeometryToGeoArea(area.ElementGeometry.Envelope).PadGeoArea(ConstantValues.resolutionCell10);
+            var geoarea = area.ElementGeometry.Envelope.ToGeoArea().PadGeoArea(ConstantValues.resolutionCell10);
 
             ImageStats istats = new ImageStats(geoarea, (int)(geoarea.LongitudeWidth / ConstantValues.resolutionCell11Lon) * (int)MapTileSupport.GameTileScale, (int)(geoarea.LatitudeHeight / ConstantValues.resolutionCell11Lat) * (int)MapTileSupport.GameTileScale);
             //sanity check: we don't want to draw stuff that won't fit in memory, so check for size and cap it if needed

@@ -35,14 +35,14 @@ namespace Larry {
                 if (fullArea == null)
                     return;
 
-                buffered = Converters.GeometryToGeoArea(fullArea.ElementGeometry);
+                buffered = fullArea.ElementGeometry.ToGeoArea();
                 //This should also be able to take a bounding box in addition in the future.
             }
             else
                 buffered = bounds;
 
             List<DbTables.Place> allPlaces = new List<DbTables.Place>();
-            var intersectCheck = Converters.GeoAreaToPolygon(buffered);
+            var intersectCheck = buffered.ToPolygon();
             bool pullFromPbf = false; //Set via arg at startup? or setting file?
             if (!pullFromPbf)
                 allPlaces = Place.GetPlaces(buffered);
@@ -111,7 +111,7 @@ namespace Larry {
                 var p = placeDictionary[trail.SourceItemID];
                 toRemove.Add(p);
 
-                GeoArea thisPath = Converters.GeometryToGeoArea(trail.ElementGeometry);
+                GeoArea thisPath = trail.ElementGeometry.ToGeoArea();
                 List<DbTables.Place> oneEntry = new List<DbTables.Place>();
                 oneEntry.Add(trail);
 

@@ -246,8 +246,8 @@ namespace PraxisCore
         {
             //TODO: this throws an error about update locks can't be acquired in a READ UNCOMMITTED block or something when key != "" on MariaDB.
             var db = new PraxisContext();
-            var plusCodeArea = OpenLocationCode.DecodeValid(plusCode);
-            var plusCodePoly = Converters.GeoAreaToPolygon(plusCodeArea);
+            var plusCodeArea = plusCode.ToGeoArea();
+            var plusCodePoly = plusCodeArea.ToPolygon();
             var plusCodeData = db.AreaData.Where(d => plusCodePoly.Contains(d.GeoAreaIndex) && (key == "" || key == d.DataKey) && d.IvData == null)
                 .ToList() //Required to run the next Where on the C# side
                 .Where(row => row.Expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.UtcNow)
@@ -262,7 +262,7 @@ namespace PraxisCore
         {
             //TODO: this throws an error about update locks can't be acquired in a READ UNCOMMITTED block or something when key != "" on MariaDB.
             var db = new PraxisContext();
-            var poly = Converters.GeoAreaToPolygon(area);
+            var poly = area.ToPolygon();
             var data = db.AreaData.Where(d => poly.Contains(d.GeoAreaIndex) && (key == "" || key == d.DataKey) && d.IvData == null)
                 .ToList() //Required to run the next Where on the C# side
                 .Where(row => row.Expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.UtcNow)

@@ -51,7 +51,7 @@ namespace PraxisCore
                 queryable = queryable.Include(q => q.Tags).Include(q => q.PlaceData);
 
             var paddedArea = GeometrySupport.MakeBufferedGeoArea(area);
-            var location = Converters.GeoAreaToPolygon(paddedArea); 
+            var location = paddedArea.ToPolygon(); 
             queryable = queryable.Where(md => location.Intersects(md.ElementGeometry) && md.DrawSizeHint >= filterSize).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length);
 
             if (skipGeometry)
@@ -85,7 +85,7 @@ namespace PraxisCore
         /// <returns>true if any Places intersect the given GeoArea, false if not.</returns>
         public static bool DoPlacesExist(GeoArea area, List<DbTables.Place> source = null)
         {
-            var location = Converters.GeoAreaToPolygon(area);
+            var location = area.ToPolygon();
             if (source == null)
             {
                 var db = new PraxisContext();

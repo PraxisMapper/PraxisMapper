@@ -57,7 +57,7 @@ namespace PraxisMapper.Controllers {
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
                 var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.StyleSet == styleSet);
                 if (existingResults == null) {
-                    existingResults = new SlippyMapTile() { Values = tileKey, StyleSet = styleSet, AreaCovered = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(info.area)) };
+                    existingResults = new SlippyMapTile() { Values = tileKey, StyleSet = styleSet, AreaCovered = GeometrySupport.MakeBufferedGeoArea(info.area).ToPolygon() };
                     db.SlippyMapTiles.Add(existingResults);
                 }
                 else

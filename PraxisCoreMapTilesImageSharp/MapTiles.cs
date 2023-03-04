@@ -285,6 +285,7 @@ namespace PraxisCore {
             //This is the new core drawing function. Once the paint operations have been created, I just draw them here.
             //baseline image data stuff
             var image = new Image<Rgba32>(stats.imageSizeX, stats.imageSizeY);
+            var trimPoly = stats.area.ToPolygon();
             foreach (var w in paintOps.OrderByDescending(p => p.paintOp.LayerId).ThenByDescending(p => p.drawSizeHint)) {
                 //I need paints for fill commands and images. 
                 var paint = cachedPaints[w.paintOp.Id];
@@ -313,7 +314,7 @@ namespace PraxisCore {
                 //This block below is fairly imporant because of Path.Clip() performance. I would still prefer to do this over the original way of handling holes in paths (draw bitmap of outer polygons, erase holes with eraser paint, draw that bitmap over maptile)
                 //it doesn't ALWAYS cause problems if I skip this, but when it does it takes forever to draw some tiles. Keep this in even if it only seems to happen with debug mode on.
                 if (w.elementGeometry.Coordinates.Length > 800)
-                    thisGeometry = w.elementGeometry.Intersection(Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(stats.area)));
+                    thisGeometry = w.elementGeometry.Intersection(trimPoly);
                 if (thisGeometry.Coordinates.Length == 0) //After trimming, linestrings may not have any points in the drawing area.
                     continue;
 

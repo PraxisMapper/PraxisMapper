@@ -93,7 +93,7 @@ namespace PraxisCore.Standalone {
         public static void DrawMapTilesStandalone(long relationID, GeoArea buffered, List<DbTables.Place> allPlaces, bool saveToFolder)
         {
 
-            var intersectCheck = Converters.GeoAreaToPolygon(buffered);
+            var intersectCheck = buffered.ToPolygon();
             //start drawing maptiles and sorting out data.
             var swCorner = new OpenLocationCode(intersectCheck.EnvelopeInternal.MinY, intersectCheck.EnvelopeInternal.MinX);
             var neCorner = new OpenLocationCode(intersectCheck.EnvelopeInternal.MaxY, intersectCheck.EnvelopeInternal.MaxX);
@@ -133,7 +133,7 @@ namespace PraxisCore.Standalone {
                 //Make a collision box for just this row of Cell8s, and send the loop below just the list of things that might be relevant.
                 //Add a Cell8 buffer space so all elements are loaded and drawn without needing to loop through the entire area.
                 GeoArea thisRow = new GeoArea(y - ConstantValues.resolutionCell8, xCoords.First() - ConstantValues.resolutionCell8, y + ConstantValues.resolutionCell8 + ConstantValues.resolutionCell8, xCoords.Last() + resolutionCell8);
-                var row = Converters.GeoAreaToPolygon(thisRow); 
+                var row = thisRow.ToPolygon();
                 var rowList = allPlaces.Where(a => row.Intersects(a.ElementGeometry)).ToList();
 
                 Parallel.ForEach(xCoords, x =>
@@ -145,7 +145,7 @@ namespace PraxisCore.Standalone {
                     var plusCodeArea = OpenLocationCode.DecodeValid(plusCode8);
 
                     var areaForTile = new GeoArea(new GeoPoint(plusCodeArea.SouthLatitude, plusCodeArea.WestLongitude), new GeoPoint(plusCodeArea.NorthLatitude, plusCodeArea.EastLongitude));
-                    var acheck = Converters.GeoAreaToPolygon(areaForTile); //this is faster than using a PreparedPolygon in testing, which was unexpected.
+                    var acheck = areaForTile.ToPolygon();
                     var areaList = rowList.Where(a => acheck.Intersects(a.ElementGeometry)).ToList(); //This one is for the maptile
 
                     //Create the maptile first, so if we save it to the DB/a file we can call the lock once per loop.
@@ -185,7 +185,7 @@ namespace PraxisCore.Standalone {
         public static ConcurrentDictionary<string, List<DbTables.Place>> IndexAreasPerCell6(GeoArea buffered, List<DbTables.Place> allPlaces)
         {
             //NOTE: this could use the same optimization I applied to drawing map tiles
-            var intersectCheck = Converters.GeoAreaToPolygon(buffered);
+            var intersectCheck = buffered.ToPolygon();
             //start drawing maptiles and sorting out data.
             var swCorner = new OpenLocationCode(intersectCheck.EnvelopeInternal.MinY, intersectCheck.EnvelopeInternal.MinX);
             var neCorner = new OpenLocationCode(intersectCheck.EnvelopeInternal.MaxY, intersectCheck.EnvelopeInternal.MaxX);
@@ -218,7 +218,7 @@ namespace PraxisCore.Standalone {
                 //Make a collision box for just this row of Cell8s, and send the loop below just the list of things that might be relevant.
                 //Add a Cell8 buffer space so all elements are loaded and drawn without needing to loop through the entire area.
                 GeoArea thisRow = new GeoArea(y - ConstantValues.resolutionCell8, xCoords.First() - ConstantValues.resolutionCell8, y + ConstantValues.resolutionCell8 + ConstantValues.resolutionCell8, xCoords.Last() + resolutionCell8);
-                var row = Converters.GeoAreaToPolygon(thisRow);
+                var row = thisRow.ToPolygon();
                 var rowList = allPlaces.Where(a => row.Intersects(a.ElementGeometry)).ToList();
 
                 Parallel.ForEach(xCoords, x =>
@@ -229,7 +229,7 @@ namespace PraxisCore.Standalone {
                     var plusCodeArea = OpenLocationCode.DecodeValid(plusCode6);
 
                     var areaForTile = new GeoArea(new GeoPoint(plusCodeArea.SouthLatitude, plusCodeArea.WestLongitude), new GeoPoint(plusCodeArea.NorthLatitude, plusCodeArea.EastLongitude));
-                    var acheck = Converters.GeoAreaToPolygon(areaForTile); //this is faster than using a PreparedPolygon in testing, which was unexpected.
+                    var acheck = areaForTile.ToPolygon();
                     var areaList = rowList.Where(a => acheck.Intersects(a.ElementGeometry)).ToList(); 
 
                     results.TryAdd(plusCode6, areaList);
