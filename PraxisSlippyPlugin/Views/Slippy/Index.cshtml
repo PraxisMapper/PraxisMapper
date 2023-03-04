@@ -19,16 +19,16 @@
     var serverKey = "testingKey"; //TODO: lock this page to only localhost or find an alternate way to obfuscate this.
         var baseSite = window.location.href.toLowerCase().replace("/slippy", "");
         var url = baseSite + '/{id}/{z}/{x}/{y}.png?PraxisAuthKey=' + serverKey;
-        var baseData = L.tileLayer(url, {id: "MapTile/DrawSlippyTile", tileSize:512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
-        var ptt = L.tileLayer(url, { id: "MapTile/SlippyAreaData/paintTown/color", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
-        var ac = L.tileLayer(url, { id: "MapTile/SlippyPlaceData/teamColor/team", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
+        var baseData = L.tileLayer(url, {id: "MapTile/Slippy", tileSize:512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
+        var ptt = L.tileLayer(url, { id: "MapTile/SlippyAreaData/paintTown", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
+        var ac = L.tileLayer(url, { id: "MapTile/Slippy/teamColor", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
         var generated = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
-        var adminBounds = L.tileLayer(url, { id: "MapTile/DrawSlippyTile/adminBounds", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
+        var adminBounds = L.tileLayer(url, { id: "MapTile/Slippy/adminBounds", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
         var adminBounds2 = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
         var baseDataTEstV4 = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
         var offlineEstimateAreas = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
-        var outlineAll = L.tileLayer(url, { id: "MapTile/DrawSlippyTile/outlines", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
-        var suggested = L.tileLayer(url, { id: "MapTile/DrawSlippyTile/suggestedGameplay", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
+        var outlineAll = L.tileLayer(url, { id: "MapTile/Slippy/outlines", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
+        var suggested = L.tileLayer(url, { id: "MapTile/Slippy/suggestedGameplay", tileSize: 512, maxZoom: 20, minZoom: 5, zoomOffset: -1 });
 
         //var baseLayers = {
         //    "Base Data": baseData,

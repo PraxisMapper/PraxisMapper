@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using static PraxisCore.DbTables;
 using static PraxisCore.Singletons;
 
 namespace PraxisCore
@@ -142,6 +143,18 @@ namespace PraxisCore
             var coordArray = shapePoints.First().Select(s => new Coordinate(s.X, s.Y)).ToArray();
             var poly = new Polygon(new LinearRing(coordArray));
             return poly;
+        }
+
+        public static DbTables.Place ToPlace(this AreaData ad, string styleSet) {
+            var dbPlace = new DbTables.Place();
+            dbPlace.ElementGeometry = ad.GeoAreaIndex;
+            var style = TagParser.GetStyleEntry(new List<AreaData> { ad }, styleSet);
+            dbPlace.StyleName = style.Name;
+            dbPlace.IsGameElement = style.IsGameElement;
+            dbPlace.DrawSizeHint = 99999;
+            dbPlace.Tags = new List<PlaceTags>() { new PlaceTags() { Key = ad.DataKey, Value = ad.DataValue.ToUTF8String() } };
+
+            return dbPlace;
         }
     }
 }

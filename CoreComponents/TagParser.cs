@@ -7,8 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using static PraxisCore.DbTables;
 
-namespace PraxisCore
-{
+namespace PraxisCore {
     //NOTE:
     //per https://lists.openstreetmap.org/pipermail/talk/2008-February/023419.html
     // Mapnik uses at least 5 layers internally for its tiles. (roughly, in top to bottom order)
@@ -402,10 +401,27 @@ namespace PraxisCore
                 return tag.Value;
 
             var data = place.PlaceData.FirstOrDefault(p => p.DataKey == key);
-            if (data != null && data.DataValue != null && data.Expiration >= DateTime.UtcNow)
+            if (data != null && data.DataValue != null && (data.Expiration == null || data.Expiration >= DateTime.UtcNow))
                 return data.DataValue.ToUTF8String();
 
             return "";
+        }
+
+        public static bool GetTagValue(DbTables.Place place, string key, out string value) {
+            var tag = place.Tags.FirstOrDefault(t => t.Key == key);
+            if (tag != null && tag.Value != null) {
+                value = tag.Value;
+                return true;
+            }
+
+            var data = place.PlaceData.FirstOrDefault(p => p.DataKey == key);
+            if (data != null && data.DataValue != null && (data.Expiration == null || data.Expiration >= DateTime.UtcNow)) {
+                value = data.DataValue.ToUTF8String();
+                return true;
+            }
+
+            value = "";
+            return false;
         }
 
         /// <summary>

@@ -293,8 +293,10 @@ namespace PraxisCore {
                 if (w.paintOp.Randomize) //To randomize the color on every Draw call.
                     w.paintOp.HtmlColorCode = "99" + ((byte)Random.Shared.Next(0, 255)).ToString() + ((byte)Random.Shared.Next(0, 255)).ToString() + ((byte)Random.Shared.Next(0, 255)).ToString();
 
-                if (w.paintOp.FromTag) //FromTag is for when you are saving color data directly to each element, instead of tying it to a styleset.
+                if (w.paintOp.FromTag) {  //FromTag is for when you are saving color data directly to each element, instead of tying it to a styleset.
                     w.paintOp.HtmlColorCode = w.tagValue;
+                    paint = SetPaintForTPP(w.paintOp);
+                }
 
                 if (stats.area.LongitudeWidth != resolutionCell8) {
                     //recreate pen for this operation instead of using cached pen.

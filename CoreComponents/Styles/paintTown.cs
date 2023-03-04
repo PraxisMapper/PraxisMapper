@@ -11,7 +11,7 @@ namespace PraxisCore.Styles
         //paintTown: A simple styleset that pulls the color to use from the tag provided
         public static List<StyleEntry> style = new List<StyleEntry>() 
         { 
-            new StyleEntry() { MatchOrder = 1, Name ="tag",  StyleSet = "paintTown",
+            new StyleEntry() { MatchOrder = 1, Name ="ptcolor",  StyleSet = "paintTown",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "01000000", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, FromTag=true }
                 },

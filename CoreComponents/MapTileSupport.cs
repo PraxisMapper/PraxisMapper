@@ -1,6 +1,5 @@
 ﻿using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
-using NetTopologySuite.Geometries;
 using PraxisCore.Support;
 using System;
 using System.Collections.Concurrent;
@@ -13,15 +12,13 @@ using static PraxisCore.ConstantValues;
 using static PraxisCore.DbTables;
 using static PraxisCore.Place;
 
-namespace PraxisCore
-{
+namespace PraxisCore {
     /// <summary>
     /// All functions related to map tiles that don't directly involve the drawing engine itself.
     /// </summary>
 
     //These functions are ones related to MapTiles that Don't actually do any drawing, and don't need duplicated between the multiple drawing engines.
-    public static class MapTileSupport
-    {
+    public static class MapTileSupport {
         public static IMapTiles MapTiles; //This needs set at startup.
 
         public static int SlippyTileSizeSquare = 512;
@@ -34,10 +31,8 @@ namespace PraxisCore
         /// <param name="code">the code provided to determine image size</param>
         /// <param name="X">out param for image width</param>
         /// <param name="Y">out param for image height</param>
-        public static void GetPlusCodeImagePixelSize(string code, out int X, out int Y)
-        {
-            switch (code.Length)
-            {
+        public static void GetPlusCodeImagePixelSize(string code, out int X, out int Y) {
+            switch (code.Length) {
                 case 10:
                     X = 4;
                     Y = 5;
@@ -63,10 +58,8 @@ namespace PraxisCore
             Y = (int)(Y * MapTileSupport.GameTileScale);
         }
 
-        public static void GetPlusCodeImagePixelSize(ReadOnlySpan<char> code, out int X, out int Y)
-        {
-            switch (code.Length)
-            {
+        public static void GetPlusCodeImagePixelSize(ReadOnlySpan<char> code, out int X, out int Y) {
+            switch (code.Length) {
                 case 10:
                     X = 4;
                     Y = 5;
@@ -92,8 +85,7 @@ namespace PraxisCore
             Y = (int)(Y * MapTileSupport.GameTileScale);
         }
 
-        public static byte[] DrawPlusCode(ReadOnlySpan<char> area, string styleSet = "mapTiles")
-        {
+        public static byte[] DrawPlusCode(ReadOnlySpan<char> area, string styleSet = "mapTiles") {
             //This might be a cleaner version of my V4 function, for working with CellX sized tiles..
             //This will draw at a Cell11 resolution automatically.
             //Split it into a few functions.
@@ -112,8 +104,7 @@ namespace PraxisCore
         /// <param name="styleSet">the TagParser style set to use when drawing</param>
         /// <param name="doubleRes">treat each Cell11 contained as 2x2 pixels when true, 1x1 when not.</param>
         /// <returns></returns>
-        public static byte[] DrawPlusCode(string area, string styleSet = "mapTiles")
-        {
+        public static byte[] DrawPlusCode(string area, string styleSet = "mapTiles") {
             //This might be a cleaner version of my V4 function, for working with CellX sized tiles..
             //This will draw at a Cell11 resolution automatically.
             //Split it into a few functions.
@@ -131,183 +122,69 @@ namespace PraxisCore
         /// <param name="area">the PlusCode string to draw. Can be 6-11 digits long</param>
         /// <param name="paintOps">the list of paint operations to run through for drawing</param>
         /// <returns>a byte array for the png file of the pluscode image file</returns>
-        public static byte[] DrawPlusCode(string area, List<CompletePaintOp> paintOps)
-        {
+        public static byte[] DrawPlusCode(string area, List<CompletePaintOp> paintOps) {
             var info = new ImageStats(area);
             return MapTiles.DrawAreaAtSize(info, paintOps);
         }
 
-        public static byte[] DrawPlusCode(ReadOnlySpan<char> area, List<CompletePaintOp> paintOps)
-        {
+        public static byte[] DrawPlusCode(ReadOnlySpan<char> area, List<CompletePaintOp> paintOps) {
             var info = new ImageStats(area);
             return MapTiles.DrawAreaAtSize(info, paintOps);
         }
 
-        //future version of GetPaintOps that should let me consolidate functions in the future
-        private static void GetPaintOpsInner(ref List<CompletePaintOp> list, DbTables.Place place, ICollection<StylePaint> midOps, ImageStats stats, string dataKey = "")
-        {
+        private static void GetPaintOpsInner(ref List<CompletePaintOp> list, DbTables.Place place, ICollection<StylePaint> midOps, ImageStats stats) {
+            string tagColor = "";
             foreach (var po in midOps)
                 if (stats.degreesPerPixelX < po.MaxDrawRes
                     && stats.degreesPerPixelX > po.MinDrawRes //dppX should be between max and min draw range.
                     && !(po.HtmlColorCode.Length == 8 && po.HtmlColorCode.StartsWith("00")) //color is NOT transparent.
+                    && (!po.FromTag || TagParser.GetTagValue(place, place.StyleName, out tagColor))
                     )
                     list.Add(new CompletePaintOp(
                         place.ElementGeometry,
                         place.DrawSizeHint,
                         po,
-                        po.FromTag ? TagParser.GetTagValue(place, dataKey) : "",
+                        tagColor,
                         po.FixedWidth == 0 ? po.LineWidthDegrees * stats.pixelsPerDegreeX : po.FixedWidth)
                     );
         }
 
-        private static void GetPaintOps(ref List<CompletePaintOp> list, double areaSize, Geometry elementGeometry, ICollection<StylePaint> midOps, ImageStats stats)
-        {
-            foreach (var po in midOps)
-                if (stats.degreesPerPixelX < po.MaxDrawRes
-                    && stats.degreesPerPixelX > po.MinDrawRes //dppX should be between max and min draw range.
-                    && !(po.HtmlColorCode.Length == 8 && po.HtmlColorCode.StartsWith("00")) //color is NOT transparent.
-                    )
-                    list.Add(new CompletePaintOp(elementGeometry, areaSize, po, "", po.FixedWidth == 0 ? po.LineWidthDegrees * stats.pixelsPerDegreeX :  po.FixedWidth));
-        }
-
-        //and this is the future replacement version of GetPAintOpsForPlaces that should consolidate some of the calls. Needs a version for areas still.
-        public static List<CompletePaintOp> GetPaintOps(List<DbTables.Place> places, string styleSet, ImageStats stats, string dataKey = "")
-        {
-            //TODO: add support here for reading FromTag styles? This needs to be checked.
-            // -- should be done the step below, for inner ops.
-            //TODO: add DataValue parameter when drawing from data. SHOULD happen automatically now that i add placeData to the tags, since that will set the style name.
-            // --This will let me remove the PaintTown version of GetPaintOps
-            // --the dataKey used to be passed in, and the value of the tag in dataKey was used as the style name
-
-            //TagParser will already have run for the style set, so everything will have StyleName filled in. That will also include entries from Data instead of Tags.
-            //so the only check should be to see if the style is FromTag, and then load it from the tag?
-            //This might be done, actually, and the issue isn't that this logic needed extra work as much as drawing by areas is a special case and TagParser needed to load Data.
-            //May want a version that takes areas and draws those, but that should stick to the naming schemes of just GetPaintOps and let parameters decide.
-
+        public static List<CompletePaintOp> GetPaintOpsForPlaces(List<DbTables.Place> places, string styleSet, ImageStats stats) {
             var styles = TagParser.allStyleGroups[styleSet];
-            var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
+            var bgOp = new CompletePaintOp(stats.area.ToPolygon(), 1, styles["background"].PaintOperations.First(), "background", 1);
             var pass1 = places.Select(d => new { place = d, paintOp = styles[d.StyleName].PaintOperations });
             var pass2 = new List<CompletePaintOp>(places.Count * 2);
             pass2.Add(bgOp);
             foreach (var op in pass1)
-                GetPaintOpsInner(ref pass2, op.place, op.paintOp, stats, dataKey);
+                GetPaintOpsInner(ref pass2, op.place, op.paintOp, stats);
 
             return pass2;
         }
 
-        /// <summary>
-        /// Creates the list of paint commands for the given elements, styles, and image area.
-        /// </summary>
-        /// <param name="places">the list of Places to be drawn</param>
-        /// <param name="styleSet">the style set to use when drwaing the elements</param>
-        /// <param name="stats">the info on the resulting image for calculating ops.</param>
-        /// <returns>a list of CompletePaintOps to be passed into a DrawArea function</returns>
-        public static List<CompletePaintOp> GetPaintOpsForPlaces(List<DbTables.Place> places, string styleSet, ImageStats stats)
-        {
+        public static List<CompletePaintOp> GetPaintOpsForAreas(string styleSet, ImageStats stats) {
             var styles = TagParser.allStyleGroups[styleSet];
-            var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
-            var pass1 = places.Select(d => new { d.DrawSizeHint, d.ElementGeometry, paintOp = styles[d.StyleName].PaintOperations });
-            var pass2 = new List<CompletePaintOp>(places.Count * 2);
-            pass2.Add(bgOp);
-            foreach (var op in pass1)
-                GetPaintOps(ref pass2, op.DrawSizeHint, op.ElementGeometry, op.paintOp, stats);
-
-            return pass2;
-        }
-
-        /// <summary>
-        /// Creates the list of paint commands for the elements intersecting the given area, with the given data key attached to OSM elements and style set, for the image.
-        /// </summary>
-        /// <param name="dataKey">the key to pull data from attached to any Osm Elements intersecting the area</param>
-        /// <param name="styleSet">the style set to use when drawing the intersecting elements</param>
-        /// <param name="stats">the info on the resulting image for calculating ops.</param>
-        /// <returns>a list of CompletePaintOps to be passed into a DrawArea function</returns>
-        public static List<CompletePaintOp> GetPaintOpsForPlacesData(string dataKey, string styleSet, ImageStats stats)
-        {
-            //NOTE: this is being passed in an Area as a Geometry. The name needs clarified to show its drawing a maptile based on the gameplay data for places in that area.
             var db = new PraxisContext();
-            var poly = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(stats.area));
-            var elements = db.PlaceData.Include(d => d.Place).Where(d => d.DataKey == dataKey && poly.Intersects(d.Place.ElementGeometry)).ToList();
-            var styles = TagParser.allStyleGroups[styleSet];
-            var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
-            var pass1 = elements.Select(d => new { d.Place.DrawSizeHint, d.Place.ElementGeometry, paintOp = styles[d.DataValue.ToUTF8String()].PaintOperations, d.DataValue });
+            var searchPoly = GeometrySupport.MakeBufferedGeoArea(stats.area).ToPolygon();
+            var drawPoly = stats.area.ToPolygon();
+            var elements = db.AreaData.Where(d => searchPoly.Intersects(d.GeoAreaIndex)).ToList(); //Each of these will be a single tag/value and a plusCode.
+            
+            var bgOp = new CompletePaintOp(drawPoly, 1, styles["background"].PaintOperations.First(), "background", 1);
+            var pass1 = elements.Select(d => new { place = d.ToPlace(styleSet), paintOp = styles[TagParser.GetStyleEntry(new List<AreaData>() { d }, styleSet).Name].PaintOperations });
             var pass2 = new List<CompletePaintOp>(elements.Count * 2);
             pass2.Add(bgOp);
             foreach (var op in pass1)
-                GetPaintOps(ref pass2, op.DrawSizeHint, op.ElementGeometry, op.paintOp, stats);
+                GetPaintOpsInner(ref pass2, op.place, op.paintOp, stats);
 
             return pass2;
         }
 
-        public static List<CompletePaintOp> GetPaintOpsForPlacesParseTags(List<DbTables.Place> places, string styleSet, ImageStats stats)
-        {
-            //This one will be slightly slower since it runs TagParser on each entry, but that lets us have a fallback value if we don't find a specific entry.
-            var styles = TagParser.allStyleGroups[styleSet];
-            var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
-            var pass1 = places.Select(d => new { d.DrawSizeHint, d.ElementGeometry, paintOp = styles[TagParser.GetStyleName(d, styleSet)].PaintOperations });
-            var pass2 = new List<CompletePaintOp>(places.Count * 2);
-            pass2.Add(bgOp);
-            foreach (var op in pass1)
-                GetPaintOps(ref pass2, op.DrawSizeHint, op.ElementGeometry, op.paintOp, stats);
-
-            return pass2;
-        }
-
-        //This function only works if all the dataValue entries are a key in styles
-        /// <summary>
-        /// Creates the list of paint commands for the PlusCode cells intersecting the given area, with the given data key and style set, for the image.
-        /// </summary>
-        /// <param name="dataKey">the key to pull data from attached to any Osm Elements intersecting the area</param>
-        /// <param name="styleSet">the style set to use when drawing the intersecting elements</param>
-        /// <param name="stats">the info on the resulting image for calculating ops.</param>
-        /// <returns>a list of CompletePaintOps to be passed into a DrawArea function</returns>
-        public static List<CompletePaintOp> GetPaintOpsForAreaData(string dataKey, string styleSet, ImageStats stats)
-        {
-            var db = new PraxisContext();
-            var poly = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(stats.area));
-            var elements = db.AreaData.Where(d => d.DataKey == dataKey && poly.Intersects(d.GeoAreaIndex)).ToList();
-            var styles = TagParser.allStyleGroups[styleSet];
-            var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
-            var pass1 = elements.Select(d => new { d.GeoAreaIndex.Area, d.GeoAreaIndex, paintOp = styles[d.DataValue.ToUTF8String()].PaintOperations, d.DataValue });
-            var pass2 = new List<CompletePaintOp>(elements.Count * 2);
-            pass2.Add(bgOp);
-            foreach (var op in pass1)
-                GetPaintOps(ref pass2, op.Area, op.GeoAreaIndex, op.paintOp, stats);
-
-            return pass2;
-        }
-
-        //Allows for 1 style to pull a color from the custom data value.
-        /// <summary>
-        /// Creates the list of paint commands for the PlusCode cells intersecting the given area, with the given data key and style set, for the image. In this case, the color will be the tag's value.
-        /// </summary>
-        /// <param name="dataKey">the key to pull data from attached to any Osm Elements intersecting the area</param>
-        /// <param name="styleSet">the style set to use when drawing the intersecting elements</param>
-        /// <param name="stats">the info on the resulting image for calculating ops.</param>
-        /// <returns>a list of CompletePaintOps to be passed into a DrawArea function</returns>
-        public static List<CompletePaintOp> GetPaintOpsForAreaDataByTag(string dataKey, string styleSet, ImageStats stats)
-        {
-            var db = new PraxisContext();
-            var poly = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(stats.area));
-            var elements = db.AreaData.Where(d => d.DataKey == dataKey && poly.Intersects(d.GeoAreaIndex)).ToList();
-            var styles = TagParser.allStyleGroups[styleSet];
-            var bgOp = new CompletePaintOp(Converters.GeoAreaToPolygon(stats.area), 1, styles["background"].PaintOperations.First(), "background", 1);
-            var pass1 = elements.Select(d => new { d.GeoAreaIndex.Area, d.GeoAreaIndex, paintOp = styles["tag"].PaintOperations, d.DataValue });
-            var pass2 = new List<CompletePaintOp>(elements.Count * 2); //assuming each element has a Fill and Stroke op separately
-            pass2.Add(bgOp);
-            foreach (var op in pass1)
-                GetPaintOps(ref pass2, op.Area, op.GeoAreaIndex, op.paintOp, stats);
-
-            return pass2;
-        }
 
         /// <summary>
         /// Creates all gameplay tiles for a given area and saves them to the database (or files, if that option is set)
         /// </summary>
         /// <param name="areaToDraw">the GeoArea of the area to create tiles for.</param>
         /// <param name="saveToFiles">If true, writes to files in the output folder. If false, saves to DB.</param>
-        public static void PregenMapTilesForArea(GeoArea areaToDraw, bool saveToFiles = false)
-        {
+        public static void PregenMapTilesForArea(GeoArea areaToDraw, bool saveToFiles = false) {
             //There is a very similar function for this in Standalone.cs, but this one writes back to the main DB.
             var intersectCheck = Converters.GeoAreaToPolygon(areaToDraw);
             //start drawing maptiles and sorting out data.
@@ -327,16 +204,14 @@ namespace PraxisCore
             //now, for every Cell8 involved, draw and name it.
             var yCoords = new List<double>((int)(intersectCheck.EnvelopeInternal.Height / resolutionCell8) + 1);
             var yVal = swCorner.Decode().SouthLatitude;
-            while (yVal <= neCorner.Decode().NorthLatitude)
-            {
+            while (yVal <= neCorner.Decode().NorthLatitude) {
                 yCoords.Add(yVal);
                 yVal += resolutionCell8;
             }
 
             var xCoords = new List<double>((int)(intersectCheck.EnvelopeInternal.Width / resolutionCell8) + 1);
             var xVal = swCorner.Decode().WestLongitude;
-            while (xVal <= neCorner.Decode().EastLongitude)
-            {
+            while (xVal <= neCorner.Decode().EastLongitude) {
                 xCoords.Add(xVal);
                 xVal += resolutionCell8;
             }
@@ -345,8 +220,7 @@ namespace PraxisCore
 
             object listLock = new object();
             DateTime expiration = DateTime.UtcNow.AddYears(10);
-            foreach (var y in yCoords)
-            {
+            foreach (var y in yCoords) {
                 System.Diagnostics.Stopwatch thisRowSW = new System.Diagnostics.Stopwatch();
                 thisRowSW.Start();
                 var db = new PraxisContext();
@@ -359,34 +233,31 @@ namespace PraxisCore
 
                 Parallel.ForEach(xCoords, x =>
                 {
-                    //make map tile.
-                    var plusCode = new OpenLocationCode(y, x, 10);
-                    var plusCode8 = plusCode.CodeDigits.Substring(0, 8);
-                    var plusCodeArea = OpenLocationCode.DecodeValid(plusCode8);
-                    var paddedArea = GeometrySupport.MakeBufferedGeoArea(plusCodeArea);
+                //make map tile.
+                var plusCode = new OpenLocationCode(y, x, 10);
+                var plusCode8 = plusCode.CodeDigits.Substring(0, 8);
+                var plusCodeArea = OpenLocationCode.DecodeValid(plusCode8);
+                var paddedArea = GeometrySupport.MakeBufferedGeoArea(plusCodeArea);
 
-                    var acheck = Converters.GeoAreaToPreparedPolygon(paddedArea); //Fastest search option is one preparedPolygon against a list of normal geometry.
-                    var areaList = rowList.Where(a => acheck.Intersects(a.ElementGeometry)).ToList(); //Get the list of areas in this maptile.
+                var acheck = Converters.GeoAreaToPreparedPolygon(paddedArea); //Fastest search option is one preparedPolygon against a list of normal geometry.
+                var areaList = rowList.Where(a => acheck.Intersects(a.ElementGeometry)).ToList(); //Get the list of areas in this maptile.
 
-                    var info = new ImageStats(plusCode8);
-                    //new setup.
-                    var areaPaintOps = GetPaintOpsForPlaces(areaList, "mapTiles", info);
-                    var tile = DrawPlusCode(plusCode8, areaPaintOps);
+                var info = new ImageStats(plusCode8);
+                //new setup.
+                var areaPaintOps = GetPaintOpsForPlaces(areaList, "mapTiles", info);
+                var tile = DrawPlusCode(plusCode8, areaPaintOps);
 
-                    if (saveToFiles)
-                    {
-                        File.WriteAllBytes("GameTiles\\" + plusCode8 + ".png", tile);
-                    }
-                    else
-                    {
-                        var thisTile = new MapTile() { TileData = tile, PlusCode = plusCode8, ExpireOn = expiration, AreaCovered = acheck.Geometry, StyleSet = "mapTiles" };
-                        lock (listLock)
-                            tilesToSave.Add(thisTile);
-                    }
+                if (saveToFiles) {
+                    File.WriteAllBytes("GameTiles\\" + plusCode8 + ".png", tile);
+                }
+                else {
+                    var thisTile = new MapTile() { TileData = tile, PlusCode = plusCode8, ExpireOn = expiration, AreaCovered = acheck.Geometry, StyleSet = "mapTiles" };
+                    lock (listLock)
+                        tilesToSave.Add(thisTile);
+                }
                 });
                 mapTileCounter += xCoords.Count;
-                if (!saveToFiles)
-                {
+                if (!saveToFiles) {
                     db.MapTiles.AddRange(tilesToSave);
                     db.SaveChanges();
                 }
@@ -402,8 +273,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="buffered">the GeoArea to generate tiles for</param>
         /// <param name="zoomLevel">the zoom level to generate tiles at.</param>
-        public static void PregenSlippyMapTilesForArea(GeoArea buffered, int zoomLevel)
-        {
+        public static void PregenSlippyMapTilesForArea(GeoArea buffered, int zoomLevel) {
             //There is a very similar function for this in Standalone.cs, but this one writes back to the main DB.
             var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
@@ -426,8 +296,7 @@ namespace PraxisCore
             progressTimer.Start();
 
             //foreach (var y in yCoords)
-            for (var y = neCornerLat; y <= swCornerLat; y++)
-            {
+            for (var y = neCornerLat; y <= swCornerLat; y++) {
                 //Make a collision box for just this row of Cell8s, and send the loop below just the list of things that might be relevant.
                 //Add a Cell8 buffer space so all elements are loaded and drawn without needing to loop through the entire area.
                 GeoArea thisRow = new GeoArea(Converters.SlippyYToLat(y + 1, zoomLevel) - ConstantValues.resolutionCell8,
@@ -438,8 +307,7 @@ namespace PraxisCore
                 var rowList = GetPlaces(thisRow);
                 var tilesToSave = new ConcurrentBag<SlippyMapTile>();
 
-                Parallel.For(swCornerLon, neCornerLon + 1, (x) =>
-                {
+                Parallel.For(swCornerLon, neCornerLon + 1, (x) => {
                     //make map tile.
                     var info = new ImageStats(zoomLevel, x, y, MapTileSupport.SlippyTileSizeSquare);
                     var acheck = Converters.GeoAreaToPolygon(info.area); //this is faster than using a PreparedPolygon in testing, which was unexpected.
@@ -459,8 +327,7 @@ namespace PraxisCore
             Log.WriteLog("Zoom " + zoomLevel + " map tiles drawn in " + progressTimer.Elapsed.ToString());
         }
 
-        public static long SaveMapTile(string code, string styleSet, byte[] image)
-        {
+        public static long SaveMapTile(string code, string styleSet, byte[] image) {
             var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.StyleSet == styleSet);
@@ -478,8 +345,7 @@ namespace PraxisCore
             return existingResults.GenerationID;
         }
 
-        public static byte[] GetExistingTileImage(string code, string styleSet)
-        {
+        public static byte[] GetExistingTileImage(string code, string styleSet) {
             var db = new PraxisContext();
             var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.StyleSet == styleSet);
             if (existingResults == null || existingResults.ExpireOn < DateTime.UtcNow)
