@@ -466,11 +466,12 @@ namespace PraxisCore
             var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.StyleSet == styleSet);
-            if (existingResults == null)
-            {
+            if (existingResults == null) {
                 existingResults = new MapTile() { PlusCode = code, StyleSet = styleSet, AreaCovered = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(code.ToGeoArea())) };
                 db.MapTiles.Add(existingResults);
             }
+            else
+                db.Entry(existingResults).State = EntityState.Modified;
 
             existingResults.ExpireOn = DateTime.UtcNow.AddYears(10);
             existingResults.TileData = image;
