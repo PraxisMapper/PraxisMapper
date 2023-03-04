@@ -497,9 +497,9 @@ namespace Larry {
                 var asm2 = Assembly.LoadFrom(@"PraxisMapTilesImageSharp.dll");
                 MapTiles = (IMapTiles)Activator.CreateInstance(asm2.GetType("PraxisCore.MapTiles"));
             }
-            IMapTiles.GameTileScale = config["mapTileScaleFactor"].ToInt();
-            IMapTiles.SlippyTileSizeSquare = config["slippyTileSize"].ToInt();
-            IMapTiles.BufferSize = config["AreaBuffer"].ToDouble();
+            MapTileSupport.GameTileScale = config["mapTileScaleFactor"].ToInt();
+            MapTileSupport.SlippyTileSizeSquare = config["slippyTileSize"].ToInt();
+            MapTileSupport.BufferSize = config["AreaBuffer"].ToDouble();
 
             if (config["UseHighAccuracy"] != "True") {
                 geometryFactory = NtsGeometryServices.Instance.CreateGeometryFactory(new PrecisionModel(1000000), 4326); //SRID matches 10-character Plus code values.  Precision model means round all points to 7 decimal places to not exceed float's useful range.

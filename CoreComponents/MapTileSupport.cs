@@ -24,6 +24,10 @@ namespace PraxisCore
     {
         public static IMapTiles MapTiles; //This needs set at startup.
 
+        public static int SlippyTileSizeSquare = 512;
+        public static double GameTileScale = 4;
+        public static double BufferSize = ConstantValues.resolutionCell10;
+
         /// <summary>
         /// A code reference for how big an image would be using 11-character PlusCodes for pixels, multiplied by GameTileScale (default 2)
         /// </summary>
@@ -55,8 +59,8 @@ namespace PraxisCore
                     Y = 0;
                     break;
             }
-            X = (int)(X * IMapTiles.GameTileScale);
-            Y = (int)(Y * IMapTiles.GameTileScale);
+            X = (int)(X * MapTileSupport.GameTileScale);
+            Y = (int)(Y * MapTileSupport.GameTileScale);
         }
 
         public static void GetPlusCodeImagePixelSize(ReadOnlySpan<char> code, out int X, out int Y)
@@ -84,8 +88,8 @@ namespace PraxisCore
                     Y = 0;
                     break;
             }
-            X = (int)(X * IMapTiles.GameTileScale);
-            Y = (int)(Y * IMapTiles.GameTileScale);
+            X = (int)(X * MapTileSupport.GameTileScale);
+            Y = (int)(Y * MapTileSupport.GameTileScale);
         }
 
         public static byte[] DrawPlusCode(ReadOnlySpan<char> area, string styleSet = "mapTiles")
@@ -153,7 +157,7 @@ namespace PraxisCore
                         place.ElementGeometry,
                         place.DrawSizeHint,
                         po,
-                        po.FromTag ? TagParser.GetTagValue(place, "tag") : "",
+                        po.FromTag ? TagParser.GetTagValue(place, dataKey) : "",
                         po.FixedWidth == 0 ? po.LineWidthDegrees * stats.pixelsPerDegreeX : po.FixedWidth)
                     );
         }
@@ -439,7 +443,7 @@ namespace PraxisCore
                 Parallel.For(swCornerLon, neCornerLon + 1, (x) =>
                 {
                     //make map tile.
-                    var info = new ImageStats(zoomLevel, x, y, IMapTiles.SlippyTileSizeSquare);
+                    var info = new ImageStats(zoomLevel, x, y, MapTileSupport.SlippyTileSizeSquare);
                     var acheck = Converters.GeoAreaToPolygon(info.area); //this is faster than using a PreparedPolygon in testing, which was unexpected.
                     var areaList = rowList.Where(a => acheck.Intersects(a.ElementGeometry)).ToList(); //This one is for the maptile
 

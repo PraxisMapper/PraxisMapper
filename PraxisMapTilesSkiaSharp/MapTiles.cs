@@ -12,11 +12,6 @@ namespace PraxisCore {
     /// All functions related to generating or expiring map tiles. Both PlusCode sized tiles for gameplay or SlippyMap tiles for a webview.
     /// </summary>
     public class MapTiles : IMapTiles {
-        //These need to exist because the interface defines them.
-        public static int MapTileSizeSquare = 512;
-        public static double GameTileScale = 2;
-        public static double bufferSize = resolutionCell10;
-
         static readonly SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
         static readonly Random r = new Random();
         static Dictionary<string, SKBitmap> cachedBitmaps = new Dictionary<string, SKBitmap>(); //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
@@ -119,8 +114,8 @@ namespace PraxisCore {
         /// <param name="totalArea">the GeoArea to draw lines in</param>
         /// <returns>the byte array for the maptile png file</returns>
         public byte[] DrawCell8GridLines(GeoArea totalArea) {
-            int imageSizeX = IMapTiles.SlippyTileSizeSquare;
-            int imageSizeY = IMapTiles.SlippyTileSizeSquare;
+            int imageSizeX = MapTileSupport.SlippyTileSizeSquare;
+            int imageSizeY = MapTileSupport.SlippyTileSizeSquare;
             SKBitmap bitmap = new SKBitmap(imageSizeX, imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
             SKCanvas canvas = new SKCanvas(bitmap);
             SKColor bgColor;
@@ -177,8 +172,8 @@ namespace PraxisCore {
         /// <param name="totalArea">the GeoArea to draw lines in</param>
         /// <returns>the byte array for the maptile png file</returns>
         public byte[] DrawCell10GridLines(GeoArea totalArea) {
-            int imageSizeX = IMapTiles.SlippyTileSizeSquare;
-            int imageSizeY = IMapTiles.SlippyTileSizeSquare;
+            int imageSizeX = MapTileSupport.SlippyTileSizeSquare;
+            int imageSizeY = MapTileSupport.SlippyTileSizeSquare;
             SKBitmap bitmap = new SKBitmap(imageSizeX, imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
             SKCanvas canvas = new SKCanvas(bitmap);
             SKColor bgColor;
@@ -286,24 +281,12 @@ namespace PraxisCore {
             //This can work for user data by using the linked Places from the items in PlaceGameData.
             //I need a slightly different function for using AreaGameData, or another optional parameter here
 
-            //double minimumSize = 0;
-            //if (filterSmallAreas)
-            //{
-            //minimumSize = stats.degreesPerPixelX * 8; //don't draw small elements. THis runs on perimeter/length
-            //}
-
-            //Single points are excluded separately so that small areas or lines can still be drawn when points aren't.
-            //bool includePoints = true;
-            //if (stats.degreesPerPixelX > ConstantValues.zoom14DegPerPixelX)
-            //includePoints = false;
-
             if (drawnItems == null)
                 drawnItems = GetPlaces(stats.area, filterSize: stats.filterSize);
 
             var paintOps = MapTileSupport.GetPaintOpsForPlaces(drawnItems, styleSet, stats);
             return DrawAreaAtSize(stats, paintOps);
         }
-
 
         public byte[] DrawAreaAtSize(ImageStats stats, List<CompletePaintOp> paintOps) {
             //This is the new core drawing function. Once the paint operations have been created, I just draw them here.
@@ -328,25 +311,17 @@ namespace PraxisCore {
                 switch (w.elementGeometry.GeometryType) {
                     case "Polygon":
                         var p = w.elementGeometry as Polygon;
-                        //if (p.Envelope.Length < (stats.degreesPerPixelX * 4)) //This poly's perimeter is too small to draw
-                        //continue;
                         path.AddPoly(PolygonToSKPoints(p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                         foreach (var ir in p.Holes) {
-                            //if (ir.Envelope.Length < (w.lineWidth * 4)) //This poly's perimeter is less than 2x2 pixels in size.
-                            //continue;
                             path.AddPoly(PolygonToSKPoints(ir, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                         }
                         canvas.DrawPath(path, paint);
                         break;
                     case "MultiPolygon":
                         foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries) {
-                            //if (p2.Envelope.Length < (stats.degreesPerPixelX * 4)) //This poly's perimeter is too small to draw
-                            //continue;
                             var p2p = p2 as Polygon;
                             path.AddPoly(PolygonToSKPoints(p2p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                             foreach (var ir in p2p.Holes) {
-                                //if (ir.Envelope.Length < (stats.degreesPerPixelX * 4)) //This poly's perimeter is too small to draw
-                                // continue;
                                 path.AddPoly(PolygonToSKPoints(ir, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                             }
                             canvas.DrawPath(path, paint);
@@ -361,17 +336,13 @@ namespace PraxisCore {
                             if (paint.Style == SKPaintStyle.Fill) {
                                 path.AddPoly(points);
                                 canvas.DrawPath(path, paint);
-                                continue;
                             }
                         }
-                        //if (w.lineWidth < 1) //Don't draw lines we can't see.
-                        //continue;
-                        for (var line = 0; line < points.Length - 1; line++)
-                            canvas.DrawLine(points[line], points[line + 1], paint);
+                        else
+                            for (var line = 0; line < points.Length - 1; line++)
+                                canvas.DrawLine(points[line], points[line + 1], paint);
                         break;
                     case "MultiLineString":
-                        //if (w.lineWidth < 1) //Don't draw lines we can't see.
-                        //continue;
                         foreach (var p3 in ((MultiLineString)w.elementGeometry).Geometries) {
                             var points2 = PolygonToSKPoints(p3, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                             for (var line = 0; line < points2.Length - 1; line++)

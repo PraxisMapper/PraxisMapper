@@ -42,9 +42,9 @@ namespace PraxisMapper {
             PraxisContext.serverMode = Configuration.GetValue<string>("dbMode");
             PraxisContext.connectionString = Configuration.GetValue<string>("dbConnectionString");
             DataCheck.DisableBoundsCheck = Configuration.GetValue<bool>("DisableBoundsCheck");
-            IMapTiles.SlippyTileSizeSquare = Configuration.GetValue<int>("slippyTileSize");
-            IMapTiles.BufferSize = Configuration.GetValue<double>("AreaBuffer");
-            IMapTiles.GameTileScale = Configuration.GetValue<int>("mapTileScaleFactor");
+            MapTileSupport.SlippyTileSizeSquare = Configuration.GetValue<int>("slippyTileSize");
+            MapTileSupport.BufferSize = Configuration.GetValue<double>("AreaBuffer");
+            MapTileSupport.GameTileScale = Configuration.GetValue<int>("mapTileScaleFactor");
 
             mapTilesEngine = Configuration.GetValue<string>("MapTilesEngine");
         }

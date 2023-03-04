@@ -23,7 +23,7 @@ namespace PraxisCore
 
         public static GeoArea MakeBufferedGeoArea(GeoArea original)
         {
-            return original.PadGeoArea(IMapTiles.BufferSize);
+            return original.PadGeoArea(MapTileSupport.BufferSize);
         }
 
         /// <summary>
@@ -192,7 +192,7 @@ namespace PraxisCore
             //That's how many pixels an individual element would take up at typical scale. MapTiles will skip anything below 1. (Slippy tiles scale proportionally)
             //The value of what to skip will be automatically adjusted based on the area being drawn.
             var paintOp = TagParser.allStyleGroups["mapTiles"][place.StyleName].PaintOperations;
-            var pixelMultiplier = IMapTiles.GameTileScale;
+            var pixelMultiplier = MapTileSupport.GameTileScale;
 
             if (place.ElementGeometry.Area > 0)
                 return (place.ElementGeometry.Area / (ConstantValues.squareCell11Area / pixelMultiplier));
