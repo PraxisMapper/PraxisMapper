@@ -73,8 +73,7 @@ namespace PraxisMapper.Controllers {
         }
 
         private byte[] FinishMapTile(ImageStats info, List<CompletePaintOp> paintOps, string code, string styleSet) {
-            byte[] results = null;
-            results = MapTiles.DrawAreaAtSize(info, paintOps);
+            byte[] results = MapTiles.DrawAreaAtSize(info, paintOps);
 
             if (SaveMapTiles()) {
                 var currentGen = MapTileSupport.SaveMapTile(code, styleSet, results);

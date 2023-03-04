@@ -21,7 +21,7 @@ namespace PraxisMapper.Controllers {
         }
         public override void OnActionExecuting(ActionExecutingContext context) {
             base.OnActionExecuting(context);
-            PraxisAuthentication.GetAuthInfo(Response, out var accountId, out var password);
+            PraxisAuthentication.GetAuthInfo(Response, out var accountId, out var _);
             if (!PraxisAuthentication.IsAdmin(accountId) && !HttpContext.Request.Host.IsLocalIpAddress())
                 HttpContext.Abort();
         }

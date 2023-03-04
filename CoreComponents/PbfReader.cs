@@ -954,7 +954,7 @@ namespace PraxisCore.PbfReader
                 current = startNodeBtreeIndex;
             else
                 current = hint;
-            int lastCurrent = current;
+            int lastCurrent;
             while (min != max)
             {
                 var check = nodeIndex[current];
@@ -1010,7 +1010,7 @@ namespace PraxisCore.PbfReader
                 current = hint;
             else
                 current = startWayBtreeIndex;
-            int lastCurrent = current;
+            int lastCurrent;
             while (min != max)
             {
                 var check = wayIndex[current];
@@ -1054,7 +1054,7 @@ namespace PraxisCore.PbfReader
             int max = relationIndexEntries;
             int current = startRelationBtreeIndex;
 
-            int lastCurrent = current;
+            int lastCurrent;
             while (min != max)
             {
                 var check = relationIndex[current];

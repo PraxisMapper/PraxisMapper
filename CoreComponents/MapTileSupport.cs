@@ -130,16 +130,14 @@ namespace PraxisCore
         /// </summary>
         /// <param name="area">the PlusCode string to draw. Can be 6-11 digits long</param>
         /// <param name="paintOps">the list of paint operations to run through for drawing</param>
-        /// <param name="styleSet">the TagParser style set to use for determining the background color.</param>
         /// <returns>a byte array for the png file of the pluscode image file</returns>
-        public static byte[] DrawPlusCode(string area, List<CompletePaintOp> paintOps, string styleSet = "mapTiles")
+        public static byte[] DrawPlusCode(string area, List<CompletePaintOp> paintOps)
         {
             var info = new ImageStats(area);
-
             return MapTiles.DrawAreaAtSize(info, paintOps);
         }
 
-        public static byte[] DrawPlusCode(ReadOnlySpan<char> area, List<CompletePaintOp> paintOps, string styleSet = "mapTiles")
+        public static byte[] DrawPlusCode(ReadOnlySpan<char> area, List<CompletePaintOp> paintOps)
         {
             var info = new ImageStats(area);
             return MapTiles.DrawAreaAtSize(info, paintOps);
@@ -373,11 +371,11 @@ namespace PraxisCore
                     var info = new ImageStats(plusCode8);
                     //new setup.
                     var areaPaintOps = GetPaintOpsForPlaces(areaList, "mapTiles", info);
-                    var tile = DrawPlusCode(plusCode8, areaPaintOps, "mapTiles");
+                    var tile = DrawPlusCode(plusCode8, areaPaintOps);
 
                     if (saveToFiles)
                     {
-                        File.WriteAllBytes("GameTiles\\" + plusCode.CodeDigits.Substring(0,8) + ".png", tile);
+                        File.WriteAllBytes("GameTiles\\" + plusCode8 + ".png", tile);
                     }
                     else
                     {

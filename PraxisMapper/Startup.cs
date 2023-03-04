@@ -146,7 +146,7 @@ namespace PraxisMapper {
             db.MakePraxisDB(); //Does nothing if DB already exists, creates DB if not.
 
             //if the DB is empty, attmept to auto-load from a pbf file. This removes a couple of manual steps from smaller games, even if it takes a few extra minutes.
-            if (db.Places.Count() == 0) {
+            if (!db.Places.Any()) {
                 Log.WriteLog("No data loaded, attempting to auto-load");
                 var candidates = Directory.EnumerateFiles(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "*.pbf");
                 if (candidates.Any()) {
@@ -220,7 +220,7 @@ namespace PraxisMapper {
             });
 
             //if the DB is empty, attmept to auto-load from a pbf file. This removes a couple of manual steps from smaller games, even if it takes a few extra minutes.
-            if (db.Places.Count() == 0) {
+            if (!db.Places.Any()) {
                 Log.WriteLog("No data loaded, attempting to auto-load");
                 var candidates = Directory.EnumerateFiles(".", "*.pbf");
                 if (candidates.Any()) {

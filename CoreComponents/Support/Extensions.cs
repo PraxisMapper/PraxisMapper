@@ -1,5 +1,6 @@
 ﻿using Google.OpenLocationCode;
 using NetTopologySuite.Geometries;
+using PraxisCore.Support;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -19,8 +20,7 @@ namespace PraxisCore
         /// <returns>An integer form of s, or 0 if TryParse failed </returns>
         public static int ToTryInt(this string s)
         {
-            int temp = 0;
-            Int32.TryParse(s, out temp);
+            Int32.TryParse(s, out var temp);
             return temp;
         }
 
@@ -51,8 +51,7 @@ namespace PraxisCore
         /// <returns>A decimal form of s, or 0 if TryParse failed </returns>
         public static decimal ToTryDecimal(this string s)
         {
-            decimal temp = 0;
-            Decimal.TryParse(s, out temp);
+            Decimal.TryParse(s, out var temp);
             return temp;
         }
 
@@ -105,8 +104,7 @@ namespace PraxisCore
         /// <returns>A DateTime form of s, or 1/1/1900 if TryParse failed </returns>
         public static DateTime ToDate(this string s)
         {
-            DateTime temp = new DateTime(1900, 1, 1); //get overwritten to 1/1/1 if tryparse fails.
-            if (DateTime.TryParse(s, out temp))
+            if (DateTime.TryParse(s, out var temp))
                 return temp;
             return new DateTime(1900, 1, 1); //converts to datetime in SQL Server, rather than datetime2, which causes problems if a column is only datetime
         }
@@ -214,11 +212,11 @@ namespace PraxisCore
         /// Returns the part of a Span between the start and the presence of the next separator character. Is roughly twice as fast as String.Split(char) and allocates no memory. Removes the found part from the original span.
         /// </summary>
         /// <param name="span"> the ReadOnlySpan to work on.</param>
-        /// <param name="seperator">The separator character to use as the split indicator.</param>
+        /// <param name="separator">The separator character to use as the split indicator.</param>
         /// <returns></returns>
-        public static ReadOnlySpan<char> SplitNext(this ref ReadOnlySpan<char> span, char seperator)
+        public static ReadOnlySpan<char> SplitNext(this ref ReadOnlySpan<char> span, char separator)
         {
-            int pos = span.IndexOf(seperator);
+            int pos = span.IndexOf(separator);
             if (pos > -1)
             {
                 var part = span.Slice(0, pos);
@@ -263,12 +261,12 @@ namespace PraxisCore
         {
             if (parent == null || parent.Count == 0)
                 return default(T);
-            return parent[Random.Shared.Next(parent.Count())];
+            return parent[Random.Shared.Next(parent.Count)];
         }
 
         public static T PickOneRandom<T>(this IEnumerable<T> parent)
         {
-            if (parent == null || parent.Count() == 0)
+            if (parent == null || !parent.Any())
                 return default(T);
             return parent.OrderBy(r => Random.Shared.Next()).First();
         }
@@ -321,6 +319,22 @@ namespace PraxisCore
             }
         }
 
+        public static ulong GetDeterministicHashCodeForMersenne(this string str) {
+            unchecked {
+                ulong hash1 = (5381 << 16) + 5381;
+                ulong hash2 = hash1;
+
+                for (int i = 0; i < str.Length; i += 2) {
+                    hash1 = ((hash1 << 5) + hash1) ^ str[i];
+                    if (i == str.Length - 1)
+                        break;
+                    hash2 = ((hash2 << 5) + hash2) ^ str[i + 1];
+                }
+
+                return hash1 + (hash2 * 1566083941);
+            }
+        }
+
 
         /// <summary>
         /// Seeds a new Random instance based on the given PlusCode, meant for procedural generation. Will usually be unique at Cell6 or bigger cells, collisions ensured at Cell8 or smaller.
@@ -333,6 +347,11 @@ namespace PraxisCore
             return new Random(hash);
         }
 
+        public static RandomNumberGenerator GetSeededRandomMersenne(this string plusCode) {
+            var hash = plusCode.GetDeterministicHashCodeForMersenne();
+            return new RandomNumberGenerator(hash);
+        }
+
         /// <summary>
         /// Seeds a new Random instance based on the given PlusCode, meant for procedural generation. Will usually be unique at Cell6, 4, or 2 cells, collisions ensured at Cell8, 10, and smaller.
         /// </summary>
@@ -342,6 +361,11 @@ namespace PraxisCore
         {
             var hash = plusCode.CodeDigits.GetDeterministicHashCode();
             return new Random(hash);
+        }
+
+        public static RandomNumberGenerator GetSeededRandomMersenne(this OpenLocationCode plusCode) {
+            var hash = plusCode.CodeDigits.GetDeterministicHashCodeForMersenne();
+            return new RandomNumberGenerator(hash);
         }
 
         /// <summary>
