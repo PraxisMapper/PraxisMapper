@@ -201,7 +201,7 @@ namespace PraxisMapper.Controllers {
         [HttpDelete]
         [Route("/[controller]/Global/{key}")]
         public void DeleteGlobalData(string key) {
-            var data = GenericData.SetGlobalData(key, "");
+            GenericData.SetGlobalData(key, "");
             return;
         }
 

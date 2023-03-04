@@ -104,10 +104,10 @@ namespace PraxisCore
             //Auto-detect what the boundaries are for the database's data set.
             //NOTE: with the Aleutian islands, the USA is considered as wide as the entire map. These sit on both sides of the meridian.
             //These 2 start in the opposite corners, to make sure the replacements are correctly detected.
-            double SouthLimit = 360;
-            double NorthLimit = -360;
-            double WestLimit = 360;
-            double EastLimit = -360;
+            double SouthLimit;
+            double NorthLimit;
+            double WestLimit;
+            double EastLimit;
 
             double scanRes = 1; //1 degree.
             //This is now a 2-step process for speed. The first pass runs at 1 degree intervals for speed, then drops to the given resolution for precision.
