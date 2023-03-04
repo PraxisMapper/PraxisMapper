@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using PraxisCore;
@@ -59,6 +60,8 @@ namespace PraxisMapper.Controllers {
                     existingResults = new SlippyMapTile() { Values = tileKey, StyleSet = styleSet, AreaCovered = Converters.GeoAreaToPolygon(GeometrySupport.MakeBufferedGeoArea(info.area)) };
                     db.SlippyMapTiles.Add(existingResults);
                 }
+                else
+                    db.Entry(existingResults).State = EntityState.Modified;
 
                 existingResults.ExpireOn = DateTime.UtcNow.AddYears(10);
                 existingResults.TileData = results;
