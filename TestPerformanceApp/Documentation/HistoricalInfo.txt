@@ -316,3 +316,54 @@ Saved entry to DB manually in 9 ms
 Saved entry to DB normally in 86 ms
 Saved entry to DB manually in 10 ms
 Summary: Manually marking a single row as Modified and saving it instead of relying on change detecting can dramatically increase speed, but does rely on locks being used correctly.
+
+ImageSharp vs SkiaSharp performance tests 2 3/4/2023:
+(zoom 15)
+Loading data for ImageSharp vs SkiaSharp performance test
+ImageSharp performance:426ms
+SkiaSharp performance:57ms
+ImageSharp performance:375ms
+SkiaSharp performance:61ms
+ImageSharp performance:243ms
+SkiaSharp performance:49ms
+ImageSharp performance:161ms
+SkiaSharp performance:45ms
+ImageSharp performance:127ms
+SkiaSharp performance:48ms
+ImageSharp performance:112ms
+SkiaSharp performance:43ms
+ImageSharp performance:97ms
+SkiaSharp performance:51ms
+ImageSharp performance:124ms
+SkiaSharp performance:52ms
+ImageSharp performance:127ms
+SkiaSharp performance:48ms
+ImageSharp performance:119ms
+SkiaSharp performance:52ms
+Skia Average:50.6
+img# Average:191.1
+(zoom 12)
+Loading data for ImageSharp vs SkiaSharp performance test
+ImageSharp performance:1831ms
+SkiaSharp performance:307ms
+ImageSharp performance:719ms
+SkiaSharp performance:268ms
+ImageSharp performance:661ms
+SkiaSharp performance:251ms
+ImageSharp performance:631ms
+SkiaSharp performance:241ms
+ImageSharp performance:748ms
+SkiaSharp performance:324ms
+ImageSharp performance:985ms
+SkiaSharp performance:273ms
+ImageSharp performance:648ms
+SkiaSharp performance:252ms
+ImageSharp performance:658ms
+SkiaSharp performance:244ms
+ImageSharp performance:607ms
+SkiaSharp performance:252ms
+ImageSharp performance:613ms
+SkiaSharp performance:246ms
+Skia Average:265.8
+img# Average:710.1
+Conclusion: ImageSharp is still about 3x slower than SkiaSharp. I do want to keep it around because of Linux support, but it has not yet hit serious performance gains for me in 2 years.

@@ -2,7 +2,6 @@
 using Google.Common.Geometry;
 using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Prepared;
 using OsmSharp;
@@ -22,11 +21,9 @@ using System.Text;
 using static PraxisCore.DbTables;
 using static PraxisCore.GeometrySupport;
 using static PraxisCore.Place;
-using static PraxisCore.Singletons;
 using static PraxisCore.Standalone.StandaloneDbTables;
 
-namespace PerformanceTestApp
-{
+namespace PerformanceTestApp {
     class TestPerfApp
     {
         //fixed values here for testing stuff later. Adjust to your own preferences or to fit your data set.
@@ -42,8 +39,8 @@ namespace PerformanceTestApp
 
         static void Main(string[] args)
         {
-            var asm = Assembly.LoadFrom(@"PraxisMapTilesSkiaSharp.dll");
-            var MapTiles = Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
+            //var asm = Assembly.LoadFrom(@"PraxisMapTilesSkiaSharp.dll");
+            //var MapTiles = Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
 
             //PraxisContext.serverMode = "SQLServer";
             //PraxisContext.connectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;";
@@ -76,7 +73,7 @@ namespace PerformanceTestApp
             //TestIntersectsPreparedVsNot();
             //TestRasterVsVectorCell8();
             //TestRasterVsVectorCell10();
-            //TestImageSharpVsSkiaSharp(); //imagesharp was removed for being vastly slower.
+            TestImageSharpVsSkiaSharp(); 
             //TestTagParser();
             //TestCropVsNoCropDraw("86HWPM");
             //TestCropVsNoCropDraw("86HW");
@@ -93,7 +90,8 @@ namespace PerformanceTestApp
             //BcryptSpeedCheck();
             //TestEncryption();
             //TestFindPlacesPerf();
-            TestSavePerf();
+            //TestSavePerf();
+            //TestPatternMatch();
 
 
             //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
@@ -585,7 +583,7 @@ namespace PerformanceTestApp
 
         public static List<DbTables.Place> GetPlacesBase(GeoArea area, List<DbTables.Place> source = null)
         {
-            var location = Converters.GeoAreaToPolygon(area);
+            var location = area.ToPolygon();
             List<DbTables.Place> places;
             if (source == null)
             {
@@ -1147,6 +1145,37 @@ namespace PerformanceTestApp
 
         }
 
+        public static void TestPatternMatch() {
+            Geometry poly = "22334455".ToPolygon();
+
+            for (int j = 0; j < 10; j++) {
+
+                Stopwatch sw = new Stopwatch();
+
+                sw.Restart();
+                for (int i = 0; i < 1000; i++) {
+                    if (poly is Polygon) {
+                        var p2 = (Polygon)poly;
+                        p2.ToText();
+                    }
+                }
+                sw.Stop();
+                Console.WriteLine("Did 10 check-then-cast in " + sw.ElapsedTicks);
+
+
+                sw.Restart();
+                for (int i = 0; i < 1000; i++) {
+                    if (poly is Polygon p2) {
+                        p2.ToText();
+                    }
+                }
+                sw.Stop();
+                Console.WriteLine("Did 10 check-and-cast in  " + sw.ElapsedTicks);
+
+            }
+
+        }
+
 
         //public static void TestRasterVsVectorCell8()
         //{
@@ -1202,53 +1231,56 @@ namespace PerformanceTestApp
         //    Log.WriteLog("Vector performance:" + vector.ElapsedMilliseconds + "ms");
         //}
 
-        //public static void TestImageSharpVsSkiaSharp()
-        //{
-        //    //params : 1119/1527/12/1
-        //    //params: 8957 / 12224 / 15 / 1
-        //    Log.WriteLog("Loading data for ImageSharp vs SkiaSharp performance test");
-        //    //var x = 8957;
-        //    //var y = 12224;
-        //    //var zoom = 15;
-        //    //var layer = 1;
+        public static void TestImageSharpVsSkiaSharp() {
+            //params : 1119/1527/12/1
+            //params: 8957 / 12224 / 15 / 1
+            Log.WriteLog("Loading data for ImageSharp vs SkiaSharp performance test");
+            var x = 1119;
+            var y = 1527;
+            var zoom = 12;
 
-        //    var x = 1119;
-        //    var y = 1527;
-        //    var zoom = 12;
-        //    var layer = 1;
+            //var x = 8957;
+            //var y = 12224;
+            //var zoom = 15;
 
-        //    var n = Math.Pow(2, zoom);
+            var iStats = new ImageStats(zoom, x, y, 512);
 
-        //    var lon_degree_w = x / n * 360 - 180;
-        //    var lon_degree_e = (x + 1) / n * 360 - 180;
-        //    var lat_rads_n = Math.Atan(Math.Sinh(Math.PI * (1 - 2 * y / n)));
-        //    var lat_degree_n = lat_rads_n * 180 / Math.PI;
-        //    var lat_rads_s = Math.Atan(Math.Sinh(Math.PI * (1 - 2 * (y + 1) / n)));
-        //    var lat_degree_s = lat_rads_s * 180 / Math.PI;
+            var skia = Assembly.LoadFrom(@"PraxisMapTilesSkiaSharp.dll");
+            var skiaMapTiles = (IMapTiles)Activator.CreateInstance(skia.GetType("PraxisCore.MapTiles"));
+            skiaMapTiles.Initialize();
 
-        //    var relevantArea = new GeoArea(lat_degree_s, lon_degree_w, lat_degree_n, lon_degree_e);
-        //    var areaHeightDegrees = lat_degree_n - lat_degree_s;
-        //    var areaWidthDegrees = 360 / n;
+            var isharp = Assembly.LoadFrom(@"PraxisMapTilesImageSharp.dll");
+            var isharpMapTiles = (IMapTiles)Activator.CreateInstance(isharp.GetType("PraxisCore.MapTiles"));
+            isharpMapTiles.Initialize();
+
+            var places = GetPlaces(iStats.area);
+            var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, "mapTiles", iStats);
+
+            List<TimeSpan> skiaTimes = new List<TimeSpan>();
+            List<TimeSpan> isharpTimes = new List<TimeSpan>();
+
+            for (int i = 0; i < 10; i++) {
+                Stopwatch sw = new Stopwatch();
+                sw.Start();
+                var results1 = isharpMapTiles.DrawAreaAtSize(iStats, paintOps);
+                sw.Stop();
+                Log.WriteLog("ImageSharp performance:" + sw.ElapsedMilliseconds + "ms");
+                isharpTimes.Add(sw.Elapsed);
+                sw.Restart();
+                var results2 = skiaMapTiles.DrawAreaAtSize(iStats, paintOps);
+                sw.Stop();
+                Log.WriteLog("SkiaSharp performance:" + sw.ElapsedMilliseconds + "ms"); //This is 3x as fast at zoom 12 and zoom 15.
+                skiaTimes.Add(sw.Elapsed);
+            }
+
+            Log.WriteLog("Skia Average:" + skiaTimes.Average(s => s.Milliseconds));
+            Log.WriteLog("img# Average:" + isharpTimes.Average(s => s.Milliseconds));
 
 
-        //    var places = GetPlacesMapDAta(relevantArea, includeGenerated: false);
-        //    var places2 = places.Select(p => p.Clone()).ToList(); //Trimming occurs in the draw functions, so we need a copy to make the test fair.
-        //    Stopwatch sw = new Stopwatch();
-        //    sw.Start();
-        //    //var results1 = MapTiles.DrawAreaMapTileSlippy(ref places, relevantArea, areaHeightDegrees, areaWidthDegrees);
-        //    sw.Stop();
-        //    //System.IO.File.WriteAllBytes("ImageSharp-" + x + "_" + y + "_" + "_" + zoom + ".png", results1);
-        //    Log.WriteLog("ImageSharp performance:" + sw.ElapsedMilliseconds + "ms");
-        //    sw.Restart();
-        //    var results2 = MapTiles.DrawAreaMapTileSlippySkia(ref places2, relevantArea, areaHeightDegrees, areaWidthDegrees);
-        //    sw.Stop();
-        //    System.IO.File.WriteAllBytes("SkiaSharp-" + x + "_" + y + "_" + "_" + zoom + ".png", results2);
-        //    Log.WriteLog("SkiaSharp performance:" + sw.ElapsedMilliseconds + "ms"); //This is 3x as fast at zoom 12 and zoom 15.
 
-
-        //    //Log.WriteLog("Raster performance:" + raster.ElapsedMilliseconds + "ms");
-        //    //Log.WriteLog("Vector performance:" + vector.ElapsedMilliseconds + "ms");
-        //}
+            //Log.WriteLog("Raster performance:" + raster.ElapsedMilliseconds + "ms");
+            //Log.WriteLog("Vector performance:" + vector.ElapsedMilliseconds + "ms");
+        }
 
         public static void TestMapTileIndexSpeed()
         {
@@ -1669,8 +1701,8 @@ namespace PerformanceTestApp
             var NTSelement = GeometrySupport.ConvertOsmEntryToPlace(testElement);
 
             //prep the drawing area.
-            var geoarea = Converters.GeometryToGeoArea(NTSelement.ElementGeometry);
-            geoarea = new Google.OpenLocationCode.GeoArea(geoarea.SouthLatitude - ConstantValues.resolutionCell10,
+            var geoarea = NTSelement.ElementGeometry.ToGeoArea();
+            geoarea = new GeoArea(geoarea.SouthLatitude - ConstantValues.resolutionCell10,
                 geoarea.WestLongitude - ConstantValues.resolutionCell10,
                 geoarea.NorthLatitude + ConstantValues.resolutionCell10,
                 geoarea.EastLongitude + ConstantValues.resolutionCell10); //add some padding to the edges.
@@ -2053,9 +2085,7 @@ namespace PerformanceTestApp
             for (var i = 0; i < tpe.StyleMatchRules.Count; i++)
             {
                 entry = tpe.StyleMatchRules.ElementAt(i);
-
-                string actualvalue = "";
-                bool isPresent = tags.TryGetValue(entry.Key, out actualvalue);
+                bool isPresent = tags.TryGetValue(entry.Key, out string actualvalue);
 
                 switch (entry.MatchType)
                 {

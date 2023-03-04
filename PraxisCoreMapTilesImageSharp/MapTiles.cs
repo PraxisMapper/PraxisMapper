@@ -287,16 +287,20 @@ namespace PraxisCore {
             var image = new Image<Rgba32>(stats.imageSizeX, stats.imageSizeY);
             var trimPoly = stats.area.ToPolygon();
             foreach (var w in paintOps.OrderByDescending(p => p.paintOp.LayerId).ThenByDescending(p => p.drawSizeHint)) {
-                //I need paints for fill commands and images. 
+                //I need paints for fill commands and images. pens for lines.
                 var paint = cachedPaints[w.paintOp.Id];
                 var pen = cachedGameTilePens[w.paintOp.Id];
 
-                if (w.paintOp.Randomize) //To randomize the color on every Draw call.
+                if (w.paintOp.Randomize) { //To randomize the color on every Draw call.
                     w.paintOp.HtmlColorCode = "99" + ((byte)Random.Shared.Next(0, 255)).ToString() + ((byte)Random.Shared.Next(0, 255)).ToString() + ((byte)Random.Shared.Next(0, 255)).ToString();
+                    paint = SetPaintForTPP(w.paintOp);
+                    pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), (float)w.lineWidthPixels);
+                }
 
                 if (w.paintOp.FromTag) {  //FromTag is for when you are saving color data directly to each element, instead of tying it to a styleset.
                     w.paintOp.HtmlColorCode = w.tagValue;
                     paint = SetPaintForTPP(w.paintOp);
+                    pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), (float)w.lineWidthPixels);
                 }
 
                 if (stats.area.LongitudeWidth != resolutionCell8) {
@@ -311,11 +315,11 @@ namespace PraxisCore {
 
                 //ImageSharp doesn't like humungous areas (16k+ nodes takes a couple minutes), so we have to crop them down here
                 Geometry thisGeometry = w.elementGeometry; //default
-                //This block below is fairly imporant because of Path.Clip() performance. I would still prefer to do this over the original way of handling holes in paths (draw bitmap of outer polygons, erase holes with eraser paint, draw that bitmap over maptile)
+                //This block below is fairly imporant because of Path.Clip() performance
                 //it doesn't ALWAYS cause problems if I skip this, but when it does it takes forever to draw some tiles. Keep this in even if it only seems to happen with debug mode on.
-                if (w.elementGeometry.Coordinates.Length > 800)
+                if (w.elementGeometry.Coordinates.Length > 800) //800 seems to be the sweet spot between 'cropping geometry is slow' and 'drawing big geometry is slow.'
                     thisGeometry = w.elementGeometry.Intersection(trimPoly);
-                if (thisGeometry.Coordinates.Length == 0) //After trimming, linestrings may not have any points in the drawing area.
+                if (!thisGeometry.Coordinates.Any()) //After trimming, linestrings may not have any points in the drawing area.
                     continue;
 
                 switch (thisGeometry.GeometryType) {
