@@ -79,6 +79,7 @@ namespace PraxisCore
             {
                 //We still do a CCWCheck here, because it's always expected to be done here as part of the process.
                 //But we don't alter the geometry past that.
+                //NOTE: this is faster this way. VS keeps suggesting to immediately make it (place is Polygon p). Ignore it.
                 if (place is Polygon)
                     place = CCWCheck((Polygon)place);
                 else if (place is MultiPolygon)
