@@ -4,7 +4,7 @@ using static PraxisCore.DbTables;
 namespace PraxisCore.Styles
 {
     /// <summary>
-    /// Style with 3 default team colors for use in team-based games. Use GetPaintOpsForPlacesData to load team info from PlaceGameData instead of Tags.
+    /// Style with 3 default team colors for use in team-based games.
     /// </summary>
     public static class teamColor
     {
