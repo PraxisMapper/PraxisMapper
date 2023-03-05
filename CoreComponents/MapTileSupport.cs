@@ -92,9 +92,7 @@ namespace PraxisCore {
             //then get all the area
 
             var info = new ImageStats(area);
-            var places = GetPlaces(info);
-            var paintOps = GetPaintOpsForPlaces(places, styleSet, info);
-            return MapTiles.DrawAreaAtSize(info, paintOps);
+            return MapTiles.DrawAreaAtSize(info, styleSet: styleSet);
         }
 
         /// <summary>
@@ -111,9 +109,7 @@ namespace PraxisCore {
             //then get all the area
 
             var info = new ImageStats(area);
-            var places = GetPlaces(info);
-            var paintOps = GetPaintOpsForPlaces(places, styleSet, info);
-            return MapTiles.DrawAreaAtSize(info, paintOps);
+            return MapTiles.DrawAreaAtSize(info, styleSet: styleSet);
         }
 
         /// <summary>

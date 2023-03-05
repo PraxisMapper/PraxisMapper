@@ -110,6 +110,15 @@ namespace PraxisCore
         }
 
         /// <summary>
+        /// Advances the given DateTime to midnight (0:00:00 on the next day).
+        /// </summary>
+        /// <param name="d"></param>
+        /// <returns></returns>
+        public static DateTime ForwardToMidnight(this DateTime d) {
+            return d.AddHours(23 - d.Hour).AddMinutes(59 - d.Minute).AddSeconds(60 - d.Second);
+        }
+
+        /// <summary>
         /// Removes accent marks and other non-character characters from a Unicode text string. EX: Ü becomes U instead.
         /// </summary>
         /// <param name="text">the string this is called on</param>
