@@ -54,7 +54,6 @@ namespace PraxisMapper.Controllers {
         [Route("/[controller]/GetAreaInfo/{plusCode}")]
         [Route("/[controller]/GetAreaInfo/{plusCode}/{filterSize}")]
         public ActionResult GetAreaInfo(string plusCode, int filterSize = -1) {
-            //NOTE: this code is better than the code for GetPlaceInfo, use this as the basis for functionalizing it.
             ViewBag.areaName = plusCode;
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
             var mapArea = plusCode.ToGeoArea();
@@ -69,16 +68,13 @@ namespace PraxisMapper.Controllers {
 
             //MapTile data
             sw.Start();
-            var places = Place.GetPlaces(istats);
-
-
-            var tile = MapTiles.DrawAreaAtSize(istats, places);
+            var tile = MapTiles.DrawAreaAtSize(istats);
             sw.Stop();
             ViewBag.timeToDraw = sw.Elapsed;
 
             //Reload all elements, to get accurate counts on what wasn't drawn.
             sw.Restart();
-            places = Place.GetPlaces(mapArea, filterSize: 0, skipGeometry: true);
+            var places = Place.GetPlaces(mapArea, filterSize: 0, skipGeometry: true);
             sw.Stop();
             ViewBag.loadTime = sw.Elapsed;
             ViewBag.placeCount = places.Count;
@@ -118,16 +114,13 @@ namespace PraxisMapper.Controllers {
             var geoarea = area.ElementGeometry.Envelope.ToGeoArea().PadGeoArea(ConstantValues.resolutionCell10);
 
             ImageStats istats = new ImageStats(geoarea, (int)(geoarea.LongitudeWidth / ConstantValues.resolutionCell11Lon) * (int)MapTileSupport.GameTileScale, (int)(geoarea.LatitudeHeight / ConstantValues.resolutionCell11Lat) * (int)MapTileSupport.GameTileScale);
-            //sanity check: we don't want to draw stuff that won't fit in memory, so check for size and cap it if needed
-            if ((long)istats.imageSizeX * istats.imageSizeY > maxImagePixels) {
-                var ratio = (double)istats.imageSizeX / istats.imageSizeY; //W:H,
-                int newSize = (istats.imageSizeY > imageMaxEdge ? imageMaxEdge : istats.imageSizeY);
-                istats = new ImageStats(geoarea, (int)(newSize * ratio), newSize);
-            }
+            istats = MapTileSupport.ScaleBoundsCheck(istats, imageMaxEdge, maxImagePixels);
+
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
             sw.Start();
-            var places = Place.GetPlaces(istats.area, filterSize: istats.filterSize);
-            var tile = MapTiles.DrawAreaAtSize(istats, places); ViewBag.UseSvg = false;
+            var places = Place.GetPlaces(istats.area);
+            var tile = MapTiles.DrawAreaAtSize(istats, places); 
+            ViewBag.UseSvg = false;
             sw.Stop();
 
             ViewBag.imageString = "data:image/png;base64," + Convert.ToBase64String(tile);

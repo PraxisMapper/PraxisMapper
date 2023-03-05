@@ -244,8 +244,7 @@ namespace PraxisCore {
             var drawableLine = PolygonToSKPoints(line, mapToDraw, info.degreesPerPixelX, info.degreesPerPixelY);
 
             //Now, draw that path on the map.
-            var places = GetPlaces(mapToDraw); //, null, false, false, degreesPerPixelX * 4 ///TODO: restore item filtering
-            var baseImage = DrawAreaAtSize(info, places);
+            var baseImage = DrawAreaAtSize(info);
 
             SKBitmap sKBitmap = SKBitmap.Decode(baseImage);
             SKCanvas canvas = new SKCanvas(sKBitmap);

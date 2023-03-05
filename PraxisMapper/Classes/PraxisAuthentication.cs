@@ -44,7 +44,7 @@ namespace PraxisMapper.Classes {
             if (!whitelistedPaths.Any(p => path.Contains(p))) {
 
                 if (key.Key == null || !authTokens.ContainsKey(key.Value)) {
-                    if (PraxisMapper.Startup.Configuration.GetValue<bool>("enablePerformanceTracker")) {
+                    if (Startup.Configuration.GetValue<bool>("enablePerformanceTracker")) {
                         var db = new PraxisContext();
                         db.PerformanceInfo.Add(new DbTables.PerformanceInfo() { Notes = "Auth Failed for " + context.Request.Path, FunctionName = "PraxisAuth", CalledAt = DateTime.UtcNow });
                         db.SaveChangesAsync();
