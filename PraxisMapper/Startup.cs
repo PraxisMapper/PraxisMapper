@@ -119,6 +119,8 @@ namespace PraxisMapper {
             //Start cleanup threads that fire every half hour.
             System.Threading.Tasks.Task.Run(() => {
                 var db = new PraxisContext();
+                db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
                 while (true) {
                     PraxisAuthentication.DropExpiredEntries();
 

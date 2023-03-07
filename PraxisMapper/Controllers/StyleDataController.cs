@@ -30,6 +30,8 @@ namespace PraxisMapper.Controllers {
         [Route("/[controller]/Names/{styleSet}")]
         public string GetStyleSetEntryNames(string styleSet) {
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var data = db.StyleEntries.Where(t => t.StyleSet == styleSet).OrderBy(t => t.MatchOrder).Select(t => t.Name).ToList();
             return string.Join('|', data);
         }
@@ -40,6 +42,8 @@ namespace PraxisMapper.Controllers {
         [Route("/[controller]/Entry/{styleSet}/{entryName}")]
         public string GetStyleSetEntryValues(string styleSet, string entryName) {
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var data = db.StyleEntries.FirstOrDefault(t => t.StyleSet == styleSet && t.Name == entryName);
             return data.MatchOrder + "|" + data.Name + "|" + data.IsGameElement + "|" + data.Id;
         }
@@ -48,6 +52,8 @@ namespace PraxisMapper.Controllers {
         [Route("/[controller]/json/{styleSet}/")]
         public JsonResult GetStyleJson(string styleSet) {
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             JsonOptions jo = new JsonOptions();
             jo.JsonSerializerOptions.IncludeFields = true;
             jo.JsonSerializerOptions.MaxDepth = 2;

@@ -37,14 +37,14 @@ namespace PraxisCore
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             if (serverMode == "SQLServer")
-                optionsBuilder.UseSqlServer(connectionString, x => x.UseNetTopologySuite());
+                optionsBuilder.EnableThreadSafetyChecks(false).UseSqlServer(connectionString, x => x.UseNetTopologySuite());
             else if (serverMode == "MariaDB")
             {
-                optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), x => x.UseNetTopologySuite().EnableRetryOnFailure());
+                optionsBuilder.EnableThreadSafetyChecks(false).UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), x => x.UseNetTopologySuite().EnableRetryOnFailure());
             }
             else if (serverMode == "PostgreSQL") //A lot of mapping stuff defaults to PostgreSQL, so I should evaluate it here. It does seem to take some specific setup steps, versus MariaDB
             {
-                optionsBuilder.UseNpgsql("Host=localhost;Database=praxis;Username=postgres;Password=asdf", o => o.UseNetTopologySuite());
+                optionsBuilder.EnableThreadSafetyChecks(false).UseNpgsql("Host=localhost;Database=praxis;Username=postgres;Password=asdf", o => o.UseNetTopologySuite());
             }
 
             //optionsBuilder.UseMemoryCache(mc);//I think this improves performance at the cost of RAM usage. Needs additional testing.
@@ -167,14 +167,12 @@ namespace PraxisCore
 
         public void InsertDefaultServerConfig()
         {
-            //var db = new PraxisContext();
             ServerSettings.Add(new ServerSetting() { Id = 1, NorthBound = 90, SouthBound = -90, EastBound = 180, WestBound = -180 });
             SaveChanges();
         }
 
         public void InsertDefaultStyle()
         {
-            //var db = new PraxisContext();
             //Remove any existing entries, in case I'm refreshing the rules on an existing entry.
             if (serverMode != "PostgreSQL") //PostgreSQL has stricter requirements on its syntax.
             {
@@ -296,9 +294,6 @@ namespace PraxisCore
         /// <param name="styleSet">which set of maptiles to expire. All tiles if this is an empty string</param>
         public void ExpireSlippyMapTiles(Guid elementId, string styleSet = "")
         {
-            //Might this be better off as raw SQL? If I expire, say, an entire state, that could be a lot of map tiles to pull into RAM just for a date to change.
-            //var raw = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE ST_INTERSECTS(areaCovered, ST_GeomFromText(" + g.AsText() + "))";
-            //var db = new PraxisContext();
             string SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet = '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM Places WHERE privacyId = '" + elementId + "'))";
             Database.ExecuteSqlRaw(SQL);
         }

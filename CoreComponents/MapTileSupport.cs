@@ -160,6 +160,9 @@ namespace PraxisCore {
         public static List<CompletePaintOp> GetPaintOpsForAreas(string styleSet, ImageStats stats) {
             var styles = TagParser.allStyleGroups[styleSet];
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
+
             var searchPoly = GeometrySupport.MakeBufferedGeoArea(stats.area).ToPolygon();
             var drawPoly = stats.area.ToPolygon();
             var elements = db.AreaData.Where(d => searchPoly.Intersects(d.GeoAreaIndex)).ToList(); //Each of these will be a single tag/value and a plusCode.
@@ -343,6 +346,8 @@ namespace PraxisCore {
 
         public static byte[] GetExistingTileImage(string code, string styleSet) {
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.StyleSet == styleSet);
             if (existingResults == null || existingResults.ExpireOn < DateTime.UtcNow)
                 return null;

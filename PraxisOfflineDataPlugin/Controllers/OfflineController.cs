@@ -1,5 +1,6 @@
 using Google.OpenLocationCode;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using PraxisCore;
 using PraxisCore.Support;
 using PraxisMapper.Classes;
@@ -74,6 +75,8 @@ namespace PraxisOfflineDataPlugin.Controllers {
                 return "";
 
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var terrainDict = new ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<string, string>>>>();
             var index = GetTerrainIndex();
             //To avoid creating a new type, I add the index data as its own entry, and put all the data in the first key under "index".

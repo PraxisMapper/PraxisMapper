@@ -40,6 +40,7 @@ namespace PraxisCore
             if (source == null)
             {
                 var db = new PraxisContext();
+                db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
                 db.Database.SetCommandTimeout(new TimeSpan(0, 5, 0));
                 queryable = db.Places;
@@ -89,6 +90,8 @@ namespace PraxisCore
             if (source == null)
             {
                 var db = new PraxisContext();
+                db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
                 return db.Places.Any(md => md.ElementGeometry.Intersects(location));
             }
             return source.Any(md => md.ElementGeometry.Intersects(location));
@@ -183,6 +186,8 @@ namespace PraxisCore
             //This is the fastest way to do this. The DB takes much longer to calculate distances, so we just check what intersects the distance we were looking for,
             //then calculate the distance on all of those elements
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var distancePoly = ntsPoint.Buffer(distance);
             var dbresults = db.Places
                 .Include(o => o.Tags)

@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using PraxisCore;
@@ -50,6 +51,7 @@ namespace PraxisMapper.Controllers {
                 return 0;
 
             var db = new PraxisContext();
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var removing = db.PlayerData.Where(p => p.accountId == accountId).ToArray();
             db.PlayerData.RemoveRange(removing);
 
@@ -73,6 +75,8 @@ namespace PraxisMapper.Controllers {
 
             //NOTE: not using the cached ServerSettings table, since this might change without a reboot, but I do cache the results for 15 minutes to minimize DB calls.
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var message = db.ServerSettings.First().MessageOfTheDay;
             cache.Set("MOTD", message, DateTimeOffset.UtcNow.AddMinutes(15));
             return message;
@@ -84,17 +88,19 @@ namespace PraxisMapper.Controllers {
             var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
 
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var IP = Request.HttpContext.Connection.RemoteIpAddress.ToString();
 
-            if (!Classes.PraxisAntiCheat.antiCheatStatus.ContainsKey(IP))
-                Classes.PraxisAntiCheat.antiCheatStatus.TryAdd(IP, new Classes.AntiCheatInfo());
+            if (!PraxisAntiCheat.antiCheatStatus.ContainsKey(IP))
+                PraxisAntiCheat.antiCheatStatus.TryAdd(IP, new Classes.AntiCheatInfo());
 
             if (db.AntiCheatEntries.Any(a => a.filename == filename && a.data == endData)) {
-                var entry = Classes.PraxisAntiCheat.antiCheatStatus[IP];
+                var entry = PraxisAntiCheat.antiCheatStatus[IP];
                 if (!entry.entriesValidated.Contains(filename))
                     entry.entriesValidated.Add(filename);
 
-                if (entry.entriesValidated.Count == Classes.PraxisAntiCheat.expectedCount)
+                if (entry.entriesValidated.Count == PraxisAntiCheat.expectedCount)
                     entry.validUntil = DateTime.Now.AddHours(24);
             }
         }
@@ -120,6 +126,8 @@ namespace PraxisMapper.Controllers {
             Response.Headers.Add("X-noPerfTrack", "Server/CreateAccount/VARSREMOVED");
 
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var exists = db.AuthenticationData.Any(a => a.accountId == accountId);
             if (exists)
                 return false;

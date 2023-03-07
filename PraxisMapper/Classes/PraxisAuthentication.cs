@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using PraxisCore;
 using System;
@@ -46,6 +47,7 @@ namespace PraxisMapper.Classes {
                 if (key.Key == null || !authTokens.ContainsKey(key.Value)) {
                     if (Startup.Configuration.GetValue<bool>("enablePerformanceTracker")) {
                         var db = new PraxisContext();
+                        db.ChangeTracker.AutoDetectChangesEnabled = false;
                         db.PerformanceInfo.Add(new DbTables.PerformanceInfo() { Notes = "Auth Failed for " + context.Request.Path, FunctionName = "PraxisAuth", CalledAt = DateTime.UtcNow });
                         db.SaveChangesAsync();
                     }

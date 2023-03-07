@@ -67,6 +67,8 @@ namespace PraxisCore {
                 {
                     //Load TPE entries from DB for app.
                     var db = new PraxisContext();
+                    db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+                    db.ChangeTracker.AutoDetectChangesEnabled = false;
                     styles = db.StyleEntries.Include(t => t.StyleMatchRules).Include(t => t.PaintOperations).ToList();
                     if (styles == null || styles.Count == 0)
                     {
@@ -125,6 +127,8 @@ namespace PraxisCore {
         public static StyleEntry GetStyleEntry(string plusCode, string styleSet = "mapTiles")
         {
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var areaData = db.AreaData.Where(a => a.PlusCode == plusCode).ToList();
             var areaDict = areaData.ToDictionary(k => k.DataKey, v => v.DataValue.ToUTF8String());
             return GetStyleEntry(areaDict, styleSet);
@@ -478,6 +482,7 @@ namespace PraxisCore {
         public static void InsertStyle(StyleEntry s)
         {
             var db = new PraxisContext();
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             if (allStyleGroups.TryGetValue(s.StyleSet, out var group))
             {
                 if (group.TryAdd(s.Name, s)) {

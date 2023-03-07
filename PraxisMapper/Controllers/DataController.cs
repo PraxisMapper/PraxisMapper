@@ -1,6 +1,7 @@
 ﻿using Google.OpenLocationCode;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using PraxisCore;
@@ -137,7 +138,7 @@ namespace PraxisMapper.Controllers {
             var data = GenericData.GetAllPlayerData(accountId);
             StringBuilder sb = new StringBuilder();
             foreach (var d in data)
-                sb.Append(d.accountId).Append('|').Append(d.key).Append('|').Append(d.value).Append('\n');
+                sb.Append(d.accountId).Append('|').Append(d.DataKey).Append('|').Append(d.DataValue.ToUTF8String()).Append('\n');
 
             return sb.ToString();
         }
@@ -153,7 +154,7 @@ namespace PraxisMapper.Controllers {
             var data = GenericData.GetAllDataInArea(plusCode, key);
             StringBuilder sb = new StringBuilder();
             foreach (var d in data)
-                sb.Append(d.plusCode).Append('|').Append(d.key).Append('|').Append(d.value).Append('\n');
+                sb.Append(d.PlusCode).Append('|').Append(d.DataKey).Append('|').Append(d.DataValue.ToUTF8String()).Append('\n');
 
             return sb.ToString();
         }
@@ -166,7 +167,7 @@ namespace PraxisMapper.Controllers {
             var data = GenericData.GetAllDataInPlace(elementId);
             StringBuilder sb = new StringBuilder();
             foreach (var d in data)
-                sb.Append(d.elementId).Append('|').Append(d.key).Append('|').Append(d.value).Append('\n');
+                sb.Append(elementId).Append('|').Append(d.DataKey).Append('|').Append(d.DataValue.ToUTF8String()).Append('\n');
 
             return sb.ToString();
         }
@@ -315,6 +316,8 @@ namespace PraxisMapper.Controllers {
         [Route("/[controller]/Distance/{elementId}/{lat}/{lon}")]
         public double GetDistanceToPlace(Guid elementId, double lat, double lon) {
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var place = db.Places.FirstOrDefault(e => e.PrivacyId == elementId);
             if (place == null) return 0;
             return place.ElementGeometry.Distance(new NetTopologySuite.Geometries.Point(lon, lat));
@@ -325,6 +328,8 @@ namespace PraxisMapper.Controllers {
         [Route("/[controller]/Center/{elementId}")]
         public string GetCenterOfPlace(Guid elementId) {
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var place = db.Places.FirstOrDefault(e => e.PrivacyId == elementId);
             if (place == null) return "0|0";
             var center = place.ElementGeometry.Centroid;

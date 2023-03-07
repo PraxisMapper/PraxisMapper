@@ -98,6 +98,8 @@ namespace PraxisMapper.Controllers {
         [Route("/[controller]/GetPlaceInfo/{sourceElementId}/{sourceElementType}")]
         public ActionResult GetPlaceInfo(long sourceElementId, int sourceElementType) {
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var area = db.Places.Include(e => e.Tags).FirstOrDefault(e => e.SourceItemID == sourceElementId && e.SourceItemType == sourceElementType);
             if (area == null)
                 return View();
@@ -142,6 +144,8 @@ namespace PraxisMapper.Controllers {
         [Route("/[controller]/GetPlaceInfo/{privacyId}/")]
         public ActionResult GetPlaceInfo(Guid privacyId) {
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var area = db.Places.Include(e => e.Tags).FirstOrDefault(e => e.PrivacyId == privacyId);
             if (area != null)
                 return GetPlaceInfo(area.SourceItemID, area.SourceItemType);
@@ -154,6 +158,8 @@ namespace PraxisMapper.Controllers {
             //TODO: break these out into separate views when ready.
             Models.EditData model = new Models.EditData();
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             model.accessKey = "?PraxisAuthKey=" + Configuration["serverAuthKey"];
             model.globalDataKeys = db.GlobalData.Select(g => new SelectListItem(g.DataKey, g.DataValue.ToUTF8String())).ToList();
             model.playerKeys = db.PlayerData.Select(p => p.accountId).Distinct().Select(g => new SelectListItem(g, g)).ToList();

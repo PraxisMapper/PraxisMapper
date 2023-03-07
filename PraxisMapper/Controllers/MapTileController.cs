@@ -41,6 +41,8 @@ namespace PraxisMapper.Controllers {
                 return null;
 
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.StyleSet == styleSet);
             if (existingResults == null || existingResults.ExpireOn < DateTime.UtcNow)
                 return null;
@@ -256,6 +258,8 @@ namespace PraxisMapper.Controllers {
                 //return genId;
 
                 var db = new PraxisContext();
+                db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
                 long tileGenId = -1;
                 var tile = db.MapTiles.FirstOrDefault(m => m.PlusCode == plusCode && m.StyleSet == styleSet);
                 if (tile != null && tile.ExpireOn > DateTime.UtcNow)
@@ -280,6 +284,8 @@ namespace PraxisMapper.Controllers {
             Response.Headers.Add("X-noPerfTrack", "Maptiles/SlippyGeneration/" + styleSet + "/VARSREMOVED");
             try {
                 var db = new PraxisContext();
+                db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
                 long tileGenId = -1;
                 var tile = db.SlippyMapTiles.FirstOrDefault(m => m.Values == x + "|" + y + "|" + zoom && m.StyleSet == styleSet);
                 if (tile != null && tile.ExpireOn > DateTime.UtcNow)
