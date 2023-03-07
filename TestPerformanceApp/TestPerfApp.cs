@@ -73,7 +73,7 @@ namespace PerformanceTestApp {
             //TestIntersectsPreparedVsNot();
             //TestRasterVsVectorCell8();
             //TestRasterVsVectorCell10();
-            TestImageSharpVsSkiaSharp(); 
+            //TestImageSharpVsSkiaSharp(); 
             //TestTagParser();
             //TestCropVsNoCropDraw("86HWPM");
             //TestCropVsNoCropDraw("86HW");
@@ -92,21 +92,23 @@ namespace PerformanceTestApp {
             //TestFindPlacesPerf();
             //TestSavePerf();
             //TestPatternMatch();
+            //TestNoTrackingPerf();
 
 
-            //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
-            //These cannot all be enabled in one run. You must comment/uncomment each one separately.
-            //ALSO, these need updated somehow to be self-contained and consistent. Like, maybe load Delaware data or something as a baseline.
-            //TestDBPerformance("SQLServer");
-            //TestDBPerformance("MariaDB");
-            //TestDBPerformance("PostgreSQL");
 
-            //Sample code for later, I will want to make sure these indexes work as expected.
-            //PraxisCore.MapTiles.ExpireSlippyMapTiles(Converters.GeoAreaToPolygon(OpenLocationCode.DecodeValid("86HWHHFF")));
-            //TestMapTileIndexSpeed();
-        }
+                //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
+                //These cannot all be enabled in one run. You must comment/uncomment each one separately.
+                //ALSO, these need updated somehow to be self-contained and consistent. Like, maybe load Delaware data or something as a baseline.
+                //TestDBPerformance("SQLServer");
+                //TestDBPerformance("MariaDB");
+                //TestDBPerformance("PostgreSQL");
 
-        private static void TestCustomPbfReader()
+                //Sample code for later, I will want to make sure these indexes work as expected.
+                //PraxisCore.MapTiles.ExpireSlippyMapTiles(Converters.GeoAreaToPolygon(OpenLocationCode.DecodeValid("86HWHHFF")));
+                //TestMapTileIndexSpeed();
+            }
+
+            private static void TestCustomPbfReader()
         {
             //string filename = @"C:\praxis\delaware-latest.osm.pbf";
             //string filename = @"C:\praxis\ohio-latest.osm.pbf";
@@ -1239,7 +1241,7 @@ namespace PerformanceTestApp {
             var y = 1527;
             var zoom = 12;
 
-            //var x = 8957;
+            //var x = 8957; 
             //var y = 12224;
             //var zoom = 15;
 
@@ -2618,9 +2620,87 @@ namespace PerformanceTestApp {
                 sw.Stop();
                 Console.WriteLine("Saved entry to DB manually in " + sw.ElapsedMilliseconds + " ms");
             }
+        }
 
 
+        public static void TestNoTrackingPerf() {
+            var db = new PraxisContext();
+            var compiled = EF.CompileQuery((PraxisContext context, Polygon p) => context.Places.Where(place => p.Intersects(place.ElementGeometry)));
 
+            Polygon loadTest = "85HMGP".ToPolygon();
+
+            List<DbTables.Place> results = new List<DbTables.Place>();
+            List<TimeSpan> baseTimes = new List<TimeSpan>();
+            List<TimeSpan> autoDetectTimes = new List<TimeSpan>();
+            List<TimeSpan> NoTrackTimes = new List<TimeSpan>();
+            List<TimeSpan> BothTimes = new List<TimeSpan>();
+            List<TimeSpan> compiledBase = new List<TimeSpan>();
+            List<TimeSpan> compiledBothOff = new List<TimeSpan>();
+
+            for (int i = 0; i < 11; i++) {
+                db = new PraxisContext();
+                db.ChangeTracker.AutoDetectChangesEnabled = true;
+                db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.TrackAll;
+                Stopwatch sw = Stopwatch.StartNew();
+                results = db.Places.Where(p => loadTest.Intersects(p.ElementGeometry)).ToList();
+                sw.Stop();
+                if (i != 0) baseTimes.Add(sw.Elapsed);
+                Log.WriteLog("Baseline read time is " + sw.ElapsedMilliseconds + "ms");
+
+                db = new PraxisContext();
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
+                db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.TrackAll;
+                sw = Stopwatch.StartNew();
+                results = db.Places.Where(p => loadTest.Intersects(p.ElementGeometry)).ToList();
+                sw.Stop();
+                if (i != 0) autoDetectTimes.Add(sw.Elapsed);
+                Log.WriteLog("AutoDectect Off read time is " + sw.ElapsedMilliseconds + "ms");
+
+                db = new PraxisContext();
+                db.ChangeTracker.AutoDetectChangesEnabled = true;
+                db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+                sw = Stopwatch.StartNew();
+                results = db.Places.Where(p => loadTest.Intersects(p.ElementGeometry)).ToList();
+                sw.Stop();
+                if (i != 0) NoTrackTimes.Add(sw.Elapsed);
+                Log.WriteLog("NoTrack read time is " + sw.ElapsedMilliseconds + "ms");
+
+                db = new PraxisContext();
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
+                db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+                sw = Stopwatch.StartNew();
+                results = db.Places.Where(p => loadTest.Intersects(p.ElementGeometry)).ToList();
+                sw.Stop();
+                if (i != 0) BothTimes.Add(sw.Elapsed);
+                Log.WriteLog("NoDetectOrTrack read time is " + sw.ElapsedMilliseconds + "ms");
+
+                db = new PraxisContext();
+                db.ChangeTracker.AutoDetectChangesEnabled = true;
+                db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.TrackAll;
+                sw = Stopwatch.StartNew();
+                results = compiled(db, loadTest).ToList();
+                sw.Stop();
+                if (i != 0) compiledBase.Add(sw.Elapsed);
+                Log.WriteLog("compiledBase read time is " + sw.ElapsedMilliseconds + "ms");
+
+                db = new PraxisContext();
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
+                db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+                sw = Stopwatch.StartNew();
+                results = compiled(db, loadTest).ToList();
+                sw.Stop();
+                if (i != 0) compiledBothOff.Add(sw.Elapsed);
+                Log.WriteLog("compiledBothOff read time is " + sw.ElapsedMilliseconds + "ms");
             }
+
+            Console.WriteLine("Base total is " + baseTimes.Sum(o => o.Milliseconds) + "ms, average is " + baseTimes.Average(o => o.Milliseconds));
+            Console.WriteLine("NoDetect total is " + autoDetectTimes.Sum(o => o.Milliseconds) + "ms, average is " + autoDetectTimes.Average(o => o.Milliseconds));
+            Console.WriteLine("NoTrack total is " + NoTrackTimes.Sum(o => o.Milliseconds) + "ms, average is " + NoTrackTimes.Average(o => o.Milliseconds));
+            Console.WriteLine("BothOff total is " + BothTimes.Sum(o => o.Milliseconds) + "ms, average is " + BothTimes.Average(o => o.Milliseconds));
+            Console.WriteLine("compiledBase total is " + compiledBase.Sum(o => o.Milliseconds) + "ms, average is " + compiledBase.Average(o => o.Milliseconds));
+            Console.WriteLine("compiledBothOff total is " + compiledBase.Sum(o => o.Milliseconds) + "ms, average is " + compiledBothOff.Average(o => o.Milliseconds));
+
         }
     }
+}
+

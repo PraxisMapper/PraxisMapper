@@ -84,6 +84,8 @@ namespace PraxisCore
         public static byte[] GetAreaData(string plusCode, string key)
         {
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var row = db.AreaData.FirstOrDefault(p => p.PlusCode == plusCode && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
                 return Array.Empty<byte>();
@@ -150,6 +152,8 @@ namespace PraxisCore
         public static byte[] GetPlaceData(Guid elementId, string key)
         {
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var row = db.PlaceData.Include(p => p.Place).FirstOrDefault(p => p.Place.PrivacyId == elementId && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
                 return Array.Empty<byte>();
@@ -170,6 +174,8 @@ namespace PraxisCore
         public static byte[] GetPlayerData(string playerId, string key)
         {
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var row = db.PlayerData.FirstOrDefault(p => p.accountId == playerId && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
                 return Array.Empty<byte>();
@@ -242,31 +248,20 @@ namespace PraxisCore
         /// <param name="plusCode">A valid PlusCode, excluding the + symbol.</param>
         /// <param name="key">If supplied, only returns data on the given key for the area provided. If blank, returns all keys</param>
         /// <returns>a List of results with the PlusCode, keys, and values</returns>
-        public static List<CustomDataAreaResult> GetAllDataInArea(string plusCode, string key = "")
+        public static List<AreaData> GetAllDataInArea(string plusCode, string key = "")
         {
-            //TODO: this throws an error about update locks can't be acquired in a READ UNCOMMITTED block or something when key != "" on MariaDB.
-            var db = new PraxisContext();
-            var plusCodeArea = plusCode.ToGeoArea();
-            var plusCodePoly = plusCodeArea.ToPolygon();
-            var plusCodeData = db.AreaData.Where(d => plusCodePoly.Contains(d.GeoAreaIndex) && (key == "" || key == d.DataKey) && d.IvData == null)
-                .ToList() //Required to run the next Where on the C# side
-                .Where(row => row.Expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.UtcNow)
-                .Select(d => new CustomDataAreaResult(d.PlusCode, d.DataKey, d.DataValue.ToUTF8String()))
-                .ToList();
-
-            return plusCodeData;
+            return GetAllDataInArea(plusCode.ToGeoArea(), key);
         }
 
         //This version can be used to get info on plusCode areas without passing in a specific pluscode.
-        public static List<CustomDataAreaResult> GetAllDataInArea(GeoArea area, string key = "")
+        public static List<AreaData> GetAllDataInArea(GeoArea area, string key = "")
         {
             //TODO: this throws an error about update locks can't be acquired in a READ UNCOMMITTED block or something when key != "" on MariaDB.
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var poly = area.ToPolygon();
-            var data = db.AreaData.Where(d => poly.Contains(d.GeoAreaIndex) && (key == "" || key == d.DataKey) && d.IvData == null)
-                .ToList() //Required to run the next Where on the C# side
-                .Where(row => row.Expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.UtcNow)
-                .Select(d => new CustomDataAreaResult(d.PlusCode, d.DataKey, d.DataValue.ToUTF8String()))
+            var data = db.AreaData.Where(d => poly.Contains(d.GeoAreaIndex) && (key == "" || key == d.DataKey) && d.IvData == null && (d.Expiration == null || d.Expiration > DateTime.UtcNow))
                 .ToList();
 
             return data;
@@ -278,14 +273,12 @@ namespace PraxisCore
         /// <param name="elementId">the Guid exposed to clients to identify the map element.</param>
         /// /// <param name="key">If supplied, only returns data on the given key for the area provided. If blank, returns all keys</param>
         /// <returns>a List of results with the map element ID, keys, and values</returns>
-        public static List<CustomDataPlaceResult> GetAllDataInPlace(Guid elementId, string key = "")
+        public static List<PlaceData> GetAllDataInPlace(Guid elementId, string key = "")
         {
             var db = new PraxisContext();
-            var place = db.Places.First(s => s.PrivacyId == elementId);
-            var data = db.PlaceData.Where(d => d.PlaceId == place.Id && (key == "" || d.DataKey == key) && d.IvData == null)
-                .ToList() //Required to run the next Where on the C# side
-                .Where(row => row.Expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.UtcNow)
-                .Select(d => new CustomDataPlaceResult(place.PrivacyId, d.DataKey, d.DataValue.ToUTF8String()))
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
+            var data = db.PlaceData.Where(d => d.Place.PrivacyId == elementId && (key == "" || d.DataKey == key) && d.IvData == null && (d.Expiration == null || d.Expiration > DateTime.UtcNow))
                 .ToList();
 
             return data;
@@ -296,13 +289,12 @@ namespace PraxisCore
         /// </summary>
         /// <param name="accountID">the device associated with a player</param>
         /// <returns>List of results with accountId, keys, and values</returns>
-        public static List<CustomDataPlayerResult> GetAllPlayerData(string accountID)
+        public static List<PlayerData> GetAllPlayerData(string accountID)
         {
             var db = new PraxisContext();
-            var data = db.PlayerData.Where(p => p.accountId == accountID)
-                .ToList()
-                .Where(row => row.Expiration.GetValueOrDefault(DateTime.MaxValue) > DateTime.UtcNow && row.IvData == null)
-                .Select(d => new CustomDataPlayerResult(d.accountId, d.DataKey, d.DataValue.ToUTF8String()))
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
+            var data = db.PlayerData.Where(p => p.accountId == accountID && p.IvData == null && (p.Expiration == null || p.Expiration > DateTime.UtcNow))
                 .ToList();
 
             return data;
@@ -316,6 +308,8 @@ namespace PraxisCore
         public static byte[] GetGlobalData(string key)
         {
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var row = db.GlobalData.FirstOrDefault(s => s.DataKey == key);
             if (row == null)
                 return Array.Empty<byte>();
@@ -517,6 +511,8 @@ namespace PraxisCore
         public static byte[] GetSecurePlaceData(Guid elementId, string key, string password)
         {
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var row = db.PlaceData.Include(p => p.Place).FirstOrDefault(p => p.Place.PrivacyId == elementId && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
                 return Array.Empty<byte>();
@@ -578,6 +574,8 @@ namespace PraxisCore
         public static List<PlayerData> GetAllPlayerDataByKey(string key)
         {
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var results = db.PlayerData.Where(k => k.DataKey == key && k.IvData == null).ToList();
             return results;
         }
@@ -913,6 +911,8 @@ namespace PraxisCore
         {
             BlowfishCrypter crypter = new BlowfishCrypter();
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var entry = db.AuthenticationData.Where(a => a.accountId == userId).FirstOrDefault();
             if (entry == null)
                 return false;
@@ -926,8 +926,10 @@ namespace PraxisCore
         public static string GetInternalPassword(string userId, string password)
         {
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var entry = db.AuthenticationData.Where(a => a.accountId == userId).FirstOrDefault();
-            var bytes = System.Convert.FromBase64String(entry.dataPassword);
+            var bytes = Convert.FromBase64String(entry.dataPassword);
             var intPwd = new Guid(DecryptValue(entry.dataIV, bytes, password)).ToString();
 
             return intPwd;

@@ -367,3 +367,79 @@ SkiaSharp performance:246ms
 Skia Average:265.8
 img# Average:710.1
 Conclusion: ImageSharp is still about 3x slower than SkiaSharp. I do want to keep it around because of Linux support, but it has not yet hit serious performance gains for me in 2 years.
+
+EF 7 settings performance
+Baseline read time is 279ms
+AutoDectect Off read time is 228ms
+NoTrack read time is 128ms
+NoDetectOrTrack read time is 125ms
+compiledBase read time is 208ms
+compiledBothOff read time is 188ms
+Baseline read time is 224ms
+AutoDectect Off read time is 154ms
+NoTrack read time is 133ms
+NoDetectOrTrack read time is 112ms
+compiledBase read time is 153ms
+compiledBothOff read time is 214ms
+Baseline read time is 165ms
+AutoDectect Off read time is 173ms
+NoTrack read time is 134ms
+NoDetectOrTrack read time is 178ms
+compiledBase read time is 167ms
+compiledBothOff read time is 152ms
+Baseline read time is 161ms
+AutoDectect Off read time is 196ms
+NoTrack read time is 122ms
+NoDetectOrTrack read time is 173ms
+compiledBase read time is 149ms
+compiledBothOff read time is 190ms
+Baseline read time is 157ms
+AutoDectect Off read time is 159ms
+NoTrack read time is 166ms
+NoDetectOrTrack read time is 119ms
+compiledBase read time is 152ms
+compiledBothOff read time is 155ms
+Baseline read time is 158ms
+AutoDectect Off read time is 203ms
+NoTrack read time is 168ms
+NoDetectOrTrack read time is 120ms
+compiledBase read time is 145ms
+compiledBothOff read time is 148ms
+Baseline read time is 205ms
+AutoDectect Off read time is 158ms
+NoTrack read time is 157ms
+NoDetectOrTrack read time is 114ms
+compiledBase read time is 151ms
+compiledBothOff read time is 160ms
+Baseline read time is 152ms
+AutoDectect Off read time is 214ms
+NoTrack read time is 123ms
+NoDetectOrTrack read time is 108ms
+compiledBase read time is 159ms
+compiledBothOff read time is 148ms
+Baseline read time is 204ms
+AutoDectect Off read time is 159ms
+NoTrack read time is 157ms
+NoDetectOrTrack read time is 116ms
+compiledBase read time is 151ms
+compiledBothOff read time is 162ms
+Baseline read time is 153ms
+AutoDectect Off read time is 170ms
+NoTrack read time is 98ms
+NoDetectOrTrack read time is 107ms
+compiledBase read time is 141ms
+compiledBothOff read time is 141ms
+Baseline read time is 192ms
+AutoDectect Off read time is 137ms
+NoTrack read time is 145ms
+NoDetectOrTrack read time is 107ms
+compiledBase read time is 139ms
+compiledBothOff read time is 143ms
+Base total is 1771ms, average is 177.1
+NoDetect total is 1723ms, average is 172.3
+NoTrack total is 1403ms, average is 140.3
+BothOff total is 1254ms, average is 125.4
+compiledBase total is 1507ms, average is 150.7
+compiledBothOff total is 1507ms, average is 161.3
+Summary: Surprised that AutoDetectChangesEnabled = false is slower than true for reads. I should turn both settings off for performance on read calls.
+Compiling this fairly simple query is slower, which is a surprise. That's supposed to be faster, but it's not. It's also slower with the options disabled when that makes normal calls faster.

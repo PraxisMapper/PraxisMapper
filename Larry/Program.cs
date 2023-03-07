@@ -340,6 +340,7 @@ namespace Larry {
             fullProcess.Start();
             PraxisContext db = new PraxisContext();
             db.Database.SetCommandTimeout(Int32.MaxValue);
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
 
             List<string> geomFilenames = Directory.EnumerateFiles(config["OutputDataFolder"], "*.geomData").ToList();
@@ -418,11 +419,9 @@ namespace Larry {
                     Log.WriteLog("Converting entries from file...");
                     foreach (var line in lines) {
                         db.Places.Add(GeometrySupport.ConvertSingleTsvPlace(line));
-                        //newPlaces.Add(GeometrySupport.ConvertSingleTsvPlace(line));
                     }
                     Log.WriteLog("Saving to db...");
                     db.SaveChanges();
-                    //db.BulkInsert<Place>(newPlaces);
                     sw.Stop();
                     Log.WriteLog("Geometry loaded from " + fileName + " in " + sw.Elapsed);
                     File.Move(fileName, fileName + "done");
@@ -634,6 +633,8 @@ namespace Larry {
 
         public static void MakeOfflineFilesCell8() {
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var terrainDict = new ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<string, string>>>>();
             var index = GetTerrainIndex();
             //To avoid creating a new type, I add the index data as its own entry, and put all the data in the first key under "index".
@@ -719,6 +720,8 @@ namespace Larry {
         public static bool IsTerrainPresent(string styleSet, string terrain, string cell) {
             //This will be a DB query based on a style that doesn't have a NOT criteria.
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
 
             var style = TagParser.allStyleGroups[styleSet][terrain].StyleMatchRules;
             var firstSTyle = style.First();

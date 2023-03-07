@@ -1,4 +1,5 @@
 ﻿using Google.OpenLocationCode;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -94,6 +95,7 @@ namespace PraxisCore.GameTools
         public static void SaveCustomGridAreaData(CustomGridResults data, string key, string value, DateTime? expiration = null)
         {
             var db = new PraxisContext();
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var saveData = new DbTables.AreaData() { DataKey = key, DataValue = value.ToByteArrayUTF8(), Expiration = expiration, PlusCode = GetCustomGridName(data), GeoAreaIndex = data.tile.ToPolygon() };
             db.AreaData.Add(saveData);
             db.SaveChanges();
@@ -101,6 +103,8 @@ namespace PraxisCore.GameTools
 
         public static void SaveCustomGridSecureAreaData(CustomGridResults data, string key, string password, object value, double? expiration = null) {
             var db = new PraxisContext();
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
+
             byte[] encryptedValue = GenericData.EncryptValue(value.ToJsonByteArray(), password, out byte[] IVs);
             string name = GetCustomGridName(data);
 
@@ -112,6 +116,9 @@ namespace PraxisCore.GameTools
                 row.GeoAreaIndex = data.tile.ToPolygon();
                 db.AreaData.Add(row);
             }
+            else
+                db.Entry(row).State = EntityState.Modified;
+
             if (expiration.HasValue)
                 row.Expiration = DateTime.UtcNow.AddSeconds(expiration.Value);
             else

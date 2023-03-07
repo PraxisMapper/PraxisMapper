@@ -1,4 +1,5 @@
-﻿using NetTopologySuite.Geometries;
+﻿using Microsoft.EntityFrameworkCore;
+using NetTopologySuite.Geometries;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -92,6 +93,8 @@ namespace PraxisCore.GameTools
         public static long GetScoreForSinglePlace(Guid elementId)
         {
             var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var place = db.Places.FirstOrDefault(e => e.PrivacyId == elementId).ElementGeometry;
             return GetScoreForSinglePlace(place);
         }
