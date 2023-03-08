@@ -36,7 +36,7 @@ namespace PraxisCore
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            if (serverMode == "SQLServer")
+            if (serverMode == "SQLServer" ||  serverMode == "LocalDB")
                 optionsBuilder.EnableThreadSafetyChecks(false).UseSqlServer(connectionString, x => x.UseNetTopologySuite());
             else if (serverMode == "MariaDB")
             {
@@ -132,6 +132,11 @@ namespace PraxisCore
 
         public void MakePraxisDB()
         {
+            if (serverMode == "LocalDB") {
+                //run console command to make this // SqlLocalDb create "Praxis"
+                
+            }
+
             if (!Database.EnsureCreated()) //all the automatic stuff EF does for us
                 return;
 
