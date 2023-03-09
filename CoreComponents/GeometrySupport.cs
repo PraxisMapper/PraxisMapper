@@ -9,8 +9,7 @@ using static PraxisCore.ConstantValues;
 using static PraxisCore.DbTables;
 using static PraxisCore.Singletons;
 
-namespace PraxisCore
-{
+namespace PraxisCore {
     /// <summary>
     /// Common functions revolving around Geometry object operations
     /// </summary>
@@ -43,17 +42,24 @@ namespace PraxisCore
             //NTS specs also requires holes in a polygon to be in clockwise order, opposite the outer shell.
             for (int i = 0; i < p.Holes.Length; i++)
             {
-                if (p.Holes[i].IsCCW)
+                if (!p.Holes[i].IsCCW) { //this looks backwards, but it passes for SQL Server
                     p.Holes[i] = (LinearRing)p.Holes[i].Reverse();
+                    if(p.Holes[i].IsCCW) {
+                        Log.WriteLog("Hole refused to orient CW correctly.");
+                        return null;
+                    }
+                }
             }
 
-            if (p.Shell.IsCCW)
-                return p;
-            p = (Polygon)p.Reverse();
-            if (p.Shell.IsCCW)
-                return p;
+            if (!p.Shell.IsCCW) {
+                p = (Polygon)p.Reverse();
+                if (!p.Shell.IsCCW) {
+                    Log.WriteLog("shell refused to orient CCW correctly.");
+                    return null;
+                }
+            }
 
-            return null; //not CCW either way? Happen occasionally for some reason, and it will fail to write to a SQL Server DB. I think its related to lines crossing over each other multiple times?
+            return p;
         }
 
         /// <summary>
@@ -75,6 +81,9 @@ namespace PraxisCore
         /// <returns>The Geometry object, in CCW orientation and potentially simplified.</returns>
         public static Geometry SimplifyPlace(Geometry place)
         {
+            if (!place.IsValid)
+                place = NetTopologySuite.Geometries.Utilities.GeometryFixer.Fix(place);
+
             if (!SimplifyAreas)
             {
                 //We still do a CCWCheck here, because it's always expected to be done here as part of the process.
@@ -149,24 +158,23 @@ namespace PraxisCore
                     Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + "-" + TagParser.GetName(g) + " didn't interpret into a Geometry object", Log.VerbosityLevels.Errors);
                     return null;
                 }
+                if (geometry.GeometryType == "LinearRing" || (geometry.GeometryType == "LineString" && geometry.Coordinates.First() == geometry.Coordinates.Last())) {
+                    //I want to update all LinearRings to Polygons, and let the style determine if they're Filled or Stroked.
+                    geometry = Singletons.geometryFactory.CreatePolygon((LinearRing)geometry);
+                }
+
                 var place = new DbTables.Place();
                 place.SourceItemID = g.Id;
                 place.SourceItemType = (g.Type == OsmGeoType.Relation ? 3 : g.Type == OsmGeoType.Way ? 2 : 1);
-                var geo = SimplifyPlace(geometry);
-                if (geo == null)
+                geometry = SimplifyPlace(geometry);
+                if (geometry == null)
                 {
                     Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + " didn't simplify for some reason.", Log.VerbosityLevels.Errors);
                     return null;
                 }
-                geo.SRID = 4326;//Required for SQL Server to accept data.
-                place.ElementGeometry = geo;
+                geometry.SRID = 4326;//Required for SQL Server to accept data.
+                place.ElementGeometry = geometry;
                 place.Tags = tags; 
-                if (place.ElementGeometry.GeometryType == "LinearRing" || (place.ElementGeometry.GeometryType == "LineString" && place.ElementGeometry.Coordinates.First() == place.ElementGeometry.Coordinates.Last()))
-                {
-                    //I want to update all LinearRings to Polygons, and let the style determine if they're Filled or Stroked.
-                    var poly = Singletons.geometryFactory.CreatePolygon((LinearRing)place.ElementGeometry);
-                    place.ElementGeometry = poly;
-                }
 
                 TagParser.ApplyTags(place, "mapTiles");
                 if (place.StyleName == "unmatched" || place.StyleName == "background")

@@ -1,8 +1,6 @@
 ﻿using CryptSharp;
-using EFCore.BulkExtensions;
 using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.Extensions.Configuration;
 using NetTopologySuite;
 using NetTopologySuite.Geometries;
@@ -53,8 +51,11 @@ namespace Larry {
                 return;
             }
 
-            string dbName = config["DbConnectionString"].Split(";").First(s => s.StartsWith("database"));
-            Log.WriteLog("Using connection for " + dbName);
+            string dbName;
+            if (config["DbMode"] != "LocalDB") {
+                dbName = config["DbConnectionString"].Split(";").First(s => s.StartsWith("database"));
+                Log.WriteLog("Using connection for " + dbName);
+            }
 
             //if (args.Any(a => a.StartsWith("-getPbf:")))
             //{
@@ -101,7 +102,8 @@ namespace Larry {
                 TagParser.Initialize(true, null);
                 createDb();
                 processPbfs();
-                loadProcessedData();
+                if (config["UseGeomDataFiles"] == "true")
+                    loadProcessedData();
                 db.SetServerBounds(long.Parse(config["UseOneRelationID"]));
                 Log.WriteLog("Server setup complete in " + sw.Elapsed);
             }
@@ -183,7 +185,7 @@ namespace Larry {
                     r.saveToDB = false; //we want these as separate files for later.
                     r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
                     r.reprocessFile = config["reprocessFiles"] == "True";
-                    r.splitByStyleSet = true;
+                    r.splitByStyleSet = true; //Implies saving to geomdata files.
 
                     if (config["ResourceUse"] == "low") {
                         r.lowResourceMode = true;
@@ -319,7 +321,7 @@ namespace Larry {
                 r.outputPath = config["OutputDataFolder"];
                 r.styleSet = config["TagParserStyleSet"];
                 r.processingMode = config["processingMode"]; // "normal" and "center" and "minimize" allowed
-                r.saveToDB = false; //This is slower than doing both steps separately because loading to the DB is single-threaded this way.
+                r.saveToDB = config["UseGeomDataFiles"] == "False"; //optional, usually faster to load from files than going straight to the DB.
                 r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
                 r.reprocessFile = config["reprocessFiles"] == "True";
 
@@ -346,9 +348,11 @@ namespace Larry {
             List<string> geomFilenames = Directory.EnumerateFiles(config["OutputDataFolder"], "*.geomData").ToList();
             List<string> tagsFilenames = Directory.EnumerateFiles(config["OutputDataFolder"], "*.tagsData").ToList();
 
-            db.DropIndexes();
+            //TODO testing if SQL works better updating indexes as it goes vs MariaDB doing better in bulk.
+            if (config["DbMode"] == "MariaDB")
+                db.DropIndexes();
 
-            if (config["KeepElementsInMemory"] == "True") //ignore DB, doing some one-off operation.
+            if (config["KeepElementsInMemory"] == "true") //ignore DB, doing some one-off operation.
             {
                 //Skip database work. Use an in-memory list for a temporary operation.
                 foreach (var fileName in geomFilenames) {
@@ -379,13 +383,40 @@ namespace Larry {
                 }
                 return;
             }
-            else if (config["UseMariaDBInFile"] == "True") //Use the LOAD DATA INFILE command to skip the EF for loading.
+            else if (config["UseMariaDBInFile"] == "true") //Use the LOAD DATA INFILE command to skip the EF for loading.
             {
+                if (config["DbMode"] == "MariaDB") {
+                    foreach (var fileName in geomFilenames) {
+
+                        System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                        sw.Start();
+                        var mariaPath = fileName.Replace("\\", "\\\\"); //TODO: this may need some cross-platform attention.
+                        db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' IGNORE INTO TABLE Places fields terminated by '\t' lines terminated by '\r\n' (sourceItemID, sourceItemType, @elementGeometry, privacyId, DrawSizeHint) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
+                        sw.Stop();
+                        Log.WriteLog("Geometry loaded from " + fileName + " in " + sw.Elapsed);
+                        File.Move(fileName, fileName + "done");
+                    }
+
+                    foreach (var fileName in tagsFilenames) {
+                        System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                        sw.Start();
+                        var mariaPath = fileName.Replace("\\", "\\\\");
+                        db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' IGNORE INTO TABLE PlaceTags fields terminated by '\t' lines terminated by '\r\n' (SourceItemId, SourceItemType, `key`, `value`)");
+                        sw.Stop();
+                        Log.WriteLog("Tags loaded from " + fileName + " in " + sw.Elapsed);
+                        File.Move(fileName, fileName + "done");
+                    }
+                }
+            }
+            else if (config["DbMode"] == "SQLServer" ){
                 foreach (var fileName in geomFilenames) {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
-                    var mariaPath = fileName.Replace("\\", "\\\\"); //TODO: this may need some cross-platform attention.
-                    db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' IGNORE INTO TABLE Places fields terminated by '\t' lines terminated by '\r\n' (sourceItemID, sourceItemType, @elementGeometry, privacyId, DrawSizeHint) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
+                    db.Database.ExecuteSqlRaw("CREATE TABLE #tempPlace ( id bigint, osmType int, geoText nvarchar(MAX), privacyID uniqueidentifier, hintsize decimal(30,17)); " +
+                        "BULK INSERT #tempPlace FROM '" + fileName + "';" +
+                        "INSERT INTO dbo.Places (SourceItemId, SourceItemType, ElementGeometry, PrivacyId, DrawSizeHint) SELECT id, osmType, geography::STGeomFromText(geoText, 4326), privacyID, hintSize FROM #tempPlace; " +
+                        "DROP TABLE #tempPlace;"
+                        ) ;
                     sw.Stop();
                     Log.WriteLog("Geometry loaded from " + fileName + " in " + sw.Elapsed);
                     File.Move(fileName, fileName + "done");
@@ -394,12 +425,16 @@ namespace Larry {
                 foreach (var fileName in tagsFilenames) {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
-                    var mariaPath = fileName.Replace("\\", "\\\\");
-                    db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' IGNORE INTO TABLE PlaceTags fields terminated by '\t' lines terminated by '\r\n' (SourceItemId, SourceItemType, `key`, `value`)");
+                    db.Database.ExecuteSqlRaw("CREATE TABLE #tempTags ( id bigint, osmType int, tagKey nvarchar(MAX), tagValue nvarchar(MAX)); " +
+                        "BULK INSERT #tempTags FROM '" + fileName + "';" +
+                        "INSERT INTO dbo.PlaceTags (SourceItemId, SourceItemType, [Key], [Value]) SELECT id, osmType, tagKey, tagValue FROM #tempTags; " +
+                        "DROP TABLE #tempTags;"
+                        );
                     sw.Stop();
                     Log.WriteLog("Tags loaded from " + fileName + " in " + sw.Elapsed);
                     File.Move(fileName, fileName + "done");
                 }
+
             }
             else //Main path.
             {
@@ -447,7 +482,9 @@ namespace Larry {
             fullProcess.Stop();
             Log.WriteLog("Files processed in " + fullProcess.Elapsed);
             fullProcess.Restart();
-            db.RecreateIndexes();
+            //TODO testing: may let SQL Server updates indexes on the fly, because it chokes on processing them all at once. MariaDB does BETTER bulk-processing.
+            if (config["DbMode"] == "MariaDB")
+                db.RecreateIndexes();
             fullProcess.Stop();
             Log.WriteLog("Indexes generated in " + fullProcess.Elapsed);
         }
