@@ -183,7 +183,8 @@ namespace PraxisCore {
             public string DataKey { get; set; }
             public DateTime? Expiration { get; set; } //optional. If value is in the past, ignore this data.
             [Required]
-            public Geometry GeoAreaIndex { get; set; } //PlusCode listed as a geometry object for index/search purposes.
+            [Column(TypeName = "geography")]
+            public Geometry AreaCovered { get; set; } //PlusCode listed as a geometry object for index/search purposes.
             public byte[] IvData { get; set; } //Only set if data is encrypted.
             public byte[] DataValue { get; set; } //Holds byte data for both normal and encrypted entries. 
         }

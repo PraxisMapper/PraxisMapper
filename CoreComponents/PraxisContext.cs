@@ -3,7 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using static PraxisCore.DbTables;
 
 namespace PraxisCore
@@ -80,7 +82,7 @@ namespace PraxisCore
 
             model.Entity<AreaData>().HasIndex(m => m.DataKey);
             model.Entity<AreaData>().HasIndex(m => m.PlusCode);
-            model.Entity<AreaData>().HasIndex(m => m.GeoAreaIndex);
+            //model.Entity<AreaData>().HasIndex(m => m.GeoAreaIndex); //This breaks on SQL Server if you attempt to auto-create this, must be done manually.
             model.Entity<AreaData>().HasIndex(m => m.Expiration);
 
             model.Entity<AntiCheatEntry>().HasIndex(m => m.filename);
@@ -93,15 +95,13 @@ namespace PraxisCore
             }
         }
 
-        //A trigger to ensure all data inserted is valid by MSSQL Server rules.
-        public static string MapDataValidTriggerMSSQL = "CREATE TRIGGER dbo.MakeValid ON dbo.MapData AFTER INSERT AS BEGIN UPDATE dbo.MapData SET place = place.MakeValid() WHERE MapDataId in (SELECT MapDataId from inserted) END";
-        //public static string GeneratedMapDataValidTriggerMSSQL = "CREATE TRIGGER dbo.GenereatedMapDataMakeValid ON dbo.GeneratedMapData AFTER INSERT AS BEGIN UPDATE dbo.GeneratedMapData SET place = place.MakeValid() WHERE GeneratedMapDataId in (SELECT GeneratedMapDataId from inserted) END";
-
         //indexes that I don't think EFCore can create correctly automatically.
         public static string MapTileIndex = "CREATE SPATIAL INDEX MapTileSpatialIndex ON MapTiles(areaCovered)";
         public static string SlippyMapTileIndex = "CREATE SPATIAL INDEX SlippyMapTileSpatialIndex ON SlippyMapTiles(areaCovered)";
         public static string StoredElementsIndex = "CREATE SPATIAL INDEX PlacesIndex ON Places(elementGeometry)";
-        public static string customDataPlusCodesIndex = "CREATE SPATIAL INDEX areaDataSpatialIndex ON AreaData(geoAreaIndex)";
+        public static string AreaDataSpatialIndex = "CREATE SPATIAL INDEX areaDataSpatialIndex ON AreaData(geoAreaIndex)";
+
+        //TODO NOTE: may need to make MS SQL Server versions of these, 'OR REPLACE' is MariaDB syntax.
         public static string drawSizeHintIndex = "CREATE OR REPLACE INDEX IX_Places_DrawSizeHint on Places(DrawSizeHint)"; 
         public static string privacyIdIndex = "CREATE OR REPLACE INDEX IX_Places_privacyId on Places(privacyId)";
         public static string sourceItemIdIndex = "CREATE OR REPLACE INDEX IX_Places_sourceItemID on Places(sourceItemID)";
@@ -132,9 +132,13 @@ namespace PraxisCore
 
         public void MakePraxisDB()
         {
-            if (serverMode == "LocalDB") {
-                //run console command to make this // SqlLocalDb create "Praxis"
-                
+            if (serverMode == "LocalDB") { 
+                //TODO: this works, check if this already exists perhaps?
+                Process createdb = new Process();
+                createdb.StartInfo.FileName = "SqlLocalDB.exe";
+                createdb.StartInfo.Arguments = "create \"Praxis\" -s"; //create and start the new DB
+                createdb.Start();
+                createdb.WaitForExit();
             }
 
             if (!Database.EnsureCreated()) //all the automatic stuff EF does for us
@@ -151,16 +155,17 @@ namespace PraxisCore
             }
             else //SQL Server and MariaDB share the same syntax here
             {
-                //db.Database.ExecuteSqlRaw(GeneratedMapDataIndex);
                 Database.ExecuteSqlRaw(MapTileIndex);
                 Database.ExecuteSqlRaw(SlippyMapTileIndex);
                 Database.ExecuteSqlRaw(StoredElementsIndex);
+                Database.ExecuteSqlRaw(AreaDataSpatialIndex);
             }
 
             if (serverMode == "SQLServer")
             {
-                //Database.ExecuteSqlRaw(GeneratedMapDataValidTriggerMSSQL);
+
             }
+
             if (serverMode == "MariaDB")
             {
                 Database.ExecuteSqlRaw("SET collation_server = 'utf8mb4_unicode_ci'; SET character_set_server = 'utf8mb4'"); //MariaDB defaults to latin2_swedish, we need Unicode.
@@ -172,30 +177,30 @@ namespace PraxisCore
 
         public void InsertDefaultServerConfig()
         {
+            if (serverMode == "SQLServer") {
+                Database.BeginTransaction();
+                Database.ExecuteSqlRaw("SET IDENTITY_INSERT ServerSettings ON;");
+            }
             ServerSettings.Add(new ServerSetting() { Id = 1, NorthBound = 90, SouthBound = -90, EastBound = 180, WestBound = -180 });
             SaveChanges();
+            if (serverMode == "SQLServer") {
+                Database.ExecuteSqlRaw("SET IDENTITY_INSERT ServerSettings OFF;");
+                Database.CommitTransaction();
+            }
         }
 
         public void InsertDefaultStyle()
         {
-            //Remove any existing entries, in case I'm refreshing the rules on an existing entry.
-            if (serverMode != "PostgreSQL") //PostgreSQL has stricter requirements on its syntax.
-            {
-                //db.Database.ExecuteSqlRaw("DELETE FROM TagParserEntriesTagParserMatchRules");
-                //db.Database.ExecuteSqlRaw("DELETE FROM TagParserEntries");
-                //db.Database.ExecuteSqlRaw("DELETE FROM TagParserMatchRules");
-            }
-
             if (serverMode == "SQLServer")
             {
                 Database.BeginTransaction();
-                Database.ExecuteSqlRaw("SET IDENTITY_INSERT StyleEntries ON;");
+                Database.ExecuteSqlRaw("SET IDENTITY_INSERT StylePaints ON;");
             }
             StyleEntries.AddRange(Singletons.defaultStyleEntries);
             SaveChanges();
             if (serverMode == "SQLServer")
             {
-                Database.ExecuteSqlRaw("SET IDENTITY_INSERT StyleEntries OFF;");
+                Database.ExecuteSqlRaw("SET IDENTITY_INSERT StylePaints OFF;");
                 Database.CommitTransaction();
             }
 
@@ -213,6 +218,7 @@ namespace PraxisCore
         public void RecreateIndexes()
         {
             //Only run this after running DropIndexes, since these should all exist on DB creation.
+            Log.WriteLog("Recreating indexes...");
             Database.SetCommandTimeout(60000);
 
             //PostgreSQL will make automatic spatial indexes
@@ -227,21 +233,28 @@ namespace PraxisCore
             {
                 //db.Database.ExecuteSqlRaw(GeneratedMapDataIndex);
                 Database.ExecuteSqlRaw(MapTileIndex);
+                Log.WriteLog("MapTiles indexed.");
                 Database.ExecuteSqlRaw(SlippyMapTileIndex);
+                Log.WriteLog("SlippyMapTiles indexed.");
                 Database.ExecuteSqlRaw(StoredElementsIndex);
+                Log.WriteLog("Places geometry indexed.");
 
                 //now also add the automatic ones we took out in DropIndexes.
                 Database.ExecuteSqlRaw(drawSizeHintIndex);
                 Database.ExecuteSqlRaw(sourceItemIdIndex);
                 Database.ExecuteSqlRaw(sourceItemTypeIndex);
-                Database.ExecuteSqlRaw(tagKeyIndex);
                 Database.ExecuteSqlRaw(privacyIdIndex);
-                Database.ExecuteSqlRaw(customDataPlusCodesIndex);
+                Log.WriteLog("Places other columns indexed.");
+                Database.ExecuteSqlRaw(tagKeyIndex);
+                Log.WriteLog("PlaceTags indexed.");
+                Database.ExecuteSqlRaw(AreaDataSpatialIndex);
+                Log.WriteLog("AreaData indexed.");
             }
         }
 
         public void DropIndexes()
         {
+            Log.WriteLog("Dropping indexes.....");
             Database.ExecuteSqlRaw(DropMapTileIndex);
             Database.ExecuteSqlRaw(DropStoredElementsIndex);
             Database.ExecuteSqlRaw(DropSlippyMapTileIndex);
@@ -251,6 +264,7 @@ namespace PraxisCore
             Database.ExecuteSqlRaw(DropStoredElementsSourceItemTypeIndex);
             Database.ExecuteSqlRaw(DropStoredElementsSourceItemIdIndex);
             Database.ExecuteSqlRaw(DropTagKeyIndex);
+            Log.WriteLog("Indexes dropped.");
         }
 
         /// <summary>

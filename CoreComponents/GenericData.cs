@@ -59,7 +59,7 @@ namespace PraxisCore
                 row = new DbTables.AreaData();
                 row.DataKey = key;
                 row.PlusCode = plusCode;
-                row.GeoAreaIndex = plusCode.ToPolygon();
+                row.AreaCovered = plusCode.ToPolygon();
                 db.AreaData.Add(row);
             }
             else
@@ -261,7 +261,7 @@ namespace PraxisCore
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var poly = area.ToPolygon();
-            var data = db.AreaData.Where(d => poly.Contains(d.GeoAreaIndex) && (key == "" || key == d.DataKey) && d.IvData == null && (d.Expiration == null || d.Expiration > DateTime.UtcNow))
+            var data = db.AreaData.Where(d => poly.Contains(d.AreaCovered) && (key == "" || key == d.DataKey) && d.IvData == null && (d.Expiration == null || d.Expiration > DateTime.UtcNow))
                 .ToList();
 
             return data;
@@ -398,7 +398,7 @@ namespace PraxisCore
                 row = new DbTables.AreaData();
                 row.DataKey = key;
                 row.PlusCode = plusCode;
-                row.GeoAreaIndex = plusCode.ToPolygon();
+                row.AreaCovered = plusCode.ToPolygon();
                 db.AreaData.Add(row);
             }
             else
@@ -693,7 +693,7 @@ namespace PraxisCore
                 {
                     row = new DbTables.AreaData();
                     row.PlusCode = plusCode;
-                    row.GeoAreaIndex = plusCode.ToPolygon();
+                    row.AreaCovered = plusCode.ToPolygon();
                     row.DataKey = key;
                     db.AreaData.Add(row);
                 }

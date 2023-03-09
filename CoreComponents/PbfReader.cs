@@ -57,7 +57,6 @@ namespace PraxisCore.PbfReader
         Dictionary<long, int> blockSizes = new Dictionary<long, int>(initialCapacity);
 
         Envelope bounds = null; //If not null, reject elements not within it
-        IPreparedGeometry boundsEntry = null; //use for precise detection of what to include.
 
         ConcurrentDictionary<long, PrimitiveBlock> activeBlocks = new ConcurrentDictionary<long, PrimitiveBlock>(initialConcurrency, initialCapacity);
         ConcurrentDictionary<long, bool> accessedBlocks = new ConcurrentDictionary<long, bool>(initialConcurrency, initialCapacity);
@@ -236,8 +235,6 @@ namespace PraxisCore.PbfReader
                     var relation = MakeCompleteRelation(relationId);
                     var NTSrelation = GeometrySupport.ConvertOsmEntryToPlace(relation);
                     bounds = NTSrelation.ElementGeometry.EnvelopeInternal;
-                    var pgf = new PreparedGeometryFactory();
-                    boundsEntry = pgf.Create(NTSrelation.ElementGeometry);
                 }
 
                 int nextGroup = FindLastCompletedGroup() + 1; //saves -1 at the start of a block, so add this to 0.
@@ -273,8 +270,9 @@ namespace PraxisCore.PbfReader
                                     timeListWays.Add(swGroup.Elapsed);
                                 Log.WriteLog("Block " + block + " Group " + i + " processed " + currentCount + " in " + swGroup.Elapsed);
                             }
-                            catch
+                            catch (Exception ex)
                             {
+                                Log.WriteLog("Error: " + ex.Message + ex.StackTrace, Log.VerbosityLevels.Errors);
                                 Log.WriteLog("Failed to process block " + block + " normally, trying the low-resourse option", Log.VerbosityLevels.Errors);
                                 Thread.Sleep(3000); //Not necessary, but I want to give the GC a chance to clean up stuff before we pick back up.
                                 LastChanceRead(block);
@@ -637,6 +635,7 @@ namespace PraxisCore.PbfReader
                 r.Members = new CompleteRelationMember[capacity];
                 int hint = -1;
 
+                bool inBounds = false;
                 long idToFind = 0;
                 for (int i = 0; i < capacity; i++)
                 {
@@ -651,13 +650,20 @@ namespace PraxisCore.PbfReader
                         case Relation.MemberType.WAY:
                             var wayKey = FindBlockInfoForWay(idToFind, out int indexPosition, hint);
                             hint = indexPosition;
-                            c.Member = MakeCompleteWay(idToFind, hint, false, true);
+                            var way = MakeCompleteWay(idToFind, hint, false, true);
+                            c.Member = way;
+                            if (!inBounds)
+                                if (bounds == null || (way != null && way.Nodes.Any(n => bounds.MaxY >= n.Latitude && bounds.MinY <= n.Latitude && bounds.MaxX >= n.Longitude && bounds.MinX <= n.Longitude)))
+                                    inBounds = true;
                             break;
                         case Relation.MemberType.RELATION: //ignore meta-relations
                             break;
                     }
                     r.Members[i] = c;
                 }
+
+                if (!inBounds)
+                    return null;
 
                 //Some memory cleanup slightly early, in an attempt to free up RAM faster.
                 rel = null;
@@ -778,6 +784,11 @@ namespace PraxisCore.PbfReader
                     foreach (var n in someNodes)
                         AllNodes.Add(n.Key, n.Value);
                 }
+
+                //Optimization: If any of these nodes are inside our bounds, continue. If ALL of them are outside, skip processing this entry.
+                if (bounds != null) //we have bounds, and we aren't loading this as part of a relation, so lets make sure it's in bounds.
+                    if (!AllNodes.Any(n => bounds.MaxY >= n.Value.Latitude && bounds.MinY <= n.Value.Latitude && bounds.MaxX >= n.Value.Longitude && bounds.MinX <= n.Value.Longitude))
+                        return null;
 
                 //Iterate over the list of referenced Nodes again, but this time to assign created nodes to the final results.
                 idToFind = 0;
@@ -1105,7 +1116,7 @@ namespace PraxisCore.PbfReader
                 {
                     //Some relation blocks can hit 22GB of RAM on their own. Low-resource machines will fail, and should roll into the LastChance path automatically.
                     foreach (var r in primgroup.relations)
-                        relList.Add(Task.Run(() => { results.Add(MakeCompleteRelation(r.id, onlyTagMatchedEntries, block)); totalProcessEntries++; }));
+                        relList.Add(Task.Run(() => { var rel = MakeCompleteRelation(r.id, onlyTagMatchedEntries, block); results.Add(rel); totalProcessEntries++; }));
                 }
                 else if (primgroup.ways != null && primgroup.ways.Count > 0)
                 {
@@ -1386,9 +1397,6 @@ namespace PraxisCore.PbfReader
             }
             Task.WaitAll(relList.ToArray());
 
-            if (boundsEntry != null)
-                elements = new ConcurrentBag<DbTables.Place>(elements.Where(e => boundsEntry.Intersects(e.ElementGeometry)));
-
             if (elements.IsEmpty)
                 return 0;
 
@@ -1589,6 +1597,7 @@ namespace PraxisCore.PbfReader
         public static async void QueueWriteTask(string filename, StringBuilder data)
         {
             SimpleLockable.PerformWithLockAsTask(filename, () => {
+                data.Length = data.Length - 2; //ignore final /r/n characters so we don't have a blank line.
                 File.AppendAllText(filename, data.ToString());
             });
         }

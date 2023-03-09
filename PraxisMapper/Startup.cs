@@ -123,10 +123,9 @@ namespace PraxisMapper {
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
                 while (true) {
                     PraxisAuthentication.DropExpiredEntries();
-
-                    db.Database.ExecuteSqlRaw("DELETE FROM PlaceData WHERE expiration IS NOT NULL AND expiration < NOW()");
-                    db.Database.ExecuteSqlRaw("DELETE FROM AreaData WHERE expiration IS NOT NULL AND expiration < NOW()");
-                    db.Database.ExecuteSqlRaw("DELETE FROM PlayerData WHERE expiration IS NOT NULL AND expiration < NOW()");
+                    db.Database.ExecuteSqlRaw("DELETE FROM PlaceData WHERE expiration IS NOT NULL AND expiration < CURRENT_TIMESTAMP");
+                    db.Database.ExecuteSqlRaw("DELETE FROM AreaData WHERE expiration IS NOT NULL AND expiration < CURRENT_TIMESTAMP");
+                    db.Database.ExecuteSqlRaw("DELETE FROM PlayerData WHERE expiration IS NOT NULL AND expiration < CURRENT_TIMESTAMP");
                     //remember, don't delete map tiles here, since those track how many times they've been redrawn so the client knows when to ask for the image again.
 
                     if (useAntiCheat) {

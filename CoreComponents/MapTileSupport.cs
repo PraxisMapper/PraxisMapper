@@ -165,7 +165,7 @@ namespace PraxisCore {
 
             var searchPoly = GeometrySupport.MakeBufferedGeoArea(stats.area).ToPolygon();
             var drawPoly = stats.area.ToPolygon();
-            var elements = db.AreaData.Where(d => searchPoly.Intersects(d.GeoAreaIndex)).ToList(); //Each of these will be a single tag/value and a plusCode.
+            var elements = db.AreaData.Where(d => searchPoly.Intersects(d.AreaCovered)).ToList(); //Each of these will be a single tag/value and a plusCode.
             
             var bgOp = new CompletePaintOp(drawPoly, 1, styles["background"].PaintOperations.First(), "background", 1);
             var pass1 = elements.Select(d => new { place = d.ToPlace(styleSet), paintOp = styles[TagParser.GetStyleEntry(new List<AreaData>() { d }, styleSet).Name].PaintOperations });

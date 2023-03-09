@@ -147,7 +147,7 @@ namespace PraxisCore
 
         public static DbTables.Place ToPlace(this AreaData ad, string styleSet) {
             var dbPlace = new DbTables.Place();
-            dbPlace.ElementGeometry = ad.GeoAreaIndex;
+            dbPlace.ElementGeometry = ad.AreaCovered;
             var style = TagParser.GetStyleEntry(new List<AreaData> { ad }, styleSet);
             dbPlace.StyleName = style.Name;
             dbPlace.IsGameElement = style.IsGameElement;
