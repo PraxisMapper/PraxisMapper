@@ -1,7 +1,6 @@
 ﻿using CryptSharp;
 using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
-using PraxisCore.Support;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -11,8 +10,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using static PraxisCore.DbTables;
 
-namespace PraxisCore
-{
+namespace PraxisCore {
     /// <summary>
     /// Classes that handle reading and writing key-value pairs for players, places, pluscodes, or the global set.
     /// </summary>
@@ -256,12 +254,19 @@ namespace PraxisCore
         //This version can be used to get info on plusCode areas without passing in a specific pluscode.
         public static List<AreaData> GetAllDataInArea(GeoArea area, string key = "")
         {
-            //TODO: this throws an error about update locks can't be acquired in a READ UNCOMMITTED block or something when key != "" on MariaDB.
+            
             var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var poly = area.ToPolygon();
-            var data = db.AreaData.Where(d => poly.Contains(d.AreaCovered) && (key == "" || key == d.DataKey) && d.IvData == null && (d.Expiration == null || d.Expiration > DateTime.UtcNow))
+            List<AreaData> data = new List<AreaData>();
+            if (PraxisContext.serverMode == "MariaDB") {
+                //NOTE: as long as https://jira.mariadb.org/browse/MDEV-26123 remains open, I have to do this workaround for MariaDB.
+                data = db.AreaData.Where(d => poly.Contains(d.AreaCovered)).ToList();
+                data = data.Where(d => (key == "" || key == d.DataKey) && d.IvData == null && (d.Expiration == null || d.Expiration > DateTime.UtcNow)).ToList();
+            }
+            else
+            data = db.AreaData.Where(d => poly.Contains(d.AreaCovered) && (key == "" || key == d.DataKey) && d.IvData == null && (d.Expiration == null || d.Expiration > DateTime.UtcNow))
                 .ToList();
 
             return data;
