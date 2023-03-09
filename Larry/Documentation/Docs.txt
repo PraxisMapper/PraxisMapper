@@ -16,7 +16,7 @@ Solar2dExportFolder: Not currently used. Will allow for updating an example game
 UseHighAccuracy: If true, uses data as it was loaded. If false, simplifies down areas to work the same for gameplay while using 30% less space, but makes maptiles inaccurate.
 OnlyTaggedAreas: If true, only loads data that matches from a style set into your database. If false, loads all data from the source into your database, allowing for updating styles without reparsing files.
 ForceStyleDefaults: if true, skips connecting to the database and uses the default styles and gameplay areas. If false, loads styles from the database, allowing for customization and additional styles.
-UseMariaDBInFile: If true, and DbMode is 'MariaDB', will save output files to a different format that loads to the database much faster but doesn't work with the other backend options.
+UseGeomDataFiles: If true, will save output files to a different format that may load to the database faster.
 UseOneRelationID: If 0, loads all data from the source files to the database. If any other number, loads an OSM Relation with the given number, and only saves data that overlaps with that relation.
 LogLevel: Sets how much data to display on the console window/log file. 1 does no logging, 2 only displays error messages, 3 is the default, and 4 includes additional error messages and details not normally relevant to use.
 KeepElementsInMemory: If false, operate normally and efficiently. If true, stores results in memory instead of loading them to a database. Useful for confirming output files are valid and drawing large images without a server running.
