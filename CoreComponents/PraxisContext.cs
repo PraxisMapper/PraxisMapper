@@ -126,14 +126,31 @@ namespace PraxisCore {
 
         public void MakePraxisDB() {
             if (serverMode == "LocalDB") {
-                //TODO: this works, check if this already exists perhaps?
+                //check if already exists
                 Process createdb = new Process();
+                createdb.StartInfo.FileName = "SqlLocalDB.exe";
+                createdb.StartInfo.Arguments = "info";
+                createdb.StartInfo.RedirectStandardOutput = true;
+                createdb.Start();
+                
+                string line = createdb.StandardOutput.ReadLine();
+                while(line != null) {
+                    if (line.StartsWith("Praxis")) {
+                        createdb.Close();
+                        return;
+                    }
+                    line = createdb.StandardOutput.ReadLine();
+                }
+
+                createdb = new Process();
                 createdb.StartInfo.FileName = "SqlLocalDB.exe";
                 createdb.StartInfo.Arguments = "create \"Praxis\" -s"; //create and start the new DB
                 createdb.StartInfo.RedirectStandardOutput = true;
+                createdb.StartInfo.RedirectStandardError = true;
                 createdb.Start();
-                string line = createdb.StandardOutput.ReadLine();
-                if (!line.StartsWith("Microsoft (R) SQL Server Express LocalDB")) {
+                line = createdb.StandardOutput.ReadLine();
+                var error = createdb.StandardError.ReadToEnd();
+                if (!line.StartsWith("LocalDB instance")) {
                     Log.WriteLog("LocalDB not found, installing.");
                     HttpClient hc = new HttpClient();
                     var installer = hc.GetByteArrayAsync("https://github.com/PraxisMapper/PraxisMapper/blob/master/SupportFiles/SQLLOCALDB.MSI?raw=true").Result;
