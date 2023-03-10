@@ -1,17 +1,4 @@
 {
-  "$schema": "http://json.schemastore.org/launchsettings.json",
-  "iisSettings": {
-    "windowsAuthentication": false,
-    "anonymousAuthentication": true,
-    "iis": {
-      "applicationUrl": "http://localhost/PraxisMapper",
-      "sslPort": 0
-    },
-    "iisExpress": {
-      "applicationUrl": "http://192.168.1.92:64374",
-      "sslPort": 44384
-    }
-  },
   "profiles": {
     "IIS Express": {
       "commandName": "IISExpress",
@@ -20,15 +7,6 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
-    },
-    "GPSExploreServerAPI": {
-      "commandName": "IISExpress",
-      "launchBrowser": true,
-      "launchUrl": "GpsExplore/Test",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      },
-      "applicationUrl": "https://localhost:5001;http://localhost:5000"
     },
     "Docker": {
       "commandName": "Docker",
@@ -41,6 +19,23 @@
       "commandName": "IIS",
       "launchBrowser": true,
       "launchUrl": "http://localhost/PraxisMapper/slippy"
+    },
+    "Kestrel": {
+      "commandName": "Executable",
+      "executablePath": "$(TargetDir)PraxisMapper.exe"
+    }
+  },
+  "$schema": "http://json.schemastore.org/launchsettings.json",
+  "iisSettings": {
+    "windowsAuthentication": false,
+    "anonymousAuthentication": true,
+    "iis": {
+      "applicationUrl": "http://localhost/PraxisMapper",
+      "sslPort": 0
+    },
+    "iisExpress": {
+      "applicationUrl": "http://192.168.1.92:64374",
+      "sslPort": 44384
     }
   }
 }

@@ -221,7 +221,7 @@ namespace PraxisCore.PbfReader
                     return;
                 }
 
-                System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                Stopwatch sw = new Stopwatch();
                 sw.Start();
 
                 PrepareFile(filename);

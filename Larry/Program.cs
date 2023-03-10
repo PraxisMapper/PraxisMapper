@@ -408,7 +408,7 @@ namespace Larry {
                     }
                 }
             }
-            else if (config["DbMode"] == "SQLServer" ){
+            else if (config["DbMode"] == "SQLServer" || config["DbMode"] == "LocalDB") {
                 foreach (var fileName in geomFilenames) {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
