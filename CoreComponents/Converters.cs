@@ -40,7 +40,15 @@ namespace PraxisCore
         /// <returns>a Polygon covering the GeoArea provided</returns>
         public static Geometry GeoAreaToPolygon(GeoArea plusCodeArea)
         {
-            return geometryFactory.CreatePolygon(GeoAreaToCoordArray(plusCodeArea));
+            Geometry poly = geometryFactory.CreatePolygon(GeoAreaToCoordArray(plusCodeArea));
+            if (!poly.IsValid)
+                poly = NetTopologySuite.Geometries.Utilities.GeometryFixer.Fix(poly);
+
+            if (!((Polygon)poly).Shell.IsCCW) {
+                poly = poly.Reverse();
+            }
+
+            return poly;
         }
 
         /// <summary>

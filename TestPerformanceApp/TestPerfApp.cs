@@ -951,6 +951,11 @@ namespace PerformanceTestApp {
                 PraxisContext.connectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;";
                 PraxisContext.serverMode = "SQLServer";
             }
+            else if (mode == "LocalDB") {
+                Log.WriteLog("Starting LocalDB performance test.");
+                PraxisContext.connectionString = "Server=(localdb)\\Praxis;Integrated Security=true;", 
+                PraxisContext.serverMode = "LocalDB";
+            }
             else if (mode == "MariaDB")
             {
                 Log.WriteLog("Starting MariaDb performance test.");
@@ -1341,14 +1346,9 @@ namespace PerformanceTestApp {
                 db.Database.ExecuteSqlRaw(PraxisContext.MapTileIndex);
                 db.Database.ExecuteSqlRaw(PraxisContext.SlippyMapTileIndex);
                 db.Database.ExecuteSqlRaw(PraxisContext.StoredElementsIndex);
-                db.Database.ExecuteSqlRaw(PraxisContext.customDataPlusCodesIndex);
+                db.Database.ExecuteSqlRaw(PraxisContext.AreaDataSpatialIndex);
             }
 
-            if (mode == "SQLServer")
-            {
-                db.Database.ExecuteSqlRaw(PraxisContext.MapDataValidTriggerMSSQL);
-                //db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataValidTriggerMSSQL);
-            }
             if (mode == "MariaDB")
             {
                 db.Database.ExecuteSqlRaw("SET collation_server = 'utf8mb4_unicode_ci'; SET character_set_server = 'utf8mb4'"); //MariaDB defaults to latin2_swedish, we need Unicode.

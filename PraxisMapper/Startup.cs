@@ -149,16 +149,18 @@ namespace PraxisMapper {
             //if the DB is empty, attmept to auto-load from a pbf file. This removes a couple of manual steps from smaller games, even if it takes a few extra minutes.
             if (!db.Places.Any()) {
                 Log.WriteLog("No data loaded, attempting to auto-load");
+                var relationAsBounds = Configuration.GetValue<long>("useRelationForBounds");
                 var candidates = Directory.EnumerateFiles(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "*.pbf");
                 if (candidates.Any()) {
                     PbfReader reader = new PbfReader();
+                    reader.outputPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + "\\";
                     reader.saveToDB = true;
-                    reader.ProcessFile(candidates.First());
+                    reader.ProcessFile(candidates.First(), relationAsBounds);
                     Log.WriteLog("Done populating DB from " + candidates.First());
-                    db.SetServerBounds(0);
+                    db = new PraxisContext();
+                    db.SetServerBounds(relationAsBounds);
                 }
             }
-
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

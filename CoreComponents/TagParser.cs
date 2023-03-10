@@ -41,6 +41,8 @@ namespace PraxisCore {
         public static void Initialize(bool onlyDefaults = false, IMapTiles mapTiles = null)
         {
             Singletons.defaultStyleEntries.Clear();
+            allStyleGroups.Clear();
+
             Singletons.defaultStyleEntries.AddRange(Styles.adminBounds.style);
             Singletons.defaultStyleEntries.AddRange(Styles.mapTiles.style);
             Singletons.defaultStyleEntries.AddRange(Styles.outlines.style);
