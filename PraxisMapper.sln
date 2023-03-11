@@ -21,7 +21,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PraxisVersionPlugin", "Prax
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PraxisMunicipalityPlugin", "PraxisMunicipalityPlugin\PraxisMunicipalityPlugin.csproj", "{B93D905C-565C-43FE-B8F7-24294E84EF53}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PraxisOfflineDataPlugin", "PraxisOfflineDataPlugin\PraxisOfflineDataPlugin.csproj", "{76751C83-E522-4682-B53F-07F8F6C49286}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PraxisOfflineDataPlugin", "PraxisOfflineDataPlugin\PraxisOfflineDataPlugin.csproj", "{76751C83-E522-4682-B53F-07F8F6C49286}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PraxisChatPlugin", "PraxisChatPlugin\PraxisChatPlugin.csproj", "{91D0A6E4-8C82-4B68-8DA9-7F6FC48CB0F7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -69,6 +71,10 @@ Global
 		{76751C83-E522-4682-B53F-07F8F6C49286}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{76751C83-E522-4682-B53F-07F8F6C49286}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{76751C83-E522-4682-B53F-07F8F6C49286}.Release|Any CPU.Build.0 = Release|Any CPU
+		{91D0A6E4-8C82-4B68-8DA9-7F6FC48CB0F7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{91D0A6E4-8C82-4B68-8DA9-7F6FC48CB0F7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{91D0A6E4-8C82-4B68-8DA9-7F6FC48CB0F7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{91D0A6E4-8C82-4B68-8DA9-7F6FC48CB0F7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

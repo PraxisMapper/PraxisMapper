@@ -109,12 +109,16 @@ namespace PraxisChatPlugin.Controllers {
 
         [HttpPut]
         [Route("/[controller]/ChatBan/{username}")]
-        public string ChatBanUser(string username) {
+        [Route("/[controller]/ChatBan/{username}/{minutes}")]
+        public string ChatBanUser(string username, double minutes = 0) {
             PraxisAuthentication.GetAuthInfo(Response, out var accountId, out var password);
             if (!PraxisAuthentication.IsAdmin(accountId))
                 return "No";
 
-            GenericData.SetPlayerData(username, "isChatBanned", true.ToJsonByteArray());
+            if (minutes == 0)
+                GenericData.SetPlayerData(username, "isChatBanned", true.ToJsonByteArray());
+            else
+                GenericData.SetPlayerData(username, "isChatBanned", true.ToJsonByteArray(), minutes * 60);
             return "OK";
         }
 
