@@ -77,7 +77,7 @@ namespace PraxisCore {
 
             model.Entity<AreaData>().HasIndex(m => m.DataKey);
             model.Entity<AreaData>().HasIndex(m => m.PlusCode);
-            //model.Entity<AreaData>().HasIndex(m => m.GeoAreaIndex); //This breaks on SQL Server if you attempt to auto-create this, must be done manually.
+            //model.Entity<AreaData>().HasIndex(m => m.AreaCovered); //This breaks on SQL Server if you attempt to auto-create this, must be done manually.
             model.Entity<AreaData>().HasIndex(m => m.Expiration);
 
             model.Entity<AntiCheatEntry>().HasIndex(m => m.filename);
@@ -288,7 +288,13 @@ namespace PraxisCore {
         /// <param name="g">the area to expire intersecting maptiles with</param>
         /// <param name="styleSet">which set of maptiles to expire. All tiles if this is an empty string</param>
         public int ExpireMapTiles(Geometry g, string styleSet = "") {
-            string SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, ST_GEOMFROMTEXT('" + g.AsText() + "'))";
+            string SQL = "";
+            if (serverMode == "MariaDB") {
+                SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, ST_GEOMFROMTEXT('" + g.AsText() + "', 4326))";
+            }
+            else if (serverMode == "SQLServer" || serverMode == "LocalDB") {
+                SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND areaCovered.STIntersects(geography::STGeomFromText('" + g.AsText() + "', 4326).MakeValid()) = 1";
+            }
             return Database.ExecuteSqlRaw(SQL);
         }
 
@@ -303,7 +309,13 @@ namespace PraxisCore {
         /// <param name="elementId">the privacyID of a Place to expire intersecting tiles for.</param>
         /// <param name="styleSet">which set of maptiles to expire. All tiles if this is an empty string</param>
         public int ExpireMapTiles(Guid elementId, string styleSet = "") {
-            string SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM Places WHERE privacyId = '" + elementId + "'))";
+            string SQL = "";
+            if (serverMode == "MariaDB") {
+                SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM Places WHERE privacyId = '" + elementId.ToString() + "'))";
+            }
+            else if (serverMode == "SQLServer" || serverMode == "LocalDB") {
+                SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND areaCovered.STIntersects((SELECT elementGeometry FROM Places WHERE privacyID = '" + elementId.ToString() + "')) = 1";
+            }
             return Database.ExecuteSqlRaw(SQL);
         }
 
@@ -313,7 +325,13 @@ namespace PraxisCore {
         /// <param name="g">the area to expire intersecting maptiles with</param>
         /// <param name="styleSet">which set of SlippyMap tiles to expire. All tiles if this is an empty string</param>
         public void ExpireSlippyMapTiles(Geometry g, string styleSet = "") {
-            string SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, ST_GEOMFROMTEXT('" + g.AsText() + "'))";
+            string SQL = "";
+            if (serverMode == "MariaDB") {
+                SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, ST_GEOMFROMTEXT('" + g.AsText() + "', 4326))";
+            }
+            else if (serverMode == "SQLServer" || serverMode == "LocalDB") {
+                SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND areaCovered.STIntersects(geography::STGeomFromText('" + g.AsText() + "', 4326).MakeValid()) = 1";
+            }
             Database.ExecuteSqlRaw(SQL);
         }
 
@@ -323,7 +341,13 @@ namespace PraxisCore {
         /// <param name="elementId">the privacyID of a Place to expire intersecting tiles for.</param>
         /// <param name="styleSet">which set of maptiles to expire. All tiles if this is an empty string</param>
         public void ExpireSlippyMapTiles(Guid elementId, string styleSet = "") {
-            string SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet = '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM Places WHERE privacyId = '" + elementId + "'))";
+            string SQL = "";
+            if (serverMode == "MariaDB") {
+                SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet = '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, (SELECT elementGeometry FROM Places WHERE privacyId = '" + elementId.ToString() + "'))";
+            }
+            else if (serverMode == "SQLServer" || serverMode == "LocalDB") {
+                SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND areaCovered.STIntersects((SELECT elementGeometry FROM Places WHERE privacyId = '" + elementId.ToString() + "')) = 1";
+            }
             Database.ExecuteSqlRaw(SQL);
         }
         public void ExpireAllSlippyMapTiles() {
