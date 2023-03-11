@@ -326,5 +326,13 @@ namespace PraxisCore {
 
             return speed;
         }
+
+        public static double SpeedCheck(Point point1, DateTime time1, Point point2, DateTime time2) {
+            var time = Math.Abs((time1 - time2).TotalSeconds);
+            var distance = MetersDistanceTo(point1, point2);
+            var speed = distance / time; //Speed is meters/second.
+
+            return speed;
+        }
     }
 }
