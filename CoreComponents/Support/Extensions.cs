@@ -1,5 +1,6 @@
 ﻿using Google.OpenLocationCode;
 using NetTopologySuite.Geometries;
+using NetTopologySuite.Geometries.Utilities;
 using PraxisCore.Support;
 using System;
 using System.Collections.Generic;
@@ -443,6 +444,14 @@ namespace PraxisCore
         public static double MetersDistanceTo(this string g, string otherPlusCode)
         {
             return GeometrySupport.MetersDistanceTo(g.ToGeoArea().Center, otherPlusCode.ToGeoArea().Center);
+        }
+
+        public static double MetersDistanceTo(this Point g, Point otherPoint) {
+            return GeometrySupport.MetersDistanceTo(g, otherPoint);
+        }
+
+        public static Geometry Fix(this Geometry g) {
+            return GeometryFixer.Fix(g);
         }
     }
 }

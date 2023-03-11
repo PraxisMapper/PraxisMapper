@@ -296,13 +296,18 @@ namespace PraxisCore {
         /// <returns>distance in meters between the given points on Earth</returns>
         public static double MetersDistanceTo(GeoPoint p, GeoPoint otherPoint)
         {
-            //Haversine math.
-            const double earthRadius = 6367000.0;
-            var calcLat = Math.Sin((otherPoint.Latitude.ToRadians() - p.Latitude.ToRadians()) * 0.5);
-            var calcLon = Math.Sin((otherPoint.Longitude.ToRadians() - p.Longitude.ToRadians()) * 0.5);
-            var q = (calcLat * calcLat) + (calcLon * calcLon) * (Math.Cos(otherPoint.Latitude.ToRadians()) * Math.Cos(p.Latitude.ToRadians()));
-            var d = 2 * earthRadius * Math.Asin(Math.Sqrt(q));
-            return d;
+            return MetersDistanceTo(p.Longitude, p.Latitude, otherPoint.Longitude, otherPoint.Latitude);
+        }
+
+        public static double MetersDistanceTo(Point p, Point otherPoint) {
+            return MetersDistanceTo(p.X, p.Y, otherPoint.X, otherPoint.Y);
+        }
+
+        public static double MetersDistanceTo (double x1,  double y1, double x2, double y2) {
+            double calcLat = Math.Sin((y2.ToRadians() - y1.ToRadians()) * 0.5);
+            double calcLon = Math.Sin((x2.ToRadians() - x1.ToRadians()) * 0.5);
+            double q = calcLat * calcLat + calcLon * calcLon * (Math.Cos(y2.ToRadians()) * Math.Cos(y1.ToRadians()));
+            return 12734000.0 * Math.Asin(Math.Sqrt(q));
         }
 
         /// <summary>
