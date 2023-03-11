@@ -953,7 +953,7 @@ namespace PerformanceTestApp {
             }
             else if (mode == "LocalDB") {
                 Log.WriteLog("Starting LocalDB performance test.");
-                PraxisContext.connectionString = "Server=(localdb)\\Praxis;Integrated Security=true;", 
+                PraxisContext.connectionString = "Server=(localdb)\\Praxis;Integrated Security=true;"; 
                 PraxisContext.serverMode = "LocalDB";
             }
             else if (mode == "MariaDB")
