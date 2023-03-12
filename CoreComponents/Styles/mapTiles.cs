@@ -306,7 +306,6 @@ namespace PraxisCore.Styles
                 new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
                 new StyleMatchRule() { Key="area", Value="yes", MatchType="equals"}
             }},
-            //Roads of varying sizes and colors to match OSM colors
             new StyleEntry() { MatchOrder = 300, Name ="primary", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "fcd6a4", FillOrStroke = "stroke", LineWidthDegrees=0.00005F, LinePattern= "solid", LayerId = 94, MaxDrawRes = ConstantValues.zoom6DegPerPixelX /2 },
@@ -328,7 +327,6 @@ namespace PraxisCore.Styles
                 new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
                 new StyleMatchRule() { Key="area", Value="yes", MatchType="equals"}
             }},
-            //Roads of varying sizes and colors to match OSM colors
             new StyleEntry() { MatchOrder = 320, Name ="secondary",  StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "f7fabf", FillOrStroke = "stroke", LineWidthDegrees=0.0000375F, LinePattern= "solid", LayerId = 96, MaxDrawRes = ConstantValues.zoom8DegPerPixelX,},
@@ -351,6 +349,15 @@ namespace PraxisCore.Styles
                 new StyleMatchRule() { Key="area", Value="yes", MatchType="equals"}
             }},
             //New in Release 8: Additional styles for more accurate map tiles.
+            new StyleEntry() { MatchOrder = 335, Name ="rail", StyleSet = "mapTiles", //Draw most railways in the same pattern for now.
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "c6b3c3", FillOrStroke = "fill", LineWidthDegrees=0.0000575F, LinePattern= "40|40", LayerId = 102, MaxDrawRes = ConstantValues.zoom8DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "ebdbe8", FillOrStroke = "fill", LineWidthDegrees=0.0000625F, LinePattern= "solid", LayerId = 103, MaxDrawRes = ConstantValues.zoom8DegPerPixelX / 2}
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key = "railway", Value = "rail|construction|disued|narrow_gauge|tram", MatchType = "any" },
+            }},
             new StyleEntry() { MatchOrder = 340, Name ="tree", StyleSet = "mapTiles", //Trees are transparent, so they blend the color of what's under thenm.
                 PaintOperations = new List<StylePaint>() { //TODO: consider scaling to 32x32px at zoom 20. Do the math to convert that to degrees.
                     new StylePaint() { HtmlColorCode = "42aedfa3", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 97, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},

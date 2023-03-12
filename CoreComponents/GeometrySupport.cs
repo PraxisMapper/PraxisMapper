@@ -25,6 +25,10 @@ namespace PraxisCore {
             return original.PadGeoArea(MapTileSupport.BufferSize);
         }
 
+        public static GeoArea MakeBufferedGeoArea(GeoArea original, double bufferSize) {
+            return original.PadGeoArea(bufferSize);
+        }
+
         /// <summary>
         /// Forces a Polygon to run counter-clockwise, and inner holes to run clockwise, which is important for NTS geometry. SQL Server rejects objects that aren't CCW.
         /// </summary>
