@@ -40,13 +40,13 @@ namespace PraxisCore.GameTools {
 
             if (speedCapMetersPerSecond == 0)
                 speedCapOk = true;
-            else if (GeometrySupport.SpeedCheck(lp, lastPointRecordedAt.Value, point, DateTime.UtcNow) > speedCapMetersPerSecond) {
+            else if (GeometrySupport.SpeedCheck(lp, lastPointRecordedAt.Value, point, DateTime.UtcNow) < speedCapMetersPerSecond) {
                 speedCapOk = true;
                 lastPointRecordedAt = DateTime.UtcNow;
             }
 
             if (distance > minimumChange && speedCapOk) { //Distance only counts if it's above the minimum and (if speed if capped) you stayed under the speed cap
-                distance += minimumChange; 
+                totalDistance += distance; 
             }
 
             lastPoint.X = point.X;

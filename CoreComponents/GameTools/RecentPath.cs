@@ -11,7 +11,7 @@ namespace PraxisCore.GameTools {
         public double Y { get; set; }
     }
 
-    class RecentPath {
+    public class RecentPath {
         public List<JsonPoint> points { get; set; } = new List<JsonPoint>(); //Coordinates and Points don't convert to JSON nicely.
         public DateTime lastUpdate { get; set; } // drop if too old.   
         public double speedLimitMetersPerSecond { get; set; } = 11; //11 m/s ~= 25MPH

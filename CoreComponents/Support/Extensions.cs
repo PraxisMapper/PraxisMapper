@@ -8,6 +8,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using static PraxisCore.DbTables;
 
 namespace PraxisCore
 {
@@ -452,6 +453,10 @@ namespace PraxisCore
 
         public static Geometry Fix(this Geometry g) {
             return GeometryFixer.Fix(g);
+        }
+
+        public static Geometry Simplify(this Geometry g, double resolution) {
+            return NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(g, resolution);
         }
     }
 }

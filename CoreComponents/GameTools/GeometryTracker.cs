@@ -21,7 +21,8 @@ namespace PraxisCore.GameTools {
         public void AddCell(string plusCode) 
         {
             PopulateExplored();
-            explored = explored.Union(plusCode.ToPolygon());
+            //Lines that touch remain multipolygons. Unioning buffered areas leaves all their points in place. Simplify removes most redundant points.
+            explored = explored.Union(GeometrySupport.MakeBufferedGeoArea(plusCode.ToGeoArea(), 0.00000001).ToPolygon()).Simplify(0.00000001);
             exploredAsText = explored.ToText();
         }
 
