@@ -13,7 +13,7 @@ namespace PraxisCore
         /// <summary>
         /// If true, writes all console output to a file as well.
         /// </summary>
-        public static bool WriteToFile = false;
+        public static bool SaveToFile = false;
 
         private static object fileLock = new object();
         public enum VerbosityLevels
@@ -35,7 +35,7 @@ namespace PraxisCore
                 return;
 
             Console.WriteLine(message);
-            if (WriteToFile)
+            if (SaveToFile)
                 lock (fileLock)
                     File.AppendAllText(filename, message + Environment.NewLine);
         }
