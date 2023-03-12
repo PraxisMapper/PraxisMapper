@@ -38,7 +38,7 @@ namespace PraxisMapper {
             usePlugins = Configuration.GetValue<bool>("enablePlugins");
             maintenanceMessage = Configuration.GetValue<string>("maintenanceMessage");
             PraxisHeaderCheck.ServerAuthKey = Configuration.GetValue<string>("serverAuthKey");
-            Log.WriteToFile = Configuration.GetValue<bool>("enableFileLogging");
+            Log.SaveToFile = Configuration.GetValue<bool>("enableFileLogging");
             PraxisContext.serverMode = Configuration.GetValue<string>("dbMode");
             PraxisContext.connectionString = Configuration.GetValue<string>("dbConnectionString");
             DataCheck.DisableBoundsCheck = Configuration.GetValue<bool>("DisableBoundsCheck");
