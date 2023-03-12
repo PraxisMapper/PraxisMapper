@@ -15,7 +15,7 @@ namespace PraxisCore.GameTools {
             {
                 explored = GeometrySupport.GeometryFromWKT(exploredAsText);
                 isPopulated = true;
-            }
+            } 
         }
 
         public void AddCell(string plusCode) 
@@ -29,7 +29,7 @@ namespace PraxisCore.GameTools {
         public void RemoveCell(string plusCode) 
         {
             PopulateExplored();
-            explored = explored.Difference(plusCode.ToPolygon());
+            explored = explored.Difference(GeometrySupport.MakeBufferedGeoArea(plusCode.ToGeoArea(), 0.00000001).ToPolygon()).Simplify(0.00000001);
             exploredAsText = explored.ToText();
         }
     }

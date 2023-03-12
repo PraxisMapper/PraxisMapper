@@ -32,7 +32,7 @@ namespace PraxisCore.GameTools {
                 speed = GeometrySupport.SpeedCheck(olc.Center, DateTime.UtcNow, new GeoPoint(lastPoint.Y, lastPoint.X), lastUpdate);
             }
 
-            if (speed <= speedLimitMetersPerSecond) {
+            if (speedLimitMetersPerSecond == 0 || speed <= speedLimitMetersPerSecond) {
                 JsonPoint thisPoint = new JsonPoint() { X = point.X, Y = point.Y };
                 if (lastPoint != thisPoint) {
                     points.Add(thisPoint);
