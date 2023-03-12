@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace PraxisCore.GameTools
 {
-    public class RecentActivityTracker {
+    public sealed class RecentActivityTracker {
         //Stores Cell10s a player has entered within the last $hourDelay, with a datestamp for when that entry will be removed
         public int hourDelay { get; set; } = 22;
         public Dictionary<string, DateTime> history { get; set; } = new Dictionary<string, DateTime>(); //Holds the expiration time of the given PlusCode. (EX: if an entry is present, it is not recent)

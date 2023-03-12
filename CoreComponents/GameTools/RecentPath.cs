@@ -2,6 +2,7 @@
 using NetTopologySuite.Geometries;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 
 namespace PraxisCore.GameTools {
@@ -11,16 +12,22 @@ namespace PraxisCore.GameTools {
         public double Y { get; set; }
     }
 
-    public class RecentPath {
+    public sealed class RecentPath {
         public List<JsonPoint> points { get; set; } = new List<JsonPoint>(); //Coordinates and Points don't convert to JSON nicely.
         public DateTime lastUpdate { get; set; } // drop if too old.   
-        public double speedLimitMetersPerSecond { get; set; } = 11; //11 m/s ~= 25MPH
+        public double speedLimitMetersPerSecond { get; set; } = 11; //11 m/s ~= 25MPH. Set to 0 to disable.
         public double pathExpirationMinutes { get; set; } = 3;
 
         public void AddPoint(string plusCode11) {
             var olc = OpenLocationCode.DecodeValid(plusCode11);
-            var point = olc.ToPoint();
+            AddPoint(olc.ToPoint());
+        }
 
+        public void AddPoint(GeoArea olc) {
+            AddPoint(olc.ToPoint());
+        }
+
+        public void AddPoint(NetTopologySuite.Geometries.Point p) {
             if (lastUpdate.AddMinutes(pathExpirationMinutes) < DateTime.UtcNow) {
                 //path expired, reset it.
                 points.Clear();
@@ -28,12 +35,12 @@ namespace PraxisCore.GameTools {
 
             var lastPoint = points.LastOrDefault();
             double speed = 0;
-            if (lastPoint != null) {
-                speed = GeometrySupport.SpeedCheck(olc.Center, DateTime.UtcNow, new GeoPoint(lastPoint.Y, lastPoint.X), lastUpdate);
+            if (lastPoint != null && speedLimitMetersPerSecond > 0 ) {
+                speed = GeometrySupport.SpeedCheck(p, DateTime.UtcNow, new NetTopologySuite.Geometries.Point(lastPoint.X, lastPoint.Y), lastUpdate);
             }
 
             if (speedLimitMetersPerSecond == 0 || speed <= speedLimitMetersPerSecond) {
-                JsonPoint thisPoint = new JsonPoint() { X = point.X, Y = point.Y };
+                JsonPoint thisPoint = new JsonPoint() { X = p.X, Y = p.Y };
                 if (lastPoint != thisPoint) {
                     points.Add(thisPoint);
                     lastUpdate = DateTime.UtcNow;

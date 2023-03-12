@@ -2,11 +2,11 @@
 using System.Text.Json.Serialization;
 
 namespace PraxisCore.GameTools {
-    public class GeometryTracker {
+    public sealed class GeometryTracker {
         
         [JsonIgnore]
         public Geometry explored { get; set; } = Singletons.geometryFactory.CreatePolygon(); //This is the object most of the work will be done against
-        public string exploredAsText { get; set; } = ""; //This is what gets saves as JSON to our database for simplicity, even if it incurs some processing overhead.
+        public string exploredAsText { get; set; } = ""; //This is what gets saves as JSON to our database for simplicity, even if it incurs somsealede processing overhead.
         bool isPopulated = false;
 
         public void PopulateExplored() 

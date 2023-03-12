@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace PraxisCore.GameTools {
-    public class NameGenerator {
+    public sealed class NameGenerator {
         //EX: calling GenerateName("The {location} of {adjectives}") could return "The Bay of Autumn" as a response. 
         //Users can add their own entries to the name generator by inserting new entries into nameSets and using that key in a template string.
 

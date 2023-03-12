@@ -3,9 +3,9 @@ using NetTopologySuite.Geometries;
 using System;
 
 namespace PraxisCore.GameTools {
-    public class DistanceTracker {
+    public sealed class DistanceTracker {
 
-        public JsonPoint lastPoint { get; set; }
+        public JsonPoint lastPoint { get; set; } //Call this with SetLastPoint whenever you resume tracking distance, such as a user re-opening the game.
         public double totalDistance { get; set; }
         public double minimumChange { get; set; } = 1; //Phones are practically never more accurate than 1 meter. This would need reduced if you ask on every GPS event client-side.
         public double speedCapMetersPerSecond { get; set; } = 0;
@@ -15,6 +15,20 @@ namespace PraxisCore.GameTools {
 
         public DistanceTracker(double minChangeAllowed) {
             minimumChange = minChangeAllowed;
+        }
+
+        public void SetLastPoint(string plusCode) {
+            SetLastPoint(plusCode.ToGeoArea().ToPoint());
+        }
+
+        public void SetLastPoint(GeoArea g) {
+            SetLastPoint(g.ToPoint());
+        }
+
+        public void SetLastPoint(Point incPoint) {
+            lastPoint.X = incPoint.X;
+            lastPoint.Y = incPoint.Y;
+            lastPointRecordedAt = DateTime.UtcNow;
         }
 
         public void Add(string plusCode) {
