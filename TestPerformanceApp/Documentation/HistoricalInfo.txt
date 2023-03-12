@@ -443,3 +443,10 @@ compiledBase total is 1507ms, average is 150.7
 compiledBothOff total is 1507ms, average is 161.3
 Summary: Surprised that AutoDetectChangesEnabled = false is slower than true for reads. I should turn both settings off for performance on read calls.
 Compiling this fairly simple query is slower, which is a surprise. That's supposed to be faster, but it's not. It's also slower with the options disabled when that makes normal calls faster.
+
+3/12/23: GameTools performance checks
+160k Distance calculations: AVG: 46ms,  TOTAL: 460ms
+160k GeometryTracker Adds: AVG: 359.2ms,  TOTAL: 3592ms
+160k RecentActivity Adds: AVG: 62.7ms,  TOTAL: 627ms
+160k RecentPath Adds: AVG: 76ms,  TOTAL: 760ms
+Summary: non-actional, just informative. GeometryTracker data may be misleading because all added elements are touching, instead of being disjointed and turning into a multipolygon.

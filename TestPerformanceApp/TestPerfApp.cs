@@ -7,6 +7,7 @@ using NetTopologySuite.Geometries.Prepared;
 using OsmSharp;
 using OsmSharp.Streams;
 using PraxisCore;
+using PraxisCore.GameTools;
 using PraxisCore.Support;
 using SkiaSharp;
 using System;
@@ -93,6 +94,7 @@ namespace PerformanceTestApp {
             //TestSavePerf();
             //TestPatternMatch();
             //TestNoTrackingPerf();
+            TestGameTools();
 
 
 
@@ -103,9 +105,9 @@ namespace PerformanceTestApp {
                 //TestDBPerformance("MariaDB");
                 //TestDBPerformance("PostgreSQL");
 
-                //Sample code for later, I will want to make sure these indexes work as expected.
-                //PraxisCore.MapTiles.ExpireSlippyMapTiles(Converters.GeoAreaToPolygon(OpenLocationCode.DecodeValid("86HWHHFF")));
-                //TestMapTileIndexSpeed();
+            //Sample code for later, I will want to make sure these indexes work as expected.
+            //PraxisCore.MapTiles.ExpireSlippyMapTiles(Converters.GeoAreaToPolygon(OpenLocationCode.DecodeValid("86HWHHFF")));
+            //TestMapTileIndexSpeed();
             }
 
             private static void TestCustomPbfReader()
@@ -2700,6 +2702,162 @@ namespace PerformanceTestApp {
             Console.WriteLine("compiledBase total is " + compiledBase.Sum(o => o.Milliseconds) + "ms, average is " + compiledBase.Average(o => o.Milliseconds));
             Console.WriteLine("compiledBothOff total is " + compiledBase.Sum(o => o.Milliseconds) + "ms, average is " + compiledBothOff.Average(o => o.Milliseconds));
 
+        }
+
+        public static void TestGameTools() {
+            //Not a performance test, just a simple function to make sure I can save and load game tools correctly.
+
+            Stopwatch sw = new Stopwatch();
+
+            List<List<TimeSpan>> results = new List<List<TimeSpan>>();
+            //use [i][j]], where i is the loop and j is the call.
+
+
+            for (int i = 0; i < 10; i++) {
+                Log.WriteLog("Run " + i);
+                results.Add(new List<TimeSpan>());
+
+                var tool1 = new DistanceTracker();
+                tool1.minimumChange = 0.01;
+                tool1.speedCapMetersPerSecond = 0; //Tested, works, removed for other tests here.
+
+                //Perf check
+                sw.Restart();
+                Log.WriteLog("Starting performance comparisons for DistanceTracker");
+                foreach (var cell8 in "223344".GetSubCells())
+                    foreach (var cell10 in cell8.GetSubCells())
+                        tool1.Add(cell10);
+                sw.Stop();
+                Log.WriteLog("Calculated 160,000 Cell10 distances in " + sw.ElapsedMilliseconds + "ms");
+                results[i].Add(sw.Elapsed);
+
+                sw.Restart();
+                var jsonData = tool1.ToJsonByteArray();
+                sw.Stop();
+                Log.WriteLog("Tool 1 data converted to JSON in " + sw.ElapsedMilliseconds + "ms");
+                sw.Restart();
+                GenericData.SetPlayerData("test", "distTrackerTest", jsonData);
+                sw.Stop();
+                Log.WriteLog("Tool 1 data saved in " + sw.ElapsedMilliseconds + "ms");
+                sw.Restart();
+                tool1 = GenericData.GetPlayerData<DistanceTracker>("test", "distTrackerTest");
+                sw.Stop();
+                Log.WriteLog("Tool 1 data loaded in " + sw.ElapsedMilliseconds + "ms");
+
+                var tool2 = new GeometryTracker();
+                tool2.AddCell("2233445566");
+                tool2.AddCell("2233445567");
+
+                sw.Restart();
+                GenericData.SetPlayerData("test", "geoTrackerTest", tool2.ToJsonByteArray());
+                sw.Stop();
+                Log.WriteLog("Tool 2 data saved in " + sw.ElapsedMilliseconds + "ms");
+                sw.Restart();
+                var tool2Check = GenericData.GetPlayerData<GeometryTracker>("test", "geoTrackerTest");
+                sw.Stop();
+                Log.WriteLog("Tool 2 data loaded in " + sw.ElapsedMilliseconds + "ms");
+                tool2Check.PopulateExplored();
+
+                
+                Log.WriteLog("Starting performance comparisons for GeometryTracker");
+                sw.Restart();
+                foreach (var cell8 in "223344".GetSubCells())
+                    foreach (var cell10 in cell8.GetSubCells())
+                        tool2.AddCell(cell10);
+                sw.Stop();
+                Log.WriteLog("GeometryTracker added 160k cells in " + sw.ElapsedMilliseconds + "ms");
+                results[i].Add(sw.Elapsed);
+
+                sw.Restart();
+                jsonData = tool2.ToJsonByteArray();
+                sw.Stop();
+                Log.WriteLog("Tool 2 data converted 160,000 Cell10 geometries to JSON in " + sw.ElapsedMilliseconds + "ms");
+                sw.Restart();
+                GenericData.SetPlayerData("test", "geoTrackerTest", jsonData);
+                sw.Stop();
+                Log.WriteLog("Tool 2 data saved converted data in " + sw.ElapsedMilliseconds + "ms");
+                sw.Restart();
+                tool2Check = GenericData.GetPlayerData<GeometryTracker>("test", "geoTrackerTest");
+                sw.Stop();
+                Log.WriteLog("Tool 2 data loaded 160,000 Cell10 geometries in " + sw.ElapsedMilliseconds + "ms");
+
+                var tool3 = new RecentActivityTracker();
+                tool3.hourDelay = 4;
+                var b1 = tool3.IsRecent("2233445566");
+                var b2 = tool3.IsRecent("2233445566");
+                sw.Restart();
+                GenericData.SetPlayerData("test", "recentTest", tool3.ToJsonByteArray());
+                sw.Stop();
+                Log.WriteLog("Tool 3 data saved in " + sw.ElapsedMilliseconds + "ms");
+                sw.Restart();
+                var tool3Check = GenericData.GetPlayerData<RecentActivityTracker>("test", "recentTest");
+                sw.Stop();
+                Log.WriteLog("Tool 3 data loaded in " + sw.ElapsedMilliseconds + "ms");
+
+                Log.WriteLog("Starting performance comparisons for RecentActivityTracker");
+                sw.Restart();
+                foreach (var cell8 in "223344".GetSubCells())
+                    foreach (var cell10 in cell8.GetSubCells())
+                        tool3.IsRecent(cell10);
+                sw.Stop();
+                Log.WriteLog("RecentActivityTracker added 160k cells in " + sw.ElapsedMilliseconds + "ms");
+                results[i].Add(sw.Elapsed);
+
+                sw.Restart();
+                jsonData = tool3.ToJsonByteArray();
+                sw.Stop();
+                Log.WriteLog("Tool 3 data converted 160,000 Cell10 histories to JSON in " + sw.ElapsedMilliseconds + "ms");
+                sw.Restart();
+                GenericData.SetPlayerData("test", "recentTest", jsonData);
+                sw.Stop();
+                Log.WriteLog("Tool 3 data saved converted data in " + sw.ElapsedMilliseconds + "ms");
+                sw.Restart();
+                tool3Check = GenericData.GetPlayerData<RecentActivityTracker>("test", "recentTest");
+                sw.Stop();
+                Log.WriteLog("Tool 3 data loaded 160,000 Cell10 histories in " + sw.ElapsedMilliseconds + "ms");
+
+
+                var tool4 = new RecentPath();
+                tool4.speedLimitMetersPerSecond = 0;
+                tool4.AddPoint("22334455667");
+                tool4.AddPoint("2233445566C");
+                sw.Restart();
+                GenericData.SetPlayerData("test", "recentPath", tool4.ToJsonByteArray());
+                sw.Stop();
+                Log.WriteLog("Tool 4 data saved in " + sw.ElapsedMilliseconds + "ms");
+                sw.Restart();
+                var tool4Check = GenericData.GetPlayerData<RecentPath>("test", "recentPath");
+                sw.Stop();
+                Log.WriteLog("Tool 4 data loaded in " + sw.ElapsedMilliseconds + "ms");
+
+                Log.WriteLog("Starting performance comparisons for RecentPath");
+                sw.Restart();
+                foreach (var cell8 in "223344".GetSubCells())
+                    foreach (var cell10 in cell8.GetSubCells())
+                        tool4.AddPoint(cell10);
+                sw.Stop();
+                Log.WriteLog("RecentPath added 160k cells in " + sw.ElapsedMilliseconds + "ms");
+                results[i].Add(sw.Elapsed);
+
+                sw.Restart();
+                jsonData = tool4.ToJsonByteArray();
+                sw.Stop();
+                Log.WriteLog("Tool 4 data converted 160,000 Cell10 histories to JSON in " + sw.ElapsedMilliseconds + "ms");
+                sw.Restart();
+                GenericData.SetPlayerData("test", "recentPath", jsonData);
+                sw.Stop();
+                Log.WriteLog("Tool 4 data saved converted data in " + sw.ElapsedMilliseconds + "ms");
+                sw.Restart();
+                tool4Check = GenericData.GetPlayerData<RecentPath>("test", "recentPath");
+                sw.Stop();
+                Log.WriteLog("Tool 4 data loaded 160,000 Cell10 path points in " + sw.ElapsedMilliseconds + "ms");
+
+            }
+
+            Log.WriteLog("160k Distance calculations: AVG: " + results.Average(r => r[0].Milliseconds)  + "ms,  TOTAL: " + results.Sum(r => r[0].Milliseconds) + "ms");
+            Log.WriteLog("160k GeometryTracker Adds: AVG: " + results.Average(r => r[1].Milliseconds) + "ms,  TOTAL: " + results.Sum(r => r[1].Milliseconds) + "ms");
+            Log.WriteLog("160k RecentActivity Adds: AVG: " + results.Average(r => r[2].Milliseconds) + "ms,  TOTAL: " + results.Sum(r => r[2].Milliseconds) + "ms");
+            Log.WriteLog("160k RecentPath Adds: AVG: " + results.Average(r => r[3].Milliseconds) + "ms,  TOTAL: " + results.Sum(r => r[3].Milliseconds) + "ms");
         }
     }
 }

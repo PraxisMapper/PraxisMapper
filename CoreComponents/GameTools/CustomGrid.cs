@@ -6,7 +6,7 @@ using System.Linq;
 
 namespace PraxisCore.GameTools
 {
-    public class CustomGrid
+    public sealed class CustomGrid
     {
         //This is for using PraxisMapper on a grid setup on-the-fly that doesn't use PlusCode standards.
         //(which means it'll be a little bit off even using PlusCode math, since it starts with an 18x9 grid, then subdivides into 20x20 grids after that).
