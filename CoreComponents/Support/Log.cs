@@ -3,6 +3,9 @@ using System.IO;
 
 namespace PraxisCore
 {
+    /// <summary>
+    /// A simple built-in logging class. Writes to the console, and optionally a text file.
+    /// </summary>
     public static class Log
     {
         static string filename = "PraxisCore-" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".txt";
@@ -25,7 +28,7 @@ namespace PraxisCore
         }
 
         /// <summary>
-        /// Write a log message to the console, and a file if WriteToFile is true
+        /// Write a log message to the console, and a file if SaveToFile is true
         /// </summary>
         /// <param name="message">The string to write to the console/logfile</param>
         /// <param name="outputLevel">What level of alert this log is. Will not be displayed/written if Verbosity is lower than this value.</param>
