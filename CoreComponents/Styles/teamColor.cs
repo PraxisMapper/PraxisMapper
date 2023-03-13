@@ -4,11 +4,10 @@ using static PraxisCore.DbTables;
 namespace PraxisCore.Styles
 {
     /// <summary>
-    /// Style with 3 default team colors for use in team-based games.
+    /// Style with 3 default team colors for use in team-based games. Intended to be used an an overlay. Draws the color in question by matching on a tag or data entry with a key of "team" and a value of either "red", "green", or "blue"
     /// </summary>
     public static class teamColor
     {
-        //teamColor: 3 predefined styles to allow for Red(1), Green(2) and Blue(3) teams in a game. Set a tag to the color's ID and then call a DrawCustomX function with this style.
         public static List<StyleEntry> style = new List<StyleEntry>()
         {           
             new StyleEntry() { MatchOrder = 1, Name ="1",  StyleSet = "teamColor",
