@@ -21,8 +21,18 @@ namespace PraxisCore {
     public static class MapTileSupport {
         public static IMapTiles MapTiles; //This needs set at startup.
 
+        /// <summary>
+        /// The size to draw Slippy map tiles. Some implementations expect 256x256 tiles, some can support larger ones with configuration values.
+        /// </summary>
         public static int SlippyTileSizeSquare = 512;
+        /// <summary>
+        /// How much to multiple the bounds of a game tile by. Game tiles are Cell8 sized images, with each Cell11 as a single pixel (80x100) at a multiplier of 1.
+        /// </summary>
         public static double GameTileScale = 4;
+        /// <summary>
+        /// How much additional space to add by default when buffering a GeoArea. If you would draw items that do not intersect with the current tile, they must intersect with the buffered area.
+        /// EX: Points drawn as a circle need to have a buffer of at least the circle's radius in order to not be clipped out.
+        /// </summary>
         public static double BufferSize = ConstantValues.resolutionCell10;
 
         /// <summary>
@@ -58,6 +68,12 @@ namespace PraxisCore {
             Y = (int)(Y * MapTileSupport.GameTileScale);
         }
 
+        /// <summary>
+        /// A code reference for how big an image would be using 11-character PlusCodes for pixels, multiplied by GameTileScale (default 2)
+        /// </summary>
+        /// <param name="code"></param>
+        /// <param name="X"></param>
+        /// <param name="Y"></param>
         public static void GetPlusCodeImagePixelSize(ReadOnlySpan<char> code, out int X, out int Y) {
             switch (code.Length) {
                 case 10:
@@ -85,6 +101,12 @@ namespace PraxisCore {
             Y = (int)(Y * MapTileSupport.GameTileScale);
         }
 
+        /// <summary>
+        /// Gets an PNG image of the requested PlusCode, drawn in the requested style set.
+        /// </summary>
+        /// <param name="area"></param>
+        /// <param name="styleSet"></param>
+        /// <returns></returns>
         public static byte[] DrawPlusCode(ReadOnlySpan<char> area, string styleSet = "mapTiles") {
             //This might be a cleaner version of my V4 function, for working with CellX sized tiles..
             //This will draw at a Cell11 resolution automatically.
@@ -113,7 +135,7 @@ namespace PraxisCore {
         }
 
         /// <summary>
-        /// Get the image for a PlusCode. Can optionally draw in a specific style set.
+        /// Get the image for a PlusCode, given the paint operations to draw.
         /// </summary>
         /// <param name="area">the PlusCode string to draw. Can be 6-11 digits long</param>
         /// <param name="paintOps">the list of paint operations to run through for drawing</param>
@@ -123,11 +145,24 @@ namespace PraxisCore {
             return MapTiles.DrawAreaAtSize(info, paintOps);
         }
 
+        /// <summary>
+        /// Get the image for a PlusCode, given the paint operations to draw.
+        /// </summary>
+        /// <param name="area"></param>
+        /// <param name="paintOps"></param>
+        /// <returns></returns>
         public static byte[] DrawPlusCode(ReadOnlySpan<char> area, List<CompletePaintOp> paintOps) {
             var info = new ImageStats(area);
             return MapTiles.DrawAreaAtSize(info, paintOps);
         }
 
+        /// <summary>
+        /// The internal function used by GetPaintOps to generate the final list of paint operations.
+        /// </summary>
+        /// <param name="list"></param>
+        /// <param name="place"></param>
+        /// <param name="midOps"></param>
+        /// <param name="stats"></param>
         private static void GetPaintOpsInner(ref List<CompletePaintOp> list, DbTables.Place place, ICollection<StylePaint> midOps, ImageStats stats) {
             string tagColor = "";
             foreach (var po in midOps)
@@ -145,6 +180,13 @@ namespace PraxisCore {
                     );
         }
 
+        /// <summary>
+        /// Returns the paint operations needed to draw an image, given the Places to draw, the style set to draw in, and the information on the output area and image.
+        /// </summary>
+        /// <param name="places"></param>
+        /// <param name="styleSet"></param>
+        /// <param name="stats"></param>
+        /// <returns></returns>
         public static List<CompletePaintOp> GetPaintOpsForPlaces(List<DbTables.Place> places, string styleSet, ImageStats stats) {
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(stats.area.ToPolygon(), 1, styles["background"].PaintOperations.First(), "background", 1);
@@ -157,6 +199,12 @@ namespace PraxisCore {
             return pass2;
         }
 
+        /// <summary>
+        /// Returns the paint operations needed to draw an image from AreaData entries, given the style set to draw in. The Area will be the one from ImageStats.
+        /// </summary>
+        /// <param name="styleSet"></param>
+        /// <param name="stats"></param>
+        /// <returns></returns>
         public static List<CompletePaintOp> GetPaintOpsForAreas(string styleSet, ImageStats stats) {
             var styles = TagParser.allStyleGroups[styleSet];
             var db = new PraxisContext();
@@ -325,7 +373,14 @@ namespace PraxisCore {
             progressTimer.Stop();
             Log.WriteLog("Zoom " + zoomLevel + " map tiles drawn in " + progressTimer.Elapsed.ToString());
         }
-
+        
+        /// <summary>
+        /// Saves a MapTile to the database, given its PlusCode, style set, and the png image data.
+        /// </summary>
+        /// <param name="code"></param>
+        /// <param name="styleSet"></param>
+        /// <param name="image"></param>
+        /// <returns></returns>
         public static long SaveMapTile(string code, string styleSet, byte[] image) {
             var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
@@ -344,6 +399,12 @@ namespace PraxisCore {
             return existingResults.GenerationID;
         }
 
+        /// <summary>
+        /// Loads an existing image from the database, if one is present, given the Pluscode and style set to load.
+        /// </summary>
+        /// <param name="code"></param>
+        /// <param name="styleSet"></param>
+        /// <returns></returns>
         public static byte[] GetExistingTileImage(string code, string styleSet) {
             var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
@@ -355,6 +416,13 @@ namespace PraxisCore {
             return existingResults.TileData;
         }
 
+        /// <summary>
+        /// Rescales iStats to fit within the maximum edge and maximum pixel count provided.
+        /// </summary>
+        /// <param name="istats"></param>
+        /// <param name="maxEdge"></param>
+        /// <param name="maxPixels"></param>
+        /// <returns></returns>
         public static ImageStats ScaleBoundsCheck(ImageStats istats, int maxEdge, long maxPixels) {
             //sanity check: we don't want to draw stuff that won't fit in memory, so check for size and cap it if needed
             if ((long)istats.imageSizeX * istats.imageSizeY > maxPixels) {
