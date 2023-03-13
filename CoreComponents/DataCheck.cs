@@ -27,6 +27,9 @@ namespace PraxisCore
             return false;
         }
 
+        /// <summary>
+        /// Determine if a GeoArea (presumably from a PlusCode) intersects with the data contained in the server.
+        /// </summary>
         public static bool IsInBounds(GeoArea place)
         {
             if (DisableBoundsCheck || bounds.Intersects(place.ToPolygon()))
@@ -49,6 +52,9 @@ namespace PraxisCore
             return false;
         }
 
+        /// <summary>
+        /// Determine if a Polygon (presumably from a map element) intersects with the data contained in the server.
+        /// </summary>
         public static bool IsInBounds(Polygon place)
         {
             if (DisableBoundsCheck || bounds.Intersects(place))
@@ -68,6 +74,9 @@ namespace PraxisCore
             return IsInBounds(bounds, OpenLocationCode.DecodeValid(plusCode));
         }
 
+        /// <summary>
+        /// Determine if a PlusCode cell is in bounds for the server.
+        /// </summary>
         public static bool IsInBounds(string plusCode)
         {
             return IsInBounds(bounds, OpenLocationCode.DecodeValid(plusCode));
