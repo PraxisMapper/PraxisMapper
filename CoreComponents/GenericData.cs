@@ -16,6 +16,8 @@ namespace PraxisCore {
     /// </summary>
     public static class GenericData
     {
+        public static Aes baseSec = Aes.Create();
+
         /// <summary>
         /// Saves a key/value pair to a given PlusCode. Will reject a pair containing a player's accountId in the database.
         /// </summary>
@@ -24,19 +26,23 @@ namespace PraxisCore {
         /// <param name="value">The value to save with the key.</param>
         /// <param name="expiration">If not null, expire this data in this many seconds from now.</param>
         /// <returns>true if data was saved, false if data was not.</returns>
-        /// 
-        public static Aes baseSec = Aes.Create();
-
         public static bool SetAreaData(string plusCode, string key, string value, double? expiration = null)
         {
             return SetAreaData(plusCode, key, value.ToByteArrayUTF8(), expiration);
         }
 
+
+        /// <summary>
+        /// Saves a key/value pair to a given PlusCode, with the value being converted to JSON text in a byte[]. Will reject a pair containing a player's accountId in the database.
+        /// </summary>
         public static bool SetAreaDataJson(string plusCode, string key, object value, double? expiration = null)
         {
             return SetAreaData(plusCode, key, value.ToJsonByteArray(), expiration);
         }
 
+        /// <summary>
+        /// Saves a key/value pair to a given PlusCode, with a value provided as a byte[]. Will reject a pair containing a player's accountId in the database.
+        /// </summary>
         public static bool SetAreaData(string plusCode, string key, byte[] value, double? expiration = null)
         {
             var db = new PraxisContext();
@@ -90,13 +96,20 @@ namespace PraxisCore {
             return row.DataValue;
         }
 
+        /// <summary>
+        /// Get the value from a key/value pair saved on a PlusCode, and casts the value from a byte[] to its JSON text form to its original type. Expired values will not be sent over.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="plusCode"></param>
+        /// <param name="key"></param>
+        /// <returns></returns>
         public static T GetAreaData<T>(string plusCode, string key)
         {
             return GetAreaData(plusCode, key).FromJsonBytesTo<T>();
         }
 
         /// <summary>
-        /// Saves a key/value pair to a given map element. Will reject a pair containing a player's accountId in the database.
+        /// Saves a key/value string pair to a given Place. Will reject a pair containing a player's accountId in the database.
         /// </summary>
         /// <param name="elementId">the Guid exposed to clients to identify the map element.</param>
         /// <param name="key">The key to save to the database for the map element.</param>
@@ -108,11 +121,27 @@ namespace PraxisCore {
             return SetPlaceData(elementId, key, value.ToByteArrayUTF8(), expiration);
         }
 
+        /// <summary>
+        /// Saves a key/value pair to a given Place, converting the value to a byte[] of JSON text. Will reject a pair containing a player's accountId in the database.
+        /// </summary>
+        /// <param name="elementId"></param>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
+        /// <param name="expiration"></param>
+        /// <returns></returns>
         public static bool SetPlaceDataJson(Guid elementId, string key, object value, double? expiration = null)
         {
             return SetPlaceData(elementId, key, value.ToJsonByteArray(), expiration);
         }
 
+        /// <summary>
+        /// Saves a key/value pair to a given Place, given the object in byte[] form. Will reject a pair containing a player's accountId in the database.
+        /// </summary>
+        /// <param name="elementId"></param>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
+        /// <param name="expiration"></param>
+        /// <returns></returns>
         public static bool SetPlaceData(Guid elementId, string key, byte[] value, double? expiration = null)
         {
             var db = new PraxisContext();
@@ -142,7 +171,7 @@ namespace PraxisCore {
         }
 
         /// <summary>
-        /// Get the value from a key/value pair saved on a map element. Expired entries will be ignored.
+        /// Get the value from a key/value pair saved on a Place. Expired entries will be ignored.
         /// </summary>
         /// <param name="elementId">the Guid exposed to clients to identify the map element.</param>
         /// <param name="key">The key to load from the database. Keys are unique, and you cannot have multiples of the same key.</param>
@@ -158,6 +187,13 @@ namespace PraxisCore {
             return row.DataValue;
         }
 
+        /// <summary>
+        /// Get the value from a key/value pair saved on a Place, cast back to the requested type. Expired entries will be ignored.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="elementId"></param>
+        /// <param name="key"></param>
+        /// <returns></returns>
         public static T GetPlaceData<T>(Guid elementId, string key)
         {
             return GetPlaceData(elementId, key).FromJsonBytesTo<T>();
@@ -180,11 +216,26 @@ namespace PraxisCore {
             return row.DataValue;
         }
 
+        /// <summary>
+        /// Get the value from a key/value pair saved on a player's accountId, cast back to the requested type. Expired entries will be ignored.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="playerId"></param>
+        /// <param name="key"></param>
+        /// <returns></returns>
         public static T GetPlayerData<T>(string playerId, string key)
         {
             return GetPlayerData(playerId, key).FromJsonBytesTo<T>();
         }
 
+        /// <summary>
+        /// Saves a key/value pair to a given player's accountID. Will reject a pair containing a PlusCode.
+        /// </summary>
+        /// <param name="playerId"></param>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
+        /// <param name="expiration"></param>
+        /// <returns></returns>
         public static bool SetPlayerData(string playerId, string key, string value, double? expiration = null)
         {
             if (DataCheck.IsPlusCode(value)) //reject attaching Player to Area
@@ -193,6 +244,15 @@ namespace PraxisCore {
             return SetPlayerData(playerId, key, value.ToByteArrayUTF8(), expiration);
         }
 
+
+        /// <summary>
+        /// Saves a key/value pair to a given player's accountID, converting the value to JSON text then a byte[]. Will reject a pair containing a PlusCode or map element Id.
+        /// </summary>
+        /// <param name="playerId"></param>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
+        /// <param name="expiration"></param>
+        /// <returns></returns>
         public static bool SetPlayerDataJson(string playerId, string key, object value, double? expiration = null)
         {
             return SetPlayerData(playerId, key, value.ToJsonByteArray(), expiration);
@@ -251,7 +311,12 @@ namespace PraxisCore {
             return GetAllDataInArea(plusCode.ToGeoArea(), key);
         }
 
-        //This version can be used to get info on plusCode areas without passing in a specific pluscode.
+        /// <summary>
+        /// Load all of the key/value pairs in a GeoArea, including pairs saved to overlapped or intersecting areas. Expired and encrypted entries are ignored.
+        /// </summary>
+        /// <param name="area"></param>
+        /// <param name="key"></param>
+        /// <returns></returns>
         public static List<AreaData> GetAllDataInArea(GeoArea area, string key = "")
         {
             
@@ -273,7 +338,7 @@ namespace PraxisCore {
         }
 
         /// <summary>
-        /// Load all of the key/value pairs attached to a map element. Expired entries will be ignored.
+        /// Load all of the key/value pairs attached to a Place. Expired entries will be ignored.
         /// </summary>
         /// <param name="elementId">the Guid exposed to clients to identify the map element.</param>
         /// /// <param name="key">If supplied, only returns data on the given key for the area provided. If blank, returns all keys</param>
@@ -290,7 +355,7 @@ namespace PraxisCore {
         }
 
         /// <summary>
-        /// Returns all data attached to a player's device ID
+        /// Returns all data attached to a player's account ID
         /// </summary>
         /// <param name="accountID">the device associated with a player</param>
         /// <returns>List of results with accountId, keys, and values</returns>
@@ -321,16 +386,35 @@ namespace PraxisCore {
             return row.DataValue;
         }
 
+        /// <summary>
+        /// Loads a key/value pair from the database that isn't attached to anything specific, and casts it to the given type. Global entries do not expire.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="key"></param>
+        /// <returns></returns>
         public static T GetGlobalData<T>(string key)
         {
             return GetGlobalData(key).FromJsonBytesTo<T>();
         }
 
+
+        /// <summary>
+        /// Saves a key/value pair to the database that isn't attached to anything specific. Wil reject a pair that contains a player's device ID, PlusCode, or a map element ID. Global entries cannot be set to expire.
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
         public static bool SetGlobalData(string key, string value)
         {
             return SetGlobalData(key, value.ToByteArrayUTF8());
         }
 
+        /// <summary>
+        /// Saves a key/value pair to the database that isn't attached to anything specific, casting the object to JSON and then a byte[]. Wil reject a pair that contains a player's device ID, PlusCode, or a map element ID. Global entries cannot be set to expire.
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
         public static bool SetGlobalDataJson(string key, object value)
         {
             return SetGlobalData(key, value.ToJsonByteArray());
@@ -381,16 +465,43 @@ namespace PraxisCore {
             return db.SaveChanges() == 1;
         }
 
+        /// <summary>
+        /// Encrypts and saves a key/value pair to an Area in the database, casting the value to a byte[]. Required if the value contains player information.
+        /// </summary>
+        /// <param name="plusCode"></param>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
+        /// <param name="password"></param>
+        /// <param name="expiration"></param>
+        /// <returns></returns>
         public static bool SetSecureAreaData(string plusCode, string key, string value, string password, double? expiration = null)
         {
             return SetSecureAreaData(plusCode, key, value.ToByteArrayUTF8(), password, expiration);
         }
 
+        /// <summary>
+        /// Encrypts and saves a key/value pair to an Area in the database, casting the value to JSON and then byte[]. Required if the value contains player information.
+        /// </summary>
+        /// <param name="plusCode"></param>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
+        /// <param name="password"></param>
+        /// <param name="expiration"></param>
+        /// <returns></returns>
         public static bool SetSecureAreaDataJson(string plusCode, string key, object value, string password, double? expiration = null)
         {
             return SetSecureAreaData(plusCode, key, value.ToJsonByteArray(), password, expiration);
         }
 
+        /// <summary>
+        /// Encrypts and saves a key/value pair to an Area in the database. Required if the value contains player information.
+        /// </summary>
+        /// <param name="plusCode"></param>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
+        /// <param name="password"></param>
+        /// <param name="expiration"></param>
+        /// <returns></returns>
         public static bool SetSecureAreaData(string plusCode, string key, byte[] value, string password, double? expiration = null)
         {
             var db = new PraxisContext();
@@ -420,7 +531,7 @@ namespace PraxisCore {
         }
 
         /// <summary>
-        /// Get the value from a key/value pair saved on a PlusCode with a password. Expired values will not be sent over.
+        /// Get the value from a key/value pair saved on an Area with a password. Expired values will not be sent over.
         /// </summary>
         /// <param name="plusCode">A valid PlusCode, excluding the + symbol.</param>
         /// <param name="key">The key to load from the database on the PlusCode</param>
@@ -436,6 +547,14 @@ namespace PraxisCore {
             return DecryptValue(row.IvData, row.DataValue, password);
         }
 
+        /// <summary>
+        /// Get the value from a key/value pair saved on an Area with a password and casts it to the requested type. Expired values will not be sent over.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="plusCode"></param>
+        /// <param name="key"></param>
+        /// <param name="password"></param>
+        /// <returns></returns>
         public static T GetSecureAreaData<T>(string plusCode, string key, string password)
         {
             return GetSecureAreaData(plusCode, key, password).FromJsonBytesTo<T>();
@@ -457,25 +576,45 @@ namespace PraxisCore {
             return DecryptValue(row.IvData, row.DataValue, password);
         }
 
+        /// <summary>
+        /// Get the value from a key/value pair saved on a player's accountId encrypted with the given password, and casts it to the requested type. Expired entries will be ignored.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="playerId"></param>
+        /// <param name="key"></param>
+        /// <param name="password"></param>
+        /// <returns></returns>
         public static T GetSecurePlayerData<T>(string playerId, string key, string password)
         {
             return GetSecurePlayerData(playerId, key, password).FromJsonBytesTo<T>();
         }
 
+        /// <summary>
+        /// Saves the value from a key/value pair on a player's accountId encrypted with the given password. 
+        /// </summary>
+        /// <param name="playerId"></param>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
+        /// <param name="password"></param>
+        /// <param name="expiration"></param>
+        /// <returns></returns>
         public static bool SetSecurePlayerData(string playerId, string key, string value, string password, double? expiration = null)
         {
             return SetSecurePlayerData(playerId, key, value.ToByteArrayUTF8(), password, expiration);
         }
 
+        /// <summary>
+        /// Saves the value from a key/value pair on a player's accountId encrypted with the given password. Casts the object to JSON, then byte[]
+        /// </summary>
         public static bool SetSecurePlayerDataJson(string playerId, string key, object value, string password, double? expiration = null)
         {
             return SetSecurePlayerData(playerId, key, value.ToJsonByteArray(), password, expiration);
         }
 
         /// <summary>
-        /// Saves a key/value pair to a given player's DeviceID with a password.
+        /// Saves a key/value pair to a given player's AccountID with a password.
         /// </summary>
-        /// <param name="playerId">the unique ID for the player, expected to be their unique device ID</param>
+        /// <param name="playerId">the account ID for the player.</param>
         /// <param name="key">The key to save to the database. Keys are unique, and you cannot have multiples of the same key.</param>
         /// <param name="value">The value to save with the key.</param>
         /// <param name="password"></param>
@@ -508,7 +647,7 @@ namespace PraxisCore {
         }
 
         /// <summary>
-        /// Get the value from a key/value pair saved on a map element. Expired entries will be ignored.
+        /// Get the value from a key/value pair saved on a Place. Expired entries will be ignored.
         /// </summary>
         /// <param name="elementId">the Guid exposed to clients to identify the map element.</param>
         /// <param name="key">The key to load from the database. Keys are unique, and you cannot have multiples of the same key.</param>
@@ -524,23 +663,49 @@ namespace PraxisCore {
             return DecryptValue(row.IvData, row.DataValue, password);
         }
 
+        /// <summary>
+        /// Get the value from a key/value pair saved on a Place and casts it to the requested type. Expired entries will be ignored.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="elementId"></param>
+        /// <param name="key"></param>
+        /// <param name="password"></param>
+        /// <returns></returns>
         public static T GetSecurePlaceData<T>(Guid elementId, string key, string password)
         {
             return GetSecurePlaceData(elementId, key, password).FromJsonBytesTo<T>();
         }
 
+        /// <summary>
+        /// Saves a key/value pair to a given Place with the given password.
+        /// </summary>
+        /// <param name="elementId"></param>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
+        /// <param name="password"></param>
+        /// <param name="expiration"></param>
+        /// <returns></returns>
         public static bool SetSecurePlaceData(Guid elementId, string key, string value, string password, double? expiration = null)
         {
             return SetSecurePlaceData(elementId, key, value.ToByteArrayUTF8(), password, expiration);
         }
 
+        /// <summary>
+        /// Saves a key/value pair to a given Place with the given password, and casts it to JSON then byte[].
+        /// </summary>
+        /// <param name="elementId"></param>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
+        /// <param name="password"></param>
+        /// <param name="expiration"></param>
+        /// <returns></returns>
         public static bool SetSecurePlaceDataJson(Guid elementId, string key, object value, string password, double? expiration = null)
         {
             return SetSecurePlaceData(elementId, key, value.ToJsonByteArray(), password, expiration);
         }
 
         /// <summary>
-        /// Saves a key/value pair to a given map element with the given password
+        /// Saves a key/value pair to a given Place with the given password
         /// </summary>
         /// <param name="elementId">the Guid exposed to clients to identify the map element.</param>
         /// <param name="key">The key to save to the database for the map element.</param>
@@ -576,6 +741,11 @@ namespace PraxisCore {
         }
 
         //NOTE: this returns the entry for 'key' for all players. Not all entries for a player.
+        /// <summary>
+        /// Returns the entries for all accounts with the given key. Use GetAllPlayerData to get all keys for 1 account.
+        /// </summary>
+        /// <param name="key"></param>
+        /// <returns></returns>
         public static List<PlayerData> GetAllPlayerDataByKey(string key)
         {
             var db = new PraxisContext();
@@ -585,6 +755,11 @@ namespace PraxisCore {
             return results;
         }
 
+        /// <summary>
+        /// Aquires a lock, loads the given key, increments it by the given value, and then saves it back to the database. Ideal for tracking team scores or similar frequently-changed values.
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
         public static void IncrementGlobalData(string key, double value)
         {
             SimpleLockable.PerformWithLock("global" + key, () =>
@@ -611,6 +786,13 @@ namespace PraxisCore {
             });
         }
 
+        /// <summary>
+        /// Aquires a lock, loads the given key for the account, increments it by the given value, and then saves it back to the database.
+        /// </summary>
+        /// <param name="playerId"></param>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
+        /// <param name="expiration"></param>
         public static void IncrementPlayerData(string playerId, string key, double value, double? expiration = null)
         {
             SimpleLockable.PerformWithLock(playerId + key, () =>
@@ -648,6 +830,13 @@ namespace PraxisCore {
             });
         }
 
+        /// <summary>
+        /// Aquires a lock, loads the given key for the Place, increments it by the given value, and then saves it back to the database. Ideal for tracking scores or states that change frequently.
+        /// </summary>
+        /// <param name="placeId"></param>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
+        /// <param name="expiration"></param>
         public static void IncrementPlaceData(Guid placeId, string key, double value, double? expiration = null)
         {
             SimpleLockable.PerformWithLock(placeId + key, () =>
@@ -686,6 +875,13 @@ namespace PraxisCore {
             });
         }
 
+        /// <summary>
+        /// Aquires a lock, loads the given key for the Area, increments it by the given value, and then saves it back to the database. Ideal for tracking team scores or similar frequently-changed values.
+        /// </summary>
+        /// <param name="plusCode"></param>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
+        /// <param name="expiration"></param>
         public static void IncrementAreaData(string plusCode, string key, double value, double? expiration = null)
         {
             SimpleLockable.PerformWithLock(plusCode + key, () =>
@@ -724,6 +920,14 @@ namespace PraxisCore {
             });
         }
 
+        /// <summary>
+        /// Acquires a lock, loads the given key for the player, increments it by the given value, and then encrypts and saves it back to the database.
+        /// </summary>
+        /// <param name="playerId"></param>
+        /// <param name="password"></param>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
+        /// <param name="expiration"></param>
         public static void IncrementSecurePlayerData(string playerId, string password, string key, double value, double? expiration = null)
         {
             SimpleLockable.PerformWithLock(playerId + "secure" + key, () =>
@@ -763,6 +967,14 @@ namespace PraxisCore {
             });
         }
 
+        /// <summary>
+        /// Aquires a lock, loads the given key for a Place, increments it by the given value, and then encrypts and saves it back to the database. Ideal for tracking team scores or similar frequently-changed values.
+        /// </summary>
+        /// <param name="placeId"></param>
+        /// <param name="password"></param>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
+        /// <param name="expiration"></param>
         public static void IncrementSecurePlaceData(Guid placeId, string password, string key, double value, double? expiration = null)
         {
             SimpleLockable.PerformWithLock(placeId + "secure" + key, () =>
@@ -803,6 +1015,14 @@ namespace PraxisCore {
             });
         }
 
+        /// <summary>
+        /// Aquires a lock, loads the given key for the Area, increments it by the given value, and then encrypts and saves it back to the database. Ideal for tracking team scores or similar frequently-changed values.
+        /// </summary>
+        /// <param name="plusCode"></param>
+        /// <param name="password"></param>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
+        /// <param name="expiration"></param>
         public static void IncrementSecureAreaData(string plusCode, string password, string key, double value, double? expiration = null)
         {
             SimpleLockable.PerformWithLock(plusCode + "secure" + key, () =>
@@ -841,6 +1061,13 @@ namespace PraxisCore {
             });
         }
 
+        /// <summary>
+        /// Given a value in byte[] form and a password, encrypts the value with the password. Provides the encrypted value as a return value, and the IVs needed to decrypt it as an out parameter
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="password"></param>
+        /// <param name="IVs"></param>
+        /// <returns></returns>
         public static byte[] EncryptValue(byte[] value, string password, out byte[] IVs)
         {
             byte[] passwordBytes = SHA256.HashData(password.ToByteArrayUTF8());
@@ -855,6 +1082,13 @@ namespace PraxisCore {
             return ms.ToArray();
         }
 
+        /// <summary>
+        /// Decrypts a value in byte[] form, given the password and IVs used to encrypt it.
+        /// </summary>
+        /// <param name="IVs"></param>
+        /// <param name="value"></param>
+        /// <param name="password"></param>
+        /// <returns></returns>
         public static byte[] DecryptValue(byte[] IVs, byte[] value, string password)
         {
             byte[] passwordBytes = SHA256.HashData(password.ToByteArrayUTF8());
@@ -868,11 +1102,23 @@ namespace PraxisCore {
             return ms.ToArray();
         }
 
+        /// <summary>
+        /// Reads the body of a HttpRequest to byte[] form, using it's PipeReader.
+        /// </summary>
+        /// <param name="br"></param>
+        /// <param name="contentLength"></param>
+        /// <returns></returns>
         public static byte[] ReadBody(PipeReader br, long? contentLength)
         {
             return ReadBody(br, (int)contentLength);
         }
 
+        /// <summary>
+        /// Reads the body of a HttpRequest to byte[] form, using it's PipeReader.
+        /// </summary>
+        /// <param name="br"></param>
+        /// <param name="contentLength"></param>
+        /// <returns></returns>
         public static byte[] ReadBody(PipeReader br, int contentLength)
         {
             var rr = br.ReadAtLeastAsync(contentLength);
@@ -884,7 +1130,15 @@ namespace PraxisCore {
             return endData;
         }
 
-        public static bool EncryptPassword(string userId, string password, int rounds)
+        /// <summary>
+        /// Creates a password for a PraxisMapper account, using BCrypt and the rounds option provided. These are SUPPOSED to be very slow to generate, to discourage brute force attacks.
+        /// Saves results directly to the AuthenticationData table. This password is used to authenticate a user on login. The password used to store data securely is pulled with GetInternalPassword()
+        /// </summary>
+        /// <param name="accountId"></param>
+        /// <param name="password"></param>
+        /// <param name="rounds"></param>
+        /// <returns></returns>
+        public static bool EncryptPassword(string accountId, string password, int rounds)
         {
             var options = new CrypterOptions() {
                 { CrypterOption.Rounds, rounds}
@@ -894,12 +1148,12 @@ namespace PraxisCore {
             var results = crypter.Crypt(password, salt);
             var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
-            var entry = db.AuthenticationData.Where(a => a.accountId == userId).FirstOrDefault();
+            var entry = db.AuthenticationData.Where(a => a.accountId == accountId).FirstOrDefault();
             if (entry == null)
             {
                 entry = new DbTables.AuthenticationData();
                 db.AuthenticationData.Add(entry);
-                entry.accountId = userId;
+                entry.accountId = accountId;
             }
             else
                 db.Entry(entry).State = EntityState.Modified;
@@ -912,13 +1166,19 @@ namespace PraxisCore {
             return true;
         }
 
-        public static bool CheckPassword(string userId, string password)
+        /// <summary>
+        /// Checks the login password for a given user account. Returns true if the given password is correct, false if incorrect OR if the user is banned. This is intentionally a slow method.
+        /// </summary>
+        /// <param name="accountId"></param>
+        /// <param name="password"></param>
+        /// <returns></returns>
+        public static bool CheckPassword(string accountId, string password)
         {
             BlowfishCrypter crypter = new BlowfishCrypter();
             var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
-            var entry = db.AuthenticationData.Where(a => a.accountId == userId).FirstOrDefault();
+            var entry = db.AuthenticationData.Where(a => a.accountId == accountId).FirstOrDefault();
             if (entry == null)
                 return false;
             if (entry.bannedUntil.HasValue && entry.bannedUntil.Value > DateTime.UtcNow)
@@ -928,17 +1188,23 @@ namespace PraxisCore {
             return entry.loginPassword == checkedPassword;
         }
 
-        public static string GetInternalPassword(string userId, string password)
+        /// <summary>
+        /// Retrieves the internal password for an account. This password is used to store data in the database securely for a player, not the password they logged in with.
+        /// This separation is done to keep user passwords out of memory as a security precaution.
+        /// </summary>
+        /// <param name="accountId"></param>
+        /// <param name="password"></param>
+        /// <returns></returns>
+        public static string GetInternalPassword(string accountId, string password)
         {
             var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
-            var entry = db.AuthenticationData.Where(a => a.accountId == userId).FirstOrDefault();
+            var entry = db.AuthenticationData.Where(a => a.accountId == accountId).FirstOrDefault();
             var bytes = Convert.FromBase64String(entry.dataPassword);
             var intPwd = new Guid(DecryptValue(entry.dataIV, bytes, password)).ToString();
 
             return intPwd;
         }
-
     }
 }
