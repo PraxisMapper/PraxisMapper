@@ -169,6 +169,11 @@ namespace PraxisCore
             return new AreaDetail(olc.CodeDigits, area);
         }
 
+        /// <summary>
+        /// Returns the smallest area in a Cell10. A quick helper function for when you want to know what style applies to a Cell10.
+        /// </summary>
+        /// <param name="plusCode"></param>
+        /// <returns></returns>
         public static DbTables.Place GetSinglePlaceFromArea(string plusCode)
         {
             //for individual Cell10 or Cell11 checks. Existing terrain calls only do Cell10s in a Cell8 or larger area.

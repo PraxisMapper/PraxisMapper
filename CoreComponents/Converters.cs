@@ -153,6 +153,12 @@ namespace PraxisCore
             return poly;
         }
 
+        /// <summary>
+        /// Takes the AreaData record, and creates a Place entry with the matching style name of the set provided. Used to make it easier to draw AreaData, since the GetPaintOps calls use Place as the baseline class to read from.
+        /// </summary>
+        /// <param name="ad"></param>
+        /// <param name="styleSet"></param>
+        /// <returns></returns>
         public static DbTables.Place ToPlace(this AreaData ad, string styleSet) {
             var dbPlace = new DbTables.Place();
             dbPlace.ElementGeometry = ad.AreaCovered;
