@@ -6,6 +6,11 @@ using System.Linq;
 
 namespace PraxisCore.GameTools
 {
+    /// <summary>
+    /// A quick way to make a customized grid, using modified PlusCode logic. Can be saved directly to the AreaData table, using the integer coordinate pairs.<br />
+    /// DIFFERENCES: These will use integer pairs as identifiers, and will not have layers with different rules to work out size.<br />
+    /// This does support layers, which subdivide each grid square to another grid with the same count of cells.
+    /// </summary>
     public sealed class CustomGrid
     {
         //This is for using PraxisMapper on a grid setup on-the-fly that doesn't use PlusCode standards.
@@ -15,17 +20,26 @@ namespace PraxisCore.GameTools
 
         public record CustomGridResults(List<Tuple<int, int>> coordPairs, GeoArea tile);
 
-        //count is how many tiles are in this grid total.
-        public void GetGridSize(int countX)
+        
+        public double GetGridSize(int countX)
         {
-            var gridX = 360 / countX; //360 / 20 = 18 degrees each
+            return 360 / countX; //360 / 20 = 18 degrees each
         }
 
-        public void GetGridCount(double size) //size in degrees
+
+        public double GetGridCount(double size) //size in degrees
         {
-            var gridX = 360 / size; // 360 / .5 = 720 tiles on X axis. 360 / 4 = 90 tiles.
+            return 360 / size; // 360 / .5 = 720 tiles on X axis. 360 / 4 = 90 tiles.
         }
 
+        /// <summary>
+        /// Returns the list of integer pairs that match up to the given lat/lon coordinates, given the number of tiles in each grid layer on the X axis and the number of layers to go down.
+        /// </summary>
+        /// <param name="lat">Latitude to determine the intpair for</param>
+        /// <param name="lon">Longitude to determine the intpair for</param>
+        /// <param name="tileCount">How many cells are in the X axis on the grid. On the first layer, there will be half as many Y tiles because latitude is -90 to 90 instead of -180 to 180 like longitude. </param>
+        /// <param name="layerCount">How many times to subdivide the </param>
+        /// <returns>a list of Tuples containing the X and Y values for each layer of grid tiles, and a GeoArea representing the entire tile.</returns>
         public CustomGridResults FindGridCode(double lat, double lon, int tileCount, int layerCount = 1)
         {
             //Reminder: opposite of exponent is logarithm
@@ -60,6 +74,9 @@ namespace PraxisCore.GameTools
             return new CustomGridResults(results, thisTile);
         }
 
+        /// <summary>
+        /// Returns a string version of the integer pairs identifying a tile. Digits are separated with hyphens, pairs with pipes (EX: 12-4|2-3|5-3);
+        /// </summary>
         public static string GetCustomGridName(CustomGridResults data)
         {
             string name = "";
@@ -70,6 +87,9 @@ namespace PraxisCore.GameTools
             return name.Substring(0, name.Length - 1);
         }
 
+        /// <summary>
+        /// Given a list of integer pairs, the count of tiles per layer in the grid, and the number of layers, returns a GeoArea representing that area.
+        /// </summary>
         public GeoArea DecodeCustomGrid(List<Tuple<int, int>> values, int tileCount, int layerCount)
         {
             //the above function, but backwards.
@@ -92,15 +112,25 @@ namespace PraxisCore.GameTools
             return thisTile;
         }
 
-        public static void SaveCustomGridAreaData(CustomGridResults data, string key, string value, DateTime? expiration = null)
+        /// <summary>
+        /// Attach data to the results of FindGridCode and save it to the AreaData table, like it was a PlusCode.
+        /// </summary>
+        /// <param name="data">the results from FindGridcode</param>
+        /// <param name="key">the name to save the data under</param>
+        /// <param name="value">the object to save</param>
+        /// <param name="expiration">How many seconds this data is valid for.</param>
+        public static void SaveCustomGridAreaData(CustomGridResults data, string key, object value, DateTime? expiration = null)
         {
             var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
-            var saveData = new DbTables.AreaData() { DataKey = key, DataValue = value.ToByteArrayUTF8(), Expiration = expiration, PlusCode = GetCustomGridName(data), AreaCovered = data.tile.ToPolygon() };
+            var saveData = new DbTables.AreaData() { DataKey = key, DataValue = value.ToJsonByteArray(), Expiration = expiration, PlusCode = GetCustomGridName(data), AreaCovered = data.tile.ToPolygon() };
             db.AreaData.Add(saveData);
             db.SaveChanges();
         }
 
+        /// <summary>
+        /// Attach encrypted data to the results of FindGridCode and save it to the AreaData table, like it was a PlusCode. Required if this is storing data on a player in an area.
+        /// </summary>
         public static void SaveCustomGridSecureAreaData(CustomGridResults data, string key, string password, object value, double? expiration = null) {
             var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
