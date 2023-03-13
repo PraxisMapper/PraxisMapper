@@ -4,11 +4,10 @@ using static PraxisCore.DbTables;
 namespace PraxisCore.Styles
 {
     /// <summary>
-    /// An abbreviated version of the default mapTiles style, that only draws elements likely to be good places for gameplay.
+    /// An abbreviated, bolder-colored version of the default mapTiles style, that only draws elements likely to be good places for gameplay.
     /// </summary>
     public static class suggestedGameplay
     {
-        //suggestedGameplay: Bolder colored overlay for places that are probably OK for public interaction.
         public static List<StyleEntry> style = new List<StyleEntry>()
         {
             new StyleEntry() { IsGameElement = true,  MatchOrder = 1, Name ="water", StyleSet = "suggestedGameplay",
@@ -127,7 +126,7 @@ namespace PraxisCore.Styles
             //background is a mandatory style entry name, but its transparent here..
             new StyleEntry() { MatchOrder = 10000, Name ="background",  StyleSet = "suggestedGameplay",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 101 }
+                    new StylePaint() { HtmlColorCode = "FFFFFF", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 101 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() {Key = "bg", Value = "bg", MatchType = "equals"}, //this one only gets called by name anyways.
