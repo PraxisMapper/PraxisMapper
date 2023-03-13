@@ -4,7 +4,7 @@ using System;
 namespace PraxisCore.Support
 {
     /// <summary>
-    /// Helper class to store some common values needed when generating images. Saving the area to draw and the resolution to draw it at allows for a lot of flexibilty
+    /// Helper class to calculate some common values needed when generating images. Saving the area to draw and the resolution to draw it at allows for a lot of flexibilty
     /// </summary>
 
     public class ImageStats
@@ -26,7 +26,7 @@ namespace PraxisCore.Support
         /// </summary>
         public double degreesPerPixelY { get; set; }
         /// <summary>
-        /// When drawing, do not load items from the database that would take up fewer than this many pixels in the final image.
+        /// When drawing, do not load items from the database with a DrawSizeHint under this value. The auto-calculated value works out to about 1 pixel on the final image.
         /// </summary>
         public double filterSize { get; set; }
         /// <summary>
