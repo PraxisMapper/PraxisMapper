@@ -15,16 +15,22 @@ namespace PraxisCore {
     /// </summary>
     public static class GeometrySupport
     {
-        //Shared class for functions that do work on Geometry objects.
-
-        private static readonly NetTopologySuite.NtsGeometryServices s = new NetTopologySuite.NtsGeometryServices(PrecisionModel.Floating.Value, 4326);
-        private static readonly NetTopologySuite.IO.WKTReader geomTextReader = new NetTopologySuite.IO.WKTReader(s); // {DefaultSRID = 4326 };
-
+        /// <summary>
+        /// Returns a GeoArea with the default buffer size added to all sides of the provided GeoArea.
+        /// </summary>
+        /// <param name="original"></param>
+        /// <returns></returns>
         public static GeoArea MakeBufferedGeoArea(GeoArea original)
         {
             return original.PadGeoArea(MapTileSupport.BufferSize);
         }
 
+        /// <summary>
+        /// Returns a GeoArea with the supplies buffer size added to all sides of the provided GeoArea.
+        /// </summary>
+        /// <param name="original"></param>
+        /// <param name="bufferSize"></param>
+        /// <returns></returns>
         public static GeoArea MakeBufferedGeoArea(GeoArea original, double bufferSize) {
             return original.PadGeoArea(bufferSize);
         }
@@ -144,7 +150,7 @@ namespace PraxisCore {
         }
 
         /// <summary>
-        /// Create a database Place from an OSMSharp Complete object.
+        /// Create a database Place from an OSMSharp CompleteOsmGeo object.
         /// </summary>
         /// <param name="g">the CompleteOSMGeo object to prepare to save to the DB</param>
         /// <returns>the Place ready to save to the DB</returns>
@@ -198,6 +204,11 @@ namespace PraxisCore {
             }
         }
 
+        /// <summary>
+        /// Calculates the DrawSizeHint for a given Place. The DrawSizeHint is 'How many pixels does this Place take to draw at the system's configuration for the 'mapTiles' style on a gameplay tile?
+        /// </summary>
+        /// <param name="place"></param>
+        /// <returns></returns>
         public static double CalculateDrawSizeHint(DbTables.Place place)
         {
             //The default assumption here is that a Cell11 is 1 pixel for gameplay tiles before factoring in GameTileScale.
@@ -267,6 +278,11 @@ namespace PraxisCore {
             return lm;
         }
 
+        /// <summary>
+        /// Converts one tab-delimited string into a Place entry.
+        /// </summary>
+        /// <param name="sw"></param>
+        /// <returns></returns>
         public static DbTables.Place ConvertSingleTsvPlace(string sw)
         {
             var source = sw.AsSpan();
@@ -281,6 +297,11 @@ namespace PraxisCore {
             return entry;
         }
 
+        /// <summary>
+        /// Converts one tab-delimited tag string into a PlaceTag entry.
+        /// </summary>
+        /// <param name="sw"></param>
+        /// <returns></returns>
         public static PlaceTags ConvertSingleTsvTag(string sw)
         {
             var source = sw.AsSpan();
@@ -293,7 +314,7 @@ namespace PraxisCore {
         }
 
         /// <summary>
-        /// Calculates an accurate distance to 2 points, in meters.
+        /// Calculates an accurate distance between 2 GeoPoints, in meters.
         /// </summary>
         /// <param name="p">First point</param>
         /// <param name="otherPoint">Second point</param>
@@ -303,14 +324,34 @@ namespace PraxisCore {
             return MetersDistanceTo(p.Longitude, p.Latitude, otherPoint.Longitude, otherPoint.Latitude);
         }
 
+        /// <summary>
+        /// Calculates an accurate distance to 2 Points, in meters.
+        /// </summary>
+        /// <param name="p"></param>
+        /// <param name="otherPoint"></param>
+        /// <returns></returns>
         public static double MetersDistanceTo(Point p, Point otherPoint) {
             return MetersDistanceTo(p.X, p.Y, otherPoint.X, otherPoint.Y);
         }
 
+        /// <summary>
+        /// Calculates an accurate distance to the center of 2 PlusCodes, in meters.
+        /// </summary>
+        /// <param name="plusCode1"></param>
+        /// <param name="plusCode2"></param>
+        /// <returns></returns>
         public static double MetersDistanceTo(string plusCode1, string plusCode2) {
             return MetersDistanceTo(plusCode1.ToGeoArea().ToPoint(), plusCode2.ToGeoArea().ToPoint());
         }
 
+        /// <summary>
+        /// Calculates an accurate distance to 2 points, in meters, given the separate X/Y coordinates of each point.
+        /// </summary>
+        /// <param name="x1"></param>
+        /// <param name="y1"></param>
+        /// <param name="x2"></param>
+        /// <param name="y2"></param>
+        /// <returns></returns>
         public static double MetersDistanceTo (double x1,  double y1, double x2, double y2) {
             double calcLat = Math.Sin((y2.ToRadians() - y1.ToRadians()) * 0.5);
             double calcLon = Math.Sin((x2.ToRadians() - x1.ToRadians()) * 0.5);
@@ -319,7 +360,7 @@ namespace PraxisCore {
         }
 
         /// <summary>
-        /// Returns the speed traveled between 2 points given the times the points were recorded in meters per second.
+        /// Returns the speed traveled between 2 GeoPoints given the times the points were recorded in meters per second.
         /// </summary>
         /// <param name="point1"></param>
         /// <param name="time1"></param>
@@ -335,6 +376,14 @@ namespace PraxisCore {
             return speed;
         }
 
+        /// <summary>
+        /// Returns the speed traveled between 2 Points given the times the points were recorded in meters per second.
+        /// </summary>
+        /// <param name="point1"></param>
+        /// <param name="time1"></param>
+        /// <param name="point2"></param>
+        /// <param name="time2"></param>
+        /// <returns></returns>
         public static double SpeedCheck(Point point1, DateTime time1, Point point2, DateTime time2) {
             var time = Math.Abs((time1 - time2).TotalSeconds);
             var distance = MetersDistanceTo(point1, point2);
