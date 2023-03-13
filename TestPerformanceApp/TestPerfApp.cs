@@ -2782,7 +2782,7 @@ namespace PerformanceTestApp {
                 Log.WriteLog("Tool 2 data loaded 160,000 Cell10 geometries in " + sw.ElapsedMilliseconds + "ms");
 
                 var tool3 = new RecentActivityTracker();
-                tool3.hourDelay = 4;
+                tool3.minuteDelay = 4;
                 var b1 = tool3.IsRecent("2233445566");
                 var b2 = tool3.IsRecent("2233445566");
                 sw.Restart();

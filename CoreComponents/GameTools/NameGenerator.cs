@@ -4,13 +4,39 @@ using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace PraxisCore.GameTools {
+    /// <summary>
+    /// A flexible, expandable, random name generator. Supports being provided a seeded Random(), so that it can return the same results for the same PlusCode.
+    /// When given a string, will replace any tokens in nameSets with a value from that nameSet (EX: "{animal}" could return "frog")
+    /// More lists of string can be added to nameSets, if you want to use your own tokens and lists of entries for name generation.
+    /// </summary>
     public sealed class NameGenerator {
-        //EX: calling GenerateName("The {location} of {adjectives}") could return "The Bay of Autumn" as a response. 
+        //EX: calling GenerateName("The {place} of {adjectives}") could return "The Bay of Autumn" as a response. 
         //Users can add their own entries to the name generator by inserting new entries into nameSets and using that key in a template string.
 
-        //Used as the source for all name generation
+        /// <summary>
+        /// The list of tokens that can be replaced in a string, and the values that can go into that token's place.
+        /// You can add your own entries in Startup() of your plugin, and they will be available to all instances of NameGenerator created afterwards.
+        /// Default tokens include
+        /// {adjective}, {animal}, {color}, {femaleFirstName}, {maleFirstName}, {firstName}, {lastName}, {number}, {noun}, {place}, {plant}, {syllable}, {thing}
+        /// </summary>
         public static Dictionary<string, List<string>> nameSets;
 
+        Regex regex;
+        readonly Random r;
+        /// <summary>
+        /// The maximum value to return when replacing {number} in an input string. Default is 1000.
+        /// </summary>
+        public int maxNumberResult { get; set; } = 1000;
+
+        /// <summary>
+        /// If true, all word tokens will be returned with the first letter in upper-case. If false, only words already capitazlied (first and last names) will be added that way.
+        /// </summary>
+        public bool UppercaseItems = false;
+
+        /// <summary>
+        /// Returns the total count of possible results for a given input string with tokens to replace.
+        /// </summary>
+        /// <param name="formatString">The string to check (EX: "The {place} of {adjective}"</param>
         public int GetTotalPossibleResults(string formatString) {
             int results = 1;
             foreach (var wordList in nameSets) {
@@ -26,21 +52,24 @@ namespace PraxisCore.GameTools {
             return results;
         }
 
-        Regex regex;
-        readonly Random r;
-        public int maxNumberResult { get; set; } = 1000;
-
-        public bool UppercaseItems = false;
+        /// <summary>
+        /// Create a NameGenerator instance with a random seed.
+        /// </summary>
         public NameGenerator() {
             r = new Random();
             regex = new Regex("({number}|" + string.Join("|", nameSets.Keys) + ")");
         }
+        /// <summary>
+        /// Create a NameGenerator instance with the fixed random seed for the given PlusCode.
+        /// </summary>
+        /// <param name="plusCode">The PlusCode to use when calculating a fixed random seed.</param>
         public NameGenerator(string plusCode)
         {
             r = plusCode.GetSeededRandom();
             regex = new Regex("({number}|" + string.Join("|", nameSets.Keys) + ")");
         }
 
+        //Static constructor is fired off once, after all static values are populated by the framework.
         static NameGenerator()
         {
             List<string> nouns = animals.Union(plants).Union(things).Union(places).ToList();
@@ -62,6 +91,9 @@ namespace PraxisCore.GameTools {
              };
         }
 
+        /// <summary>
+        /// Internal function that finds all tokens and replaces them with a value from that set list.
+        /// </summary>
         string ReplaceMatch(Match m) {
             if (m.Value == "{number}")
                 return r.Next(maxNumberResult).ToString();
@@ -73,6 +105,12 @@ namespace PraxisCore.GameTools {
             return result;
         }
 
+        /// <summary>
+        /// Given a template, returns a name using that format.
+        /// [EX: calling GenerateName("The {place} of {adjective}") could return "The Bay of Autumn" as a response]
+        /// </summary>
+        /// <param name="nameTemplate">The string to use as a baseline for generating names.</param>
+        /// <returns>The random name generated</returns>
         public string GenerateName(string nameTemplate)
         {
             MatchEvaluator evaluator = new MatchEvaluator(ReplaceMatch);

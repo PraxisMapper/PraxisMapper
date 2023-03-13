@@ -307,6 +307,10 @@ namespace PraxisCore {
             return MetersDistanceTo(p.X, p.Y, otherPoint.X, otherPoint.Y);
         }
 
+        public static double MetersDistanceTo(string plusCode1, string plusCode2) {
+            return MetersDistanceTo(plusCode1.ToGeoArea().ToPoint(), plusCode2.ToGeoArea().ToPoint());
+        }
+
         public static double MetersDistanceTo (double x1,  double y1, double x2, double y2) {
             double calcLat = Math.Sin((y2.ToRadians() - y1.ToRadians()) * 0.5);
             double calcLon = Math.Sin((x2.ToRadians() - x1.ToRadians()) * 0.5);
