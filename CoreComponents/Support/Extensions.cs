@@ -8,7 +8,6 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
-using static PraxisCore.DbTables;
 
 namespace PraxisCore
 {
@@ -241,33 +240,62 @@ namespace PraxisCore
                 return part;
             }
         }
-
+        /// <summary>
+        /// Converts a GeoArea (from OpenLocationCode) to an NTS Polygon object.
+        /// </summary>
+        /// <param name="g"></param>
+        /// <returns></returns>
         public static Polygon ToPolygon(this GeoArea g)
         {
             return (Polygon)Converters.GeoAreaToPolygon(g);
         }
 
+        /// <summary>
+        /// Converts a PlusCode string to an NTS Polygon object.
+        /// </summary>
+        /// <param name="s"></param>
+        /// <returns></returns>
         public static Polygon ToPolygon(this string s)
         {
             return OpenLocationCode.DecodeValid(s).ToPolygon();
         }
 
+        /// <summary>
+        /// Converts a PlusCode string to a GeoArea. 
+        /// </summary>
+        /// <param name="s"></param>
+        /// <returns></returns>
         public static CodeArea ToGeoArea(this string s)
         {
             return OpenLocationCode.DecodeValid(s);
         }
 
+        /// <summary>
+        /// Converts a ReadOnlySpan<char> to a GeoArea.
+        /// </summary>
         public static CodeArea ToGeoArea(this ReadOnlySpan<char> s)
         {
             return OpenLocationCode.DecodeValid(s);
         }
 
+        /// <summary>
+        /// Converts an NTS Geometry object a GeoArea covering it's complete square envelope.
+        /// </summary>
+        /// <param name="g"></param>
+        /// <returns></returns>
         public static GeoArea ToGeoArea(this Geometry g)
         {
             return Converters.GeometryToGeoArea(g);
         }
 
         //TODO: in NET 8, Might change these to use System.Random.GetItems<T>()
+
+        /// <summary>
+        /// Returns one random entry from the list.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="parent"></param>
+        /// <returns></returns>
         public static T PickOneRandom<T>(this List<T> parent)
         {
             if (parent == null || parent.Count == 0)
@@ -275,6 +303,12 @@ namespace PraxisCore
             return parent[Random.Shared.Next(parent.Count)];
         }
 
+        /// <summary>
+        /// Returns one random entry from the IEnumerable.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="parent"></param>
+        /// <returns></returns>
         public static T PickOneRandom<T>(this IEnumerable<T> parent)
         {
             if (parent == null || !parent.Any())
@@ -282,6 +316,12 @@ namespace PraxisCore
             return parent.OrderBy(r => Random.Shared.Next()).First();
         }
 
+        /// <summary>
+        /// Converts the byte[] into JSON text, and then from that into the T that it was converted from. Use when loading objects from GenericData calls.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="data"></param>
+        /// <returns></returns>
         public static T FromJsonBytesTo<T>(this byte[] data)
         {  
             if (data.Length == 0)
@@ -289,21 +329,42 @@ namespace PraxisCore
             return JsonSerializer.Deserialize<T>(data.ToUTF8String());
         }
 
+        /// <summary>
+        /// Converts this JSON string into a type T
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="data"></param>
+        /// <returns></returns>
         public static T FromJsonTo<T>(this string data)
         {
             return JsonSerializer.Deserialize<T>(data);
         }
 
+        /// <summary>
+        /// Converts this object into serialized JSON.
+        /// </summary>
+        /// <param name="data"></param>
+        /// <returns></returns>
         public static string ToJson(this object data)
         {
             return JsonSerializer.Serialize(data);
         }
 
+        /// <summary>
+        /// Converts this object into serialized JSON, and then that into a byte[] for storage using GenericData calls.
+        /// </summary>
+        /// <param name="data"></param>
+        /// <returns></returns>
         public static byte[] ToJsonByteArray(this object data)
         {
             return JsonSerializer.Serialize(data).ToByteArrayUTF8();
         }
 
+        /// <summary>
+        /// Converts a GeoArea into an NTS Point using its center coordinates.
+        /// </summary>
+        /// <param name="g"></param>
+        /// <returns></returns>
         public static Point ToPoint(this GeoArea g)
         {
             return new Point(g.CenterLongitude, g.CenterLatitude);
@@ -311,6 +372,11 @@ namespace PraxisCore
 
         //Note: .NET Core's built-in GetHashCode() returns different values for every execution, because not doing so is a potential DDOS vector for IIS via hash collisions.
         //So I found this on Andrew Lock's site and added this function here to use for procedural generation logic based on a plusCode.
+        /// <summary>
+        /// Returns a consistant integer based on the string supplied. Used in PraxisMapper to seed Random() so that PlusCode areas can have consistent results when generating data randomly.
+        /// </summary>
+        /// <param name="str"></param>
+        /// <returns></returns>
         public static int GetDeterministicHashCode(this string str)
         {
             unchecked
@@ -330,6 +396,11 @@ namespace PraxisCore
             }
         }
 
+        /// <summary>
+        /// Returns a consistant integer based on the string supplied. Used in PraxisMapper to seed the MersenneTwister RNG so that PlusCode areas can have consistent results when generating data randomly.
+        /// </summary>
+        /// <param name="str"></param>
+        /// <returns></returns>
         public static ulong GetDeterministicHashCodeForMersenne(this string str) {
             unchecked {
                 ulong hash1 = (5381 << 16) + 5381;
@@ -358,6 +429,11 @@ namespace PraxisCore
             return new Random(hash);
         }
 
+        /// <summary>
+        /// Seeds a new MersenneTwister RandomNumberGenerator instance based on the given PlusCode, meant for procedural generation.
+        /// </summary>
+        /// <param name="plusCode"></param>
+        /// <returns></returns>
         public static RandomNumberGenerator GetSeededRandomMersenne(this string plusCode) {
             var hash = plusCode.GetDeterministicHashCodeForMersenne();
             return new RandomNumberGenerator(hash);
@@ -374,6 +450,11 @@ namespace PraxisCore
             return new Random(hash);
         }
 
+        /// <summary>
+        /// Seeds a new MersenneTwister RandomNumberGenerator instance based on the given PlusCode, meant for procedural generation. Will usually be unique at Cell6, 4, or 2 cells, collisions ensured at Cell8, 10, and smaller.
+        /// </summary>
+        /// <param name="plusCode"></param>
+        /// <returns></returns>
         public static RandomNumberGenerator GetSeededRandomMersenne(this OpenLocationCode plusCode) {
             var hash = plusCode.CodeDigits.GetDeterministicHashCodeForMersenne();
             return new RandomNumberGenerator(hash);
@@ -447,14 +528,31 @@ namespace PraxisCore
             return GeometrySupport.MetersDistanceTo(g.ToGeoArea().Center, otherPlusCode.ToGeoArea().Center);
         }
 
+        /// <summary>
+        /// returns the distance in meters between two Points
+        /// </summary>
+        /// <param name="g"></param>
+        /// <param name="otherPoint"></param>
+        /// <returns></returns>
         public static double MetersDistanceTo(this Point g, Point otherPoint) {
             return GeometrySupport.MetersDistanceTo(g, otherPoint);
         }
 
+        /// <summary>
+        /// Returns a valid version of the Geometry object. May result in the GeometryType changing if necessary.
+        /// </summary>
+        /// <param name="g"></param>
+        /// <returns></returns>
         public static Geometry Fix(this Geometry g) {
             return GeometryFixer.Fix(g);
         }
 
+        /// <summary>
+        /// Returns a simplified version of the geometry, with points removed if they're within [resolution] degrees of the line that forms without them.
+        /// </summary>
+        /// <param name="g"></param>
+        /// <param name="resolution"></param>
+        /// <returns></returns>
         public static Geometry Simplify(this Geometry g, double resolution) {
             return NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(g, resolution);
         }
