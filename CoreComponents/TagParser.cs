@@ -24,7 +24,7 @@ namespace PraxisCore {
     //default: always true. Must be the last entry in the list of styles to check.
 
     /// <summary>
-    /// Determines an element's gameplay type and rules for drawing it on maptiles, along with tracking styles.
+    /// Determines a Place's gameplay type and rules for drawing it on map tiles, along with tracking styles.
     /// </summary>
     public static class TagParser
     {
@@ -120,12 +120,24 @@ namespace PraxisCore {
                 MapTiles.Initialize();
         }
 
+        /// <summary>
+        /// Returns the style entry for the given AreaData row and style set.
+        /// </summary>
+        /// <param name="data"></param>
+        /// <param name="styleSet"></param>
+        /// <returns></returns>
         public static StyleEntry GetStyleEntry(List<AreaData> data, string styleSet = "mapTiles")
         {
             var areaDict = data.ToDictionary(k => k.DataKey, v => v.DataValue.ToUTF8String());
             return GetStyleEntry(areaDict, styleSet);
         }
 
+        /// <summary>
+        /// Returns the style entry for the given PlusCode and style set.
+        /// </summary>
+        /// <param name="plusCode"></param>
+        /// <param name="styleSet"></param>
+        /// <returns></returns>
         public static StyleEntry GetStyleEntry(string plusCode, string styleSet = "mapTiles")
         {
             var db = new PraxisContext();
@@ -136,6 +148,12 @@ namespace PraxisCore {
             return GetStyleEntry(areaDict, styleSet);
         }
 
+        /// <summary>
+        /// returns the style entry for a given Place and style set.
+        /// </summary>
+        /// <param name="place"></param>
+        /// <param name="styleSet"></param>
+        /// <returns></returns>
         public static StyleEntry GetStyleEntry(DbTables.Place place, string styleSet = "mapTiles")
         {
             var allTags = new Dictionary<string, string>(place.Tags.Count + place.PlaceData.Count);
@@ -150,7 +168,7 @@ namespace PraxisCore {
         }
 
         /// <summary>
-        /// Returns the style to use on an element given its tags and a styleset to search against.
+        /// Returns the style entry for a Place given its tags and a styleset to search against.
         /// </summary>
         /// <param name="tags">the tags attached to a Place to search. A list will be converted to a dictionary and error out if duplicate keys are present in the tags.</param>
         /// <param name="styleSet">the styleset with the rules for parsing elements</param>
@@ -165,7 +183,7 @@ namespace PraxisCore {
         }
 
         /// <summary>
-        /// Returns the style to use on an element given its tags and a styleset to search against.
+        /// Returns the style used on a set of tags and a styleset to search against.
         /// </summary>
         /// <param name="tags">the tags attached to a Place to search</param>
         /// <param name="styleSet">the styleset with the rules for parsing elements</param>
@@ -185,7 +203,7 @@ namespace PraxisCore {
         }
 
         /// <summary>
-        /// Returns the style to use on an CompleteGeo object given its tags and a styleset to search against.
+        /// Returns the style used on an CompleteOsnGeo object given its tags and a styleset to search against.
         /// </summary>
         /// <param name="tags">the tags attached to a CompleteGeo object to search</param>
         /// <param name="styleSet">the styleset with the rules for parsing elements</param>
@@ -196,30 +214,60 @@ namespace PraxisCore {
             return GetStyleEntry(tempTags, styleSet);
         }
 
+        /// <summary>
+        /// Returns the style used on an CompleteOsmGeo object and a styleset to search against.
+        /// </summary>
+        /// <param name="osm"></param>
+        /// <param name="styleSet"></param>
+        /// <returns></returns>
         public static StyleEntry GetStyleEntry(CompleteOsmGeo osm, string styleSet = "mapTiles")
         {
             var tempTags = osm.Tags.ToDictionary(k => k.Key, v => v.Value);
             return GetStyleEntry(tempTags, styleSet);
         }
 
+        /// <summary>
+        /// Returns the style used on an OsmGeo object given its tags and a styleset to search against.
+        /// </summary>
+        /// <param name="osm"></param>
+        /// <param name="styleSet"></param>
+        /// <returns></returns>
         public static StyleEntry GetStyleEntry(OsmGeo osm, string styleSet = "mapTiles")
         {
             var tempTags = osm.Tags.ToDictionary(k => k.Key, v => v.Value);
             return GetStyleEntry(tempTags, styleSet);
         }
 
+        /// <summary>
+        /// Returns the name of the style used on an CompleteOsmGeo object given its tags and a styleset to search against.
+        /// </summary>
+        /// <param name="osm"></param>
+        /// <param name="styleSet"></param>
+        /// <returns></returns>
         public static string GetStyleName(CompleteOsmGeo osm, string styleSet = "mapTiles")
         {
             var tempTags = osm.Tags.ToDictionary(k => k.Key, v => v.Value);
             return GetStyleEntry(tempTags, styleSet).Name;
         }
 
+        /// <summary>
+        /// Returns the name of the style used on an OsmGeo object given its tags and a styleset to search against.
+        /// </summary>
+        /// <param name="osm"></param>
+        /// <param name="styleSet"></param>
+        /// <returns></returns>
         public static string GetStyleName(OsmGeo osm, string styleSet = "mapTiles")
         {
             var tempTags = osm.Tags.ToDictionary(k => k.Key, v => v.Value);
             return GetStyleEntry(tempTags, styleSet).Name;
         }
 
+        /// <summary>
+        /// Returns the name of the style used on a Place given a styleset to search against.
+        /// </summary>
+        /// <param name="place"></param>
+        /// <param name="styleSet"></param>
+        /// <returns></returns>
         public static string GetStyleName(DbTables.Place place, string styleSet = "mapTiles")
         {
             return GetStyleEntry(place, styleSet).Name;
@@ -364,7 +412,7 @@ namespace PraxisCore {
         }
 
         /// <summary>
-        /// Search the tags of a CompleteGeo object for a name value
+        /// Search the tags of a CompleteOsmGeo object for a name value
         /// </summary>
         /// <param name="tagsO">the tags to search</param>
         /// <returns>a Name value if one is found, or an empty string if not</returns>
@@ -380,7 +428,7 @@ namespace PraxisCore {
         }
 
         /// <summary>
-        /// Search the tags of a CompleteGeo object for a name value
+        /// Search the PlaceTags list for a name value
         /// </summary>
         /// <param name="tagsO">the tags to search</param>
         /// <returns>a Name value if one is found, or an empty string if not</returns>
@@ -395,11 +443,22 @@ namespace PraxisCore {
             return retVal.Value;
         }
 
+        /// <summary>
+        /// Returns the name of a Place by searching its tags.
+        /// </summary>
+        /// <param name="place"></param>
+        /// <returns></returns>
         public static string GetName(DbTables.Place place)
         {
             return GetName(place.Tags);
         }
 
+        /// <summary>
+        /// Given a Place, searches both PlaceTags and PlaceData for an entry with a matching key and returns that value, or an empty string if not found.
+        /// </summary>
+        /// <param name="place"></param>
+        /// <param name="key"></param>
+        /// <returns></returns>
         public static string GetTagValue(DbTables.Place place, string key)
         {
             var tag = place.Tags.FirstOrDefault(t => t.Key == key);
@@ -413,6 +472,13 @@ namespace PraxisCore {
             return "";
         }
 
+        /// <summary>
+        /// Given a Place, searches both PlaceTags and PlaceData for an entry with a matching key and returns true or false, and supplies the tag's value as an out parameter.
+        /// </summary>
+        /// <param name="place"></param>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
         public static bool GetTagValue(DbTables.Place place, string key, out string value) {
             var tag = place.Tags.FirstOrDefault(t => t.Key == key);
             if (tag != null && tag.Value != null) {
@@ -446,7 +512,7 @@ namespace PraxisCore {
         }
 
         /// <summary>
-        /// Apply the rules for a styleset to a list of places. Fills in some placeholder values that aren't persisted into the database.
+        /// Apply the rules for a styleset to a list of Places. Fills in some placeholder values that aren't persisted into the database.
         /// </summary>
         /// <param name="places">the list of Places to check</param>
         /// <param name="styleSet">the name of the style set to apply to the elements.</param>
@@ -460,6 +526,12 @@ namespace PraxisCore {
             return places;
         }
 
+        /// <summary>
+        /// Apply the rules for a styleset to a Places. Fills in some placeholder values that aren't persisted into the database.
+        /// </summary>
+        /// <param name="place"></param>
+        /// <param name="styleSet"></param>
+        /// <returns></returns>
         public static DbTables.Place ApplyTags(DbTables.Place place, string styleSet)
         {
             var style = GetStyleEntry(place, styleSet);
@@ -481,6 +553,10 @@ namespace PraxisCore {
             return results;
         }
 
+        /// <summary>
+        /// Adds a StyleEntry to the PraxisMapper database. Does not update existing entries with the same name. Expected to be used by plugins during Startup()
+        /// </summary>
+        /// <param name="s"></param>
         public static void InsertStyle(StyleEntry s)
         {
             var db = new PraxisContext();
@@ -500,6 +576,10 @@ namespace PraxisCore {
             db.SaveChanges();
         }
 
+        /// <summary>
+        /// Adds a list of StyleEntries to the PraxisMapper database. Does not update existing entries with the same name. Expected to be used by plugins during Startup()
+        /// </summary>
+        /// <param name="styles"></param>
         public static void InsertStyles(List<StyleEntry> styles)
         {
             foreach (var style in styles)

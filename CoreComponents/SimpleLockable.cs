@@ -5,6 +5,9 @@ using System.Threading.Tasks;
 
 namespace PraxisCore
 {
+    /// <summary>
+    /// A small and fast library for handling tasks that require locks across mulitple threads. 
+    /// </summary>
     public sealed class SimpleLockable
     {
         static ConcurrentDictionary<string, SimpleLockable> updateLocks = new ConcurrentDictionary<string, SimpleLockable>();
@@ -51,6 +54,11 @@ namespace PraxisCore
             
         }
 
+        /// <summary>
+        /// Acquires a lock, runs the given action, and releases a lock. The ideal way to handle most requests that can encompass a single function.
+        /// </summary>
+        /// <param name="lockId"></param>
+        /// <param name="a"></param>
         public static void PerformWithLock(string lockId, Action a)
         {
             updateLocks.TryAdd(lockId, new SimpleLockable());
@@ -70,6 +78,12 @@ namespace PraxisCore
             }
         }
 
+        /// <summary>
+        /// Acquires a lock, runs an Action, and releases the lock, wrapped inside a Task. Useful if you need to wait on one or more locked tasks to complete.
+        /// </summary>
+        /// <param name="lockedKey"></param>
+        /// <param name="a"></param>
+        /// <returns></returns>
         public static Task PerformWithLockAsTask(string lockedKey, Action a)
         {
             return Task.Run(() => PerformWithLock(lockedKey, a));

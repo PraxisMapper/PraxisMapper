@@ -199,6 +199,11 @@ namespace PraxisCore
             return results;
         }
 
+        /// <summary>
+        /// Returns a random 10-digit PlusCode inside the server boundaries. Boundaries are a square around the actual geometry, so these may still occur in uninteresting areas.
+        /// </summary>
+        /// <param name="bounds"></param>
+        /// <returns></returns>
         public static string RandomPoint(ServerSetting bounds)
         {
             var ranLat = (Random.Shared.NextDouble() * (bounds.NorthBound - bounds.SouthBound)) + bounds.SouthBound;
