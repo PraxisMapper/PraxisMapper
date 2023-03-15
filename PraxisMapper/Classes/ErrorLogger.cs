@@ -3,9 +3,12 @@ using System;
 
 namespace PraxisMapper.Classes
 {
-    //Saves exceptions caught to the database for later reference.
+    /// <summary>
+    /// Saves exceptions caught to the database for later reference. 
+    /// </summary>
     public static class ErrorLogger
     {
+        //Writes the given exception to the ErrorLog table.
         public static void LogError(Exception ex)
         {
             var el = new DbTables.ErrorLog();

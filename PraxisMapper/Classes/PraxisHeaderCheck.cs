@@ -5,9 +5,10 @@ using System.Linq;
 using System.Threading.Tasks;
 
 namespace PraxisMapper.Classes;
-//NOTE: PraxiHeaderCheck is intended as a simple app guard, that doesn't require logging in. 
-//If you have an authentication system in place, or use the PraxisAuthentication middleware,
-//this probably does no additional help.
+/// <summary>
+/// PraxiHeaderCheck is intended as a simple app guard, that doesn't require logging in. If you have an authentication system in place, 
+/// or use the PraxisAuthentication middleware, this probably does no additional help. If enabled, makes sure that requests have a header PraxisAuthKey equal to ServerAuthKey in the configuration.
+/// </summary>
 public class PraxisHeaderCheck {
     private readonly RequestDelegate _next;
     //Define target endpoints to protect, so webview apps will load without issues.

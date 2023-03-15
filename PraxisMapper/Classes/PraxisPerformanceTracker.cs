@@ -34,6 +34,11 @@ namespace PraxisMapper.Classes {
             await this._next.Invoke(context).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Insert a note into the PerformanceData table for reference later.
+        /// </summary>
+        /// <param name="functionName"></param>
+        /// <param name="notes"></param>
         public static void LogInfoToPerfData(string functionName, string notes) {
             var pi = new DbTables.PerformanceInfo();
             pi.FunctionName = functionName;
@@ -47,6 +52,7 @@ namespace PraxisMapper.Classes {
     }
 
     public static class PraxisPerformanceTrackerExtensions {
+        //Enable performance tracking to see how long all calls take to run on the server.
         public static IApplicationBuilder UsePraxisPerformanceTracker(this IApplicationBuilder builder) {
             return builder.UseMiddleware<PraxisPerformanceTracker>();
         }
