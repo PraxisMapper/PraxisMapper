@@ -28,6 +28,11 @@ namespace PraxisMapper.Classes {
     }
 
     public static class PraxisErrorExtensions {
+        /// <summary>
+        /// Enables the GlobalErrorHandler for the application. Wraps all calls in a try/catch block, writes any unhandled error to the database.
+        /// </summary>
+        /// <param name="builder"></param>
+        /// <returns></returns>
         public static IApplicationBuilder UseGlobalErrorHandler(this IApplicationBuilder builder) {
             return builder.UseMiddleware<ErrorHandlerMiddleware>();
         }

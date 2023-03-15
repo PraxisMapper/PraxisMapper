@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using PraxisCore;
 using System;
@@ -9,7 +8,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace PraxisMapper.Classes {
+namespace PraxisMapper.Classes
+{
+    /// <summary>
+    /// Handles authentication, allowing paths through without authentication, and getting the auth info on the user making a request.
+    /// </summary>
     public class PraxisAuthentication {
         private readonly RequestDelegate _next;
         private static ConcurrentDictionary<string, AuthData> authTokens = new ConcurrentDictionary<string, AuthData>(); //string is authtoken (Guid)
@@ -92,6 +95,11 @@ namespace PraxisMapper.Classes {
     }
 
     public static class PraxisAuthenticationExtensions {
+        /// <summary>
+        /// Enables authentication against the PraxisMapper database.
+        /// </summary>
+        /// <param name="builder"></param>
+        /// <returns></returns>
         public static IApplicationBuilder UsePraxisAuthentication(this IApplicationBuilder builder) {
             return builder.UseMiddleware<PraxisAuthentication>();
         }

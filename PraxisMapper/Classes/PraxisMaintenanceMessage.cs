@@ -4,7 +4,9 @@ using System.Threading.Tasks;
 
 namespace PraxisMapper.Classes;
 
-//If a maintenance message is set, non-admins will only get a 500 response with that message. Admins will get passed into the server.
+/// <summary>
+/// A simple class to put a PraxisMapper server into maintenance mode. If a maintenance message is set, non-admins will only get a 500 response with that message. Admins will get passed into the server.
+/// </summary>
 public class PraxisMaintenanceMessage {
     public static string outputMessage;
     private readonly RequestDelegate _next;
@@ -14,7 +16,7 @@ public class PraxisMaintenanceMessage {
     }
 
     public async Task Invoke(HttpContext context) {
-        if (outputMessage != "") {
+        if (!context.Request.Path.Value.Contains("Login") || outputMessage != "") { //need to be able to login anyways.
             PraxisAuthentication.GetAuthInfo(context.Response, out var accountId, out _);
             if (!PraxisAuthentication.IsAdmin(accountId)) {
                 var response = context.Response;
@@ -29,6 +31,12 @@ public class PraxisMaintenanceMessage {
 }
 
 public static class PraxisMaintenanceMessageExtensions {
+    /// <summary>
+    /// Enables setting a maintenance message that blocks all non-admin users while allowing admins to use the server.
+    /// </summary>
+    /// <param name="builder"></param>
+    /// <param name="message"></param>
+    /// <returns></returns>
     public static IApplicationBuilder UsePraxisMaintenanceMessage(this IApplicationBuilder builder, string message) {
         PraxisMaintenanceMessage.outputMessage = message;
         return builder.UseMiddleware<PraxisMaintenanceMessage>();
