@@ -56,25 +56,20 @@ namespace PraxisMapper {
 
             services.AddControllers();
             services.AddMvc();
-            //services.AddCoreComponentServiceCollection(); //injects the DbContext and other services into this collection. (Eventually, still working on that)
             services.AddMemoryCache(); //AddMvc calls this quietly, but I'm calling it explicitly here anyways.
             services.AddResponseCompression();
 
             var executionFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             IMapTiles mapTiles = null;
 
-            if (mapTilesEngine == "SkiaSharp") {
-                Assembly asm;
+            Assembly asm = null;
+            if (mapTilesEngine == "SkiaSharp")
                 asm = Assembly.LoadFrom(executionFolder + "/PraxisMapTilesSkiaSharp.dll");
-                mapTiles = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
-                services.AddSingleton(typeof(IMapTiles), mapTiles);
-            }
-            else if (mapTilesEngine == "ImageSharp") {
-                Assembly asm;
+            else if (mapTilesEngine == "ImageSharp") 
                 asm = Assembly.LoadFrom(executionFolder + "/PraxisMapTilesImageSharp.dll");
-                mapTiles = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
-                services.AddSingleton(typeof(IMapTiles), mapTiles);
-            }
+
+            mapTiles = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
+            services.AddSingleton(typeof(IMapTiles), mapTiles);
 
             TagParser.Initialize(Configuration.GetValue<bool>("ForceStyleDefaults"), mapTiles);
             MapTileSupport.MapTiles = mapTiles;
@@ -102,9 +97,7 @@ namespace PraxisMapper {
 
                         if (types.Any()) {
                             Log.WriteLog("Loading plugin " + potentialPlugin);
-                            services.AddControllersWithViews().AddApplicationPart(assembly);//.AddRazorRuntimeCompilation();
-                                                                                            //foreach (var p in (List<string>)types.First().GetProperty("AuthWhiteList").GetMethod)
-                                                                                            //PraxisAuthentication.whitelistedPaths.Add(p);
+                            services.AddControllersWithViews().AddApplicationPart(assembly);
                         }
                         else {
                             assembly = null;
@@ -143,6 +136,9 @@ namespace PraxisMapper {
             });
         }
 
+        /// <summary>
+        /// This function allows PraxisMapper to populate itself from a .pbf file in the same folder. Allows for the fastest setup of a functioning server.
+        /// </summary>
         private void BuildAndLoadDB() {
             var db = new PraxisContext();
             db.MakePraxisDB(); //Does nothing if DB already exists, creates DB if not.
@@ -222,19 +218,6 @@ namespace PraxisMapper {
                     System.Threading.Thread.Sleep(1800000); // 30 minutes in milliseconds
                 }
             });
-
-            //if the DB is empty, attmept to auto-load from a pbf file. This removes a couple of manual steps from smaller games, even if it takes a few extra minutes.
-            if (!db.Places.Any()) {
-                Log.WriteLog("No data loaded, attempting to auto-load");
-                var candidates = Directory.EnumerateFiles(".", "*.pbf");
-                if (candidates.Any()) {
-                    PbfReader reader = new PbfReader();
-                    reader.saveToDB = true;
-                    reader.ProcessFile(candidates.First());
-                }
-                Log.WriteLog("Done populating DB from " + candidates.First());
-                db.SetServerBounds(0);
-            }
 
             PraxisPerformanceTracker.LogInfoToPerfData("Startup", "PraxisMapper online.");
             Log.WriteLog("PraxisMapper configured and running.");
