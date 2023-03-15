@@ -7,14 +7,60 @@ namespace PraxisCore
 {
     public interface IMapTiles
     {
-        public void Initialize(); //Replaces some TagParser stuff, since a lot of drawing optimization happened there.
+        /// <summary>
+        /// Tells the MapTiles object to create and cache frequently-used objects for drawing later.
+        /// </summary>
+        public void Initialize();
+        /// <summary>
+        /// Draws the envelopes for all Places in the defined Area, in randomized colors.
+        /// </summary>
+        /// <param name="info"></param>
+        /// <param name="items"></param>
+        /// <returns></returns>
         public byte[] DrawOfflineEstimatedAreas(ImageStats info, List<DbTables.Place> items);
+        /// <summary>
+        /// Draws a grid matching up to Cell8 PlusCodes for the given area.
+        /// </summary>
+        /// <param name="totalArea"></param>
+        /// <returns></returns>
         public byte[] DrawCell8GridLines(GeoArea totalArea);
+        /// <summary>
+        /// Draws a grid matching up to Cell10 PlusCodes for the given area.
+        /// </summary>
+        /// <param name="totalArea"></param>
+        /// <returns></returns>
         public byte[] DrawCell10GridLines(GeoArea totalArea);
-        public byte[] DrawUserPath(string pointListAsString);
+        /// <summary>
+        /// Using the Area in stats, draw the map tile for the given Places using styleSet's rules
+        /// </summary>
+        /// <param name="stats"></param>
+        /// <param name="drawnItems"></param>
+        /// <param name="styleSet"></param>
+        /// <returns></returns>
         public byte[] DrawAreaAtSize(ImageStats stats, List<DbTables.Place> drawnItems = null, string styleSet = "mapTiles");
+        /// <summary>
+        /// Draws the Area in stats using the list of given PaintOps.
+        /// </summary>
+        /// <param name="stats"></param>
+        /// <param name="paintOps"></param>
+        /// <returns></returns>
         public byte[] DrawAreaAtSize(ImageStats stats, List<CompletePaintOp> paintOps);
+        /// <summary>
+        /// (SkiaSharp Only, beta) Draw the given area as an SVG files instead of a PNG.
+        /// </summary>
+        /// <param name="stats"></param>
+        /// <param name="drawnItems"></param>
+        /// <param name="styles"></param>
+        /// <param name="filterSmallAreas"></param>
+        /// <returns></returns>
         public string DrawAreaAtSizeSVG(ImageStats stats, List<DbTables.Place> drawnItems = null, Dictionary<string, StyleEntry> styles = null, bool filterSmallAreas = true);
+        /// <summary>
+        /// Given 2 mapTiles, layer then on top of each other in the given Area.
+        /// </summary>
+        /// <param name="info"></param>
+        /// <param name="bottomTile"></param>
+        /// <param name="topTile"></param>
+        /// <returns></returns>
         public byte[] LayerTiles(ImageStats info, byte[] bottomTile, byte[] topTile);
     }
 }

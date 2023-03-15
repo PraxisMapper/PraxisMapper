@@ -20,6 +20,9 @@ namespace PraxisCore {
 
         static DrawingOptions dOpts;
 
+        /// <summary>
+        /// ImageSharp initialize.
+        /// </summary>
         public void Initialize() {
             foreach (var b in TagParser.cachedBitmaps)
                 cachedBitmaps.Add(b.Key, Image.Load(b.Value));
@@ -218,38 +221,6 @@ namespace PraxisCore {
                 image.Mutate(x => x.Draw(lineColor, StrokeWidth, new SixLabors.ImageSharp.Drawing.Path(points)));
                 latLineTrackerDegrees += resolutionCell10;
             }
-
-            image.Mutate(x => x.Flip(FlipMode.Vertical)); //Plus codes are south-to-north, so invert the image to make it correct.
-            var ms = new MemoryStream();
-            image.SaveAsPng(ms);
-            return ms.ToArray();
-        }
-
-        /// <summary>
-        /// Take a path provided by a user, draw it as a maptile. Potentially useful for exercise trackers. Resulting file must not be saved to the server as that would be user tracking.
-        /// </summary>
-        /// <param name="pointListAsString">a string of points separate by , and | </param>
-        /// <returns>the png file with the path drawn over the mapdata in the area.</returns>
-        public byte[] DrawUserPath(string pointListAsString) {
-            //String is formatted as Lat,Lon~Lat,Lon~ repeating. Characters chosen to not be percent-encoded if submitted as part of the URL.
-            //first, convert this to a list of latlon points
-            string[] pointToConvert = pointListAsString.Split("|");
-            Coordinate[] coords = pointToConvert.Select(p => new Coordinate(double.Parse(p.Split(',')[0]), double.Parse(p.Split(',')[1]))).ToArray();
-
-            var mapBuffer = resolutionCell8 / 2; //Leave some area around the edges of where they went.
-            GeoArea mapToDraw = new GeoArea(coords.Min(c => c.Y) - mapBuffer, coords.Min(c => c.X) - mapBuffer, coords.Max(c => c.Y) + mapBuffer, coords.Max(c => c.X) + mapBuffer);
-
-            ImageStats info = new ImageStats(mapToDraw, 1024, 1024);
-
-            LineString line = new LineString(coords);
-            var drawableLine = PolygonToDrawingLine(line, mapToDraw, info.degreesPerPixelX, info.degreesPerPixelY);
-
-            //Now, draw that path on the map.
-            var baseImage = DrawAreaAtSize(info);
-
-            Image<Rgba32> image = new Image<Rgba32>(info.imageSizeX, info.imageSizeY);
-            Rgba32 strokeColor = Rgba32.ParseHex("000000");
-            image.Mutate(x => x.Draw(strokeColor, 4, new SixLabors.ImageSharp.Drawing.Path(drawableLine)));
 
             image.Mutate(x => x.Flip(FlipMode.Vertical)); //Plus codes are south-to-north, so invert the image to make it correct.
             var ms = new MemoryStream();
