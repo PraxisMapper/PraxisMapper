@@ -225,45 +225,6 @@ namespace PraxisCore {
             return results;
         }
 
-        /// <summary>
-        /// Take a path provided by a user, draw it as a maptile. Potentially useful for exercise trackers. Resulting file must not be saved to the server as that would be user tracking.
-        /// </summary>
-        /// <param name="pointListAsString">a string of points separate by , and | </param>
-        /// <returns>the png file with the path drawn over the mapdata in the area.</returns>
-        public byte[] DrawUserPath(string pointListAsString) {
-            //String is formatted as Lat,Lon~Lat,Lon~ repeating. Characters chosen to not be percent-encoded if submitted as part of the URL.
-            //first, convert this to a list of latlon points
-            string[] pointToConvert = pointListAsString.Split("|");
-            Coordinate[] coords = pointToConvert.Select(p => new Coordinate(double.Parse(p.Split(',')[0]), double.Parse(p.Split(',')[1]))).ToArray();
-
-            var mapBuffer = resolutionCell8 / 2; //Leave some area around the edges of where they went.
-            GeoArea mapToDraw = new GeoArea(coords.Min(c => c.Y) - mapBuffer, coords.Min(c => c.X) - mapBuffer, coords.Max(c => c.Y) + mapBuffer, coords.Max(c => c.X) + mapBuffer);
-
-            ImageStats info = new ImageStats(mapToDraw, 1024, 1024);
-
-            LineString line = new LineString(coords);
-            var drawableLine = PolygonToSKPoints(line, mapToDraw, info.degreesPerPixelX, info.degreesPerPixelY);
-
-            //Now, draw that path on the map.
-            var baseImage = DrawAreaAtSize(info);
-
-            SKBitmap sKBitmap = SKBitmap.Decode(baseImage);
-            SKCanvas canvas = new SKCanvas(sKBitmap);
-            SKPaint paint = new SKPaint();
-            paint.Style = SKPaintStyle.Stroke;
-            paint.StrokeWidth = 4; //Larger than normal lines at any zoom level.
-            paint.Color = new SKColor(0, 0, 0); //Pure black, for maximum visibility.
-            for (var x = 0; x < drawableLine.Length - 1; x++)
-                canvas.DrawLine(drawableLine[x], drawableLine[x + 1], paint);
-
-            var ms = new MemoryStream();
-            var skms = new SKManagedWStream(ms);
-            sKBitmap.Encode(skms, SKEncodedImageFormat.Png, 100);
-            var results = ms.ToArray();
-            skms.Dispose(); ms.Close(); ms.Dispose();
-            return results;
-        }
-
         //Optional parameter allows you to pass in different stuff that the DB alone has, possibly for manual or one-off changes to styling
         //or other elements converted for maptile purposes.
         /// <summary>
