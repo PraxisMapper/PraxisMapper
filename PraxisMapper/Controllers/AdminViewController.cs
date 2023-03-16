@@ -57,7 +57,7 @@ namespace PraxisMapper.Controllers {
             ViewBag.areaName = plusCode;
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
             var mapArea = plusCode.ToGeoArea();
-            int imageMaxEdge = Configuration["adminPreviewImageMaxEdge"].ToInt();
+            int imageMaxEdge = Configuration["imageMaxSide"].ToInt();
             long maxImagePixels = Configuration["maxImagePixels"].ToLong();
 
             ImageStats istats = new ImageStats(mapArea, (int)(mapArea.LongitudeWidth / ConstantValues.resolutionCell11Lon) * (int)MapTileSupport.GameTileScale, (int)(mapArea.LatitudeHeight / ConstantValues.resolutionCell11Lat) * (int)MapTileSupport.GameTileScale);
@@ -104,7 +104,7 @@ namespace PraxisMapper.Controllers {
             if (area == null)
                 return View();
 
-            int imageMaxEdge = Configuration["adminPreviewImageMaxEdge"].ToInt();
+            int imageMaxEdge = Configuration["imageMaxSide"].ToInt();
             long maxImagePixels = Configuration["maxImagePixels"].ToLong();
 
             TagParser.ApplyTags(new List<DbTables.Place>() { area }, "mapTiles");
