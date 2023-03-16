@@ -285,6 +285,8 @@ namespace Larry {
             System.Environment.SetEnvironmentVariable("DOTNET_CLI_TELEMETRY_OPTOUT", "1", EnvironmentVariableTarget.Machine);
             System.Environment.SetEnvironmentVariable("COMPlus_TieredCompilation", "1", EnvironmentVariableTarget.Machine);
             System.Environment.SetEnvironmentVariable("DOTNET_TieredPGO", "1", EnvironmentVariableTarget.Machine);
+            //TODO: perf test with these settings, as they may be necessary for ALL code to benefit from PGO. Saving for Release 9
+            //System.Environment.SetEnvironmentVariable("DOTNET_ReadyToRun", "0", EnvironmentVariableTarget.Machine);
         }
 
         private static void PwdSpeedTest() {
@@ -537,7 +539,7 @@ namespace Larry {
             MapTileSupport.SlippyTileSizeSquare = config["slippyTileSize"].ToInt();
             MapTileSupport.BufferSize = config["AreaBuffer"].ToDouble();
 
-            if (config["UseHighAccuracy"] != "True") {
+            if (config["processingMode"] == "minimize") {
                 geometryFactory = NtsGeometryServices.Instance.CreateGeometryFactory(new PrecisionModel(1000000), 4326); //SRID matches 10-character Plus code values.  Precision model means round all points to 7 decimal places to not exceed float's useful range.
                 SimplifyAreas = true; //rounds off points that are within a Cell10's distance of each other. Makes fancy architecture and highly detailed paths less pretty on map tiles, but works for gameplay data.
             }
@@ -546,11 +548,6 @@ namespace Larry {
 
             if (config["KeepElementsInMemory"] == "True")
                 memorySource = new List<DbTables.Place>(20000);
-
-            if (config["UseMariaDBInFile"] == "True" && config["DbMode"] != "MariaDB") {
-                Log.WriteLog("You set a MariaDB-only option on and aren't using MariaDB! Fix the configs to use MariaDB or disable the InFile setting and run again.", Log.VerbosityLevels.High);
-                return;
-            }
 
             if (config["ResourceUse"] == "low")
                 singleThread = true;
