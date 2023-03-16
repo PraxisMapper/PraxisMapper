@@ -70,7 +70,6 @@ namespace PraxisCore {
             model.Entity<PlaceTags>().HasIndex(m => m.Key);
             model.Entity<PlaceTags>().HasOne(m => m.Place).WithMany(m => m.Tags).HasForeignKey(m => new { m.SourceItemId, m.SourceItemType }).HasPrincipalKey(m => new { m.SourceItemID, m.SourceItemType });
 
-
             model.Entity<PlaceData>().HasIndex(m => m.DataKey);
             model.Entity<PlaceData>().HasIndex(m => m.PlaceId);
             model.Entity<PlaceData>().HasIndex(m => m.Expiration);
@@ -89,18 +88,24 @@ namespace PraxisCore {
             }
         }
 
-        //indexes that I don't think EFCore can create correctly automatically.
+        //indexes that EFCore can't create correctly automatically.
         public static string MapTileIndex = "CREATE SPATIAL INDEX MapTileSpatialIndex ON MapTiles(areaCovered)";
         public static string SlippyMapTileIndex = "CREATE SPATIAL INDEX SlippyMapTileSpatialIndex ON SlippyMapTiles(areaCovered)";
-        public static string StoredElementsIndex = "CREATE SPATIAL INDEX PlacesIndex ON Places(elementGeometry)";
+        public static string PlacesIndex = "CREATE SPATIAL INDEX PlacesIndex ON Places(elementGeometry)";
         public static string AreaDataSpatialIndex = "CREATE SPATIAL INDEX areaDataSpatialIndex ON AreaData(AreaCovered)";
 
-        //TODO NOTE: may need to make MS SQL Server versions of these, 'OR REPLACE' is MariaDB syntax.
-        public static string drawSizeHintIndex = "CREATE OR REPLACE INDEX IX_Places_DrawSizeHint on Places(DrawSizeHint)";
-        public static string privacyIdIndex = "CREATE OR REPLACE INDEX IX_Places_privacyId on Places(privacyId)";
-        public static string sourceItemIdIndex = "CREATE OR REPLACE INDEX IX_Places_sourceItemID on Places(sourceItemID)";
-        public static string sourceItemTypeIndex = "CREATE OR REPLACE INDEX IX_Places_sourceItemType on Places(sourceItemType)";
-        public static string tagKeyIndex = "CREATE OR REPLACE INDEX IX_PlaceTags_Key on PlaceTags(`Key`)";
+        //Text to recreate these indexes if I drop them for database loading.
+        public static string drawSizeHintIndexMaria = "CREATE OR REPLACE INDEX IX_Places_DrawSizeHint on Places(DrawSizeHint)";
+        public static string privacyIdIndexMaria = "CREATE OR REPLACE INDEX IX_Places_privacyId on Places(privacyId)";
+        public static string sourceItemIdIndexMaria = "CREATE OR REPLACE INDEX IX_Places_sourceItemID on Places(sourceItemID)";
+        public static string sourceItemTypeIndexMaria = "CREATE OR REPLACE INDEX IX_Places_sourceItemType on Places(sourceItemType)";
+        public static string tagKeyIndexMaria = "CREATE OR REPLACE INDEX IX_PlaceTags_Key on PlaceTags(`Key`)";
+
+        public static string drawSizeHintIndexSQL = "CREATE INDEX IX_Places_DrawSizeHint on Places(DrawSizeHint)";
+        public static string privacyIdIndexSQL = "CREATE INDEX IX_Places_privacyId on Places(privacyId)";
+        public static string sourceItemIdIndexSQL = "CREATE INDEX IX_Places_sourceItemID on Places(sourceItemID)";
+        public static string sourceItemTypeIndexSQL = "CREATE INDEX IX_Places_sourceItemType on Places(sourceItemType)";
+        public static string tagKeyIndexSQL = "CREATE INDEX IX_PlaceTags_Key on PlaceTags([Key])";
 
         //PostgreSQL uses its own CREATE INDEX syntax
         public static string MapTileIndexPG = "CREATE INDEX maptiles_geom_idx ON public.\"MapTiles\" USING GIST(\"areaCovered\")";
@@ -112,12 +117,12 @@ namespace PraxisCore {
         //Though, I also see better results there droping the single-column indexes as well, which would need re-created manually since those one are automatic.
         public static string DropMapTileIndex = "DROP INDEX IF EXISTS MapTileSpatialIndex on MapTiles";
         public static string DropSlippyMapTileIndex = "DROP INDEX IF EXISTS SlippyMapTileSpatialIndex on SlippyMapTiles";
-        public static string DropStoredElementsIndex = "DROP INDEX IF EXISTS PlacesIndex on Places";
-        public static string DropcustomDataPlusCodesIndex = "DROP INDEX IF EXISTS areaDataSpatialIndex on AreaData";
-        public static string DropStoredElementsHintSizeIndex = "DROP INDEX IF EXISTS IX_Places_DrawSizeHint on Places";
-        public static string DropStoredElementsPrivacyIdIndex = "DROP INDEX IF EXISTS IX_Places_privacyId on Places";
-        public static string DropStoredElementsSourceItemIdIndex = "DROP INDEX IF EXISTS IX_Places_sourceItemID on Places";
-        public static string DropStoredElementsSourceItemTypeIndex = "DROP INDEX IF EXISTS IX_Places_sourceItemType on Places";
+        public static string DropPlacesSpatialIndex = "DROP INDEX IF EXISTS PlacesIndex on Places";
+        public static string DropAreaDataCoveredIndex = "DROP INDEX IF EXISTS areaDataSpatialIndex on AreaData";
+        public static string DropPlacesDrawSizeHintIndex = "DROP INDEX IF EXISTS IX_Places_DrawSizeHint on Places";
+        public static string DropPLacesPrivacyIdIndex = "DROP INDEX IF EXISTS IX_Places_privacyId on Places";
+        public static string DropPlacesSourceItemIdIndex = "DROP INDEX IF EXISTS IX_Places_sourceItemID on Places";
+        public static string DropPlacesSourceItemTypeIndex = "DROP INDEX IF EXISTS IX_Places_sourceItemType on Places";
         public static string DropTagKeyIndex = "DROP INDEX IF EXISTS IX_PlaceTags_Key on PlaceTags";
 
         //This doesn't appear to be any faster. The query isn't the slow part. Keeping this code as a reference for how to precompile queries.
@@ -176,9 +181,7 @@ namespace PraxisCore {
                 return;
 
             //Not automatic entries executed below:
-            //PostgreSQL will make automatic spatial indexes
             if (serverMode == "PostgreSQL") {
-                //db.Database.ExecuteSqlRaw(GeneratedMapDataIndexPG);
                 Database.ExecuteSqlRaw(MapTileIndexPG);
                 Database.ExecuteSqlRaw(SlippyMapTileIndexPG);
                 Database.ExecuteSqlRaw(StoredElementsIndexPG);
@@ -187,7 +190,7 @@ namespace PraxisCore {
             {
                 Database.ExecuteSqlRaw(MapTileIndex);
                 Database.ExecuteSqlRaw(SlippyMapTileIndex);
-                Database.ExecuteSqlRaw(StoredElementsIndex);
+                Database.ExecuteSqlRaw(PlacesIndex);
                 Database.ExecuteSqlRaw(AreaDataSpatialIndex);
             }
 
@@ -245,23 +248,44 @@ namespace PraxisCore {
                 Database.ExecuteSqlRaw(SlippyMapTileIndexPG);
                 Database.ExecuteSqlRaw(StoredElementsIndexPG);
             }
-            else //SQL Server and MariaDB share the same syntax here
+            else if (serverMode == "MariaDB") 
             {
                 //db.Database.ExecuteSqlRaw(GeneratedMapDataIndex);
                 Database.ExecuteSqlRaw(MapTileIndex);
                 Log.WriteLog("MapTiles indexed.");
                 Database.ExecuteSqlRaw(SlippyMapTileIndex);
                 Log.WriteLog("SlippyMapTiles indexed.");
-                Database.ExecuteSqlRaw(StoredElementsIndex);
+                Database.ExecuteSqlRaw(PlacesIndex);
                 Log.WriteLog("Places geometry indexed.");
 
                 //now also add the automatic ones we took out in DropIndexes.
-                Database.ExecuteSqlRaw(drawSizeHintIndex);
-                Database.ExecuteSqlRaw(sourceItemIdIndex);
-                Database.ExecuteSqlRaw(sourceItemTypeIndex);
-                Database.ExecuteSqlRaw(privacyIdIndex);
+                Database.ExecuteSqlRaw(drawSizeHintIndexMaria);
+                Database.ExecuteSqlRaw(sourceItemIdIndexMaria);
+                Database.ExecuteSqlRaw(sourceItemTypeIndexMaria);
+                Database.ExecuteSqlRaw(privacyIdIndexMaria);
                 Log.WriteLog("Places other columns indexed.");
-                Database.ExecuteSqlRaw(tagKeyIndex);
+                Database.ExecuteSqlRaw(tagKeyIndexMaria);
+                Log.WriteLog("PlaceTags indexed.");
+                Database.ExecuteSqlRaw(AreaDataSpatialIndex);
+                Log.WriteLog("AreaData indexed.");
+            }
+            else if (serverMode == "SQLServer" || serverMode == "LocalDB")
+            {
+                //db.Database.ExecuteSqlRaw(GeneratedMapDataIndex);
+                Database.ExecuteSqlRaw(MapTileIndex);
+                Log.WriteLog("MapTiles indexed.");
+                Database.ExecuteSqlRaw(SlippyMapTileIndex);
+                Log.WriteLog("SlippyMapTiles indexed.");
+                Database.ExecuteSqlRaw(PlacesIndex);
+                Log.WriteLog("Places geometry indexed.");
+
+                //now also add the automatic ones we took out in DropIndexes.
+                Database.ExecuteSqlRaw(drawSizeHintIndexSQL);
+                Database.ExecuteSqlRaw(sourceItemIdIndexSQL);
+                Database.ExecuteSqlRaw(sourceItemTypeIndexSQL);
+                Database.ExecuteSqlRaw(privacyIdIndexSQL);
+                Log.WriteLog("Places other columns indexed.");
+                Database.ExecuteSqlRaw(tagKeyIndexSQL);
                 Log.WriteLog("PlaceTags indexed.");
                 Database.ExecuteSqlRaw(AreaDataSpatialIndex);
                 Log.WriteLog("AreaData indexed.");
@@ -271,13 +295,13 @@ namespace PraxisCore {
         public void DropIndexes() {
             Log.WriteLog("Dropping indexes.....");
             Database.ExecuteSqlRaw(DropMapTileIndex);
-            Database.ExecuteSqlRaw(DropStoredElementsIndex);
+            Database.ExecuteSqlRaw(DropPlacesSpatialIndex);
             Database.ExecuteSqlRaw(DropSlippyMapTileIndex);
-            Database.ExecuteSqlRaw(DropcustomDataPlusCodesIndex);
-            Database.ExecuteSqlRaw(DropStoredElementsHintSizeIndex);
-            Database.ExecuteSqlRaw(DropStoredElementsPrivacyIdIndex);
-            Database.ExecuteSqlRaw(DropStoredElementsSourceItemTypeIndex);
-            Database.ExecuteSqlRaw(DropStoredElementsSourceItemIdIndex);
+            Database.ExecuteSqlRaw(DropAreaDataCoveredIndex);
+            Database.ExecuteSqlRaw(DropPlacesDrawSizeHintIndex);
+            Database.ExecuteSqlRaw(DropPLacesPrivacyIdIndex);
+            Database.ExecuteSqlRaw(DropPlacesSourceItemTypeIndex);
+            Database.ExecuteSqlRaw(DropPlacesSourceItemIdIndex);
             Database.ExecuteSqlRaw(DropTagKeyIndex);
             Log.WriteLog("Indexes dropped.");
         }
