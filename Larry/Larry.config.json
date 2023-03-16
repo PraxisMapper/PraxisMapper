@@ -1,23 +1,56 @@
 ﻿{
-  "DbMode": "MariaDB",
-  "DbConnectionString": "server=localhost;database=praxis;user=root;password=asdf;",
+  //Database connections: Use one of the entries below. LocalDB is set as the default to enable minimum configuration required to start working with the server.
+
+  //LocalDB: A self-contained SQL Server without any configuration or external connectivity.
+  "DbMode": "LocalDB",
+  "DbConnectionString": "Server=(localdb)\\Praxis;Integrated Security=true;",
+
+  //Micosoft SQL Server: Well supported commercial database option. Eats a LOT of disk space, particularly on logging.
+  //"DbMode": "SQLServer",
+  //"DbConnectionString": "Server=localhost\\SQLEXPRESS2022;database=praxis;User Id=praxis;Password=test;trustServerCertificate=true",
+
+  //MariaDB: Free and open-source database. Simpler than SQL Server, but has all the necessary features for PraxisMapper. Suggested for most users that need more than LocalDB.
+  //"DbMode": "MariaDB",
+  //"DbConnectionString": "server=localhost;database=praxis-test;user=root;password=test;",
+
+  ///The folder to read PBF files from. All PBF files will be read sequentially. 
   "PbfFolder": "C:\\Praxis\\",
+  //If generating intermediate .geomData/tagsData files, they'll be saved to this folder.
   "OutputDataFolder": "C:\\Praxis\\",
-  "Solar2dExportFolder": "",
-  "UseHighAccuracy": true,
-  "OnlyTaggedAreas": false,
+
+  //if true, entries in a PBF without tags are skipped. If false, untagged entries will be imported to the PraxisMapper database.
+  "OnlyTaggedAreas": true,
+  //If true, Larry ignores the PraxisMapper database and uses only the default styles. False reads all styles present in the database.
   "ForceStyleDefaults": false,
-  "UseMariaDBInFile": false,
+  //If false, will save directly to DB on baseline processPbf command. If true, saves processed output to .geomData TSV files (and .tagsData TSV files) in the OutputDataFolder
+  "UseGeomDataFiles": false,
+  //Set this to limit PBF importing to entries that intersect or are overlapped by a relation with this ID. 0 means all entries in the PBF will be processed.
   "UseOneRelationID": 0,
+  //How much verbosity to use in console or text-file logging. 1 = None, 2 is Errors Only, 3 is Normal, 4 is Verbose.
   "LogLevel": 3,
+  //Set this to true ONLY if you are using the -drawOneImage:#### command, and want to draw the output from a PBF file without actually loading the data to a database.
   "KeepElementsInMemory": false,
+  //When processing PBFs, use this style set to decide if an area if 'unmatched' or not.
   "TagParserStyleSet": "mapTiles",
-  "mapTileScaleFactor": 2,
+  //How much to multiply the size of a gameplay map tile by. At 1, Cell8 sized plus code images are 80x100, making each pixel a single Cell11. Defaults to 4, for 320x400px tiles.
+  "mapTileScaleFactor": 4,
+  //How large to render Slippy tiles (Google Maps or Leaflet type viewers, that 'slip' around as you drag the mouse). Usually 256 or 512. PraxisSlippy plugin expects 512.
   "slippyTileSize": 512, //is in db settings already.
-  "AreaBuffer": 0.000125, //1 Cell10
-  "processingMode": "normal", //normal: use item geography. center: save only item's center point.
-  "reprocessFiles": false, //false: only read PBF files. true: loads an existing geomdata file and follow normal processing rules on it, then re-do output. Only converts items to center points at this time.
-  "singleStyle": "", //if not blank, pull out one named style from the default styleSet and use that in place of the default styleset this run.
+  //How much additional area to load when drawing map tiles. Necessary to have points on the edge of a map tile draw correctly. Defaults to a single Cell10 width.
+  "AreaBuffer": 0.000125,
+  //normal: Intended functionality. 
+  //center: save only item's center point, instead of it's full data. 
+  //minimize: Larry will round all GPS coordinates to 7 digits and remove points that wouldn't change the Cell10s that Geometry would be drawn over
+  //minimize also reduces tags saved to 2: a name, if present, and the suggestedmini style name for the area.
+  //If you are EXTREMELY limited on space, and not drawing map tiles to be served, but want to detect what areas a user is present at, minimize might be the option you want.
+  "processingMode": "normal",
+  //false: normal behavior, reads PBF files. true: loads an existing .geomdata file and follow normal processing rules on it, then re-do output.
+  //If this is true, you are probably either regenerating files to fix DrawSizeHints to match changes you made to the mapTiles style, or seeing what minimize processingMode does to geometry.
+  "reprocessFiles": false,
+  //When creating images, load this IMapTiles interface to do it. Valid options are "SkiaSharp" and "ImageSharp".
+  //SkiaSharp is faster and generally looks better, but only works on Windows because of native dependencies. ImageSharp works on everything, but about 30% of the speed.
   "MapTilesEngine": "SkiaSharp",
-  "ResourceUse": "normal" // normal: multithreading, conserve RAM. low: singlethread, conserve RAM, high: multithread, don't reclaim RAM early.
+  // normal: multithreading, conserve RAM betwen blocks. low: singlethread, conserve RAM, high: multithread, keep all read blocks in RAM. Don't use 'high' unless you are working on a very small area.
+  // On extremely problematic geometries, normal mode will attempt to drop into low mode for a single block instead of quitting on an error. 
+  "ResourceUse": "normal"
 }
