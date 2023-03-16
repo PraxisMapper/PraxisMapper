@@ -5,11 +5,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using static PraxisCore.ConstantValues;
 using static PraxisCore.DbTables;
 using static PraxisCore.Singletons;
 
-namespace PraxisCore {
+namespace PraxisCore
+{
     /// <summary>
     /// Common functions revolving around Geometry object operations
     /// </summary>
@@ -118,11 +118,11 @@ namespace PraxisCore {
                     else
                         place = mp;
                 }
-                return place; //will be null if it fails the CCWCheck
+                return place; 
             }
 
             //Note: SimplifyArea CAN reverse a polygon's orientation, especially in a multi-polygon, so don't do CheckCCW until after
-            var simplerPlace = NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(place, resolutionCell10); //This cuts storage space for files by 30-50% but makes maps look pretty bad.
+            var simplerPlace = place.Simplify(ConstantValues.resolutionCell10).Fix();
             if (simplerPlace is Polygon)
             {
                 simplerPlace = CCWCheck((Polygon)simplerPlace);
@@ -146,7 +146,7 @@ namespace PraxisCore {
                 }
 
             }
-            return null; //some of the outer shells aren't compatible. Should alert this to the user if possible.
+            return place;
         }
 
         /// <summary>
