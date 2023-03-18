@@ -16,7 +16,7 @@ public class PraxisMaintenanceMessage {
     }
 
     public async Task Invoke(HttpContext context) {
-        if (!context.Request.Path.Value.Contains("Login") || outputMessage != "") { //need to be able to login anyways.
+        if (outputMessage != "" && !context.Request.Path.Value.Contains("Login")) { //need to be able to login anyways.
             PraxisAuthentication.GetAuthInfo(context.Response, out var accountId, out _);
             if (!PraxisAuthentication.IsAdmin(accountId)) {
                 var response = context.Response;

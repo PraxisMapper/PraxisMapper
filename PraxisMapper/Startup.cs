@@ -145,6 +145,7 @@ namespace PraxisMapper {
 
             //if the DB is empty, attmept to auto-load from a pbf file. This removes a couple of manual steps from smaller games, even if it takes a few extra minutes.
             if (!db.Places.Any()) {
+                TagParser.Initialize(true, null); //Force the default styles in place, since we've created the DB and haven't yet started up a drawing plugin.
                 Log.WriteLog("No data loaded, attempting to auto-load");
                 var relationAsBounds = Configuration.GetValue<long>("useRelationForBounds");
                 var candidates = Directory.EnumerateFiles(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "*.pbf");
@@ -158,7 +159,7 @@ namespace PraxisMapper {
                     db.SetServerBounds(relationAsBounds);
                 }
             }
-        }
+         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IMemoryCache cache) {
