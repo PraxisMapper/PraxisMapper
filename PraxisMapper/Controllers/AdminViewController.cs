@@ -237,6 +237,8 @@ namespace PraxisMapper.Controllers {
             var db = new PraxisContext();
             db.ResetStyles();
             TagParser.Initialize(false, MapTileSupport.MapTiles);
+            db.ExpireAllMapTiles();
+            db.ExpireAllSlippyMapTiles();
             return Index();
         }
     }
