@@ -356,9 +356,7 @@ namespace Larry
             List<string> geomFilenames = Directory.EnumerateFiles(config["OutputDataFolder"], "*.geomData").ToList();
             List<string> tagsFilenames = Directory.EnumerateFiles(config["OutputDataFolder"], "*.tagsData").ToList();
 
-            //TODO testing if SQL works better updating indexes as it goes vs MariaDB doing better in bulk.
-            if (config["DbMode"] == "MariaDB")
-                db.DropIndexes();
+            db.DropIndexes();
 
             if (config["KeepElementsInMemory"] == "true") //ignore DB, doing some one-off operation.
             {
@@ -393,8 +391,10 @@ namespace Larry
             }
             else if (config["UseGeomDataFiles"] == "True")
             {
-                if (config["DbMode"] == "MariaDB") {
-                    foreach (var fileName in geomFilenames) {
+                if (config["DbMode"] == "MariaDB")
+                {
+                    foreach (var fileName in geomFilenames)
+                    {
 
                         System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                         sw.Start();
@@ -405,7 +405,8 @@ namespace Larry
                         File.Move(fileName, fileName + "done");
                     }
 
-                    foreach (var fileName in tagsFilenames) {
+                    foreach (var fileName in tagsFilenames)
+                    {
                         System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                         sw.Start();
                         var mariaPath = fileName.Replace("\\", "\\\\");
@@ -415,42 +416,43 @@ namespace Larry
                         File.Move(fileName, fileName + "done");
                     }
                 }
-            }
-            else if (config["DbMode"] == "SQLServer" || config["DbMode"] == "LocalDB") {
-                foreach (var fileName in geomFilenames) {
-                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-                    sw.Start();
-                    db.Database.ExecuteSqlRaw("CREATE TABLE #tempPlace ( id bigint, osmType int, geoText nvarchar(MAX), privacyID uniqueidentifier, hintsize decimal(30,17)); " +
-                        "BULK INSERT #tempPlace FROM '" + fileName + "';" +
-                        "INSERT INTO dbo.Places (SourceItemId, SourceItemType, ElementGeometry, PrivacyId, DrawSizeHint) SELECT id, osmType, geography::STGeomFromText(geoText, 4326), privacyID, hintSize FROM #tempPlace; " +
-                        "DROP TABLE #tempPlace;"
-                        ) ;
-                    sw.Stop();
-                    Log.WriteLog("Geometry loaded from " + fileName + " in " + sw.Elapsed);
-                    File.Move(fileName, fileName + "done");
-                }
+                else if (config["DbMode"] == "SQLServer" || config["DbMode"] == "LocalDB") //UseGeomFiles == true
+                {
+                    foreach (var fileName in geomFilenames)
+                    {
+                        System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                        sw.Start();
+                        db.Database.ExecuteSqlRaw("CREATE TABLE #tempPlace ( id bigint, osmType int, geoText nvarchar(MAX), privacyID uniqueidentifier, hintsize decimal(30,17)); " +
+                            "BULK INSERT #tempPlace FROM '" + fileName + "';" +
+                            "INSERT INTO dbo.Places (SourceItemId, SourceItemType, ElementGeometry, PrivacyId, DrawSizeHint) SELECT id, osmType, geography::STGeomFromText(geoText, 4326), privacyID, hintSize FROM #tempPlace; " +
+                            "DROP TABLE #tempPlace;"
+                            );
+                        sw.Stop();
+                        Log.WriteLog("Geometry loaded from " + fileName + " in " + sw.Elapsed);
+                        File.Move(fileName, fileName + "done");
+                    }
 
-                foreach (var fileName in tagsFilenames) {
-                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-                    sw.Start();
-                    db.Database.ExecuteSqlRaw("CREATE TABLE #tempTags ( id bigint, osmType int, tagKey nvarchar(MAX), tagValue nvarchar(MAX)); " +
-                        "BULK INSERT #tempTags FROM '" + fileName + "';" +
-                        "INSERT INTO dbo.PlaceTags (SourceItemId, SourceItemType, [Key], [Value]) SELECT id, osmType, tagKey, tagValue FROM #tempTags; " +
-                        "DROP TABLE #tempTags;"
-                        );
-                    sw.Stop();
-                    Log.WriteLog("Tags loaded from " + fileName + " in " + sw.Elapsed);
-                    File.Move(fileName, fileName + "done");
+                    foreach (var fileName in tagsFilenames)
+                    {
+                        System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                        sw.Start();
+                        db.Database.ExecuteSqlRaw("CREATE TABLE #tempTags ( id bigint, osmType int, tagKey nvarchar(MAX), tagValue nvarchar(MAX)); " +
+                            "BULK INSERT #tempTags FROM '" + fileName + "';" +
+                            "INSERT INTO dbo.PlaceTags (SourceItemId, SourceItemType, [Key], [Value]) SELECT id, osmType, tagKey, tagValue FROM #tempTags; " +
+                            "DROP TABLE #tempTags;"
+                            );
+                        sw.Stop();
+                        Log.WriteLog("Tags loaded from " + fileName + " in " + sw.Elapsed);
+                        File.Move(fileName, fileName + "done");
+                    }
                 }
-
             }
-            else //Main path.
+            else //Main path, write directly to DB.
             {
                 var options = new ParallelOptions();
                 if (singleThread)
                     options.MaxDegreeOfParallelism = 1;
 
-                //Parallel.ForEach(geomFilenames, options,  fileName => 
                 foreach (var fileName in geomFilenames) {
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
@@ -459,19 +461,15 @@ namespace Larry
                     db.ChangeTracker.AutoDetectChangesEnabled = false;
                     var lines = File.ReadAllLines(fileName); //Might be faster to use streams and dodge the memory allocation?
                     var newPlaces = new List<DbTables.Place>(lines.Length);
-                    //Log.WriteLog("Converting entries from file...");
                     foreach (var line in lines) {
                         db.Places.Add(GeometrySupport.ConvertSingleTsvPlace(line));
                     }
-                    //Log.WriteLog("Saving to db...");
                     db.SaveChanges();
                     sw.Stop();
                     Log.WriteLog("Geometry loaded from " + fileName + " in " + sw.Elapsed);
                     File.Move(fileName, fileName + "done");
-                } //);
-                //Parallel.ForEach(tagsFilenames, options, fileName =>
+                } 
                 foreach (var fileName in tagsFilenames) {
-                    //Log.WriteLog("Loading file " + fileName);
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
                     db = new PraxisContext();
@@ -491,9 +489,7 @@ namespace Larry
             fullProcess.Stop();
             Log.WriteLog("Files processed in " + fullProcess.Elapsed);
             fullProcess.Restart();
-            //TODO testing: may let SQL Server updates indexes on the fly, because it chokes on processing them all at once. MariaDB does BETTER bulk-processing.
-            if (config["DbMode"] == "MariaDB")
-                db.RecreateIndexes();
+            db.RecreateIndexes();
             fullProcess.Stop();
             Log.WriteLog("Indexes generated in " + fullProcess.Elapsed);
         }
