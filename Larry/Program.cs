@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using NetTopologySuite;
 using NetTopologySuite.Geometries;
+using OsmSharp.Complete;
 using PraxisCore;
 using PraxisCore.PbfReader;
 using PraxisCore.Support;
@@ -22,10 +23,8 @@ using static PraxisCore.DbTables;
 using static PraxisCore.Place;
 using static PraxisCore.Singletons;
 
-//TODO: Ponder using https://download.bbbike.org/osm/ as a data source to get a custom extract of an area (for when users want a local-focused app, probably via a wizard GUI)
-//OR could use an additional input for filterbox.
-
-namespace Larry {
+namespace Larry
+{
     class Program {
         static IConfigurationRoot config;
         static List<DbTables.Place> memorySource;
@@ -93,6 +92,7 @@ namespace Larry {
             }
 
             //This is the single command to get a server going, assuming you have done all the setup steps yourself beforehand and your config is correct. 
+            //NOTE: the simplest setup possible is to grab map data and run PraxisMapper.exe directly now, and this is the 2nd best choice now.
             if (args.Any(a => a == "-makeServerDb")) {
                 System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                 sw.Start();
@@ -102,7 +102,7 @@ namespace Larry {
                 TagParser.Initialize(true, null);
                 createDb();
                 processPbfs();
-                if (config["UseGeomDataFiles"] == "true")
+                if (config["UseGeomDataFiles"] == "True")
                     loadProcessedData();
                 db.SetServerBounds(long.Parse(config["UseOneRelationID"]));
                 Log.WriteLog("Server setup complete in " + sw.Elapsed);
@@ -196,6 +196,12 @@ namespace Larry {
                     r.ProcessFile(filename, long.Parse(config["UseOneRelationID"]));
                     File.Move(filename, filename + "done");
                 }
+            }
+
+            if (args.Any(a => a.StartsWith("-addOneElement:")))
+            {
+                var vals = args.First(a => a.StartsWith("-addOneElement:")).Split(':');
+                LoadOneEntryFromFile(vals[1].ToLong());
             }
 
             if (args.Any(a => a == "-updateDatabase")) {
@@ -385,7 +391,7 @@ namespace Larry {
                 }
                 return;
             }
-            else if (config["UseMariaDBInFile"] == "true") //Use the LOAD DATA INFILE command to skip the EF for loading.
+            else if (config["UseGeomDataFiles"] == "True")
             {
                 if (config["DbMode"] == "MariaDB") {
                     foreach (var fileName in geomFilenames) {
@@ -453,11 +459,11 @@ namespace Larry {
                     db.ChangeTracker.AutoDetectChangesEnabled = false;
                     var lines = File.ReadAllLines(fileName); //Might be faster to use streams and dodge the memory allocation?
                     var newPlaces = new List<DbTables.Place>(lines.Length);
-                    Log.WriteLog("Converting entries from file...");
+                    //Log.WriteLog("Converting entries from file...");
                     foreach (var line in lines) {
                         db.Places.Add(GeometrySupport.ConvertSingleTsvPlace(line));
                     }
-                    Log.WriteLog("Saving to db...");
+                    //Log.WriteLog("Saving to db...");
                     db.SaveChanges();
                     sw.Stop();
                     Log.WriteLog("Geometry loaded from " + fileName + " in " + sw.Elapsed);
@@ -465,6 +471,7 @@ namespace Larry {
                 } //);
                 //Parallel.ForEach(tagsFilenames, options, fileName =>
                 foreach (var fileName in tagsFilenames) {
+                    //Log.WriteLog("Loading file " + fileName);
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
                     sw.Start();
                     db = new PraxisContext();
@@ -489,6 +496,48 @@ namespace Larry {
                 db.RecreateIndexes();
             fullProcess.Stop();
             Log.WriteLog("Indexes generated in " + fullProcess.Elapsed);
+        }
+
+        /// <summary>
+        /// This is intended for pulling a single missing entry into an existing database, and does not process to an external file.
+        /// </summary>
+        /// <param name="entryId"></param>
+        private static void LoadOneEntryFromFile(long entryId)
+        {
+            //Loads a single relation or way from a PBF into a database.
+            List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.pbf").ToList();
+            foreach (string filename in filenames)
+            {
+                Log.WriteLog("Loading " + filename + " at " + DateTime.Now);
+                PbfReader r = new PbfReader();
+                r.styleSet = config["TagParserStyleSet"];
+                r.processingMode = config["processingMode"];
+                if (config["ResourceUse"] == "low")
+                {
+                    r.lowResourceMode = true;
+                }
+                else if (config["ResourceUse"] == "high")
+                {
+                    r.keepAllBlocksInRam = true; //Faster performance, but files use vastly more RAM than they do HD space. 200MB file = ~6GB total RAM last I checked.
+                }
+
+                ICompleteOsmGeo relation = r.LoadOneRelationFromFile(filename, entryId);
+                if (relation == null)
+                    relation = r.LoadOneWayFromFile(filename, entryId);
+
+                if (relation != null)
+                {
+                    var place = GeometrySupport.ConvertOsmEntryToPlace(relation, config["TagParserStyleSet"]);
+                    var db = new PraxisContext();
+                    db.Places.Add(place);
+                    db.SaveChanges();
+                    db.ExpireMapTiles(place.ElementGeometry);
+                    db.ExpireSlippyMapTiles(place.ElementGeometry);
+                    Log.WriteLog("OSM Element imported successfully");
+                    return;
+                }
+            }
+            Log.WriteLog("Element " + entryId + " not found in any .pbf file");
         }
 
         private static void DrawOneImage(string code) {
@@ -551,16 +600,6 @@ namespace Larry {
 
             if (config["ResourceUse"] == "low")
                 singleThread = true;
-        }
-
-        public static void DownloadPbfFile(string topLevel, string subLevel1, string subLevel2, string destinationFolder) {
-            //pull a fresh copy of a file from geofabrik.de (or other mirror potentially)
-            //save it to the same folder as configured for pbf files (might be passed in)
-            //web paths http://download.geofabrik.de/north-america/us/ohio-latest.osm.pbf
-            //root, then each parent division. Starting with USA isn't too hard.
-            //TODO: set this up to get files with different sub-level counts.
-            var wc = new WebClient();
-            wc.DownloadFile("http://download.geofabrik.de/" + topLevel + "/" + subLevel1 + "/" + subLevel2 + "-latest.osm.pbf", destinationFolder + subLevel2 + "-latest.osm.pbf");
         }
 
         public static void ReadCoastlineShapefile(string shapePath) {

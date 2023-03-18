@@ -351,8 +351,8 @@ namespace PraxisCore.Styles
             //New in Release 8: Additional styles for more accurate map tiles.
             new StyleEntry() { MatchOrder = 335, Name ="rail", StyleSet = "mapTiles", //Draw most railways in the same pattern for now.
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "c6b3c3", FillOrStroke = "fill", LineWidthDegrees=0.0000575F, LinePattern= "40|40", LayerId = 102, MaxDrawRes = ConstantValues.zoom8DegPerPixelX / 2},
-                    new StylePaint() { HtmlColorCode = "ebdbe8", FillOrStroke = "fill", LineWidthDegrees=0.0000625F, LinePattern= "solid", LayerId = 103, MaxDrawRes = ConstantValues.zoom8DegPerPixelX / 2}
+                    new StylePaint() { HtmlColorCode = "ffffff", FillOrStroke = "fill", LineWidthDegrees=0.00002675F, LinePattern= "40|40", LayerId = 96, MaxDrawRes = ConstantValues.zoom8DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "707070", FillOrStroke = "fill", LineWidthDegrees=0.00003125F, LinePattern= "solid", LayerId = 97, MaxDrawRes = ConstantValues.zoom8DegPerPixelX / 2}
                 },
                 StyleMatchRules = new List<StyleMatchRule>()
             {
