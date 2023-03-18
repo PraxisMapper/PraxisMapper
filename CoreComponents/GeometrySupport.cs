@@ -154,7 +154,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="g">the CompleteOSMGeo object to prepare to save to the DB</param>
         /// <returns>the Place ready to save to the DB</returns>
-        public static DbTables.Place ConvertOsmEntryToPlace(OsmSharp.Complete.ICompleteOsmGeo g)
+        public static DbTables.Place ConvertOsmEntryToPlace(OsmSharp.Complete.ICompleteOsmGeo g, string styleSet = "mapTiles")
         {
             var tags = TagParser.getFilteredTags(g.Tags);
             if (tags == null || tags.Count == 0)
@@ -186,7 +186,7 @@ namespace PraxisCore
                 place.ElementGeometry = geometry;
                 place.Tags = tags; 
 
-                TagParser.ApplyTags(place, "mapTiles");
+                TagParser.ApplyTags(place, styleSet);
                 if (place.StyleName == "unmatched" || place.StyleName == "background")
                 {
                     //skip, leave value at 0.

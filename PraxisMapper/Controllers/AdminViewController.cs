@@ -220,5 +220,24 @@ namespace PraxisMapper.Controllers {
 
             return View();
         }
+
+        [Route("/[controller]/ExpireTiles")]
+        public IActionResult ExpireTiles()
+        {
+            var db = new PraxisContext();
+            db.ExpireAllMapTiles();
+            db.ExpireAllSlippyMapTiles();
+
+            return Index();
+        }
+
+        [Route("/[controller]/ResetStyles")]
+        public IActionResult ResetStyles()
+        {
+            var db = new PraxisContext();
+            db.ResetStyles();
+            TagParser.Initialize(false, MapTileSupport.MapTiles);
+            return Index();
+        }
     }
 }

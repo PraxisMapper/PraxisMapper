@@ -20,7 +20,14 @@ namespace PraxisCore {
 
         public void Initialize() {
             foreach (var b in TagParser.cachedBitmaps)
-                cachedBitmaps.Add(b.Key, SKBitmap.Decode(b.Value));
+                try
+                {
+                    cachedBitmaps.Add(b.Key, SKBitmap.Decode(b.Value));
+                }
+                catch (Exception ex)
+                {
+                    Log.WriteLog("Failed to cache " + b.Key + ": " + ex.Message);
+                }
 
             int maxId = 1;
             foreach (var g in TagParser.allStyleGroups)
@@ -55,10 +62,17 @@ namespace PraxisCore {
                 paint.StrokeCap = SKStrokeCap.Butt;
             }
             if (!string.IsNullOrEmpty(tpe.FileName)) {
-                SKBitmap fillPattern = cachedBitmaps[tpe.FileName];
-                //cachedBitmaps.TryAdd(tpe.fileName, fillPattern); //For icons.
-                SKShader tiling = SKShader.CreateBitmap(fillPattern, SKShaderTileMode.Repeat, SKShaderTileMode.Repeat); //For fill patterns.
-                paint.Shader = tiling;
+                try
+                {
+                    SKBitmap fillPattern = cachedBitmaps[tpe.FileName];
+                    //cachedBitmaps.TryAdd(tpe.fileName, fillPattern); //For icons.
+                    SKShader tiling = SKShader.CreateBitmap(fillPattern, SKShaderTileMode.Repeat, SKShaderTileMode.Repeat); //For fill patterns.
+                    paint.Shader = tiling;
+                }
+                catch (Exception ex)
+                {
+                    Log.WriteLog("Error creating paint " + tpe.Id + ": " + ex.Message);
+                }
             }
             return paint;
         }
