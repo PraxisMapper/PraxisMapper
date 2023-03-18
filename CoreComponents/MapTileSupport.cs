@@ -12,13 +12,15 @@ using static PraxisCore.ConstantValues;
 using static PraxisCore.DbTables;
 using static PraxisCore.Place;
 
-namespace PraxisCore {
+namespace PraxisCore
+{
     /// <summary>
     /// All functions related to map tiles that don't directly involve the drawing engine itself.
     /// </summary>
 
     //These functions are ones related to MapTiles that Don't actually do any drawing, and don't need duplicated between the multiple drawing engines.
-    public static class MapTileSupport {
+    public static class MapTileSupport
+    {
         public static IMapTiles MapTiles; //This needs set at startup.
 
         /// <summary>
@@ -41,8 +43,10 @@ namespace PraxisCore {
         /// <param name="code">the code provided to determine image size</param>
         /// <param name="X">out param for image width</param>
         /// <param name="Y">out param for image height</param>
-        public static void GetPlusCodeImagePixelSize(string code, out int X, out int Y) {
-            switch (code.Length) {
+        public static void GetPlusCodeImagePixelSize(string code, out int X, out int Y)
+        {
+            switch (code.Length)
+            {
                 case 10:
                     X = 4;
                     Y = 5;
@@ -74,8 +78,10 @@ namespace PraxisCore {
         /// <param name="code"></param>
         /// <param name="X"></param>
         /// <param name="Y"></param>
-        public static void GetPlusCodeImagePixelSize(ReadOnlySpan<char> code, out int X, out int Y) {
-            switch (code.Length) {
+        public static void GetPlusCodeImagePixelSize(ReadOnlySpan<char> code, out int X, out int Y)
+        {
+            switch (code.Length)
+            {
                 case 10:
                     X = 4;
                     Y = 5;
@@ -107,7 +113,8 @@ namespace PraxisCore {
         /// <param name="area"></param>
         /// <param name="styleSet"></param>
         /// <returns></returns>
-        public static byte[] DrawPlusCode(ReadOnlySpan<char> area, string styleSet = "mapTiles") {
+        public static byte[] DrawPlusCode(ReadOnlySpan<char> area, string styleSet = "mapTiles")
+        {
             //This might be a cleaner version of my V4 function, for working with CellX sized tiles..
             //This will draw at a Cell11 resolution automatically.
             //Split it into a few functions.
@@ -124,7 +131,8 @@ namespace PraxisCore {
         /// <param name="styleSet">the TagParser style set to use when drawing</param>
         /// <param name="doubleRes">treat each Cell11 contained as 2x2 pixels when true, 1x1 when not.</param>
         /// <returns></returns>
-        public static byte[] DrawPlusCode(string area, string styleSet = "mapTiles") {
+        public static byte[] DrawPlusCode(string area, string styleSet = "mapTiles")
+        {
             //This might be a cleaner version of my V4 function, for working with CellX sized tiles..
             //This will draw at a Cell11 resolution automatically.
             //Split it into a few functions.
@@ -140,7 +148,8 @@ namespace PraxisCore {
         /// <param name="area">the PlusCode string to draw. Can be 6-11 digits long</param>
         /// <param name="paintOps">the list of paint operations to run through for drawing</param>
         /// <returns>a byte array for the png file of the pluscode image file</returns>
-        public static byte[] DrawPlusCode(string area, List<CompletePaintOp> paintOps) {
+        public static byte[] DrawPlusCode(string area, List<CompletePaintOp> paintOps)
+        {
             var info = new ImageStats(area);
             return MapTiles.DrawAreaAtSize(info, paintOps);
         }
@@ -151,7 +160,8 @@ namespace PraxisCore {
         /// <param name="area"></param>
         /// <param name="paintOps"></param>
         /// <returns></returns>
-        public static byte[] DrawPlusCode(ReadOnlySpan<char> area, List<CompletePaintOp> paintOps) {
+        public static byte[] DrawPlusCode(ReadOnlySpan<char> area, List<CompletePaintOp> paintOps)
+        {
             var info = new ImageStats(area);
             return MapTiles.DrawAreaAtSize(info, paintOps);
         }
@@ -163,7 +173,8 @@ namespace PraxisCore {
         /// <param name="place"></param>
         /// <param name="midOps"></param>
         /// <param name="stats"></param>
-        private static void GetPaintOpsInner(ref List<CompletePaintOp> list, DbTables.Place place, ICollection<StylePaint> midOps, ImageStats stats) {
+        private static void GetPaintOpsInner(ref List<CompletePaintOp> list, DbTables.Place place, ICollection<StylePaint> midOps, ImageStats stats)
+        {
             string tagColor = "";
             foreach (var po in midOps)
                 if (stats.degreesPerPixelX < po.MaxDrawRes
@@ -187,7 +198,8 @@ namespace PraxisCore {
         /// <param name="styleSet"></param>
         /// <param name="stats"></param>
         /// <returns></returns>
-        public static List<CompletePaintOp> GetPaintOpsForPlaces(List<DbTables.Place> places, string styleSet, ImageStats stats) {
+        public static List<CompletePaintOp> GetPaintOpsForPlaces(List<DbTables.Place> places, string styleSet, ImageStats stats)
+        {
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(stats.area.ToPolygon(), 1, styles["background"].PaintOperations.First(), "background", 1);
             var pass1 = places.Select(d => new { place = d, paintOp = styles[d.StyleName].PaintOperations });
@@ -205,7 +217,8 @@ namespace PraxisCore {
         /// <param name="styleSet"></param>
         /// <param name="stats"></param>
         /// <returns></returns>
-        public static List<CompletePaintOp> GetPaintOpsForAreas(string styleSet, ImageStats stats) {
+        public static List<CompletePaintOp> GetPaintOpsForAreas(string styleSet, ImageStats stats)
+        {
             var styles = TagParser.allStyleGroups[styleSet];
             var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
@@ -214,7 +227,7 @@ namespace PraxisCore {
             var searchPoly = GeometrySupport.MakeBufferedGeoArea(stats.area).ToPolygon();
             var drawPoly = stats.area.ToPolygon();
             var elements = db.AreaData.Where(d => searchPoly.Intersects(d.AreaCovered)).ToList(); //Each of these will be a single tag/value and a plusCode.
-            
+
             var bgOp = new CompletePaintOp(drawPoly, 1, styles["background"].PaintOperations.First(), "background", 1);
             var pass1 = elements.Select(d => new { place = d.ToPlace(styleSet), paintOp = styles[TagParser.GetStyleEntry(new List<AreaData>() { d }, styleSet).Name].PaintOperations });
             var pass2 = new List<CompletePaintOp>(elements.Count * 2);
@@ -231,7 +244,8 @@ namespace PraxisCore {
         /// </summary>
         /// <param name="areaToDraw">the GeoArea of the area to create tiles for.</param>
         /// <param name="saveToFiles">If true, writes to files in the output folder. If false, saves to DB.</param>
-        public static void PregenMapTilesForArea(GeoArea areaToDraw, bool saveToFiles = false) {
+        public static void PregenMapTilesForArea(GeoArea areaToDraw, bool saveToFiles = false)
+        {
             //There is a very similar function for this in Standalone.cs, but this one writes back to the main DB.
             var intersectCheck = areaToDraw.ToPolygon();
             //start drawing maptiles and sorting out data.
@@ -251,14 +265,16 @@ namespace PraxisCore {
             //now, for every Cell8 involved, draw and name it.
             var yCoords = new List<double>((int)(intersectCheck.EnvelopeInternal.Height / resolutionCell8) + 1);
             var yVal = swCorner.Decode().SouthLatitude;
-            while (yVal <= neCorner.Decode().NorthLatitude) {
+            while (yVal <= neCorner.Decode().NorthLatitude)
+            {
                 yCoords.Add(yVal);
                 yVal += resolutionCell8;
             }
 
             var xCoords = new List<double>((int)(intersectCheck.EnvelopeInternal.Width / resolutionCell8) + 1);
             var xVal = swCorner.Decode().WestLongitude;
-            while (xVal <= neCorner.Decode().EastLongitude) {
+            while (xVal <= neCorner.Decode().EastLongitude)
+            {
                 xCoords.Add(xVal);
                 xVal += resolutionCell8;
             }
@@ -267,7 +283,8 @@ namespace PraxisCore {
 
             object listLock = new object();
             DateTime expiration = DateTime.UtcNow.AddYears(10);
-            foreach (var y in yCoords) {
+            foreach (var y in yCoords)
+            {
                 System.Diagnostics.Stopwatch thisRowSW = new System.Diagnostics.Stopwatch();
                 thisRowSW.Start();
                 var db = new PraxisContext();
@@ -280,31 +297,34 @@ namespace PraxisCore {
 
                 Parallel.ForEach(xCoords, x =>
                 {
-                //make map tile.
-                var plusCode = new OpenLocationCode(y, x, 10);
-                var plusCode8 = plusCode.CodeDigits.Substring(0, 8);
-                var plusCodeArea = OpenLocationCode.DecodeValid(plusCode8);
-                var paddedArea = GeometrySupport.MakeBufferedGeoArea(plusCodeArea);
+                    //make map tile.
+                    var plusCode = new OpenLocationCode(y, x, 10);
+                    var plusCode8 = plusCode.CodeDigits.Substring(0, 8);
+                    var plusCodeArea = OpenLocationCode.DecodeValid(plusCode8);
+                    var paddedArea = GeometrySupport.MakeBufferedGeoArea(plusCodeArea);
 
-                var acheck = Converters.GeoAreaToPreparedPolygon(paddedArea); //Fastest search option is one preparedPolygon against a list of normal geometry.
-                var areaList = rowList.Where(a => acheck.Intersects(a.ElementGeometry)).ToList(); //Get the list of areas in this maptile.
+                    var acheck = Converters.GeoAreaToPreparedPolygon(paddedArea); //Fastest search option is one preparedPolygon against a list of normal geometry.
+                    var areaList = rowList.Where(a => acheck.Intersects(a.ElementGeometry)).ToList(); //Get the list of areas in this maptile.
 
-                var info = new ImageStats(plusCode8);
-                //new setup.
-                var areaPaintOps = GetPaintOpsForPlaces(areaList, "mapTiles", info);
-                var tile = DrawPlusCode(plusCode8, areaPaintOps);
+                    var info = new ImageStats(plusCode8);
+                    //new setup.
+                    var areaPaintOps = GetPaintOpsForPlaces(areaList, "mapTiles", info);
+                    var tile = DrawPlusCode(plusCode8, areaPaintOps);
 
-                if (saveToFiles) {
-                    File.WriteAllBytes("GameTiles\\" + plusCode8 + ".png", tile);
-                }
-                else {
-                    var thisTile = new MapTile() { TileData = tile, PlusCode = plusCode8, ExpireOn = expiration, AreaCovered = acheck.Geometry, StyleSet = "mapTiles" };
-                    lock (listLock)
-                        tilesToSave.Add(thisTile);
-                }
+                    if (saveToFiles)
+                    {
+                        File.WriteAllBytes("GameTiles\\" + plusCode8 + ".png", tile);
+                    }
+                    else
+                    {
+                        var thisTile = new MapTile() { TileData = tile, PlusCode = plusCode8, ExpireOn = expiration, AreaCovered = acheck.Geometry, StyleSet = "mapTiles" };
+                        lock (listLock)
+                            tilesToSave.Add(thisTile);
+                    }
                 });
                 mapTileCounter += xCoords.Count;
-                if (!saveToFiles) {
+                if (!saveToFiles)
+                {
                     db.MapTiles.AddRange(tilesToSave);
                     db.SaveChanges();
                 }
@@ -320,7 +340,8 @@ namespace PraxisCore {
         /// </summary>
         /// <param name="buffered">the GeoArea to generate tiles for</param>
         /// <param name="zoomLevel">the zoom level to generate tiles at.</param>
-        public static void PregenSlippyMapTilesForArea(GeoArea buffered, int zoomLevel) {
+        public static void PregenSlippyMapTilesForArea(GeoArea buffered, int zoomLevel)
+        {
             //There is a very similar function for this in Standalone.cs, but this one writes back to the main DB.
             var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
@@ -343,7 +364,8 @@ namespace PraxisCore {
             progressTimer.Start();
 
             //foreach (var y in yCoords)
-            for (var y = neCornerLat; y <= swCornerLat; y++) {
+            for (var y = neCornerLat; y <= swCornerLat; y++)
+            {
                 //Make a collision box for just this row of Cell8s, and send the loop below just the list of things that might be relevant.
                 //Add a Cell8 buffer space so all elements are loaded and drawn without needing to loop through the entire area.
                 GeoArea thisRow = new GeoArea(Converters.SlippyYToLat(y + 1, zoomLevel) - ConstantValues.resolutionCell8,
@@ -354,10 +376,11 @@ namespace PraxisCore {
                 var rowList = GetPlaces(thisRow);
                 var tilesToSave = new ConcurrentBag<SlippyMapTile>();
 
-                Parallel.For(swCornerLon, neCornerLon + 1, (x) => {
+                Parallel.For(swCornerLon, neCornerLon + 1, (x) =>
+                {
                     //make map tile.
                     var info = new ImageStats(zoomLevel, x, y, MapTileSupport.SlippyTileSizeSquare);
-                    var acheck =info.area.ToPolygon(); //this is faster than using a PreparedPolygon in testing, which was unexpected.
+                    var acheck = info.area.ToPolygon(); //this is faster than using a PreparedPolygon in testing, which was unexpected.
                     var areaList = rowList.Where(a => acheck.Intersects(a.ElementGeometry)).ToList(); //This one is for the maptile
 
                     var tile = MapTiles.DrawAreaAtSize(info, areaList);
@@ -373,7 +396,7 @@ namespace PraxisCore {
             progressTimer.Stop();
             Log.WriteLog("Zoom " + zoomLevel + " map tiles drawn in " + progressTimer.Elapsed.ToString());
         }
-        
+
         /// <summary>
         /// Saves a MapTile to the database, given its PlusCode, style set, and the png image data.
         /// </summary>
@@ -381,11 +404,13 @@ namespace PraxisCore {
         /// <param name="styleSet"></param>
         /// <param name="image"></param>
         /// <returns></returns>
-        public static long SaveMapTile(string code, string styleSet, byte[] image) {
+        public static long SaveMapTile(string code, string styleSet, byte[] image)
+        {
             var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.StyleSet == styleSet);
-            if (existingResults == null) {
+            if (existingResults == null)
+            {
                 existingResults = new MapTile() { PlusCode = code, StyleSet = styleSet, AreaCovered = code.ToPolygon() };
                 db.MapTiles.Add(existingResults);
             }
@@ -400,16 +425,53 @@ namespace PraxisCore {
         }
 
         /// <summary>
+        /// Save a Slippy maptile to the database, given the key, style set, and image data.
+        /// </summary>
+        public static long SaveSlippyMapTile(ImageStats info, string tileKey, string styleSet, byte[] image)
+        {
+            var db = new PraxisContext();
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
+            var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.StyleSet == styleSet);
+            if (existingResults == null)
+            {
+                existingResults = new SlippyMapTile() { Values = tileKey, StyleSet = styleSet, AreaCovered = GeometrySupport.MakeBufferedGeoArea(info.area).ToPolygon() };
+                db.SlippyMapTiles.Add(existingResults);
+            }
+            else
+                db.Entry(existingResults).State = EntityState.Modified;
+
+            existingResults.ExpireOn = DateTime.UtcNow.AddYears(10);
+            existingResults.TileData = image;
+            existingResults.GenerationID++;
+            db.SaveChanges();
+
+            return existingResults.GenerationID;
+        }
+
+        /// <summary>
         /// Loads an existing image from the database, if one is present, given the Pluscode and style set to load.
         /// </summary>
         /// <param name="code"></param>
         /// <param name="styleSet"></param>
         /// <returns></returns>
-        public static byte[] GetExistingTileImage(string code, string styleSet) {
+        public static byte[] GetExistingTileImage(string code, string styleSet)
+        {
             var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.StyleSet == styleSet);
+            if (existingResults == null || existingResults.ExpireOn < DateTime.UtcNow)
+                return null;
+
+            return existingResults.TileData;
+        }
+
+        public static byte[] GetExistingSlippyTile(string tileKey, string styleSet)
+        {
+            var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
+            var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.StyleSet == styleSet);
             if (existingResults == null || existingResults.ExpireOn < DateTime.UtcNow)
                 return null;
 
@@ -423,9 +485,11 @@ namespace PraxisCore {
         /// <param name="maxEdge"></param>
         /// <param name="maxPixels"></param>
         /// <returns></returns>
-        public static ImageStats ScaleBoundsCheck(ImageStats istats, int maxEdge, long maxPixels) {
+        public static ImageStats ScaleBoundsCheck(ImageStats istats, int maxEdge, long maxPixels)
+        {
             //sanity check: we don't want to draw stuff that won't fit in memory, so check for size and cap it if needed
-            if ((long)istats.imageSizeX * istats.imageSizeY > maxPixels) {
+            if ((long)istats.imageSizeX * istats.imageSizeY > maxPixels)
+            {
                 var ratio = (double)istats.imageSizeX / istats.imageSizeY; //W:H,
                 int newSize = (istats.imageSizeY > maxEdge ? maxEdge : istats.imageSizeY);
                 istats = new ImageStats(istats.area, (int)(newSize * ratio), newSize);

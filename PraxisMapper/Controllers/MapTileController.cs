@@ -36,41 +36,15 @@ namespace PraxisMapper.Controllers {
             return Configuration.GetValue<bool>("saveMapTiles");
         }
 
-        public byte[] getExistingSlippyTile(string tileKey, string styleSet) {
-            if (!SaveMapTiles())
-                return null;
-
-            var db = new PraxisContext();
-            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
-            db.ChangeTracker.AutoDetectChangesEnabled = false;
-            var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.StyleSet == styleSet);
-            if (existingResults == null || existingResults.ExpireOn < DateTime.UtcNow)
-                return null;
-
-            return existingResults.TileData;
-        }
-
         private byte[] FinishSlippyMapTile(ImageStats info, List<CompletePaintOp> paintOps, string tileKey, string styleSet) {
             byte[] results = null;
             results = MapTiles.DrawAreaAtSize(info, paintOps);
 
-            if (SaveMapTiles()) {
-                var db = new PraxisContext();
-                db.ChangeTracker.AutoDetectChangesEnabled = false;
-                var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.StyleSet == styleSet);
-                if (existingResults == null) {
-                    existingResults = new SlippyMapTile() { Values = tileKey, StyleSet = styleSet, AreaCovered = GeometrySupport.MakeBufferedGeoArea(info.area).ToPolygon() };
-                    db.SlippyMapTiles.Add(existingResults);
-                }
-                else
-                    db.Entry(existingResults).State = EntityState.Modified;
-
-                existingResults.ExpireOn = DateTime.UtcNow.AddYears(10);
-                existingResults.TileData = results;
-                existingResults.GenerationID++;
-                db.SaveChanges();
+            if (SaveMapTiles())
+            {
+                var currentGen = MapTileSupport.SaveSlippyMapTile(info, tileKey, styleSet, results);
+                cache.Set("gen" + tileKey + styleSet, currentGen);
             }
-
             return results;
         }
 
@@ -100,7 +74,7 @@ namespace PraxisMapper.Controllers {
                     return StatusCode(500);
                 }
 
-                byte[] tileData = getExistingSlippyTile(tileKey, styleSet);
+                byte[] tileData = MapTileSupport.GetExistingSlippyTile(tileKey, styleSet);
                 if (tileData != null) {
                     Response.Headers.Add("X-notes", "cached");
                     return File(tileData, "image/png");
@@ -135,7 +109,7 @@ namespace PraxisMapper.Controllers {
                     return StatusCode(500);
                 }
 
-                byte[] tileData = getExistingSlippyTile(tileKey, styleSet);
+                byte[] tileData = MapTileSupport.GetExistingSlippyTile(tileKey, styleSet);
                 if (tileData != null) {
                     Response.Headers.Add("X-notes", "cached");
                     return File(tileData, "image/png");
@@ -245,10 +219,6 @@ namespace PraxisMapper.Controllers {
             //Avoiding that might require an endpoint for 'please draw this tile' that returns true or false rather than the actual maptile.
             Response.Headers.Add("X-noPerfTrack", "Maptiles/Generation/" + styleSet + "/VARSREMOVED");
             try {
-                //bool valueExists = cache.TryGetValue("gen" + plusCode + styleSet, out long genId);
-                //if (valueExists)
-                //return genId;
-
                 var db = new PraxisContext();
                 db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
@@ -257,7 +227,6 @@ namespace PraxisMapper.Controllers {
                 if (tile != null && tile.ExpireOn > DateTime.UtcNow)
                     tileGenId = tile.GenerationID;
 
-                //cache.Set("gen" + plusCode + styleSet, tileGenId, new TimeSpan(0, 0, 30));
                 return tileGenId;
             }
             catch (Exception ex) {
