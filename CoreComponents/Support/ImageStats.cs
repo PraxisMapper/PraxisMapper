@@ -43,6 +43,9 @@ namespace PraxisCore.Support
         /// </summary>
         public GeoArea area { get; set; }
 
+        //TODO: potential addition: styleSet string, so that's part of the image here instead?
+        //TODO: potential addition: image byte[], so we can keep it here? Or does that turn this into the MapTile class?
+
         public ImageStats(ReadOnlySpan<char> plusCode)
         {
             //Convenience method.
