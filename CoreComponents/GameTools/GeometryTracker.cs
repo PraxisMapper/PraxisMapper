@@ -56,5 +56,27 @@ namespace PraxisCore.GameTools {
             explored = explored.Difference(GeometrySupport.MakeBufferedGeoArea(plusCode.ToGeoArea(), 0.00000001).ToPolygon()).Simplify(0.00000001);
             exploredAsText = explored.ToText();
         }
+
+        /// <summary>
+        /// Add the given geometry object's area to the tracker's geometry.
+        /// </summary>
+        /// <param name="geo"></param>
+        public void AddGeometry(Geometry geo)
+        {
+            PopulateExplored();
+            explored = explored.Union(geo).Simplify(0.00000001);
+            exploredAsText = explored.ToText();
+        }
+
+        /// <summary>
+        /// Removes the given geometry object's area to the tracker's geometry.
+        /// </summary>
+        public void RemoveGeometry(Geometry geo)
+        {
+            PopulateExplored();
+            explored = explored.Difference(geo).Simplify(0.00000001);
+            exploredAsText = explored.ToText();
+        }
+
     }
 }

@@ -1,4 +1,5 @@
 ﻿using Google.OpenLocationCode;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using NetTopologySuite.Geometries;
 using System;
 using System.Collections.Generic;
@@ -65,13 +66,22 @@ namespace PraxisCore.GameTools {
             }
 
             var lastPoint = points.LastOrDefault();
+            if (lastPoint == null) {
+                JsonPoint thisPoint = new JsonPoint() { X = p.X, Y = p.Y };
+                points.Add(thisPoint);
+                lastUpdate = DateTime.UtcNow;
+                return;
+            }
+
             double speed = 0;
-            if (lastPoint != null && speedLimitMetersPerSecond > 0 ) {
+            if (speedLimitMetersPerSecond > 0 ) {
                 speed = GeometrySupport.SpeedCheck(p, DateTime.UtcNow, new NetTopologySuite.Geometries.Point(lastPoint.X, lastPoint.Y), lastUpdate);
             }
 
-            if (speedLimitMetersPerSecond == 0 || speed <= speedLimitMetersPerSecond) {
-                if (lastPoint.X != p.X && lastPoint.Y != p.Y) {
+            if (speed <= speedLimitMetersPerSecond)
+            {
+                if (lastPoint.X != p.X && lastPoint.Y != p.Y)
+                {
                     JsonPoint thisPoint = new JsonPoint() { X = p.X, Y = p.Y };
                     points.Add(thisPoint);
                     lastUpdate = DateTime.UtcNow;

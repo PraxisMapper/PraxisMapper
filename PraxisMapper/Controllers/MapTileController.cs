@@ -9,10 +9,10 @@ using PraxisMapper.Classes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using static PraxisCore.DbTables;
 using static PraxisCore.Place;
 
-namespace PraxisMapper.Controllers {
+namespace PraxisMapper.Controllers
+{
     [Route("[controller]")]
     [ApiController]
     public class MapTileController : Controller {
