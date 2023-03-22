@@ -19,6 +19,9 @@ namespace PraxisCore {
         static Dictionary<long, SKPaint> cachedPaints = new Dictionary<long, SKPaint>();
 
         public void Initialize() {
+            cachedBitmaps.Clear();
+            cachedPaints.Clear();
+
             foreach (var b in TagParser.cachedBitmaps)
                 try
                 {
