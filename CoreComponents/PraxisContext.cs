@@ -348,11 +348,11 @@ namespace PraxisCore
             string SQL = "";
             if (serverMode == "MariaDB")
             {
-                SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, ST_GEOMFROMTEXT('" + g.AsText() + "', 4326))";
+                SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, ST_GEOMFROMTEXT('" + g.Envelope.AsText() + "', 4326))";
             }
             else if (serverMode == "SQLServer" || serverMode == "LocalDB")
             {
-                SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND areaCovered.STIntersects(geography::STGeomFromText('" + g.AsText() + "', 4326).MakeValid()) = 1";
+                SQL = "UPDATE MapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND areaCovered.STIntersects(geography::STGeomFromText('" + g.Envelope.AsText() + "', 4326).MakeValid()) = 1";
             }
             return Database.ExecuteSqlRaw(SQL);
         }
@@ -392,11 +392,11 @@ namespace PraxisCore
             string SQL = "";
             if (serverMode == "MariaDB")
             {
-                SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, ST_GEOMFROMTEXT('" + g.AsText() + "', 4326))";
+                SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND ST_INTERSECTS(areaCovered, ST_GEOMFROMTEXT('" + g.Envelope.AsText() + "', 4326))";
             }
             else if (serverMode == "SQLServer" || serverMode == "LocalDB")
             {
-                SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND areaCovered.STIntersects(geography::STGeomFromText('" + g.AsText() + "', 4326).MakeValid()) = 1";
+                SQL = "UPDATE SlippyMapTiles SET ExpireOn = CURRENT_TIMESTAMP WHERE (styleSet= '" + styleSet + "' OR '" + styleSet + "' = '') AND areaCovered.STIntersects(geography::STGeomFromText('" + g.Envelope.AsText() + "', 4326).MakeValid()) = 1";
             }
             Database.ExecuteSqlRaw(SQL);
         }
