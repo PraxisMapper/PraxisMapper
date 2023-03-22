@@ -2,6 +2,7 @@
 using PraxisCore;
 using PraxisDemosPlugin.Controllers;
 using PraxisCore.GameTools;
+using System.Diagnostics;
 
 namespace PraxisDemosPlugin
 {
@@ -10,9 +11,12 @@ namespace PraxisDemosPlugin
         public static void Startup() {
             //foreach (var color in SplatterController.htmlColors)
 
+            SplatterController.colors = DemoStyles.splatterStyle.Count - 2;//-2 to exclude background.
             TagParser.InsertStyles(DemoStyles.splatterStyle);
 
-            for (int color = 0; color < 32; color++)
+            Log.WriteLog("[DemosPlugin]: Loading splatter GeometryTrackers from DB", Log.VerbosityLevels.High);
+            Stopwatch sw = Stopwatch.StartNew();
+            for (int color = 0; color < SplatterController.colors; color++) 
             {
                 var data = GenericData.GetGlobalData<GeometryTracker>("splats-" + color);
                 if (data == null)
@@ -20,6 +24,8 @@ namespace PraxisDemosPlugin
                 else
                     SplatterController.splatCollection.TryAdd(color, data);
             }
+            sw.Stop();
+            Log.WriteLog("[DemosPlugin]: Loaded in " + sw.ElapsedMilliseconds + "ms", Log.VerbosityLevels.High);
         }
     }
 }
