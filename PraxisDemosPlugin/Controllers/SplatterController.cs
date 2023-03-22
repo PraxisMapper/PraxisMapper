@@ -2,13 +2,14 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using NetTopologySuite.Geometries;
 using PraxisCore;
+using PraxisCore.Support;
 using PraxisMapper.Classes;
 
 namespace PraxisDemosPlugin.Controllers
 {
     [ApiController]
-    [Route("[controller]")]
-    public class SplatterController : Controller
+    [Route("/[controller]")]
+    public class SplatterController : Controller, IPraxisPlugin
     {
         string accountId, password;
 
@@ -26,7 +27,7 @@ namespace PraxisDemosPlugin.Controllers
         //TODO: Initialize this state on a Startup() call.
 
         [HttpPut]
-        [Route("[controller]/Splat/{plusCode}/{radius}")]
+        [Route("/[controller]/Splat/{plusCode}/{radius}")]
         public void Splat(string plusCode, double radius)
         {
             //A user wants to throw down a paint mark in the center of {plusCode} with a size of {radius} (in degrees)
@@ -46,15 +47,64 @@ namespace PraxisDemosPlugin.Controllers
             //TODO: save to DB
         }
 
-        [HttpPut]
-        [Route("[controller]/Enter")]
+        [HttpGet]
+        [Route("/[controller]/Enter")]
         public void Enter()
         {
             //A user has entered a space, grant them a point to use to Splat later.
 
         }
+        
+        [HttpGet]
+        [Route("/[controller]/Test/{plusCode8}")]
+        public ActionResult TestShapes(string plusCode8)
+        {
+            byte[] results = null;
+            var mapTile1 = MapTileSupport.DrawPlusCode(plusCode8);
 
-        private Geometry MakeSplatShapeSimple(Point p, double radius)
+            var possiblePoints = plusCode8.GetSubCells();
+
+            List<Geometry> points = new List<Geometry>(3);
+            for (int i = 0; i < 3; i++)
+                points.Add(Singletons.geometryFactory.CreatePolygon());
+
+            List<DbTables.Place> places = new List<DbTables.Place>();
+            List<string> colors = new List<string>() { "1", "2", "3" };
+
+            for(int i = 0; i < 24; i++)
+            {
+                var thisPoint = possiblePoints.PickOneRandom();
+                var color = colors.PickOneRandom().ToInt();
+                possiblePoints.Remove(thisPoint);
+                var splat = MakeSplatShape(thisPoint.ToGeoArea().ToPoint(), Random.Shared.Next(2, 7) * .0001);
+                //var place = new DbTables.Place() { DrawSizeHint = 1, ElementGeometry = splat, StyleName = colors.PickOneRandom() };
+                for (int j = 0; j < 3; j++)
+                {
+                    if (color - 1 == j)
+                        points[j] = points[j].Union(splat);
+                    else
+                        points[j] = points[j].Difference(splat);
+                }
+            }
+
+            for(int i = 0; i < points.Count; i++)
+            {
+                places.Add(new DbTables.Place() { DrawSizeHint = 1, ElementGeometry = points[i], StyleName = colors[i] });
+            }
+
+            var stats = new ImageStats(plusCode8);
+            var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, "teamColor", stats);
+            var overlay = MapTileSupport.MapTiles.DrawAreaAtSize(stats, paintOps);
+
+
+            results = MapTileSupport.MapTiles.LayerTiles(stats, mapTile1, overlay);
+
+            return File(results, "image/png");
+            //return File(overlay, "image/png");
+
+        }
+
+        private Geometry MakeSplatShapeSimple(Point p, double radius) //~6ms average
         {
             //The lazy option for this: a few random circles.
             List<Geometry> geometries = new List<Geometry>();
@@ -73,7 +123,7 @@ namespace PraxisDemosPlugin.Controllers
             return resultGeo;
         }
 
-        private Geometry MakeSplatShape(Point p, double radius)
+        private Geometry MakeSplatShape(Point p, double radius) //12ms average
         {
             //Do some geometry actions to make a shape to put on the map.
             List<Geometry> geometries = new List<Geometry>();
@@ -87,8 +137,8 @@ namespace PraxisDemosPlugin.Controllers
             var randCount = Random.Shared.Next(3, 8);
             for(int i =0; i < randCount; i++)
             {
-                var randomMoveX = ((Random.Shared.Next() % 2 == 0 ? 1 : -1) * radius * (Random.Shared.Next(50, 75)) / 100);
-                var randomMoveY = ((Random.Shared.Next() % 2 == 0 ? 1 : -1) * radius * (Random.Shared.Next(50, 75)) / 100);
+                var randomMoveX = ((Random.Shared.Next() % 2 == 0 ? 1 : -1) * radius * (Random.Shared.Next(15, 35)) / 100);
+                var randomMoveY = ((Random.Shared.Next() % 2 == 0 ? 1 : -1) * radius * (Random.Shared.Next(15, 35)) / 100);
                 workPoint = new Point(p.X + randomMoveX, p.Y + randomMoveY);
                 var bulgeGeo = workPoint.Buffer(radius / 3);
                 geometries.Add(bulgeGeo);
@@ -98,8 +148,8 @@ namespace PraxisDemosPlugin.Controllers
             randCount = Random.Shared.Next(3, 6);
             for (int i = 0; i < randCount; i++)
             {
-                var randomMoveX = ((Random.Shared.Next() % 2 == 0 ? 1 : -1) * radius * (Random.Shared.Next(75, 100)) / 100);
-                var randomMoveY = ((Random.Shared.Next() % 2 == 0 ? 1 : -1) * radius * (Random.Shared.Next(75, 100)) / 100);
+                var randomMoveX = ((Random.Shared.Next() % 2 == 0 ? 1 : -1) * radius * (Random.Shared.Next(50, 100)) / 100);
+                var randomMoveY = ((Random.Shared.Next() % 2 == 0 ? 1 : -1) * radius * (Random.Shared.Next(50, 100)) / 100);
                 workPoint = new Point(p.X + randomMoveX, p.Y + randomMoveY);
                 var outerCircle = workPoint.Buffer(radius / 5);
                 geometries.Add(outerCircle);
@@ -119,11 +169,12 @@ namespace PraxisDemosPlugin.Controllers
                     t2 = new Point(outerCircle.EnvelopeInternal.MinX, outerCircle.Centroid.Y);
                 }
 
-                var connector = Singletons.geometryFactory.CreatePolygon(new Coordinate[] { new Coordinate(outerCircle.Centroid.X, outerCircle.Centroid.Y), new Coordinate(t1.X, t1.Y), new Coordinate(t2.X, t2.Y), new Coordinate(outerCircle.Centroid.X, outerCircle.Centroid.Y) });
-                geometries.Add(connector); 
+                var connector = Singletons.geometryFactory.CreatePolygon(new Coordinate[] { new Coordinate(centerGeo.Centroid.X, centerGeo.Centroid.Y), new Coordinate(t1.X, t1.Y), new Coordinate(t2.X, t2.Y), new Coordinate(centerGeo.Centroid.X, centerGeo.Centroid.Y) });
+                geometries.Add(connector);
             }
 
-            var resultGeo = Singletons.reducer.Reduce(NetTopologySuite.Operation.Union.CascadedPolygonUnion.Union(geometries).Simplify(ConstantValues.resolutionCell11Lon));
+            var resultGeo = Singletons.reducer.Reduce(NetTopologySuite.Operation.Union.CascadedPolygonUnion.Union(geometries));
+                //.Simplify(ConstantValues.resolutionCell11Lon)); //Simplify makes these much squarer shapes than I like.
             return resultGeo;
         }
     }
