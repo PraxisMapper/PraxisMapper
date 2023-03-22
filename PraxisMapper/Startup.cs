@@ -110,6 +110,10 @@ namespace PraxisMapper {
                     }
                 }
 
+            //Some plugins need TagParser initialized to do their work. Some add styles.
+            //Re-initialize TagParser here so that any new styles are in place and ready to go
+            TagParser.Initialize(Configuration.GetValue<bool>("ForceStyleDefaults"), mapTiles);
+
             //Start cleanup threads that fire every half hour.
             System.Threading.Tasks.Task.Run(() => {
                 var db = new PraxisContext();
