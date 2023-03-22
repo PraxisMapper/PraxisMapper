@@ -42,6 +42,7 @@ namespace PraxisCore {
         {
             Singletons.defaultStyleEntries.Clear();
             allStyleGroups.Clear();
+            cachedBitmaps.Clear();
 
             Singletons.defaultStyleEntries.AddRange(Styles.adminBounds.style);
             Singletons.defaultStyleEntries.AddRange(Styles.mapTiles.style);

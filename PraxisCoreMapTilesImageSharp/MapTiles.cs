@@ -24,6 +24,11 @@ namespace PraxisCore {
         /// ImageSharp initialize.
         /// </summary>
         public void Initialize() {
+            cachedBitmaps.Clear();
+            cachedPaints.Clear();
+            cachedGameTilePens.Clear();
+
+
             foreach (var b in TagParser.cachedBitmaps)
                 cachedBitmaps.Add(b.Key, Image.Load(b.Value));
 
