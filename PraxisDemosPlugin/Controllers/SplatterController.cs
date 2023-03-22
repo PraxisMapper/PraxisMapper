@@ -40,16 +40,12 @@ namespace PraxisDemosPlugin.Controllers
                         s.Value.AddGeometry(newGeo);
                     else
                         s.Value.RemoveGeometry(newGeo);
-                }
-
-            
-                //save to DB
-                foreach (var splat in splatCollection)
-                    GenericData.SetGlobalDataJson("splat-" + splat.Key, splat.Value);
+                    GenericData.SetGlobalDataJson("splat-" + s.Key, s.Value); 
+                }                  
 
                 var db = new PraxisContext();
-                db.ExpireMapTiles(newGeo);
-                db.ExpireSlippyMapTiles(newGeo);
+                db.ExpireMapTiles(newGeo, "splatter");
+                db.ExpireSlippyMapTiles(newGeo, "splatter");
             });
         }
 
@@ -100,17 +96,15 @@ namespace PraxisDemosPlugin.Controllers
                 }
             }
 
-            //save to DB
             foreach (var splat in splatCollection)
+            {
                 GenericData.SetGlobalDataJson("splat-" + splat.Key, splat.Value);
-
-            for (int i = 0; i < splatCollection.Count; i++)
-                places.Add(new DbTables.Place() { DrawSizeHint = 1, ElementGeometry = splatCollection[i].explored, StyleName = i.ToString() });
+                places.Add(new DbTables.Place() { DrawSizeHint = 1, ElementGeometry = splat.Value.explored, StyleName = splat.Key.ToString() });
+            }                
 
             var stats = new ImageStats(plusCode8);
             var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, "splatter", stats);
             var overlay = MapTileSupport.MapTiles.DrawAreaAtSize(stats, paintOps);
-
 
             results = MapTileSupport.MapTiles.LayerTiles(stats, mapTile1, overlay);
 
@@ -139,7 +133,7 @@ namespace PraxisDemosPlugin.Controllers
         private Geometry MakeSplatShape(Point p, double radius) //12ms average
         {
             //Do some geometry actions to make a shape to put on the map.
-            List<Geometry> geometries = new List<Geometry>();
+            List<Geometry> geometries = new List<Geometry>(15);
 
             //Step 1: fill in the middle half of the radius.
             var workPoint = new Point(p.X, p.Y);
@@ -186,7 +180,9 @@ namespace PraxisDemosPlugin.Controllers
                 geometries.Add(connector);
             }
 
-            var resultGeo = Singletons.reducer.Reduce(NetTopologySuite.Operation.Union.CascadedPolygonUnion.Union(geometries));
+            var resultGeo = //Singletons.reducer.Reduce(
+                NetTopologySuite.Operation.Union.CascadedPolygonUnion.Union(geometries);  //gets simplified when added to geometryTracker
+                //)
             //.Simplify(ConstantValues.resolutionCell11Lon)); //Simplify makes these much squarer shapes than I like.
             return resultGeo;
         }
