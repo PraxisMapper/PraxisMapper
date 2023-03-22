@@ -5,7 +5,6 @@ using PraxisCore;
 using PraxisCore.GameTools;
 using PraxisCore.Support;
 using PraxisMapper.Classes;
-using System.Collections.Concurrent;
 
 namespace PraxisDemosPlugin.Controllers
 {
@@ -15,8 +14,8 @@ namespace PraxisDemosPlugin.Controllers
     {
         string accountId, password;
         public static int colors = 32;
-        public static ConcurrentDictionary<int, Geometry> splatCollection = new ConcurrentDictionary<int, Geometry>();
-
+        public static Dictionary<int, GeometryTracker> splatCollection = new Dictionary<int, GeometryTracker>();
+        //Perf note: Using raw geometries, instead of GeometryTracker, seems to be about twice as fast for some reason. GeometryTracker is supposed to be lighter-weight than that.
 
         public override void OnActionExecuting(ActionExecutingContext context)
         {
@@ -31,24 +30,22 @@ namespace PraxisDemosPlugin.Controllers
         {
             //A user wants to throw down a paint mark in the center of {plusCode} with a size of {radius} (in degrees)
             var newGeo = MakeSplatShape(plusCode.ToGeoArea().ToPoint(), radius);
-            var color = Random.Shared.Next(32);
+            var color = Random.Shared.Next(colors);
 
-            
+            SimpleLockable.PerformWithLock("splatter", () =>
+            {
                 foreach (var s in splatCollection)
                 {
-                    Geometry temp = s.Value;
                     if (s.Key == color)
-                        temp = s.Value.Union(newGeo);
+                        s.Value.AddGeometry(newGeo);
                     else
-                        temp = s.Value.Difference(newGeo);
-                    splatCollection[s.Key] = temp;
+                        s.Value.RemoveGeometry(newGeo);
                 }
 
-            SimpleLockable.PerformWithLock("saveSplat", () =>
-            {
+            
                 //save to DB
                 foreach (var splat in splatCollection)
-                    GenericData.SetGlobalDataJson("splat-" + splat.Key, splat.Value.ToText());
+                    GenericData.SetGlobalDataJson("splat-" + splat.Key, splat.Value);
 
                 var db = new PraxisContext();
                 db.ExpireMapTiles(newGeo);
@@ -83,15 +80,9 @@ namespace PraxisDemosPlugin.Controllers
 
             byte[] results = null;
             var mapTile1 = MapTileSupport.DrawPlusCode(plusCode8);
-
             var possiblePoints = plusCode8.GetSubCells();
 
-            //List<Geometry> points = new List<Geometry>(colors);splat collection
-            //for (int i = 0; i < 3; i++) //done now in Startup
-            //points.Add(Singletons.geometryFactory.CreatePolygon());
-
             List<DbTables.Place> places = new List<DbTables.Place>();
-            //List<string> colors = new List<string>() { "1", "2", "3" };
 
             int splatCount = 48;
             for (int i = 0; i < splatCount; i++)
@@ -100,20 +91,21 @@ namespace PraxisDemosPlugin.Controllers
                 var color = Random.Shared.Next(DemoStyles.splatterStyle.Count() - 2); //-2, to exclude background.
                 possiblePoints.Remove(thisPoint);
                 var splat = MakeSplatShape(thisPoint.ToGeoArea().ToPoint(), Random.Shared.Next(2, 7) * .0001);
-                //var place = new DbTables.Place() { DrawSizeHint = 1, ElementGeometry = splat, StyleName = colors.PickOneRandom() };
                 for (int j = 0; j < colors; j++)
                 {
                     if (color == j)
-                        splatCollection[j] = splatCollection[j].Union(splat);
+                        splatCollection[j].AddGeometry(splat);
                     else
-                        splatCollection[j] = splatCollection[j].Difference(splat);
+                        splatCollection[j].RemoveGeometry(splat);
                 }
             }
 
+            //save to DB
+            foreach (var splat in splatCollection)
+                GenericData.SetGlobalDataJson("splat-" + splat.Key, splat.Value);
+
             for (int i = 0; i < splatCollection.Count; i++)
-            {
-                places.Add(new DbTables.Place() { DrawSizeHint = 1, ElementGeometry = splatCollection[i], StyleName = i.ToString() });
-            }
+                places.Add(new DbTables.Place() { DrawSizeHint = 1, ElementGeometry = splatCollection[i].explored, StyleName = i.ToString() });
 
             var stats = new ImageStats(plusCode8);
             var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, "splatter", stats);
@@ -123,8 +115,6 @@ namespace PraxisDemosPlugin.Controllers
             results = MapTileSupport.MapTiles.LayerTiles(stats, mapTile1, overlay);
 
             return File(results, "image/png");
-            //return File(overlay, "image/png");
-
         }
 
         private Geometry MakeSplatShapeSimple(Point p, double radius) //~6ms average

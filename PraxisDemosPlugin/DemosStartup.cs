@@ -1,6 +1,7 @@
 ﻿using PraxisCore.Support;
 using PraxisCore;
 using PraxisDemosPlugin.Controllers;
+using PraxisCore.GameTools;
 
 namespace PraxisDemosPlugin
 {
@@ -13,11 +14,11 @@ namespace PraxisDemosPlugin
 
             for (int color = 0; color < 32; color++)
             {
-                var data = GenericData.GetGlobalData("splats-" + color).ToUTF8String();
-                if (!string.IsNullOrWhiteSpace(data))
-                    SplatterController.splatCollection.TryAdd(color, Singletons.geomTextReader.Read(data));
+                var data = GenericData.GetGlobalData<GeometryTracker>("splats-" + color);
+                if (data == null)
+                    SplatterController.splatCollection.TryAdd(color, new GeometryTracker());
                 else
-                    SplatterController.splatCollection.TryAdd(color, Singletons.geometryFactory.CreatePolygon());
+                    SplatterController.splatCollection.TryAdd(color, data);
             }
         }
     }

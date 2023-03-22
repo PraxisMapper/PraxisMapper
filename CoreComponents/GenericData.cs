@@ -202,15 +202,15 @@ namespace PraxisCore {
         /// <summary>
         /// Get the value from a key/value pair saved on a player's accountId. Expired entries will be ignored.
         /// </summary>
-        /// <param name="playerId">the player-specific ID used. Expected to be a unique accountID to identify a phone, per that device's rules.</param>
+        /// <param name="accountId">the player-specific ID used. Expected to be a unique accountID to identify a phone, per that device's rules.</param>
         /// <param name="key">The key to load data from for the playerId.</param>
         /// <returns>The value saved to the key, or an empty byte[] if no key/value pair was found.</returns>
-        public static byte[] GetPlayerData(string playerId, string key)
+        public static byte[] GetPlayerData(string accountId, string key)
         {
             var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
-            var row = db.PlayerData.FirstOrDefault(p => p.accountId == playerId && p.DataKey == key);
+            var row = db.PlayerData.FirstOrDefault(p => p.accountId == accountId && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
                 return Array.Empty<byte>();
             return row.DataValue;
@@ -220,54 +220,57 @@ namespace PraxisCore {
         /// Get the value from a key/value pair saved on a player's accountId, cast back to the requested type. Expired entries will be ignored.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        /// <param name="playerId"></param>
+        /// <param name="accountId"></param>
         /// <param name="key"></param>
         /// <returns></returns>
-        public static T GetPlayerData<T>(string playerId, string key)
+        public static T GetPlayerData<T>(string accountId, string key)
         {
-            return GetPlayerData(playerId, key).FromJsonBytesTo<T>();
+            return GetPlayerData(accountId, key).FromJsonBytesTo<T>();
         }
 
         /// <summary>
         /// Saves a key/value pair to a given player's accountID. Will reject a pair containing a PlusCode.
         /// </summary>
-        /// <param name="playerId"></param>
+        /// <param name="accountId"></param>
         /// <param name="key"></param>
         /// <param name="value"></param>
         /// <param name="expiration"></param>
         /// <returns></returns>
-        public static bool SetPlayerData(string playerId, string key, string value, double? expiration = null)
+        public static bool SetPlayerData(string accountId, string key, string value, double? expiration = null)
         {
             if (DataCheck.IsPlusCode(value)) //reject attaching Player to Area
                 return false;
 
-            return SetPlayerData(playerId, key, value.ToByteArrayUTF8(), expiration);
+            return SetPlayerData(accountId, key, value.ToByteArrayUTF8(), expiration);
         }
 
 
         /// <summary>
         /// Saves a key/value pair to a given player's accountID, converting the value to JSON text then a byte[]. Will reject a pair containing a PlusCode or map element Id.
         /// </summary>
-        /// <param name="playerId"></param>
+        /// <param name="accountId"></param>
         /// <param name="key"></param>
         /// <param name="value"></param>
         /// <param name="expiration"></param>
         /// <returns></returns>
-        public static bool SetPlayerDataJson(string playerId, string key, object value, double? expiration = null)
+        public static bool SetPlayerDataJson(string accountId, string key, object value, double? expiration = null)
         {
-            return SetPlayerData(playerId, key, value.ToJsonByteArray(), expiration);
+            return SetPlayerData(accountId, key, value.ToJsonByteArray(), expiration);
         }
 
         /// <summary>
         /// Saves a key/value pair to a given player's accountID. Will reject a pair containing a PlusCode or map element Id.
         /// </summary>
-        /// <param name="playerId"></param>
+        /// <param name="accountId"></param>
         /// <param name="key">The key to save to the database. Keys are unique, and you cannot have multiples of the same key.</param>
         /// <param name="value">The value to save with the key.</param>
         /// <param name="expiration">If not null, expire this data in this many seconds from now.</param>
         /// <returns>true if data was saved, false if data was not.</returns>
-        public static bool SetPlayerData(string playerId, string key, byte[] value, double? expiration = null)
+        public static bool SetPlayerData(string accountId, string key, byte[] value, double? expiration = null)
         {
+            if (string.IsNullOrWhiteSpace(accountId)) //reject saving player data without a player id
+                return false;
+
             if (DataCheck.IsPlusCode(key)) //reject attaching Player to Area
                 return false;
 
@@ -279,12 +282,12 @@ namespace PraxisCore {
                 || (Guid.TryParse(guidString, out tempCheck) && db.Places.Any(osm => osm.PrivacyId == tempCheck)))
                 return false; //reject attaching a player to a Place
 
-            var row = db.PlayerData.FirstOrDefault(p => p.accountId == playerId && p.DataKey == key);
+            var row = db.PlayerData.FirstOrDefault(p => p.accountId == accountId && p.DataKey == key);
             if (row == null)
             {
                 row = new DbTables.PlayerData();
                 row.DataKey = key;
-                row.accountId = playerId;
+                row.accountId = accountId;
                 db.PlayerData.Add(row);
             }
             else

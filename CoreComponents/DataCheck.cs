@@ -108,6 +108,9 @@ namespace PraxisCore
         /// <returns>true if the string is likely to be a PlusCode, false if it is an invalid PlusCode OR it is a valid PlusCode that also parses to a long.</returns>
         public static bool IsPlusCode(string toCheck)
         {
+            if (string.IsNullOrEmpty(toCheck))
+                return false;
+
             //Since PraxisMapper works with non-spec-standard Plus Codes (by using the first part of the code to shorten it, rather than the later part)
             //we have a slightly different set of checks for validity than the default library uses.
             toCheck = toCheck.Replace("+", "").ToUpper().Trim(); //Clean the string up for checks.

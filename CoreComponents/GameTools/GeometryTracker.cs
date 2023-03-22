@@ -17,7 +17,7 @@ namespace PraxisCore.GameTools {
         /// <summary>
         /// The Well-Known Text (WKT) form of the explored geometry. This is persisted to the database and regenerated to the explored value when necessary.
         /// </summary>
-        public string exploredAsText { get; set; } = ""; //This is what gets saves as JSON to our database for simplicity, even if it incurs somsealede processing overhead.
+        public string exploredAsText { get { return explored.ToText(); } } //This is what gets saves as JSON to our database for simplicity, even if it incurs some processing overhead.
         /// <summary>
         /// Internal variable, used to skip populating the Geometry object if it's already been filled in.
         /// </summary>
@@ -28,7 +28,7 @@ namespace PraxisCore.GameTools {
         /// </summary>
         public void PopulateExplored() 
         {
-            if (!isPopulated && !string.IsNullOrEmpty(exploredAsText)) 
+            if (!isPopulated) 
             {
                 explored = GeometrySupport.GeometryFromWKT(exploredAsText);
                 isPopulated = true;
@@ -43,8 +43,7 @@ namespace PraxisCore.GameTools {
         {
             PopulateExplored();
             //Lines that touch remain multipolygons. Unioning buffered areas leaves all their points in place. Simplify removes most redundant points.
-            explored = explored.Union(GeometrySupport.MakeBufferedGeoArea(plusCode.ToGeoArea(), 0.00000001).ToPolygon()).Simplify(0.00000001);
-            exploredAsText = explored.ToText();
+            explored = explored.Union(GeometrySupport.MakeBufferedGeoArea(plusCode.ToGeoArea(), 0.00000001).ToPolygon());
         }
 
         /// <summary>
@@ -54,7 +53,6 @@ namespace PraxisCore.GameTools {
         {
             PopulateExplored();
             explored = explored.Difference(GeometrySupport.MakeBufferedGeoArea(plusCode.ToGeoArea(), 0.00000001).ToPolygon()).Simplify(0.00000001);
-            exploredAsText = explored.ToText();
         }
 
         /// <summary>
@@ -65,7 +63,6 @@ namespace PraxisCore.GameTools {
         {
             PopulateExplored();
             explored = explored.Union(geo).Simplify(0.00000001);
-            exploredAsText = explored.ToText();
         }
 
         /// <summary>
@@ -75,7 +72,6 @@ namespace PraxisCore.GameTools {
         {
             PopulateExplored();
             explored = explored.Difference(geo).Simplify(0.00000001);
-            exploredAsText = explored.ToText();
         }
 
     }
