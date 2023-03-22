@@ -247,8 +247,9 @@ namespace PraxisCore {
 
             if (drawnItems == null)
                 drawnItems = GetPlaces(stats.area, filterSize: stats.filterSize);
+            var paintOps = MapTileSupport.GetPaintOpsForPlaces(drawnItems, styleSet, stats);
 
-            return DrawAreaAtSize(stats, drawnItems, styleSet);
+            return DrawAreaAtSize(stats, paintOps);
         }
 
         public byte[] DrawAreaAtSize(ImageStats stats, List<CompletePaintOp> paintOps) {
@@ -273,7 +274,7 @@ namespace PraxisCore {
                     pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), (float)w.lineWidthPixels);
                 }
 
-                if (stats.area.LongitudeWidth != resolutionCell8) {
+                if (stats.area.LongitudeWidth != resolutionCell8) { 
                     //recreate pen for this operation instead of using cached pen.
                     if (String.IsNullOrWhiteSpace(w.paintOp.LinePattern) || w.paintOp.LinePattern == "solid")
                         pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), (float)w.lineWidthPixels);
