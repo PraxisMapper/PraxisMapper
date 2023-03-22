@@ -2,8 +2,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using NetTopologySuite.Geometries;
 using PraxisCore;
+using PraxisCore.GameTools;
 using PraxisCore.Support;
 using PraxisMapper.Classes;
+using System.Collections.Concurrent;
 
 namespace PraxisDemosPlugin.Controllers
 {
@@ -12,10 +14,8 @@ namespace PraxisDemosPlugin.Controllers
     public class SplatterController : Controller, IPraxisPlugin
     {
         string accountId, password;
-
-        //set of colors to randomly pick
-        static List<string> htmlColors = new List<string>() { "#99ff0000", "#9900ff00", "#990000ff" }; 
-        static Dictionary<string, Geometry> splatCollection = new Dictionary<string, Geometry>();
+        public static int colors = 32;
+        public static ConcurrentDictionary<int, Geometry> splatCollection = new ConcurrentDictionary<int, Geometry>();
 
 
         public override void OnActionExecuting(ActionExecutingContext context)
@@ -24,7 +24,6 @@ namespace PraxisDemosPlugin.Controllers
             PraxisAuthentication.GetAuthInfo(Response, out accountId, out password);
         }
 
-        //TODO: Initialize this state on a Startup() call.
 
         [HttpPut]
         [Route("/[controller]/Splat/{plusCode}/{radius}")]
@@ -32,68 +31,92 @@ namespace PraxisDemosPlugin.Controllers
         {
             //A user wants to throw down a paint mark in the center of {plusCode} with a size of {radius} (in degrees)
             var newGeo = MakeSplatShape(plusCode.ToGeoArea().ToPoint(), radius);
-            var color = htmlColors.PickOneRandom();
+            var color = Random.Shared.Next(32);
 
-            foreach (var s in splatCollection)
+            
+                foreach (var s in splatCollection)
+                {
+                    Geometry temp = s.Value;
+                    if (s.Key == color)
+                        temp = s.Value.Union(newGeo);
+                    else
+                        temp = s.Value.Difference(newGeo);
+                    splatCollection[s.Key] = temp;
+                }
+
+            SimpleLockable.PerformWithLock("saveSplat", () =>
             {
-                Geometry temp = s.Value;
-                if (s.Key == color)
-                    temp = s.Value.Union(newGeo);
-                else
-                    temp = s.Value.Difference(newGeo);
-                splatCollection[s.Key] = temp;
-            }
+                //save to DB
+                foreach (var splat in splatCollection)
+                    GenericData.SetGlobalDataJson("splat-" + splat.Key, splat.Value.ToText());
 
-            //TODO: save to DB
+                var db = new PraxisContext();
+                db.ExpireMapTiles(newGeo);
+                db.ExpireSlippyMapTiles(newGeo);
+            });
         }
 
         [HttpGet]
-        [Route("/[controller]/Enter")]
-        public void Enter()
+        [Route("/[controller]/Enter/{plusCode}")]
+        public void Enter(string plusCode)
         {
             //A user has entered a space, grant them a point to use to Splat later.
+            SimpleLockable.PerformWithLock("splatEnter-" + accountId, () =>
+            {
+                var recent = GenericData.GetSecurePlayerData<RecentActivityTracker>(accountId, "recentSplat", password);
+                if (recent == null)
+                    recent = new RecentActivityTracker();
+
+                if (recent.IsRecent(plusCode))
+                {
+                    GenericData.IncrementPlayerData(accountId, "splatPoints", 1);
+                    GenericData.SetSecurePlayerDataJson(accountId, "recentSplat", recent, password);
+                }
+            });
 
         }
-        
+
         [HttpGet]
         [Route("/[controller]/Test/{plusCode8}")]
         public ActionResult TestShapes(string plusCode8)
         {
+
             byte[] results = null;
             var mapTile1 = MapTileSupport.DrawPlusCode(plusCode8);
 
             var possiblePoints = plusCode8.GetSubCells();
 
-            List<Geometry> points = new List<Geometry>(3);
-            for (int i = 0; i < 3; i++)
-                points.Add(Singletons.geometryFactory.CreatePolygon());
+            //List<Geometry> points = new List<Geometry>(colors);splat collection
+            //for (int i = 0; i < 3; i++) //done now in Startup
+            //points.Add(Singletons.geometryFactory.CreatePolygon());
 
             List<DbTables.Place> places = new List<DbTables.Place>();
-            List<string> colors = new List<string>() { "1", "2", "3" };
+            //List<string> colors = new List<string>() { "1", "2", "3" };
 
-            for(int i = 0; i < 24; i++)
+            int splatCount = 48;
+            for (int i = 0; i < splatCount; i++)
             {
                 var thisPoint = possiblePoints.PickOneRandom();
-                var color = colors.PickOneRandom().ToInt();
+                var color = Random.Shared.Next(DemoStyles.splatterStyle.Count() - 2); //-2, to exclude background.
                 possiblePoints.Remove(thisPoint);
                 var splat = MakeSplatShape(thisPoint.ToGeoArea().ToPoint(), Random.Shared.Next(2, 7) * .0001);
                 //var place = new DbTables.Place() { DrawSizeHint = 1, ElementGeometry = splat, StyleName = colors.PickOneRandom() };
-                for (int j = 0; j < 3; j++)
+                for (int j = 0; j < colors; j++)
                 {
-                    if (color - 1 == j)
-                        points[j] = points[j].Union(splat);
+                    if (color == j)
+                        splatCollection[j] = splatCollection[j].Union(splat);
                     else
-                        points[j] = points[j].Difference(splat);
+                        splatCollection[j] = splatCollection[j].Difference(splat);
                 }
             }
 
-            for(int i = 0; i < points.Count; i++)
+            for (int i = 0; i < splatCollection.Count; i++)
             {
-                places.Add(new DbTables.Place() { DrawSizeHint = 1, ElementGeometry = points[i], StyleName = colors[i] });
+                places.Add(new DbTables.Place() { DrawSizeHint = 1, ElementGeometry = splatCollection[i], StyleName = i.ToString() });
             }
 
             var stats = new ImageStats(plusCode8);
-            var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, "teamColor", stats);
+            var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, "splatter", stats);
             var overlay = MapTileSupport.MapTiles.DrawAreaAtSize(stats, paintOps);
 
 
@@ -129,13 +152,13 @@ namespace PraxisDemosPlugin.Controllers
             List<Geometry> geometries = new List<Geometry>();
 
             //Step 1: fill in the middle half of the radius.
-            var workPoint =  new Point(p.X, p.Y);
+            var workPoint = new Point(p.X, p.Y);
             var centerGeo = workPoint.Buffer(radius / 2);
             geometries.Add(centerGeo);
 
             //Step 2: Add some bulges around it for asymmetry
             var randCount = Random.Shared.Next(3, 8);
-            for(int i =0; i < randCount; i++)
+            for (int i = 0; i < randCount; i++)
             {
                 var randomMoveX = ((Random.Shared.Next() % 2 == 0 ? 1 : -1) * radius * (Random.Shared.Next(15, 35)) / 100);
                 var randomMoveY = ((Random.Shared.Next() % 2 == 0 ? 1 : -1) * radius * (Random.Shared.Next(15, 35)) / 100);
@@ -174,7 +197,7 @@ namespace PraxisDemosPlugin.Controllers
             }
 
             var resultGeo = Singletons.reducer.Reduce(NetTopologySuite.Operation.Union.CascadedPolygonUnion.Union(geometries));
-                //.Simplify(ConstantValues.resolutionCell11Lon)); //Simplify makes these much squarer shapes than I like.
+            //.Simplify(ConstantValues.resolutionCell11Lon)); //Simplify makes these much squarer shapes than I like.
             return resultGeo;
         }
     }
