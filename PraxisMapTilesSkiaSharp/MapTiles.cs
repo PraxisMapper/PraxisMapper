@@ -293,14 +293,16 @@ namespace PraxisCore {
                         canvas.DrawPath(path, paint);
                         break;
                     case "MultiPolygon":
-                        foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries) {
+                        foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries)
+                        {
                             var p2p = p2 as Polygon;
                             path.AddPoly(PolygonToSKPoints(p2p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                            foreach (var ir in p2p.Holes) {
+                            foreach (var ir in p2p.Holes)
+                            {
                                 path.AddPoly(PolygonToSKPoints(ir, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                             }
-                            canvas.DrawPath(path, paint);
                         }
+                        canvas.DrawPath(path, paint); //moving this might be super important!
                         break;
                     case "LineString":
                         var firstPoint = w.elementGeometry.Coordinates.First();
