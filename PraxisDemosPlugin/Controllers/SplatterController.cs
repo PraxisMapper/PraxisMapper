@@ -17,6 +17,13 @@ namespace PraxisDemosPlugin.Controllers
         public static Dictionary<int, GeometryTracker> splatCollection = new Dictionary<int, GeometryTracker>();
         //Perf note: Using raw geometries, instead of GeometryTracker, seems to be about twice as fast for some reason. GeometryTracker is supposed to be lighter-weight than that.
 
+        IConfiguration Configuration;
+
+        public SplatterController(IConfiguration config)
+        {
+            Configuration = config;
+        }
+
         public override void OnActionExecuting(ActionExecutingContext context)
         {
             base.OnActionExecuting(context);
@@ -50,8 +57,74 @@ namespace PraxisDemosPlugin.Controllers
         }
 
         [HttpGet]
+        [Route("/MapTile/SplatterSlippy/{zoom}/{x}/{y}.png")]
+        [Route("/[controller]/Slippy/{zoom}/{x}/{y}.png")]
+        public ActionResult SplatterSlippy(int zoom, int x, int y)
+        {
+            string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
+            var info = new ImageStats(zoom, x, y, MapTileSupport.SlippyTileSizeSquare);
+            info = MapTileSupport.ScaleBoundsCheck(info, Configuration["imageMaxSide"].ToInt(), Configuration["maxImagePixels"].ToLong());
+
+            Response.Headers.Add("X-noPerfTrack", "Splatter/Slippy/VARSREMOVED");
+            if (!DataCheck.IsInBounds(info.area))
+            {
+                Response.Headers.Add("X-notes", "OOB");
+                return StatusCode(500);
+            }
+            byte[] tileData = MapTileSupport.GetExistingSlippyTile(tileKey, "splatter");
+            if (tileData != null)
+            {
+                Response.Headers.Add("X-notes", "cached");
+                return File(tileData, "image/png");
+            }
+
+            List<DbTables.Place> places = new List<DbTables.Place>(colors);
+            foreach(var s in splatCollection)
+                places.Add(new DbTables.Place() { ElementGeometry = s.Value.explored, StyleName = s.Key.ToString() });
+
+            var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, "splatter", info);
+            var mapTile = MapTileSupport.MapTiles.DrawAreaAtSize(info, paintOps);
+            MapTileSupport.SaveSlippyMapTile(info, tileKey, "splatter", mapTile);
+            
+            return File(mapTile, "image/png");
+        }
+
+        [HttpGet]
+        [Route("/MapTile/Splatter/{plusCode}")]
+        [Route("/[controller]/MapTile/{plusCode}")]
+        public ActionResult SplatterTile(string plusCode)
+        {
+            Response.Headers.Add("X-noPerfTrack", "Splatter/MapTile/VARSREMOVED");
+            if (!DataCheck.IsInBounds(plusCode))
+            {
+                Response.Headers.Add("X-notes", "OOB");
+                return StatusCode(500);
+            }
+
+            var db = new PraxisContext();
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
+            var existingResults = MapTileSupport.GetExistingTileImage(plusCode, "splatter");
+            if (existingResults != null)
+            {
+                Response.Headers.Add("X-notes", "cached");
+                return File(existingResults, "image/png");
+            }
+
+            List<DbTables.Place> places = new List<DbTables.Place>(colors);
+            foreach (var s in splatCollection)
+                places.Add(new DbTables.Place() { ElementGeometry = s.Value.explored, StyleName = s.Key.ToString() });
+
+            ImageStats info = new ImageStats(plusCode);
+            var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, "splatter", info);
+            var mapTile = MapTileSupport.MapTiles.DrawAreaAtSize(info, paintOps);
+            MapTileSupport.SaveMapTile(plusCode, "splatter", mapTile);
+
+            return File(mapTile, "image/png");
+        }
+
+        [HttpGet]
         [Route("/[controller]/Enter/{plusCode}")]
-        public void Enter(string plusCode)
+        public int Enter(string plusCode)
         {
             //A user has entered a space, grant them a point to use to Splat later.
             SimpleLockable.PerformWithLock("splatEnter-" + accountId, () =>
@@ -67,13 +140,14 @@ namespace PraxisDemosPlugin.Controllers
                 }
             });
 
+            return GenericData.GetPlayerData(accountId, "splatPoints").ToUTF8String().ToInt();
+
         }
 
         [HttpGet]
         [Route("/[controller]/Test/{plusCode8}")]
         public ActionResult TestShapes(string plusCode8)
         {
-
             byte[] results = null;
             var mapTile1 = MapTileSupport.DrawPlusCode(plusCode8);
             var possiblePoints = plusCode8.GetSubCells();
