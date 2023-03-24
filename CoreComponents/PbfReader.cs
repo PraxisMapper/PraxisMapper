@@ -1601,9 +1601,7 @@ namespace PraxisCore.PbfReader
             //Make the target geometry take up less storage space, so I can hold more data on a smaller server.
             //reduces accuracy enough to make data unsuitable for rendering maptiles.
 
-            NetTopologySuite.Precision.GeometryPrecisionReducer gpr = new NetTopologySuite.Precision.GeometryPrecisionReducer(new PrecisionModel(PrecisionModels.FloatingSingle));
-            g = gpr.Reduce(g);
-            return g;
+            return Singletons.reducer.Reduce(g);
         }
 
         public static async void QueueWriteTask(string filename, StringBuilder data)
