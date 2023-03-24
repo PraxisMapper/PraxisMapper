@@ -35,12 +35,14 @@ namespace PraxisDemosPlugin.Controllers
         [Route("/[controller]/Splat/{plusCode}/{radius}")]
         public void Splat(string plusCode, double radius)
         {
-            //A user wants to throw down a paint mark in the center of {plusCode} with a size of {radius} (in degrees)
-            var newGeo = MakeSplatShape(plusCode.ToGeoArea().ToPoint(), radius);
+            //A user wants to throw down a paint mark in the center of {plusCode} with a size of {radius} (in Cell10 tiles)
+            var newGeo = MakeSplatShape(plusCode.ToGeoArea().ToPoint(), radius * ConstantValues.resolutionCell10);
             var color = Random.Shared.Next(colors);
 
             SimpleLockable.PerformWithLock("splatter", () =>
             {
+                GenericData.IncrementPlayerData(accountId, "splatPoints", -radius);
+
                 foreach (var s in splatCollection)
                 {
                     if (s.Key == color)
@@ -122,7 +124,7 @@ namespace PraxisDemosPlugin.Controllers
             return File(mapTile, "image/png");
         }
 
-        [HttpGet]
+        [HttpPut]
         [Route("/[controller]/Enter/{plusCode}")]
         public int Enter(string plusCode)
         {
