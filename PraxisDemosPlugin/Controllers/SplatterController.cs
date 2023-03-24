@@ -38,6 +38,7 @@ namespace PraxisDemosPlugin.Controllers
             //A user wants to throw down a paint mark in the center of {plusCode} with a size of {radius} (in Cell10 tiles)
             var newGeo = MakeSplatShape(plusCode.ToGeoArea().ToPoint(), radius * ConstantValues.resolutionCell10);
             var color = Random.Shared.Next(colors);
+            var updateTasks = new Task[colors];
 
             SimpleLockable.PerformWithLock("splatter", () =>
             {
@@ -49,12 +50,14 @@ namespace PraxisDemosPlugin.Controllers
                         s.Value.AddGeometry(newGeo);
                     else
                         s.Value.RemoveGeometry(newGeo);
-                    GenericData.SetGlobalDataJson("splat-" + s.Key, s.Value); 
-                }                  
+                    updateTasks[s.Key] = Task.Run(() =>  GenericData.SetGlobalDataJson("splat-" + s.Key, s.Value)); 
+                }
 
                 var db = new PraxisContext();
                 db.ExpireMapTiles(newGeo, "splatter");
                 db.ExpireSlippyMapTiles(newGeo, "splatter");
+
+                Task.WaitAll(updateTasks);
             });
         }
 
