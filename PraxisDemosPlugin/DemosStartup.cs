@@ -10,13 +10,13 @@ namespace PraxisDemosPlugin
     {
         public static void Startup() {
             SplatterController.colors = DemoStyles.splatterStyle.Count - 2;//-2 to exclude background.
-            TagParser.InsertStyles(DemoStyles.splatterStyle);
+                  TagParser.InsertStyles(DemoStyles.splatterStyle);
 
             Log.WriteLog("[DemosPlugin]: Loading splatter GeometryTrackers from DB", Log.VerbosityLevels.High);
             Stopwatch sw = Stopwatch.StartNew();
             for (int color = 0; color < SplatterController.colors; color++) 
             {
-                var data = GenericData.GetGlobalData<GeometryTracker>("splats-" + color);
+                var data = GenericData.GetGlobalData<GeometryTracker>("splat-" + color);
                 if (data == null)
                     SplatterController.splatCollection.TryAdd(color, new GeometryTracker());
                 else
