@@ -2,6 +2,8 @@
 An open-source server for location based games. Powered by OpenStreetMap data. To focus on the player, and to let them play without excess tracking. Follow my on <a rel="me" href="https://mastodon.gamedev.place/@Praxismapper">Mastodon</a>
 
 The fast-setup guide is readable <a href="https://praxismapper.hashnode.dev/setting-up-your-praxismapper-server">here</a>
+
+
 Looking for a start on client development? Grab <a href="https://github.com/PraxisMapper/SplatterDemoClient">the Splatter demo code here</a> and point it at your own instance on a mobile device or the Solar2D Simulator.
 
 
