@@ -1,0 +1,92 @@
+﻿Game Design Notes
+Some things to think about when putting together a game with PraxisMapper. 
+
+--Defintion of Location-Based Games--
+Location Based Games are best defined academically (by Dale Leorke) as "incorporate the players location and/or physical actions in an outdoor or public space into 
+the game via a networked interface". 
+
+“Locative games” is a way better name aesthetically than “Location based game”. I don’t know why this name was lost, but we should go back to it. The term was tied 
+closer to art projects than actual games, or corporate marketing aimed at something more people understand. “Locative” means “expressing location”, and I want games 
+made with PraxisMapper to do that. I will use the terms interchangeably in the rest of this document.
+
+Augmented Reality (AR) is a tangent to Locative games. I don’t like the term. AR implies that you’re improving reality by shoving the game into it. Locative expresses
+pulling a bit of reality into your game. You cannot force everyone around you to play your game your way at any time, so its more appropriate to think of your use of 
+location and activity as the user pulling their personal surrounding into the game for them, not shoving the game out onto others. Think of your game’s working 
+conditions like that FCC Part 15 notice on every wireless device: You must not generate any harmful interference, and you must accept any interference received.
+
+--Unique Actions--
+Location based games offer a few things you can encourage players to do that most games cannot. These don't have to be the sole focus of a game, but they should be 
+present to distinguish a location-based game from other ones.
+
+1) Go New Places
+Most people have a routine, and it can feel good to push them outside of it and reward them. Travel somewhere new, pick a different park to play at,
+even just choose a different hiking trail than last time. The good feeling of going somewhere new and different can be associated with your game by the player,
+assuming that their adventures take them somewhere that gives them a good feeling or an interesting story. Finding a new park or trail can be another choice in a budding
+exercise routine. A 30 minute trip to a McDonalds for the exact same food as any of the dozen they drove past is not a particularly encouraging experience. 
+
+Doing this requires tracking the player's location history in some form, to identify the difference between 'new' and 'old' places (and this means saving
+that data securely), but may not require a COMPLETE history of every step tracked. The best way to minimize this is probably a list of Place entries they have interacted 
+with using the PrivacyId GUID, assuming your game has players interacting directly with Places and not some other data structure or element. But you could also expire
+this data after a reasonable time, to prevent yourself from storing irrelevant data too long. On the short scale, the RecentActivityTracker does this on a daily cycle 
+for Areas with its default settings. On a larger scale, it'd be better to store data either on Places directly or on Cell8 or Cell6 Areas instead of Cell10s if you want 
+to keep that data longer.
+
+2) Return to The Same Places
+Most people have a routine, and it can feel good to see that recognized and rewarded. The best use of PraxisMapper, on the individual player level, is to build a
+healthy routine for getting up and moving every day possible. Lots of games are designed to build a habit, but often that habit is spending money (or at the least, 
+to be presented with the opportunity to spend money until the player caves in). There should be things to do at predictable locations, whether these are fixed or 
+randomized, timed or permanent, game-determined or player-chosen. Remember, players are likely to optimize both the exercise and the fun out of the game if you let them,
+so you may need some additional design thought to make sure they want to get up and out for the game.
+
+This does require saving a list of locations tied to the player and therefore needs to be saved securely, though the player may be able to choose them via in-game actions, 
+or the locations may be associated with a team rather than an individual. They could be a Place on the map or an Area, or references to some custom object on the map
+you have made. Even if tied to a customized object, the part that connects the player to a location should be saved securely. A RecentActivityTracker could be fed
+Place PrivacyIDs or in-game node names instead of PlusCodes to ensure that players get credit after an amount of time passes.
+
+3) Change Places (Move)
+This is a thing some consoles games (Just Dance, Wii Fit, etc) can do, but it's a small subset, and those still require being in the same room.
+Arguably, this is the most important part of a location based game. The single core part that makes a location based game interesting is that you can change
+your location in the real world, and the game acknowledges and reacts to this. If your location isn't relevant, the game isn't location-based. If a game only works
+in a certain location (EX: a city tour game that takes you to mulitple historical points of interest), is still location based, even if its only reaction to leaving is 
+"You can't play if you're outside of the gameplay location". In a more practical sense, this last one is more of a LARP style game than interacting directly with the map. 
+It's still a viable game design, and it's still needs your location to change inside the constrained area to work, it just doesn't necessarily care about what's in those 
+areas on OpenStreetMaps.
+
+DistanceTracker is provided to make this extremely easy to do, and only stores 1 coordinate point (but it still ties a player to a location, sing along if you know the
+words, and therefore should be saved securely). Other GameTools in PraxisMapper can be used to encourage this too.
+
+4) In-Person Socialization
+A significant number of home games encourage this, and a large number of experiences or events require it. Most video games handle couch co-op or a LAN party as the 
+closest they get to meeting up with other people to play. Having players gather together to work on a common task or goal is common, but doing so by having all
+players go to a specific point on the map is only done in locative games. 
+
+Several locative games rely on PVP tactics as a core gameplay element, but this requires both a sufficient minimium player base and can cause some aggression between
+players in real life. This is probably the core of most negative headlines you might have seen about other location-based games. Some players get extremely overzealous
+about their in-game turf and don't keep it in-game. If you can, live multiplayer should be collaborative and constructive between players to dodge the main cause of
+in-person problems. 
+
+
+--Consideration of Game Locations--
+
+The places that you choose to make the core of your game says a lot about it. Many older, now-lost locative games relied on named franchises to be gameplay hotspots, 
+largely due to how busy and common they are nationally and globally. Sure, picking McDonald's to be a Place you can interact with means you have an automatic 13,000+ 
+gameplay points, but what that really says about your game is "Getting people to play this is more important than the actual gameplay". If you do this, it hurts
+your game. It's roughly the same logic as "Eating poison is better than not eating" and the same kind of short-term thinking thats only correct in a few cases. 
+You have to have an in-game reason why McDonalds is there and why it's important, which is difficult in historical, fantasy or science-fiction genres. Alternately, 
+centering named businesses means you're making an advertisement-game for that franchise, since you're encouraging people to go there. If they aren't paying you 
+to advertise for them, stop. Actually, stop even if they are paying you to advertise for them. The sooner our modern economy quits being dependent on the advertising
+industry for income, the better.
+
+The temptation to make a global-scale game is always strong. Locative games are almost always better as they focus on a tighter area, but fewer people can play them.
+The balance between the two is difficult to manage. You might be able to make a game that brings up every important or interesting point in a nature reserve, but it
+is limited to players that are physically in a relatively small block of land. You could make gameplay elements and algorithms that work globally, but you have to 
+generalize because you cannot possibly know every point of interest on the planet, even with OSM data.  
+
+As of this writing, PM suggests that the following types of places are acceptable for gameplay:
+water, wetlands, park, beach, university, nature reserve, cemetery, retail, arts&culture, tourism, historical, trails.
+These are usually open to the public, big enough to get exercise walking through, educational, of cultural interest, or some combination of these factors.
+Note that retail IS on this list, but not any specific retail institution. This might be confusing given the example against McDonalds above. It's OK to treat the
+category as a valid play area, since that enables players to chose their own routine or to connect a place with meaning to them to the game, and it does fit the other
+criteria for idea gameplay places. Forcing players to go to a specific shop and encouraging them to throw money at that shop isn't a good idea. Often, OSM data has the 
+largest outline, a parking lot, defined as 'retail' and actual shops are unmarked, unlabeled, or assigned a single Point instead of an Area. This means that it's often
+more difficult to treat a player as being at a specific shop anyways. 
