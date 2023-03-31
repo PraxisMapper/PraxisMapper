@@ -115,7 +115,8 @@ namespace PraxisCore
         /// </summary>
         /// <param name="d"></param>
         /// <returns></returns>
-        public static DateTime ForwardToMidnight(this DateTime d) {
+        public static DateTime ForwardToMidnight(this DateTime d)
+        {
             return d.AddHours(23 - d.Hour).AddMinutes(59 - d.Minute).AddSeconds(60 - d.Second);
         }
 
@@ -207,6 +208,17 @@ namespace PraxisCore
         {
             return Encoding.UTF8.GetString(b);
         }
+
+        public static string ToBase64String(this byte[] b)
+        {
+            return Convert.ToBase64String(b);
+        }
+
+        public static byte[] FromBase64String(this string s)
+        { 
+            return Convert.FromBase64String(s);
+        }
+
 
         /// <summary>
         /// Convert degrees to radians

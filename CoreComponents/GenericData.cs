@@ -1157,13 +1157,20 @@ namespace PraxisCore {
                 entry = new DbTables.AuthenticationData();
                 db.AuthenticationData.Add(entry);
                 entry.accountId = accountId;
+                var bytes = EncryptValue(Guid.NewGuid().ToByteArray(), password, out var IVs);
+                entry.dataPassword = Convert.ToBase64String(bytes);
+                entry.dataIV = IVs;
             }
             else
+            {
                 db.Entry(entry).State = EntityState.Modified;
+                var bytes = Convert.FromBase64String(entry.dataPassword);
+                var intPwd = new Guid(DecryptValue(entry.dataIV, bytes, password));
+                bytes = EncryptValue(intPwd.ToByteArray(), password, out var IVs);
+                entry.dataPassword = Convert.ToBase64String(bytes);
+                entry.dataIV = IVs;
+            }
             entry.loginPassword = results;
-            var bytes = EncryptValue(Guid.NewGuid().ToByteArray(), password, out var IVs);
-            entry.dataPassword = System.Convert.ToBase64String(bytes);
-            entry.dataIV = IVs;
             db.SaveChanges();
 
             return true;
