@@ -8,6 +8,7 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using static PraxisCore.DbTables;
 
 namespace PraxisMapper.Controllers {
@@ -177,6 +178,33 @@ namespace PraxisMapper.Controllers {
                 values.Add(random.Next());
 
             return values;
+        }
+
+        [HttpGet]
+        [Route("/[controller]/GdprExport")]
+        public string Export()
+        {
+            //GDPR Compliance Endpoint. Allows a user to decrypt(!) and receive all the data associated with them in the system. All means all, so they get the password strings encrypted.
+            PraxisAuthentication.GetAuthInfo(Response, out var accountId, out var password);
+            StringBuilder sb = new StringBuilder();
+            if (!string.IsNullOrWhiteSpace(accountId))
+            {
+                var db = new PraxisContext();
+                var authInfo = db.AuthenticationData.First(a => a.accountId == accountId);
+                sb.AppendLine("accountID: " + authInfo.accountId + " | bannedUntil: " + authInfo.bannedUntil + " | dataIV: " + authInfo.dataIV.ToBase64String() + " | dataPassword: " + authInfo.dataPassword + " | isAdmin: " + authInfo.isAdmin + " | loginPassword: " + authInfo.loginPassword);
+
+                var entries = db.PlayerData.Where(p => p.accountId == accountId).ToList();
+               
+                foreach (var entry in entries)
+                {
+                    if (entry.IvData == null)
+                        sb.AppendLine(entry.DataKey + " : " + entry.DataValue.ToUTF8String());
+                    else
+                        sb.AppendLine(entry.DataKey + " : " + GenericData.DecryptValue(entry.IvData, entry.DataValue, password).ToUTF8String());
+                }
+            }
+
+            return sb.ToString();
         }
     }
 }
