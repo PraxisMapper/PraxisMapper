@@ -23,13 +23,16 @@ namespace PraxisMapper.Classes
         }
 
         public async Task Invoke(HttpContext context) {
-            AuthData data;
             var key = context.Request.Headers.FirstOrDefault(h => h.Key == "AuthKey");
+            bool loggedIn = false;
             if (key.Value.Count > 0) {
-                data = authTokens[key.Value];
+                loggedIn = authTokens.TryGetValue(key.Value, out var data);
 
-                context.Response.Headers.Add("X-account", data.accountId);
-                context.Response.Headers.Add("X-internalPwd", data.intPassword);
+                if (loggedIn)
+                {
+                    context.Response.Headers.Add("X-account", data.accountId);
+                    context.Response.Headers.Add("X-internalPwd", data.intPassword);
+                }
 
                 context.Response.OnStarting(() => {
                     context.Response.Headers.Remove("X-account");
@@ -37,7 +40,7 @@ namespace PraxisMapper.Classes
                     return Task.CompletedTask;
                 });
 
-                if (data.expiration < DateTime.UtcNow) {
+                if (data != null && data.expiration < DateTime.UtcNow) {
                     authTokens.TryRemove(key.Value, out var ignore);
                     context.Response.StatusCode = StatusCodes.Status419AuthenticationTimeout;
                     return;
@@ -47,7 +50,7 @@ namespace PraxisMapper.Classes
             var path = context.Request.Path.Value;
             if (!whitelistedPaths.Any(p => path.Contains(p))) {
 
-                if (key.Key == null || !authTokens.ContainsKey(key.Value)) {
+                if (key.Key == null || !loggedIn) {
                     if (Startup.Configuration.GetValue<bool>("enablePerformanceTracker")) {
                         var db = new PraxisContext();
                         db.ChangeTracker.AutoDetectChangesEnabled = false;
