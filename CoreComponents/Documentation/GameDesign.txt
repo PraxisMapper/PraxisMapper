@@ -90,3 +90,19 @@ category as a valid play area, since that enables players to chose their own rou
 criteria for idea gameplay places. Forcing players to go to a specific shop and encouraging them to throw money at that shop isn't a good idea. Often, OSM data has the 
 largest outline, a parking lot, defined as 'retail' and actual shops are unmarked, unlabeled, or assigned a single Point instead of an Area. This means that it's often
 more difficult to treat a player as being at a specific shop anyways. 
+
+--Why Use A Server?--
+Several time as I work on a demo or an idea for a locative game, I notice that the use of a server sometimes doesn't seem necessary, or wouldn't be if a single code issue
+could be handled on the client. I like to encourage using the server, since it's the core of this project, but there are cases where it's not necessary after development.
+
+For games that operate on a map, the server provides map tiles better than a client would draw them on it's own. If you want to have the client render a 3D enviroment based
+on map data, the server will still need to supply that data to the client. If your game involves PVP scenarios, the server is better equipped to handle that to ensure fair 
+play occurs. If your game does not draw the literal map, but wants to work with information about the map, you will probably set up a PraxisMapper server in development to
+process the data into an offline format for your game, even if you do not need a live connection to a server.
+
+The servers best use is to enable shared experiences. You can use Praxismapper to process data into a format you can fit into a mobile app with no other need for an Internet 
+connection. This is entirely possible for some setups, particularly ones without map tiles. But the server can ensure players have the same data in the same spot at the same 
+time. It's fun to walk somewhere, tell a friend about something special in game, and walk there with them again to see it. Sometimes you can do this without it, but that 
+requires a simple game without too many complications or significant advanced planning. You can have a game that requires multiple people working together towards a goal, and
+having each player be a part of that instead of asking a single player to do everything. You can have real competitions with real people instead of faking numbers behind the 
+scenes to look like a contest. All of these are good reasons to use a live server, but not every game will need these parts.
