@@ -15,8 +15,8 @@ namespace PraxisCore {
     /// </summary>
     public class MapTiles : IMapTiles {
         public static Dictionary<string, Image> cachedBitmaps = new Dictionary<string, Image>(); //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
-        public static Dictionary<long, IBrush> cachedPaints = new Dictionary<long, IBrush>();
-        public static Dictionary<long, IPen> cachedGameTilePens = new Dictionary<long, IPen>();
+        public static Dictionary<long, Brush> cachedPaints = new Dictionary<long, Brush>();
+        public static Dictionary<long, Pen> cachedGameTilePens = new Dictionary<long, Pen>();
 
         static DrawingOptions dOpts;
 
@@ -57,11 +57,11 @@ namespace PraxisCore {
         /// Create the Brush object for each style and store it for later use.
         /// </summary>
         /// <param name="tpe">the TagParserPaint object to populate</param>
-        private static IBrush SetPaintForTPP(StylePaint tpe) {
+        private static Brush SetPaintForTPP(StylePaint tpe) {
             string htmlColor = tpe.HtmlColorCode;
             if (htmlColor.Length == 8)
                 htmlColor = string.Concat(htmlColor.AsSpan(2, 6), htmlColor.AsSpan(0, 2));
-            IBrush paint = new SolidBrush(Rgba32.ParseHex(htmlColor));
+            Brush paint = new SolidBrush(Rgba32.ParseHex(htmlColor));
 
             if (!string.IsNullOrEmpty(tpe.FileName))
                 paint = new ImageBrush(cachedBitmaps[tpe.FileName]);
@@ -69,7 +69,7 @@ namespace PraxisCore {
             return paint;
         }
 
-        private static IPen SetPenForGameTile(StylePaint tpe) {
+        private static Pen SetPenForGameTile(StylePaint tpe) {
             //These pens are saved with a fixed drawing width to match game tiles.
             int imgX = 0, imgY = 0;
             MapTileSupport.GetPlusCodeImagePixelSize("22334455", out imgX, out imgY);
@@ -84,14 +84,11 @@ namespace PraxisCore {
             Pen p;
 
             if (String.IsNullOrWhiteSpace(tpe.LinePattern) || tpe.LinePattern == "solid")
-                p = new Pen(Rgba32.ParseHex(htmlColor), tpe.FixedWidth != 0 ? tpe.FixedWidth : tpe.LineWidthDegrees * (float)info.pixelsPerDegreeX);
+                p = new SolidPen(Rgba32.ParseHex(htmlColor), tpe.FixedWidth != 0 ? tpe.FixedWidth : tpe.LineWidthDegrees * (float)info.pixelsPerDegreeX);
             else {
                 float[] linesAndGaps = tpe.LinePattern.Split('|').Select(t => float.Parse(t)).ToArray();
-                p = new Pen(Rgba32.ParseHex(htmlColor), tpe.FixedWidth != 0 ? tpe.FixedWidth : tpe.LineWidthDegrees * (float)info.pixelsPerDegreeX, linesAndGaps);
+                p = new PatternPen(Rgba32.ParseHex(htmlColor), tpe.FixedWidth != 0 ? tpe.FixedWidth : tpe.LineWidthDegrees * (float)info.pixelsPerDegreeX, linesAndGaps);
             }
-
-            p.EndCapStyle = EndCapStyle.Round;
-            p.JointStyle = JointStyle.Round;
             return p;
         }
 
@@ -270,22 +267,22 @@ namespace PraxisCore {
                 if (w.paintOp.Randomize) { //To randomize the color on every Draw call.
                     w.paintOp.HtmlColorCode = "99" + ((byte)Random.Shared.Next(0, 255)).ToString() + ((byte)Random.Shared.Next(0, 255)).ToString() + ((byte)Random.Shared.Next(0, 255)).ToString();
                     paint = SetPaintForTPP(w.paintOp);
-                    pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), (float)w.lineWidthPixels);
+                    pen = new SolidPen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), (float)w.lineWidthPixels);
                 }
 
                 if (w.paintOp.FromTag) {  //FromTag is for when you are saving color data directly to each element, instead of tying it to a styleset.
                     w.paintOp.HtmlColorCode = w.tagValue;
                     paint = SetPaintForTPP(w.paintOp);
-                    pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), (float)w.lineWidthPixels);
+                    pen = new SolidPen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), (float)w.lineWidthPixels);
                 }
 
                 if (stats.area.LongitudeWidth != resolutionCell8) { 
                     //recreate pen for this operation instead of using cached pen.
                     if (String.IsNullOrWhiteSpace(w.paintOp.LinePattern) || w.paintOp.LinePattern == "solid")
-                        pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), (float)w.lineWidthPixels);
+                        pen = new SolidPen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), (float)w.lineWidthPixels);
                     else {
                         float[] linesAndGaps = w.paintOp.LinePattern.Split('|').Select(t => float.Parse(t)).ToArray();
-                        pen = new Pen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), (float)w.lineWidthPixels, linesAndGaps);
+                        pen = new PatternPen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), (float)w.lineWidthPixels, linesAndGaps);
                     }
                 }
 
