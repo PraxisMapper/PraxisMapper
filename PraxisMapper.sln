@@ -25,7 +25,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PraxisOfflineDataPlugin", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PraxisChatPlugin", "PraxisChatPlugin\PraxisChatPlugin.csproj", "{91D0A6E4-8C82-4B68-8DA9-7F6FC48CB0F7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PraxisDemosPlugin", "PraxisDemosPlugin\PraxisDemosPlugin.csproj", "{03BB09DE-A22F-4145-B483-3E0356B51785}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PraxisDemosPlugin", "PraxisDemosPlugin\PraxisDemosPlugin.csproj", "{03BB09DE-A22F-4145-B483-3E0356B51785}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
