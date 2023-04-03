@@ -274,7 +274,7 @@ namespace PraxisCore {
             canvas.Clear(eraser.Color);
             canvas.Scale(1, -1, stats.imageSizeX / 2, stats.imageSizeY / 2);
             SKPaint paint = new SKPaint();
-
+            SKPath path = new SKPath();
             foreach (var w in paintOps.OrderByDescending(p => p.paintOp.LayerId).ThenByDescending(p => p.drawSizeHint)) {
                 paint = cachedPaints[w.paintOp.Id];
 
@@ -285,7 +285,7 @@ namespace PraxisCore {
                     paint.Color = new SKColor((byte)r.Next(0, 255), (byte)r.Next(0, 255), (byte)r.Next(0, 255), 99);
 
                 paint.StrokeWidth = (float)w.lineWidthPixels;
-                var path = new SKPath();
+                path.Reset();
                 switch (w.elementGeometry.GeometryType) {
                     case "Polygon":
                         var p = w.elementGeometry as Polygon;
@@ -335,6 +335,7 @@ namespace PraxisCore {
                         if (!string.IsNullOrEmpty(w.paintOp.FileName)) {
                             SKBitmap icon = SKBitmap.Decode(TagParser.cachedBitmaps[w.paintOp.FileName]); //TODO optimize by running SKBitmap.Decode on icons in Initialize.
                             canvas.DrawBitmap(icon, convertedPoint[0]);
+                            icon.Dispose();
                         }
                         else {
                             var circleRadius = (float)(w.paintOp.LineWidthDegrees / stats.degreesPerPixelX); //I want points to be drawn as 1 Cell10 in diameter usually, but should be adjustable.
@@ -363,6 +364,7 @@ namespace PraxisCore {
             var skms = new SKManagedWStream(ms);
             bitmap.Encode(skms, SKEncodedImageFormat.Png, 100);
             var results = ms.ToArray();
+            path.Dispose();
             skms.Dispose(); ms.Close(); ms.Dispose(); canvas.Dispose(); bitmap.Dispose();
             return results;
         }
@@ -408,7 +410,7 @@ namespace PraxisCore {
 
             //I guess what I want here is a list of an object with an elementGeometry object for the shape, and a paintOp attached to it
             var pass1 = drawnItems.Select(d => new { d.DrawSizeHint, d.ElementGeometry, paintOp = styles[d.StyleName].PaintOperations });
-            var pass2 = new List<CompletePaintOp>(drawnItems.Count * 2);
+            var pass2 = new List<CompletePaintOp>(drawnItems.Count);
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
                     pass2.Add(new CompletePaintOp(op.ElementGeometry, op.DrawSizeHint, po, "", po.LineWidthDegrees * stats.pixelsPerDegreeX));
