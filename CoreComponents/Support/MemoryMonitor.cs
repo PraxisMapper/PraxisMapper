@@ -51,6 +51,28 @@ namespace PraxisCore.Support
             proc.Dispose();
         }
 
+        public static void DumpRamData()
+        {
+            var data = GC.GetGCMemoryInfo();
+            Log.WriteLog("GC Index: " + String.Format("{0:n0}", data.Index), Log.VerbosityLevels.High);
+            Log.WriteLog("Heap Size: " + String.Format("{0:n0}", data.HeapSizeBytes), Log.VerbosityLevels.High);
+            Log.WriteLog("High Memory Threshold: " + String.Format("{0:n0}", data.HighMemoryLoadThresholdBytes), Log.VerbosityLevels.High);
+            Log.WriteLog("Memory Load: " + String.Format("{0:n0}", data.MemoryLoadBytes), Log.VerbosityLevels.High);
+            Log.WriteLog("Committed Size: " + String.Format("{0:n0}", data.TotalCommittedBytes), Log.VerbosityLevels.High);
+            Log.WriteLog("Total Available Size: " + String.Format("{0:n0}", data.TotalAvailableMemoryBytes), Log.VerbosityLevels.High);
+            var totalMs = 0;
+            foreach (var d in data.PauseDurations)
+            {
+                totalMs += d.Milliseconds;
+            }
+            Log.WriteLog("Total Paused Time: " + totalMs, Log.VerbosityLevels.High);
+            Log.WriteLog("Percentage Time Paused: " + String.Format("{0:n0}", data.PauseTimePercentage), Log.VerbosityLevels.High);
+            Log.WriteLog("Pinned Objects: " + String.Format("{0:n0}", data.PinnedObjectsCount), Log.VerbosityLevels.High);
+            Log.WriteLog("Finalizing Objects: " + String.Format("{0:n0}", data.FinalizationPendingCount), Log.VerbosityLevels.High);
+            Log.WriteLog(" ", Log.VerbosityLevels.High);
+            
+        }
+
         public void CheckForGCNotification()
         {
             //This show up a lot. None of the documentation on GC currently seems to adjust this the way I expect it to.
