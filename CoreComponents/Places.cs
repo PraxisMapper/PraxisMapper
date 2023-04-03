@@ -35,15 +35,17 @@ namespace PraxisCore
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
             //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
             IQueryable<DbTables.Place> queryable;
+            PraxisContext db = null;
 
             List<DbTables.Place> places;
             if (source == null)
             {
-                var db = new PraxisContext();
+                db = new PraxisContext();
                 db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
                 db.Database.SetCommandTimeout(new TimeSpan(0, 5, 0));
                 queryable = db.Places;
+
             }
             else
                 queryable = source.AsQueryable();
@@ -54,12 +56,19 @@ namespace PraxisCore
             var paddedArea = GeometrySupport.MakeBufferedGeoArea(area);
             var location = paddedArea.ToPolygon(); 
             queryable = queryable.Where(md => location.Intersects(md.ElementGeometry) && md.DrawSizeHint >= filterSize).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length);
-
+            
             if (skipGeometry)
                 queryable = queryable.Select(q => new DbTables.Place() { DrawSizeHint = q.DrawSizeHint, Id = q.Id, PrivacyId = q.PrivacyId, SourceItemID = q.SourceItemID, SourceItemType = q.SourceItemType, Tags = q.Tags });
 
             places = queryable.ToList();
             TagParser.ApplyTags(places, styleSet);
+
+            if (db != null)
+            {
+                db.ChangeTracker.Clear();
+                db.Dispose();
+            }
+        
             return places;
         }
 
