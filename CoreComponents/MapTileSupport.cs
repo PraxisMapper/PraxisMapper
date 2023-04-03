@@ -203,7 +203,7 @@ namespace PraxisCore
             var styles = TagParser.allStyleGroups[styleSet];
             var bgOp = new CompletePaintOp(stats.area.ToPolygon(), 1, styles["background"].PaintOperations.First(), "background", 1);
             var pass1 = places.Select(d => new { place = d, paintOp = styles[d.StyleName].PaintOperations });
-            var pass2 = new List<CompletePaintOp>(places.Count * 2);
+            var pass2 = new List<CompletePaintOp>(places.Count);
             pass2.Add(bgOp);
             foreach (var op in pass1)
                 GetPaintOpsInner(ref pass2, op.place, op.paintOp, stats);
@@ -230,7 +230,7 @@ namespace PraxisCore
 
             var bgOp = new CompletePaintOp(drawPoly, 1, styles["background"].PaintOperations.First(), "background", 1);
             var pass1 = elements.Select(d => new { place = d.ToPlace(styleSet), paintOp = styles[TagParser.GetStyleEntry(new List<AreaData>() { d }, styleSet).Name].PaintOperations });
-            var pass2 = new List<CompletePaintOp>(elements.Count * 2);
+            var pass2 = new List<CompletePaintOp>(elements.Count);
             pass2.Add(bgOp);
             foreach (var op in pass1)
                 GetPaintOpsInner(ref pass2, op.place, op.paintOp, stats);
