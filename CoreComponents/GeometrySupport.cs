@@ -391,5 +391,22 @@ namespace PraxisCore
 
             return speed;
         }
+
+        /// <summary>
+        /// Takes a point, and returns the smallest elements with an area value that contains it. If given a specific style, limit it to that style.
+        /// EX: given the Point, returns the geometry of the building that the Point is located in. 
+        /// </summary>
+        public static Geometry UpgradePointToArea(Point point, string styleSet = "mapTiles", string areaStyle = "")
+        {
+            var db = new PraxisContext();
+            var intersectAreas = db.Places.Where(p => p.ElementGeometry.Intersects(point)).ToList();
+            TagParser.ApplyTags(intersectAreas, styleSet);
+
+            var resultsGeo = intersectAreas.Where(a => areaStyle == "" | a.StyleName == areaStyle && a.ElementGeometry.Area > 0).OrderBy(a => a.ElementGeometry.Area).Select(a => a.ElementGeometry).FirstOrDefault();
+            if (resultsGeo == null)
+                resultsGeo = point;
+
+            return resultsGeo;
+        }
     }
 }
