@@ -33,6 +33,7 @@ namespace PraxisMapper.Controllers {
             return View();
         }
 
+        [HttpGet]
         [Route("/[controller]/GetMapTileInfo/{zoom}/{x}/{y}")]
         public ActionResult GetMapTileInfo(int x, int y, int zoom) {
             //Draw the map tile, with extra info to send over.
@@ -95,6 +96,7 @@ namespace PraxisMapper.Controllers {
         }
 
 
+        [HttpGet]
         [Route("/[controller]/GetPlaceInfo/{sourceElementId}/{sourceElementType}")]
         public ActionResult GetPlaceInfo(long sourceElementId, int sourceElementType) {
             var db = new PraxisContext();
@@ -141,6 +143,7 @@ namespace PraxisMapper.Controllers {
             return View();
         }
 
+        [HttpGet]
         [Route("/[controller]/GetPlaceInfo/{privacyId}/")]
         public ActionResult GetPlaceInfo(Guid privacyId) {
             var db = new PraxisContext();
@@ -153,6 +156,7 @@ namespace PraxisMapper.Controllers {
             return null;
         }
 
+        [HttpGet]
         [Route("/[controller]/EditData")]
         public ActionResult EditData() {
             //TODO: break these out into separate views when ready.
@@ -170,11 +174,13 @@ namespace PraxisMapper.Controllers {
             return View(model);
         }
 
+        [HttpGet]
         [Route("/[controller]/EditGeography")]
         public ActionResult EditGeography() {
             return View();
         }
 
+        [HttpGet]
         [Route("/[controller]/StyleTest")]
         public ActionResult StyleTest() {
             List<byte[]> previews = new List<byte[]>();
@@ -221,6 +227,7 @@ namespace PraxisMapper.Controllers {
             return View();
         }
 
+        [HttpGet]
         [Route("/[controller]/ExpireTiles")]
         public IActionResult ExpireTiles()
         {
@@ -231,6 +238,7 @@ namespace PraxisMapper.Controllers {
             return Index();
         }
 
+        [HttpGet]
         [Route("/[controller]/ResetStyles")]
         public IActionResult ResetStyles()
         {
