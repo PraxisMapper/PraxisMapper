@@ -1,7 +1,8 @@
-﻿using CryptSharp;
+﻿using BCrypt.Net;
 using Google.Common.Geometry;
 using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Prepared;
 using OsmSharp;
@@ -9,10 +10,13 @@ using OsmSharp.Streams;
 using PraxisCore;
 using PraxisCore.GameTools;
 using PraxisCore.Support;
+using ProtoBuf.WellKnownTypes;
 using SkiaSharp;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Frozen;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -43,11 +47,14 @@ namespace PerformanceTestApp {
             //var asm = Assembly.LoadFrom(@"PraxisMapTilesSkiaSharp.dll");
             //var MapTiles = Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
 
+            //PraxisContext.serverMode = "LocalDB";
+            //PraxisContext.connectionString = "Server=(localdb)\\Praxis;Integrated Security=true;";
+
             //PraxisContext.serverMode = "SQLServer";
             //PraxisContext.connectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;";
 
             PraxisContext.serverMode = "MariaDB";
-            PraxisContext.connectionString = "server=localhost;database=praxis-3;user=root;password=asdf;";
+            PraxisContext.connectionString = "server=localhost;database=praxis-test;user=root;password=asdf;";
 
             //PraxisContext.serverMode = "PostgreSQL";
             //PraxisContext.connectionString = "server=localhost;database=praxis;user=root;password=asdf;";
@@ -94,21 +101,32 @@ namespace PerformanceTestApp {
             //TestSavePerf();
             //TestPatternMatch();
             //TestNoTrackingPerf();
-            TestGameTools();
+            //TestGameTools();
+            //QuickTest();
+            //TestSplatSpeed();
+            //TestGeomTrackVsRaw();
+            //FrozenPerf();
+            SpanTest();
 
 
-
-                //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
-                //These cannot all be enabled in one run. You must comment/uncomment each one separately.
-                //ALSO, these need updated somehow to be self-contained and consistent. Like, maybe load Delaware data or something as a baseline.
-                //TestDBPerformance("SQLServer");
-                //TestDBPerformance("MariaDB");
-                //TestDBPerformance("PostgreSQL");
+            //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
+            //These cannot all be enabled in one run. You must comment/uncomment each one separately.
+            //ALSO, these need updated somehow to be self-contained and consistent. Like, maybe load Delaware data or something as a baseline.
+            //TestDBPerformance("SQLServer");
+            //TestDBPerformance("MariaDB");
+            //TestDBPerformance("PostgreSQL");
 
             //Sample code for later, I will want to make sure these indexes work as expected.
             //PraxisCore.MapTiles.ExpireSlippyMapTiles(Converters.GeoAreaToPolygon(OpenLocationCode.DecodeValid("86HWHHFF")));
             //TestMapTileIndexSpeed();
-            }
+        }
+
+        private static void QuickTest()
+        {
+            var db = new PraxisContext();
+            db.DropIndexes();
+            db.RecreateIndexes();
+        }
 
             private static void TestCustomPbfReader()
         {
@@ -1347,7 +1365,7 @@ namespace PerformanceTestApp {
                 //db.Database.ExecuteSqlRaw(PraxisContext.GeneratedMapDataIndex);
                 db.Database.ExecuteSqlRaw(PraxisContext.MapTileIndex);
                 db.Database.ExecuteSqlRaw(PraxisContext.SlippyMapTileIndex);
-                db.Database.ExecuteSqlRaw(PraxisContext.StoredElementsIndex);
+                db.Database.ExecuteSqlRaw(PraxisContext.PlacesIndex);
                 db.Database.ExecuteSqlRaw(PraxisContext.AreaDataSpatialIndex);
             }
 
@@ -2447,70 +2465,71 @@ namespace PerformanceTestApp {
 
         public static void BcryptSpeedCheck()
         {
-            Stopwatch sw = new Stopwatch();
-            List<long> results13 = new List<long>(100);
-            List<long> results32 = new List<long>(100);
-            var options13 = new CrypterOptions() {
-                { CrypterOption.Rounds, 13}
-            };
-            var options32 = new CrypterOptions() {
-                { CrypterOption.Rounds, 16}
-            };
-            BlowfishCrypter crypter = new BlowfishCrypter();
-            string salt = "";
-            string results = "";
+            //TODO: Update to BCrypt.net-next from Cryptsharp.
+            //Stopwatch sw = new Stopwatch();
+            //List<long> results13 = new List<long>(100);
+            //List<long> results32 = new List<long>(100);
+            //var options13 = new CrypterOptions() {
+            //    { CrypterOption.Rounds, 13}
+            //};
+            //var options32 = new CrypterOptions() {
+            //    { CrypterOption.Rounds, 16}
+            //};
+            //BlowfishCrypter crypter = new BlowfishCrypter();
+            //string salt = "";
+            //string results = "";
 
-            for (int i = 0; i < 10; i++)
-            {
-                sw.Restart();
-                Console.WriteLine("making 13-round salt");
-                salt = crypter.GenerateSalt(options13);
-                Console.WriteLine("salt made");
-                results = crypter.Crypt("password", salt);
-                Console.WriteLine("pwd encrypted");
-                sw.Stop();
-                results13.Add(sw.ElapsedMilliseconds);
-                sw.Restart();
-                Console.WriteLine("making 31-round salt");
-                salt = crypter.GenerateSalt(options32);
-                Console.WriteLine("salt made");
-                results = crypter.Crypt("password", salt);
-                Console.WriteLine("pwd encrypted.");
-                sw.Stop();
-                results32.Add(sw.ElapsedMilliseconds);
-                Console.WriteLine("test " + i + " done.");
-            }
+            //for (int i = 0; i < 10; i++)
+            //{
+            //    sw.Restart();
+            //    Console.WriteLine("making 13-round salt");
+            //    salt = crypter.GenerateSalt(options13);
+            //    Console.WriteLine("salt made");
+            //    results = crypter.Crypt("password", salt);
+            //    Console.WriteLine("pwd encrypted");
+            //    sw.Stop();
+            //    results13.Add(sw.ElapsedMilliseconds);
+            //    sw.Restart();
+            //    Console.WriteLine("making 31-round salt");
+            //    salt = crypter.GenerateSalt(options32);
+            //    Console.WriteLine("salt made");
+            //    results = crypter.Crypt("password", salt);
+            //    Console.WriteLine("pwd encrypted.");
+            //    sw.Stop();
+            //    results32.Add(sw.ElapsedMilliseconds);
+            //    Console.WriteLine("test " + i + " done.");
+            //}
 
-            Console.WriteLine("Creating password hashes:");
-            Console.WriteLine("Average 13-round results: " +  results13.Average());
-            Console.WriteLine("Average 31-round results: " + results32.Average());
-            Console.WriteLine("Total times (ms): " + results13.Sum() + " vs  " + results32.Sum());
+            //Console.WriteLine("Creating password hashes:");
+            //Console.WriteLine("Average 13-round results: " +  results13.Average());
+            //Console.WriteLine("Average 31-round results: " + results32.Average());
+            //Console.WriteLine("Total times (ms): " + results13.Sum() + " vs  " + results32.Sum());
 
-            salt = crypter.GenerateSalt(options13);
-            var pwd13 = crypter.Crypt("password", salt);
+            //salt = crypter.GenerateSalt(options13);
+            //var pwd13 = crypter.Crypt("password", salt);
 
-            salt = crypter.GenerateSalt(options32);
-            var pwd32 = crypter.Crypt("password", salt);
+            //salt = crypter.GenerateSalt(options32);
+            //var pwd32 = crypter.Crypt("password", salt);
 
-            results13.Clear();
-            results32.Clear();
+            //results13.Clear();
+            //results32.Clear();
 
-            for (int i = 0; i < 10; i++)
-            {
-                sw.Restart();
-                crypter.Crypt("password", pwd13);
-                sw.Stop();
-                results13.Add(sw.ElapsedMilliseconds);
-                sw.Restart();
-                crypter.Crypt("password", pwd32);
-                sw.Stop();
-                results32.Add(sw.ElapsedMilliseconds);
-            }
+            //for (int i = 0; i < 10; i++)
+            //{
+            //    sw.Restart();
+            //    crypter.Crypt("password", pwd13);
+            //    sw.Stop();
+            //    results13.Add(sw.ElapsedMilliseconds);
+            //    sw.Restart();
+            //    crypter.Crypt("password", pwd32);
+            //    sw.Stop();
+            //    results32.Add(sw.ElapsedMilliseconds);
+            //}
 
-            Console.WriteLine("Checking password hashes vs existing entry:");
-            Console.WriteLine("Average 13-round results: " + results13.Average());
-            Console.WriteLine("Average 31-round results: " + results32.Average());
-            Console.WriteLine("Total times (ms): " + results13.Sum() + " vs  " + results32.Sum());
+            //Console.WriteLine("Checking password hashes vs existing entry:");
+            //Console.WriteLine("Average 13-round results: " + results13.Average());
+            //Console.WriteLine("Average 31-round results: " + results32.Average());
+            //Console.WriteLine("Total times (ms): " + results13.Sum() + " vs  " + results32.Sum());
 
         }
 
@@ -2858,6 +2877,308 @@ namespace PerformanceTestApp {
             Log.WriteLog("160k GeometryTracker Adds: AVG: " + results.Average(r => r[1].Milliseconds) + "ms,  TOTAL: " + results.Sum(r => r[1].Milliseconds) + "ms");
             Log.WriteLog("160k RecentActivity Adds: AVG: " + results.Average(r => r[2].Milliseconds) + "ms,  TOTAL: " + results.Sum(r => r[2].Milliseconds) + "ms");
             Log.WriteLog("160k RecentPath Adds: AVG: " + results.Average(r => r[3].Milliseconds) + "ms,  TOTAL: " + results.Sum(r => r[3].Milliseconds) + "ms");
+        }
+
+        private static Geometry MakeSplatShapeSimple(Point p, double radius)
+        {
+            //The lazy option for this: a few random circles.
+            List<Geometry> geometries = new List<Geometry>();
+            var randCount = Random.Shared.Next(5, 9);
+            var bufferSize = radius / 3;
+            for (int i = 0; i < randCount; i++)
+            {
+                var randomMoveX = ((Random.Shared.Next() % 2 == 0 ? 1 : -1) * radius * (Random.Shared.NextDouble()));
+                var randomMoveY = ((Random.Shared.Next() % 2 == 0 ? 1 : -1) * radius * (Random.Shared.NextDouble()));
+                var workPoint = new Point(p.X + randomMoveX, p.Y + randomMoveY);
+                workPoint.Buffer(bufferSize);
+                geometries.Add(workPoint);
+            }
+
+            var resultGeo = NetTopologySuite.Operation.Union.CascadedPolygonUnion.Union(geometries);
+            return resultGeo;
+        }
+
+        private static Geometry MakeSplatShape(Point p, double radius)
+        {
+            //Do some geometry actions to make a shape to put on the map.
+            List<Geometry> geometries = new List<Geometry>();
+
+            //Step 1: fill in the middle half of the radius.
+            var workPoint = new Point(p.X, p.Y);
+            var centerGeo = workPoint.Buffer(radius / 2);
+            geometries.Add(centerGeo);
+
+            //Step 2: Add some bulges around it for asymmetry
+            var randCount = Random.Shared.Next(3, 8);
+            for (int i = 0; i < randCount; i++)
+            {
+                var randomMoveX = ((Random.Shared.Next() % 2 == 0 ? 1 : -1) * radius * (Random.Shared.Next(50, 75)) / 100);
+                var randomMoveY = ((Random.Shared.Next() % 2 == 0 ? 1 : -1) * radius * (Random.Shared.Next(50, 75)) / 100);
+                workPoint = new Point(p.X + randomMoveX, p.Y + randomMoveY);
+                var bulgeGeo = workPoint.Buffer(radius / 3);
+                geometries.Add(bulgeGeo);
+            }
+
+            //STep 3: add some distant circles, and connect them to the center with a triangle.
+            randCount = Random.Shared.Next(3, 6);
+            for (int i = 0; i < randCount; i++)
+            {
+                var randomMoveX = ((Random.Shared.Next() % 2 == 0 ? 1 : -1) * radius * (Random.Shared.Next(75, 100)) / 100);
+                var randomMoveY = ((Random.Shared.Next() % 2 == 0 ? 1 : -1) * radius * (Random.Shared.Next(75, 100)) / 100);
+                workPoint = new Point(p.X + randomMoveX, p.Y + randomMoveY);
+                var outerCircle = workPoint.Buffer(radius / 5);
+                geometries.Add(outerCircle);
+
+                Point t1, t2;
+                //draw triangle connecting outerCircle to center. Could use trig to grab points, this is easier math.
+                if (Math.Abs(randomMoveX) > Math.Abs(randomMoveY))
+                {
+                    //use north/south
+                    t1 = new Point(outerCircle.Centroid.X, outerCircle.EnvelopeInternal.MaxY);
+                    t2 = new Point(outerCircle.Centroid.X, outerCircle.EnvelopeInternal.MinY);
+                }
+                else
+                {
+                    //use east/west
+                    t1 = new Point(outerCircle.EnvelopeInternal.MaxX, outerCircle.Centroid.Y);
+                    t2 = new Point(outerCircle.EnvelopeInternal.MinX, outerCircle.Centroid.Y);
+                }
+
+                var connector = Singletons.geometryFactory.CreatePolygon(new Coordinate[] { new Coordinate(outerCircle.Centroid.X, outerCircle.Centroid.Y), new Coordinate(t1.X, t1.Y), new Coordinate(t2.X, t2.Y), new Coordinate(outerCircle.Centroid.X, outerCircle.Centroid.Y) });
+                geometries.Add(connector);
+            }
+
+            var resultGeo = Singletons.reducer.Reduce(NetTopologySuite.Operation.Union.CascadedPolygonUnion.Union(geometries).Simplify(ConstantValues.resolutionCell11Lon));
+            return resultGeo;
+        }
+
+        public static void TestSplatSpeed()
+        {
+            var point = new Point(80, 40);
+
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+            for (int i = 0; i < 10; i++)
+            {
+                var shape = MakeSplatShapeSimple(point, .0005);
+            }
+            sw.Stop();
+            Log.WriteLog("Simple shapes generated in "+ sw.ElapsedMilliseconds + "ms");
+
+
+            sw.Restart();
+            for (int i = 0; i < 10; i++)
+            {
+                var shape = MakeSplatShape(point, .0005);
+            }
+            sw.Stop();
+            Log.WriteLog("bigger shapes generated in " + sw.ElapsedMilliseconds + "ms");
+
+            Log.WriteLog("testing component speeds");
+            sw.Restart();
+            GeometryTracker gt = new GeometryTracker();
+            for (int i = 0; i < 10; i++)
+            {
+                var shape = MakeSplatShape(point, .0005);
+                gt.AddGeometry(shape);
+            }
+            sw.Stop();
+            Log.WriteLog("added to GeometryTracker 10 times in " + sw.ElapsedMilliseconds + "ms");
+
+            sw.Restart();
+            Geometry p = Singletons.geometryFactory.CreatePolygon();
+            for (int i = 0; i < 10; i++)
+            {
+                var shape = MakeSplatShape(point, .0005);
+                p = p.Union(shape);
+            }
+            sw.Stop();
+            Log.WriteLog("added to Geometry 10 times in " + sw.ElapsedMilliseconds + "ms");
+        }
+
+        public static void TestGeomTrackVsRaw()
+        {
+            var db = new PraxisContext();
+            var place = db.Places.FirstOrDefault(p => p.SourceItemID == 350381);
+            List<TimeSpan> rawSaves = new List<TimeSpan>(10);
+            List<TimeSpan> gtSaves = new List<TimeSpan>(10);
+            Stopwatch sw = new Stopwatch();
+
+            for (int i = 0; i < 10; i++)
+            {
+                Log.WriteLog("Testing raw geometry");
+                sw.Restart();
+                GenericData.SetGlobalData("testPlace", place.ElementGeometry.ToText());
+                sw.Stop();
+                rawSaves.Add(sw.Elapsed);
+                Log.WriteLog("converted to text and saved in " + sw.ElapsedMilliseconds);
+
+
+                Log.WriteLog("Testing GeometryTracker");
+                var gt = new GeometryTracker();
+                gt.AddGeometry(place.ElementGeometry);
+                sw.Restart();
+                GenericData.SetGlobalDataJson("testGT", gt);
+                sw.Stop();
+                gtSaves.Add(sw.Elapsed);
+                Log.WriteLog("converted to JSON and saved in " + sw.ElapsedMilliseconds);
+            }
+        }
+
+        public static void FrozenPerf()
+        {
+            //Conclusion as of NET 8 Preview 2: Frozen isn't faster. Frozen is slower. ReadOnlyMemory is maybe very slightly faster.
+            Stopwatch sw = new Stopwatch();
+            var listver = NameGenerator.adjectives;
+            var fset = NameGenerator.adjectives.ToFrozenSet();
+            var immute = NameGenerator.adjectives.ToImmutableList();
+            var readonlyl = NameGenerator.adjectives.AsReadOnly();
+            var memlist = new ReadOnlyMemory<string>(NameGenerator.adjectives.ToArray());
+
+            List<TimeSpan> frozens = new List<TimeSpan>();
+            List<TimeSpan> norms = new List<TimeSpan>();
+            List<TimeSpan> readonlys = new List<TimeSpan>();
+            List<TimeSpan> immutes = new List<TimeSpan>();
+            List<TimeSpan> meml = new List<TimeSpan>();
+
+            _ = listver.PickOneRandom();
+            _ = fset.PickOneRandom();
+            _ = immute.PickOneRandom();
+            _ = readonlys.PickOneRandom();
+            _ = memlist.PickOneRandom();
+
+            Console.WriteLine("Set Vs List");
+            for (int i = 0; i < 11; i++)
+            {
+                sw.Restart();
+                var item = listver.PickOneRandom();
+                sw.Stop();
+                Console.WriteLine("Norm: " + sw.ElapsedTicks);
+                norms.Add(sw.Elapsed);
+                sw.Restart();
+                var item2 = fset.PickOneRandom();
+                sw.Stop();
+                Console.WriteLine("Frozen: " + sw.ElapsedTicks);
+                frozens.Add(sw.Elapsed);
+                sw.Restart();
+                var item3 = immute.PickOneRandom();
+                sw.Stop();
+                Console.WriteLine("Immute: " + sw.ElapsedTicks);
+                immutes.Add(sw.Elapsed);
+                sw.Restart();
+                var item4 = readonlyl.PickOneRandom();
+                sw.Stop();
+                Console.WriteLine("Readonly: " + sw.ElapsedTicks);
+                readonlys.Add(sw.Elapsed);
+                sw.Restart();
+                var item5 = memlist.PickOneRandom();
+                sw.Stop();
+                Console.WriteLine("Memory: " + sw.ElapsedTicks);
+                meml.Add(sw.Elapsed);
+            }
+
+            Console.WriteLine("Frozen: Avg " + frozens.Average(f => f.Ticks) + " ticks");
+            Console.WriteLine("Norms: Avg " + norms.Average(f => f.Ticks) + " ticks");
+            Console.WriteLine("Immutes: Avg " + immutes.Average(f => f.Ticks) + " ticks");
+            Console.WriteLine("Readonly: Avg " + readonlys.Average(f => f.Ticks) + " ticks");
+            Console.WriteLine("Memory: Avg " + meml.Average(f => f.Ticks) + " ticks");
+
+
+            Console.WriteLine("Dicts");
+            var normDict = TagParser.allStyleGroups;
+            var frozDict = normDict.ToFrozenDictionary(k => k.Key, v => v.Value.ToFrozenDictionary(kk => kk.Key, vv => vv.Value));
+            var immDict = normDict.ToImmutableDictionary(k => k.Key, v => v.Value.ToImmutableDictionary(kk => kk.Key, vv => vv.Value));
+            List<TimeSpan> frozenD = new List<TimeSpan>();
+            List<TimeSpan> normD = new List<TimeSpan>();
+            List<TimeSpan> immD = new List<TimeSpan>();
+
+            _ = normDict["mapTiles"];
+            _ = frozDict["mapTiles"];
+            _ = immDict["mapTiles"];
+
+            for (int i = 0; i < 11; i++)
+            {
+                int a = 0;
+                var typeToPick = normDict.PickOneRandom().Key;
+                sw.Restart();
+                //var item = normDict[typeToPick];
+                normDict.TryGetValue(typeToPick, out var item1);
+                foreach (var z in item1)
+                    a++;
+                sw.Stop();
+                Console.WriteLine("Norm: " + sw.ElapsedTicks);
+                normD.Add(sw.Elapsed);
+                sw.Restart();
+                //var item2 = frozDict[typeToPick];
+                frozDict.TryGetValue(typeToPick, out var item2);
+                foreach (var z in item2)
+                    a++;
+                sw.Stop();
+                Console.WriteLine("Frozen: " + sw.ElapsedTicks);
+                frozenD.Add(sw.Elapsed);
+                sw.Restart();
+                //var item2 = frozDict[typeToPick];
+                immDict.TryGetValue(typeToPick, out var item3);
+                foreach (var z in item3)
+                    a++;
+                sw.Stop();
+                Console.WriteLine("Immutable: " + sw.ElapsedTicks);
+                immD.Add(sw.Elapsed);
+            }
+
+            Console.WriteLine("Frozen: Avg " + frozenD.Average(f => f.Ticks) + " ticks");
+            Console.WriteLine("Norms: Avg " + normD.Average(f => f.Ticks) + " ticks");
+            Console.WriteLine("Immute: Avg " + immD.Average(f => f.Ticks) + " ticks");
+
+        }
+
+
+        static List<string> GetCellCombos()
+        {
+            var list = new List<string>(400);
+            foreach (var Yletter in OpenLocationCode.CodeAlphabet)
+                foreach (var Xletter in OpenLocationCode.CodeAlphabet)
+                {
+                    list.Add(String.Concat(Yletter, Xletter));
+                }
+
+            return list;
+        }
+
+        static List<string> GetCellCombosSpan()
+        {
+            var span = OpenLocationCode.CodeAlphabet.AsSpan();
+            var list = new List<string>(400);
+            foreach (var Yletter in span)
+                foreach (var Xletter in span)
+                {
+                    list.Add(String.Concat(Yletter, Xletter));
+                }
+
+            return list;
+        }
+
+        public static void SpanTest()
+        {
+            //Results: This is not a case where span is faster.
+            Stopwatch sw = new Stopwatch();
+
+            List<TimeSpan> norm = new List<TimeSpan>();
+            List<TimeSpan> span = new List<TimeSpan>();
+            for (int i = 0; i < 11; i++)
+            {
+                sw.Restart();
+                GetCellCombos();
+                sw.Stop();
+                norm.Add(sw.Elapsed);
+                sw.Restart();
+                GetCellCombosSpan();
+                sw.Stop();
+                span.Add(sw.Elapsed);
+            }
+
+            Console.WriteLine("Span: Avg " + span.Average(f => f.Ticks) + " ticks");
+            Console.WriteLine("Norms: Avg " + norm.Average(f => f.Ticks) + " ticks");
         }
     }
 }
