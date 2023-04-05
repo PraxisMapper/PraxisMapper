@@ -1,5 +1,4 @@
-﻿using CryptSharp;
-using Google.OpenLocationCode;
+﻿using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using NetTopologySuite;
@@ -13,7 +12,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
@@ -301,13 +299,7 @@ namespace Larry
             int rounds = 6;
             while (encryptTimer.ElapsedMilliseconds < 250) {
                 rounds++;
-                var options = new CrypterOptions() {
-                        { CrypterOption.Rounds, rounds}
-                    };
-                encryptTimer.Restart();
-                BlowfishCrypter crypter = new BlowfishCrypter();
-                var salt = crypter.GenerateSalt(options);
-                var results = crypter.Crypt("anythingWillDo", salt);
+                var results = BCrypt.Net.BCrypt.EnhancedHashPassword("anythingWillDo", rounds);
                 encryptTimer.Stop();
                 Log.WriteLog("Time with Rounds:" + rounds + ": " + encryptTimer.ElapsedMilliseconds + "ms");
 
@@ -402,7 +394,7 @@ namespace Larry
                         db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' IGNORE INTO TABLE Places fields terminated by '\t' lines terminated by '\r\n' (sourceItemID, sourceItemType, @elementGeometry, privacyId, DrawSizeHint) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
                         sw.Stop();
                         Log.WriteLog("Geometry loaded from " + fileName + " in " + sw.Elapsed);
-                        File.Move(fileName, fileName + "done");
+                        Task.Run(() => File.Move(fileName, fileName + "done"));
                     }
 
                     foreach (var fileName in tagsFilenames)
@@ -413,7 +405,7 @@ namespace Larry
                         db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' IGNORE INTO TABLE PlaceTags fields terminated by '\t' lines terminated by '\r\n' (SourceItemId, SourceItemType, `key`, `value`)");
                         sw.Stop();
                         Log.WriteLog("Tags loaded from " + fileName + " in " + sw.Elapsed);
-                        File.Move(fileName, fileName + "done");
+                        Task.Run(() => File.Move(fileName, fileName + "done"));
                     }
                 }
                 else if (config["DbMode"] == "SQLServer" || config["DbMode"] == "LocalDB") //UseGeomFiles == true
