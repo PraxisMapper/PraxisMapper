@@ -85,11 +85,28 @@ generalize because you cannot possibly know every point of interest on the plane
 As of this writing, PM suggests that the following types of places are acceptable for gameplay:
 water, wetlands, park, beach, university, nature reserve, cemetery, retail, arts&culture, tourism, historical, trails.
 These are usually open to the public, big enough to get exercise walking through, educational, of cultural interest, or some combination of these factors.
+Most of these categories are unlikely to generate any discussion on if they are appropriate choices. I will cover potential exceptions below.
+
 Note that retail IS on this list, but not any specific retail institution. This might be confusing given the example against McDonalds above. It's OK to treat the
-category as a valid play area, since that enables players to chose their own routine or to connect a place with meaning to them to the game, and it does fit the other
-criteria for idea gameplay places. Forcing players to go to a specific shop and encouraging them to throw money at that shop isn't a good idea. Often, OSM data has the 
+category as a valid play location, since that enables players to chose their own routine or to connect a place with meaning to them to the game, and it does fit the other
+criteria for ideal gameplay places. Forcing players to go to a specific shop and encouraging them to throw money at that shop isn't a good idea. Often, OSM data has the 
 largest outline, a parking lot, defined as 'retail' and actual shops are unmarked, unlabeled, or assigned a single Point instead of an Area. This means that it's often
 more difficult to treat a player as being at a specific shop anyways. 
+
+Cemetery is a valid gameplay place choice. The biggest issue with cemeteries from a data point of view is that many of them are Nodes (points) instead of Ways (areas)
+in OpenStreetMap, which makes it harder to determine exactly where the bounds are and when a player is present at one. Cemeteries were also the category most likely to
+complain about Pokemon Go players when it went big. This isn't because cemeteries are a bad choice for a location-based game, but because some gameplay in PoGo was
+a bad choice for some public areas. Wild creatures caused visitor traffic to increase, which isn't actually an issue. Raids, however, interefered with normal operations.
+Many older, larger cemeteries have points of interest at graves that are very large, very pretty, or mark very important historical figures. These can be near narrow roads.
+Raids required up to 20 players (at the game's peak) to stand in a small area for several minutes, fight an HP-sink of a boss, and then spend some amount of time trying
+to catch the target creature. With a 2 minute lobby window, 5 minutes for the fight, and a variable amount of time to catch the raid monster, this meant that you might
+see a crowd of 20 players standing in a road for 10 minutes, blocking funeral processions or crowding limited parking. This is the behavior that generated the complaints
+and got a lot of POIs removed from the game. Most of those points remain in Ingress for full use, because Ingress does not have gameplay elements that require a large
+number of players to gather in a 30 foot circle on a regular basis, and did not generate complaints.
+
+Arts&culture is a very catch-all category. It is (currently) any place with one of the following amenity tags: theatre, concert hall, arts centre, planetarium, library, 
+public_bookcase, community_centre, conference_centre, exhibition_centre, events_venue. This may not be a complete list of tags that should be here, and some games may
+make their own style rules that split this up into multiple styles. The tourism and historical categories are most likely to overlap with arts&culture
 
 --Why Use A Server?--
 Several time as I work on a demo or an idea for a locative game, I notice that the use of a server sometimes doesn't seem necessary, or wouldn't be if a single code issue
@@ -106,3 +123,15 @@ time. It's fun to walk somewhere, tell a friend about something special in game,
 requires a simple game without too many complications or significant advanced planning. You can have a game that requires multiple people working together towards a goal, and
 having each player be a part of that instead of asking a single player to do everything. You can have real competitions with real people instead of faking numbers behind the 
 scenes to look like a contest. All of these are good reasons to use a live server, but not every game will need these parts.
+
+--Areas vs Places--
+A Place is something that's drawn or indicated on a map. Roads, buildings, parks, city limits.
+An Area is a bounding shape that references a particular location distinct from any other bounding shape. PlusCodes are Areas, as are S2 cells and Maidenhead grid squares.
+Both of these are useful and important for a locative game.
+
+Use Areas to make game systems that works anywhere, for everyone, regardless of their surroundings.
+Use Places to make game systems that rely on multiple people interacting with it, or for having the map be part of or affect gameplay.
+Both can crossover. In TIBO, the styles attached to Places present in an Area affect which creatures will spawn in that Area. 
+
+
+
