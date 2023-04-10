@@ -297,14 +297,11 @@ namespace PraxisCore {
             bool OrMatched = false;
             int orRuleCount = 0;
 
-            StyleMatchRule entry;
 
             //Step 1: check all the rules against these tags.
             //The * value is required for all the rules, so check it first.
-            for (var i = 0; i < tpe.StyleMatchRules.Count; i++)
+            foreach(var entry in tpe.StyleMatchRules)
             {
-                entry = tpe.StyleMatchRules.ElementAt(i);
-
                 string actualvalue = "";
                 bool isPresent = tags.TryGetValue(entry.Key, out actualvalue);
 
