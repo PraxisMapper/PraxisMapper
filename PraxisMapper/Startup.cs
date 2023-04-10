@@ -15,6 +15,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.NetworkInformation;
+using System.Net;
 using System.Reflection;
 
 namespace PraxisMapper {
@@ -225,7 +227,16 @@ namespace PraxisMapper {
             });
 
             PraxisPerformanceTracker.LogInfoToPerfData("Startup", "PraxisMapper online.");
-            Log.WriteLog("PraxisMapper configured and running.");
+            Log.WriteLog("PraxisMapper configured and running at:");
+            Log.WriteLog(Dns.GetHostName());
+            foreach (var adapter in NetworkInterface.GetAllNetworkInterfaces().Where(a => a.NetworkInterfaceType == NetworkInterfaceType.Ethernet || a.NetworkInterfaceType == NetworkInterfaceType.Wireless80211))
+            {
+                foreach (var ip in adapter.GetIPProperties().UnicastAddresses)
+                    if (ip.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork && !ip.Address.ToString().StartsWith("169.254"))
+                    {
+                        Log.WriteLog(ip.Address.ToString());
+                    }
+            }
         }
     }
 }
