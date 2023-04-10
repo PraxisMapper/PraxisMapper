@@ -98,7 +98,7 @@ namespace PraxisMapper {
                         }
 
                         if (types.Any()) {
-                            Log.WriteLog("Loading plugin " + potentialPlugin);
+                            Log.WriteLog("Loading plugin " + Path.GetFileName(potentialPlugin));
                             services.AddControllersWithViews().AddApplicationPart(assembly);
                         }
                         else {
