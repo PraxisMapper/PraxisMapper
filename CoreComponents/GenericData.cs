@@ -1,4 +1,4 @@
-﻿using CryptSharp;
+﻿using BCrypt.Net;
 using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -1143,12 +1143,8 @@ namespace PraxisCore {
         /// <returns></returns>
         public static bool EncryptPassword(string accountId, string password, int rounds)
         {
-            var options = new CrypterOptions() {
-                { CrypterOption.Rounds, rounds}
-            };
-            BlowfishCrypter crypter = new BlowfishCrypter();
-            var salt = crypter.GenerateSalt(options);
-            var results = crypter.Crypt(password, salt);
+            var hashedPwd = BCrypt.Net.BCrypt.EnhancedHashPassword(password, rounds);
+
             var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var entry = db.AuthenticationData.Where(a => a.accountId == accountId).FirstOrDefault();
@@ -1170,7 +1166,7 @@ namespace PraxisCore {
                 entry.dataPassword = Convert.ToBase64String(bytes);
                 entry.dataIV = IVs;
             }
-            entry.loginPassword = results;
+            entry.loginPassword = hashedPwd;
             db.SaveChanges();
 
             return true;
@@ -1184,7 +1180,6 @@ namespace PraxisCore {
         /// <returns></returns>
         public static bool CheckPassword(string accountId, string password)
         {
-            BlowfishCrypter crypter = new BlowfishCrypter();
             var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
@@ -1194,8 +1189,8 @@ namespace PraxisCore {
             if (entry.bannedUntil.HasValue && entry.bannedUntil.Value > DateTime.UtcNow)
                 return false;
 
-            string checkedPassword = crypter.Crypt(password, entry.loginPassword);
-            return entry.loginPassword == checkedPassword;
+            bool results = BCrypt.Net.BCrypt.EnhancedVerify(password, entry.loginPassword);
+            return results;
         }
 
         /// <summary>
