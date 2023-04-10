@@ -288,19 +288,17 @@ namespace PraxisCore {
                 path.Reset();
                 switch (w.elementGeometry.GeometryType) {
                     case "Polygon":
-                        var p = w.elementGeometry as Polygon;
-                        path.AddPoly(PolygonToSKPoints(p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                        foreach (var ir in p.Holes) {
+                        path.AddPoly(PolygonToSKPoints(((Polygon)w.elementGeometry).ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                        foreach (var ir in ((Polygon)w.elementGeometry).Holes) {
                             path.AddPoly(PolygonToSKPoints(ir, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                         }
                         canvas.DrawPath(path, paint);
                         break;
                     case "MultiPolygon":
-                        foreach (var p2 in ((MultiPolygon)w.elementGeometry).Geometries)
+                        foreach (Polygon p2 in ((MultiPolygon)w.elementGeometry).Geometries)
                         {
-                            var p2p = p2 as Polygon;
-                            path.AddPoly(PolygonToSKPoints(p2p.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                            foreach (var ir in p2p.Holes)
+                            path.AddPoly(PolygonToSKPoints(p2.ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                            foreach (var ir in p2.Holes)
                             {
                                 path.AddPoly(PolygonToSKPoints(ir, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                             }
