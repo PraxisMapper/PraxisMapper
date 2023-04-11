@@ -8,42 +8,29 @@ namespace PraxisCore.GameTools
     public class MeterGrid
     {
         //Handles the fairly common scenario that you want a grid based on more common, practical measurements than degrees.
-        //Works out distance from 0,0, and converts that to int-pairs for storage.
+        //Works out distance from -90,-180, and converts that to int-pairs for storage.
         public record MeterGridResults(int xId, int yId, int metersPerSquare, GeoArea tile);
 
-        const double oneMeterLat = .0000009d;
-        const double degreesToRadians = Math.PI / 180;
+        //QUICK MATH:
+        //1 degree of latitude is 111,111 meters, so 1 meter n/s is (1m = 1 / 111,111) = .0000009
+        //1 degree of longitude is 111,111 * cos(latitude), so 1 meter e/w is .0000009 * cos(latitude.ToRadians()) degrees.
+        const double metersPerDegree = 111111;
+        const double oneMeterLat = 1 / metersPerDegree;
 
         public static MeterGridResults GetMeterGrid(double lat, double lon, int metersPerSquare)
         {
             var p = new NetTopologySuite.Geometries.Point(lon, lat);
-            var xDist = p.MetersDistanceTo(new NetTopologySuite.Geometries.Point(-180, lat)); 
+            var xDist =  (lon + 180) * Math.Cos(lat.ToRadians()) * metersPerDegree; //p.MetersDistanceTo(new NetTopologySuite.Geometries.Point(-180, lat)); 
             var yDist = p.MetersDistanceTo(new NetTopologySuite.Geometries.Point(lon, -90)); 
 
-            if (lon > 0)
-                xDist += new NetTopologySuite.Geometries.Point(-180, lat).MetersDistanceTo(new NetTopologySuite.Geometries.Point(0, lat));
-
-            //var latSign = lat > 0 ? 1 : -1;
-            //var lonSign = lat > 0 ? 1 : -1;
-
-            int xId = (int)(xDist / metersPerSquare); // * lonSign;
-            int yId = (int)(yDist / metersPerSquare); // * latSign;
-
-            //QUICK MATH:
-            //1 degree of latitude is 111,111 meters. (111,111m = 1d)
-            //SO 1 meter n/s is (1m = 1 / 111,111) = .0000009
-            //1 degree of longitude is 111,111 * cos(latitude) .
-            //SO 1 meter e/w is .0000009 * cos(latitude) degrees.
-
-            //To figure out the radius at a certain latitude, we need this math below:
-            //var xRadius = 111111 * Math.Cos(lat * (Math.PI / 180));
-            //Then we can use that radius to determine the size of a degree of longitude.
+            int xId = (int)(xDist / metersPerSquare);
+            int yId = (int)(yDist / metersPerSquare);
 
             GeoArea thisTile = new GeoArea(
                 yId * metersPerSquare * oneMeterLat,
-                xId * metersPerSquare * oneMeterLat * Math.Cos(lat * degreesToRadians),
+                xId * metersPerSquare * oneMeterLat * Math.Cos(lat.ToRadians()),
                 (yId + 1) * metersPerSquare * oneMeterLat,
-                (xId + 1) * metersPerSquare * oneMeterLat * Math.Cos(lat * degreesToRadians));
+                (xId + 1) * metersPerSquare * oneMeterLat * Math.Cos(lat.ToRadians()));
 
             return new MeterGridResults(xId, yId, metersPerSquare, thisTile);
         }

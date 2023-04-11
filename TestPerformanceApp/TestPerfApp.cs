@@ -106,7 +106,10 @@ namespace PerformanceTestApp {
             //TestSplatSpeed();
             //TestGeomTrackVsRaw();
             //FrozenPerf();
-            SpanTest();
+            //SpanTest();
+            //StyleMatchAccess();
+            //RefVsValue();
+            TestMeterGrid();
 
 
             //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
@@ -128,7 +131,7 @@ namespace PerformanceTestApp {
             db.RecreateIndexes();
         }
 
-            private static void TestCustomPbfReader()
+        private static void TestCustomPbfReader()
         {
             //string filename = @"C:\praxis\delaware-latest.osm.pbf";
             //string filename = @"C:\praxis\ohio-latest.osm.pbf";
@@ -971,9 +974,10 @@ namespace PerformanceTestApp {
                 PraxisContext.connectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;";
                 PraxisContext.serverMode = "SQLServer";
             }
-            else if (mode == "LocalDB") {
+            else if (mode == "LocalDB")
+            {
                 Log.WriteLog("Starting LocalDB performance test.");
-                PraxisContext.connectionString = "Server=(localdb)\\Praxis;Integrated Security=true;"; 
+                PraxisContext.connectionString = "Server=(localdb)\\Praxis;Integrated Security=true;";
                 PraxisContext.serverMode = "LocalDB";
             }
             else if (mode == "MariaDB")
@@ -1019,9 +1023,9 @@ namespace PerformanceTestApp {
             sw.Start();
             //for (var i = 0; i < 10000; i++)
             //{
-                //write 1000 random entries;
-                //var entry = CreateInterestingPlaces("22334455", false);
-                //dbPG.Places.AddRange(entry);
+            //write 1000 random entries;
+            //var entry = CreateInterestingPlaces("22334455", false);
+            //dbPG.Places.AddRange(entry);
             //}
             dbPG.SaveChanges();
             sw.Stop();
@@ -1172,16 +1176,20 @@ namespace PerformanceTestApp {
 
         }
 
-        public static void TestPatternMatch() {
+        public static void TestPatternMatch()
+        {
             Geometry poly = "22334455".ToPolygon();
 
-            for (int j = 0; j < 10; j++) {
+            for (int j = 0; j < 10; j++)
+            {
 
                 Stopwatch sw = new Stopwatch();
 
                 sw.Restart();
-                for (int i = 0; i < 1000; i++) {
-                    if (poly is Polygon) {
+                for (int i = 0; i < 1000; i++)
+                {
+                    if (poly is Polygon)
+                    {
                         var p2 = (Polygon)poly;
                         p2.ToText();
                     }
@@ -1191,8 +1199,10 @@ namespace PerformanceTestApp {
 
 
                 sw.Restart();
-                for (int i = 0; i < 1000; i++) {
-                    if (poly is Polygon p2) {
+                for (int i = 0; i < 1000; i++)
+                {
+                    if (poly is Polygon p2)
+                    {
                         p2.ToText();
                     }
                 }
@@ -1258,7 +1268,8 @@ namespace PerformanceTestApp {
         //    Log.WriteLog("Vector performance:" + vector.ElapsedMilliseconds + "ms");
         //}
 
-        public static void TestImageSharpVsSkiaSharp() {
+        public static void TestImageSharpVsSkiaSharp()
+        {
             //params : 1119/1527/12/1
             //params: 8957 / 12224 / 15 / 1
             Log.WriteLog("Loading data for ImageSharp vs SkiaSharp performance test");
@@ -1286,7 +1297,8 @@ namespace PerformanceTestApp {
             List<TimeSpan> skiaTimes = new List<TimeSpan>();
             List<TimeSpan> isharpTimes = new List<TimeSpan>();
 
-            for (int i = 0; i < 10; i++) {
+            for (int i = 0; i < 10; i++)
+            {
                 Stopwatch sw = new Stopwatch();
                 sw.Start();
                 var results1 = isharpMapTiles.DrawAreaAtSize(iStats, paintOps);
@@ -2533,7 +2545,8 @@ namespace PerformanceTestApp {
 
         }
 
-        public static void TestEncryption() {
+        public static void TestEncryption()
+        {
             string test = "12345";
             var enc = GenericData.EncryptValue(test.ToByteArrayUTF8(), "password", out var ivs);
             var dec = GenericData.DecryptValue(ivs, enc, "password");
@@ -2545,14 +2558,16 @@ namespace PerformanceTestApp {
             var decGuid = new Guid(dec);
         }
 
-        public static void TestFindPlacesPerf() {
+        public static void TestFindPlacesPerf()
+        {
             GeoArea area = "86HWGGGP".ToGeoArea();
             var places = GetPlaces(area);
 
             List<TimeSpan> OGs = new List<TimeSpan>();
             List<TimeSpan> fasters = new List<TimeSpan>();
 
-            for (int j = 0; j < 10; j++) {
+            for (int j = 0; j < 10; j++)
+            {
                 Stopwatch sw = new Stopwatch();
                 sw.Start();
                 var results = AreaStyle.GetAreaDetails(ref area, ref places);
@@ -2615,13 +2630,16 @@ namespace PerformanceTestApp {
             }
         }
 
-        public static void TestSavePerf() {
+        public static void TestSavePerf()
+        {
             StringBuilder teststring = new StringBuilder();
-            for (int i = 0; i < 100000; i++ ) {
+            for (int i = 0; i < 100000; i++)
+            {
                 teststring.Append(Random.Shared.Next());
             }
 
-            for (int i = 0; i < 10; i++) {
+            for (int i = 0; i < 10; i++)
+            {
 
                 Stopwatch sw = Stopwatch.StartNew();
                 var db = new PraxisContext();
@@ -2644,7 +2662,8 @@ namespace PerformanceTestApp {
         }
 
 
-        public static void TestNoTrackingPerf() {
+        public static void TestNoTrackingPerf()
+        {
             var db = new PraxisContext();
             var compiled = EF.CompileQuery((PraxisContext context, Polygon p) => context.Places.Where(place => p.Intersects(place.ElementGeometry)));
 
@@ -2658,7 +2677,8 @@ namespace PerformanceTestApp {
             List<TimeSpan> compiledBase = new List<TimeSpan>();
             List<TimeSpan> compiledBothOff = new List<TimeSpan>();
 
-            for (int i = 0; i < 11; i++) {
+            for (int i = 0; i < 11; i++)
+            {
                 db = new PraxisContext();
                 db.ChangeTracker.AutoDetectChangesEnabled = true;
                 db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.TrackAll;
@@ -2723,7 +2743,8 @@ namespace PerformanceTestApp {
 
         }
 
-        public static void TestGameTools() {
+        public static void TestGameTools()
+        {
             //Not a performance test, just a simple function to make sure I can save and load game tools correctly.
 
             Stopwatch sw = new Stopwatch();
@@ -2732,7 +2753,8 @@ namespace PerformanceTestApp {
             //use [i][j]], where i is the loop and j is the call.
 
 
-            for (int i = 0; i < 10; i++) {
+            for (int i = 0; i < 10; i++)
+            {
                 Log.WriteLog("Run " + i);
                 results.Add(new List<TimeSpan>());
 
@@ -2777,7 +2799,7 @@ namespace PerformanceTestApp {
                 Log.WriteLog("Tool 2 data loaded in " + sw.ElapsedMilliseconds + "ms");
                 tool2Check.PopulateExplored();
 
-                
+
                 Log.WriteLog("Starting performance comparisons for GeometryTracker");
                 sw.Restart();
                 foreach (var cell8 in "223344".GetSubCells())
@@ -2873,7 +2895,7 @@ namespace PerformanceTestApp {
 
             }
 
-            Log.WriteLog("160k Distance calculations: AVG: " + results.Average(r => r[0].Milliseconds)  + "ms,  TOTAL: " + results.Sum(r => r[0].Milliseconds) + "ms");
+            Log.WriteLog("160k Distance calculations: AVG: " + results.Average(r => r[0].Milliseconds) + "ms,  TOTAL: " + results.Sum(r => r[0].Milliseconds) + "ms");
             Log.WriteLog("160k GeometryTracker Adds: AVG: " + results.Average(r => r[1].Milliseconds) + "ms,  TOTAL: " + results.Sum(r => r[1].Milliseconds) + "ms");
             Log.WriteLog("160k RecentActivity Adds: AVG: " + results.Average(r => r[2].Milliseconds) + "ms,  TOTAL: " + results.Sum(r => r[2].Milliseconds) + "ms");
             Log.WriteLog("160k RecentPath Adds: AVG: " + results.Average(r => r[3].Milliseconds) + "ms,  TOTAL: " + results.Sum(r => r[3].Milliseconds) + "ms");
@@ -2963,7 +2985,7 @@ namespace PerformanceTestApp {
                 var shape = MakeSplatShapeSimple(point, .0005);
             }
             sw.Stop();
-            Log.WriteLog("Simple shapes generated in "+ sw.ElapsedMilliseconds + "ms");
+            Log.WriteLog("Simple shapes generated in " + sw.ElapsedMilliseconds + "ms");
 
 
             sw.Restart();
@@ -3179,6 +3201,114 @@ namespace PerformanceTestApp {
 
             Console.WriteLine("Span: Avg " + span.Average(f => f.Ticks) + " ticks");
             Console.WriteLine("Norms: Avg " + norm.Average(f => f.Ticks) + " ticks");
+        }
+
+        public static void StyleMatchAccess()
+        {
+            var tpe = TagParser.allStyleGroups["mapTiles"].Skip(3).First().Value;
+            Stopwatch sw = new Stopwatch();
+            List<TimeSpan> orig = new List<TimeSpan>();
+            List<TimeSpan> newer = new List<TimeSpan>();
+
+            for (int t = 0; t < 14; t++)
+            {
+                //Test 1: original
+                sw.Start();
+
+                StyleMatchRule entry;
+
+                //Step 1: check all the rules against these tags.
+                //The * value is required for all the rules, so check it first.
+                for (var i = 0; i < tpe.StyleMatchRules.Count; i++)
+                {
+                    entry = tpe.StyleMatchRules.ElementAt(i);
+                }
+
+                sw.Stop();
+                orig.Add(sw.Elapsed);
+                Console.WriteLine("for/ElemenAt run in " + sw.ElapsedTicks);
+
+                sw.Restart();
+                int a = 0;
+                foreach (var e in tpe.StyleMatchRules)
+                {
+                    a = 1;
+                }
+                sw.Stop();
+                newer.Add(sw.Elapsed);
+                Console.WriteLine("foreach run in " + sw.ElapsedTicks);
+            }
+
+            Console.WriteLine("orig: Avg " + orig.Skip(4).Average(f => f.Ticks) + " ticks");
+            Console.WriteLine("newer: Avg " + newer.Skip(4).Average(f => f.Ticks) + " ticks");
+        }
+
+        public static void TestPartA(ImageStats a)
+        {
+
+        }
+
+        public static void TestPartB(ref ImageStats b)
+        {
+
+        }
+
+        public static void RefVsValue()
+        {
+            Stopwatch sw = new Stopwatch();
+            List<TimeSpan> orig = new List<TimeSpan>();
+            List<TimeSpan> newer = new List<TimeSpan>();
+            ImageStats stats = new ImageStats("22445566");
+
+            for (int t = 0; t < 14; t++)
+            {
+                //Test 1: original
+                sw.Start();
+
+                TestPartA(stats);
+
+                sw.Stop();
+                orig.Add(sw.Elapsed);
+                Console.WriteLine("Val call in " + sw.ElapsedTicks);
+
+                sw.Restart();
+
+                TestPartB(ref stats);
+                
+                sw.Stop();
+                newer.Add(sw.Elapsed);
+                Console.WriteLine("Ref call in " + sw.ElapsedTicks);
+            }
+
+            Console.WriteLine("Val: Avg " + orig.Skip(4).Average(f => f.Ticks) + " ticks");
+            Console.WriteLine("Ref: Avg " + newer.Skip(4).Average(f => f.Ticks) + " ticks");
+        }
+
+        public static void TestMeterGrid()
+        {
+            Console.WriteLine("Grid value for -89, -179, 500m");
+            var results = MeterGrid.GetMeterGrid(-89, -179, 500);
+            Console.WriteLine(results.xId.ToString() + ", " + results.yId.ToString() + ", " + results.ToString());
+
+            Console.WriteLine("Grid value for -89, -179, 5000m");
+            results = MeterGrid.GetMeterGrid(-89, -179, 5000);
+            Console.WriteLine(results.xId.ToString() + ", " + results.yId.ToString() + ", " + results.ToString());
+
+            Console.WriteLine("Grid value for 40, -80, 500m");
+            results = MeterGrid.GetMeterGrid(40, -80, 500);
+            Console.WriteLine(results.xId.ToString() + ", " + results.yId.ToString() + ", " + results.ToString());
+
+            Console.WriteLine("Grid value for 40, 80, 500m");
+            results = MeterGrid.GetMeterGrid(40, 80, 500);
+            Console.WriteLine(results.xId.ToString() + ", " + results.yId.ToString() + ", " + results.ToString());
+
+            Console.WriteLine("Grid value for 40, 80, 50m");
+            results = MeterGrid.GetMeterGrid(40, 80, 50);
+            Console.WriteLine(results.xId.ToString() + ", " + results.yId.ToString() + ", " + results.ToString());
+
+            Console.WriteLine("Grid value for -40, 80, 50m");
+            results = MeterGrid.GetMeterGrid(-40, 80, 50);
+            Console.WriteLine(results.xId.ToString() + ", " + results.yId.ToString() + ", " + results.ToString());
         }
     }
 }
