@@ -219,15 +219,16 @@ namespace PraxisCore
             return Convert.FromBase64String(s);
         }
 
-
+        const double toRadMultiplier = (Math.PI / 180);
         /// <summary>
         /// Convert degrees to radians
         /// </summary>
         /// <param name="val">input in degrees</param>
         /// <returns>radian value</returns>
+
         public static double ToRadians(this double val)
         {
-            return (Math.PI / 180) * val;
+            return toRadMultiplier * val;
         }
 
         /// <summary>
@@ -308,11 +309,18 @@ namespace PraxisCore
         /// <typeparam name="T"></typeparam>
         /// <param name="parent"></param>
         /// <returns></returns>
-        public static T PickOneRandom<T>(this List<T> parent)
+        public static T PickOneRandom<T>(this IList<T> parent)
         {
             if (parent == null || parent.Count == 0)
                 return default(T);
             return parent[Random.Shared.Next(parent.Count)];
+        }
+
+        public static T PickOneRandom<T>(this ReadOnlyMemory<T> parent)
+        {
+            if (parent.Length == 0)
+                return default(T);
+            return parent.Slice(Random.Shared.Next(parent.Length), 1).Span[0];
         }
 
         /// <summary>
