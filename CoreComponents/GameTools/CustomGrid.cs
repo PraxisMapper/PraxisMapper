@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using static PraxisCore.GameTools.MeterGrid;
 
 namespace PraxisCore.GameTools
 {
@@ -123,8 +124,21 @@ namespace PraxisCore.GameTools
         {
             var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
-            var saveData = new DbTables.AreaData() { DataKey = key, DataValue = value.ToJsonByteArray(), Expiration = expiration, PlusCode = GetCustomGridName(data), AreaCovered = data.tile.ToPolygon() };
-            db.AreaData.Add(saveData);
+            string name = GetCustomGridName(data);
+            var row = db.AreaData.FirstOrDefault(p => p.PlusCode == name && p.DataKey == key);
+            if (row == null)
+            {
+                row = new DbTables.AreaData();
+                row.DataKey = key;
+                row.PlusCode = name;
+                row.AreaCovered = data.tile.ToPolygon();
+                db.AreaData.Add(row);
+            }
+            else
+                db.Entry(row).State = EntityState.Modified;
+
+            row.DataValue = value.ToJsonByteArray();
+            row.Expiration = expiration;
             db.SaveChanges();
         }
 
@@ -142,7 +156,7 @@ namespace PraxisCore.GameTools
             if (row == null) {
                 row = new DbTables.AreaData();
                 row.DataKey = key;
-                row.PlusCode = GetCustomGridName(data);
+                row.PlusCode = name;
                 row.AreaCovered = data.tile.ToPolygon();
                 db.AreaData.Add(row);
             }
@@ -157,6 +171,17 @@ namespace PraxisCore.GameTools
             row.DataValue = encryptedValue;
             row.IvData = IVs;
             db.SaveChanges();
+        }
+
+        public static byte[] LoadCustomGridData(CustomGridResults data, string key)
+        {
+            var db = new PraxisContext();
+            string name = GetCustomGridName(data);
+            var row = db.AreaData.FirstOrDefault(a => a.PlusCode == name && a.DataKey == key);
+            if (row == null)
+                return Array.Empty<byte>();
+
+            return row.DataValue;
         }
     }
 }
