@@ -10,7 +10,8 @@ using System.Linq;
 using System.Security.Cryptography;
 using static PraxisCore.DbTables;
 
-namespace PraxisCore {
+namespace PraxisCore
+{
     /// <summary>
     /// Classes that handle reading and writing key-value pairs for players, places, pluscodes, or the global set.
     /// </summary>
@@ -45,7 +46,7 @@ namespace PraxisCore {
         /// </summary>
         public static bool SetAreaData(string plusCode, string key, byte[] value, double? expiration = null)
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             if (db.PlayerData.Any(p => p.accountId == key))
                 return false;
@@ -87,7 +88,7 @@ namespace PraxisCore {
         /// <returns>The value saved to the key, or an empty byte[] if no key/value pair was found.</returns>
         public static byte[] GetAreaData(string plusCode, string key)
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var row = db.AreaData.FirstOrDefault(p => p.PlusCode == plusCode && p.DataKey == key);
@@ -144,30 +145,30 @@ namespace PraxisCore {
         /// <returns></returns>
         public static bool SetPlaceData(Guid elementId, string key, byte[] value, double? expiration = null)
         {
-            var db = new PraxisContext();
-            db.ChangeTracker.AutoDetectChangesEnabled = false;
-            if (db.PlayerData.Any(p => p.accountId == key))
-                return false;
+            using var db = new PraxisContext();
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
+                if (db.PlayerData.Any(p => p.accountId == key))
+                    return false;
 
-            var row = db.PlaceData.Include(p => p.Place).FirstOrDefault(p => p.Place.PrivacyId == elementId && p.DataKey == key);
-            if (row == null)
-            {
-                var sourceItem = db.Places.First(p => p.PrivacyId == elementId);
-                row = new DbTables.PlaceData();
-                row.DataKey = key;
-                row.Place = sourceItem;
-                db.PlaceData.Add(row);
-            }
-            else
-                db.Entry(row).State = EntityState.Modified;
+                var row = db.PlaceData.Include(p => p.Place).FirstOrDefault(p => p.Place.PrivacyId == elementId && p.DataKey == key);
+                if (row == null)
+                {
+                    var sourceItem = db.Places.First(p => p.PrivacyId == elementId);
+                    row = new DbTables.PlaceData();
+                    row.DataKey = key;
+                    row.Place = sourceItem;
+                    db.PlaceData.Add(row);
+                }
+                else
+                    db.Entry(row).State = EntityState.Modified;
 
-            if (expiration.HasValue)
-                row.Expiration = DateTime.UtcNow.AddSeconds(expiration.Value);
-            else
-                row.Expiration = null;
-            row.IvData = null;
-            row.DataValue = value;
-            return db.SaveChanges() == 1;
+                if (expiration.HasValue)
+                    row.Expiration = DateTime.UtcNow.AddSeconds(expiration.Value);
+                else
+                    row.Expiration = null;
+                row.IvData = null;
+                row.DataValue = value;
+                return db.SaveChanges() == 1;
         }
 
         /// <summary>
@@ -178,13 +179,13 @@ namespace PraxisCore {
         /// <returns>The value saved to the key, or an empty byte[] if no key/value pair was found.</returns>
         public static byte[] GetPlaceData(Guid elementId, string key)
         {
-            var db = new PraxisContext();
-            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
-            db.ChangeTracker.AutoDetectChangesEnabled = false;
-            var row = db.PlaceData.Include(p => p.Place).FirstOrDefault(p => p.Place.PrivacyId == elementId && p.DataKey == key);
-            if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
-                return Array.Empty<byte>();
-            return row.DataValue;
+            using var db = new PraxisContext();
+                db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
+                var row = db.PlaceData.Include(p => p.Place).FirstOrDefault(p => p.Place.PrivacyId == elementId && p.DataKey == key);
+                if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
+                    return Array.Empty<byte>();
+                return row.DataValue;
         }
 
         /// <summary>
@@ -207,7 +208,7 @@ namespace PraxisCore {
         /// <returns>The value saved to the key, or an empty byte[] if no key/value pair was found.</returns>
         public static byte[] GetPlayerData(string accountId, string key)
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var row = db.PlayerData.FirstOrDefault(p => p.accountId == accountId && p.DataKey == key);
@@ -275,7 +276,7 @@ namespace PraxisCore {
                 return false;
 
             var guidString = value.ToUTF8String();
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             Guid tempCheck = new Guid();
             if ((Guid.TryParse(key, out tempCheck) && db.Places.Any(osm => osm.PrivacyId == tempCheck))
@@ -322,20 +323,21 @@ namespace PraxisCore {
         /// <returns></returns>
         public static List<AreaData> GetAllDataInArea(GeoArea area, string key = "")
         {
-            
-            var db = new PraxisContext();
+
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var poly = area.ToPolygon();
             List<AreaData> data = new List<AreaData>();
-            if (PraxisContext.serverMode == "MariaDB") {
+            if (PraxisContext.serverMode == "MariaDB")
+            {
                 //NOTE: as long as https://jira.mariadb.org/browse/MDEV-26123 remains open, I have to do this workaround for MariaDB.
                 data = db.AreaData.Where(d => poly.Contains(d.AreaCovered)).ToList();
                 data = data.Where(d => (key == "" || key == d.DataKey) && d.IvData == null && (d.Expiration == null || d.Expiration > DateTime.UtcNow)).ToList();
             }
             else
-            data = db.AreaData.Where(d => poly.Contains(d.AreaCovered) && (key == "" || key == d.DataKey) && d.IvData == null && (d.Expiration == null || d.Expiration > DateTime.UtcNow))
-                .ToList();
+                data = db.AreaData.Where(d => poly.Contains(d.AreaCovered) && (key == "" || key == d.DataKey) && d.IvData == null && (d.Expiration == null || d.Expiration > DateTime.UtcNow))
+                    .ToList();
 
             return data;
         }
@@ -348,7 +350,7 @@ namespace PraxisCore {
         /// <returns>a List of results with the map element ID, keys, and values</returns>
         public static List<PlaceData> GetAllDataInPlace(Guid elementId, string key = "")
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var data = db.PlaceData.Where(d => d.Place.PrivacyId == elementId && (key == "" || d.DataKey == key) && d.IvData == null && (d.Expiration == null || d.Expiration > DateTime.UtcNow))
@@ -364,7 +366,7 @@ namespace PraxisCore {
         /// <returns>List of results with accountId, keys, and values</returns>
         public static List<PlayerData> GetAllPlayerData(string accountID)
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var data = db.PlayerData.Where(p => p.accountId == accountID && p.IvData == null && (p.Expiration == null || p.Expiration > DateTime.UtcNow))
@@ -380,7 +382,7 @@ namespace PraxisCore {
         /// <returns>The value saved to the key, or an empty string if no key/value pair was found.</returns>
         public static byte[] GetGlobalData(string key)
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var row = db.GlobalData.FirstOrDefault(s => s.DataKey == key);
@@ -438,7 +440,7 @@ namespace PraxisCore {
             if (value.Length < 128)
                 valString = value.ToUTF8String();
 
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             if (db.PlayerData.Any(p => p.accountId == key || p.accountId == valString))
                 trackingPlayer = true;
@@ -507,7 +509,7 @@ namespace PraxisCore {
         /// <returns></returns>
         public static bool SetSecureAreaData(string plusCode, string key, byte[] value, string password, double? expiration = null)
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             byte[] encryptedValue = EncryptValue(value, password, out byte[] IVs);
 
@@ -542,7 +544,7 @@ namespace PraxisCore {
         /// <returns>The value saved to the key, or an empty string if no key/value pair was found or the password is incorrect.</returns>
         public static byte[] GetSecureAreaData(string plusCode, string key, string password)
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             var row = db.AreaData.FirstOrDefault(p => p.PlusCode == plusCode && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
                 return Array.Empty<byte>();
@@ -572,7 +574,7 @@ namespace PraxisCore {
         /// <returns>The value saved to the key with the password given, or an empty string if no key/value pair was found or the password is incorrect.</returns>
         public static byte[] GetSecurePlayerData(string accountId, string key, string password)
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             var row = db.PlayerData.FirstOrDefault(p => p.accountId == accountId && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
                 return Array.Empty<byte>();
@@ -627,7 +629,7 @@ namespace PraxisCore {
         {
             var encryptedValue = EncryptValue(value, password, out byte[] IVs);
 
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var row = db.PlayerData.FirstOrDefault(p => p.accountId == playerId && p.DataKey == key);
             if (row == null)
@@ -657,7 +659,7 @@ namespace PraxisCore {
         /// <returns>The value saved to the key, or an empty string if no key/value pair was found.</returns>
         public static byte[] GetSecurePlaceData(Guid elementId, string key, string password)
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var row = db.PlaceData.Include(p => p.Place).FirstOrDefault(p => p.Place.PrivacyId == elementId && p.DataKey == key);
@@ -719,7 +721,7 @@ namespace PraxisCore {
         public static bool SetSecurePlaceData(Guid elementId, string key, byte[] value, string password, double? expiration = null)
         {
             byte[] encryptedValue = EncryptValue(value, password, out byte[] IVs);
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
 
             var row = db.PlaceData.Include(p => p.Place).FirstOrDefault(p => p.Place.PrivacyId == elementId && p.DataKey == key);
@@ -751,7 +753,7 @@ namespace PraxisCore {
         /// <returns></returns>
         public static List<PlayerData> GetAllPlayerDataByKey(string key)
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var results = db.PlayerData.Where(k => k.DataKey == key && k.IvData == null).ToList();
@@ -768,7 +770,7 @@ namespace PraxisCore {
             SimpleLockable.PerformWithLock("global" + key, () =>
             {
                 byte[] sourcevalue = Array.Empty<byte>();
-                var db = new PraxisContext();
+                using var db = new PraxisContext();
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
                 var row = db.GlobalData.FirstOrDefault(s => s.DataKey == key);
                 if (row == null)
@@ -801,7 +803,7 @@ namespace PraxisCore {
             SimpleLockable.PerformWithLock(playerId + key, () =>
             {
                 byte[] sourcevalue = Array.Empty<byte>();
-                var db = new PraxisContext();
+                using var db = new PraxisContext();
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
                 var row = db.PlayerData.FirstOrDefault(s => s.accountId == playerId && s.DataKey == key);
                 if (row == null)
@@ -845,7 +847,7 @@ namespace PraxisCore {
             SimpleLockable.PerformWithLock(placeId + key, () =>
             {
                 byte[] sourcevalue = Array.Empty<byte>();
-                var db = new PraxisContext();
+                using var db = new PraxisContext();
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
                 var row = db.PlaceData.Include(p => p.Place).FirstOrDefault(p => p.Place.PrivacyId == placeId && p.DataKey == key);
                 if (row == null)
@@ -890,7 +892,7 @@ namespace PraxisCore {
             SimpleLockable.PerformWithLock(plusCode + key, () =>
             {
                 byte[] sourcevalue = Array.Empty<byte>();
-                var db = new PraxisContext();
+                using var db = new PraxisContext();
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
                 var row = db.AreaData.FirstOrDefault(s => s.PlusCode == plusCode && s.DataKey == key);
                 if (row == null)
@@ -936,11 +938,11 @@ namespace PraxisCore {
             SimpleLockable.PerformWithLock(playerId + "secure" + key, () =>
             {
                 byte[] sourceValue = Array.Empty<byte>();
-                var db = new PraxisContext();
+                using var db = new PraxisContext();
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
                 var row = db.PlayerData.FirstOrDefault(p => p.accountId == playerId && p.DataKey == key);
                 if (row == null)
-                { 
+                {
                     row = new DbTables.PlayerData();
                     row.accountId = playerId;
                     row.DataKey = key;
@@ -983,7 +985,7 @@ namespace PraxisCore {
             SimpleLockable.PerformWithLock(placeId + "secure" + key, () =>
             {
                 byte[] sourceValue = Array.Empty<byte>();
-                var db = new PraxisContext();
+                using var db = new PraxisContext();
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
                 var row = db.PlaceData.Include(p => p.Place).FirstOrDefault(p => p.Place.PrivacyId == placeId && p.DataKey == key);
                 if (row == null)
@@ -1031,7 +1033,7 @@ namespace PraxisCore {
             SimpleLockable.PerformWithLock(plusCode + "secure" + key, () =>
             {
                 byte[] sourceValue = Array.Empty<byte>();
-                var db = new PraxisContext();
+                using var db = new PraxisContext();
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
                 var row = db.AreaData.FirstOrDefault(p => p.PlusCode == plusCode && p.DataKey == key);
                 if (row == null)
@@ -1078,7 +1080,7 @@ namespace PraxisCore {
             IVs = baseSec.IV;
             var crypter = baseSec.CreateEncryptor(passwordBytes, IVs);
 
-            var ms = new MemoryStream();
+            using var ms = new MemoryStream();
             using (CryptoStream cs = new CryptoStream(ms, crypter, CryptoStreamMode.Write))
                 cs.Write(value, 0, value.Length);
 
@@ -1098,10 +1100,9 @@ namespace PraxisCore {
 
             var crypter = baseSec.CreateDecryptor(passwordBytes, IVs);
 
-            var ms = new MemoryStream();
+            using var ms = new MemoryStream();
             using (CryptoStream cs = new CryptoStream(ms, crypter, CryptoStreamMode.Write))
                 cs.Write(value);
-
             return ms.ToArray();
         }
 
@@ -1145,7 +1146,7 @@ namespace PraxisCore {
         {
             var hashedPwd = BCrypt.Net.BCrypt.EnhancedHashPassword(password, rounds);
 
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var entry = db.AuthenticationData.Where(a => a.accountId == accountId).FirstOrDefault();
             if (entry == null)
@@ -1180,7 +1181,7 @@ namespace PraxisCore {
         /// <returns></returns>
         public static bool CheckPassword(string accountId, string password)
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var entry = db.AuthenticationData.Where(a => a.accountId == accountId).FirstOrDefault();
@@ -1202,7 +1203,7 @@ namespace PraxisCore {
         /// <returns></returns>
         public static string GetInternalPassword(string accountId, string password)
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var entry = db.AuthenticationData.Where(a => a.accountId == accountId).FirstOrDefault();
