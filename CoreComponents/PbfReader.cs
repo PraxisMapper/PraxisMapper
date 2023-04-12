@@ -1420,7 +1420,7 @@ namespace PraxisCore.PbfReader
 
             if (saveToDB) //If this is on, we skip the file-writing part and send this data directly to the DB. Single threaded, but doesn't waste disk space with intermediate files.
             {
-                var db = new PraxisContext();
+                using var db = new PraxisContext();
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
                 db.Places.AddRange(elements);
                 db.SaveChanges();

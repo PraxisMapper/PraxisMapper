@@ -15,7 +15,7 @@ namespace PraxisMapper.Classes
             el.Message = ex.Message;
             el.StackTrace = ex.StackTrace;
             el.LoggedAt = DateTime.UtcNow;
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             db.ErrorLogs.Add(el);
             db.SaveChanges();

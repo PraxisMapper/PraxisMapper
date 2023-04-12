@@ -315,7 +315,7 @@ namespace PraxisMapper.Controllers {
         [Route("/[controller]/GetDistanceToPlace/{elementId}/{lat}/{lon}")]
         [Route("/[controller]/Distance/{elementId}/{lat}/{lon}")]
         public double GetDistanceToPlace(Guid elementId, double lat, double lon) {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var place = db.Places.FirstOrDefault(e => e.PrivacyId == elementId);
@@ -327,7 +327,7 @@ namespace PraxisMapper.Controllers {
         [Route("/[controller]/GetCenterOfPlace/{elementId}")]
         [Route("/[controller]/Center/{elementId}")]
         public string GetCenterOfPlace(Guid elementId) {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var place = db.Places.FirstOrDefault(e => e.PrivacyId == elementId);

@@ -52,7 +52,7 @@ namespace PraxisMapper.Classes
 
                 if (key.Key == null || !loggedIn) {
                     if (Startup.Configuration.GetValue<bool>("enablePerformanceTracker")) {
-                        var db = new PraxisContext();
+                        using var db = new PraxisContext();
                         db.ChangeTracker.AutoDetectChangesEnabled = false;
                         db.PerformanceInfo.Add(new DbTables.PerformanceInfo() { Notes = "Auth Failed for " + context.Request.Path, FunctionName = "PraxisAuth", CalledAt = DateTime.UtcNow });
                         db.SaveChangesAsync();

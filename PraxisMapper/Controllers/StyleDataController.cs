@@ -29,7 +29,7 @@ namespace PraxisMapper.Controllers {
         [Route("/[controller]/GetStyleSetEntryNames/{styleSet}")]
         [Route("/[controller]/Names/{styleSet}")]
         public string GetStyleSetEntryNames(string styleSet) {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var data = db.StyleEntries.Where(t => t.StyleSet == styleSet).OrderBy(t => t.MatchOrder).Select(t => t.Name).ToList();
@@ -41,7 +41,7 @@ namespace PraxisMapper.Controllers {
         [Route("/[controller]/GetStyleSetEntryValues/{styleSet}/{entryName}")]
         [Route("/[controller]/Entry/{styleSet}/{entryName}")]
         public string GetStyleSetEntryValues(string styleSet, string entryName) {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var data = db.StyleEntries.FirstOrDefault(t => t.StyleSet == styleSet && t.Name == entryName);
@@ -51,7 +51,7 @@ namespace PraxisMapper.Controllers {
         [HttpGet]
         [Route("/[controller]/json/{styleSet}/")]
         public JsonResult GetStyleJson(string styleSet) {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             JsonOptions jo = new JsonOptions();
@@ -75,7 +75,7 @@ namespace PraxisMapper.Controllers {
         [Route("/[controller]/Entry/{styleSet}/{id}/{matchOrder}/{entryName}/{isGameElement}")]
         public void UpdateStyleSetEntryValues(string styleSet, long id, int matchOrder, string entryName, bool isGameElement) {
             //Hasnt yet been tested.
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             var data = db.StyleEntries.FirstOrDefault(t => t.Id == id);
             if (data == null) {
                 data = new DbTables.StyleEntry();
@@ -92,7 +92,7 @@ namespace PraxisMapper.Controllers {
         [Route("/[controller]/MatchRule/{id}/{matchType}/{key}/{value}")]
         public void UpdateMatchRule(long id, string matchType, string key, string value) {
             //Hasnt yet been tested.
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             var tagrule = db.StyleMatchRules.FirstOrDefault(t => t.Id == id);
             if (tagrule == null) {
                 tagrule = new DbTables.StyleMatchRule();
@@ -107,7 +107,7 @@ namespace PraxisMapper.Controllers {
         [HttpPut]
         public void UpdateStylePaint([FromBody] StylePaint paint) {
             //placeholder, requires testing to make sure paint loads correctly from the body.
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             var data = db.StylePaints.First();
             if (data == null)
                 data = new StylePaint();
@@ -130,7 +130,7 @@ namespace PraxisMapper.Controllers {
         public void InsertBitmap(string filename) {
             //NOTE: this one rejects overwriting existing entries to avoid potential griefing.
             //
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             if (db.StyleBitmaps.Any(d => d.Filename == filename))
                 return;
 
@@ -145,7 +145,7 @@ namespace PraxisMapper.Controllers {
         public void AskForCreatedAreas(string plusCode) {
             //This may belong somewhere else, but this should be a server-side function.
             //Check if there are areas in the listed plusCode, and if not make one or two.
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             var area = OpenLocationCode.DecodeValid(plusCode);
             var places = PraxisCore.Place.GetPlaces(area);
             places = places.Where(p => p.Tags.Any(t => t.Key == "generated" && t.Value == "praxisMapper")).ToList();

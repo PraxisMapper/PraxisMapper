@@ -122,7 +122,7 @@ namespace PraxisCore.GameTools
         /// <param name="expiration">How many seconds this data is valid for.</param>
         public static void SaveCustomGridAreaData(CustomGridResults data, string key, object value, DateTime? expiration = null)
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             string name = GetCustomGridName(data);
             var row = db.AreaData.FirstOrDefault(p => p.PlusCode == name && p.DataKey == key);
@@ -146,7 +146,7 @@ namespace PraxisCore.GameTools
         /// Attach encrypted data to the results of FindGridCode and save it to the AreaData table, like it was a PlusCode. Required if this is storing data on a player in an area.
         /// </summary>
         public static void SaveCustomGridSecureAreaData(CustomGridResults data, string key, string password, object value, double? expiration = null) {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
 
             byte[] encryptedValue = GenericData.EncryptValue(value.ToJsonByteArray(), password, out byte[] IVs);
@@ -175,7 +175,7 @@ namespace PraxisCore.GameTools
 
         public static byte[] LoadCustomGridData(CustomGridResults data, string key)
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             string name = GetCustomGridName(data);
             var row = db.AreaData.FirstOrDefault(a => a.PlusCode == name && a.DataKey == key);
             if (row == null)

@@ -51,7 +51,7 @@ namespace PraxisMapper.Controllers {
             if (!GenericData.CheckPassword(accountId, password))
                 return 0;
 
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var removing = db.PlayerData.Where(p => p.accountId == accountId).ToArray();
             db.PlayerData.RemoveRange(removing);
@@ -75,7 +75,7 @@ namespace PraxisMapper.Controllers {
                 return cached;
 
             //NOTE: not using the cached ServerSettings table, since this might change without a reboot, but I do cache the results for 15 minutes to minimize DB calls.
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var message = db.ServerSettings.First().MessageOfTheDay;
@@ -88,7 +88,7 @@ namespace PraxisMapper.Controllers {
         public void AntiCheat(string filename) {
             var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
 
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var IP = Request.HttpContext.Connection.RemoteIpAddress.ToString();
@@ -126,7 +126,7 @@ namespace PraxisMapper.Controllers {
         public bool CreateAccount(string accountId, string password) {
             Response.Headers.Add("X-noPerfTrack", "Server/CreateAccount/VARSREMOVED");
 
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var exists = db.AuthenticationData.Any(a => a.accountId == accountId);
@@ -143,7 +143,7 @@ namespace PraxisMapper.Controllers {
             if (GenericData.CheckPassword(accountId, passwordOld)) {
                 GenericData.EncryptPassword(accountId, passwordNew, Configuration.GetValue<int>("PasswordRounds"));
 
-                var db = new PraxisContext();
+                using var db = new PraxisContext();
                 var entries = db.PlayerData.Where(p => p.accountId == accountId && p.IvData != null).ToList();
                 foreach (var entry in entries) {
                     try {
@@ -189,7 +189,7 @@ namespace PraxisMapper.Controllers {
             StringBuilder sb = new StringBuilder();
             if (!string.IsNullOrWhiteSpace(accountId))
             {
-                var db = new PraxisContext();
+                using var db = new PraxisContext();
                 var authInfo = db.AuthenticationData.First(a => a.accountId == accountId);
                 sb.AppendLine("accountID: " + authInfo.accountId + " | bannedUntil: " + authInfo.bannedUntil + " | dataIV: " + authInfo.dataIV.ToBase64String() + " | dataPassword: " + authInfo.dataPassword + " | isAdmin: " + authInfo.isAdmin + " | loginPassword: " + authInfo.loginPassword);
 

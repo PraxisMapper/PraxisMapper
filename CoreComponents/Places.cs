@@ -98,7 +98,7 @@ namespace PraxisCore
             var location = area.ToPolygon();
             if (source == null)
             {
-                var db = new PraxisContext();
+                using var db = new PraxisContext();
                 db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
                 return db.Places.Any(md => md.ElementGeometry.Intersects(location));
@@ -194,7 +194,7 @@ namespace PraxisCore
         {
             //This is the fastest way to do this. The DB takes much longer to calculate distances, so we just check what intersects the distance we were looking for,
             //then calculate the distance on all of those elements
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var distancePoly = ntsPoint.Buffer(distance);

@@ -220,7 +220,7 @@ namespace PraxisCore
         public static List<CompletePaintOp> GetPaintOpsForAreas(string styleSet, ImageStats stats)
         {
             var styles = TagParser.allStyleGroups[styleSet];
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
 
@@ -287,7 +287,7 @@ namespace PraxisCore
             {
                 System.Diagnostics.Stopwatch thisRowSW = new System.Diagnostics.Stopwatch();
                 thisRowSW.Start();
-                var db = new PraxisContext();
+                using var db = new PraxisContext();
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
                 //Make a collision box for just this row of Cell8s, and send the loop below just the list of things that might be relevant.
                 //Add a Cell8 buffer space so all elements are loaded and drawn without needing to loop through the entire area.
@@ -343,7 +343,7 @@ namespace PraxisCore
         public static void PregenSlippyMapTilesForArea(GeoArea buffered, int zoomLevel)
         {
             //There is a very similar function for this in Standalone.cs, but this one writes back to the main DB.
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var intersectCheck = buffered.ToPolygon();
 
@@ -406,7 +406,7 @@ namespace PraxisCore
         /// <returns></returns>
         public static long SaveMapTile(string code, string styleSet, byte[] image)
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.StyleSet == styleSet);
             if (existingResults == null)
@@ -429,7 +429,7 @@ namespace PraxisCore
         /// </summary>
         public static long SaveSlippyMapTile(ImageStats info, string tileKey, string styleSet, byte[] image)
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.StyleSet == styleSet);
             if (existingResults == null)
@@ -456,7 +456,7 @@ namespace PraxisCore
         /// <returns></returns>
         public static byte[] GetExistingTileImage(string code, string styleSet)
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var existingResults = db.MapTiles.FirstOrDefault(mt => mt.PlusCode == code && mt.StyleSet == styleSet);
@@ -468,7 +468,7 @@ namespace PraxisCore
 
         public static byte[] GetExistingSlippyTile(string tileKey, string styleSet)
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.StyleSet == styleSet);
