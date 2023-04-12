@@ -161,7 +161,6 @@ namespace PraxisMapper {
                     reader.saveToDB = true;
                     reader.ProcessFile(candidates.First(), relationAsBounds);
                     Log.WriteLog("Done populating DB from " + candidates.First());
-                    db = new PraxisContext();
                     db.SetServerBounds(relationAsBounds);
                 }
             }
