@@ -118,7 +118,7 @@ namespace PraxisMapper {
 
             //Start cleanup threads that fire every half hour.
             System.Threading.Tasks.Task.Run(() => {
-                var db = new PraxisContext();
+                using var db = new PraxisContext();
                 db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
                 while (true) {
@@ -146,7 +146,7 @@ namespace PraxisMapper {
         /// This function allows PraxisMapper to populate itself from a .pbf file in the same folder. Allows for the fastest setup of a functioning server.
         /// </summary>
         private void BuildAndLoadDB() {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.MakePraxisDB(); //Does nothing if DB already exists, creates DB if not.
 
             //if the DB is empty, attmept to auto-load from a pbf file. This removes a couple of manual steps from smaller games, even if it takes a few extra minutes.
@@ -169,7 +169,7 @@ namespace PraxisMapper {
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IMemoryCache cache) {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
 
             if (env.IsDevelopment()) {
                 app.UseDeveloperExceptionPage();

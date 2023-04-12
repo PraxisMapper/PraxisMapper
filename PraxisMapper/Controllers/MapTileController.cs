@@ -203,7 +203,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Expire/{elementId}/{styleSet}")]
         public void ExpireTiles(Guid elementId, string styleSet) {
             Response.Headers.Add("X-noPerfTrack", "Maptiles/Expire/VARSREMOVED");
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ExpireMapTiles(elementId, styleSet);
         }
 
@@ -219,7 +219,7 @@ namespace PraxisMapper.Controllers
             //Avoiding that might require an endpoint for 'please draw this tile' that returns true or false rather than the actual maptile.
             Response.Headers.Add("X-noPerfTrack", "Maptiles/Generation/" + styleSet + "/VARSREMOVED");
             try {
-                var db = new PraxisContext();
+                using var db = new PraxisContext();
                 db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
                 long tileGenId = -1;
@@ -244,7 +244,7 @@ namespace PraxisMapper.Controllers
             //if value is equal to previous value, tile has not changed.
             Response.Headers.Add("X-noPerfTrack", "Maptiles/SlippyGeneration/" + styleSet + "/VARSREMOVED");
             try {
-                var db = new PraxisContext();
+                using var db = new PraxisContext();
                 db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
                 long tileGenId = -1;

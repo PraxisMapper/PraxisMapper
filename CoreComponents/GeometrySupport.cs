@@ -398,7 +398,7 @@ namespace PraxisCore
         /// </summary>
         public static Geometry UpgradePointToArea(Point point, string styleSet = "mapTiles", string areaStyle = "")
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             var intersectAreas = db.Places.Where(p => p.ElementGeometry.Intersects(point)).ToList();
             TagParser.ApplyTags(intersectAreas, styleSet);
 

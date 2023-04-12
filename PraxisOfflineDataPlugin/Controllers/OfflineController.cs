@@ -74,7 +74,7 @@ namespace PraxisOfflineDataPlugin.Controllers {
             if (!PraxisAuthentication.IsAdmin(accountId))
                 return "";
 
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var terrainDict = new ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<string, string>>>>();

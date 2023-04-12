@@ -43,7 +43,7 @@ namespace PraxisCore.GameTools
 
         public static void SaveMeterGridAreaData(MeterGridResults data, string key, object value, DateTime? expiration = null)
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             string name = GetMeterGridName(data);
             var row = db.AreaData.FirstOrDefault(p => p.PlusCode == name && p.DataKey == key);
@@ -65,7 +65,7 @@ namespace PraxisCore.GameTools
 
         public static void SaveMeterGridSecureAreaData(MeterGridResults data, string key, string password, object value, double? expiration = null)
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
 
             byte[] encryptedValue = GenericData.EncryptValue(value.ToJsonByteArray(), password, out byte[] IVs);
@@ -95,7 +95,7 @@ namespace PraxisCore.GameTools
 
         public static byte[] LoadMeterGridData(MeterGridResults data, string key)
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             string name = GetMeterGridName(data);
             var row = db.AreaData.FirstOrDefault(a => a.PlusCode == name && a.DataKey == key && (a.Expiration == null || a.Expiration > DateTime.UtcNow));
             if (row == null)
@@ -106,7 +106,7 @@ namespace PraxisCore.GameTools
 
         public static byte[] LoadMeterGridSecureData(MeterGridResults data, string key, string password)
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             string name = GetMeterGridName(data);
             var row = db.AreaData.FirstOrDefault(a => a.PlusCode == name && a.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)

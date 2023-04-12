@@ -96,7 +96,7 @@ namespace Larry
                 sw.Start();
                 SetEnvValues();
                 SetDefaultPasswords();
-                var db = new PraxisContext();
+                using var db = new PraxisContext();
                 TagParser.Initialize(true, null);
                 createDb();
                 processPbfs();
@@ -144,7 +144,7 @@ namespace Larry
             }
 
             if (args.Any(a => a == "-resetStyles")) {
-                var db = new PraxisContext();
+                using var db = new PraxisContext();
                 db.ResetStyles();
             }
 
@@ -238,13 +238,13 @@ namespace Larry
             }
 
             if (args.Any(a => a == "-autoCreateMapTiles")) {
-                var db = new PraxisContext();
+                using var db = new PraxisContext();
                 var bounds = db.SetServerBounds(long.Parse(config["UseOneRelationID"]));
                 MapTileSupport.PregenMapTilesForArea(bounds);
             }
 
             if (args.Any(a => a == "-findServerBounds")) {
-                var db = new PraxisContext();
+                using var db = new PraxisContext();
                 db.SetServerBounds(long.Parse(config["UseOneRelationID"]));
             }
 
@@ -309,7 +309,7 @@ namespace Larry
 
         private static void createDb() {
             Log.WriteLog("Creating database with current database settings.");
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.MakePraxisDB();
         }
 
@@ -516,7 +516,7 @@ namespace Larry
                 if (relation != null)
                 {
                     var place = GeometrySupport.ConvertOsmEntryToPlace(relation, config["TagParserStyleSet"]);
-                    var db = new PraxisContext();
+                    using var db = new PraxisContext();
                     db.Places.Add(place);
                     db.SaveChanges();
                     db.ExpireMapTiles(place.ElementGeometry);
@@ -540,7 +540,7 @@ namespace Larry
         }
 
         private static void DrawPosterOfServer(int xInches = 24, int yInches = 36, int dpi = 300) {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             var bounds = db.ServerSettings.First();
 
             var geoArea = new GeoArea(bounds.SouthBound, bounds.WestBound, bounds.NorthBound, bounds.EastBound);
@@ -613,7 +613,7 @@ namespace Larry
             po.MaxDegreeOfParallelism = 1;
             Parallel.ForEach(filenames, po, (filename) => {
                 try {
-                    var db = new PraxisContext();
+                    using var db = new PraxisContext();
                     Log.WriteLog("Loading " + filename);
                     var entries = GeometrySupport.ReadPlaceFilesToMemory(filename); //tagsData file loaded automatically here.
                     Log.WriteLog(entries.Count + " entries to check in database for " + filename);
@@ -636,7 +636,7 @@ namespace Larry
                 po.MaxDegreeOfParallelism = 4;
             Parallel.ForEach(filenames, po, (filename) => {
                 try {
-                    var db = new PraxisContext();
+                    using var db = new PraxisContext();
                     Log.WriteLog("Loading " + filename);
                     var entries = GeometrySupport.ReadPlaceFilesToMemory(filename); //tagsData file loaded automatically here.
                     Log.WriteLog(entries.Count + " entries to check in database for " + filename);
@@ -649,7 +649,7 @@ namespace Larry
                 }
             });
 
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ExpireAllMapTiles();
             db.ExpireAllSlippyMapTiles();
         }
@@ -693,7 +693,7 @@ namespace Larry
         }
 
         public static void MakeOfflineFilesCell8() {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var terrainDict = new ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<string, string>>>>();
@@ -780,7 +780,7 @@ namespace Larry
 
         public static bool IsTerrainPresent(string styleSet, string terrain, string cell) {
             //This will be a DB query based on a style that doesn't have a NOT criteria.
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
 
@@ -818,7 +818,7 @@ namespace Larry
 
         public static void ReduceServerSize() //Extremely similar to the PBFReader reprocessing, but online instead of against files.
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             var groupsDone = 0;
             var groupSize = 1000;
             bool keepGoing = true;
@@ -844,7 +844,7 @@ namespace Larry
 
         public static void RecalcDrawSizeHints() {
             //TODO: write something that lets me quick and easy batch commands on the entities.
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             var groupsDone = 0;
             var groupSize = 10000;
             bool keepGoing = true;
@@ -869,7 +869,7 @@ namespace Larry
         }
 
         public static void BatchOp(Action<DbTables.Place> a) {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             var groupsDone = 0;
             var groupSize = 1000;
             bool keepGoing = true;

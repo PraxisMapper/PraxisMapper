@@ -27,7 +27,7 @@ namespace PraxisMunicipalityPlugin.Controllers {
         [Route("/[controller]/Muni/{plusCode}")]
         public string Muni(string plusCode) {
             Response.Headers.Add("X-noPerfTrack", "Muni/VARSREMOVED");
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var location = plusCode.ToPolygon();
@@ -46,7 +46,7 @@ namespace PraxisMunicipalityPlugin.Controllers {
         [Route("/[controller]/MuniAll/{plusCode}")]
         public List<MuniData> AllMuni(string plusCode) {
             Response.Headers.Add("X-noPerfTrack", "MuniAll/VARSREMOVED");
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var location = plusCode.ToPolygon();
@@ -62,7 +62,7 @@ namespace PraxisMunicipalityPlugin.Controllers {
         [Route("/[controller]/Place/{plusCode}")]
         public string PlaceName(string plusCode) {
             Response.Headers.Add("X-noPerfTrack", "PlaceName/VARSREMOVED");
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var poly = plusCode.ToPolygon();

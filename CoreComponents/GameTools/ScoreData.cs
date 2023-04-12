@@ -92,7 +92,7 @@ namespace PraxisCore.GameTools
         /// <returns>the score for the requested Place</returns>
         public static long GetScoreForSinglePlace(Guid elementId)
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var place = db.Places.FirstOrDefault(e => e.PrivacyId == elementId).ElementGeometry;

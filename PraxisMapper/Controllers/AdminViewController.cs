@@ -99,7 +99,7 @@ namespace PraxisMapper.Controllers {
         [HttpGet]
         [Route("/[controller]/GetPlaceInfo/{sourceElementId}/{sourceElementType}")]
         public ActionResult GetPlaceInfo(long sourceElementId, int sourceElementType) {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var area = db.Places.Include(e => e.Tags).FirstOrDefault(e => e.SourceItemID == sourceElementId && e.SourceItemType == sourceElementType);
@@ -146,7 +146,7 @@ namespace PraxisMapper.Controllers {
         [HttpGet]
         [Route("/[controller]/GetPlaceInfo/{privacyId}/")]
         public ActionResult GetPlaceInfo(Guid privacyId) {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var area = db.Places.Include(e => e.Tags).FirstOrDefault(e => e.PrivacyId == privacyId);
@@ -161,7 +161,7 @@ namespace PraxisMapper.Controllers {
         public ActionResult EditData() {
             //TODO: break these out into separate views when ready.
             Models.EditData model = new Models.EditData();
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             model.accessKey = "?PraxisAuthKey=" + Configuration["serverAuthKey"];
@@ -231,7 +231,7 @@ namespace PraxisMapper.Controllers {
         [Route("/[controller]/ExpireTiles")]
         public IActionResult ExpireTiles()
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ExpireAllMapTiles();
             db.ExpireAllSlippyMapTiles();
 
@@ -242,7 +242,7 @@ namespace PraxisMapper.Controllers {
         [Route("/[controller]/ResetStyles")]
         public IActionResult ResetStyles()
         {
-            var db = new PraxisContext();
+            using var db = new PraxisContext();
             db.ResetStyles();
             TagParser.Initialize(false, MapTileSupport.MapTiles);
             db.ExpireAllMapTiles();
