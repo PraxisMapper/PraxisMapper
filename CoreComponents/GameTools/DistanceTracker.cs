@@ -62,8 +62,7 @@ namespace PraxisCore.GameTools {
         /// Replaces the current last-tracked point and timestamp with the given point and current timestamp.
         /// </summary>
         public void SetLastPoint(Point incPoint) {
-            lastPoint.X = incPoint.X;
-            lastPoint.Y = incPoint.Y;
+            lastPoint = new JsonPoint() { X = incPoint.X, Y = incPoint.Y };
             lastPointRecordedAt = DateTime.UtcNow;
         }
 
