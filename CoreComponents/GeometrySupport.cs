@@ -209,7 +209,7 @@ namespace PraxisCore
         /// </summary>
         /// <param name="place"></param>
         /// <returns></returns>
-        public static double CalculateDrawSizeHint(DbTables.Place place)
+        public static double CalculateDrawSizeHint(DbTables.Place place, string styleSet = "mapTiles")
         {
             //The default assumption here is that a Cell11 is 1 pixel for gameplay tiles before factoring in GameTileScale.
             //So we take the area of the drawn element in degrees, divide by (the size of a square Cell11 divided by GameTileScale).
@@ -356,7 +356,7 @@ namespace PraxisCore
             double calcLat = Math.Sin((y2.ToRadians() - y1.ToRadians()) * 0.5);
             double calcLon = Math.Sin((x2.ToRadians() - x1.ToRadians()) * 0.5);
             double q = calcLat * calcLat + calcLon * calcLon * (Math.Cos(y2.ToRadians()) * Math.Cos(y1.ToRadians()));
-            return 12734000.0 * Math.Asin(Math.Sqrt(q));
+            return 12756273.2 * Math.Asin(Math.Sqrt(q));
         }
 
         /// <summary>
