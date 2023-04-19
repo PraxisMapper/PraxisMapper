@@ -35,30 +35,35 @@ namespace PraxisDemosPlugin.Controllers
         [Route("/[controller]/Splat/{plusCode}/{radius}")]
         public void Splat(string plusCode, double radius)
         {
-            //A user wants to throw down a paint mark in the center of {plusCode} with a size of {radius} (in Cell10 tiles)
-            var newGeo = MakeSplatShape(plusCode.ToGeoArea().ToPoint(), radius * ConstantValues.resolutionCell10);
-            var color = Random.Shared.Next(colors);
-            var updateTasks = new Task[colors];
 
-            SimpleLockable.PerformWithLock("splatter", () =>
+            var points = GenericData.GetPlayerData(accountId, "splatPoints").ToUTF8String().ToInt();
+            if (points >= radius)
             {
-                GenericData.IncrementPlayerData(accountId, "splatPoints", -radius);
+                //A user wants to throw down a paint mark in the center of {plusCode} with a size of {radius} (in Cell10 tiles)
+                var newGeo = MakeSplatShape(plusCode.ToGeoArea().ToPoint(), radius * ConstantValues.resolutionCell10);
+                var color = Random.Shared.Next(colors);
+                var updateTasks = new Task[colors];
 
-                foreach (var s in splatCollection)
+                SimpleLockable.PerformWithLock("splatter", () =>
                 {
-                    if (s.Key == color)
-                        s.Value.AddGeometry(newGeo);
-                    else
-                        s.Value.RemoveGeometry(newGeo);
-                    updateTasks[s.Key] = Task.Run(() =>  GenericData.SetGlobalDataJson("splat-" + s.Key, s.Value)); 
-                }
+                    GenericData.IncrementPlayerData(accountId, "splatPoints", -radius);
 
-                var db = new PraxisContext();
-                db.ExpireMapTiles(newGeo, "splatter");
-                db.ExpireSlippyMapTiles(newGeo, "splatter");
+                    foreach (var s in splatCollection)
+                    {
+                        if (s.Key == color)
+                            s.Value.AddGeometry(newGeo);
+                        else
+                            s.Value.RemoveGeometry(newGeo);
+                        updateTasks[s.Key] = Task.Run(() => GenericData.SetGlobalDataJson("splat-" + s.Key, s.Value));
+                    }
 
-                Task.WaitAll(updateTasks);
-            });
+                    var db = new PraxisContext();
+                    db.ExpireMapTiles(newGeo, "splatter");
+                    db.ExpireSlippyMapTiles(newGeo, "splatter");
+
+                    Task.WaitAll(updateTasks);
+                });
+            }
         }
 
         [HttpGet]
@@ -84,13 +89,13 @@ namespace PraxisDemosPlugin.Controllers
             }
 
             List<DbTables.Place> places = new List<DbTables.Place>(colors);
-            foreach(var s in splatCollection)
+            foreach (var s in splatCollection)
                 places.Add(new DbTables.Place() { ElementGeometry = s.Value.explored, StyleName = s.Key.ToString() });
 
             var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, "splatter", info);
             var mapTile = MapTileSupport.MapTiles.DrawAreaAtSize(info, paintOps);
             MapTileSupport.SaveSlippyMapTile(info, tileKey, "splatter", mapTile);
-            
+
             return File(mapTile, "image/png");
         }
 
@@ -153,7 +158,11 @@ namespace PraxisDemosPlugin.Controllers
         [Route("/[controller]/Test/{plusCode8}")]
         public ActionResult TestShapes(string plusCode8)
         {
-            byte[] results = null;
+            byte[] results = Array.Empty<byte>();
+
+            if (!PraxisAuthentication.IsAdmin(accountId))
+                return File(results, "image/png");
+
             var mapTile1 = MapTileSupport.DrawPlusCode(plusCode8);
             var possiblePoints = plusCode8.GetSubCells();
 
@@ -179,7 +188,7 @@ namespace PraxisDemosPlugin.Controllers
             {
                 GenericData.SetGlobalDataJson("splat-" + splat.Key, splat.Value);
                 places.Add(new DbTables.Place() { DrawSizeHint = 1, ElementGeometry = splat.Value.explored, StyleName = splat.Key.ToString() });
-            }                
+            }
 
             var stats = new ImageStats(plusCode8);
             var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, "splatter", stats);
@@ -219,7 +228,7 @@ namespace PraxisDemosPlugin.Controllers
             var centerGeo = workPoint.Buffer(radius / 2);
             geometries.Add(centerGeo);
 
-            //Step 2: Add some bulges around it for asymmetry
+            //Step 2: Add some bulges around it for asymmetry. 30% of the radius in size, centered between 15-35% of the radius. The center will always be inside centerGeo
             var randCount = Random.Shared.Next(3, 8);
             for (int i = 0; i < randCount; i++)
             {
@@ -230,7 +239,7 @@ namespace PraxisDemosPlugin.Controllers
                 geometries.Add(bulgeGeo);
             }
 
-            //STep 3: add some distant circles, and connect them to the center with a triangle.
+            //Step 3: add some distant circles, and connect them to the center with a triangle.  sized 20% of the radius, centered between 50-100% of the radius
             randCount = Random.Shared.Next(3, 6);
             for (int i = 0; i < randCount; i++)
             {
@@ -241,7 +250,7 @@ namespace PraxisDemosPlugin.Controllers
                 geometries.Add(outerCircle);
 
                 Point t1, t2;
-                //draw triangle connecting outerCircle to center. Could use trig to grab points, this is easier math.
+                //draw triangle connecting outerCircle to center. Could use trig to grab points for slightly nicer triangles, this is easier math.
                 if (Math.Abs(randomMoveX) > Math.Abs(randomMoveY))
                 {
                     //use north/south
@@ -255,14 +264,16 @@ namespace PraxisDemosPlugin.Controllers
                     t2 = new Point(outerCircle.EnvelopeInternal.MinX, outerCircle.Centroid.Y);
                 }
 
-                var connector = Singletons.geometryFactory.CreatePolygon(new Coordinate[] { new Coordinate(centerGeo.Centroid.X, centerGeo.Centroid.Y), new Coordinate(t1.X, t1.Y), new Coordinate(t2.X, t2.Y), new Coordinate(centerGeo.Centroid.X, centerGeo.Centroid.Y) });
+                var connector = Singletons.geometryFactory.CreatePolygon(new Coordinate[] { 
+                    new Coordinate(centerGeo.Centroid.X, centerGeo.Centroid.Y), 
+                    new Coordinate(t1.X, t1.Y), 
+                    new Coordinate(t2.X, t2.Y), 
+                    new Coordinate(centerGeo.Centroid.X, centerGeo.Centroid.Y) 
+                });
                 geometries.Add(connector);
             }
 
-            var resultGeo = //Singletons.reducer.Reduce(
-                NetTopologySuite.Operation.Union.CascadedPolygonUnion.Union(geometries);  //gets simplified when added to geometryTracker
-                //)
-            //.Simplify(ConstantValues.resolutionCell11Lon)); //Simplify makes these much squarer shapes than I like.
+            var resultGeo = NetTopologySuite.Operation.Union.CascadedPolygonUnion.Union(geometries);  //gets reduced when added to geometryTracker
             return resultGeo;
         }
     }
