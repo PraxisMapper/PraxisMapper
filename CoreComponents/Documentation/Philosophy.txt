@@ -121,7 +121,6 @@ I believe the security setup in place today, which blocks the server owner from 
 6.1) Security (From a self-hosted, private/personal game perspective)
 You should STILL save everything securely as a best practice. But you should save what you want. You can track yourself freely, since you're in charge of it all.
 
-
 7) Why all this focus on not doing basic stuff bigger games do, or all these weird extra steps?
 Ingress is fairly notorious for teams tracking down people and/or monitoring them in-game to prevent them from making any progress.
 Orna is a fairly privacy-focused game, but keeps accounts and such. The developers wanted to make sure you could not stalk people in their game, and it does feature a large subset of solo players.
@@ -143,3 +142,37 @@ Niantic games use S2 cells to handle gameplay effects and data.
 Orna uses a customized grid, with 'regions' being a 10x10 degree square and subdivisions of those (exactly how uncertain to me right now, assuming 10x10 grids inside there a couple levels down.)
 PraxisMapper uses PlusCodes, which start at a 20x20 degree square and break those down into a 20x20 grid, repeated 5 times to get the baseline Cell10 size.
 Orna areas are likely very close to PlusCodes in practice, even though they're identified with anonymized/generated names instead of cell names.
+
+10)System Complexity or the lack thereof.
+An experienced developer might notice that PraxisMapper has 2 functional separate pieces (the database, and the PraxisMapper executable itself) and immediately
+start to wonder how the server is supposed to scale up without any sort of clustering, automatic caching, load balancing, CDN, sharding, container automation, automatic updates, etc.
+Smart use of those could increase PraxisMapper's scalability and performance, but the cost of implementing or supporting those would be to impede the ability to scale down to a 
+personal use level, and I've decided that's not acceptable. A company with the resources to look into integrating PraxisMapper with any of those above concerns is certainly able
+to fork the code and implement those if needed (and send in a PR if it's sufficently modular and optional). 
+
+PraxisMapper should be able to run on a single server. That's a goal. The 2 biggest obstacles to that goal are database size (which can be fixed by moving the database to a separate
+server) and simultaneous users. There is a point, which will vary from game to game with the amount and type of data processed, where the number of simultaneous requests will overwhelm
+a single web server. I believe PraxisMapper's structure pushes that point as far away from 0 as it can, particular given sufficient hardware resources. What the core server should do 
+to make it easier to split requests across multiple servers is a concern I will ponder once someone's running a game that hits that point.
+
+11) Game State and the performance tradeoff
+While we're on the the topic, let's point out one thing I do to reduce resources usage at the tradeoff of individual call performance.
+Most game engines do their best to keep all of the game state necessary in memory at the same time to ensure high performance. 
+PraxisMapper is inherently a mobile game with network data usage, so the idea of using it for sub-frame responsiveness is already thrown out the window.
+PM instead keeps almost no state in RAM, preferring to read and write to the database on all calls that require it. The only actual required data that needs to persist between calls
+is the Authentication info of who is actively logged in, so that we can recognize them on future calls.
+This more or less lines up with the original intentions for HTTP, a stateless system that didn't depend on knowing earlier requests to handle the current one. It's since largely been
+used and built on in ways that provide storing state, but that was the original goal.
+This does allow PraxisMapper to run on servers with lower hardware specs, to the point where a personal laptop or Raspberry Pi 4 (given a correctly scoped game) could be used as the
+server. I find this to be an extremely important point to keep the barriers to entry as low as possible.
+It does come with 2 drawbacks that might frustrate developers: 
+1-Any individual call involving data will take longer to run, which reduces the throughput of the server as a whole. This isn't too bad when you remember that the server taking 30ms
+to load and save a piece of data is likely still the fastest part of the request, versus the rest of the latency on a cellular data network.
+2-It becomes extremely difficult and time-consuming to do any sort of work that involves the whole of the game. Doing some kind of regularly scheduled process or applying in-game
+effects to all player-created entries now involves reading everything from the databaes, applying changes, and saving it all back. At this scale, this can take a long time or require
+making an external application that handles this particular task. 
+This may be better handled by only processing areas on demand, so that things only happen when they're active.
+EX: A player can place a mine that generates ore daily for them. Instead of having a nightly task that loads all players, and then loads each of their mines and grants ore every 24
+hours, instead store the time resources were last generated, and when a player logs in check to see how many resources they're owed and update the checked time. This way inactive
+players do not contribute to server load.
+
