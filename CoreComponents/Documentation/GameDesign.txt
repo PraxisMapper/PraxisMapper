@@ -6,8 +6,8 @@ Location Based Games are best defined academically (by Dale Leorke) as "incorpor
 the game via a networked interface". 
 
 “Locative games” is a way better name aesthetically than “Location based game”. I don’t know why this name was lost, but we should go back to it. The term was tied 
-closer to art projects than actual games, or corporate marketing aimed at something more people understand. “Locative” means “expressing location”, and I want games 
-made with PraxisMapper to do that. I will use the terms interchangeably in the rest of this document.
+closer to art projects than actual games, or corporate marketing chose 'location-based' because its more obvious to more people. “Locative” means “expressing location”,
+and I want games made with PraxisMapper to do that. I will use the terms interchangeably in the rest of this document.
 
 Augmented Reality (AR) is a tangent to Locative games. I don’t like the term. AR implies that you’re improving reality by shoving the game into it. Locative expresses
 pulling a bit of reality into your game. You cannot force everyone around you to play your game your way at any time, so its more appropriate to think of your use of 
