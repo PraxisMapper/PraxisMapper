@@ -323,12 +323,12 @@ namespace PraxisCore {
                         if (firstPoint.Equals(lastPoint) && w.paintOp.FillOrStroke == "fill")
                             image.Mutate(x => x.Fill(dOpts, paint, new SixLabors.ImageSharp.Drawing.Polygon(new LinearLineSegment(line))));
                         else
-                            image.Mutate(x => x.DrawLines(dOpts, pen, line));
+                            image.Mutate(x => x.DrawLine(dOpts, pen, line));
                         break;
                     case "MultiLineString":
                         foreach (var p3 in ((MultiLineString)thisGeometry).Geometries) {
                             var line2 = LineToDrawingLine(p3, stats);
-                            image.Mutate(x => x.DrawLines(dOpts, pen, line2));
+                            image.Mutate(x => x.DrawLine(dOpts, pen, line2));
                         }
                         break;
                     case "Point":
