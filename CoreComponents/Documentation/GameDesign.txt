@@ -134,4 +134,15 @@ Use Places to make game systems that rely on multiple people interacting with it
 Both can crossover. In TIBO, the styles attached to Places present in an Area affect which creatures will spawn in that Area. 
 
 
+--Game design checklist--
+A short list of common events that might be triggers for something in-game to think about.
+
+Are you doing something for the player when they:
+[ ] walk 10 meters?
+[ ] walk LOTS of meters?
+[ ] Enter an area for the first time?
+[ ] Revisit an area
+[ ] Interact with a Place for the first time?
+[ ] Continue interacting with a Place?
+[ ] open up the game on their couch at home?
 
