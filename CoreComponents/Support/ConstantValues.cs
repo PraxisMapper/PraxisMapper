@@ -35,8 +35,9 @@
         public const double resolutionCell8 = .0025; 
         public const double resolutionCell6 = .05; 
         public const double resolutionCell4 = 1; 
-        public const double resolutionCell2 = 20; 
+        public const double resolutionCell2 = 20;
 
+        public const double squareCell8Area = resolutionCell8 * resolutionCell8; //for area-control calculations.
         public const double squareCell10Area = resolutionCell10 * resolutionCell10; //for area-control calculations.
         public const double squareCell11Area = resolutionCell11Lat * resolutionCell11Lon; //for area-control calculations.
 
@@ -53,5 +54,8 @@
         public const double zoom20DegPerPixelX = 0.0000006705522537231445;
 
         public const double maptileLineWidthBase = 0.00000625F; //~1/20th of a Cell10. ~1/5th of a Cell11
+
+        public const double metersPerDegree = 111111;
+        public const double oneMeterLat = 1 / metersPerDegree;
     }
 }

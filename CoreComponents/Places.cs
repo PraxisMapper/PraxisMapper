@@ -208,6 +208,46 @@ namespace PraxisCore
             return results;
         }
 
+        public static List<DbTables.Place> FindGoodTargetPlaces(string plusCode, double distanceMinMeters, double distanceMaxMeters, string styleSet)
+        {
+            //In this case, I want to identify places that are probably good suggestions for an actual visit, not just matching a style.
+            //They should be a significant distance from the player (maybe min/max distance is a parameter)
+            //If possible, it should be a place inside a place (EX: a historic point inside a park).
+         
+            var startArea = plusCode.ToGeoArea();
+            var maxArea = startArea.PadGeoArea(distanceMaxMeters.DistanceMetersToDegreesLat());
+            var minArea = startArea.PadGeoArea(distanceMinMeters.DistanceMetersToDegreesLat()).ToPolygon();
+
+            var allPlaces = GetPlaces(maxArea, styleSet: styleSet);
+            var tooClose = allPlaces.Where(a => a.ElementGeometry.CoveredBy(minArea)).ToList();
+            allPlaces = allPlaces.Except(tooClose).ToList();
+
+            var targetPoints = allPlaces.Where(a => a.IsGameElement && a.ElementGeometry.GeometryType == "Point").ToList();
+            var likelyParents = allPlaces.Except(targetPoints).Where(a => a.IsGameElement).OrderBy(a => a.ElementGeometry.Area).Take(10);
+
+            List<DbTables.Place> results = new List<DbTables.Place>();
+            foreach(var p in likelyParents)
+            {
+                //I have briefly considered not allowing these target point to be in the same style as their parent, but 
+                //there are likely more cases where I want that to be allowed (Historic in historic, tourist in tourist, culture in culture)
+                //than there are cases where I dont (park in park, water in water, etc).
+                results.AddRange(targetPoints.Where(t => p.ElementGeometry.Covers(t.ElementGeometry)));
+            }
+
+            return results.Distinct().ToList();
+        }
+
+        public static List<DbTables.Place> FindPlacesInPlace(DbTables.Place place, string styleSet = "mapTiles")
+        {
+            var area = place.ElementGeometry.Envelope.ToGeoArea();
+            var allNearby = GetPlaces(area, styleSet: styleSet);
+
+            var goodTargets = allNearby.Where(a => a.IsGameElement && place.ElementGeometry.Intersects(a.ElementGeometry)).ToList();
+
+            return goodTargets;
+        }
+
+
         /// <summary>
         /// Returns a random 10-digit PlusCode inside the server boundaries. Boundaries are a square around the actual geometry, so these may still occur in uninteresting areas.
         /// </summary>

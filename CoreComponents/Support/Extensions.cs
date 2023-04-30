@@ -1,7 +1,6 @@
 ﻿using Google.OpenLocationCode;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Utilities;
-using PraxisCore.Support;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -454,9 +453,9 @@ namespace PraxisCore
         /// </summary>
         /// <param name="plusCode"></param>
         /// <returns></returns>
-        public static RandomNumberGenerator GetSeededRandomMersenne(this string plusCode) {
+        public static Support.RandomNumberGenerator GetSeededRandomMersenne(this string plusCode) {
             var hash = plusCode.GetDeterministicHashCodeForMersenne();
-            return new RandomNumberGenerator(hash);
+            return new Support.RandomNumberGenerator(hash);
         }
 
         /// <summary>
@@ -475,9 +474,9 @@ namespace PraxisCore
         /// </summary>
         /// <param name="plusCode"></param>
         /// <returns></returns>
-        public static RandomNumberGenerator GetSeededRandomMersenne(this OpenLocationCode plusCode) {
+        public static Support.RandomNumberGenerator GetSeededRandomMersenne(this OpenLocationCode plusCode) {
             var hash = plusCode.CodeDigits.GetDeterministicHashCodeForMersenne();
-            return new RandomNumberGenerator(hash);
+            return new Support.RandomNumberGenerator(hash);
         }
 
         /// <summary>
@@ -556,6 +555,26 @@ namespace PraxisCore
         /// <returns></returns>
         public static double MetersDistanceTo(this Point g, Point otherPoint) {
             return GeometrySupport.MetersDistanceTo(g, otherPoint);
+        }
+
+        public static double DistanceDegreesLatToMeters(this double d)
+        {
+            return d * ConstantValues.metersPerDegree;
+        }
+
+        public static double DistanceDegreesLonToMeters(this double d, double lat)
+        {
+            return d * ConstantValues.metersPerDegree * Math.Cos(lat.ToRadians());
+        }
+
+        public static double DistanceMetersToDegreesLon(this double d, double lat)
+        {
+            return d * ConstantValues.oneMeterLat * Math.Cos(lat.ToRadians());
+        }
+
+        public static double DistanceMetersToDegreesLat(this double d)
+        {
+            return d * ConstantValues.oneMeterLat;
         }
 
         /// <summary>
