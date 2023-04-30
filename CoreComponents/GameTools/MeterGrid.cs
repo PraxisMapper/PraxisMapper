@@ -14,23 +14,22 @@ namespace PraxisCore.GameTools
         //QUICK MATH:
         //1 degree of latitude is 111,111 meters, so 1 meter n/s is (1m = 1 / 111,111) = .0000009
         //1 degree of longitude is 111,111 * cos(latitude), so 1 meter e/w is .0000009 * cos(latitude.ToRadians()) degrees.
-        const double metersPerDegree = 111111;
-        const double oneMeterLat = 1 / metersPerDegree;
+
 
         public static MeterGridResults GetMeterGrid(double lat, double lon, int metersPerSquare)
         {
             var p = new NetTopologySuite.Geometries.Point(lon, lat);
-            var xDist =  (lon + 180) * Math.Cos(lat.ToRadians()) * metersPerDegree; //p.MetersDistanceTo(new NetTopologySuite.Geometries.Point(-180, lat)); 
+            var xDist =  (lon + 180) * Math.Cos(lat.ToRadians()) * ConstantValues.metersPerDegree;
             var yDist = p.MetersDistanceTo(new NetTopologySuite.Geometries.Point(lon, -90)); 
 
             int xId = (int)(xDist / metersPerSquare);
             int yId = (int)(yDist / metersPerSquare);
 
             GeoArea thisTile = new GeoArea(
-                yId * metersPerSquare * oneMeterLat,
-                xId * metersPerSquare * oneMeterLat * Math.Cos(lat.ToRadians()),
-                (yId + 1) * metersPerSquare * oneMeterLat,
-                (xId + 1) * metersPerSquare * oneMeterLat * Math.Cos(lat.ToRadians()));
+                yId * metersPerSquare * ConstantValues.oneMeterLat,
+                xId * metersPerSquare * ConstantValues.oneMeterLat * Math.Cos(lat.ToRadians()),
+                (yId + 1) * metersPerSquare * ConstantValues.oneMeterLat,
+                (xId + 1) * metersPerSquare * ConstantValues.oneMeterLat * Math.Cos(lat.ToRadians()));
 
             return new MeterGridResults(xId, yId, metersPerSquare, thisTile);
         }
