@@ -402,7 +402,7 @@ namespace PraxisCore
             var intersectAreas = db.Places.Where(p => p.ElementGeometry.Intersects(point)).ToList();
             TagParser.ApplyTags(intersectAreas, styleSet);
 
-            var resultsGeo = intersectAreas.Where(a => areaStyle == "" | a.StyleName == areaStyle && a.ElementGeometry.Area > 0).OrderBy(a => a.ElementGeometry.Area).Select(a => a.ElementGeometry).FirstOrDefault();
+            var resultsGeo = intersectAreas.Where(a => (areaStyle == "" | a.StyleName == areaStyle) && a.ElementGeometry.Area > 0).OrderBy(a => a.ElementGeometry.Area).Select(a => a.ElementGeometry).FirstOrDefault();
             if (resultsGeo == null)
                 resultsGeo = point;
 
