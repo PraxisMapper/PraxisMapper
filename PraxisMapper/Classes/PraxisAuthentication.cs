@@ -41,7 +41,7 @@ namespace PraxisMapper.Classes
                 });
 
                 if (data != null && data.expiration < DateTime.UtcNow) {
-                    authTokens.TryRemove(key.Value, out var ignore);
+                    authTokens.TryRemove(key.Value, out _);
                     context.Response.StatusCode = StatusCodes.Status419AuthenticationTimeout;
                     return;
                 }
@@ -70,7 +70,7 @@ namespace PraxisMapper.Classes
             return authTokens.TryAdd(entry.authToken, entry);
         }
         public static bool RemoveEntry(string accountId) {
-            return authTokens.TryRemove(accountId, out var ignore);
+            return authTokens.TryRemove(accountId, out _);
         }
 
         public static void DropExpiredEntries() {
@@ -80,7 +80,7 @@ namespace PraxisMapper.Classes
                     toRemoveAuth.Add(d.Key);
             }
             foreach (var d in toRemoveAuth)
-                authTokens.TryRemove(d, out var ignore);
+                authTokens.TryRemove(d, out _);
         }
 
         public static void GetAuthInfo(HttpResponse response, out string account, out string password) {
