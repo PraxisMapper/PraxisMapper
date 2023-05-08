@@ -124,13 +124,13 @@ namespace PraxisOfflineDataPlugin.Controllers {
                             }
                         });
                         if (terrainDict[cell2][cell4][cell6].IsEmpty)
-                            terrainDict[cell2][cell4].TryRemove(cell6, out var ignore);
+                            terrainDict[cell2][cell4].TryRemove(cell6, out _);
                     }
                     if (terrainDict[cell2][cell4].IsEmpty)
-                        terrainDict[cell2].TryRemove(cell4, out var ignore);
+                        terrainDict[cell2].TryRemove(cell4, out _);
                 }
                 if (terrainDict[cell2].IsEmpty)
-                    terrainDict[cell2].TryRemove(cell2, out var ignore);
+                    terrainDict[cell2].TryRemove(cell2, out _);
 
                 //NOTE and TODO: if I want to save files per Cell2, here is where I should write terrainDict, then remove the current Cell2 entry and loop.
             }

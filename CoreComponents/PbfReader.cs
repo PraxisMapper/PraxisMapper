@@ -62,7 +62,7 @@ namespace PraxisCore.PbfReader
 
         int nextBlockId = 0;
         long firstWayBlock = 0;
-        int startNodeBtreeIndex = 0; 
+        int startNodeBtreeIndex = 0;
         int startWayBtreeIndex = 0;
         int startRelationBtreeIndex = 0;
 
@@ -81,6 +81,8 @@ namespace PraxisCore.PbfReader
 
         CancellationTokenSource tokensource = new CancellationTokenSource();
         CancellationToken token;
+
+        Dictionary<long, object> blockLocks = new Dictionary<long, object>();
 
         public PbfReader()
         {
@@ -131,10 +133,14 @@ namespace PraxisCore.PbfReader
             var reprocFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + Path.GetFileNameWithoutExtension(filename) + "-reprocessed.geomData", FileMode.OpenOrCreate));
             var reprocTagsFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + Path.GetFileNameWithoutExtension(filename).Replace("geom", "tags") + "-reprocessed.tagsData", FileMode.OpenOrCreate));
 
+            StringBuilder sb = new StringBuilder();
+            StringBuilder sbTags = new StringBuilder();
+
             while (!sr.EndOfStream)
             {
-                StringBuilder sb = new StringBuilder();
-                StringBuilder sbTags = new StringBuilder();
+                sb.Clear();
+                sbTags.Clear();
+
                 string entry = sr.ReadLine();
                 string tagEntry = sr2.ReadLine();
                 if (entry == "")
@@ -146,7 +152,7 @@ namespace PraxisCore.PbfReader
                     continue;
 
                 if (processingMode == "center")
-                { 
+                {
                     md.ElementGeometry = md.ElementGeometry.Centroid;
                     sb.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(md.PrivacyId).Append("\r\n");
                     reprocFileStream.WriteLine(sb.ToString());
@@ -166,7 +172,6 @@ namespace PraxisCore.PbfReader
                         while (tagEntry.StartsWith(md.SourceItemID.ToString()))
                         {
                             string[] pieces = tagEntry.Split('\t');
-                            //md.Tags.Add(new PlaceTags() { Key = pieces[2], Value = pieces[3], SourceItemId = 1, SourceItemType = 2 });
                             originalTags.Add(new PlaceTags() { Key = pieces[2], Value = pieces[3], SourceItemId = 1, SourceItemType = 2 });
                             tagEntry = sr2.ReadLine();
                         }
@@ -186,18 +191,18 @@ namespace PraxisCore.PbfReader
                             sbTags.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(tag.Key).Append('\t').Append(tag.Value).Append("\r\n");
                         reprocTagsFileStream.Write(sbTags.ToString());
                     }
-                    catch(Exception ex)
+                    catch (Exception ex)
                     {
                         Log.WriteLog("Couldn't reduce element " + md.SourceItemID + ", saving as-is (" + ex.Message + ")");
                         reprocFileStream.Write(md.SourceItemID + '\t' + md.SourceItemType + '\t' + originalGeo.AsText() + '\t' + md.PrivacyId + '\t' + md.DrawSizeHint + "\r\n");
                         foreach (var t in originalTags)
                         {
-                            reprocTagsFileStream.Write(md.SourceItemID + '\t' + md.SourceItemType + '\t' +t.Key + '\t' + t.Value +"\r\n");
+                            reprocTagsFileStream.Write(md.SourceItemID + '\t' + md.SourceItemType + '\t' + t.Key + '\t' + t.Value + "\r\n");
                         }
                     }
                 }
 
-                
+
             }
             sr.Close(); sr.Dispose(); fr.Close(); fr.Dispose();
             sr2.Close(); sr2.Dispose(); fr2.Close(); fr2.Dispose();
@@ -261,7 +266,7 @@ namespace PraxisCore.PbfReader
                                 {
                                     currentCount = ProcessReaderResults(geoData, block, i);
                                 }
-                                SaveCurrentBlockAndGroup(block - 1, i);
+                                SaveCurrentBlockAndGroup(block, i);
                                 swGroup.Stop();
                                 if (group.relations.Count > 0)
                                     timeListRelations.Add(swGroup.Elapsed);
@@ -397,6 +402,8 @@ namespace PraxisCore.PbfReader
                 fs.Read(thisblob, 0, bh.datasize);
 
                 var passedBC = blockCounter;
+                //NOTE: this might be a good place to look at variable capture instead of letting thisblock get captured by
+                //the lambda itself
                 var tasked = Task.Run(() => //Threading makes this run approx. twice as fast.
                 {
                     var pb2 = DecodeBlock(thisblob);
@@ -461,7 +468,7 @@ namespace PraxisCore.PbfReader
         }
 
         /// <summary>
-        /// If a block is already in memory, load it. If it isn't, load it from disk and add it to memory.
+        /// If a block is already in memory, returns it. If it isn't, load it from disk and add it to memory.
         /// </summary>
         /// <param name="blockId">the ID for the block in question</param>
         /// <returns>the PrimitiveBlock requested</returns>
@@ -485,29 +492,6 @@ namespace PraxisCore.PbfReader
                     }
                 });
             }
-            return results;
-
-            //    var blockLock = SimpleLockable.GetLock(blockId.ToString());
-            //    if (blockLock.counter > 1)
-            //    {
-            //        //we're already loading this, don't act.
-            //        //lock (blockLock) { } //wait for previous op to complete
-            //        SimpleLockable.DropLock(blockId.ToString(), blockLock);
-            //        activeBlocks.TryGetValue(blockId, out results);
-            //        return results;
-            //    }
-            //    else
-            //    {
-            //        lock (blockLock)
-            //        {
-            //            results = GetBlockFromFile(blockId);
-            //            activeBlocks.TryAdd(blockId, results);
-            //            accessedBlocks.TryAdd(blockId, true);
-            //        }
-            //        SimpleLockable.DropLock(blockId.ToString(), blockLock);
-            //    }
-            //}
-
             return results;
         }
 
@@ -545,6 +529,7 @@ namespace PraxisCore.PbfReader
             var dms2 = new ZLibStream(ms3, CompressionMode.Decompress);
 
             var pulledBlock = Serializer.Deserialize<PrimitiveBlock>(dms2);
+            dms2.Close(); dms2.Dispose(); ms3.Close(); ms3.Dispose(); ms2.Close(); ms2.Dispose();
             return pulledBlock;
         }
 
@@ -815,7 +800,7 @@ namespace PraxisCore.PbfReader
         private List<OsmSharp.Node> GetTaggedNodesFromBlock(PrimitiveBlock block, bool ignoreUnmatched = false)
         {
             List<OsmSharp.Node> taggedNodes = new List<OsmSharp.Node>(block.primitivegroup.Sum(p => p.dense.keys_vals.Count) - block.primitivegroup.Sum(p => p.dense.id.Count) / 2); //precise count
-            for(int b = 0; b < block.primitivegroup.Count; b++)
+            for (int b = 0; b < block.primitivegroup.Count; b++)
             {
                 nodesProcessed++;
                 var dense = block.primitivegroup[b].dense;
@@ -1151,7 +1136,7 @@ namespace PraxisCore.PbfReader
                     foreach (var blockRead in activeBlocks)
                     {
                         if (!accessedBlocks.ContainsKey(blockRead.Key))
-                            activeBlocks.TryRemove(blockRead.Key, out var xx);
+                            activeBlocks.TryRemove(blockRead.Key, out _);
                     }
                 accessedBlocks.Clear();
                 return results;
@@ -1190,7 +1175,7 @@ namespace PraxisCore.PbfReader
                 }
                 File.WriteAllLines(filename, data);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 //Log.WriteLog("Failed on SaveIndexInfo: " + ex.Message + ex.StackTrace);
                 //We probably got called from a folder we don't have write permisisons into.
@@ -1220,10 +1205,10 @@ namespace PraxisCore.PbfReader
             }
         }
 
-            /// <summary>
-            /// Loads indexed data from a previous run from file, to skip reprocessing the entire file.
-            /// </summary>
-            private void LoadBlockInfo()
+        /// <summary>
+        /// Loads indexed data from a previous run from file, to skip reprocessing the entire file.
+        /// </summary>
+        private void LoadBlockInfo()
         {
             try
             {
@@ -1270,9 +1255,10 @@ namespace PraxisCore.PbfReader
         /// <param name="blockID">the block most recently processed</param>
         private void SaveCurrentBlockAndGroup(long blockID, int groupId)
         {
-            try { 
-            string filename = outputPath + fi.Name + ".progress";
-            File.WriteAllTextAsync(filename, blockID.ToString() + ":" + groupId);
+            try
+            {
+                string filename = outputPath + fi.Name + ".progress";
+                File.WriteAllTextAsync(filename, blockID.ToString() + ":" + groupId);
             }
             catch (Exception ex)
             {
@@ -1402,7 +1388,7 @@ namespace PraxisCore.PbfReader
             if (processingMode == "center")
                 foreach (var e in elements)
                     e.ElementGeometry = e.ElementGeometry.Centroid;
-            else if (processingMode == "minimize") 
+            else if (processingMode == "minimize")
             {
                 foreach (var e in elements)
                 {
@@ -1412,7 +1398,7 @@ namespace PraxisCore.PbfReader
                     e.Tags.Clear();
                     e.Tags.Add(new PlaceTags() { Key = "suggestedmini", Value = style });
                     if (!string.IsNullOrWhiteSpace(name))
-                        e.Tags.Add(new PlaceTags() { Key = "name", Value = name});
+                        e.Tags.Add(new PlaceTags() { Key = "name", Value = name });
                 }
             }
 
@@ -1434,8 +1420,8 @@ namespace PraxisCore.PbfReader
                 Dictionary<string, StringBuilder> tagDataByMatch = new Dictionary<string, StringBuilder>();
                 foreach (var s in TagParser.allStyleGroups[styleSet])
                 {
-                    geomDataByMatch.Add(s.Value.Name, new StringBuilder());
-                    tagDataByMatch.Add(s.Value.Name, new StringBuilder());
+                    geomDataByMatch.Add(s.Value.Name, new StringBuilder(100000));
+                    tagDataByMatch.Add(s.Value.Name, new StringBuilder(40000));
                 }
                 //Save to separate files based on which style set entry each one matched up to.
                 foreach (var md in elements)
@@ -1451,6 +1437,9 @@ namespace PraxisCore.PbfReader
                 {
                     if (dataSet.Value.Length > 0)
                     {
+                        //These 2 appends fix tab-delimiting issues without writing another function.
+                        dataSet.Value.Append("\r\n");
+                        tagDataByMatch[dataSet.Key].Append("\r\n");
                         QueueWriteTask(saveFilename + dataSet.Key + ".geomData", dataSet.Value);
                         QueueWriteTask(saveFilename + dataSet.Key + ".tagsData", tagDataByMatch[dataSet.Key]);
                     }
@@ -1563,7 +1552,8 @@ namespace PraxisCore.PbfReader
                     SaveCurrentBlockAndGroup(BlockCount(), -1);
                 }
                 else
-                    nextBlockId = lastBlock - 1;
+                    //NOTE: I might want to check this logic and make sure this checks groups and blocks before this always jumps to the next block.
+                    nextBlockId = lastBlock; // - 1;
             }
 
             if (displayStatus)
@@ -1587,7 +1577,7 @@ namespace PraxisCore.PbfReader
                         Log.WriteLog("Force-dumping half of block cache to minimize swap-file thrashing");
                         foreach (var block in activeBlocks)
                             if (Random.Shared.Next() % 2 == 0)
-                                activeBlocks.TryRemove(block.Key, out var ignore);
+                                activeBlocks.TryRemove(block.Key, out _);
 
                         GC.Collect();
                     }
@@ -1606,7 +1596,8 @@ namespace PraxisCore.PbfReader
 
         public static async void QueueWriteTask(string filename, StringBuilder data)
         {
-            SimpleLockable.PerformWithLockAsTask(filename, () => {
+            SimpleLockable.PerformWithLockAsTask(filename, () =>
+            {
                 data.Length = data.Length - 2; //ignore final /r/n characters so we don't have a blank line.
                 File.AppendAllText(filename, data.ToString());
             });
