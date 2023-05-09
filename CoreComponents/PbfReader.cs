@@ -871,7 +871,6 @@ namespace PraxisCore.PbfReader
                         break;
                 }
             }
-
             return taggedNodes;
         }
 
@@ -1112,7 +1111,7 @@ namespace PraxisCore.PbfReader
                 else
                 {
                     //Useful node lists are so small, they lose performance from splitting each step into 1 task per entry.
-                    //Inline all that here as one task and return null to skip the rest.
+                    //Inline all that here as one task
                     relList.Add(Task.Run(() =>
                     {
                         try
@@ -1366,15 +1365,14 @@ namespace PraxisCore.PbfReader
         /// <returns>the Task handling the conversion process</returns>
         public int ProcessReaderResults(IEnumerable<ICompleteOsmGeo> items, long blockId, int groupId)
         {
+            if (items == null || !items.Any())
+                return 0;
+
             //This one is easy, we just dump the geodata to the file.
             int actualCount = 0;
             string saveFilename = outputPath + Path.GetFileNameWithoutExtension(fi.Name) + "-" + blockId + "-" + groupId;
             ConcurrentBag<DbTables.Place> elements = new ConcurrentBag<DbTables.Place>();
-
-            if (items == null || !items.Any())
-                return 0;
-
-            relList = new ConcurrentBag<Task>();
+            relList.Clear();
             foreach (var r in items)
             {
                 if (r != null)
