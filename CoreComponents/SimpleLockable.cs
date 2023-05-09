@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
 namespace PraxisCore
@@ -37,7 +38,7 @@ namespace PraxisCore
             entityLock.counter--;
             System.Threading.Monitor.Exit(entityLock);
             if (entityLock.counter <= 0)
-                updateLocks.TryRemove(lockId, out entityLock);            
+                updateLocks.TryRemove(lockId, out _);            
         }
 
         /// <summary>
@@ -50,7 +51,7 @@ namespace PraxisCore
             entityLock.counter--;
             System.Threading.Monitor.Exit(entityLock);
             if (entityLock.counter <= 0)
-                updateLocks.TryRemove(lockId, out entityLock);
+                updateLocks.TryRemove(lockId, out _);
             
         }
 
@@ -61,19 +62,20 @@ namespace PraxisCore
         /// <param name="a"></param>
         public static void PerformWithLock(string lockId, Action a)
         {
-            updateLocks.TryAdd(lockId, new SimpleLockable());
-            var entityLock = updateLocks[lockId];
+            SimpleLockable entityLock = null;
             try
             {
+                while (!updateLocks.TryGetValue(lockId, out entityLock))
+                    updateLocks.TryAdd(lockId, new SimpleLockable());
                 entityLock.counter++;
                 System.Threading.Monitor.Enter(entityLock);
                 a();
-                entityLock.counter--;
-                if (entityLock.counter <= 0)
-                    updateLocks.TryRemove(lockId, out _);
             }
             finally
             {
+                entityLock.counter--;
+                if (entityLock.counter <= 0)
+                    updateLocks.TryRemove(lockId, out _);
                 System.Threading.Monitor.Exit(entityLock);
             }
         }
