@@ -602,18 +602,19 @@ namespace PraxisCore.PbfReader
                 if (!canProcess)
                     return null;
 
+                TagsCollection tags = GetTags(stringData, rel.keys, rel.vals);
+
+                if (ignoreUnmatched)
+                {
+                    if (TagParser.GetStyleEntry(tags, styleSet).Name == TagParser.defaultStyle.Name)
+                        return null; //This is 'unmatched', skip processing this entry.
+                }
+
                 //If I only want elements that show up in the map, and exclude areas I don't currently match,
                 //I have to knows my tags BEFORE doing the rest of the processing.
                 CompleteRelation r = new CompleteRelation();
                 r.Id = relationId;
-                r.Tags = GetTags(stringData, rel.keys, rel.vals);
-
-                if (ignoreUnmatched)
-                {
-                    var stylename = TagParser.GetStyleName(r, styleSet);
-                    if (stylename == TagParser.defaultStyle.Name)
-                        return null; //This is 'unmatched', skip processing this entry.
-                }
+                r.Tags = tags;
 
                 int capacity = rel.memids.Count;
                 r.Members = new CompleteRelationMember[capacity];
@@ -724,22 +725,25 @@ namespace PraxisCore.PbfReader
         {
             try
             {
-                CompleteWay finalway = new CompleteWay();
-                finalway.Id = way.id;
+                TagsCollection tags = null;
                 //We always need to apply tags here, so we can either skip after (if IgnoredUmatched is set) or to pass along tag values correctly.
                 if (!skipTags)
                 {
-                    finalway.Tags = GetTags(stringTable, way.keys, way.vals);
+                    tags = GetTags(stringTable, way.keys, way.vals);
 
                     if (ignoreUnmatched)
                     {
-                        if (TagParser.GetStyleName(finalway, styleSet) == TagParser.defaultStyle.Name)
+                        if (TagParser.GetStyleEntry(tags, styleSet).Name == TagParser.defaultStyle.Name)
                             return null; //don't process this one, we said not to load entries that aren't already in our style list.
                     }
                 }
 
+                CompleteWay finalway = new CompleteWay();
+                finalway.Id = way.id;
+                finalway.Tags = tags;
+
                 //NOTES:
-                //This gets all the entries we want from each node, then loads those all in 1 pass per referenced block.
+                //This gets all the entries we want from each node, then loads those all in 1 pass per referenced block/group.
                 //This is significantly faster than doing a GetBlock per node when 1 block has mulitple entries
                 //its a little complicated but a solid performance boost.
                 int entryCount = way.refs.Count;
@@ -754,7 +758,7 @@ namespace PraxisCore.PbfReader
                     var blockInfo = FindBlockInfoForNode(idToFind, out var index, hint);
                     hint = index;
                     nodeInfoEntries.TryAdd(index, blockInfo);
-                    nodesByIndexInfo.TryAdd(idToFind, hint);
+                    nodesByIndexInfo.TryAdd(idToFind, index);
                 }
                 var nodesByBlockGroup = nodesByIndexInfo.ToLookup(k => k.Value, v => v.Key); //hint(Position in array), nodeIDs
 
@@ -770,6 +774,7 @@ namespace PraxisCore.PbfReader
                 }
 
                 //Optimization: If any of these nodes are inside our bounds, continue. If ALL of them are outside, skip processing this entry.
+                //This can result in a weird edge case where an object has a LINE that goes through our boundaries, but we ignore it because no NODES are in-bounds.
                 if (bounds != null) //we have bounds, and we aren't loading this as part of a relation, so lets make sure it's in bounds.
                     if (!AllNodes.Any(n => bounds.MaxY >= n.Value.Latitude && bounds.MinY <= n.Value.Latitude && bounds.MaxX >= n.Value.Longitude && bounds.MinX <= n.Value.Longitude))
                         return null;
