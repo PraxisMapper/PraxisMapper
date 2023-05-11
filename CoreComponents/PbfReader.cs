@@ -957,12 +957,15 @@ namespace PraxisCore.PbfReader
             while (min != max)
             {
                 var check = nodeIndex[current];
-                if ((check.minId <= nodeId) && (nodeId <= check.maxId))
-                    return check;
-                else if (check.minId > nodeId) //this ways minimum is larger than our way, shift maxs down
+                //if ((check.minId <= nodeId) && (nodeId <= check.maxId))
+                //return check;
+                //else
+                if (check.minId > nodeId) //this ways minimum is larger than our way, shift maxs down
                     max = current;
                 else if (check.maxId < nodeId) //this ways maximum is smaller than our way, shift min up.
                     min = current;
+                else
+                    return check;
 
                 lastCurrent = current;
                 current = (min + max) / 2;
@@ -1013,13 +1016,15 @@ namespace PraxisCore.PbfReader
             while (min != max)
             {
                 var check = wayIndex[current];
-                if ((check.minId <= wayId) && (wayId <= check.maxId))
-                    return check;
-
-                else if (check.minId > wayId) //this ways minimum is larger than our way, shift maxs down
+                //if ((check.minId <= wayId) && (wayId <= check.maxId))
+                //return check;
+                //else
+                if (check.minId > wayId) //this ways minimum is larger than our way, shift maxs down
                     max = current;
                 else if (check.maxId < wayId) //this ways maximum is smaller than our way, shift min up.
                     min = current;
+                else
+                    return check;
 
                 lastCurrent = current;
                 current = (min + max) / 2;
@@ -1602,7 +1607,12 @@ namespace PraxisCore.PbfReader
             SimpleLockable.PerformWithLockAsTask(filename, () =>
             {
                 data.Length = data.Length - 2; //ignore final /r/n characters so we don't have a blank line.
-                File.AppendAllText(filename, data.ToString());
+                var file = File.OpenWrite(filename);
+                file.Position = file.Length;
+                StreamWriter sw = new StreamWriter(file);
+                sw.Write(data.ToString());
+                sw.Close(); sw.Dispose(); file.Close(); file.Dispose();
+                //File.AppendAllText(filename, data.ToString());
             });
         }
     }
