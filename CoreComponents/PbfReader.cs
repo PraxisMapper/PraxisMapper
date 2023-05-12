@@ -1331,6 +1331,10 @@ namespace PraxisCore.PbfReader
         {
             Task.Run(() =>
             {
+                var relGroups = relationIndex.Count;
+                var wayGroups = wayIndex.Count;
+                var skippedRelationGroups = relationIndex.Count(w => w.blockId > nextBlockId);
+                var skippedWayGroups = wayIndex.Count(w => w.blockId > nextBlockId);
                 while (!token.IsCancellationRequested)
                 {
                     Log.WriteLog("Current stats:");
@@ -1339,15 +1343,12 @@ namespace PraxisCore.PbfReader
                     Log.WriteLog("Total Processed Entries: " + totalProcessEntries);
                     if (!timeListRelations.IsEmpty || !timeListWays.IsEmpty)
                     {
-                        var relGroups = relationIndex.Count;
-                        var wayGroups = wayIndex.Count;
-
                         double relationTimeLeft = 0;
                         double wayTimeLeft = 0;
-                        if (timeListRelations.IsEmpty && timeListWays.IsEmpty)
-                            relationTimeLeft = timeListRelations.Average(t => t.TotalSeconds) * (relGroups - timeListRelations.Count);
-                        if (timeListWays.Any())
-                            wayTimeLeft = timeListWays.Average(t => t.TotalSeconds) * (wayGroups - timeListWays.Count);
+                        if (timeListWays.IsEmpty)
+                            relationTimeLeft = timeListRelations.Average(t => t.TotalSeconds) * (relGroups - skippedRelationGroups - timeListRelations.Count);
+                        else
+                            wayTimeLeft = timeListWays.Average(t => t.TotalSeconds) * (wayGroups - skippedWayGroups - timeListWays.Count);
 
                         if (relationTimeLeft > 0)
                             Log.WriteLog("Time to complete Relation groups: " + new TimeSpan((long)relationTimeLeft * 10000000));
@@ -1405,7 +1406,6 @@ namespace PraxisCore.PbfReader
             }
 
             actualCount = elements.Count;
-
             if (saveToDB) //If this is on, we skip the file-writing part and send this data directly to the DB. Single threaded, but doesn't waste disk space with intermediate files.
             {
                 using var db = new PraxisContext();
@@ -1429,7 +1429,6 @@ namespace PraxisCore.PbfReader
                 foreach (var md in elements)
                 {
                     var areatype = TagParser.GetStyleEntry(md, styleSet).Name;
-                    var name = TagParser.GetName(md);
                     geomDataByMatch[areatype].Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(Guid.NewGuid()).Append('\t').Append(md.DrawSizeHint).Append("\r\n");
                     foreach (var t in md.Tags)
                         tagDataByMatch[areatype].Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(t.Key).Append('\t').Append(t.Value.Replace("\r", "").Replace("\n", "")).Append("\r\n"); //Might also need to sanitize / and ' ?
@@ -1588,14 +1587,6 @@ namespace PraxisCore.PbfReader
             }, token);
         }
 
-        static Geometry ReduceStorageSize(Geometry g)
-        {
-            //Make the target geometry take up less storage space, so I can hold more data on a smaller server.
-            //reduces accuracy enough to make data unsuitable for rendering maptiles.
-
-            return Singletons.reducer.Reduce(g);
-        }
-
         public static async void QueueWriteTask(string filename, StringBuilder data)
         {
             SimpleLockable.PerformWithLockAsTask(filename, () =>
@@ -1606,7 +1597,6 @@ namespace PraxisCore.PbfReader
                 StreamWriter sw = new StreamWriter(file);
                 sw.Write(data.ToString());
                 sw.Close(); sw.Dispose(); file.Close(); file.Dispose();
-                //File.AppendAllText(filename, data.ToString());
             });
         }
     }
