@@ -957,9 +957,6 @@ namespace PraxisCore.PbfReader
             while (min != max)
             {
                 var check = nodeIndex[current];
-                //if ((check.minId <= nodeId) && (nodeId <= check.maxId))
-                //return check;
-                //else
                 if (check.minId > nodeId) //this ways minimum is larger than our way, shift maxs down
                     max = current;
                 else if (check.maxId < nodeId) //this ways maximum is smaller than our way, shift min up.
@@ -1016,9 +1013,6 @@ namespace PraxisCore.PbfReader
             while (min != max)
             {
                 var check = wayIndex[current];
-                //if ((check.minId <= wayId) && (wayId <= check.maxId))
-                //return check;
-                //else
                 if (check.minId > wayId) //this ways minimum is larger than our way, shift maxs down
                     max = current;
                 else if (check.maxId < wayId) //this ways maximum is smaller than our way, shift min up.
