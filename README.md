@@ -31,6 +31,7 @@ Looking for a start on client development? Grab <a href="https://github.com/Prax
 * Setting up a county-sized game server (1,200 square miles) takes about 5-30 minutes and can be done with almost no configuration of the server. Disk space use can vary between 200MB in MariaDB with a low density county, to 8GB+ in LocalDB with Los Angeles County.
 * Setting up a state-sized game server (53,000 square miles) takes 30+ minutes to process data. You will want to use a full-sized database like MariaDB or SQL Server for this except for the smallest of states.
 * Most continents can be converted from source data to working server in under 48 hours of processing time and a little extra planning. Europe requires significantly more space than North America. 
+* planet.osm.pbf takes about 18 days of processing to convert into usable elements in the suggestedGameplay style. The speed impediment on planet.osm is disk access speed, as each block is dramatically larger than they are in extracts (extracts tend to use 1 group per block, planet.osm uses 5-8). If you need global-scale servers, use multiple continent extracts, and then use Larry to cherry pick in any missing elements.
 
 # How to Use PraxisMapper's APIs
 * /MapTile handles all the drawing logic for creating baseline map tiles, or overlays to layer multiple tiles together on your client.
