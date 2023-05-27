@@ -141,6 +141,9 @@ namespace PraxisCore {
             public bool IsGameElement { get; set; } //Gets determined by styles, shouldn't be a persisted property.
             [NotMapped]
             public string StyleName { get; set; } //Placeholder for TagParser to load up the name of the matching style for this element, but don't save it to the DB so we can change it on the fly.
+            /// <summary>
+            /// A random GUID, used to pass data between the client and server without identifying which OpenStreetMap element is being referenced. Ensures user privacy from 3rd parties
+            /// </summary>
             public Guid PrivacyId { get; set; } = Guid.NewGuid(); //Pass this Id to clients, so we can attempt to block attaching players to locations in the DB.
             public double DrawSizeHint { get; set; } //optimization. This is estimated pixels to draw at standard scale. Calculate your floor if you zoom in or out differently, and skip loading if its too small to see.
 
