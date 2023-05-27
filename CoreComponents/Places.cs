@@ -86,6 +86,20 @@ namespace PraxisCore
             return GetPlaces(stats.area, source, stats.filterSize, styleSet, skipTags, skipGeometry);
         }
 
+        public static DbTables.Place GetPlace(Guid privacyId)
+        {
+            var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
+            var place = db.Places.Include(q => q.Tags).Include(q => q.PlaceData).FirstOrDefault(p => p.PrivacyId == privacyId);
+            return place;
+        }
+
+        public static DbTables.Place GetPlace(string privacyId)
+        {
+            return GetPlace(new Guid(privacyId));
+        }
+
         //Note: This should have the padding added to area before this is called, if checking for tiles that need regenerated.
         /// <summary>
         /// Checks if places existing in the DB for the given area. Will almost always return true, given admin boundaries are loaded into a database. Used for finding server boundaries and if an area needs maptiles drawn.
@@ -208,30 +222,57 @@ namespace PraxisCore
             return results;
         }
 
-        public static List<DbTables.Place> FindGoodTargetPlaces(string plusCode, double distanceMinMeters, double distanceMaxMeters, string styleSet)
+        public static List<DbTables.Place> FindAnyTargetPlaces(string plusCode, double distanceMinMeters, double distanceMaxMeters, string styleSet)
         {
-            //In this case, I want to identify places that are probably good suggestions for an actual visit, not just matching a style.
-            //They should be a significant distance from the player (maybe min/max distance is a parameter)
-            //If possible, it should be a place inside a place (EX: a historic point inside a park).
-         
+            //Finds all places that fall between a minimum and maximum distance from the starting point, without additional criteria.
+
             var startArea = plusCode.ToGeoArea();
-            var maxArea = startArea.PadGeoArea(distanceMaxMeters.DistanceMetersToDegreesLat());
-            var minArea = startArea.PadGeoArea(distanceMinMeters.DistanceMetersToDegreesLat()).ToPolygon();
+            var maxArea = startArea.PadGeoArea(distanceMaxMeters.DistanceMetersToDegreesLat()); //Square, because its a GeoArea for GetPlaces()
+            var minArea = startArea.ToPoint().Buffer(distanceMinMeters.DistanceMetersToDegreesLat());  //circle because its a buffered point.
 
             var allPlaces = GetPlaces(maxArea, styleSet: styleSet);
             var tooClose = allPlaces.Where(a => a.ElementGeometry.CoveredBy(minArea)).ToList();
             allPlaces = allPlaces.Except(tooClose).ToList();
 
+            return allPlaces;
+        }
+
+        public static List<DbTables.Place> FindGoodTargetPlaces(string plusCode, double distanceMinMeters, double distanceMaxMeters, string styleSet)
+        {
+            //Find target places for a visit that are also inside another gameplay element place
+            //EX: visit a Historic marker at a NatureReserve.
+
+            var allPlaces = FindAnyTargetPlaces(plusCode, distanceMinMeters, distanceMaxMeters, styleSet);
             var targetPoints = allPlaces.Where(a => a.IsGameElement && a.ElementGeometry.GeometryType == "Point").ToList();
-            var likelyParents = allPlaces.Except(targetPoints).Where(a => a.IsGameElement).OrderBy(a => a.ElementGeometry.Area).Take(10);
+            var possibleParents = allPlaces.Except(targetPoints).Where(a => a.IsGameElement).OrderBy(a => a.ElementGeometry.Area).Take(10);
 
             List<DbTables.Place> results = new List<DbTables.Place>();
-            foreach(var p in likelyParents)
+            foreach(var p in possibleParents)
             {
                 //I have briefly considered not allowing these target point to be in the same style as their parent, but 
                 //there are likely more cases where I want that to be allowed (Historic in historic, tourist in tourist, culture in culture)
                 //than there are cases where I dont (park in park, water in water, etc).
                 results.AddRange(targetPoints.Where(t => p.ElementGeometry.Covers(t.ElementGeometry)));
+            }
+
+            return results.Distinct().ToList();
+        }
+
+        public static List<DbTables.Place> FindParentTargetPlaces(string plusCode, double distanceMinMeters, double distanceMaxMeters, string styleSet)
+        {
+            //Find target places for a visit that contain other places to visit.
+            //EX: a university may contain arts&culture points to visit.
+
+            var allPlaces = FindAnyTargetPlaces(plusCode, distanceMinMeters, distanceMaxMeters, styleSet);
+            var targetPoints = allPlaces.Where(a => a.IsGameElement && a.ElementGeometry.GeometryType == "Point").ToList();
+            var possibleParents = allPlaces.Except(targetPoints).Where(a => a.IsGameElement).OrderBy(a => a.ElementGeometry.Area).Take(10);
+
+            List<DbTables.Place> results = new List<DbTables.Place>();
+            foreach (var p in possibleParents)
+            {
+                //
+                if (targetPoints.Any(t => p.ElementGeometry.Covers(t.ElementGeometry) && !possibleParents.Any(pp => pp.ElementGeometry.Covers(p.ElementGeometry))))
+                    results.Add(p);
             }
 
             return results.Distinct().ToList();
