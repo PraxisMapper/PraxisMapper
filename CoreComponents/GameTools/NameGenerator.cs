@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 
-namespace PraxisCore.GameTools {
+namespace PraxisCore.GameTools
+{
     /// <summary>
     /// A flexible, expandable, random name generator. Supports being provided a seeded Random(), so that it can return the same results for the same PlusCode.
     /// When given a string, will replace any tokens in nameSets with a value from that nameSet (EX: "{animal}" could return "frog")
@@ -45,6 +47,8 @@ namespace PraxisCore.GameTools {
                 if (matches > 0) {
                     if (wordList.Key == "{number}")
                         results *= maxNumberResult;
+                    if (wordList.Key == "{makeword}")
+                        results += consonants.Count * vowels.Count * 4; //not sure how to measure this yet
                     else
                         results *= (matches * wordList.Value.Count);
                 }
@@ -57,7 +61,7 @@ namespace PraxisCore.GameTools {
         /// </summary>
         public NameGenerator() {
             r = new Random();
-            regex = new Regex("({number}|" + string.Join("|", nameSets.Keys) + ")");
+            regex = new Regex("({number}|{makeword}|" + string.Join("|", nameSets.Keys) + ")");
         }
         /// <summary>
         /// Create a NameGenerator instance with the fixed random seed for the given PlusCode.
@@ -66,7 +70,7 @@ namespace PraxisCore.GameTools {
         public NameGenerator(string plusCode)
         {
             r = plusCode.GetSeededRandom();
-            regex = new Regex("({number}|" + string.Join("|", nameSets.Keys) + ")");
+            regex = new Regex("({number}|{makeword}|" + string.Join("|", nameSets.Keys) + ")");
         }
 
         //Static constructor is fired off once, after all static values are populated by the framework.
@@ -75,20 +79,22 @@ namespace PraxisCore.GameTools {
             List<string> nouns = animals.Union(plants).Union(things).Union(places).ToList();
             List<string> firstNames = maleFirstNames.Union(femaleFirstNames).ToList();
             nameSets = new Dictionary<string, List<string>>()
-             {
-                 ["{adjective}"] = adjectives.Union(colors).ToList(), 
-                 ["{animal}"] = animals,
-                 ["{color}"] = colors,
-                 ["{femaleFirstName}"] = femaleFirstNames,
-                 ["{firstName}"] = firstNames,
-                 ["{lastName}"] = lastNames,
-                 ["{maleFirstName}"] = maleFirstNames,
-                 ["{noun}"] = nouns,
-                 ["{place}"] = places,
-                 ["{plant}"] = plants,
-                 ["{syllable}"] = syllables, //NOTE: this may need to be split into stressed and unstressed syllables, to make more plausible words. 
-                 ["{thing}"] = things,
-             };
+            {
+                ["{adjective}"] = adjectives.Union(colors).ToList(), 
+                ["{animal}"] = animals,
+                ["{color}"] = colors,
+                ["{consonant}"] = consonants,
+                ["{femaleFirstName}"] = femaleFirstNames,
+                ["{firstName}"] = firstNames,
+                ["{lastName}"] = lastNames,
+                ["{maleFirstName}"] = maleFirstNames,
+                ["{noun}"] = nouns,
+                ["{place}"] = places,
+                ["{plant}"] = plants,
+                ["{syllable}"] = syllables, //NOTE: this may need to be split into stressed and unstressed syllables, or consonants and vowels, to make more plausible words. 
+                ["{thing}"] = things,
+                ["{vowel}"] = vowels,
+            };
         }
 
         /// <summary>
@@ -97,6 +103,9 @@ namespace PraxisCore.GameTools {
         string ReplaceMatch(Match m) {
             if (m.Value == "{number}")
                 return r.Next(maxNumberResult).ToString();
+
+            if (m.Value == "{makeword}")
+                return MakeWordFromLetters();
 
             var set = nameSets[m.Value];
             var result = set[r.Next(set.Count)];
@@ -119,9 +128,74 @@ namespace PraxisCore.GameTools {
             return results;
         }
 
+        public string MakeWordFromLetters()
+        {
+            int syllables = r.Next(2, 6);
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < syllables; i++)
+            {
+                switch (r.Next(4))
+                {
+                    case 0: //closed syllable: consonant-vowel-consonant
+                        sb.Append(consonants.PickOneRandom()).Append(vowels.PickOneRandom()).Append(consonants.PickOneRandom());
+                        break;
+                    case 1: //open syllable. consonant-vowel.
+                        sb.Append(consonants.PickOneRandom()).Append(vowels.PickOneRandom());
+                        break;
+                    case 2: //vowel team. 2+ vowels
+                        var vowelCount = r.Next(2, 4);
+                        for (int j = 0; j < syllables; j++)
+                            sb.Append(vowels.PickOneRandom());
+                            break;
+                    case 3: //vowel-r. Not generatable otherwise
+                        sb.Append(vowels.PickOneRandom()).Append("r");
+                        break;
+                }
+            }
+
+            return sb.ToString();
+        }
+
+        //Potential future additions:
+        //Consonant and Vowel sounds lists, so words can be generated by alternating those two.
+
         #region long source lists
-        //TODO: in NET8 make these FrozenCollections for performance.
-        static List<string> colors = new List<string>() { 
+        //TODO: in NET8 make these FrozenCollections for performance?
+
+        public static List<string> vowels = new List<string>() { 
+            "a",
+            "e",
+            "i",
+            "o",
+            "u",
+            "y"
+        };
+
+        public static List<string> consonants = new List<string>() {
+            "b",
+            "c",
+            "d",
+            "f",
+            "g",
+            "h",
+            "j",
+            "k",
+            "l",
+            "m",
+            "n",
+            "p",
+            "qu",
+            "r",
+            "s",
+            "t",
+            "v",
+            "w",
+            "x",
+            "z"
+        };
+
+
+        public static List<string> colors = new List<string>() { 
             "black",
             "blue",
             "green",
@@ -135,7 +209,7 @@ namespace PraxisCore.GameTools {
 
         //Common English syllables.
         //TODO: may need to separate between stressed and unstressed syllables to make words sound more plausible?
-        static List<string> syllables = new List<string>() {
+        public static List<string> syllables = new List<string>() {
             "ing",
             "er",
             "i",
