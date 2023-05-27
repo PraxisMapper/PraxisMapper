@@ -1,16 +1,16 @@
-﻿using BCrypt.Net;
-using Google.Common.Geometry;
+﻿using Google.Common.Geometry;
 using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Prepared;
 using OsmSharp;
+using OsmSharp.API;
+using OsmSharp.Complete;
 using OsmSharp.Streams;
 using PraxisCore;
 using PraxisCore.GameTools;
+using PraxisCore.PbfReader;
 using PraxisCore.Support;
-using ProtoBuf.WellKnownTypes;
 using SkiaSharp;
 using System;
 using System.Collections.Concurrent;
@@ -22,13 +22,17 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Reflection;
+using System.Reflection.Metadata.Ecma335;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using static PraxisCore.DbTables;
 using static PraxisCore.GeometrySupport;
 using static PraxisCore.Place;
 using static PraxisCore.Standalone.StandaloneDbTables;
 
-namespace PerformanceTestApp {
+namespace PerformanceTestApp
+{
     class TestPerfApp
     {
         //fixed values here for testing stuff later. Adjust to your own preferences or to fit your data set.
@@ -109,7 +113,9 @@ namespace PerformanceTestApp {
             //SpanTest();
             //StyleMatchAccess();
             //RefVsValue();
-            TestMeterGrid();
+            //TestMeterGrid();
+            //TestSimpleLockable();
+            TestAltHintMath();
 
 
             //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
@@ -1833,7 +1839,7 @@ namespace PerformanceTestApp {
         public static void TestMaptileDrawing()
         {
             Log.WriteLog("Testing Maptile drawing");
-            var db = new PraxisContext();
+            //var db = new PraxisContext();
             IMapTiles mtSkia;
             IMapTiles mtImage;
             var asm = Assembly.LoadFrom(@"PraxisMapTilesSkiaSharp.dll");
@@ -1847,12 +1853,12 @@ namespace PerformanceTestApp {
             TagParser.Initialize(false, mtSkia);
             mtImage.Initialize(); //also needs called since it's not initialized yet.
 
-            List<long> skiaDurations = new List<long>();
-            List<long> imageDurations = new List<long>();
+            List<long> skiaDurations = new List<long>(400);
+            List<long> imageDurations = new List<long>(400);
             //Get an area from the DB, draw some map tiles with each.
             var mapArea = OpenLocationCode.DecodeValid("86HWF5");
-            var mapPoly = Converters.GeoAreaToPolygon(mapArea);
-            var mapData = db.Places.Where(e => e.ElementGeometry.Intersects(mapPoly)).ToList(); //pull them all into RAM to skip DB perf issue.
+            //var mapPoly = Converters.GeoAreaToPolygon(mapArea);
+            var mapData = GetPlaces(mapArea); // db.Places.Where(e => e.ElementGeometry.Intersects(mapPoly)).ToList(); //pull them all into RAM to skip DB perf issue.
 
             string startPoint = "86HWF5"; //add 4 chars to draw cell8 tiles.
                                           //string endPoint = "86HW99"; //15 Cell6 blocks to draw, so 400 * 15 tiles for testing.
@@ -3310,6 +3316,218 @@ namespace PerformanceTestApp {
             results = MeterGrid.GetMeterGrid(-40, 80, 50);
             Console.WriteLine(results.xId.ToString() + ", " + results.yId.ToString() + ", " + results.ToString());
         }
+
+        public static void TestSimpleLockable()
+        {
+            List<Task> tasks = new List<Task>(10000);
+            for (int i = 0; i < 100000; i++)
+            {
+                string randLock = Random.Shared.Next(10).ToString();
+                //tasks.Add(SimpleLockable.PerformWithLockAsTask(randLock, () => { Thread.Sleep(Random.Shared.Next(50)); Log.WriteLog("Thread Exiting"); }));
+                //SimpleLockable.PerformWithLock(randLock, () => { File.AppendAllText("test.txt", Thread.CurrentThread.ManagedThreadId.ToString()); });
+                tasks.Add(SimpleLockable.PerformWithLockAsTask(randLock, () => { var id = Thread.CurrentThread.ManagedThreadId.ToString(); File.AppendAllText("test" + id + ".txt", id); }));
+            }
+
+            Task.WaitAll(tasks.ToArray());
+
+        }
+
+        static List<IndexInfo> nodeIndex = new List<IndexInfo>();
+        static List<IndexInfo> wayIndex = new List<IndexInfo>();
+        static List<IndexInfo> relationIndex = new List<IndexInfo>();
+        static long minId;
+        static long avgChange;
+        private static void LoadIndex(string filename)
+        {
+            List<IndexInfo> indexes = new List<IndexInfo>();
+            var data = File.ReadAllLines(filename);
+            foreach (var line in data)
+            {
+                string[] subData2 = line.Split(":");
+                indexes.Add(new IndexInfo(subData2[0].ToInt(), subData2[1].ToInt(), (byte)subData2[2].ToInt(), subData2[3].ToLong(), subData2[4].ToLong()));
+            }
+            SplitIndexData(indexes);
+        }
+
+        private static void SplitIndexData(List<IndexInfo> indexes)
+        {
+            nodeIndex = indexes.Where(i => i.groupType == 1).OrderBy(i => i.minId).ToList();
+            wayIndex = indexes.Where(i => i.groupType == 2).OrderBy(i => i.minId).ToList();
+            relationIndex = indexes.Where(i => i.groupType == 3).OrderBy(i => i.minId).ToList();
+
+            Log.WriteLog("File has " + relationIndex.Count + " relation groups, " + wayIndex.Count + " way groups, and " + nodeIndex.Count + " node groups");
+        }
+
+        private static IndexInfo FindBlockInfoForNode(long nodeId, out int current, int hint = -1) //BTree
+        {
+            //This is the most-called function in this class, and therefore the most performance-dependent.
+
+            //Hints is a list of blocks we're already found in the relevant way. Odds are high that
+            //any node I need to find is in the same block as another node I've found.
+            //This should save a lot of time searching the list when I have already found some blocks
+            //and shoudn't waste too much time if it isn't in a block already found.
+            //foreach (var h in hints)
+
+            //ways will hit a couple thousand blocks, nodes hit hundred of thousands of blocks.
+            //This might help performance on ways, but will be much more noticeable on nodes.
+            int min = 0;
+            int max = nodeIndex.Count;
+            if (hint == -1)
+                current = nodeIndex.Count / 2;
+            else
+                current = hint;
+            int lastCurrent;
+            while (min != max)
+            {
+                var check = nodeIndex[current];
+                if ((check.minId <= nodeId) && (nodeId <= check.maxId))
+                    return check;
+                else if (check.minId > nodeId) //this ways minimum is larger than our way, shift maxs down
+                    max = current;
+                else if (check.maxId < nodeId) //this ways maximum is smaller than our way, shift min up.
+                    min = current;
+
+                lastCurrent = current;
+                current = (min + max) / 2;
+                if (lastCurrent == current)
+                {
+                    //We have an issue, and are gonna infinite loop. Fix it.
+                    //Check if we're in the gap between blocks.
+                    var checkUnder = wayIndex[current - 1];
+                    var checkOver = wayIndex[current + 1];
+
+                    if (checkUnder.maxId < nodeId && checkOver.minId > nodeId)
+                        //exception, we're between blocks.
+                        throw new Exception("Node Not Found");
+
+                    //We are probably in a weird edge case where min and max are 1 or 2 apart and I just need nudged over 1 spot.
+                    if (nodeId < checkUnder.maxId)
+                        current--;
+                    else if (nodeId > checkOver.minId)
+                        current++;
+                    else
+                        min = max;
+                }
+            }
+
+            throw new Exception("Node Not Found");
+        }
+
+        private static IndexInfo FindBlockInfoForNodeAlt(long nodeId, out int current, int hint = -1) //BTree
+        {
+            int min = 0;
+            int max = nodeIndex.Count;
+            if (hint == -1)
+                current = (int)((nodeId - minId) / avgChange); //nodeIndex.Count / 2;
+            else
+                current = hint;
+            int lastCurrent;
+            while (min != max)
+            {
+                var check = nodeIndex[current];
+                //if ((check.minId <= nodeId) && (nodeId <= check.maxId))
+                //return check;
+                if (check.minId > nodeId) //this ways minimum is larger than our way, shift maxs down
+                    max = current;
+                else if (check.maxId < nodeId) //this ways maximum is smaller than our way, shift min up.
+                    min = current;
+                else
+                    return check;
+
+                lastCurrent = current;
+                current = (min + max) / 2;
+                if (lastCurrent == current)
+                {
+                    //We have an issue, and are gonna infinite loop. Fix it.
+                    //Check if we're in the gap between blocks.
+                    var checkUnder = wayIndex[current - 1];
+                    var checkOver = wayIndex[current + 1];
+
+                    if (checkUnder.maxId < nodeId && checkOver.minId > nodeId)
+                        //exception, we're between blocks.
+                        throw new Exception("Node Not Found");
+
+                    //We are probably in a weird edge case where min and max are 1 or 2 apart and I just need nudged over 1 spot.
+                    if (nodeId < checkUnder.maxId)
+                        current--;
+                    else if (nodeId > checkOver.minId)
+                        current++;
+                    else
+                        min = max;
+                }
+            }
+
+            throw new Exception("Node Not Found");
+        }
+
+        public static void TestAltHintMath()
+        {
+            //Pre-work: Load index data. calculate average change of node IDs per group.
+            LoadIndex("F:\\Projects\\PraxisMapper Files\\Trimmed JSON Files\\Ohio\\ohio-latest.osm.pbf.indexinfo");
+            minId = nodeIndex.First().minId;
+            avgChange = (nodeIndex.Last().maxId - minId) / nodeIndex.Count;
+
+            List<TimeSpan> ogBestChecks = new List<TimeSpan>();
+            List<TimeSpan> ogNoHintChecks = new List<TimeSpan>();
+            List<TimeSpan> altChecks = new List<TimeSpan>();
+            List<TimeSpan> comboChecks = new List<TimeSpan>();
+
+            for (int i = 0; i < 100; i++)
+            {
+                if (i < 5)
+                {
+                    ogBestChecks.Clear();
+                    ogNoHintChecks.Clear();
+                    altChecks.Clear();
+                    comboChecks.Clear();
+                }
+
+                int indexValue = Random.Shared.Next(nodeIndex.Count);
+                long randomNode = nodeIndex[indexValue].minId + 25; //we have chosen a possible node randomly for a fair comparison.
+
+                //OG hint: Use the last block that a node was in to start the BTree search
+                Stopwatch sw = Stopwatch.StartNew();
+                var a = FindBlockInfoForNode(randomNode, out int current, indexValue);
+                sw.Stop();
+                ogBestChecks.Add(sw.Elapsed);
+                Log.WriteLog("OG Hint: " + sw.ElapsedTicks);
+
+                //OG No hint: use the middle block for proper BTree comparison values.
+                sw.Restart();
+                var b = FindBlockInfoForNode(randomNode, out current);
+                sw.Stop();
+                ogNoHintChecks.Add(sw.Elapsed);
+                Log.WriteLog("OG No Hint: " + sw.ElapsedTicks);
+
+                //Alt hint: Take average change in block values, divide current node ID by that value, use that as start of BTree search
+                sw.Restart();
+                int altHint = (int)((randomNode - minId) / avgChange);
+                var c = FindBlockInfoForNode(randomNode, out current, altHint);
+                sw.Stop();
+                altChecks.Add(sw.Elapsed);
+                Log.WriteLog("Alt Hint: " + sw.ElapsedTicks);
+
+                //alt 2: do alt AFTER checking the OG hint, and see if both is better than 1.
+                sw.Restart();
+                var d = FindBlockInfoForNodeAlt(randomNode, out current, altHint);
+                sw.Stop();
+                comboChecks.Add(sw.Elapsed);
+                Log.WriteLog("Alt code: " + sw.ElapsedTicks);
+            }
+
+            Log.WriteLog("OG Hint total:" + ogBestChecks.Sum(o => o.Ticks));
+            Log.WriteLog("OG NoHInt total:" + ogNoHintChecks.Sum(o => o.Ticks));
+            Log.WriteLog("Alt Hint total:" + altChecks.Sum(o => o.Ticks));
+            Log.WriteLog("AltCode total:" + comboChecks.Sum(o => o.Ticks));
+
+            Log.WriteLog("OG Hint avg:" + ogBestChecks.Average(o => o.Ticks));
+            Log.WriteLog("OG NoHInt avg:" + ogNoHintChecks.Average(o => o.Ticks));
+            Log.WriteLog("Alt Hint avg:" + altChecks.Average(o => o.Ticks));
+            Log.WriteLog("AltCode avg:" + comboChecks.Average(o => o.Ticks));
+
+            System.Diagnostics.Debugger.Break();
+        }
+
     }
 }
 

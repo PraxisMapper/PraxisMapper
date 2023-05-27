@@ -45,7 +45,7 @@ namespace PraxisCore {
 
             dOpts = new DrawingOptions();
             ShapeOptions so = new ShapeOptions();
-            so.IntersectionRule = IntersectionRule.OddEven; //already the default;
+            so.IntersectionRule = IntersectionRule.EvenOdd; //already the default;
             GraphicsOptions go = new GraphicsOptions();
             go.Antialias = true;
             go.AntialiasSubpixelDepth = 16; //defaults to 16, would 4 improve speed? would 25 or 64 improve quality? (not visible so from early testing.)
