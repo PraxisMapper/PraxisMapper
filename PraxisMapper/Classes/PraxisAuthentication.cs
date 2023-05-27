@@ -58,7 +58,7 @@ namespace PraxisMapper.Classes
                         db.SaveChangesAsync();
                     }
 
-                    System.Threading.Thread.Sleep(2000); //A mild annoyance to anyone attempting to brute-force a key
+                    System.Threading.Thread.Sleep(2000); //A mild annoyance to anyone attempting to brute-force a key from the outside
                     context.Abort();
                     return;
                 }
