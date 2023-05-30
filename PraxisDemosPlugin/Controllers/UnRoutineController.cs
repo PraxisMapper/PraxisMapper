@@ -1,14 +1,27 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using Microsoft.Identity.Client;
-using NetTopologySuite.Operation.Overlay;
-using NetTopologySuite.Triangulate;
 using PraxisCore;
 using PraxisCore.Support;
 using PraxisMapper.Classes;
+using System.Dynamic;
+using System.Text;
+using System.Text.Json;
 
 namespace PraxisDemosPlugin.Controllers
 {
+    public class VisitedPlace
+    {
+        public Guid placeId;
+        public string Name;
+        public string Category;
+    }
+
+    public class PlayerSettings
+    {
+        public int distancePref = 3;  //1 is short, 2 is medium, 3 is long. THey're group, not discrete values.
+        public string categories = ""; //names of styles the player wants to go to.
+    }
+
     [ApiController]
     [Route("/[controller]")]
     public class UnRoutineController : Controller, IPraxisPlugin
@@ -37,24 +50,30 @@ namespace PraxisDemosPlugin.Controllers
         public void Enter(string plusCode10)
         {
             var places = Place.GetPlaces(plusCode10.ToGeoArea());
-            var placeTracker = GenericData.GetSecurePlayerData<HashSet<Guid>>(accountId, "placesVisitedRB", password);
+            var placeTracker = GenericData.GetSecurePlayerData<List<VisitedPlace>>(accountId, "placesVisitedRB", password);
             if (placeTracker == null)
-                placeTracker = new HashSet<Guid>();
+                placeTracker = new List<VisitedPlace>();
 
             foreach(var p in places)
-                if (!placeTracker.Contains(p.PrivacyId))
-                    placeTracker.Add(p.PrivacyId);
+                if (!placeTracker.Any(pt => pt.placeId == p.PrivacyId))
+                    placeTracker.Add(new VisitedPlace() { placeId = p.PrivacyId, Name = TagParser.GetName(p), Category = p.StyleName });
 
             GenericData.SetSecurePlayerDataJson(accountId, "placesVisitedRB", placeTracker, password);
         }
 
-        public void FindValidAreas(string plusCode10, double minDistanceMeters, double maxDistanceMeters)
+        public List<DbTables.Place> FindValidPlaces(string plusCode10, double minDistanceMeters, double maxDistanceMeters)
         {
             var places = Place.FindGoodTargetPlaces(plusCode10, minDistanceMeters, maxDistanceMeters, "suggestedGameplay");
 
-            var placeTracker = GenericData.GetSecurePlayerData<HashSet<Guid>>(accountId, "placesVisitedRB", password);
+            var placeTracker = GenericData.GetSecurePlayerData<List<VisitedPlace>>(accountId, "placesVisitedRB", password);
+            if (placeTracker == null)
+                placeTracker = new List<VisitedPlace>();
             var ignoreList = GenericData.GetSecurePlayerData<HashSet<Guid>>(accountId, "placesIgnoredRB", password);
-            places = places.Where(p => !placeTracker.Contains(p.PrivacyId) && !ignoreList.Contains(p.PrivacyId)).ToList();
+            if (ignoreList == null)
+                ignoreList = new HashSet<Guid>();
+            places = places.Where(p => !placeTracker.Any(pt => pt.placeId == p.PrivacyId) && !ignoreList.Contains(p.PrivacyId) && TagParser.GetName(p) != "").ToList();
+
+            return places;
         }
 
         [HttpPut]
@@ -69,30 +88,83 @@ namespace PraxisDemosPlugin.Controllers
             GenericData.SetSecurePlayerDataJson(accountId, "placesIgnoredRB", ignoreList, password);
         }
 
-        [HttpPut]
+        //GET /Target gives you the data on your target location
+        //PUT /Target/plusCode10 asks the server to set one for you.
+        [HttpGet]
         [Route("/[controller]/Target")]
-        public void GetTargetPlace()
+        public string GetTargetPlace()
         {
             var target = GenericData.GetSecurePlayerData<Guid>(accountId, "targetRB", password);
-            if (target == null)
-                return;
+            if (target == Guid.Empty)
+                return "";
 
             var place = Place.GetPlace(target);
+            var placeData = new { Name = TagParser.GetName(place), Category = place.StyleName };
+            return JsonSerializer.Serialize(placeData);
         }
 
         [HttpPut]
+        [Route("/[controller]/Target/{plusCode10}")]
+        public string PickTargetPlace(string plusCode10)
+        {
+            var settings = GenericData.GetPlayerData<PlayerSettings>(accountId, "rbSettings");
+            if (settings == null)
+                settings = new PlayerSettings() { distancePref = 3, categories = "all" };
+            
+            int minDistance = 1;
+            int maxDistance = 2;
+            switch (settings.distancePref)
+            {
+                case 1: //1-2km. People walk at about 1.4 m/s. Set this to be a 15-30 minute walk away. So 1-2 kilometers.
+                    minDistance = 1260;
+                    maxDistance = 2520;
+                    break;
+                case 2: //14-28km. For shorter car trips, 35 MPH is 15.6 m/s this is a 15-30 minute car drive on local roads.
+                    minDistance = 14040;
+                    maxDistance = 28080;
+                    break;
+                case 3: //50-200Km away. Up for big adventures. 65 MPH is 29 m/s. This is a 30-120 minute car drive on highways.
+                    minDistance = 52250;
+                    maxDistance = 208800;
+                    break;
+            }
+
+            var places = FindValidPlaces(plusCode10, minDistance, maxDistance);
+            places = places.Where(p => settings.categories == "all" || settings.categories.Contains(p.StyleName)).ToList();
+            var place = places.PickOneRandom();
+
+
+            return JsonSerializer.Serialize(new { Name = TagParser.GetName(place), Category = place.StyleName, PlaceId = place.PrivacyId });
+
+        }
+
+        [HttpGet]
         [Route("/[controller]/Image/{placeId}")]
         public FileResult GetTargetImage(string placeId)
         {
             var place = Place.GetPlace(placeId);
 
             //We will lock this preview image to a 900x900px box.
+            
             var imageArea = place.ElementGeometry.Envelope.ToGeoArea();
-            ImageStats istats = new ImageStats(imageArea, (int)(imageArea.LongitudeWidth / ConstantValues.resolutionCell11Lon) * (int)MapTileSupport.GameTileScale, (int)(imageArea.LatitudeHeight / ConstantValues.resolutionCell11Lat) * (int)MapTileSupport.GameTileScale);
+            if (place.ElementGeometry.GeometryType == "Point")
+                imageArea = place.ElementGeometry.Buffer(.00125).Envelope.ToGeoArea();
+
+            var longerSide = imageArea.LatitudeHeight >= imageArea.LongitudeWidth ? imageArea.LatitudeHeight : imageArea.LongitudeWidth;
+            ImageStats istats = new ImageStats(imageArea, (int)(longerSide / ConstantValues.resolutionCell11Lon) * (int)MapTileSupport.GameTileScale, (int)(longerSide / ConstantValues.resolutionCell11Lat) * (int)MapTileSupport.GameTileScale);
             istats = MapTileSupport.ScaleBoundsCheck(istats, 900, 810000);
 
             var tile = MapTileSupport.MapTiles.DrawAreaAtSize(istats);
             return File(tile, "image/png");
+        }
+
+        [HttpGet]
+        [Route("[controller]/Visited")]
+        public string GetVisitedPlaces()
+        {
+            //The player will probably want to see a list of places they've been, possibly organized by category.
+            var placeTracker = GenericData.GetSecurePlayerData<List<VisitedPlace>>(accountId, "placesVisitedRB", password);
+            return JsonSerializer.Serialize(placeTracker);
         }
     }
 }
