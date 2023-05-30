@@ -225,37 +225,46 @@ namespace PraxisCore
         public static List<DbTables.Place> FindAnyTargetPlaces(string plusCode, double distanceMinMeters, double distanceMaxMeters, string styleSet)
         {
             //Finds all places that fall between a minimum and maximum distance from the starting point, without additional criteria.
+            //TO PONDER: is this a good place to try and upgrade points to buildings?
 
-            var startArea = plusCode.ToGeoArea();
-            var maxArea = startArea.PadGeoArea(distanceMaxMeters.DistanceMetersToDegreesLat()); //Square, because its a GeoArea for GetPlaces()
-            var minArea = startArea.ToPoint().Buffer(distanceMinMeters.DistanceMetersToDegreesLat());  //circle because its a buffered point.
+            var maxArea = plusCode.ToGeoArea().ToPolygon().Buffer(distanceMaxMeters.DistanceMetersToDegreesLat()); //square, because the geoArea is square before buffering.
+            var minArea = plusCode.ToGeoArea().ToPolygon().Buffer(distanceMinMeters.DistanceMetersToDegreesLat());
 
-            var allPlaces = GetPlaces(maxArea, styleSet: styleSet);
-            var tooClose = allPlaces.Where(a => a.ElementGeometry.CoveredBy(minArea)).ToList();
-            allPlaces = allPlaces.Except(tooClose).ToList();
 
-            return allPlaces;
+            var db = new PraxisContext(); //NOTE: MariaDB doesn't support CoveredBy or Covers, which I would prefer but I'll use what works.
+            //This way is ~2-3x faster than calling GetPlaces for this logic.
+            var places = db.Places.Include(p => p.PlaceData).Include(p => p.Tags).Where(p => p.ElementGeometry.Intersects(maxArea) && !p.ElementGeometry.Intersects(minArea)).ToList();
+            places = TagParser.ApplyTags(places, "suggestedGameplay");
+            places = places.Where(p => p.IsGameElement).ToList();
+
+            return places;
         }
 
         public static List<DbTables.Place> FindGoodTargetPlaces(string plusCode, double distanceMinMeters, double distanceMaxMeters, string styleSet)
         {
             //Find target places for a visit that are also inside another gameplay element place
             //EX: visit a Historic marker at a NatureReserve.
+            //This theory ends up not being as practical as I'd hoped. This MOSTLY picks up on retail entries, since 
+            //most of those are POINTS inside a larger shopping center thats also tagged Retail.
+            //So this may get removed shortly in favor of something more reasonable and doing extra processing after I have the list.
+            //TODO: double check this, but without limiting it to Points. May have better luck checking for Ways in Ways/Relations?
 
             var allPlaces = FindAnyTargetPlaces(plusCode, distanceMinMeters, distanceMaxMeters, styleSet);
             var targetPoints = allPlaces.Where(a => a.IsGameElement && a.ElementGeometry.GeometryType == "Point").ToList();
-            var possibleParents = allPlaces.Except(targetPoints).Where(a => a.IsGameElement).OrderBy(a => a.ElementGeometry.Area).Take(10);
+            //var possibleParents = allPlaces.Except(targetPoints).Where(a => a.IsGameElement).OrderBy(a => a.ElementGeometry.Area);
 
-            List<DbTables.Place> results = new List<DbTables.Place>();
-            foreach(var p in possibleParents)
-            {
-                //I have briefly considered not allowing these target point to be in the same style as their parent, but 
-                //there are likely more cases where I want that to be allowed (Historic in historic, tourist in tourist, culture in culture)
-                //than there are cases where I dont (park in park, water in water, etc).
-                results.AddRange(targetPoints.Where(t => p.ElementGeometry.Covers(t.ElementGeometry)));
-            }
+            return allPlaces;
 
-            return results.Distinct().ToList();
+            //List<DbTables.Place> results = new List<DbTables.Place>();
+            //foreach(var p in possibleParents)
+            //{
+            //    //I have briefly considered not allowing these target point to be in the same style as their parent, but 
+            //    //there are likely more cases where I want that to be allowed (Historic in historic, tourist in tourist, culture in culture)
+            //    //than there are cases where I dont (park in park, water in water, etc).
+            //    results.AddRange(targetPoints.Where(t => p.ElementGeometry.Covers(t.ElementGeometry)));
+            //}
+
+            //return results.Distinct().ToList();
         }
 
         public static List<DbTables.Place> FindParentTargetPlaces(string plusCode, double distanceMinMeters, double distanceMaxMeters, string styleSet)
