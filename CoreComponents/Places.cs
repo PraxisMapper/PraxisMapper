@@ -250,10 +250,13 @@ namespace PraxisCore
             //TODO: double check this, but without limiting it to Points. May have better luck checking for Ways in Ways/Relations?
 
             var allPlaces = FindAnyTargetPlaces(plusCode, distanceMinMeters, distanceMaxMeters, styleSet);
-            var targetPoints = allPlaces.Where(a => a.IsGameElement && a.ElementGeometry.GeometryType == "Point").ToList();
+            //trying to see if this works better without limiting to points? TODO test this to see if its better
+            //var targetPlaces = allPlaces.Where(a => a.IsGameElement).ToList();
+            var possibleGood = allPlaces.Where(t => allPlaces.Any(tt => t.Id != tt.Id && tt.ElementGeometry.Covers(t.ElementGeometry))).ToList();
             //var possibleParents = allPlaces.Except(targetPoints).Where(a => a.IsGameElement).OrderBy(a => a.ElementGeometry.Area);
 
-            return allPlaces;
+            return possibleGood;
+            //return allPlaces;
 
             //List<DbTables.Place> results = new List<DbTables.Place>();
             //foreach(var p in possibleParents)
