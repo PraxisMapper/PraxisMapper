@@ -71,6 +71,9 @@ namespace PraxisDemosPlugin.Controllers
             var ignoreList = GenericData.GetSecurePlayerData<HashSet<Guid>>(accountId, "placesIgnoredRB", password);
             if (ignoreList == null)
                 ignoreList = new HashSet<Guid>();
+
+            //NOTE: some trails are unnamed in OSM, which could remove otherwise good choices. On the other hand, those unnamed
+            //trails could also just be sidewalks more often than not.
             places = places.Where(p => !placeTracker.Any(pt => pt.placeId == p.PrivacyId) && !ignoreList.Contains(p.PrivacyId) && TagParser.GetName(p) != "").ToList();
 
             return places;
@@ -159,12 +162,35 @@ namespace PraxisDemosPlugin.Controllers
         }
 
         [HttpGet]
-        [Route("[controller]/Visited")]
+        [Route("/[controller]/Visited")]
         public string GetVisitedPlaces()
         {
             //The player will probably want to see a list of places they've been, possibly organized by category.
             var placeTracker = GenericData.GetSecurePlayerData<List<VisitedPlace>>(accountId, "placesVisitedRB", password);
             return JsonSerializer.Serialize(placeTracker);
+        }
+
+        [HttpGet]
+        [Route("/[controller]/Options")]
+        public string GetOptions()
+        {
+            var settings = GenericData.GetPlayerData<PlayerSettings>(accountId, "rbSettings");
+            return JsonSerializer.Serialize(settings);
+        }
+
+        [HttpPut]
+        [Route("/[controller]/Options/{options}")]
+        public void SetOptions(string options)
+        {
+            var settings = GenericData.GetPlayerData<PlayerSettings>(accountId, "rbSettings");
+            if (settings == null)
+                settings = new PlayerSettings() { distancePref = 3, categories = "all" };
+
+            string[] newSettings = options.Split('~'); //sections are split by ~. 
+            settings.categories = newSettings[0]; //categories are split by | but the individual pieces aren't checked.
+            settings.distancePref = newSettings[1].ToInt();
+
+            GenericData.SetPlayerDataJson(accountId, "rbSettings", settings);
         }
     }
 }
