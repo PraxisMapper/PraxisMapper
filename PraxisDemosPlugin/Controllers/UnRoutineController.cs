@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Google.OpenLocationCode;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using PraxisCore;
 using PraxisCore.Support;
@@ -18,8 +19,8 @@ namespace PraxisDemosPlugin.Controllers
 
     public class PlayerSettings
     {
-        public int distancePref = 3;  //1 is short, 2 is medium, 3 is long. THey're group, not discrete values.
-        public string categories = ""; //names of styles the player wants to go to.
+        public int distancePref { get; set; } = 3;  //1 is short, 2 is medium, 3 is long. THey're group, not discrete values.
+        public string categories { get; set; } = ""; //names of styles the player wants to go to.
     }
 
     [ApiController]
@@ -102,7 +103,7 @@ namespace PraxisDemosPlugin.Controllers
                 return "";
 
             var place = Place.GetPlace(target);
-            var placeData = new { Name = TagParser.GetName(place), Category = place.StyleName };
+            var placeData = new { Name = TagParser.GetName(place), Category = place.StyleName, Location = new OpenLocationCode(place.ElementGeometry.Centroid.Centroid.Y, place.ElementGeometry.Centroid.X).Code };
             return JsonSerializer.Serialize(placeData);
         }
 
@@ -136,8 +137,11 @@ namespace PraxisDemosPlugin.Controllers
             places = places.Where(p => settings.categories == "all" || settings.categories.Contains(p.StyleName)).ToList();
             var place = places.PickOneRandom();
 
+            if (place == null)
+                return JsonSerializer.Serialize(new { Name = "No Place Found" });
 
-            return JsonSerializer.Serialize(new { Name = TagParser.GetName(place), Category = place.StyleName, PlaceId = place.PrivacyId });
+
+            return JsonSerializer.Serialize(new { Name = TagParser.GetName(place), Category = place.StyleName, PlaceId = place.PrivacyId, Location = new OpenLocationCode(place.ElementGeometry.Centroid.Centroid.Y, place.ElementGeometry.Centroid.X).Code });
 
         }
 
@@ -184,11 +188,13 @@ namespace PraxisDemosPlugin.Controllers
         {
             var settings = GenericData.GetPlayerData<PlayerSettings>(accountId, "rbSettings");
             if (settings == null)
-                settings = new PlayerSettings() { distancePref = 3, categories = "all" };
+                settings = new PlayerSettings() { distancePref = 3, categories = "-park-university-natureReserve-cemetery-artsCulture-tourism-historical-trail" };
 
             string[] newSettings = options.Split('~'); //sections are split by ~. 
             settings.categories = newSettings[0]; //categories are split by | but the individual pieces aren't checked.
-            settings.distancePref = newSettings[1].ToInt();
+
+            if (newSettings.Length > 1)
+                settings.distancePref = newSettings[1].ToInt();
 
             GenericData.SetPlayerDataJson(accountId, "rbSettings", settings);
         }
