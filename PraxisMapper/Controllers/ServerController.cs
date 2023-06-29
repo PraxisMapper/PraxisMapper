@@ -208,6 +208,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/GdprExport/{username}/{pwd}")]
         public string Export(string username = "", string pwd = "")
         {
+            Response.Headers.Add("X-noPerfTrack", "Server/GdprExport");
             string accountId = "";
             string password = "";
             //GDPR Compliance Endpoint. Allows a user to decrypt(!) and receive all the data associated with them in the system. All means all, so they get the password strings encrypted.
@@ -219,6 +220,13 @@ namespace PraxisMapper.Controllers
             {
                 accountId = username;
                 password = pwd;
+            }
+
+            //we still need to verify this is a legit request
+            if (!GenericData.CheckPassword(accountId, password))
+            {
+                System.Threading.Thread.Sleep(3500);
+                return "Invalid account credentials";
             }
 
             StringBuilder sb = new StringBuilder();
