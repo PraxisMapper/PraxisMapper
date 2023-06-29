@@ -55,7 +55,7 @@ namespace PraxisMapper.Classes
                         using var db = new PraxisContext();
                         db.ChangeTracker.AutoDetectChangesEnabled = false;
                         db.PerformanceInfo.Add(new DbTables.PerformanceInfo() { Notes = "Auth Failed for " + context.Request.Path, FunctionName = "PraxisAuth", CalledAt = DateTime.UtcNow });
-                        db.SaveChangesAsync();
+                        db.SaveChanges();
                     }
 
                     System.Threading.Thread.Sleep(2000); //A mild annoyance to anyone attempting to brute-force a key from the outside
