@@ -1,7 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Identity.Client;
 using PraxisCore;
 using PraxisMapper.Classes;
 using System;
@@ -11,37 +14,43 @@ using System.Linq;
 using System.Text;
 using static PraxisCore.DbTables;
 
-namespace PraxisMapper.Controllers {
+namespace PraxisMapper.Controllers
+{
     [Route("[controller]")]
     [ApiController]
-    public class ServerController : Controller {
+    public class ServerController : Controller
+    {
         //For endpoints that relay information about the server itself. not game data.
         //
         private readonly IConfiguration Configuration;
         private static IMemoryCache cache;
 
-        public ServerController(IConfiguration configuration, IMemoryCache memoryCacheSingleton) {
+        public ServerController(IConfiguration configuration, IMemoryCache memoryCacheSingleton)
+        {
             Configuration = configuration;
             cache = memoryCacheSingleton;
         }
 
         [HttpGet]
         [Route("/[controller]/Test")]
-        public string Test() {
+        public string Test()
+        {
             //Used for clients to test if server is alive. Returns OK normally, clients should check for non-OK results to display as a maintenance message.
             return "OK";
         }
 
         [HttpGet]
         [Route("/[controller]/ServerBounds")]
-        public string GetServerBounds() {
+        public string GetServerBounds()
+        {
             var bounds = cache.Get<ServerSetting>("settings");
             return bounds.SouthBound + "|" + bounds.WestBound + "|" + bounds.NorthBound + "|" + bounds.EastBound;
         }
 
         [HttpDelete]
         [Route("/[controller]/Account/")]
-        public int DeleteUser() {
+        public int DeleteUser()
+        {
             //GDPR compliance requires this to exist and be available to the user. 
             //Custom games that attach players to locations may need additional logic to fully meet legal requirements.
             //These 2 lines require PraxisAuth enabled, which you should have on anyways if you're using accounts.
@@ -63,14 +72,16 @@ namespace PraxisMapper.Controllers {
 
         [HttpGet]
         [Route("/[controller]/UseAntiCheat")]
-        public bool UseAntiCheat() {
+        public bool UseAntiCheat()
+        {
             return Configuration.GetValue<bool>("enableAntiCheat");
         }
 
         [HttpGet]
         [Route("/[controller]/MOTD")]
         [Route("/[controller]/Message")]
-        public string MessageOfTheDay() {
+        public string MessageOfTheDay()
+        {
             if (cache.TryGetValue<string>("MOTD", out var cached))
                 return cached;
 
@@ -85,7 +96,8 @@ namespace PraxisMapper.Controllers {
 
         [HttpPut]
         [Route("/[controller]/AntiCheat/{filename}")]
-        public void AntiCheat(string filename) {
+        public void AntiCheat(string filename)
+        {
             var endData = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength);
 
             using var db = new PraxisContext();
@@ -96,7 +108,8 @@ namespace PraxisMapper.Controllers {
             if (!PraxisAntiCheat.antiCheatStatus.ContainsKey(IP))
                 PraxisAntiCheat.antiCheatStatus.TryAdd(IP, new Classes.AntiCheatInfo());
 
-            if (db.AntiCheatEntries.Any(a => a.filename == filename && a.data == endData)) {
+            if (db.AntiCheatEntries.Any(a => a.filename == filename && a.data == endData))
+            {
                 var entry = PraxisAntiCheat.antiCheatStatus[IP];
                 if (!entry.entriesValidated.Contains(filename))
                     entry.entriesValidated.Add(filename);
@@ -108,9 +121,11 @@ namespace PraxisMapper.Controllers {
 
         [HttpGet]
         [Route("/[controller]/Login/{accountId}/{password}")]
-        public AuthDataResponse Login(string accountId, string password) {
+        public AuthDataResponse Login(string accountId, string password)
+        {
             Response.Headers.Add("X-noPerfTrack", "Server/Login/VARSREMOVED");
-            if (GenericData.CheckPassword(accountId, password)) {
+            if (GenericData.CheckPassword(accountId, password))
+            {
                 int authTimeout = Configuration["authTimeoutSeconds"].ToInt();
                 Guid token = Guid.NewGuid();
                 var intPassword = GenericData.GetInternalPassword(accountId, password);
@@ -123,7 +138,8 @@ namespace PraxisMapper.Controllers {
 
         [HttpPut]
         [Route("/[controller]/CreateAccount/{accountId}/{password}")]
-        public bool CreateAccount(string accountId, string password) {
+        public bool CreateAccount(string accountId, string password)
+        {
             Response.Headers.Add("X-noPerfTrack", "Server/CreateAccount/VARSREMOVED");
 
             using var db = new PraxisContext();
@@ -138,20 +154,25 @@ namespace PraxisMapper.Controllers {
 
         [HttpPut]
         [Route("/[controller]/ChangePassword/{accountId}/{passwordOld}/{passwordNew}")]
-        public bool ChangePassword(string accountId, string passwordOld, string passwordNew) {
+        public bool ChangePassword(string accountId, string passwordOld, string passwordNew)
+        {
             Response.Headers.Add("X-noPerfTrack", "Server/ChangePassword/VARSREMOVED");
-            if (GenericData.CheckPassword(accountId, passwordOld)) {
+            if (GenericData.CheckPassword(accountId, passwordOld))
+            {
                 GenericData.EncryptPassword(accountId, passwordNew, Configuration.GetValue<int>("PasswordRounds"));
 
                 using var db = new PraxisContext();
                 var entries = db.PlayerData.Where(p => p.accountId == accountId && p.IvData != null).ToList();
-                foreach (var entry in entries) {
-                    try {
+                foreach (var entry in entries)
+                {
+                    try
+                    {
                         var data = GenericData.DecryptValue(entry.IvData, entry.DataValue, passwordOld);
                         entry.DataValue = GenericData.EncryptValue(data, passwordNew, out var newIVs);
                         entry.IvData = newIVs;
                     }
-                    catch {
+                    catch
+                    {
                         //skip this one, its not using this password.
                     }
                 }
@@ -164,14 +185,16 @@ namespace PraxisMapper.Controllers {
 
         [HttpGet]
         [Route("/[controller]/RandomPoint")]
-        public string RandomPoint() {
+        public string RandomPoint()
+        {
             var bounds = cache.Get<DbTables.ServerSetting>("settings");
             return PraxisCore.Place.RandomPoint(bounds);
         }
 
         [HttpGet]
         [Route("/[controller]/RandomValues/{plusCode}/{count}")]
-        public List<int> GetRandomValuesForArea(string plusCode, int count) {
+        public List<int> GetRandomValuesForArea(string plusCode, int count)
+        {
             List<int> values = new List<int>(count);
             var random = plusCode.GetSeededRandom();
             for (int i = 0; i < count; i++)
@@ -182,10 +205,22 @@ namespace PraxisMapper.Controllers {
 
         [HttpGet]
         [Route("/[controller]/GdprExport")]
-        public string Export()
+        [Route("/[controller]/GdprExport/{username}/{pwd}")]
+        public string Export(string username = "", string pwd = "")
         {
+            string accountId = "";
+            string password = "";
             //GDPR Compliance Endpoint. Allows a user to decrypt(!) and receive all the data associated with them in the system. All means all, so they get the password strings encrypted.
-            PraxisAuthentication.GetAuthInfo(Response, out var accountId, out var password);
+            if (username == "" && pwd == "")
+            {
+                PraxisAuthentication.GetAuthInfo(Response, out accountId, out password);
+            }
+            else
+            {
+                accountId = username;
+                password = pwd;
+            }
+
             StringBuilder sb = new StringBuilder();
             if (!string.IsNullOrWhiteSpace(accountId))
             {
@@ -194,7 +229,7 @@ namespace PraxisMapper.Controllers {
                 sb.AppendLine("accountID: " + authInfo.accountId + " | bannedUntil: " + authInfo.bannedUntil + " | dataIV: " + authInfo.dataIV.ToBase64String() + " | dataPassword: " + authInfo.dataPassword + " | isAdmin: " + authInfo.isAdmin + " | loginPassword: " + authInfo.loginPassword);
 
                 var entries = db.PlayerData.Where(p => p.accountId == accountId).ToList();
-               
+
                 foreach (var entry in entries)
                 {
                     if (entry.IvData == null)
