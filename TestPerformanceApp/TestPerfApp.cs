@@ -14,7 +14,7 @@ using PraxisCore.Support;
 using SkiaSharp;
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Frozen;
+//using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -3058,7 +3058,7 @@ namespace PerformanceTestApp
             //Conclusion as of NET 8 Preview 2: Frozen isn't faster. Frozen is slower. ReadOnlyMemory is maybe very slightly faster.
             Stopwatch sw = new Stopwatch();
             var listver = NameGenerator.adjectives;
-            var fset = NameGenerator.adjectives.ToFrozenSet();
+            var fset = NameGenerator.adjectives;
             var immute = NameGenerator.adjectives.ToImmutableList();
             var readonlyl = NameGenerator.adjectives.AsReadOnly();
             var memlist = new ReadOnlyMemory<string>(NameGenerator.adjectives.ToArray());
@@ -3114,7 +3114,7 @@ namespace PerformanceTestApp
 
             Console.WriteLine("Dicts");
             var normDict = TagParser.allStyleGroups;
-            var frozDict = normDict.ToFrozenDictionary(k => k.Key, v => v.Value.ToFrozenDictionary(kk => kk.Key, vv => vv.Value));
+            var frozDict = normDict; //.ToFrozenDictionary(k => k.Key, v => v.Value.ToFrozenDictionary(kk => kk.Key, vv => vv.Value));
             var immDict = normDict.ToImmutableDictionary(k => k.Key, v => v.Value.ToImmutableDictionary(kk => kk.Key, vv => vv.Value));
             List<TimeSpan> frozenD = new List<TimeSpan>();
             List<TimeSpan> normD = new List<TimeSpan>();
