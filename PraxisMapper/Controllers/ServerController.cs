@@ -218,16 +218,16 @@ namespace PraxisMapper.Controllers
             }
             else
             {
-                accountId = username;
-                password = pwd;
-            }
+                if (!GenericData.CheckPassword(username, pwd))
+                {
+                    System.Threading.Thread.Sleep(3500);
+                    return "Invalid account credentials";
+                }
 
-            //we still need to verify this is a legit request
-            if (!GenericData.CheckPassword(accountId, password))
-            {
-                System.Threading.Thread.Sleep(3500);
-                return "Invalid account credentials";
-            }
+                accountId = username;
+                var innerPwd = GenericData.GetInternalPassword(accountId, password);
+                password = innerPwd;
+            }            
 
             StringBuilder sb = new StringBuilder();
             if (!string.IsNullOrWhiteSpace(accountId))
