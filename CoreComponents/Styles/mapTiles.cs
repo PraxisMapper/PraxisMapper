@@ -61,7 +61,8 @@ namespace PraxisCore.Styles
                     new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "amenity", Value = "theatre|concert hall|arts centre|planetarium|library|public_bookcase|community_centre|conference_centre|exhibition_centre|events_venue", MatchType = "or" }}
+                    new StyleMatchRule() { Key = "amenity", Value = "theatre|concert hall|arts centre|planetarium|library|public_bookcase|community_centre|conference_centre|exhibition_centre|events_venue", MatchType = "or" },
+                    new StyleMatchRule() { Key = "tourism", Value = "aquarium|artwork|attraction|gallery|museum|theme_park|viewpoint|zoo", MatchType = "or" }}
             },
             new StyleEntry() { MatchOrder = 39, Name ="camping", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
@@ -71,7 +72,7 @@ namespace PraxisCore.Styles
             {
                 new StyleMatchRule() { Key="tourism", Value="camp_site|caravan_site", MatchType="any"},
             }},
-            new StyleEntry() { IsGameElement = true, MatchOrder = 40, Name ="tourism", StyleSet = "mapTiles",
+            new StyleEntry() { IsGameElement = false, MatchOrder = 40, Name ="tourism", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "660033", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
@@ -107,8 +108,8 @@ namespace PraxisCore.Styles
                     new StylePaint() { HtmlColorCode = "806b5b", FillOrStroke = "stroke", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "building", Value = "*", MatchType = "equals" },
-                    new StyleMatchRule() { Key = "name", Value = "*", MatchType = "equals" }
+                    new StyleMatchRule() { Key = "building", Value = "*", MatchType = "any" },
+                    new StyleMatchRule() { Key = "name", Value = "*", MatchType = "any" }
                 }
             },
             new StyleEntry() { MatchOrder = 70, Name ="building", StyleSet = "mapTiles", //NOTE: making this matchOrder=20 makes map tiles draw faster, but hides some gameplay-element colors.
