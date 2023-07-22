@@ -89,15 +89,8 @@ namespace PraxisCore.Styles
                     new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "amenity", Value = "theatre|concert hall|arts centre|planetarium|library|public_bookcase|community_centre|conference_centre|exhibition_centre|events_venue", MatchType = "or" }}
-            },
-            new StyleEntry() { IsGameElement = true, MatchOrder = 10, Name ="tourism", StyleSet = "suggestedGameplay",
-                PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "CC660033", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 },
-                    new StylePaint() { HtmlColorCode = "CCFF0066", FillOrStroke = "stroke", LineWidthDegrees=0.0001875F, LinePattern= "solid", LayerId = 99 }
-                },
-                StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "tourism", Value = "*", MatchType = "equals" }}
+                    new StyleMatchRule() { Key = "amenity", Value = "theatre|concert hall|arts centre|planetarium|library|public_bookcase|community_centre|conference_centre|exhibition_centre|events_venue", MatchType = "or" },
+                    new StyleMatchRule() { Key = "tourism", Value = "aquarium|artwork|attraction|gallery|museum|theme_park|viewpoint|zoo", MatchType = "or" }}
             },
             new StyleEntry() { IsGameElement = true, MatchOrder = 11, Name ="historical", StyleSet = "suggestedGameplay",
                 PaintOperations = new List<StylePaint>() {
