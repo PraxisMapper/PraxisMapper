@@ -76,14 +76,6 @@ namespace PraxisCore.Styles
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() {Key = "suggestedmini", Value = "retail", MatchType = "equals"},
             }},
-            new StyleEntry() { IsGameElement = true, MatchOrder = 9, Name ="tourism", StyleSet = "suggestedmini",
-                PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "CC660033", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 },
-                    new StylePaint() { HtmlColorCode = "CCFF0066", FillOrStroke = "stroke", LineWidthDegrees=0.0001875F, LinePattern= "solid", LayerId = 99 }
-                },
-                StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() {Key = "suggestedmini", Value = "tourism", MatchType = "equals"} },
-            },
             new StyleEntry() { IsGameElement = true, MatchOrder = 10, Name ="historical", StyleSet = "suggestedmini",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "CCB3B3B3", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 },
