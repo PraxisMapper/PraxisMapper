@@ -155,7 +155,22 @@ namespace PraxisCore.PbfReader
                 {
                     md.ElementGeometry = md.ElementGeometry.Centroid;
                     sb.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(md.PrivacyId).Append("\r\n");
-                    reprocFileStream.WriteLine(sb.ToString());
+                    reprocFileStream.Write(sb.ToString());
+                }
+                else if (processingMode == "expandPoints")
+                {
+                    //Declare that Points aren't sufficient for this game's purpose, expand them to Cell8 size for now
+                    //Because actually upgrading them to the geometry for some containing shape requires a full global-loaded database.
+                    if (md.SourceItemType == 1) //Only nodes get upgraded.
+                    {
+                        md.ElementGeometry = md.ElementGeometry.Buffer(ConstantValues.resolutionCell8);
+                        md.SourceItemType = 2;
+                        sb.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(md.PrivacyId).Append("\r\n");
+                    }
+                    else
+                        sb.Append(entry);
+
+                    reprocFileStream.Write(sb.ToString());
                 }
                 else if (processingMode == "minimize") //This may be removed in the near future, since this has a habit of making invalid geometry.
                 {
@@ -201,8 +216,6 @@ namespace PraxisCore.PbfReader
                         }
                     }
                 }
-
-
             }
             sr.Close(); sr.Dispose(); fr.Close(); fr.Dispose();
             sr2.Close(); sr2.Dispose(); fr2.Close(); fr2.Dispose();
@@ -1589,7 +1602,7 @@ namespace PraxisCore.PbfReader
 
         public static async void QueueWriteTask(string filename, StringBuilder data)
         {
-            SimpleLockable.PerformWithLockAsTask(filename, () =>
+            SimpleLockable.PerformWithLock(filename, () => //AsTask still occasionally doesnt work? No idea why.
             {
                 data.Length = data.Length - 2; //ignore final /r/n characters so we don't have a blank line.
                 var file = File.OpenWrite(filename);
