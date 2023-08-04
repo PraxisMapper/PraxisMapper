@@ -106,12 +106,14 @@ namespace PraxisCore
         public static string sourceItemIdIndexMaria = "CREATE OR REPLACE INDEX IX_Places_sourceItemID on Places(sourceItemID)";
         public static string sourceItemTypeIndexMaria = "CREATE OR REPLACE INDEX IX_Places_sourceItemType on Places(sourceItemType)";
         public static string tagKeyIndexMaria = "CREATE OR REPLACE INDEX IX_PlaceTags_Key on PlaceTags(`Key`)";
+        public static string tagSourceIndexMaria = "CREATE OR REPLACE INDEX IX_PlaceTags_SourceItemId_SourceItemType on PlaceTags(SourceItemId, SourceItemType)";
 
         public static string drawSizeHintIndexSQL = "CREATE INDEX IX_Places_DrawSizeHint on Places(DrawSizeHint)";
         public static string privacyIdIndexSQL = "CREATE INDEX IX_Places_privacyId on Places(privacyId)";
         public static string sourceItemIdIndexSQL = "CREATE INDEX IX_Places_sourceItemID on Places(sourceItemID)";
         public static string sourceItemTypeIndexSQL = "CREATE INDEX IX_Places_sourceItemType on Places(sourceItemType)";
         public static string tagKeyIndexSQL = "CREATE INDEX IX_PlaceTags_Key on PlaceTags([Key])";
+        public static string tagSourceIndexSQL = "CREATE INDEX IX_PlaceTags_SourceItemId_SourceItemType on PlaceTags(sourceItemId, sourceItemType)";
 
         //PostgreSQL uses its own CREATE INDEX syntax
         public static string MapTileIndexPG = "CREATE INDEX maptiles_geom_idx ON public.\"MapTiles\" USING GIST(\"areaCovered\")";
@@ -130,6 +132,7 @@ namespace PraxisCore
         public static string DropPlacesSourceItemIdIndex = "DROP INDEX IF EXISTS IX_Places_sourceItemID on Places";
         public static string DropPlacesSourceItemTypeIndex = "DROP INDEX IF EXISTS IX_Places_sourceItemType on Places";
         public static string DropTagKeyIndex = "DROP INDEX IF EXISTS IX_PlaceTags_Key on PlaceTags";
+        public static string DropTagSourceIndex = "DROP INDEX IF EXISTS IX_PlaceTags_SourceItemId_SourceItemType on PlaceTags";
 
         //This doesn't appear to be any faster. The query isn't the slow part. Keeping this code as a reference for how to precompile queries.
         //public static Func<PraxisContext, Geometry, IEnumerable<MapData>> compiledIntersectQuery =
@@ -281,6 +284,10 @@ namespace PraxisCore
             }
             else if (serverMode == "MariaDB")
             {
+                //NOTE: loading entries directly from files occasionally causes MariaDB to save a blank geometry entry. 
+                //This corrects for that unexpected behavior. In the future, I should log which ones get removed.
+                Database.ExecuteSqlRaw("DELETE FROM Places WHERE ElementGeometry = '' OR ElementGeometry = NULL");
+                
                 //db.Database.ExecuteSqlRaw(GeneratedMapDataIndex);
                 Database.ExecuteSqlRaw(MapTileIndex);
                 Log.WriteLog("MapTiles indexed.");
@@ -296,6 +303,7 @@ namespace PraxisCore
                 Database.ExecuteSqlRaw(privacyIdIndexMaria);
                 Log.WriteLog("Places other columns indexed.");
                 Database.ExecuteSqlRaw(tagKeyIndexMaria);
+                //Database.ExecuteSqlRaw(tagSourceIndexMaria);
                 Log.WriteLog("PlaceTags indexed.");
                 Database.ExecuteSqlRaw(AreaDataSpatialIndex);
                 Log.WriteLog("AreaData indexed.");
@@ -317,6 +325,7 @@ namespace PraxisCore
                 Database.ExecuteSqlRaw(privacyIdIndexSQL);
                 Log.WriteLog("Places other columns indexed.");
                 Database.ExecuteSqlRaw(tagKeyIndexSQL);
+                //Database.ExecuteSqlRaw(tagSourceIndexSQL);
                 Log.WriteLog("PlaceTags indexed.");
                 Database.ExecuteSqlRaw(AreaDataSpatialIndex);
                 Log.WriteLog("AreaData indexed.");
@@ -335,6 +344,7 @@ namespace PraxisCore
             Database.ExecuteSqlRaw(DropPlacesSourceItemTypeIndex);
             Database.ExecuteSqlRaw(DropPlacesSourceItemIdIndex);
             Database.ExecuteSqlRaw(DropTagKeyIndex);
+            //Not dropping the sourceItemId index because of a requirement from a foreign key.
             Log.WriteLog("Indexes dropped.");
         }
 

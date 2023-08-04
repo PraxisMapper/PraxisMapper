@@ -171,8 +171,8 @@ namespace Larry
                 LoadOfflineDataToDb(config["PbfFolder"]);
             }
 
-            //NOTE: this seems to drop out a lot of geometry, so I may not want to suppor tthis after all.
-            if (args.Any(a => a.StartsWith("-shrinkFiles")))
+            //NOTE: this seems to drop out a lot of geometry, so I may not want to support this after all.
+            if (args.Any(a => a.StartsWith("-shrinkFiles") || a.StartsWith("-reprocessFiles")))
             {
                 List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.geomData").ToList();
                 foreach (string filename in filenames)
@@ -674,7 +674,7 @@ namespace Larry
                 {
                     var shapeData = sf.GetShapeDataD(i);
                     var poly = Converters.ShapefileRecordToPolygon(shapeData);
-                    geoSW.WriteLine((100000000000 + i) + "\t2\t" + poly.AsText() +"\t" + Guid.NewGuid() + "\t0\r\n"); //DrawSizeHint is set to 0, these always appear.
+                    geoSW.WriteLine((100000000000 + i) + "\t2\t" + poly.AsText() + "\t" + Guid.NewGuid() + "\t999999\r\n"); //DrawSizeHint is big so these always appear.
                     tagSW.WriteLine((100000000000 + i) + "\t2\tnatural\twater");
                 }
             sw.Stop();

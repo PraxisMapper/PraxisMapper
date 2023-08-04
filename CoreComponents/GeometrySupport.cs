@@ -285,16 +285,23 @@ namespace PraxisCore
         /// <returns></returns>
         public static DbTables.Place ConvertSingleTsvPlace(string sw)
         {
-            var source = sw.AsSpan();
-            DbTables.Place entry = new DbTables.Place();
-            entry.SourceItemID = source.SplitNext('\t').ToLong();
-            entry.SourceItemType = source.SplitNext('\t').ToInt();
-            entry.ElementGeometry = GeometryFromWKT(source.SplitNext('\t').ToString());
-            entry.PrivacyId = Guid.Parse(source.SplitNext('\t'));
-            entry.DrawSizeHint = source.ToDouble();
-            entry.Tags = new List<PlaceTags>();
+            try
+            {
+                var source = sw.AsSpan();
+                DbTables.Place entry = new DbTables.Place();
+                entry.SourceItemID = source.SplitNext('\t').ToLong();
+                entry.SourceItemType = source.SplitNext('\t').ToInt();
+                entry.ElementGeometry = GeometryFromWKT(source.SplitNext('\t').ToString());
+                entry.PrivacyId = Guid.Parse(source.SplitNext('\t'));
+                entry.DrawSizeHint = source.ToDouble();
+                entry.Tags = new List<PlaceTags>();
 
-            return entry;
+                return entry;
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         /// <summary>

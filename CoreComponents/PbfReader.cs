@@ -147,6 +147,8 @@ namespace PraxisCore.PbfReader
                     continue;
 
                 DbTables.Place md = GeometrySupport.ConvertSingleTsvPlace(entry);
+                if (md == null)
+                    continue;
 
                 if (bounds != null && (!bounds.Intersects(md.ElementGeometry.EnvelopeInternal)))
                     continue;
@@ -164,7 +166,6 @@ namespace PraxisCore.PbfReader
                     if (md.SourceItemType == 1) //Only nodes get upgraded.
                     {
                         md.ElementGeometry = md.ElementGeometry.Buffer(ConstantValues.resolutionCell8);
-                        md.SourceItemType = 2;
                         sb.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(md.PrivacyId).Append("\r\n");
                     }
                     else
