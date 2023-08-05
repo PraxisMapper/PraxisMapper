@@ -363,7 +363,8 @@ namespace PraxisCore {
             bitmap.Encode(skms, SKEncodedImageFormat.Png, 100);
             var results = ms.ToArray();
             path.Dispose();
-            skms.Dispose(); ms.Close(); ms.Dispose(); canvas.Dispose(); bitmap.Dispose();
+            skms.Dispose(); ms.Close(); ms.Dispose(); canvas.Restore(); canvas.Dispose(); bitmap.Reset(); bitmap.Dispose(); canvas = null; bitmap = null;
+            GC.Collect();
             return results;
         }
 
@@ -547,7 +548,7 @@ namespace PraxisCore {
         }
 
         public static SKPoint PlaceInfoToSKPoint(StandaloneDbTables.PlaceInfo2 pi, ImageStats imgstats) {
-            SkiaSharp.SKPoint point = new SkiaSharp.SKPoint();
+            SKPoint point = new SKPoint();
             point.X = (float)((pi.lonCenter - imgstats.area.WestLongitude) * (1 / imgstats.degreesPerPixelX));
             point.Y = (float)((pi.latCenter - imgstats.area.SouthLatitude) * (1 / imgstats.degreesPerPixelY));
             return point;
