@@ -179,6 +179,8 @@ namespace PraxisDemosPlugin.Controllers
         public string GetOptions()
         {
             var settings = GenericData.GetPlayerData<PlayerSettings>(accountId, "rbSettings");
+            if (settings == null)
+                settings = new PlayerSettings() { distancePref = 3, categories = "-park-university-natureReserve-cemetery-artsCulture-historical" };
             return JsonSerializer.Serialize(settings);
         }
 
@@ -188,7 +190,7 @@ namespace PraxisDemosPlugin.Controllers
         {
             var settings = GenericData.GetPlayerData<PlayerSettings>(accountId, "rbSettings");
             if (settings == null)
-                settings = new PlayerSettings() { distancePref = 3, categories = "-park-university-natureReserve-cemetery-artsCulture-tourism-historical-trail" };
+                settings = new PlayerSettings() { distancePref = 3, categories = "-park-university-natureReserve-cemetery-artsCulture-historical" };
 
             string[] newSettings = options.Split('~'); //sections are split by ~. 
             settings.categories = newSettings[0]; //categories are split by | but the individual pieces aren't checked.
