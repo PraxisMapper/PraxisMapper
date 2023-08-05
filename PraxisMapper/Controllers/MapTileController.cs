@@ -59,6 +59,15 @@ namespace PraxisMapper.Controllers
             return results;
         }
 
+        private void FinishMapTile(byte[] tiledata, string code, string styleSet)
+        {
+            if (SaveMapTiles())
+            {
+                var currentGen = MapTileSupport.SaveMapTile(code, styleSet, tiledata);
+                cache.Set("gen" + code + styleSet, currentGen);
+            }
+        }
+
         [HttpGet]
         [Route("/[controller]/DrawSlippyTile/{styleSet}/{zoom}/{x}/{y}.png")] //slippy map conventions.
         [Route("/[controller]/Slippy/{styleSet}/{zoom}/{x}/{y}.png")] //slippy map conventions.
@@ -152,9 +161,11 @@ namespace PraxisMapper.Controllers
                 }
 
                 //Make tile
-                var places = GetPlaces(info, null, styleSet);
-                var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, styleSet, info);
-                tileData = FinishMapTile(info, paintOps, code, styleSet);
+                tileData = MapTiles.DrawAreaAtSize(info, null, styleSet);
+                //var places = GetPlaces(info, null, styleSet);
+                //var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, styleSet, info);
+                //tileData = FinishMapTile(info, paintOps, code, styleSet);
+                FinishMapTile(tileData, code, styleSet);
 
                 Response.Headers.Add("X-notes", Configuration.GetValue<string>("MapTilesEngine"));
                 return File(tileData, "image/png");
