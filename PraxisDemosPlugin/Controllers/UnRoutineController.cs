@@ -1,6 +1,7 @@
 ﻿using Google.OpenLocationCode;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.EntityFrameworkCore;
 using PraxisCore;
 using PraxisCore.Support;
 using PraxisMapper.Classes;
@@ -115,8 +116,8 @@ namespace PraxisDemosPlugin.Controllers
             if (settings == null)
                 settings = new PlayerSettings() { distancePref = 3, categories = "all" };
             
-            int minDistance = 1;
-            int maxDistance = 2;
+            double minDistance = 1;
+            double maxDistance = 2;
             switch (settings.distancePref)
             {
                 case 1: //1-2km. People walk at about 1.4 m/s. Set this to be a 15-30 minute walk away. So 1-2 kilometers.
@@ -133,15 +134,41 @@ namespace PraxisDemosPlugin.Controllers
                     break;
             }
 
-            var places = FindValidPlaces(plusCode10, minDistance, maxDistance);
-            places = places.Where(p => settings.categories == "all" || settings.categories.Contains(p.StyleName)).ToList();
-            var place = places.PickOneRandom();
+            //Trying to do this faster
+            string sql = "";
+            var db = new PraxisContext();
+            var maxArea = plusCode10.ToGeoArea().ToPolygon().Buffer(maxDistance.DistanceMetersToDegreesLat()).ToText(); //square, because the geoArea is square before buffering.
+            var minArea = plusCode10.ToGeoArea().ToPolygon().Buffer(minDistance.DistanceMetersToDegreesLat()).ToText();
+            //NOTE: MariaDB specific SQL here.
+            var place = db.Places.FromSql($"SELECT * FROM Places WHERE ST_Intersects(ElementGeometry, ST_GeomFromText({maxArea})) AND NOT ST_Intersects(ElementGeometry, ST_GeomFromText({minArea})) ORDER BY RAND() LIMIT 1").Include(p => p.Tags).Include(p => p.PlaceData).FirstOrDefault();
+            //150ms total-ish vs 5000ms below.
+            
+
+            //This way was about 5 seconds.
+            //var places = FindValidPlaces(plusCode10, minDistance, maxDistance);
+            //places = places.Where(p => settings.categories == "all" || settings.categories.Contains(p.StyleName)).ToList();
+            //var place = places.PickOneRandom();
 
             if (place == null)
                 return JsonSerializer.Serialize(new { Name = "No Place Found" });
 
+            TagParser.ApplyTags(place, "suggestedGameplay");
+            //Name checking stuff.
+            string name = TagParser.GetName(place);
+            if (string.IsNullOrEmpty(name))
+            {
+                name = "Unnamed " + place.StyleName;
+            }
 
-            return JsonSerializer.Serialize(new { Name = TagParser.GetName(place), Category = place.StyleName, PlaceId = place.PrivacyId, Location = new OpenLocationCode(place.ElementGeometry.Centroid.Centroid.Y, place.ElementGeometry.Centroid.X).Code });
+
+            var distance = GeometrySupport.MetersDistanceTo(plusCode10.ToGeoArea().ToPoint(), place.ElementGeometry.Centroid);
+            return JsonSerializer.Serialize(new { 
+                Name = name, 
+                Category = place.StyleName, 
+                PlaceId = place.PrivacyId, 
+                Location = new OpenLocationCode(place.ElementGeometry.Centroid.Y, place.ElementGeometry.Centroid.X).Code, 
+                Distance = distance 
+            });
 
         }
 

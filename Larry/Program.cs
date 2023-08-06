@@ -663,6 +663,7 @@ namespace Larry
 
         public static void ReadCoastlineWaterPolyShapefile(string shapePath)
         {
+            //NOTE: this requires the WGS84 version of the polygons. the Mercator version is UTM, not the Mercator you saw in school.
             Log.WriteLog("Reading water polygon data from " + shapePath);
             Stopwatch sw = Stopwatch.StartNew();
             string fileBaseName = config["OutputDataFolder"] + "coastlines";
