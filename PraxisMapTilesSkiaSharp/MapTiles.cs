@@ -333,7 +333,7 @@ namespace PraxisCore {
                         if (!string.IsNullOrEmpty(w.paintOp.FileName)) {
                             SKBitmap icon = cachedBitmaps[w.paintOp.FileName]; // SKBitmap.Decode(TagParser.cachedBitmaps[w.paintOp.FileName]);
                             canvas.DrawBitmap(icon, convertedPoint[0]);
-                            icon.Dispose();
+                            //icon.Dispose();
                         }
                         else {
                             var circleRadius = (float)(w.paintOp.LineWidthDegrees / stats.degreesPerPixelX); //I want points to be drawn as 1 Cell10 in diameter usually, but should be adjustable.
