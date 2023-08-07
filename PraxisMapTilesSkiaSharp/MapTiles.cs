@@ -17,6 +17,8 @@ namespace PraxisCore {
         static readonly Random r = new Random();
         static Dictionary<string, SKBitmap> cachedBitmaps = new Dictionary<string, SKBitmap>(); //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
         static Dictionary<long, SKPaint> cachedPaints = new Dictionary<long, SKPaint>();
+        static SKPaint outlinePaint;
+
 
         public void Initialize() {
             cachedBitmaps.Clear();
@@ -41,6 +43,8 @@ namespace PraxisCore {
                         }
                         cachedPaints.Add(p.Id, SetPaintForTPP(p));
                     }
+
+            outlinePaint = SetPaintForTPP(Styles.outlines.style[0].PaintOperations.First());
         }
 
         /// <summary>
@@ -338,8 +342,7 @@ namespace PraxisCore {
                         else {
                             var circleRadius = (float)(w.paintOp.LineWidthDegrees / stats.degreesPerPixelX); //I want points to be drawn as 1 Cell10 in diameter usually, but should be adjustable.
                             canvas.DrawCircle(convertedPoint[0], circleRadius, paint);
-                            //TODO re-add outline paint to this DLL not TagParser.
-                            //canvas.DrawCircle(convertedPoint[0], circleRadius, TagParser.outlinePaint); 
+                            canvas.DrawCircle(convertedPoint[0], circleRadius + (paint.StrokeWidth * 0.5f), outlinePaint); 
                         }
                         //SVG code.
                         //if (w.paintOp.FileName.EndsWith("svg"))
