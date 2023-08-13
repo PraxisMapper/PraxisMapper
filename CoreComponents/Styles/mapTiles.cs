@@ -13,6 +13,7 @@ namespace PraxisCore.Styles
             //Drawing order rules: bigger numbers are drawn first == smaller numbers get drawn over bigger numbers for LayerId. Smaller areas will be drawn after (on top of) larger areas in the same layer.
             //10000: unmatched (transparent)
             //9999: background (always present, added into the draw list by processing.)
+            //101: water polygons processed from shapefiles (should always be drawn under other elements)
             //100: MOST area elements.
             //99: tertiary top-layer, area element outlines (when an area has an outline)
             //98: tertiary bottom-layer
@@ -119,15 +120,22 @@ namespace PraxisCore.Styles
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "building", Value = "*", MatchType = "equals" }} },
-            new StyleEntry() { MatchOrder = 80, Name ="water", StyleSet = "mapTiles", IsGameElement = true,
+            new StyleEntry() { MatchOrder = 79, Name ="bgwater", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "aad3df", FillOrStroke = "fill", LineWidthDegrees=0.0000625F, LinePattern= "solid", LayerId = 100 }
+                    new StylePaint() { HtmlColorCode = "aad3df", FillOrStroke = "fill", LineWidthDegrees=0.0000625F, LinePattern= "solid", LayerId = 101 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() {Key = "natural", Value = "water|strait|bay", MatchType = "or"}, //Coastline intentionally removed, as those are saved to the water polygon shapefiles and it's much more reasonable to simply import those and tag them as natural=water
+                    new StyleMatchRule() {Key = "bgwater", Value = "praxismapper", MatchType = "equals"}, //ensures that this specific element was processed by PM for this purpose.
+                }},
+            new StyleEntry() { MatchOrder = 80, Name ="water", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "aad3df", FillOrStroke = "fill", LineWidthDegrees=0.0000625F, LinePattern= "solid", LayerId = 100 } 
+                },
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() {Key = "natural", Value = "water|strait|bay", MatchType = "or"}, 
                     new StyleMatchRule() {Key = "waterway", Value ="*", MatchType="or" },
                     new StyleMatchRule() {Key = "landuse", Value ="basin", MatchType="or" },
-                    new StyleMatchRule() {Key = "leisure", Value ="swimming_pool", MatchType="or" },
+                    new StyleMatchRule() {Key = "leisure", Value ="swimming_pool", MatchType="or" }, 
                     new StyleMatchRule() {Key = "place", Value ="sea", MatchType="or" }, //stupid Labrador sea value.
                 }},
             new StyleEntry() {IsGameElement = true,  MatchOrder = 90, Name ="wetland", StyleSet = "mapTiles",

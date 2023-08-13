@@ -677,6 +677,7 @@ namespace Larry
                     var poly = Converters.ShapefileRecordToPolygon(shapeData);
                     geoSW.WriteLine((100000000000 + i) + "\t2\t" + poly.AsText() + "\t" + Guid.NewGuid() + "\t999999\r\n"); //DrawSizeHint is big so these always appear.
                     tagSW.WriteLine((100000000000 + i) + "\t2\tnatural\twater");
+                    tagSW.WriteLine((100000000000 + i) + "\t2\tbgwater\tpraxismapper");
                 }
             sw.Stop();
             Log.WriteLog("Water polygon data converted to PraxisMapper geomdata files in " + sw.Elapsed);
