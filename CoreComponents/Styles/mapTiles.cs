@@ -11,8 +11,8 @@ namespace PraxisCore.Styles
         public static List<StyleEntry> style = new List<StyleEntry>() { 
             //NOTE:
             //Drawing order rules: bigger numbers are drawn first == smaller numbers get drawn over bigger numbers for LayerId. Smaller areas will be drawn after (on top of) larger areas in the same layer.
-            //10000: unmatched (transparent)
-            //9999: background (always present, added into the draw list by processing.)
+            //1001: background (always present, added into the draw list by processing.)
+            //1000: unmatched (transparent)
             //101: water polygons processed from shapefiles (should always be drawn under other elements)
             //100: MOST area elements.
             //99: tertiary top-layer, area element outlines (when an area has an outline)
@@ -93,6 +93,7 @@ namespace PraxisCore.Styles
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "historic", Value = "*", MatchType = "equals" }}
+                //TODO: add a NOT for boundaries. Ireland is not 'historic' in the sense that this tag intends.
             },
             new StyleEntry() { MatchOrder = 65, Name ="placeofworship", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
@@ -604,14 +605,14 @@ namespace PraxisCore.Styles
             //My default set wants to draw things that haven't yet been identified, so I can see what needs improvement or matched by a rule.
             new StyleEntry() { MatchOrder = 9999, Name ="background",  StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "F2EFE9", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 101 }
+                    new StylePaint() { HtmlColorCode = "f2eef9", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 1001 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "*", Value = "*", MatchType = "none" }} },
 
             new StyleEntry() { MatchOrder = 10000, Name ="unmatched",  StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100 }
+                    new StylePaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 1000 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "*", Value = "*", MatchType = "default" }}
