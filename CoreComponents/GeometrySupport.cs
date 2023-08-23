@@ -193,7 +193,7 @@ namespace PraxisCore
                 }
                 else
                 {
-                    place.DrawSizeHint = CalculateDrawSizeHint(place);
+                    place.DrawSizeHint = CalculateDrawSizeHint(place, styleSet);
                 }
                 return place;
             }
@@ -215,7 +215,7 @@ namespace PraxisCore
             //So we take the area of the drawn element in degrees, divide by (the size of a square Cell11 divided by GameTileScale).
             //That's how many pixels an individual element would take up at typical scale. MapTiles will skip anything below 1. (Slippy tiles scale proportionally)
             //The value of what to skip will be automatically adjusted based on the area being drawn.
-            var paintOp = TagParser.allStyleGroups["mapTiles"][place.StyleName].PaintOperations;
+            var paintOp = TagParser.allStyleGroups[styleSet][place.StyleName].PaintOperations;
             var pixelMultiplier = MapTileSupport.GameTileScale;
 
             if (place.ElementGeometry.Area > 0)
