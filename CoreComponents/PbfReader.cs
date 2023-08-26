@@ -74,7 +74,7 @@ namespace PraxisCore.PbfReader
         ConcurrentBag<TimeSpan> timeListRelations = new ConcurrentBag<TimeSpan>(); //how long each Group took to process.
         ConcurrentBag<TimeSpan> timeListWays = new ConcurrentBag<TimeSpan>(); //how long each Group took to process.
 
-        long nodesProcessed = 0;
+        long nodeGroupsProcessed = 0;
         long totalProcessEntries = 0;
 
         public bool displayStatus = true;
@@ -282,9 +282,9 @@ namespace PraxisCore.PbfReader
                                 }
                                 SaveCurrentBlockAndGroup(block, i);
                                 swGroup.Stop();
-                                if (group.relations.Count > 0)
+                                if (group.relations.Count > 0 && swGroup.ElapsedMilliseconds >= 100)
                                     timeListRelations.Add(swGroup.Elapsed);
-                                else
+                                else if (swGroup.ElapsedMilliseconds >= 100)
                                     timeListWays.Add(swGroup.Elapsed);
                                 Log.WriteLog("Block " + block + " Group " + i + " processed " + currentCount + " in " + swGroup.Elapsed);
                             }
@@ -369,11 +369,14 @@ namespace PraxisCore.PbfReader
             {
                 var blockData = GetBlock(block);
                 var geoData = GetTaggedNodesFromBlock(blockData, onlyMatchedAreas);
-                if (geoData != null)
-                    ProcessReaderResults(geoData, block, 0);
-
-                activeBlocks.TryRemove(block, out blockData);
                 blockData = null;
+                if (geoData != null)
+                {
+                    totalProcessEntries += geoData.Count;
+                    ProcessReaderResults(geoData, block, 0);
+                }
+
+                activeBlocks.TryRemove(block, out _);
             });
         }
 
@@ -821,7 +824,7 @@ namespace PraxisCore.PbfReader
             List<OsmSharp.Node> taggedNodes = new List<OsmSharp.Node>(block.primitivegroup.Sum(p => p.dense.keys_vals.Count) - block.primitivegroup.Sum(p => p.dense.id.Count) / 2); //precise count
             for (int b = 0; b < block.primitivegroup.Count; b++)
             {
-                nodesProcessed++;
+                nodeGroupsProcessed++;
                 var dense = block.primitivegroup[b].dense;
 
                 //Shortcut: if dense.keys.count == dense.id.count, there's no tagged nodes at all here (0 means 'no keys', and all 0's means every entry has no keys)
@@ -872,7 +875,7 @@ namespace PraxisCore.PbfReader
                     var tc = new OsmSharp.Tags.TagsCollection(decodedTags[index]); //Tags are needed first, so pull them out here for the ignoreUnmatched check.
                     if (ignoreUnmatched)
                     {
-                        if (TagParser.GetStyleEntry(tc, styleSet) == TagParser.defaultStyle)
+                        if (TagParser.GetStyleEntry(tc, styleSet).Name == "unmatched")
                             continue;
                     }
 
@@ -1347,12 +1350,14 @@ namespace PraxisCore.PbfReader
             {
                 var relGroups = relationIndex.Count;
                 var wayGroups = wayIndex.Count;
+                var nodeGroups = nodeIndex.Count;
                 var skippedRelationGroups = relationIndex.Count(w => w.blockId > nextBlockId);
                 var skippedWayGroups = wayIndex.Count(w => w.blockId > nextBlockId);
                 while (!token.IsCancellationRequested)
                 {
                     Log.WriteLog("Current stats:");
-                    Log.WriteLog("Groups completed this run: " + (timeListRelations.Count + timeListWays.Count + nodesProcessed));
+                    Log.WriteLog("Groups completed this run: " + (timeListRelations.Count + timeListWays.Count + nodeGroupsProcessed));
+                    Log.WriteLog("Remaining groups to process: " + (relGroups - skippedRelationGroups) + " relations, " + (wayGroups - skippedWayGroups) + " ways, " + (nodeGroups - nodeGroupsProcessed) + " nodes");
                     Log.WriteLog("Processing tasks: " + relList.Count(r => !r.IsCompleted));
                     Log.WriteLog("Total Processed Entries: " + totalProcessEntries);
                     if (!timeListRelations.IsEmpty || !timeListWays.IsEmpty)
