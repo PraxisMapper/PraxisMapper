@@ -38,7 +38,7 @@ namespace PraxisCore.Styles
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "leisure", Value = "park", MatchType = "or" },
-                    new StyleMatchRule() { Key = "leisure", Value = "playground", MatchType = "or" },
+                    // new StyleMatchRule() { Key = "leisure", Value = "playground", MatchType = "or" } //picks up school playgrounds, would prefer to discourage that.
             }},
             new StyleEntry() { IsGameElement = true, MatchOrder = 4, Name ="beach", StyleSet = "suggestedGameplay",
                 PaintOperations = new List<StylePaint>() {
