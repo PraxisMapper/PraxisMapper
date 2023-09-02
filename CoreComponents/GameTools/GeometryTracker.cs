@@ -14,26 +14,29 @@ namespace PraxisCore.GameTools {
         /// </summary>
         [JsonIgnore]
         public Geometry explored { get; set; } = Singletons.geometryFactory.CreatePolygon(); //This is the object most of the work will be done against
+
+        string _exploredAsText = "";
         /// <summary>
         /// The Well-Known Text (WKT) form of the explored geometry. This is persisted to the database and regenerated to the explored value when necessary.
         /// </summary>
-        public string exploredAsText { get { return explored.ToText(); } } //This is what gets saves as JSON to our database for simplicity, even if it incurs some processing overhead.
+        public string exploredAsText { get { return explored.ToText(); } set { explored = Singletons.geomTextReader.Read(value); } } //This is what gets saves as JSON to our database for simplicity, even if it incurs some processing overhead.
         /// <summary>
         /// Internal variable, used to skip populating the Geometry object if it's already been filled in.
         /// </summary>
+        [JsonIgnore]
         bool isPopulated = false;
 
         /// <summary>
         /// Fills in explored with the data from exploredAsText, if it has not yet been populated since loading from the database.
         /// </summary>
-        public void PopulateExplored() 
-        {
-            if (!isPopulated) 
-            {
-                explored = GeometrySupport.GeometryFromWKT(exploredAsText);
-                isPopulated = true;
-            } 
-        }
+        //public void PopulateExplored() 
+        //{
+        //    if (!isPopulated) 
+        //    {
+        //        explored = GeometrySupport.GeometryFromWKT(exploredAsText);
+        //        isPopulated = true;
+        //    } 
+        //}
 
         /// <summary>
         /// Add a PlusCode cell to the explored geometry. Can be any valid PlusCode size, though if you are tracking Cell11s consider using RecentPath instead of GeometryTracker.
@@ -41,7 +44,7 @@ namespace PraxisCore.GameTools {
         /// <param name="plusCode">A valid PlusCode (without the +, if its 10 digits or longer)</param>
         public void AddCell(string plusCode) 
         {
-            PopulateExplored();
+            //PopulateExplored();
             //Lines that touch remain multipolygons. Unioning buffered areas leaves all their points in place. Simplify removes most redundant points.
             explored = explored.Union(GeometrySupport.MakeBufferedGeoArea(plusCode.ToGeoArea(), 0.00000001).ToPolygon());
         }
@@ -51,7 +54,7 @@ namespace PraxisCore.GameTools {
         /// </summary>
         public void RemoveCell(string plusCode) 
         {
-            PopulateExplored();
+            //PopulateExplored();
             explored = explored.Difference(GeometrySupport.MakeBufferedGeoArea(plusCode.ToGeoArea(), 0.00000001).ToPolygon()).Simplify(0.00000001);
         }
 
@@ -61,7 +64,7 @@ namespace PraxisCore.GameTools {
         /// <param name="geo"></param>
         public void AddGeometry(Geometry geo)
         {
-            PopulateExplored();
+            //PopulateExplored();
             explored = explored.Union(geo).Simplify(0.00000001);
         }
 
@@ -70,7 +73,7 @@ namespace PraxisCore.GameTools {
         /// </summary>
         public void RemoveGeometry(Geometry geo)
         {
-            PopulateExplored();
+            //PopulateExplored();
             explored = explored.Difference(geo).Simplify(0.00000001);
         }
 
