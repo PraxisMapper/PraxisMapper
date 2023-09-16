@@ -14,8 +14,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Security.AccessControl;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using static PraxisCore.ConstantValues;
 using static PraxisCore.DbTables;
@@ -323,6 +325,14 @@ namespace Larry
             if (args.Any(a => a == "-recalcDrawHints"))
             {
                 RecalcDrawSizeHints();
+            }
+
+            if (args.Any(a => a.StartsWith("-extractSubMap:")))
+            {
+                var pieces = args.First(a => a.StartsWith("-extractSubMap:")).Split(":");
+                long placeId = Int64.Parse(pieces[1]);
+                long placeTypeId = Int64.Parse(pieces[2]);
+                ExtractSubMap(placeId, placeTypeId);
             }
 
             //This is not currently finished or testing in the current setup. Will return in a future release.
@@ -1087,5 +1097,49 @@ namespace Larry
                 place.Tags.Add(new PlaceTags() { Key = "name", Value = name });
             place.Tags.Add(new PlaceTags() { Key = "styleset", Value = match.Name });
         };
+
+        public static void ExtractSubMap(long parentPlace, long parentPlaceType)
+        {
+            //Given the id/type of a parent Place (presumably an AdminBound, but not necessarily), extract all places that interesect to a text file(s).
+            var db = new PraxisContext();
+
+            var parent = db.Places.Where(p => p.SourceItemID == parentPlace && p.SourceItemType == parentPlaceType).FirstOrDefault();
+            if (parent == null)
+            {
+                Log.WriteLog("Place " + parentPlace + " not found in database, not extracting map.");
+                return; 
+            }
+
+            int skip = 0;
+            int take = 1000; //test value.
+            bool keepGoing = true;
+
+            StringBuilder geoFileOut = new StringBuilder();
+            StringBuilder tagFileOut = new StringBuilder();
+
+            while (keepGoing)
+            {
+                geoFileOut.Clear();
+                tagFileOut.Clear();
+                var allPlaces = db.Places.Where(p => p.ElementGeometry.Intersects(parent.ElementGeometry)).Skip(skip).Take(take).ToList();
+                if (allPlaces.Count < take)
+                    keepGoing = false;
+
+                skip += take;
+
+                foreach (var p in allPlaces)
+                {
+                    //split place data into appropriate components. Leaving NewGuid here so sub-servers dont have the same data as parent server.
+                    geoFileOut.Append(p.SourceItemID).Append('\t').Append(p.SourceItemType).Append('\t').Append(p.ElementGeometry.AsText()).Append('\t').Append(Guid.NewGuid()).Append('\t').Append(p.DrawSizeHint).Append("\r\n");
+                    foreach (var t in p.Tags)
+                        tagFileOut.Append(p.SourceItemID).Append('\t').Append(p.SourceItemType).Append('\t').Append(t.Key).Append('\t').Append(t.Value.Replace("\r", "").Replace("\n", "")).Append("\r\n");
+                }
+
+                File.AppendAllText(config["OutputDataFolder"] + parentPlace + "-submap.geomData", geoFileOut.ToString());
+                File.AppendAllText(config["OutputDataFolder"] + parentPlace + "-submap.tagsData", geoFileOut.ToString());
+                Log.WriteLog(skip + " items written to file total so far.");
+            }
+            Log.WriteLog(parentPlace + "-submap files written to OutputData folder at " + DateTime.Now);
+        }
     }
 }
