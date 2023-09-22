@@ -174,6 +174,8 @@ namespace PraxisMapper {
                 app.UseDeveloperExceptionPage();
             }
 
+            PraxisCacheHelper.cache = cache;
+
             //app.UseHttpsRedirection(); //Testing using only http on app instead of https to allow me to use a personal PC while getting a server functional
             app.UseStaticFiles(new StaticFileOptions() { FileProvider = new PhysicalFileProvider(Path.Combine(env.ContentRootPath, "Content")), RequestPath = "/Content" });
             app.UseRouting();
@@ -187,6 +189,7 @@ namespace PraxisMapper {
 
             if (useAuthCheck) {
                 app.UsePraxisAuthentication();
+                //TODO: may make this a CSV value in appsettings so it can be adjusted per server.
                 //PraxisAuthentication.whitelistedPaths.Add("/MapTile"); //May may this toggleable.
                 PraxisAuthentication.whitelistedPaths.Add("/Server/Test"); //Don't require a sucessful login to confirm server is alive.
                 PraxisAuthentication.whitelistedPaths.Add("/Server/Login"); //Don't require a sucessful login to login.
