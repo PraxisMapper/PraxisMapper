@@ -1,6 +1,7 @@
 ﻿using Google.Common.Geometry;
 using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Prepared;
 using OsmSharp;
@@ -24,6 +25,8 @@ using System.Net;
 using System.Reflection;
 using System.Reflection.Metadata.Ecma335;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using static PraxisCore.DbTables;
@@ -115,7 +118,8 @@ namespace PerformanceTestApp
             //RefVsValue();
             //TestMeterGrid();
             //TestSimpleLockable();
-            TestAltHintMath();
+            //TestAltHintMath();
+            TestGeoTrackers();
 
 
             //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
@@ -2792,8 +2796,8 @@ namespace PerformanceTestApp
                 Log.WriteLog("Tool 1 data loaded in " + sw.ElapsedMilliseconds + "ms");
 
                 var tool2 = new GeometryTracker();
-                tool2.AddCell("2233445566");
-                tool2.AddCell("2233445567");
+                //tool2.AddCell("2233445566");
+                //tool2.AddCell("2233445567");
 
                 sw.Restart();
                 GenericData.SetPlayerData("test", "geoTrackerTest", tool2.ToJsonByteArray());
@@ -2803,14 +2807,14 @@ namespace PerformanceTestApp
                 var tool2Check = GenericData.GetPlayerData<GeometryTracker>("test", "geoTrackerTest");
                 sw.Stop();
                 Log.WriteLog("Tool 2 data loaded in " + sw.ElapsedMilliseconds + "ms");
-                tool2Check.PopulateExplored();
+                //    tool2Check.PopulateExplored();
 
 
                 Log.WriteLog("Starting performance comparisons for GeometryTracker");
                 sw.Restart();
                 foreach (var cell8 in "223344".GetSubCells())
                     foreach (var cell10 in cell8.GetSubCells())
-                        tool2.AddCell(cell10);
+                        //tool2.AddCell(cell10);
                 sw.Stop();
                 Log.WriteLog("GeometryTracker added 160k cells in " + sw.ElapsedMilliseconds + "ms");
                 results[i].Add(sw.Elapsed);
@@ -3528,6 +3532,183 @@ namespace PerformanceTestApp
             System.Diagnostics.Debugger.Break();
         }
 
+        public static void TestGeoTrackers()
+        {
+
+            var db = new PraxisContext();
+            List<TimeSpan> results = new List<TimeSpan>();
+            GeometryTracker original = new GeometryTracker();
+            CellTracker alt = new CellTracker();
+            CellTracker alt2 = new CellTracker();
+            alt.RemoveCell("2222446688");
+
+            Log.WriteLog("Comparing Geometry Tracker perf");
+
+            //Make a bunch of valid plus code values first.
+
+            List<string> plusCodes = new List<string>(400);
+
+            //Sequential list, all touching.
+            var startCode = "223344";
+            var order = GetCellCombos();
+
+            for (int i = 0; i < 20; i++)
+                for (int ii = 0; ii < 20; ii++)
+                {
+                    var nextCode = startCode + order[i] + order[ii];
+                    plusCodes.Add(nextCode);
+                }
+
+            Stopwatch sw1 = Stopwatch.StartNew();
+            foreach (var code in plusCodes)
+                original.AddGeometry(code.ToPolygon());
+            sw1.Stop();
+            results.Add(sw1.Elapsed);
+            Log.WriteLog("Original:  added 400 consecutive cells in " + sw1.Elapsed);
+
+            Stopwatch sw2 = Stopwatch.StartNew();
+            foreach (var code in plusCodes)
+                alt.AddCell(code);
+            sw2.Stop();
+            results.Add(sw2.Elapsed);
+            Log.WriteLog("Alternate: added 400 consecutive cells in " + sw2.Elapsed);
+
+            Stopwatch sw2a = Stopwatch.StartNew();
+            foreach (var code in plusCodes)
+                alt2.AddCell(code);
+            sw2a.Stop();
+            results.Add(sw2a.Elapsed);
+            Log.WriteLog("Alternate2: added 400 consecutive cells in " + sw2a.Elapsed);
+
+            Stopwatch sw3 = Stopwatch.StartNew();
+            foreach (var code in plusCodes)
+                original.RemoveGeometry(code.ToPolygon());
+            sw3.Stop();
+            results.Add(sw3.Elapsed);
+            Log.WriteLog("Original:  removed 400 consecutive cells in " + sw3.Elapsed);
+
+            Stopwatch sw4 = Stopwatch.StartNew();
+            foreach (var code in plusCodes)
+                alt.RemoveCell(code);
+            sw4.Stop();
+            results.Add(sw4.Elapsed);
+            Log.WriteLog("Alternate: removed 400 consecutive cells in " + sw4.Elapsed);
+
+            Stopwatch sw4a = Stopwatch.StartNew();
+            foreach (var code in plusCodes)
+                alt2.RemoveCell(code);
+            sw4a.Stop();
+            results.Add(sw4a.Elapsed);
+            Log.WriteLog("Alternate2: removed 400 consecutive cells in " + sw4a.Elapsed);
+
+            //Random addition
+            plusCodes.Clear();
+            for (int i = 0; i < 20000; i++)
+            {
+                var nextCode = order[Random.Shared.Next(20)] + order[Random.Shared.Next(20)] + order[Random.Shared.Next(20)] + order[Random.Shared.Next(20)] + order[Random.Shared.Next(20)];
+                plusCodes.Add(nextCode);
+            }
+
+            //Stopwatch sw5 = Stopwatch.StartNew();
+            //foreach (var code in plusCodes)
+            //original.AddGeometry(code.ToPolygon());
+            //sw5.Stop();
+            //results.Add(sw5.Elapsed);
+            Log.WriteLog("Original:  added 20000 random cells skipped, takes multiple minutes"); // + sw5.Elapsed);
+
+            Stopwatch sw6 = Stopwatch.StartNew();
+            foreach (var code in plusCodes)
+                alt.AddCell(code);
+            sw6.Stop();
+            results.Add(sw6.Elapsed);
+            Log.WriteLog("Alternate:  added 20000 random cells in " + sw6.Elapsed);
+
+            Stopwatch sw6a = Stopwatch.StartNew();
+            foreach (var code in plusCodes)
+                alt2.AddCell(code);
+            sw6a.Stop();
+            results.Add(sw6a.Elapsed);
+            Log.WriteLog("Alternate2: added 20000 random cells in " + sw6a.Elapsed);
+
+            //Serialize test
+            Stopwatch sw9 = Stopwatch.StartNew();
+            var save1 = JsonSerializer.Serialize(original);
+            sw9.Stop();
+            Log.WriteLog("Original:  Serialized 20000 random cells in " + sw9.Elapsed + ", is " + save1.Count() + " bytes");
+
+
+            Stopwatch sw10 = Stopwatch.StartNew();
+            var save2 = JsonSerializer.Serialize(alt);
+            sw10.Stop();
+            Log.WriteLog("Alternate:  Serialized 20000 random cells in " + sw10.Elapsed + ", is " + save2.Count() + " bytes");
+
+            Stopwatch sw10a = Stopwatch.StartNew();
+            var save2a = JsonSerializer.Serialize(alt2);
+            sw10a.Stop();
+            Log.WriteLog("Alternate2: Serialized 20000 random cells in " + sw10a.Elapsed + ", is " + save2a.Count() + " bytes");
+
+
+            Stopwatch swsave1 = Stopwatch.StartNew();
+            GenericData.SetGlobalDataJson("geoTrackerOriginal", original);
+            swsave1.Stop();
+            Log.WriteLog("Original: saved to db in " + swsave1.Elapsed);
+
+            Stopwatch swsave2 = Stopwatch.StartNew();
+            GenericData.SetGlobalDataJson("CellTracker", alt);
+            swsave2.Stop();
+            Log.WriteLog("Alternate: saved to db in " + swsave2.Elapsed);
+
+            Stopwatch swsave3 = Stopwatch.StartNew();
+            GenericData.SetGlobalDataJson("CellTrackerAlt", alt2);
+            swsave3.Stop();
+            Log.WriteLog("Alternate2: saved to db in " + swsave3.Elapsed);
+
+            Stopwatch swload1 = Stopwatch.StartNew();
+            var temp1 = GenericData.GetGlobalData<GeometryTracker>("geoTrackerOriginal");
+            swload1.Stop();
+            Log.WriteLog("Original: loaded from db in " + swload1.Elapsed);
+
+            Stopwatch swload2 = Stopwatch.StartNew();
+            var temp2 = GenericData.GetGlobalData<CellTracker>("CellTracker");
+            swload1.Stop();
+            Log.WriteLog("Alternate: loaded from db in " + swload2.Elapsed);
+
+            Stopwatch swload3 = Stopwatch.StartNew();
+            var temp3 = GenericData.GetGlobalData<CellTracker>("CellTrackerAlt");
+            swload3.Stop();
+            Log.WriteLog("Alternate2: loaded from db in " + swload3.Elapsed);
+
+            Stopwatch sw11 = Stopwatch.StartNew();
+            var bigGeo = alt.AsGeometry();
+            sw11.Stop();
+            Log.WriteLog("Alternate:  cast to geometry in " + sw11.Elapsed);
+
+            Stopwatch sw11a = Stopwatch.StartNew();
+            var bigGeo2 = alt2.AsGeometry();
+            sw11a.Stop();
+            Log.WriteLog("Alternate2: cast to geometry in " + sw11a.Elapsed);
+
+            Stopwatch sw7 = Stopwatch.StartNew();
+            foreach (var code in plusCodes)
+                original.RemoveGeometry(code.ToPolygon());
+            sw7.Stop();
+            results.Add(sw7.Elapsed);
+            Log.WriteLog("Original:  removed 20000 random cells in " + sw7.Elapsed);
+
+            Stopwatch sw8 = Stopwatch.StartNew();
+            foreach (var code in plusCodes)
+                alt.RemoveCell(code);
+            sw8.Stop();
+            results.Add(sw8.Elapsed);
+            Log.WriteLog("Alternate:  removed 20000 random cells in " + sw8.Elapsed);
+
+            Stopwatch sw8a = Stopwatch.StartNew();
+            foreach (var code in plusCodes)
+                alt2.RemoveCell(code);
+            sw8a.Stop();
+            results.Add(sw8a.Elapsed);
+            Log.WriteLog("Alternate2: removed 20000 random cells in " + sw8a.Elapsed);
+        }
     }
 }
 

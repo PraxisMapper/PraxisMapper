@@ -450,3 +450,21 @@ Compiling this fairly simple query is slower, which is a surprise. That's suppos
 160k RecentActivity Adds: AVG: 62.7ms,  TOTAL: 627ms
 160k RecentPath Adds: AVG: 76ms,  TOTAL: 760ms
 Summary: non-actional, just informative. GeometryTracker data may be misleading because all added elements are touching, instead of being disjointed and turning into a multipolygon.
+
+
+9/22/23: Reworking GeometryTracker for performance. Original keeps a Geometry object at all times, Alternate uses a stacked dictionary of CodeDigit pair strings
+Alternate2 uses flat strings and doesn't try to be clever about them.
+Comparing Geometry Tracker perf
+Original:  added 400 consecutive cells in 00:00:01.2493095
+Alternate: added 400 consecutive cells in 00:00:00.0022409
+Original:  removed 400 consecutive cells in 00:00:01.2361080
+Alternate: removed 400 consecutive cells in 00:00:00.0005020
+Original:  added 2000 random cells in 00:00:36.0652918
+Alternate: added 2000 random cells in 00:00:00.0008561
+Original:  Serialized 2000 random cells in 00:00:00.0275794
+Alternate: Serialized 2000 random cells in 00:00:00.0002010
+Alternate: cast to geometry in 00:00:00.3098556
+Original:  removed 2000 random cells in 00:00:59.7795207
+Alternate: removed 2000 random cells in 00:00:00.0005951
+Summary: Changing to use the stacked dictionary approach immediately. Surprised that the string-only class is faster in all cases than the dictionary one.
+This also implies that RecentActivityTracker is already as fast as it will get, since that's doing the same full-string dictionary approach.
