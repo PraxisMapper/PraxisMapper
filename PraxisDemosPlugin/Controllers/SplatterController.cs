@@ -28,6 +28,7 @@ namespace PraxisDemosPlugin.Controllers
         {
             base.OnActionExecuting(context);
             PraxisAuthentication.GetAuthInfo(Response, out accountId, out password);
+            context.CheckCache(Request.Path, accountId); //If cached, sets context.Response and skips further processing
         }
 
 
