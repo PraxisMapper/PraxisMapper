@@ -9,6 +9,9 @@ namespace PraxisDemosPlugin
     public class DemosStartup : IPraxisStartup
     {
         public static void Startup() {
+            //Insert Slippy values for map viewer
+            GenericData.SetGlobalData("SlippyOverlay-Splatter", "Splatter/Slippy");
+
             SplatterController.colors = DemoStyles.splatterStyle.Count - 2;//-2 to exclude background.
                   TagParser.InsertStyles(DemoStyles.splatterStyle);
 

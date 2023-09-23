@@ -20,35 +20,34 @@
         var baseSite = window.location.href.toLowerCase().replace("/slippy", "");
         var url = baseSite + '/{id}/{z}/{x}/{y}.png?PraxisAuthKey=' + serverKey;
         var baseData = L.tileLayer(url, {id: "MapTile/Slippy", tileSize:512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
+        var mymap = L.map('mapid');
 
-        var ptt = L.tileLayer(url, { id: "MapTile/SlippyAreaData/paintTown", tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
-        var ac = L.tileLayer(url, { id: "MapTile/Slippy/teamColor", tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
-        var generated = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
-        var adminBounds = L.tileLayer(url, { id: "MapTile/Slippy/adminBounds", tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
-        var adminBounds2 = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
-        var baseDataTEstV4 = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
-        var offlineEstimateAreas = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
-        var outlineAll = L.tileLayer(url, { id: "MapTile/Slippy/outlines", tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
-        var suggested = L.tileLayer(url, { id: "MapTile/Slippy/suggestedGameplay", tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
+        var baseLayers = {};
+        var overlays = {};
+        fetch(baseSite + "/Slippy/Configs", { headers: { 'PraxisAuthKey': serverKey } })
+            .then(b =>
+                b.json().then(bb => {
+                    bb.forEach((c) => {
+                        var thisEntry = L.tileLayer(url, { id: c.value, tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
+                        if (c.isOverlay == true)
+                            overlays[c.key] = L.layerGroup([thisEntry]);
+                        else
+                            baseLayers[c.key] = thisEntry
+                    });
+                    L.control.layers(baseLayers, overlays).addTo(mymap);
+                })
+            );
 
-        //var baseLayers = {
-        //    "Base Data": baseData,
-        //    "Base Data TestV4": baseDataTEstV4,
-        //};
-        var overlays = {
-            "Suggested Gameplay Areas": suggested,
-            "Paint The Town": ptt,
-            "Area Tag": ac,
-            //"Server-Generated": generated,
-            "Admin Boundaries": adminBounds,
-            "Outline All Items": outlineAll,
-            //"Other Admin Boundaries": adminBounds2,
-            //"Offline Estimates": offlineEstimateAreas
-        };
+        // var ptt = L.tileLayer(url, { id: "MapTile/SlippyAreaData/paintTown", tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
+        // var ac = L.tileLayer(url, { id: "MapTile/Slippy/teamColor", tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
+        // var generated = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
+        // var adminBounds = L.tileLayer(url, { id: "MapTile/Slippy/adminBounds", tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
+        // var offlineEstimateAreas = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
+        // var outlineAll = L.tileLayer(url, { id: "MapTile/Slippy/outlines", tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
+        // var suggested = L.tileLayer(url, { id: "MapTile/Slippy/suggestedGameplay", tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
 
         var startLat = 0;
         var startLon = 0;
-        var mymap = L.map('mapid'); 
         fetch(baseSite +  "/Server/ServerBounds", {headers : {'PraxisAuthKey':serverKey}})
         .then(b =>
             b.text().then(bb => {
@@ -60,20 +59,7 @@
                 console.log("Starting point set to " + startLat + "," + startLon + " from data " + bb);
                 mymap.setView([startLat, startLon], 15);
             })
-        );
-        
-    L.tileLayer(baseSite + '/MapTile/DrawSlippyTile/mapTiles/{z}/{x}/{y}.png?PraxisAuthKey=' + serverKey, {
-    maxZoom: 20,
-    minZoom: 3,
-    zoom: 15,
-    id: 'mapTiles',
-    tileSize: 512,
-    zoomOffset: -1,
-    attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Imagery via <a href= "https://github.com/drakewill-crl/PraxisMapper">PraxisMapper</a>',
-    accessToken: 'none'
-    }).addTo(mymap);
-
-        L.control.layers('', overlays).addTo(mymap);
+        );        
     </script>
 </body>
 </html>
