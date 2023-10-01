@@ -11,7 +11,7 @@ namespace PraxisMapper.Classes {
         /// <param name="host"></param>
         /// <returns></returns>
         public static bool IsLocalIpAddress(this HostString host) {
-            IPAddress[] hostIPs = Dns.GetHostAddresses(host.Value);
+            IPAddress[] hostIPs = Dns.GetHostAddresses(host.Host);
             IPAddress[] localIPs = Dns.GetHostAddresses(Dns.GetHostName());
 
             return hostIPs.Any(h => IPAddress.IsLoopback(h) || localIPs.Any(l => h.Equals(l)));

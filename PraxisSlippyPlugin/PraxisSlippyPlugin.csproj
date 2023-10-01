@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CoreComponents\PraxisCore.csproj" />
+    <ProjectReference Include="..\PraxisMapper\PraxisMapper.csproj" />
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
