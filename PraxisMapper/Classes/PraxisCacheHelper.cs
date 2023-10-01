@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Caching.Memory;
+using System;
 
 namespace PraxisMapper.Classes
 {
@@ -24,6 +25,11 @@ namespace PraxisMapper.Classes
 
             if (cache.TryGetValue(accountId + "-" + url, out results))
                 context.Result = results;
+        }
+
+        public static void SetCache(string key, object value, int secondsToSave)
+        {
+            cache.Set(key, value, new DateTimeOffset(DateTime.Now.AddSeconds(secondsToSave)));
         }
     }
 }

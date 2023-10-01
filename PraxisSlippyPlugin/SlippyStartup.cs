@@ -13,6 +13,7 @@ public class PraxisSlippyStartup : IPraxisStartup
         GenericData.SetGlobalData("SlippyBase-Suggested Gameplay", "MapTile/Slippy/suggestedGameplay");
         GenericData.SetGlobalData("SlippyOverlay-All Admin Bounds", "MapTile/Slippy/adminBounds");
         GenericData.SetGlobalData("SlippyOverlay-All Place Outlines", "MapTile/Slippy/outlines");
+        GenericData.SetGlobalData("SlippyOverlay-Area Control", "MapTile/Slippy/teamColor");
 
         Log.WriteLog("[SlippyPlugin]: Loaded default values to database", Log.VerbosityLevels.High);
     }

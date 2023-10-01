@@ -1,12 +1,5 @@
 ﻿<html>
 <head>
-    @*<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
-              integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
-              crossorigin="" />
-        <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
-                integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
-                crossorigin=""></script>*@
-
     @* Local resource links *@
         <link rel="stylesheet" href="~/Content/leaflet.css" />
         <script src="~/Content/Scripts/leaflet.js"></script> 
@@ -37,14 +30,6 @@
                     L.control.layers(baseLayers, overlays).addTo(mymap);
                 })
             );
-
-        // var ptt = L.tileLayer(url, { id: "MapTile/SlippyAreaData/paintTown", tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
-        // var ac = L.tileLayer(url, { id: "MapTile/Slippy/teamColor", tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
-        // var generated = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
-        // var adminBounds = L.tileLayer(url, { id: "MapTile/Slippy/adminBounds", tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
-        // var offlineEstimateAreas = L.tileLayer(url, { id: "", tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
-        // var outlineAll = L.tileLayer(url, { id: "MapTile/Slippy/outlines", tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
-        // var suggested = L.tileLayer(url, { id: "MapTile/Slippy/suggestedGameplay", tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
 
         var startLat = 0;
         var startLon = 0;
