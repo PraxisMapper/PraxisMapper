@@ -1389,7 +1389,7 @@ namespace PraxisCore.PbfReader
         /// <returns>the Task handling the conversion process</returns>
         public int ProcessReaderResults(IEnumerable<ICompleteOsmGeo> items, long blockId, int groupId)
         {
-            if (items == null || !items.Any())
+            if (items == null || items.Count() == 0)
                 return 0;
 
             //This one is easy, we just dump the geodata to the file.

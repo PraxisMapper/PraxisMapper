@@ -71,10 +71,11 @@ namespace PraxisMapper.Controllers
         [HttpGet]
         [Route("/[controller]/DrawSlippyTile/{styleSet}/{zoom}/{x}/{y}.png")] //slippy map conventions.
         [Route("/[controller]/Slippy/{styleSet}/{zoom}/{x}/{y}.png")] //slippy map conventions.
-        public ActionResult DrawSlippyTile(int zoom, int x, int y, string styleSet) {
+        [Route("/[controller]/Slippy/{styleSet}/{onlyLayer}/{zoom}/{x}/{y}.png")] //slippy map conventions.
+        public ActionResult DrawSlippyTile(int zoom, int x, int y, string styleSet, string onlyLayer = "") {
             try {
                 Response.Headers.Add("X-noPerfTrack", "Maptiles/Slippy/" + styleSet + "/VARSREMOVED");
-                string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
+                string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString() + onlyLayer;
                 var info = new ImageStats(zoom, x, y, MapTileSupport.SlippyTileSizeSquare);
                 info = MapTileSupport.ScaleBoundsCheck(info, Configuration["imageMaxSide"].ToInt(), Configuration["maxImagePixels"].ToLong());
 
@@ -91,6 +92,8 @@ namespace PraxisMapper.Controllers
 
                 //Make tile
                 var places = GetPlaces(info, null, styleSet, false);
+                if (onlyLayer != "")
+                    places = places.Where(p => p.StyleName == onlyLayer).ToList();
                 var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, styleSet, info);
                 tileData = FinishSlippyMapTile(info, paintOps, tileKey, styleSet);
 

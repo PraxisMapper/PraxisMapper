@@ -110,7 +110,7 @@ namespace PraxisCore {
             //this is for rectangles.
             foreach (var pi in placeInfo) {
                 var rect = PlaceInfoToRect(pi, info);
-                fillColor = Rgba32.ParseHex(TagParser.PickStaticColorForArea(pi.Name));
+                fillColor = Rgba32.ParseHex(TagParser.PickStaticColorByName(pi.Name));
                 image.Mutate(x => x.Fill(fillColor, rect));
                 image.Mutate(x => x.Draw(strokeColor, 3, rect));
             }
@@ -259,6 +259,10 @@ namespace PraxisCore {
             //baseline image data stuff
             var image = new Image<Rgba32>(stats.imageSizeX, stats.imageSizeY);
             var trimPoly = stats.area.ToPolygon();
+            string originalColor = ""; //TODO: will need this for a few things after all. Probably includes static color from text.
+            Brush originalPaint = null;
+            Pen originalPen = null;
+
             foreach (var w in paintOps.OrderByDescending(p => p.paintOp.LayerId).ThenByDescending(p => p.drawSizeHint)) {
                 //I need paints for fill commands and images. pens for lines.
                 var paint = cachedPaints[w.paintOp.Id];
@@ -267,7 +271,7 @@ namespace PraxisCore {
                 if (w.paintOp.Randomize) { //To randomize the color on every Draw call.
                     w.paintOp.HtmlColorCode = "99" + ((byte)Random.Shared.Next(0, 255)).ToString() + ((byte)Random.Shared.Next(0, 255)).ToString() + ((byte)Random.Shared.Next(0, 255)).ToString();
                     paint = SetPaintForTPP(w.paintOp);
-                    pen = new SolidPen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), (float)w.lineWidthPixels);
+                    pen = new SolidPen(Rgba32.ParseHex(w.paintOp.HtmlColorCode.Substring(2,6) + w.paintOp.HtmlColorCode.Substring(0,2)), (float)w.lineWidthPixels);
                 }
 
                 if (w.paintOp.FromTag) {  //FromTag is for when you are saving color data directly to each element, instead of tying it to a styleset.
@@ -276,6 +280,15 @@ namespace PraxisCore {
                     pen = new SolidPen(Rgba32.ParseHex(w.paintOp.HtmlColorCode), (float)w.lineWidthPixels);
                 }
 
+                if (w.paintOp.StaticColorFromName)
+                {
+                    //TODO: save original color, set from html tag here.
+                    originalPaint = paint;
+                    originalPen = pen;
+                    pen = new SolidPen(Rgba32.ParseHex(w.tagValue.Substring(2, 6) + w.tagValue.Substring(0, 2)), (float)w.lineWidthPixels);
+                }
+
+                //TODO: Ensure this uses the colors from above, and transforms transparent colors correctly as well.
                 if (stats.area.LongitudeWidth != resolutionCell8) { 
                     //recreate pen for this operation instead of using cached pen.
                     if (String.IsNullOrWhiteSpace(w.paintOp.LinePattern) || w.paintOp.LinePattern == "solid")
@@ -350,6 +363,12 @@ namespace PraxisCore {
                     default:
                         Log.WriteLog("Unknown geometry type found, not drawn.");
                         break;
+                }
+
+                if (w.paintOp.StaticColorFromName)
+                {
+                    pen = originalPen;
+                    paint = originalPaint;
                 }
             }
 

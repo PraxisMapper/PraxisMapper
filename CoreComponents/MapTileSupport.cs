@@ -181,13 +181,16 @@ namespace PraxisCore
                     && stats.degreesPerPixelX > po.MinDrawRes //dppX should be between max and min draw range.
                     && !(po.HtmlColorCode.Length == 8 && po.HtmlColorCode.StartsWith("00")) //color is NOT transparent.
                     && (!po.FromTag || TagParser.GetTagValue(place, place.StyleName, out tagColor))
+                    && (!po.StaticColorFromName || TagParser.PickStaticColorByName(TagParser.GetName(place), out tagColor))
                     )
-                    list.Add(new CompletePaintOp(
+                             list.Add(new CompletePaintOp(
                         place.ElementGeometry,
                         place.DrawSizeHint,
                         po,
                         tagColor,
-                        po.FixedWidth == 0 ? po.LineWidthDegrees * stats.pixelsPerDegreeX : po.FixedWidth)
+                        po.FixedWidth == 0 ? po.LineWidthDegrees * stats.pixelsPerDegreeX : po.FixedWidth,
+                        po.StaticColorFromName
+                        )
                     );
         }
 
@@ -201,7 +204,7 @@ namespace PraxisCore
         public static List<CompletePaintOp> GetPaintOpsForPlaces(List<DbTables.Place> places, string styleSet, ImageStats stats)
         {
             var styles = TagParser.allStyleGroups[styleSet];
-            var bgOp = new CompletePaintOp(stats.area.ToPolygon(), 1, styles["background"].PaintOperations.First(), "background", 1);
+            var bgOp = new CompletePaintOp(stats.area.ToPolygon(), 1, styles["background"].PaintOperations.First(), "background", 1, false);
             var pass1 = places.Select(d => new { place = d, paintOp = styles[d.StyleName].PaintOperations });
             var pass2 = new List<CompletePaintOp>(places.Count);
             pass2.Add(bgOp);
@@ -228,7 +231,7 @@ namespace PraxisCore
             var drawPoly = stats.area.ToPolygon();
             var elements = db.AreaData.Where(d => searchPoly.Intersects(d.AreaCovered)).ToList(); //Each of these will be a single tag/value and a plusCode.
 
-            var bgOp = new CompletePaintOp(drawPoly, 1, styles["background"].PaintOperations.First(), "background", 1);
+            var bgOp = new CompletePaintOp(drawPoly, 1, styles["background"].PaintOperations.First(), "background", 1, false);
             var pass1 = elements.Select(d => new { place = d.ToPlace(styleSet), paintOp = styles[TagParser.GetStyleEntry(new List<AreaData>() { d }, styleSet).Name].PaintOperations });
             var pass2 = new List<CompletePaintOp>(elements.Count);
             pass2.Add(bgOp);

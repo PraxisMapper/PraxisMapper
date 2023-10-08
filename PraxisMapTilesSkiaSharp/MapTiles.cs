@@ -111,7 +111,7 @@ namespace PraxisCore {
             //this is for rectangles.
             foreach (var pi in placeInfo) {
                 var rect = PlaceInfoToRect(pi, info);
-                fillpaint.Color = SKColor.Parse(TagParser.PickStaticColorForArea(pi.Name));
+                fillpaint.Color = SKColor.Parse(TagParser.PickStaticColorByName(pi.Name));
                 canvas.DrawRect(rect, fillpaint);
                 canvas.DrawRect(rect, strokePaint);
             }
@@ -279,6 +279,7 @@ namespace PraxisCore {
             canvas.Scale(1, -1, stats.imageSizeX / 2, stats.imageSizeY / 2);
             SKPaint paint = new SKPaint();
             SKPath path = new SKPath();
+            SKColor originalColor = new SKColor();
             foreach (var w in paintOps.OrderByDescending(p => p.paintOp.LayerId).ThenByDescending(p => p.drawSizeHint)) {
                 paint = cachedPaints[w.paintOp.Id];
 
@@ -287,6 +288,12 @@ namespace PraxisCore {
 
                 if (w.paintOp.Randomize) //To randomize the color on every Draw call.
                     paint.Color = new SKColor((byte)r.Next(0, 255), (byte)r.Next(0, 255), (byte)r.Next(0, 255), 99);
+
+                if (w.OverrideColor) //save original color.
+                {
+                    originalColor = paint.Color;
+                    paint.Color = SKColor.Parse(w.tagValue);
+                 }
 
                 paint.StrokeWidth = (float)w.lineWidthPixels;
                 path.Reset();
@@ -358,8 +365,9 @@ namespace PraxisCore {
                         Log.WriteLog("Unknown geometry type found, not drawn.");
                         break;
                 }
+                if (w.OverrideColor) //restore original color.
+                    paint.Color = originalColor;
             }
-            //}
 
             var ms = new MemoryStream();
             var skms = new SKManagedWStream(ms);
@@ -415,7 +423,7 @@ namespace PraxisCore {
             var pass2 = new List<CompletePaintOp>(drawnItems.Count);
             foreach (var op in pass1)
                 foreach (var po in op.paintOp)
-                    pass2.Add(new CompletePaintOp(op.ElementGeometry, op.DrawSizeHint, po, "", po.LineWidthDegrees * stats.pixelsPerDegreeX));
+                    pass2.Add(new CompletePaintOp(op.ElementGeometry, op.DrawSizeHint, po, "", po.LineWidthDegrees * stats.pixelsPerDegreeX, false));
 
 
             foreach (var w in pass2.OrderByDescending(p => p.paintOp.LayerId).ThenByDescending(p => p.drawSizeHint)) {
