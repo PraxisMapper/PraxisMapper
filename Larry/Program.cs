@@ -335,6 +335,11 @@ namespace Larry
                 ExtractSubMap(placeId, placeTypeId);
             }
 
+            if (args.Any(a => a == "-auditDb"))
+            {
+                AuditLoadedFile();
+            }
+
             //This is not currently finished or testing in the current setup. Will return in a future release.
             //if (args.Any(a => a.StartsWith("-populateEmptyArea:")))
             //{
@@ -346,8 +351,8 @@ namespace Larry
         {
             Log.WriteLog("Setting preferred NET environment variables for performance. A restart may be required for them to apply.");
             System.Environment.SetEnvironmentVariable("DOTNET_CLI_TELEMETRY_OPTOUT", "1", EnvironmentVariableTarget.Machine);
-            System.Environment.SetEnvironmentVariable("COMPlus_TieredCompilation", "1", EnvironmentVariableTarget.Machine);
-            System.Environment.SetEnvironmentVariable("DOTNET_TieredPGO", "1", EnvironmentVariableTarget.Machine);
+            System.Environment.SetEnvironmentVariable("COMPlus_TieredCompilation", "1", EnvironmentVariableTarget.Machine);//TODO: not necessary in NET 8
+            System.Environment.SetEnvironmentVariable("DOTNET_TieredPGO", "1", EnvironmentVariableTarget.Machine); //TODO: not necessary in NET 8
             //TODO: perf test with these settings, as they may be necessary for ALL code to benefit from PGO. Saving for Release 9
             //System.Environment.SetEnvironmentVariable("DOTNET_ReadyToRun", "0", EnvironmentVariableTarget.Machine);
         }
@@ -1140,6 +1145,68 @@ namespace Larry
                 Log.WriteLog(skip + " items written to file total so far.");
             }
             Log.WriteLog(parentPlace + "-submap files written to OutputData folder at " + DateTime.Now);
+        }
+
+        public static void AuditLoadedFile()
+        {
+            Log.WriteLog("Auditing DB against geomData files started at " + DateTime.Now);
+
+            //First, probably fastest to load a list of stuff from the DB once.
+            var db = new PraxisContext();
+            var allElements = db.Places.Select(p => new { p.SourceItemID, p.SourceItemType }).ToHashSet();
+            Log.WriteLog("Existing DB entries loaded at " + DateTime.Now);
+
+            //Take a geomData file that should have been loaded, and then confirm that each entry is actually in the database.
+            List<string> filenames = System.IO.Directory.EnumerateFiles(config["OutputDataFolder"], "*.geomData").ToList();
+            foreach (var filename in filenames)
+            {
+                var tagFile = filename.Replace("geomData", "tagsData");
+                //faster setup?
+                var geomStream = new StreamReader(filename);
+                var tagStream = new StreamReader(tagFile);
+                string geomLine;
+                string tagLine = "1\t";
+                while ((geomLine = geomStream.ReadLine()) != null)
+                {
+                    var cut1 = geomLine.IndexOf("\t");
+                    var placeID = geomLine.Substring(0, cut1);
+                    var placeIdLong = placeID.ToLong();
+                    var placeTypeId = geomLine.Substring(cut1 + 1, 1);
+                    if (!allElements.Contains(new { SourceItemID = placeIdLong, SourceItemType = placeTypeId.ToInt() }))
+                    {
+                        //Item is missing, add it.
+                        Log.WriteLog("Item " + placeID + " missing, inserting to DB");
+                        DbTables.Place stored = GeometrySupport.ConvertSingleTsvPlace(geomLine);
+
+                        //find all tags and add those too.
+
+                        var cut2 = tagLine.IndexOf("\t");
+                        var tagPlaceID = tagLine.Substring(0, cut2);
+                        var tagPlaceTypeId = tagLine.Substring(cut2 + 1, 1);
+                        while (tagPlaceID.ToLong() < placeIdLong)
+                        {
+                            tagLine = tagStream.ReadLine();
+                            cut2 = tagLine.IndexOf("\t");
+                            tagPlaceID = tagLine.Substring(0, cut2);
+                            tagPlaceTypeId = tagLine.Substring(cut2 + 1, 1);
+                        }
+
+                        //if the Id is now the same, process tags. 
+                        while (tagPlaceID == placeID)
+                        {
+                            stored.Tags.Add(GeometrySupport.ConvertSingleTsvTag(tagLine));
+                            tagLine = tagStream.ReadLine();
+                        }
+
+                        db.Places.Add(stored);
+                    }
+                }
+                Log.WriteLog(filename + " auditing complete at " + DateTime.Now);
+                tagStream.Close();
+                geomStream.Close();
+            }
+
+            Log.WriteLog("All files audit complete at " + DateTime.Now);
         }
     }
 }
