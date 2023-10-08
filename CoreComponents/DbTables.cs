@@ -84,7 +84,7 @@ namespace PraxisCore {
             //Layer note: it's still pretty possible that a lot of elements all get drawn on one layer, and only a few use multiple layers, like the outlined roads.
             public int LayerId { get; set; } //All paint operations should be done on their own layer, then all merged together? smaller ID are on top, bigger IDs on bottom. Layer 1 hides 2 hides 3 etc.
             //The below are copied from the original object.These get used to create the SKPaint/Pen/Brush object once at startup, then that paint object is used from then on.
-            public string HtmlColorCode { get; set; } //This STARTS with the alpha color, and ImageSharp prefers it END with the alpha color. Handled by the PraxisMapTilesImageSharp library.
+            public string HtmlColorCode { get; set; } //RGB or ARGB. ImageSharp plugin handles conversion to RGBA that ImageSharp prefers.
             public string FillOrStroke { get; set; }
             /// <summary>
             /// The width to draw the outline, in degrees. For Points, this is the diameter of the circle drawn.
@@ -97,6 +97,8 @@ namespace PraxisCore {
             public bool Randomize { get; set; } //if true, assign a random color at draw-time.
             public bool FromTag { get; set; } //if set, read the string for the color value at draw-time from the tag named here.
             public int FixedWidth { get; set; } = 0; //If > 0, always draw the element at this size. Intended for lines that should be equally visible at all zooms, like the Exercise Tracker path drawing.
+            public bool StaticColorFromName { get; set; } = false; //if true, read the value from the name tag, and generate a color from its hashed value. Useful for adminBounds
+
         }
 
         public class ServerSetting

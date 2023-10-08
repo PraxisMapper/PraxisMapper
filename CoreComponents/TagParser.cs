@@ -540,16 +540,32 @@ namespace PraxisCore {
         }
 
         /// <summary>
-        /// Pull a static, but practically randomized, color for an area based on the MD5 hash of its name. All identically named areas will get the same color.
+        /// Pull a static, but practically randomized, color for a place based on the MD5 hash of its name. All identically named places will get the same color.
         /// </summary>
-        /// <param name="areaname">the name of the area to generate a color for</param>
-        /// <returns>a string with the hex value for the color based on the area's name.</returns>
-        public static string PickStaticColorForArea(string areaname)
+        /// <param name="name">the name of the places to generate a color for</param>
+        /// <returns>a string with the hex value for the color based on the place's name.</returns>
+        public static string PickStaticColorByName(string name) 
         {
-            var value = areaname.ToByteArrayUTF8();
+            var value = name.ToByteArrayUTF8();
             var hash = System.Security.Cryptography.MD5.HashData(value);
-            string results = BitConverter.ToString(hash, 0, 3);
+            string results = "99";
+            for (int i = 0; i < 3; i++)
+            {
+                results += hash[i].ToString("x2");
+            }
             return results;
+        }
+
+        public static bool PickStaticColorByName(string name, out string htmlColor)
+        {
+            var value = name.ToByteArrayUTF8();
+            var hash = System.Security.Cryptography.MD5.HashData(value);
+            htmlColor = "99";
+            for (int i = 0; i < 3; i++)
+            {
+                htmlColor += hash[i].ToString("x2");
+            }
+            return true;
         }
 
         /// <summary>
