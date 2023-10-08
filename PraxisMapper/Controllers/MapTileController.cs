@@ -106,6 +106,7 @@ namespace PraxisMapper.Controllers
             }
         }
 
+        //AreaData is already very likely to be a single 'layer' of elements and shouldn't take the onlyLayer extension above.
         [HttpGet]
         [Route("/[controller]/DrawSlippyTileAreaData/{styleSet}/{zoom}/{x}/{y}.png")] //slippy map conventions.
         [Route("/[controller]/SlippyAreaData/{styleSet}/{zoom}/{x}/{y}.png")] //slippy map conventions.
@@ -143,9 +144,10 @@ namespace PraxisMapper.Controllers
         [HttpGet]
         [Route("/[controller]/DrawPlusCode/{code}/{styleSet}")]
         [Route("/[controller]/DrawPlusCode/{code}")]
+        [Route("/[controller]/Area/{code}/{styleSet}/{onlyLayer}")]
         [Route("/[controller]/Area/{code}/{styleSet}")]
         [Route("/[controller]/Area/{code}")]
-        public ActionResult DrawTile(string code, string styleSet = "mapTiles") {
+        public ActionResult DrawTile(string code, string styleSet = "mapTiles", string onlyLayer = "") {
             Response.Headers.Add("X-noPerfTrack", "Maptiles/Area/" + styleSet + "/VARSREMOVED");
             try {
                 var info = new ImageStats(code);
@@ -164,10 +166,12 @@ namespace PraxisMapper.Controllers
                 }
 
                 //Make tile
-                tileData = MapTiles.DrawAreaAtSize(info, null, styleSet);
-                //var places = GetPlaces(info, null, styleSet);
-                //var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, styleSet, info);
-                //tileData = FinishMapTile(info, paintOps, code, styleSet);
+                //tileData = MapTiles.DrawAreaAtSize(info, null, styleSet);
+                var places = GetPlaces(info, null, styleSet);
+                if (onlyLayer != "")
+                    places = places.Where(p => p.StyleName == onlyLayer).ToList();
+                var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, styleSet, info);
+                tileData = FinishMapTile(info, paintOps, code, styleSet);
                 FinishMapTile(tileData, code, styleSet);
 
                 Response.Headers.Add("X-notes", Configuration.GetValue<string>("MapTilesEngine"));
