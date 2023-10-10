@@ -1199,6 +1199,7 @@ namespace Larry
                         }
 
                         db.Places.Add(stored);
+                        db.SaveChanges();
                     }
                 }
                 Log.WriteLog(filename + " auditing complete at " + DateTime.Now);
