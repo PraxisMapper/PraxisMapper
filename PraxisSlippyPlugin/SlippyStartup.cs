@@ -2,6 +2,8 @@
 using PraxisCore.Support;
 using PraxisCore;
 using System.Diagnostics;
+using PraxisCore.Styles;
+using static PraxisCore.DbTables;
 
 public class PraxisSlippyStartup : IPraxisStartup
 {
@@ -14,6 +16,9 @@ public class PraxisSlippyStartup : IPraxisStartup
         GenericData.SetGlobalData("SlippyOverlay-All Admin Bounds", "MapTile/Slippy/adminBounds");
         GenericData.SetGlobalData("SlippyOverlay-All Place Outlines", "MapTile/Slippy/outlines");
         GenericData.SetGlobalData("SlippyOverlay-Area Control", "MapTile/Slippy/teamColor");
+        GenericData.SetGlobalData("SlippyOverlay-Cities (filled)", "MapTile/Slippy/adminBoundsFilled/city");
+        GenericData.SetGlobalData("SlippyOverlay-States (filled)", "MapTile/Slippy/adminBoundsFilled/state");
+        GenericData.SetGlobalData("SlippyOverlay-Countries (filled)", "MapTile/Slippy/adminBoundsFilled/country");
 
         Log.WriteLog("[SlippyPlugin]: Loaded default values to database", Log.VerbosityLevels.High);
     }
