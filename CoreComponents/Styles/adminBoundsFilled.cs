@@ -17,7 +17,8 @@ namespace PraxisCore.Styles
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
-                    new StyleMatchRule() { Key = "admin_level", Value = "2", MatchType = "equals" }
+                    new StyleMatchRule() { Key = "admin_level", Value = "2", MatchType = "equals" },
+                    new StyleMatchRule() { Key = "ISO3166-1", Value = "*", MatchType = "any" }
                 }
             },
             new StyleEntry() { MatchOrder = 2, Name ="region",  StyleSet = "adminBoundsFilled",
