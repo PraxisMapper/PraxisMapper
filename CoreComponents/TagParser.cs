@@ -444,11 +444,21 @@ namespace PraxisCore {
         }
 
         /// <summary>
-        /// Returns the name of a Place by searching its tags.
+        /// Returns the name of a Place by searching its tags. NOTE: if you're getting errors saying that you need to include a reference to OSMSharp,use PickName instead.
         /// </summary>
         /// <param name="place"></param>
         /// <returns></returns>
         public static string GetName(DbTables.Place place)
+        {
+            return GetName(place.Tags);
+        }
+
+        /// <summary>
+        /// Returns the name of a Place by searching its tags.
+        /// </summary>
+        /// <param name="place"></param>
+        /// <returns></returns>
+        public static string PickName(DbTables.Place place)
         {
             return GetName(place.Tags);
         }
