@@ -33,7 +33,6 @@ namespace PraxisMapper.Controllers {
         [Route("/[controller]/Configs")]
         public JsonResult Configs()
         {
-            //TODO: determine how to pick which entries are Overlays and which are the main BG tiles.
             //Overlays have a transparent background, base layers have an opaque background.
             //String of values. 
             var db = new PraxisContext();
