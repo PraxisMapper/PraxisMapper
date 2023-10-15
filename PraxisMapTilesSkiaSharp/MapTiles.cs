@@ -63,7 +63,7 @@ namespace PraxisCore {
                 paint.Style = SKPaintStyle.Stroke;
             paint.StrokeWidth = tpe.LineWidthDegrees;
             paint.StrokeCap = SKStrokeCap.Round;
-            if (tpe.LinePattern != "solid") {
+            if (tpe.LinePattern != null && tpe.LinePattern != "solid") { //TODO: fix styles
                 float[] linesAndGaps = tpe.LinePattern.Split('|').Select(t => float.Parse(t)).ToArray();
                 paint.PathEffect = SKPathEffect.CreateDash(linesAndGaps, 0);
                 paint.StrokeCap = SKStrokeCap.Butt;
@@ -90,7 +90,7 @@ namespace PraxisCore {
         /// <param name="info">the image information for drawing</param>
         /// <param name="items">the elements to draw.</param>
         /// <returns>byte array of the generated .png tile image</returns>
-        public byte[] DrawOfflineEstimatedAreas(ImageStats info, List<DbTables.Place> items) {
+        public static byte[] DrawOfflineEstimatedAreas(ImageStats info, List<DbTables.Place> items) {
             SKBitmap bitmap = new SKBitmap(info.imageSizeX, info.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
             SKCanvas canvas = new SKCanvas(bitmap);
             var bgColor = SKColors.Transparent;
@@ -135,18 +135,16 @@ namespace PraxisCore {
         /// </summary>
         /// <param name="totalArea">the GeoArea to draw lines in</param>
         /// <returns>the byte array for the maptile png file</returns>
-        public byte[] DrawCell8GridLines(GeoArea totalArea) {
+        public static byte[] DrawCell8GridLines(GeoArea totalArea) {
             int imageSizeX = MapTileSupport.SlippyTileSizeSquare;
             int imageSizeY = MapTileSupport.SlippyTileSizeSquare;
             SKBitmap bitmap = new SKBitmap(imageSizeX, imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
             SKCanvas canvas = new SKCanvas(bitmap);
-            SKColor bgColor;
-            SKColor.TryParse("00000000", out bgColor);
+            SKColor bgColor = SKColor.Parse("00000000");
             canvas.Clear(bgColor);
             canvas.Scale(1, -1, imageSizeX / 2, imageSizeY / 2);
             SKPaint paint = new SKPaint();
-            SKColor color;
-            SKColor.TryParse("#FF0000", out color);
+            SKColor color = SKColor.Parse("#FF0000");
             paint.Color = color;
             paint.Style = SKPaintStyle.Stroke;
             paint.StrokeWidth = 3;
@@ -193,18 +191,16 @@ namespace PraxisCore {
         /// </summary>
         /// <param name="totalArea">the GeoArea to draw lines in</param>
         /// <returns>the byte array for the maptile png file</returns>
-        public byte[] DrawCell10GridLines(GeoArea totalArea) {
+        public static byte[] DrawCell10GridLines(GeoArea totalArea) {
             int imageSizeX = MapTileSupport.SlippyTileSizeSquare;
             int imageSizeY = MapTileSupport.SlippyTileSizeSquare;
             SKBitmap bitmap = new SKBitmap(imageSizeX, imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
             SKCanvas canvas = new SKCanvas(bitmap);
-            SKColor bgColor;
-            SKColor.TryParse("00000000", out bgColor);
+            SKColor bgColor = SKColor.Parse("00000000");
             canvas.Clear(bgColor);
             canvas.Scale(1, -1, imageSizeX / 2, imageSizeY / 2);
             SKPaint paint = new SKPaint();
-            SKColor color;
-            SKColor.TryParse("#00CCFF", out color);
+            SKColor color = SKColor.Parse("#00CCFF");
             paint.Color = color;
             paint.Style = SKPaintStyle.Stroke;
             paint.StrokeWidth = 1;
