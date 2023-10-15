@@ -76,6 +76,7 @@ namespace PraxisCore
             model.Entity<PlaceTags>().HasOne(m => m.Place).WithMany(m => m.Tags).HasForeignKey(m => new { m.SourceItemId, m.SourceItemType }).HasPrincipalKey(m => new { m.SourceItemID, m.SourceItemType });
 
             model.Entity<PlaceData>().HasIndex(m => m.DataKey);
+            model.Entity<PlaceData>().HasIndex(m => m.DataValue); //If you save the TagParser values to PlaceData, this index saves TONS of time.
             model.Entity<PlaceData>().HasIndex(m => m.PlaceId);
             model.Entity<PlaceData>().HasIndex(m => m.Expiration);
 
