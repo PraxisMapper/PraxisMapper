@@ -27,8 +27,8 @@ namespace PraxisCore.PbfReader
         //doesn't depend on OsmSharp for reading the raw data now. OsmSharp's still used for object types now that there's our own
         //FeatureInterpreter instead of theirs. 
 
-        static int initialCapacity = 8009; //ConcurrentDictionary says initial capacity shouldn't be divisible by a small prime number, so i picked the prime closes to 8,000 for initial capacity
-        static int initialConcurrency = Environment.ProcessorCount;
+        static readonly int initialCapacity = 8009; //ConcurrentDictionary says initial capacity shouldn't be divisible by a small prime number, so i picked the prime closes to 8,000 for initial capacity
+        static readonly int initialConcurrency = Environment.ProcessorCount;
 
         public bool saveToDB = false;
         public bool onlyMatchedAreas = false; //if true, only process geometry if the tags come back with IsGamplayElement== true;
@@ -81,8 +81,6 @@ namespace PraxisCore.PbfReader
 
         CancellationTokenSource tokensource = new CancellationTokenSource();
         CancellationToken token;
-
-        Dictionary<long, object> blockLocks = new Dictionary<long, object>();
 
         public PbfReader()
         {
@@ -1164,7 +1162,7 @@ namespace PraxisCore.PbfReader
             catch (Exception ex)
             {
                 Log.WriteLog("Error getting geometry: " + ex.Message, Log.VerbosityLevels.Errors);
-                throw ex; //In order to reprocess this block in last-chance mode.
+                throw; //In order to reprocess this block in last-chance mode.
                           //return null;
             }
         }
@@ -1183,7 +1181,7 @@ namespace PraxisCore.PbfReader
         }
         //end OsmSharp copied functions.
 
-        private async void SaveIndexInfo(List<IndexInfo> index)
+        private void SaveIndexInfo(List<IndexInfo> index)
         {
             try
             {
@@ -1195,7 +1193,7 @@ namespace PraxisCore.PbfReader
                 }
                 File.WriteAllLines(filename, data);
             }
-            catch (Exception ex)
+            catch
             {
                 //Log.WriteLog("Failed on SaveIndexInfo: " + ex.Message + ex.StackTrace);
                 //We probably got called from a folder we don't have write permisisons into.
@@ -1205,7 +1203,7 @@ namespace PraxisCore.PbfReader
         /// <summary>
         /// Saves the block positions created for the currently opened file to their own files, so that they can be read instead of created if processing needs to resume later.
         /// </summary>
-        private async void SaveBlockInfo()
+        private void SaveBlockInfo()
         {
             try
             {
@@ -1218,7 +1216,7 @@ namespace PraxisCore.PbfReader
                 }
                 File.WriteAllLines(filename, data);
             }
-            catch (Exception ex)
+            catch
             {
                 //Log.WriteLog("Failed on SaveBlockInfo: " + ex.Message + ex.StackTrace);
                 //We probably got called from a folder we don't have write permisisons into.
@@ -1247,7 +1245,7 @@ namespace PraxisCore.PbfReader
                 LoadIndex();
                 SetOptimizationValues();
             }
-            catch (Exception ex)
+            catch 
             {
                 return;
             }
@@ -1280,7 +1278,7 @@ namespace PraxisCore.PbfReader
                 string filename = outputPath + fi.Name + ".progress";
                 File.WriteAllTextAsync(filename, blockID.ToString() + ":" + groupId);
             }
-            catch (Exception ex)
+            catch
             {
                 //Log.WriteLog("Failed on SaveCurrentBlockAndGroupInfo: " + ex.Message + ex.StackTrace);
                 //We probably got called from a folder we don't have write permisisons into.
@@ -1296,7 +1294,7 @@ namespace PraxisCore.PbfReader
                 int blockID = int.Parse(File.ReadAllText(filename).Split(":")[0]);
                 return blockID;
             }
-            catch (Exception ex)
+            catch
             {
                 return -1;
             }
@@ -1310,7 +1308,7 @@ namespace PraxisCore.PbfReader
                 int groupID = int.Parse(File.ReadAllText(filename).Split(":")[1]);
                 return groupID;
             }
-            catch (Exception ex)
+            catch
             {
                 return -1;
             }
@@ -1389,7 +1387,7 @@ namespace PraxisCore.PbfReader
         /// <returns>the Task handling the conversion process</returns>
         public int ProcessReaderResults(IEnumerable<ICompleteOsmGeo> items, long blockId, int groupId)
         {
-            if (items == null || items.Count() == 0)
+            if (items == null || items.Any())
                 return 0;
 
             //This one is easy, we just dump the geodata to the file.
@@ -1606,7 +1604,7 @@ namespace PraxisCore.PbfReader
             }, token);
         }
 
-        public static async void QueueWriteTask(string filename, StringBuilder data)
+        public static void QueueWriteTask(string filename, StringBuilder data)
         {
             SimpleLockable.PerformWithLock(filename, () => //AsTask still occasionally doesnt work? No idea why.
             {
