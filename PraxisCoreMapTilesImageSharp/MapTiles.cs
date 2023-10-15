@@ -5,6 +5,7 @@ using PraxisCore.Support;
 using SixLabors.Fonts;
 using SixLabors.ImageSharp.Drawing;
 using SixLabors.ImageSharp.Drawing.Processing;
+using System.Linq;
 using static PraxisCore.ConstantValues;
 using static PraxisCore.DbTables;
 using static PraxisCore.Place;
@@ -98,7 +99,7 @@ namespace PraxisCore {
         /// <param name="info">the image information for drawing</param>
         /// <param name="items">the elements to draw.</param>
         /// <returns>byte array of the generated .png tile image</returns>
-        public byte[] DrawOfflineEstimatedAreas(ImageStats info, List<DbTables.Place> items) {
+        public static byte[] DrawOfflineEstimatedAreas(ImageStats info, List<DbTables.Place> items) {
             var image = new Image<Rgba32>(info.imageSizeX, info.imageSizeY);
             var bgColor = Rgba32.ParseHex("00000000");
             image.Mutate(x => x.Fill(bgColor));
@@ -136,7 +137,7 @@ namespace PraxisCore {
         /// </summary>
         /// <param name="totalArea">the GeoArea to draw lines in</param>
         /// <returns>the byte array for the maptile png file</returns>
-        public byte[] DrawCell8GridLines(GeoArea totalArea) {
+        public static byte[] DrawCell8GridLines(GeoArea totalArea) {
             int imageSizeX = MapTileSupport.SlippyTileSizeSquare;
             int imageSizeY = MapTileSupport.SlippyTileSizeSquare;
             Image<Rgba32> image = new Image<Rgba32>(imageSizeX, imageSizeY);
@@ -185,7 +186,7 @@ namespace PraxisCore {
         /// </summary>
         /// <param name="totalArea">the GeoArea to draw lines in</param>
         /// <returns>the byte array for the maptile png file</returns>
-        public byte[] DrawCell10GridLines(GeoArea totalArea) {
+        public static byte[] DrawCell10GridLines(GeoArea totalArea) {
 
             int imageSizeX = MapTileSupport.SlippyTileSizeSquare;
             int imageSizeY = MapTileSupport.SlippyTileSizeSquare;
@@ -259,7 +260,7 @@ namespace PraxisCore {
             //baseline image data stuff
             var image = new Image<Rgba32>(stats.imageSizeX, stats.imageSizeY);
             var trimPoly = stats.area.ToPolygon();
-            string originalColor = ""; //TODO: will need this for a few things after all. Probably includes static color from text.
+            string originalColor = "";
             Brush originalPaint = null;
             Pen originalPen = null;
 
@@ -271,7 +272,8 @@ namespace PraxisCore {
                 if (w.paintOp.Randomize) { //To randomize the color on every Draw call.
                     w.paintOp.HtmlColorCode = "99" + ((byte)Random.Shared.Next(0, 255)).ToString() + ((byte)Random.Shared.Next(0, 255)).ToString() + ((byte)Random.Shared.Next(0, 255)).ToString();
                     paint = SetPaintForTPP(w.paintOp);
-                    pen = new SolidPen(Rgba32.ParseHex(w.paintOp.HtmlColorCode.Substring(2,6) + w.paintOp.HtmlColorCode.Substring(0,2)), (float)w.lineWidthPixels);
+                    //pen = new SolidPen(Rgba32.ParseHex(w.paintOp.HtmlColorCode.Substring(2,6) + w.paintOp.HtmlColorCode.Substring(0,2)), (float)w.lineWidthPixels);
+                    pen = new SolidPen(Rgba32.ParseHex(string.Concat(w.paintOp.HtmlColorCode.AsSpan(2), w.paintOp.HtmlColorCode.AsSpan(0, 2))), (float)w.lineWidthPixels);
                 }
 
                 if (w.paintOp.FromTag) {  //FromTag is for when you are saving color data directly to each element, instead of tying it to a styleset.
@@ -282,10 +284,10 @@ namespace PraxisCore {
 
                 if (w.paintOp.StaticColorFromName)
                 {
-                    //TODO: save original color, set from html tag here.
                     originalPaint = paint;
                     originalPen = pen;
-                    pen = new SolidPen(Rgba32.ParseHex(w.tagValue.Substring(2, 6) + w.tagValue.Substring(0, 2)), (float)w.lineWidthPixels);
+                    //pen = new SolidPen(Rgba32.ParseHex(w.tagValue.Substring(2, 6) + w.tagValue.Substring(0, 2)), (float)w.lineWidthPixels);
+                    pen = new SolidPen(Rgba32.ParseHex(string.Concat(w.tagValue.AsSpan(2), w.tagValue.AsSpan(0, 2))), (float)w.lineWidthPixels);
                 }
 
                 //TODO: Ensure this uses the colors from above, and transforms transparent colors correctly as well.
