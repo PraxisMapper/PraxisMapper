@@ -340,6 +340,11 @@ namespace Larry
                 AuditLoadedFile();
             }
 
+            if (args.Any(a => a == "-preTag"))
+            {
+                PreTagPlace();
+            }
+
             //This is not currently finished or testing in the current setup. Will return in a future release.
             //if (args.Any(a => a.StartsWith("-populateEmptyArea:")))
             //{
@@ -353,8 +358,6 @@ namespace Larry
             System.Environment.SetEnvironmentVariable("DOTNET_CLI_TELEMETRY_OPTOUT", "1", EnvironmentVariableTarget.Machine);
             System.Environment.SetEnvironmentVariable("COMPlus_TieredCompilation", "1", EnvironmentVariableTarget.Machine);//TODO: not necessary in NET 8
             System.Environment.SetEnvironmentVariable("DOTNET_TieredPGO", "1", EnvironmentVariableTarget.Machine); //TODO: not necessary in NET 8
-            //TODO: perf test with these settings, as they may be necessary for ALL code to benefit from PGO. Saving for Release 9
-            //System.Environment.SetEnvironmentVariable("DOTNET_ReadyToRun", "0", EnvironmentVariableTarget.Machine);
         }
 
         private static void PwdSpeedTest()
@@ -365,7 +368,7 @@ namespace Larry
             while (encryptTimer.ElapsedMilliseconds < 250)
             {
                 rounds++;
-                var results = BCrypt.Net.BCrypt.EnhancedHashPassword("anythingWillDo", rounds);
+                BCrypt.Net.BCrypt.EnhancedHashPassword("anythingWillDo", rounds);
                 encryptTimer.Stop();
                 Log.WriteLog("Time with Rounds:" + rounds + ": " + encryptTimer.ElapsedMilliseconds + "ms");
 
@@ -1208,6 +1211,52 @@ namespace Larry
             }
 
             Log.WriteLog("All files audit complete at " + DateTime.Now);
+        }
+
+        public static void PreTagPlace()
+        {
+            //In the DB, load up places, run TagParser on them for multiple styles, and save the results to PlaceData
+            //This will allow for faster searching for specific styles by using the PlaceData indexes instead of loading all
+            //places in the geospatial index (which usually requires loading up countries) and THEN tag-parsing them.
+            //This must be done before other PlaceData fields are added for batch purposes.
+            Log.WriteLog("Starting to pre-tag places at " + DateTime.Now);
+
+            //TODO: this really doesn't need the geometry, it COULD just scan PlaceTags instead of Places if it inserted entries by id
+
+            var db = new PraxisContext();
+            db.Database.SetCommandTimeout(600); //while i'm still loading geometry, some entries are huge and need a big timeout to succeed.
+
+            long skip = 0;
+            int take = 1000; //test value.
+            bool keepGoing = true;
+
+            Stopwatch sw = new Stopwatch();
+            while (keepGoing)
+            {
+                sw.Restart();
+                //TODO using the last ID is way more efficient than Skip(int). Apply this anywhere else in the app I use skip/take
+                var allPlaces = db.Places.Include(p => p.PlaceData).Include(p => p.Tags).Where(p => p.Id > skip && p.PlaceData.Count == 0).Take(take).ToList();
+                if (allPlaces.Count < take)
+                    keepGoing = false;
+
+                skip = allPlaces.Max(p => p.Id);
+
+                foreach (var p in allPlaces)
+                {
+                    //tag this place.
+                    foreach(var style in TagParser.allStyleGroups.Where(g => g.Key != "outlines" && g.Key != "paintTown"))
+                    {
+                        TagParser.ApplyTags(p, style.Key);
+                        if (p.StyleName != "unmatched" && p.StyleName != "background")
+                            p.PlaceData.Add(new PlaceData() { DataKey = style.Key, DataValue = p.StyleName.ToByteArrayUTF8() });
+                    }
+                }
+
+                db.SaveChanges();
+                db.ChangeTracker.Clear();
+                sw.Stop();
+                Log.WriteLog(allPlaces.Count + " places tagged in " + sw.ElapsedMilliseconds + "ms");
+            }
         }
     }
 }
