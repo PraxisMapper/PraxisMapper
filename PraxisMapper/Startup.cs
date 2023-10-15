@@ -189,14 +189,14 @@ namespace PraxisMapper {
 
             if (useAuthCheck) {
                 app.UsePraxisAuthentication();
-                //TODO: may make this a CSV value in appsettings so it can be adjusted per server.
-                //PraxisAuthentication.whitelistedPaths.Add("/MapTile"); //May may this toggleable.
-                PraxisAuthentication.whitelistedPaths.Add("/Server/Test"); //Don't require a sucessful login to confirm server is alive.
-                PraxisAuthentication.whitelistedPaths.Add("/Server/Login"); //Don't require a sucessful login to login.
-                PraxisAuthentication.whitelistedPaths.Add("/Server/CreateAccount"); //Don't require a sucessful login to make a new account
-                PraxisAuthentication.whitelistedPaths.Add("/Server/ServerBounds"); //Required for Slippy stuff to work.
-                PraxisAuthentication.whitelistedPaths.Add("/Server/GdprExport"); //cannot lock a player out of this request.
-                PraxisAuthentication.whitelistedPaths.Add("/Content"); //Don't require a sucessful login to get images/scripts.
+
+                var allowList = Configuration.GetValue<string>("allowList");
+                foreach(var path in allowList.Split(","))
+                    PraxisAuthentication.whitelistedPaths.Add(path);
+
+                if (!PraxisAuthentication.whitelistedPaths.Any(p => p == "/Server/GdprExport"))
+                    PraxisAuthentication.whitelistedPaths.Add("/Server/GdprExport"); //For legal reasons this one must be available.
+
                 PraxisAuthentication.admins = db.AuthenticationData.Where(a => a.isAdmin).Select(a => a.accountId).ToHashSet();
             }
 
