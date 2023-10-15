@@ -187,6 +187,48 @@ namespace PraxisCore
             return places.Where(p => p.StyleName == type).ToList();
         }
 
+        public static List<DbTables.Place> GetPlacesByData(string key, string value, List<DbTables.Place> places = null, bool skipGeometry = false)
+        {
+            //A slightly different setup because this doesn't search on the spatial index.
+
+            byte[] dbValue = value.ToByteArrayUTF8();
+            if (places == null)
+            {
+                var db = new PraxisContext();
+                db.Database.SetCommandTimeout(600);
+                IQueryable<DbTables.Place> query = db.Places.Include(p => p.Tags).Include(p => p.PlaceData);
+                query = query.Where(p => p.PlaceData.Any(d => d.DataKey == key && d.DataValue == dbValue));
+                if (skipGeometry)
+                    query = query.Select(q => new DbTables.Place() { DrawSizeHint = q.DrawSizeHint, Id = q.Id, PrivacyId = q.PrivacyId, SourceItemID = q.SourceItemID, SourceItemType = q.SourceItemType, Tags = q.Tags });
+
+                return query.ToList();
+            }
+            else
+            {
+                return places.Where(p => p.PlaceData.Any(d => d.DataKey == key && d.DataValue == dbValue)).ToList();
+            }
+        }
+
+        public static List<DbTables.Place> GetPlacesByTags(string key, string value, List<DbTables.Place> places = null, bool skipGeometry = false)
+        {
+            //A slightly different setup because this doesn't search on the spatial index.
+            if (places == null)
+            {
+                var db = new PraxisContext();
+                db.Database.SetCommandTimeout(600);
+                IQueryable<DbTables.Place> query = db.Places.Include(p => p.Tags).Include(p => p.PlaceData);
+                query = query.Where(p => p.Tags.Any(d => d.Key == key && d.Value == value));
+                if (skipGeometry)
+                    query = query.Select(q => new DbTables.Place() { DrawSizeHint = q.DrawSizeHint, Id = q.Id, PrivacyId = q.PrivacyId, SourceItemID = q.SourceItemID, SourceItemType = q.SourceItemType, Tags = q.Tags });
+
+                return query.ToList();
+            }
+            else
+            {
+                return places.Where(p => p.Tags.Any(d => d.Key == key && d.Value == value)).ToList();
+            }
+        }
+
         /// <summary>
         /// Returns a Tuple of Places and their distance (in degrees) from the given PlusCode, ordered by the minimum distance between the 2.
         /// </summary>
@@ -222,7 +264,7 @@ namespace PraxisCore
             return results;
         }
 
-        public static List<DbTables.Place> FindAnyTargetPlaces(string plusCode, double distanceMinMeters, double distanceMaxMeters, string styleSet)
+        public static List<DbTables.Place> FindAnyTargetPlaces(string plusCode, double distanceMinMeters, double distanceMaxMeters, string styleSet = "suggestedGameplay")
         {
             //Finds all places that fall between a minimum and maximum distance from the starting point, without additional criteria.
             //TO PONDER: is this a good place to try and upgrade points to buildings?
@@ -234,7 +276,7 @@ namespace PraxisCore
             var db = new PraxisContext(); //NOTE: MariaDB doesn't support CoveredBy or Covers, which I would prefer but I'll use what works.
             //This way is ~2-3x faster than calling GetPlaces for this logic.
             var places = db.Places.Include(p => p.PlaceData).Include(p => p.Tags).Where(p => p.ElementGeometry.Intersects(maxArea) && !p.ElementGeometry.Intersects(minArea)).ToList();
-            places = TagParser.ApplyTags(places, "suggestedGameplay");
+            places = TagParser.ApplyTags(places, styleSet);
             places = places.Where(p => p.IsGameElement).ToList();
 
             return places;
