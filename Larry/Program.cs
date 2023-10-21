@@ -1243,13 +1243,7 @@ namespace Larry
 
                 foreach (var p in allPlaces)
                 {
-                    //tag this place.
-                    foreach(var style in TagParser.allStyleGroups.Where(g => g.Key != "outlines" && g.Key != "paintTown"))
-                    {
-                        TagParser.ApplyTags(p, style.Key);
-                        if (p.StyleName != "unmatched" && p.StyleName != "background")
-                            p.PlaceData.Add(new PlaceData() { DataKey = style.Key, DataValue = p.StyleName.ToByteArrayUTF8() });
-                    }
+                    PraxisCore.Place.PreTag(p);
                 }
 
                 db.SaveChanges();
