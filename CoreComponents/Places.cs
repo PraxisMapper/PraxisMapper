@@ -30,7 +30,8 @@ namespace PraxisCore
         /// <param name="skipTags">If true, skips over tagging elements. A performance boost when you have a List to narrow down already.</param>
         /// <param name="skipGeometry">If true, elementGeometry will not be loaded from the database. Defaults to false.</param>
         /// <returns>A list of Places that intersect the area, have a perimter greater than or equal to filtersize.</returns>
-        public static List<DbTables.Place> GetPlaces(GeoArea area, List<DbTables.Place> source = null, double filterSize = 0, string styleSet = "mapTiles", bool skipTags = false, bool skipGeometry = false)
+        public static List<DbTables.Place> GetPlaces(GeoArea area, List<DbTables.Place> source = null, double filterSize = 0, string styleSet = "mapTiles",
+            bool skipTags = false, bool skipGeometry = false, string tagKey = null, string tagValue = null, string dataKey = null, string dataValue = null)
         {
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
             //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
@@ -51,7 +52,25 @@ namespace PraxisCore
                 queryable = source.AsQueryable();
 
             if (!skipTags)
+            {
                 queryable = queryable.Include(q => q.Tags).Include(q => q.PlaceData);
+
+                if (tagKey != null)
+                    queryable = queryable.Where(p => p.Tags.Any(t => t.Key == tagKey));
+
+                if (tagValue != null)
+                    queryable = queryable.Where(p => p.Tags.Any(t => t.Value == tagValue));
+
+                if (dataKey != null)
+                    queryable = queryable.Where(p => p.PlaceData.Any(t => t.DataKey == dataKey));
+
+                if (dataValue != null)
+                {
+                    byte[] dv = dataValue.ToByteArrayUTF8();
+                    queryable = queryable.Where(p => p.PlaceData.Any(t => t.DataValue == dv));
+                }
+
+            }
 
             var paddedArea = GeometrySupport.MakeBufferedGeoArea(area);
             var location = paddedArea.ToPolygon(); 
