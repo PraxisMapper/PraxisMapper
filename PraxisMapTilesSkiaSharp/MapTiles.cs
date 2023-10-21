@@ -63,7 +63,7 @@ namespace PraxisCore {
                 paint.Style = SKPaintStyle.Stroke;
             paint.StrokeWidth = tpe.LineWidthDegrees;
             paint.StrokeCap = SKStrokeCap.Round;
-            if (tpe.LinePattern != null && tpe.LinePattern != "solid") { //TODO: fix styles
+            if (tpe.LinePattern != null && tpe.LinePattern != "solid") { //TODO: fix styles with null linePattern
                 float[] linesAndGaps = tpe.LinePattern.Split('|').Select(t => float.Parse(t)).ToArray();
                 paint.PathEffect = SKPathEffect.CreateDash(linesAndGaps, 0);
                 paint.StrokeCap = SKStrokeCap.Butt;
