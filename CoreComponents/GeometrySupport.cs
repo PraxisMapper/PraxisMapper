@@ -239,6 +239,27 @@ namespace PraxisCore
             }
         }
 
+        public static double CalculateDrawSizeHint(Geometry geometry, ICollection<StylePaint> paintOp)
+        {
+            var pixelMultiplier = MapTileSupport.GameTileScale;
+            if (geometry.Area > 0)
+                return (geometry.Area / (ConstantValues.squareCell11Area / pixelMultiplier));
+            else if (geometry.Length > 0)
+            {
+                var lineWidth = paintOp.Max(p => p.LineWidthDegrees);
+                var rectSize = lineWidth * geometry.Length;
+                return (rectSize / (ConstantValues.squareCell11Area / pixelMultiplier));
+            }
+            else if (paintOp.Any(p => !string.IsNullOrEmpty(p.FileName)))
+                return 32;
+            else
+            {
+                var pointRadius = paintOp.Max(p => p.LineWidthDegrees); //for Points, this is the radius of the circle being drawn.
+                var pointRadiusPixels = ((pointRadius * pointRadius * float.Pi) / (ConstantValues.squareCell11Area / pixelMultiplier));
+                return pointRadiusPixels;
+            }
+        }
+
         /// <summary>
         /// Loads up TSV data into RAM for use.
         /// </summary>

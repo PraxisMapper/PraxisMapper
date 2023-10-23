@@ -1,5 +1,7 @@
 ﻿using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
+using NetTopologySuite.Geometries;
+using PraxisCore.Styles;
 using PraxisCore.Support;
 using System;
 using System.Collections.Concurrent;
@@ -239,6 +241,19 @@ namespace PraxisCore
                 GetPaintOpsInner(ref pass2, op.place, op.paintOp, stats);
 
             return pass2;
+        }
+
+        public static List<CompletePaintOp> GetPaintOpsForGeometry(Geometry geometry, ICollection<StylePaint> style, ImageStats stats, string tagValue = "")
+        {
+            var result = style.Select(s =>  new CompletePaintOp(geometry, 
+                        GeometrySupport.CalculateDrawSizeHint(geometry, style),
+                        s,
+                        tagValue,
+                        s.FixedWidth == 0 ? s.LineWidthDegrees * stats.pixelsPerDegreeX : s.FixedWidth,
+                        s.StaticColorFromName
+                        )).ToList();
+
+            return result;
         }
 
 
