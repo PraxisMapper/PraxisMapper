@@ -36,7 +36,10 @@ namespace PraxisCore.GameTools {
                 if (expiry > DateTime.UtcNow)
                     grant = false;
                 else
+                {
                     purge = true; //We have at least 1 expired entry in history.
+                    history[plusCode10] = DateTime.UtcNow.AddMinutes(minuteDelay); //but we'll update the current one now, instead of next time.
+                }
             }
             else
                 history.Add(plusCode10, DateTime.UtcNow.AddMinutes(minuteDelay));
