@@ -422,7 +422,7 @@ namespace PraxisCore
         /// <param name="styleSet"></param>
         /// <param name="image"></param>
         /// <returns></returns>
-        public static long SaveMapTile(string code, string styleSet, byte[] image)
+        public static long SaveMapTile(string code, string styleSet, byte[] image, DateTime? expires = null)
         {
             using var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
@@ -435,7 +435,10 @@ namespace PraxisCore
             else
                 db.Entry(existingResults).State = EntityState.Modified;
 
-            existingResults.ExpireOn = DateTime.UtcNow.AddYears(10);
+            if (expires == null)
+                existingResults.ExpireOn = DateTime.UtcNow.AddYears(10);
+            else
+                existingResults.ExpireOn = expires.Value;
             existingResults.TileData = image;
             existingResults.GenerationID++;
             db.SaveChanges();
@@ -445,7 +448,7 @@ namespace PraxisCore
         /// <summary>
         /// Save a Slippy maptile to the database, given the key, style set, and image data.
         /// </summary>
-        public static long SaveSlippyMapTile(ImageStats info, string tileKey, string styleSet, byte[] image)
+        public static long SaveSlippyMapTile(ImageStats info, string tileKey, string styleSet, byte[] image, DateTime? expires = null)
         {
             using var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
@@ -458,7 +461,11 @@ namespace PraxisCore
             else
                 db.Entry(existingResults).State = EntityState.Modified;
 
-            existingResults.ExpireOn = DateTime.UtcNow.AddYears(10);
+            if (expires == null)
+                existingResults.ExpireOn = DateTime.UtcNow.AddYears(10);
+            else
+                existingResults.ExpireOn = expires.Value;
+
             existingResults.TileData = image;
             existingResults.GenerationID++;
             db.SaveChanges();
