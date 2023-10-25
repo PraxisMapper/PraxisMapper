@@ -172,7 +172,6 @@ namespace PraxisMapper.Controllers
                     places = places.Where(p => p.StyleName == onlyLayer).ToList();
                 var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, styleSet, info);
                 tileData = FinishMapTile(info, paintOps, code, styleSet);
-                FinishMapTile(tileData, code, styleSet);
 
                 Response.Headers.Add("X-notes", Configuration.GetValue<string>("MapTilesEngine"));
                 return File(tileData, "image/png");
