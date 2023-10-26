@@ -165,5 +165,57 @@ namespace PraxisCore.Support
 
             CalculateDimentions();
         }
+
+        /// <summary>
+        /// Given a GeoArea, adjusts values to ensure the entire area fits within the image's currently set size proportionally.
+        /// </summary>
+        /// <param name="newArea"></param>
+        public void FitToImageSize(GeoArea newArea)
+        {
+            //This will create a new area with potentially different proportions. The goal is to get newArea to fit nicely inside the current image size,
+            //and that may mean changing the dimentions so that its proportions fit.
+
+            //plan: get aspect ratio, resize new area larger to match it
+            var aspectRatioImage = (double)imageSizeX / (double)imageSizeY;
+            var wider = imageSizeX > imageSizeY;
+            if (aspectRatioImage < 1)
+                aspectRatioImage = (double)imageSizeY / (double)imageSizeX;
+
+            var aspectRatioArea = newArea.LongitudeWidth / newArea.LatitudeHeight;
+            if (aspectRatioArea == aspectRatioImage)
+            {
+                area = newArea;
+            }
+            else
+            {
+                //figure out how much to increase the area by on a side to make it fit.
+                // EX: i want a 250x250 image, area is proportionally 200x180 (actual area value less important, but we'll call it 20 x 18)
+                // aspect ratio 1 vs 1.11
+                //Step 1: take larger side of area, get size.  This is new size for that side. May not change.
+                //Step 2: divide smaller side of area by IMAGE aspect ratio. This is new proportional size for area. 
+                //If centered, this should be correct.
+                //EX 2: for 20x18 area, becomes 20x20, (so we're at a 1:1 aspect ratio), and then need to divide the original smaller side by image aspect ratio (1, so no changes here)
+                //EX 2: fit 20x18 area to a 300x250 pixel box (1.2 ratio): box becomes 20x20, then becomes 20x16.666 (1.2), so decimals do matter.
+                // -BUT this doesn't cover the original area! so we need to multiply both values by the aspect ratio?
+                // - 20x20 * 1.2 = 24x24. NOW we divide smaller by aspect ratio to get 24x20, which IS 1.2 aspect ratio and covers the whole area.
+
+                //or is this overcomplicating it? Smaller size needs multiplied to fit the proportional area, then larger size needs multiplied up to whatever.
+                //we have to remember the original aspect ratio, thats probably part of my issue here. 
+
+                var originalWider = newArea.LongitudeWidth > newArea.LatitudeHeight;
+                var newSquareSize = originalWider ? newArea.LongitudeWidth : newArea.LatitudeHeight;
+                var newLongerSize = originalWider ? newArea.LongitudeWidth * aspectRatioImage : newArea.LatitudeHeight * aspectRatioImage;
+
+                newSquareSize = newSquareSize / 2;
+                newLongerSize = newLongerSize / 2;
+
+                if (wider)
+                    area = new GeoArea(newArea.CenterLatitude - newSquareSize, newArea.CenterLongitude - newLongerSize, newArea.CenterLatitude + newSquareSize, newArea.CenterLongitude + newLongerSize);
+                else
+                    area = new GeoArea(newArea.CenterLatitude - newLongerSize, newArea.CenterLongitude - newSquareSize, newArea.CenterLatitude + newLongerSize, newArea.CenterLongitude + newSquareSize);
+
+            }
+            CalculateDimentions();
+        }
     }
 }
