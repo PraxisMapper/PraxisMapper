@@ -74,6 +74,13 @@ namespace PraxisCore.Styles
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() {Key = "team", Value = "pink", MatchType = "equals"},
             }},
+            new StyleEntry() { MatchOrder = 9, Name ="outline",  StyleSet = "teamColor", //May be used more often explicitly assigned.
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "000000", FillOrStroke = "stroke", LineWidthDegrees=0.000125F, LinePattern= "solid", LayerId = 29 },
+                },
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() {Key = "team", Value = "outline", MatchType = "equals"}, 
+            }},
 
             //background is a mandatory style entry name, but its transparent here..
             new StyleEntry() { MatchOrder = 10000, Name ="background",  StyleSet = "teamColor",
