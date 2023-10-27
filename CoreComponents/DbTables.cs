@@ -230,6 +230,7 @@ namespace PraxisCore {
             public byte[] dataIV { get; set; } // encryption values for dataPassword.
             public bool isAdmin { get; set; } = false;
             public DateTime? bannedUntil { get; set; }
+            public string bannedReason { get; set; }
         }
     }
 }
