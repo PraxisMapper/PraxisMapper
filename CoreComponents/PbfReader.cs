@@ -241,7 +241,6 @@ namespace PraxisCore.PbfReader
                 sw.Start();
 
                 PrepareFile(filename);
-
                 filenameHeader += styleSet + "-";
 
                 if (relationId != 0)
@@ -321,6 +320,95 @@ namespace PraxisCore.PbfReader
                 Log.WriteLog("Error processing file: " + ex.Message + ex.StackTrace);
             }
         }
+
+        public void BigSlowAudit(string filename, string styleSetFor)
+        {
+            //Filename should be the osm.pbf file
+            //This one starts from the start and works it ways towards the end, one block at a time, directly against the database. Meant to really make sure that 
+            //nodes absolutely make it to the DB
+            saveToDB = true; //forced.
+            styleSet = styleSetFor;
+            PrepareFile(filename);
+            var Bcount = BlockCount();
+            if (nextBlockId == Bcount)
+                nextBlockId = 1; //0 is the header.
+
+            for (var block = nextBlockId; block < Bcount; block++)
+            {
+                var blockData = GetBlock(block);
+                int nextGroup = 0;
+                int itemType = 0;
+                if (block < firstWayBlock)
+                    itemType = 1;
+                else if (block < relationIndex[0].blockId)
+                    itemType = 2;
+                else
+                    itemType = 3;
+
+                for (int i = nextGroup; i < blockData.primitivegroup.Count; i++)
+                {
+                    using var db = new PraxisContext();
+                    db.ChangeTracker.AutoDetectChangesEnabled = false;
+                    int added = 0;
+                    var sw = Stopwatch.StartNew();
+                    long groupMin = 0;
+                    long groupMax = 0;
+                    switch (itemType)
+                    {
+                        case 1:
+                            groupMin = nodeIndex.Where(n => n.blockId == block && n.groupId == i).First().minId;
+                            groupMax = nodeIndex.Where(n => n.blockId == block && n.groupId == i).First().maxId;
+                            break;
+                        case 2:
+                            groupMin = wayIndex.Where(n => n.blockId == block && n.groupId == i).First().minId;
+                            groupMax = wayIndex.Where(n => n.blockId == block && n.groupId == i).First().maxId;
+                            break;
+                        case 3:
+                            groupMin = relationIndex.Where(n => n.blockId == block && n.groupId == i).First().minId;
+                            groupMax = relationIndex.Where(n => n.blockId == block && n.groupId == i).First().maxId;
+                            break;
+                    }
+
+                    int thisBlockId = block;
+                    var group = blockData.primitivegroup[i];
+                    var geoData = GetGeometryFromGroup(thisBlockId, group, true);
+                    //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
+                    //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
+                    if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
+                    {
+                        //ProcessReaderResults(geoData, block, i); //Doesnt do Update checks, only Inserts.
+
+
+                        var currentData = db.Places.Where(p => p.SourceItemType == itemType && p.SourceItemID >= groupMin && p.SourceItemID <= groupMax).Select(p => p.SourceItemID).ToList();
+
+                        foreach(var g in geoData)
+                        {
+                            var e = GeometrySupport.ConvertOsmEntryToPlace(g, styleSet);
+                            if (e == null)
+                                continue;
+
+                            var existing = currentData.FirstOrDefault(c => c == e.SourceItemID);
+                            if (existing == null)
+                            {
+                                //TODO: larry pretag logic should get applied here with config value for that.
+                                Place.PreTag(e);
+                                db.Places.Add(e);
+                                added++;
+                            }
+                            else
+                            {
+                                //existing = e; //totally overwrite it?
+                            }
+                        }
+                    }
+                    SaveCurrentBlockAndGroup(block, i);
+                    sw.Stop();
+                    db.SaveChanges();
+                    Log.WriteLog(added + " entries added in " + sw.Elapsed);
+                }
+            }
+        }
+
 
         public void LastChanceRead(long block)
         {
@@ -1526,7 +1614,7 @@ namespace PraxisCore.PbfReader
         /// <returns>the CompleteWay requested, or null if it was unable to be created from the file.</returns>
         public CompleteWay LoadOneWayFromFile(string filename, long wayId)
         {
-            Log.WriteLog("Starting to load one relation from file.");
+            Log.WriteLog("Starting to load one way from file.");
             try
             {
                 System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
