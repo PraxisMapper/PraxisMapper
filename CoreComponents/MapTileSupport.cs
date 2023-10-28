@@ -1,5 +1,6 @@
 ﻿using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using NetTopologySuite.Geometries;
 using PraxisCore.Styles;
 using PraxisCore.Support;
@@ -24,6 +25,8 @@ namespace PraxisCore
     public static class MapTileSupport
     {
         public static IMapTiles MapTiles; //This needs set at startup.
+        public static bool enableCaching = false;
+        public static IMemoryCache memoryCache; //also needs set at startup
 
         /// <summary>
         /// The size to draw Slippy map tiles. Some implementations expect 256x256 tiles, some can support larger ones with configuration values.
@@ -256,7 +259,6 @@ namespace PraxisCore
             return result;
         }
 
-
         /// <summary>
         /// Creates all gameplay tiles for a given area and saves them to the database (or files, if that option is set)
         /// </summary>
@@ -442,6 +444,11 @@ namespace PraxisCore
             existingResults.TileData = image;
             existingResults.GenerationID++;
             db.SaveChanges();
+            if (enableCaching && memoryCache != null)
+            {
+                memoryCache.Set(code + "-" + styleSet, image);
+            }
+
             return existingResults.GenerationID;
         }
 
@@ -469,6 +476,10 @@ namespace PraxisCore
             existingResults.TileData = image;
             existingResults.GenerationID++;
             db.SaveChanges();
+            if (enableCaching && memoryCache != null)
+            {
+                memoryCache.Set(tileKey + "-" + styleSet, image);
+            }
 
             return existingResults.GenerationID;
         }
@@ -481,6 +492,12 @@ namespace PraxisCore
         /// <returns></returns>
         public static byte[] GetExistingTileImage(string code, string styleSet)
         {
+            if (enableCaching && memoryCache != null)
+            {
+                if (memoryCache.TryGetValue(code + "-" + styleSet, out byte[] results))
+                    return results;
+            }
+
             using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
@@ -488,17 +505,33 @@ namespace PraxisCore
             if (existingResults == null || existingResults.ExpireOn < DateTime.UtcNow)
                 return null;
 
+            if (enableCaching && memoryCache != null)
+            {
+                memoryCache.Set(code + "-" + styleSet, existingResults.TileData);
+            }
+
             return existingResults.TileData;
         }
 
         public static byte[] GetExistingSlippyTile(string tileKey, string styleSet)
         {
+            if (enableCaching && memoryCache != null)
+            {
+                if (memoryCache.TryGetValue(tileKey + "-" + styleSet, out byte[] results))
+                    return results;
+            }
+
             using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var existingResults = db.SlippyMapTiles.FirstOrDefault(mt => mt.Values == tileKey && mt.StyleSet == styleSet);
             if (existingResults == null || existingResults.ExpireOn < DateTime.UtcNow)
                 return null;
+
+            if (enableCaching && memoryCache != null)
+            {
+                memoryCache.Set(tileKey + "-" + styleSet, existingResults.TileData);
+            }
 
             return existingResults.TileData;
         }
