@@ -345,70 +345,73 @@ namespace PraxisCore.PbfReader
                 else
                     itemType = 3;
 
-                for (int i = nextGroup; i < blockData.primitivegroup.Count; i++)
+                for (int groupId = nextGroup; groupId < blockData.primitivegroup.Count; groupId++)
                 {
+                    var sw = Stopwatch.StartNew();
                     using var db = new PraxisContext();
                     db.ChangeTracker.AutoDetectChangesEnabled = false;
                     int added = 0;
-                    var sw = Stopwatch.StartNew();
                     long groupMin = 0;
                     long groupMax = 0;
                     switch (itemType)
                     {
                         case 1:
-                            groupMin = nodeIndex.Where(n => n.blockId == block && n.groupId == i).First().minId;
-                            groupMax = nodeIndex.Where(n => n.blockId == block && n.groupId == i).First().maxId;
+                            //Nodes require the whole block to process, so we will process the whole block at once for those.
+                            groupMin = nodeIndex.Where(n => n.blockId == block).Min(n => n.minId);
+                            groupMax = nodeIndex.Where(n => n.blockId == block).Max(n => n.maxId);
                             break;
                         case 2:
-                            groupMin = wayIndex.Where(n => n.blockId == block && n.groupId == i).First().minId;
-                            groupMax = wayIndex.Where(n => n.blockId == block && n.groupId == i).First().maxId;
+                            groupMin = wayIndex.Where(n => n.blockId == block && n.groupId == groupId).First().minId;
+                            groupMax = wayIndex.Where(n => n.blockId == block && n.groupId == groupId).First().maxId;
                             break;
                         case 3:
-                            groupMin = relationIndex.Where(n => n.blockId == block && n.groupId == i).First().minId;
-                            groupMax = relationIndex.Where(n => n.blockId == block && n.groupId == i).First().maxId;
+                            groupMin = relationIndex.Where(n => n.blockId == block && n.groupId == groupId).First().minId;
+                            groupMax = relationIndex.Where(n => n.blockId == block && n.groupId == groupId).First().maxId;
                             break;
                     }
 
                     int thisBlockId = block;
-                    var group = blockData.primitivegroup[i];
+                    var group = blockData.primitivegroup[groupId];
                     var geoData = GetGeometryFromGroup(thisBlockId, group, true);
                     //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
                     //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
-                    if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
+                    if (geoData != null && geoData.Count > 0) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
                     {
                         //ProcessReaderResults(geoData, block, i); //Doesnt do Update checks, only Inserts.
 
 
                         var currentData = db.Places.Where(p => p.SourceItemType == itemType && p.SourceItemID >= groupMin && p.SourceItemID <= groupMax).Select(p => p.SourceItemID).ToList();
 
-                        foreach(var g in geoData)
+                        foreach (var g in geoData)
                         {
+                            if (g == null)
+                                continue;
+
+                            //This is an audit, we skip the ones that are already in.
+                            var existing = currentData.FirstOrDefault(c => c == g.Id);
+                            if (existing != 0)
+                                continue;
+
                             var e = GeometrySupport.ConvertOsmEntryToPlace(g, styleSet);
                             if (e == null)
                                 continue;
 
-                            var existing = currentData.FirstOrDefault(c => c == e.SourceItemID);
-                            if (existing == null)
-                            {
-                                //TODO: larry pretag logic should get applied here with config value for that.
-                                Place.PreTag(e);
-                                db.Places.Add(e);
-                                added++;
-                            }
-                            else
-                            {
-                                //existing = e; //totally overwrite it?
-                            }
+
+                            Place.PreTag(e);
+                            db.Places.Add(e);
+                            added++;
+
                         }
                     }
-                    SaveCurrentBlockAndGroup(block, i);
-                    sw.Stop();
                     db.SaveChanges();
-                    Log.WriteLog(added + " entries added in " + sw.Elapsed);
+                    SaveCurrentBlockAndGroup(block, groupId);
+                    sw.Stop();
+                    Log.WriteLog("Block " + block + ": " + added + (itemType == 1 ? " Node" : itemType == 2 ? " Way" : " Relation") + " entries added in " + sw.Elapsed);
+                    if (itemType == 1)
+                        break;
                 }
             }
         }
-
 
         public void LastChanceRead(long block)
         {
@@ -507,7 +510,7 @@ namespace PraxisCore.PbfReader
                 var passedBC = blockCounter;
                 //NOTE: this might be a good place to look at variable capture instead of letting thisblock get captured by
                 //the lambda itself
-                var tasked = Task.Run(() => //Threading makes this run approx. twice as fast.
+                var tasked = Task.Run(() =>  //Threading makes this run approx. twice as fast.
                 {
                     var pb2 = DecodeBlock(thisblob);
 
@@ -539,7 +542,7 @@ namespace PraxisCore.PbfReader
             Task.WaitAll(waiting.ToArray());
 
             //Now, we should save the IndexInfo list to disk and sort it into sub-indexes
-            var indexList = indexInfos.ToList();
+            var indexList = indexInfos.OrderBy(i => i.blockId).ThenBy(i => i.groupId).ToList();
             SaveIndexInfo(indexList);
             SplitIndexData(indexList);
             SaveBlockInfo();
@@ -1193,10 +1196,10 @@ namespace PraxisCore.PbfReader
             throw new Exception("Relation Not Found");
         }
 
-        public ConcurrentBag<CompleteOsmGeo> GetGeometryFromGroup(int blockId, PrimitiveGroup primgroup, bool onlyTagMatchedEntries = false)
+        public ConcurrentBag<ICompleteOsmGeo> GetGeometryFromGroup(int blockId, PrimitiveGroup primgroup, bool onlyTagMatchedEntries = false)
         {
             //This grabs the chosen block, populates everything in it to an OsmSharp.Complete object and returns that list
-            ConcurrentBag<CompleteOsmGeo> results = new ConcurrentBag<CompleteOsmGeo>();
+            ConcurrentBag<ICompleteOsmGeo> results = new ConcurrentBag<ICompleteOsmGeo>();
             try
             {
                 //Attempting to clear up some memory slightly faster, but this should be redundant.
@@ -1225,7 +1228,11 @@ namespace PraxisCore.PbfReader
                         {
                             var nodes = GetTaggedNodesFromBlock(block, onlyTagMatchedEntries);
                             totalProcessEntries += nodes.Count;
-                            results = new ConcurrentBag<CompleteOsmGeo>((IEnumerable<CompleteOsmGeo>)nodes);
+                            //Slow way:
+                            //foreach (var n in nodes)
+                            //results.Add(n);
+
+                            results = new ConcurrentBag<ICompleteOsmGeo>((IEnumerable<ICompleteOsmGeo>)nodes);
                         }
                         catch (Exception ex)
                         {
@@ -1251,7 +1258,7 @@ namespace PraxisCore.PbfReader
             {
                 Log.WriteLog("Error getting geometry: " + ex.Message, Log.VerbosityLevels.Errors);
                 throw; //In order to reprocess this block in last-chance mode.
-                          //return null;
+                       //return null;
             }
         }
 
@@ -1333,7 +1340,7 @@ namespace PraxisCore.PbfReader
                 LoadIndex();
                 SetOptimizationValues();
             }
-            catch 
+            catch
             {
                 return;
             }
