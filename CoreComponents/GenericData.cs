@@ -1,6 +1,9 @@
 ﻿using BCrypt.Net;
 using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.IdentityModel.Tokens;
+using NetTopologySuite.Mathematics;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -18,6 +21,9 @@ namespace PraxisCore
     public static class GenericData
     {
         public static Aes baseSec = Aes.Create();
+        public static bool enableCaching = false;
+        public static IMemoryCache memoryCache = null; //TODO: implement config and code for GenericData caching.
+
 
         /// <summary>
         /// Saves a key/value pair to a given PlusCode. Will reject a pair containing a player's accountId in the database.
@@ -77,6 +83,12 @@ namespace PraxisCore
             row.IvData = null;
             row.DataValue = value;
             db.SaveChanges();
+
+            if (enableCaching && memoryCache != null)
+            {
+                memoryCache.Set(plusCode + "-" + key, value, new DateTimeOffset(expiration == null ?  DateTime.UtcNow.AddMinutes(15) : DateTime.UtcNow.AddSeconds(expiration.Value) ));
+            }
+
             return true;
         }
 
@@ -88,6 +100,12 @@ namespace PraxisCore
         /// <returns>The value saved to the key, or an empty byte[] if no key/value pair was found.</returns>
         public static byte[] GetAreaData(string plusCode, string key)
         {
+            if (enableCaching && memoryCache != null)
+            {
+                if (memoryCache.TryGetValue(plusCode + "-" + key, out byte[] results))
+                    return results;
+            }
+
             using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
@@ -168,7 +186,13 @@ namespace PraxisCore
                     row.Expiration = null;
                 row.IvData = null;
                 row.DataValue = value;
-                return db.SaveChanges() == 1;
+            var saved = db.SaveChanges();
+
+            if (enableCaching && memoryCache != null)
+            {
+                memoryCache.Set(elementId.ToString() + "-" + key, value, new DateTimeOffset(expiration == null ? DateTime.UtcNow.AddMinutes(15) : DateTime.UtcNow.AddSeconds(expiration.Value)));
+            }
+            return saved == 1;
         }
 
         /// <summary>
@@ -179,6 +203,12 @@ namespace PraxisCore
         /// <returns>The value saved to the key, or an empty byte[] if no key/value pair was found.</returns>
         public static byte[] GetPlaceData(Guid elementId, string key)
         {
+            if (enableCaching && memoryCache != null)
+            {
+                if (memoryCache.TryGetValue(elementId.ToString() + "-" + key, out byte[] results))
+                    return results;
+            }
+
             using var db = new PraxisContext();
                 db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
@@ -208,6 +238,12 @@ namespace PraxisCore
         /// <returns>The value saved to the key, or an empty byte[] if no key/value pair was found.</returns>
         public static byte[] GetPlayerData(string accountId, string key)
         {
+            if (enableCaching && memoryCache != null)
+            {
+                if (memoryCache.TryGetValue(accountId + "-" + key, out byte[] results))
+                    return results;
+            }
+
             using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
@@ -300,6 +336,11 @@ namespace PraxisCore
             row.IvData = null;
             row.DataValue = value;
 
+            if (enableCaching && memoryCache != null)
+            {
+                memoryCache.Set(accountId + "-" + key, value, new DateTimeOffset(expiration == null ? DateTime.UtcNow.AddMinutes(15) : DateTime.UtcNow.AddSeconds(expiration.Value)));
+            }
+
             return db.SaveChanges() == 1;
         }
 
@@ -323,7 +364,7 @@ namespace PraxisCore
         /// <returns></returns>
         public static List<AreaData> GetAllDataInArea(GeoArea area, string key = "")
         {
-
+            //Not getting cache support: no way to expire this data directly.
             using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
@@ -350,6 +391,7 @@ namespace PraxisCore
         /// <returns>a List of results with the map element ID, keys, and values</returns>
         public static List<PlaceData> GetAllDataInPlace(Guid elementId, string key = "")
         {
+            //not getting caching support: cannot directly expire data.
             using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
@@ -366,6 +408,7 @@ namespace PraxisCore
         /// <returns>List of results with accountId, keys, and values</returns>
         public static List<PlayerData> GetAllPlayerData(string accountID)
         {
+            //Not getting caching support - cannot directly expire data.
             using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
@@ -382,6 +425,12 @@ namespace PraxisCore
         /// <returns>The value saved to the key, or an empty string if no key/value pair was found.</returns>
         public static byte[] GetGlobalData(string key)
         {
+            if (enableCaching && memoryCache != null)
+            {
+                if (memoryCache.TryGetValue("globalVal-" + key, out byte[] results))
+                    return results;
+            }
+
             using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
@@ -467,6 +516,12 @@ namespace PraxisCore
                 db.Entry(row).State = EntityState.Modified;
 
             row.DataValue = value;
+
+            if (enableCaching && memoryCache != null)
+            {
+                memoryCache.Set("globalVal-" + key, value, new DateTimeOffset(DateTime.UtcNow.AddMinutes(15)));
+            }
+
             return db.SaveChanges() == 1;
         }
 
@@ -532,6 +587,11 @@ namespace PraxisCore
 
             row.DataValue = encryptedValue;
             row.IvData = IVs;
+
+            if (enableCaching && memoryCache != null)
+            {
+                memoryCache.Set(plusCode + "-" + key, encryptedValue, new DateTimeOffset(expiration == null ? DateTime.UtcNow.AddMinutes(15) : DateTime.UtcNow.AddSeconds(expiration.Value)));
+            }
             return db.SaveChanges() == 1;
         }
 
@@ -648,6 +708,7 @@ namespace PraxisCore
                 row.Expiration = null;
             row.IvData = IVs;
             row.DataValue = encryptedValue;
+
             return db.SaveChanges() == 1;
         }
 
@@ -742,6 +803,7 @@ namespace PraxisCore
                 row.Expiration = null;
             row.IvData = IVs;
             row.DataValue = encryptedValue;
+
             return db.SaveChanges() == 1;
         }
 
@@ -922,6 +984,11 @@ namespace PraxisCore
                 val += value;
                 row.DataValue = val.ToString().ToByteArrayUTF8();
                 db.SaveChanges();
+
+                if (enableCaching && memoryCache != null)
+                {
+                    memoryCache.Set(plusCode + "-" + key, value, new DateTimeOffset(expiration == null ? DateTime.UtcNow.AddMinutes(15) : DateTime.UtcNow.AddSeconds(expiration.Value)));
+                }
             });
         }
 
@@ -966,9 +1033,15 @@ namespace PraxisCore
 
                 Double.TryParse(sourceValue.ToUTF8String(), out double val);
                 val += value;
-                row.DataValue = EncryptValue(val.ToString().ToByteArrayUTF8(), password, out byte[] IVs);
+                var encryptedValue = EncryptValue(val.ToString().ToByteArrayUTF8(), password, out byte[] IVs);
+                row.DataValue = encryptedValue;
                 row.IvData = IVs;
                 db.SaveChanges();
+
+                if (enableCaching && memoryCache != null)
+                {
+                    memoryCache.Set(playerId + "-" + key, encryptedValue, new DateTimeOffset(expiration == null ? DateTime.UtcNow.AddMinutes(15) : DateTime.UtcNow.AddSeconds(expiration.Value)));
+                }
             });
         }
 
@@ -1014,9 +1087,15 @@ namespace PraxisCore
 
                 Double.TryParse(sourceValue.ToUTF8String(), out double val);
                 val += value;
-                row.DataValue = EncryptValue(val.ToString().ToByteArrayUTF8(), password, out byte[] IVs);
+                var encryptedValue = EncryptValue(val.ToString().ToByteArrayUTF8(), password, out byte[] IVs);
+                row.DataValue = encryptedValue;
                 row.IvData = IVs;
                 db.SaveChanges();
+
+                if (enableCaching && memoryCache != null)
+                {
+                    memoryCache.Set(placeId.ToString() + "-" + key, encryptedValue, new DateTimeOffset(expiration == null ? DateTime.UtcNow.AddMinutes(15) : DateTime.UtcNow.AddSeconds(expiration.Value)));
+                }
             });
         }
 
@@ -1060,9 +1139,16 @@ namespace PraxisCore
 
                 Double.TryParse(sourceValue.ToUTF8String(), out double val);
                 val += value;
-                row.DataValue = EncryptValue(val.ToString().ToByteArrayUTF8(), password, out byte[] IVs);
+                var encryptedValue = EncryptValue(val.ToString().ToByteArrayUTF8(), password, out byte[] IVs);
+                row.DataValue = encryptedValue;
                 row.IvData = IVs;
                 db.SaveChanges();
+
+                if (enableCaching && memoryCache != null)
+                {
+                    memoryCache.Set(plusCode + "-" + key, encryptedValue, new DateTimeOffset(expiration == null ? DateTime.UtcNow.AddMinutes(15) : DateTime.UtcNow.AddSeconds(expiration.Value)));
+                }
+
             });
         }
 
