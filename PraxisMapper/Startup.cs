@@ -27,6 +27,7 @@ namespace PraxisMapper {
         bool useAuthCheck;
         bool useAntiCheat;
         bool usePlugins;
+        bool useCaching;
         string maintenanceMessage = "";
         public static IConfiguration Configuration { get; set; }
 
@@ -38,6 +39,7 @@ namespace PraxisMapper {
             useAuthCheck = Configuration.GetValue<bool>("enableAuthCheck");
             useAntiCheat = Configuration.GetValue<bool>("enableAntiCheat");
             usePlugins = Configuration.GetValue<bool>("enablePlugins");
+            useCaching = Configuration.GetValue<bool>("enableServerCaching");
             maintenanceMessage = Configuration.GetValue<string>("maintenanceMessage");
             PraxisHeaderCheck.ServerAuthKey = Configuration.GetValue<string>("serverAuthKey");
             Log.SaveToFile = Configuration.GetValue<bool>("enableFileLogging");
@@ -205,6 +207,14 @@ namespace PraxisMapper {
                 PraxisAntiCheat.expectedCount = db.AntiCheatEntries.Select(c => c.filename).Distinct().Count();
             }
 
+            if (useCaching)
+            {
+                GenericData.enableCaching = true;
+                GenericData.memoryCache = cache;
+                MapTileSupport.enableCaching = true;
+                MapTileSupport.memoryCache = cache;
+            }
+
             if (usePerfTracker)
                 app.UsePraxisPerformanceTracker();
 
@@ -225,7 +235,7 @@ namespace PraxisMapper {
             System.Threading.Tasks.Task.Run(() => {
                 while (true) {
                     ((MemoryCache)cache).Compact(.5);
-                    System.Threading.Thread.Sleep(1800000); // 30 minutes in milliseconds
+                    System.Threading.Thread.Sleep(1800000); // 30 minutes in milliseconds. Most entries set to expire in 15 minutes.
                 }
             });
 
