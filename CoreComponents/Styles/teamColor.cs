@@ -76,7 +76,7 @@ namespace PraxisCore.Styles
             }},
             new StyleEntry() { MatchOrder = 9, Name ="outline",  StyleSet = "teamColor", //May be used more often explicitly assigned.
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "000000", FillOrStroke = "stroke", LineWidthDegrees=0.000125F, LinePattern= "solid", LayerId = 29 },
+                    new StylePaint() { HtmlColorCode = "000000", FillOrStroke = "stroke", LineWidthDegrees=0, FixedWidth=5, LinePattern= "solid", LayerId = 29 },
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() {Key = "team", Value = "outline", MatchType = "equals"}, 
