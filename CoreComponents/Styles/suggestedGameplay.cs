@@ -89,7 +89,7 @@ namespace PraxisCore.Styles
                     new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "amenity", Value = "theatre|concert hall|arts centre|planetarium|library|public_bookcase|community_centre|conference_centre|exhibition_centre|events_venue", MatchType = "or" },
+                    new StyleMatchRule() { Key = "amenity", Value = "theatre|concert hall|arts_centre|planetarium|library|public_bookcase|community_centre|conference_centre|exhibition_centre|events_venue", MatchType = "or" },
                     new StyleMatchRule() { Key = "tourism", Value = "aquarium|artwork|attraction|gallery|museum|theme_park|viewpoint|zoo", MatchType = "or" }}
             },
             new StyleEntry() { IsGameElement = true, MatchOrder = 11, Name ="historical", StyleSet = "suggestedGameplay",
