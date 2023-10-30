@@ -1228,11 +1228,7 @@ namespace PraxisCore.PbfReader
                         {
                             var nodes = GetTaggedNodesFromBlock(block, onlyTagMatchedEntries);
                             totalProcessEntries += nodes.Count;
-                            //Slow way:
-                            //foreach (var n in nodes)
-                            //results.Add(n);
-
-                            results = new ConcurrentBag<ICompleteOsmGeo>((IEnumerable<ICompleteOsmGeo>)nodes);
+                            results = new ConcurrentBag<ICompleteOsmGeo>(nodes);
                         }
                         catch (Exception ex)
                         {
