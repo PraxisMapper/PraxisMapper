@@ -5,6 +5,7 @@ using PraxisCore.Support;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using static PraxisCore.DbTables;
 
 namespace PraxisCore
@@ -381,15 +382,20 @@ namespace PraxisCore
             //tag this place.
             foreach (var style in TagParser.allStyleGroups.Where(g => g.Key != "outlines" && g.Key != "paintTown"))
             {
+                bool update = false;
                 PlaceData info = place.PlaceData.FirstOrDefault(d => d.DataKey == style.Key);
-                if (info == null)
-                {
-                    info = new PlaceData();
-                    place.PlaceData.Add(info);
-                }
+                if (info != null)
+                    update = true;
+
                 TagParser.ApplyTags(place, style.Key);
                 if (place.StyleName != "unmatched" && place.StyleName != "background")
+                {
+                    //TODO: confirm this is correctly picked up by EF Changetracker.
                     info = new PlaceData() { DataKey = style.Key, DataValue = place.StyleName.ToByteArrayUTF8() };
+                    if (update)
+                        place.PlaceData.Add(info);
+                }
+                    
             }
         }
 
