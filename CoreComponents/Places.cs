@@ -32,7 +32,7 @@ namespace PraxisCore
         /// <param name="skipGeometry">If true, elementGeometry will not be loaded from the database. Defaults to false.</param>
         /// <returns>A list of Places that intersect the area, have a perimter greater than or equal to filtersize.</returns>
         public static List<DbTables.Place> GetPlaces(GeoArea area, List<DbTables.Place> source = null, double filterSize = 0, string styleSet = "mapTiles",
-            bool skipTags = false, bool skipGeometry = false, string tagKey = null, string tagValue = null, string dataKey = null, string dataValue = null)
+            bool skipTags = false, bool skipGeometry = false, string tagKey = null, string tagValue = null, string dataKey = null, string dataValue = null, bool skipBounds = false)
         {
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
             //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
@@ -56,6 +56,9 @@ namespace PraxisCore
             {
                 queryable = queryable.Include(q => q.Tags).Include(q => q.PlaceData);
 
+                if (skipBounds) //These are the biggest things to load, and if you're not drawing them this should dramatically speed up results.
+                    queryable = queryable.Where(q => !q.Tags.Any(t => t.Key == "boundary" && t.Value == "administrative"));
+
                 if (tagKey != null)
                     queryable = queryable.Where(p => p.Tags.Any(t => t.Key == tagKey));
 
@@ -70,7 +73,6 @@ namespace PraxisCore
                     byte[] dv = dataValue.ToByteArrayUTF8();
                     queryable = queryable.Where(p => p.PlaceData.Any(t => t.DataValue == dv));
                 }
-
             }
 
             var paddedArea = GeometrySupport.MakeBufferedGeoArea(area);
@@ -79,6 +81,7 @@ namespace PraxisCore
             
             if (skipGeometry)
                 queryable = queryable.Select(q => new DbTables.Place() { DrawSizeHint = q.DrawSizeHint, Id = q.Id, PrivacyId = q.PrivacyId, SourceItemID = q.SourceItemID, SourceItemType = q.SourceItemType, Tags = q.Tags });
+
 
             places = queryable.ToList();
             TagParser.ApplyTags(places, styleSet);
