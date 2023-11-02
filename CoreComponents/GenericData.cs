@@ -590,7 +590,7 @@ namespace PraxisCore
 
             if (enableCaching && memoryCache != null)
             {
-                memoryCache.Set(plusCode + "-" + key, encryptedValue, new DateTimeOffset(expiration == null ? DateTime.UtcNow.AddMinutes(15) : DateTime.UtcNow.AddSeconds(expiration.Value)));
+                memoryCache.Set(plusCode + "-" + key, row, new DateTimeOffset(expiration == null ? DateTime.UtcNow.AddMinutes(15) : DateTime.UtcNow.AddSeconds(expiration.Value)));
             }
             return db.SaveChanges() == 1;
         }
@@ -604,6 +604,12 @@ namespace PraxisCore
         /// <returns>The value saved to the key, or an empty string if no key/value pair was found or the password is incorrect.</returns>
         public static byte[] GetSecureAreaData(string plusCode, string key, string password)
         {
+            if (enableCaching && memoryCache != null)
+            {
+                if (memoryCache.TryGetValue(plusCode + "-" + key, out AreaData results))
+                    return DecryptValue(results.IvData, results.DataValue, password);
+            }
+
             using var db = new PraxisContext();
             var row = db.AreaData.FirstOrDefault(p => p.PlusCode == plusCode && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
@@ -634,6 +640,12 @@ namespace PraxisCore
         /// <returns>The value saved to the key with the password given, or an empty string if no key/value pair was found or the password is incorrect.</returns>
         public static byte[] GetSecurePlayerData(string accountId, string key, string password)
         {
+            if (enableCaching && memoryCache != null)
+            {
+                if (memoryCache.TryGetValue(accountId + "-" + key, out PlayerData results))
+                    return DecryptValue(results.IvData, results.DataValue, password);
+            }
+
             using var db = new PraxisContext();
             var row = db.PlayerData.FirstOrDefault(p => p.accountId == accountId && p.DataKey == key);
             if (row == null || row.Expiration.GetValueOrDefault(DateTime.MaxValue) < DateTime.UtcNow)
@@ -709,6 +721,11 @@ namespace PraxisCore
             row.IvData = IVs;
             row.DataValue = encryptedValue;
 
+            if (enableCaching && memoryCache != null)
+            {
+                memoryCache.Set(playerId + "-" + key, row, new DateTimeOffset(expiration == null ? DateTime.UtcNow.AddMinutes(15) : DateTime.UtcNow.AddSeconds(expiration.Value)));
+            }
+
             return db.SaveChanges() == 1;
         }
 
@@ -720,6 +737,12 @@ namespace PraxisCore
         /// <returns>The value saved to the key, or an empty string if no key/value pair was found.</returns>
         public static byte[] GetSecurePlaceData(Guid elementId, string key, string password)
         {
+            if (enableCaching && memoryCache != null)
+            {
+                if (memoryCache.TryGetValue(elementId.ToString() + "-" + key, out PlaceData results))
+                    return DecryptValue(results.IvData, results.DataValue, password);
+            }
+
             using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
@@ -803,6 +826,11 @@ namespace PraxisCore
                 row.Expiration = null;
             row.IvData = IVs;
             row.DataValue = encryptedValue;
+
+            if (enableCaching && memoryCache != null)
+            {
+                memoryCache.Set(elementId.ToString() + "-" + key, row, new DateTimeOffset(expiration == null ? DateTime.UtcNow.AddMinutes(15) : DateTime.UtcNow.AddSeconds(expiration.Value)));
+            }
 
             return db.SaveChanges() == 1;
         }
