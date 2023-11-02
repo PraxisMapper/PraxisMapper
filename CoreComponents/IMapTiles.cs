@@ -11,25 +11,8 @@ namespace PraxisCore
         /// Tells the MapTiles object to create and cache frequently-used objects for drawing later.
         /// </summary>
         public void Initialize();
-        /// <summary>
-        /// Draws the envelopes for all Places in the defined Area, in randomized colors.
-        /// </summary>
-        /// <param name="info"></param>
-        /// <param name="items"></param>
-        /// <returns></returns>
-        public byte[] DrawOfflineEstimatedAreas(ImageStats info, List<DbTables.Place> items);
-        /// <summary>
-        /// Draws a grid matching up to Cell8 PlusCodes for the given area.
-        /// </summary>
-        /// <param name="totalArea"></param>
-        /// <returns></returns>
-        public byte[] DrawCell8GridLines(GeoArea totalArea);
-        /// <summary>
-        /// Draws a grid matching up to Cell10 PlusCodes for the given area.
-        /// </summary>
-        /// <param name="totalArea"></param>
-        /// <returns></returns>
-        public byte[] DrawCell10GridLines(GeoArea totalArea);
+        
+
         /// <summary>
         /// Using the Area in stats, draw the map tile for the given Places using styleSet's rules
         /// </summary>
@@ -37,7 +20,7 @@ namespace PraxisCore
         /// <param name="drawnItems"></param>
         /// <param name="styleSet"></param>
         /// <returns></returns>
-        public byte[] DrawAreaAtSize(ImageStats stats, List<DbTables.Place> drawnItems = null, string styleSet = "mapTiles");
+        public byte[] DrawAreaAtSize(ImageStats stats, List<DbTables.Place> drawnItems = null, string styleSet = "mapTiles", bool skipBounds = false);
         /// <summary>
         /// Draws the Area in stats using the list of given PaintOps.
         /// </summary>
