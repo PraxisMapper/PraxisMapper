@@ -10,7 +10,7 @@ namespace PraxisCore.Styles
     {
         public static List<StyleEntry> style = new List<StyleEntry>()
         {           
-            new StyleEntry() { MatchOrder = 1, Name ="red",  StyleSet = "teamColor",
+            new StyleEntry() { MatchOrder = 1, Name ="Red",  StyleSet = "teamColor",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "88FF0000", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 29 },
                     new StylePaint() { HtmlColorCode = "FF0000", FillOrStroke = "stroke", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 30 }
@@ -18,7 +18,7 @@ namespace PraxisCore.Styles
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() {Key = "team", Value = "red", MatchType = "equals"},
             }},
-            new StyleEntry() { MatchOrder = 2, Name ="green",   StyleSet = "teamColor",
+            new StyleEntry() { MatchOrder = 2, Name ="Green",   StyleSet = "teamColor",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "8800FF00", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 29 },
                     new StylePaint() { HtmlColorCode = "00FF00", FillOrStroke = "stroke", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 30 }
@@ -26,7 +26,7 @@ namespace PraxisCore.Styles
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() {Key = "team", Value = "green", MatchType = "equals"},
             }},
-            new StyleEntry() { MatchOrder = 3, Name ="blue",  StyleSet = "teamColor",
+            new StyleEntry() { MatchOrder = 3, Name ="Blue",  StyleSet = "teamColor",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "880000FF", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 29 },
                     new StylePaint() { HtmlColorCode = "0000FF", FillOrStroke = "stroke", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 30 }
@@ -34,7 +34,7 @@ namespace PraxisCore.Styles
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() {Key = "team", Value = "blue", MatchType = "equals"},
             }},
-            new StyleEntry() { MatchOrder = 4, Name ="white",  StyleSet = "teamColor",
+            new StyleEntry() { MatchOrder = 4, Name ="White",  StyleSet = "teamColor",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "88ffffff", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 29 },
                     new StylePaint() { HtmlColorCode = "ffffff", FillOrStroke = "stroke", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 30 }
@@ -42,7 +42,7 @@ namespace PraxisCore.Styles
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() {Key = "team", Value = "white", MatchType = "equals"},
             }},
-            new StyleEntry() { MatchOrder = 5, Name ="orange",   StyleSet = "teamColor",
+            new StyleEntry() { MatchOrder = 5, Name ="Orange",   StyleSet = "teamColor",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "88ff4f00", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 29 },
                     new StylePaint() { HtmlColorCode = "ff4f00", FillOrStroke = "stroke", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 30 }
@@ -50,7 +50,7 @@ namespace PraxisCore.Styles
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() {Key = "team", Value = "orange", MatchType = "equals"},
             }},
-            new StyleEntry() { MatchOrder = 6, Name ="teal",  StyleSet = "teamColor",
+            new StyleEntry() { MatchOrder = 6, Name ="Teal",  StyleSet = "teamColor",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "8853fee3", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 29 },
                     new StylePaint() { HtmlColorCode = "53fee3", FillOrStroke = "stroke", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 30 }
@@ -58,7 +58,7 @@ namespace PraxisCore.Styles
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() {Key = "team", Value = "teal", MatchType = "equals"},
             }},
-            new StyleEntry() { MatchOrder = 7, Name ="yellow",  StyleSet = "teamColor",
+            new StyleEntry() { MatchOrder = 7, Name ="Yellow",  StyleSet = "teamColor",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "88fbff00", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 29 },
                     new StylePaint() { HtmlColorCode = "fbff00", FillOrStroke = "stroke", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 30 }
@@ -66,7 +66,7 @@ namespace PraxisCore.Styles
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() {Key = "team", Value = "yellow", MatchType = "equals"},
             }},
-            new StyleEntry() { MatchOrder = 8, Name ="pink",  StyleSet = "teamColor",
+            new StyleEntry() { MatchOrder = 8, Name ="Pink",  StyleSet = "teamColor",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "88f8a4fc", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 29 },
                     new StylePaint() { HtmlColorCode = "f8a4fc", FillOrStroke = "stroke", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 30 }
