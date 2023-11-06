@@ -393,7 +393,6 @@ namespace PraxisCore
                 TagParser.ApplyTags(place, style.Key);
                 if (place.StyleName != "unmatched" && place.StyleName != "background")
                 {
-                    //TODO: confirm this is correctly picked up by EF Changetracker.
                     info = new PlaceData() { DataKey = style.Key, DataValue = place.StyleName.ToByteArrayUTF8() };
                     if (update)
                         place.PlaceData.Add(info);

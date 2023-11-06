@@ -1,4 +1,6 @@
-﻿using NetTopologySuite.Geometries;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query;
+using NetTopologySuite.Geometries;
 using OsmSharp.Complete;
 using OsmSharp.Tags;
 using ProtoBuf;
@@ -10,9 +12,12 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Numerics;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using static PraxisCore.DbTables;
 
 namespace PraxisCore.PbfReader
@@ -73,6 +78,7 @@ namespace PraxisCore.PbfReader
         ConcurrentBag<Task> relList = new ConcurrentBag<Task>(); //Individual, smaller tasks.
         ConcurrentBag<TimeSpan> timeListRelations = new ConcurrentBag<TimeSpan>(); //how long each Group took to process.
         ConcurrentBag<TimeSpan> timeListWays = new ConcurrentBag<TimeSpan>(); //how long each Group took to process.
+        ConcurrentBag<TimeSpan> timeListNodes = new ConcurrentBag<TimeSpan>(); //how long each Group took to process.
 
         long nodeGroupsProcessed = 0;
         long totalProcessEntries = 0;
@@ -321,17 +327,56 @@ namespace PraxisCore.PbfReader
             }
         }
 
-        public void BigSlowAudit(string filename, string styleSetFor)
+        public void ProcessFileV2(string filename, long relationId = 0)
         {
-            //Filename should be the osm.pbf file
-            //This one starts from the start and works it ways towards the end, one block at a time, directly against the database. Meant to really make sure that 
-            //nodes absolutely make it to the DB
-            saveToDB = true; //forced.
-            styleSet = styleSetFor;
+            //Most of this might be handlable by updating ProcessReaderResults and a few smaller tweaks to the ProcessFile loop?
+
+            //TODO: Make this the new main 'load' call, and meet all criteria below
+            //Reasons:
+            //This will both INSERT and UPDATE the database from a PBF file. (OK)
+            //This runs from start to front, so there's a better idea of progress at a glance. (OK)
+            //Better fits the goal of simplicity for users (one call does it all) instead of requiring a multiple-step setup. (OK)
+            //Still needs to be fast. (Generally OK, not explicitly timed vs old 'parse-to-geomdata/bulkload/create indexes/PreTag' path but isn't bad.)
+
+            //Requirements/changes pending:
+            //This one does reprocess data if a mode is set (Center is done, Minimize should be automatic, ExpandPoints is done)
+
+            //TODO: determine if LastChanceRead is still required, and lowresourcemode along with it (and high resource mode too)
+
+            //This one starts from the start and works it ways towards the end, one block/group at a time, directly against the database.
+            //NOTE: styleSet is used to determine what counts as matched/unmatched, but matched elements are pre-tagged against all style sets.
+
+            Stopwatch swFile = new Stopwatch();
+            swFile.Start();
+
+            saveToDB = true; //forced for now.
             PrepareFile(filename);
             var Bcount = BlockCount();
-            if (nextBlockId == Bcount)
+            if (nextBlockId == Bcount - 1)
                 nextBlockId = 1; //0 is the header.
+
+            //index disable check
+            if (nextBlockId == 1)
+            {
+                var indexCheck = new PraxisContext();
+                if (indexCheck.Places.Count() == 0)
+                {
+                    indexCheck.DropIndexes();
+                    indexCheck.GlobalData.Add(new GlobalData() { DataKey = "createIndexes", DataValue = "pending".ToByteArrayUTF8() });
+                    indexCheck.SaveChanges();
+                }
+                indexCheck.Dispose();
+                indexCheck = null;
+            }
+
+            if (relationId != 0)
+            {
+                filenameHeader += relationId.ToString() + "-";
+                //Get the source relation first
+                var relation = MakeCompleteRelation(relationId);
+                var NTSrelation = GeometrySupport.ConvertOsmEntryToPlace(relation, styleSet);
+                bounds = NTSrelation.ElementGeometry.EnvelopeInternal;
+            }
 
             for (var block = nextBlockId; block < Bcount; block++)
             {
@@ -348,9 +393,8 @@ namespace PraxisCore.PbfReader
                 for (int groupId = nextGroup; groupId < blockData.primitivegroup.Count; groupId++)
                 {
                     var sw = Stopwatch.StartNew();
-                    using var db = new PraxisContext();
-                    db.ChangeTracker.AutoDetectChangesEnabled = false;
-                    int added = 0;
+                    using var db = new PraxisContext(); //create a new one each group to free up RAM faster
+                    db.ChangeTracker.AutoDetectChangesEnabled = false; //automatic change tracking disabled for performance, we only track the stuff we actually change.
                     long groupMin = 0;
                     long groupMax = 0;
                     switch (itemType)
@@ -377,40 +421,108 @@ namespace PraxisCore.PbfReader
                     //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
                     if (geoData != null && geoData.Count > 0) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
                     {
-                        //ProcessReaderResults(geoData, block, i); //Doesnt do Update checks, only Inserts.
+                        var currentData = db.Places.Include(p => p.Tags).Include(p => p.PlaceData).Where(p => p.SourceItemType == itemType && p.SourceItemID >= groupMin && p.SourceItemID <= groupMax).ToDictionary(k => k.SourceItemID, v => v);
+                        var processed = geoData.AsParallel().Where(g => g != null).Select(g => { 
+                            var place =  GeometrySupport.ConvertOsmEntryToPlace(g, styleSet); 
+                            if (place != null) 
+                                Place.PreTag(place);
 
+                            if (processingMode == "center")
+                                place.ElementGeometry = place.ElementGeometry.Centroid;
+                            else if (processingMode == "expandPoints")
+                            {
+                                if (place.SourceItemType == 1)
+                                    place.ElementGeometry = place.ElementGeometry.Buffer(ConstantValues.resolutionCell8 / 2);
+                            }
 
-                        var currentData = db.Places.Where(p => p.SourceItemType == itemType && p.SourceItemID >= groupMin && p.SourceItemID <= groupMax).Select(p => p.SourceItemID).ToList();
+                            return place;
+                        }).Where(p => p != null).ToList();
 
-                        foreach (var g in geoData)
+                        foreach (var newEntry in processed) //EF isn't threadsafe, this must be done sequentially.
                         {
-                            if (g == null)
+                            if (newEntry == null)
                                 continue;
 
-                            //This is an audit, we skip the ones that are already in.
-                            var existing = currentData.FirstOrDefault(c => c == g.Id);
-                            if (existing != 0)
-                                continue;
+                            if (!currentData.TryGetValue(newEntry.SourceItemID, out var existing))
+                                db.Places.Add(newEntry);
+                            else
+                            {
+                                //check for update. EFCore will automatically write only changed values this way.
+                                //can skip if Tags are identical, geometry is effectively identical, and pretagged place data is identical
+                                //gameplay relevant placedata entries should be preserved.
+                                if (!existing.ElementGeometry.EqualsTopologically(newEntry.ElementGeometry))
+                                {
+                                    db.Entry(existing).Property(p => p.ElementGeometry).CurrentValue = newEntry.ElementGeometry;
+                                    db.Entry(existing).Property(p => p.DrawSizeHint).CurrentValue = newEntry.DrawSizeHint;
+                                }
+                                if (!(existing.Tags.Count == newEntry.Tags.Count && existing.Tags.All(t => newEntry.Tags.Any(tt => tt.Equals(t)))))
+                                {
+                                    db.Entry(existing).Collection(p => p.Tags).CurrentValue = newEntry.Tags;
+                                }
 
-                            var e = GeometrySupport.ConvertOsmEntryToPlace(g, styleSet);
-                            if (e == null)
-                                continue;
+                                var entries = existing.PlaceData;
+                                if (entries == null)
+                                    db.Entry(existing).Collection(p => p.PlaceData).CurrentValue = newEntry.PlaceData;
+                                else
+                                {
+                                    var epd = new List<PlaceData>();
+                                    foreach (var data in newEntry.PlaceData)
+                                    {
+                                        var oldPreTag = existing.PlaceData.First(p => p.DataKey == data.DataKey);
+                                        if (oldPreTag != null && oldPreTag.DataValue != data.DataValue)
+                                            epd.Add(data);
+                                    }
 
-
-                            Place.PreTag(e);
-                            db.Places.Add(e);
-                            added++;
-
+                                    if (epd.Count > 0)
+                                    {
+                                        epd.AddRange(existing.PlaceData.Where(d => !epd.Any(ee => ee.DataKey == d.DataKey)));
+                                        db.Entry(existing).Collection(p => p.PlaceData).CurrentValue = epd;
+                                    }
+                                }
+                            }
                         }
+
+                        //Remove check
+                        var removed = currentData.Values.Where(c => !processed.Any(p => p.SourceItemID == c.SourceItemID)).ToList();
+                        db.Places.RemoveRange(removed);
                     }
-                    db.SaveChanges();
+
+                    var changed = db.SaveChanges(); //This count includes tags and placedata.
+                    db.Dispose();
                     SaveCurrentBlockAndGroup(block, groupId);
                     sw.Stop();
-                    Log.WriteLog("Block " + block + ": " + added + (itemType == 1 ? " Node" : itemType == 2 ? " Way" : " Relation") + " entries added in " + sw.Elapsed);
-                    if (itemType == 1)
-                        break;
+                    Log.WriteLog("Block " + block + " Group " + groupId + ": " + changed + (itemType == 1 ? " Node" : itemType == 2 ? " Way" : " Relation") + " and Tag entries modified in " + sw.Elapsed);
+                    nextBlockId++;
+
+                    if (itemType == 3)
+                        timeListRelations.Add(sw.Elapsed);
+                    else if (itemType == 2)
+                        timeListWays.Add(sw.Elapsed);
+                    else
+                        timeListNodes.Add(sw.Elapsed);
                 }
             }
+
+            //Create index check
+            var indexCheck2 = new PraxisContext();
+            var makeIndexes = indexCheck2.GlobalData.FirstOrDefault(d => d.DataKey == "createIndexes");
+            if (makeIndexes != null && makeIndexes.DataValue.ToUTF8String() == "pending")
+            {
+                indexCheck2.RecreateIndexes();
+                makeIndexes.DataValue = "completed".ToByteArrayUTF8();
+                indexCheck2.SaveChanges();
+            }
+            //Expiring map tiles upon completion
+            Log.WriteLog("Expiring all map tiles");
+            indexCheck2.ExpireAllMapTiles();
+            indexCheck2.ExpireAllSlippyMapTiles();
+            indexCheck2.Dispose();
+            indexCheck2 = null;
+
+            Close();
+            CleanupFiles();
+            swFile.Stop();
+            Log.WriteLog(filename + " completed at " + DateTime.Now + ", session lasted " + swFile.Elapsed);
         }
 
         public void LastChanceRead(long block)
@@ -1437,31 +1549,43 @@ namespace PraxisCore.PbfReader
         {
             Task.Run(() =>
             {
+                //TODO in process: swap to count up from 1
                 var relGroups = relationIndex.Count;
                 var wayGroups = wayIndex.Count;
                 var nodeGroups = nodeIndex.Count;
-                var skippedRelationGroups = relationIndex.Count(w => w.blockId > nextBlockId);
-                var skippedWayGroups = wayIndex.Count(w => w.blockId > nextBlockId);
+                
                 while (!token.IsCancellationRequested)
                 {
+                    var relationGroupsLeft = relationIndex.Count(w => w.blockId > nextBlockId);
+                    var wayGroupsLeft = wayIndex.Count(w => w.blockId > nextBlockId);
+                    var nodeGroupsLeft = nodeIndex.Count(w => w.blockId > nextBlockId);
+                    var groupsDone = timeListRelations.Count + timeListWays.Count + nodeGroupsProcessed;
                     Log.WriteLog("Current stats:");
-                    Log.WriteLog("Groups completed this run: " + (timeListRelations.Count + timeListWays.Count + nodeGroupsProcessed));
-                    Log.WriteLog("Remaining groups to process: " + (relGroups - skippedRelationGroups) + " relations, " + (wayGroups - skippedWayGroups) + " ways, " + (nodeGroups - nodeGroupsProcessed) + " nodes");
+                    Log.WriteLog("Groups completed this run: " + groupsDone);
+                    Log.WriteLog("Remaining groups to process: " + relationGroupsLeft + " relations, " + wayGroupsLeft + " ways, " + nodeGroupsLeft + " nodes");
                     Log.WriteLog("Processing tasks: " + relList.Count(r => !r.IsCompleted));
                     Log.WriteLog("Total Processed Entries: " + totalProcessEntries);
-                    if (!timeListRelations.IsEmpty || !timeListWays.IsEmpty)
-                    {
-                        double relationTimeLeft = 0;
-                        double wayTimeLeft = 0;
-                        if (timeListWays.IsEmpty)
-                            relationTimeLeft = timeListRelations.Average(t => t.TotalSeconds) * (relGroups - skippedRelationGroups - timeListRelations.Count);
-                        else
-                            wayTimeLeft = timeListWays.Average(t => t.TotalSeconds) * (wayGroups - skippedWayGroups - timeListWays.Count);
 
-                        if (relationTimeLeft > 0)
-                            Log.WriteLog("Time to complete Relation groups: " + new TimeSpan((long)relationTimeLeft * 10000000));
-                        else if (wayTimeLeft > 0)
-                            Log.WriteLog("Time to complete Way groups: " + new TimeSpan((long)wayTimeLeft * 10000000));
+                    if (groupsDone > 0)
+                    {
+                        string group = "";
+                        double time = 0.0;
+                        if (!timeListRelations.IsEmpty)
+                        {
+                            group = "Relation";
+                            time = timeListRelations.Average(t => t.TotalSeconds) * relationGroupsLeft;
+                        }
+                        else if (!timeListWays.IsEmpty)
+                        {
+                            group = "Way";
+                            time = timeListWays.Average(t => t.TotalSeconds) * wayGroupsLeft;
+                        }
+                        else
+                        {
+                            group = "Node";
+                            time = timeListNodes.Average(t => t.TotalSeconds) * nodeGroupsLeft;
+                        }
+                        Log.WriteLog("Time to complete " + group + " groups: " + new TimeSpan((long)time * 10000000));
                     }
                     Thread.Sleep(60000);
                 }
@@ -1643,26 +1767,23 @@ namespace PraxisCore.PbfReader
         {
             Open(filename);
             LoadBlockInfo();
-            nextBlockId = 0;
+            nextBlockId = 1;
             if (relationIndex.Count == 0)
             {
                 IndexFile();
                 SetOptimizationValues();
                 SaveBlockInfo();
-                SaveCurrentBlockAndGroup(BlockCount(), 0);
-                nextBlockId = BlockCount() - 1;
             }
             else
             {
                 var lastBlock = FindLastCompletedBlock();
                 if (lastBlock == -1)
                 {
-                    nextBlockId = BlockCount() - 1;
-                    SaveCurrentBlockAndGroup(BlockCount(), -1);
+                    nextBlockId = 1;
+                    SaveCurrentBlockAndGroup(nextBlockId, 0);
                 }
                 else
-                    //NOTE: I might want to check this logic and make sure this checks groups and blocks before this always jumps to the next block.
-                    nextBlockId = lastBlock; // - 1;
+                    nextBlockId = lastBlock;
             }
 
             if (displayStatus)

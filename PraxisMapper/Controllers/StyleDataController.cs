@@ -12,7 +12,7 @@ namespace PraxisMapper.Controllers {
     [ApiController]
     public class StyleDataController : Controller {
         //some of these will take JSON strings up, parse and reapply them rather than having a ton of parameters
-        IConfiguration Configuration;
+        readonly IConfiguration Configuration;
 
         public StyleDataController(IConfiguration configuration) {
             Configuration = configuration;

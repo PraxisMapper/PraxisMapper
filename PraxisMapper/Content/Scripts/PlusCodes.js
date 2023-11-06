@@ -397,10 +397,10 @@
         // This calculates the values for the pair and grid section separately, using
         // integer arithmetic. Only at the final step are they converted to floating
         // point and combined.
-        if (!isFull(code)) {
-            throw new Error('IllegalArgumentException: ' +
-                'Passed Open Location Code is not a valid full code: ' + code);
-        }
+        //if (!isFull(code)) {
+        //    throw new Error('IllegalArgumentException: ' +
+        //        'Passed Open Location Code is not a valid full code: ' + code);
+        //}
         // Strip the '+' and '0' characters from the code and convert to upper case.
         code = code.replace('+', '').replace(/0/g, '').toLocaleUpperCase('en-US');
 

@@ -161,7 +161,7 @@ namespace PraxisMapper {
                     PbfReader reader = new PbfReader();
                     reader.outputPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + "\\";
                     reader.saveToDB = true;
-                    reader.ProcessFile(candidates.First(), relationAsBounds);
+                    reader.ProcessFileV2(candidates.First(), relationAsBounds);
                     Log.WriteLog("Done populating DB from " + candidates.First());
                     db.SetServerBounds(relationAsBounds);
                 }

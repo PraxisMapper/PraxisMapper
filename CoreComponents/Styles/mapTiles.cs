@@ -196,13 +196,14 @@ namespace PraxisCore.Styles
                     new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"}
             }},
             //Admin bounds are transparent on mapTiles, because I would prefer to find and skip them on this style. Use the adminBounds style to draw them on their own tile layer.
-            new StyleEntry() { MatchOrder = 160, Name ="admin", StyleSet = "mapTiles",
-                PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidthDegrees=0.0000125F, LinePattern= "10|5", LayerId = 70 }
-                },
-                StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" }}
-            },
+            //This is removed to make drawing maptiles faster.
+            //new StyleEntry() { MatchOrder = 160, Name ="admin", StyleSet = "mapTiles",
+            //    PaintOperations = new List<StylePaint>() {
+            //        new StylePaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidthDegrees=0.0000125F, LinePattern= "10|5", LayerId = 70 }
+            //    },
+            //    StyleMatchRules = new List<StyleMatchRule>() {
+            //        new StyleMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" }}
+            //},
             new StyleEntry() { MatchOrder = 170, Name ="parking", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "EEEEEE", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MinDrawRes = ConstantValues.zoom12DegPerPixelX}
