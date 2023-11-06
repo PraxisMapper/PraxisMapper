@@ -446,7 +446,7 @@ namespace PraxisCore
             db.SaveChanges();
             if (enableCaching && memoryCache != null)
             {
-                memoryCache.Set(code + "-" + styleSet, image);
+                memoryCache.Set(code + "-" + styleSet, image,  DateTime.UtcNow.AddMinutes(15)); //TODO: ensure this is removed when the tile expires.
             }
 
             return existingResults.GenerationID;
@@ -478,7 +478,7 @@ namespace PraxisCore
             db.SaveChanges();
             if (enableCaching && memoryCache != null)
             {
-                memoryCache.Set(tileKey + "-" + styleSet, image);
+                memoryCache.Set(tileKey + "-" + styleSet, image, DateTime.UtcNow.AddMinutes(15)); //TODO: ensure this is removed when the tile expires.
             }
 
             return existingResults.GenerationID;
@@ -507,7 +507,7 @@ namespace PraxisCore
 
             if (enableCaching && memoryCache != null)
             {
-                memoryCache.Set(code + "-" + styleSet, existingResults.TileData);
+                memoryCache.Set(code + "-" + styleSet, existingResults.TileData, DateTime.UtcNow.AddMinutes(15)); //TODO: ensure this gets removed from cache when it is expired.
             }
 
             return existingResults.TileData;
@@ -530,7 +530,7 @@ namespace PraxisCore
 
             if (enableCaching && memoryCache != null)
             {
-                memoryCache.Set(tileKey + "-" + styleSet, existingResults.TileData);
+                memoryCache.Set(tileKey + "-" + styleSet, existingResults.TileData, DateTime.UtcNow.AddMinutes(15)); //TODO: Ensure this gets removed when the tile is expired.
             }
 
             return existingResults.TileData;

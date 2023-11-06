@@ -13,7 +13,7 @@ namespace PraxisCore
     /// <summary>
     /// A self-contained database connector for everything PraxisMapper can do in its database.
     /// </summary>
-    public class PraxisContext : DbContext
+    public class PraxisContext : DbContext //Not sealed: I want games to be able to extend this and add tables/logic.
     {
         public DbSet<PlayerData> PlayerData { get; set; }
         public DbSet<PerformanceInfo> PerformanceInfo { get; set; }
@@ -287,7 +287,7 @@ namespace PraxisCore
             {
                 //NOTE: loading entries directly from files occasionally causes MariaDB to save a blank geometry entry. 
                 //This corrects for that unexpected behavior. In the future, I should log which ones get removed.
-                Database.ExecuteSqlRaw("DELETE FROM Places WHERE ElementGeometry = '' OR ElementGeometry = NULL");
+                //Database.ExecuteSqlRaw("DELETE FROM Places WHERE ElementGeometry = '' OR ElementGeometry = NULL");
                 
                 //db.Database.ExecuteSqlRaw(GeneratedMapDataIndex);
                 Database.ExecuteSqlRaw(MapTileIndex);
@@ -356,6 +356,7 @@ namespace PraxisCore
         /// <param name="styleSet">which set of maptiles to expire. All tiles if this is an empty string</param>
         public int ExpireMapTiles(Geometry g, string styleSet = "")
         {
+            //TODO: styleSet needs to be sanitized/validated against the DB, since it's user input.
             string SQL = "";
             if (serverMode == "MariaDB")
             {
@@ -474,6 +475,7 @@ namespace PraxisCore
             return results;
         }
 
+        //Where do I use this? How will I take a list of entries and apply them to the dB?
         public int UpdateExistingEntries(List<DbTables.Place> entries)
         {
             //NOTE: this is not the fastest way to handle this process, but this setup does allow the DB to be updated while the game is running.

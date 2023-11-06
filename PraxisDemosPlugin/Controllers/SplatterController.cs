@@ -17,7 +17,7 @@ namespace PraxisDemosPlugin.Controllers
         public static Dictionary<int, GeometryTracker> splatCollection = new Dictionary<int, GeometryTracker>();
         //Perf note: Using raw geometries, instead of GeometryTracker, seems to be about twice as fast for some reason. GeometryTracker is supposed to be lighter-weight than that.
 
-        IConfiguration Configuration;
+        readonly IConfiguration Configuration;
 
         public SplatterController(IConfiguration config)
         {
@@ -173,7 +173,7 @@ namespace PraxisDemosPlugin.Controllers
             for (int i = 0; i < splatCount; i++)
             {
                 var thisPoint = possiblePoints.PickOneRandom();
-                var color = Random.Shared.Next(DemoStyles.splatterStyle.Count() - 2); //-2, to exclude background.
+                var color = Random.Shared.Next(DemoStyles.splatterStyle.Count - 2); //-2, to exclude background.
                 possiblePoints.Remove(thisPoint);
                 var splat = MakeSplatShape(thisPoint.ToGeoArea().ToPoint(), Random.Shared.Next(2, 7) * .0001);
                 for (int j = 0; j < colors; j++)
@@ -200,7 +200,7 @@ namespace PraxisDemosPlugin.Controllers
             return File(results, "image/png");
         }
 
-        private Geometry MakeSplatShapeSimple(Point p, double radius) //~6ms average
+        private static Geometry MakeSplatShapeSimple(Point p, double radius) //~6ms average
         {
             //The lazy option for this: a few random circles.
             List<Geometry> geometries = new List<Geometry>();
@@ -219,7 +219,7 @@ namespace PraxisDemosPlugin.Controllers
             return resultGeo;
         }
 
-        private Geometry MakeSplatShape(Point p, double radius) //12ms average
+        private static Geometry MakeSplatShape(Point p, double radius) //12ms average
         {
             //Do some geometry actions to make a shape to put on the map.
             List<Geometry> geometries = new List<Geometry>(15);

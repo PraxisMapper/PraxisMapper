@@ -7,7 +7,7 @@ namespace PraxisChatPlugin.Controllers {
     [ApiController]
     [Route("[controller]")]
     public class ChatController : Controller, IPraxisPlugin {
-        int chatLengthLines = 100;
+        readonly int chatLengthLines = 100;
 
         public ChatController() //TODO: cache chat for performance, allow configuration.
         {

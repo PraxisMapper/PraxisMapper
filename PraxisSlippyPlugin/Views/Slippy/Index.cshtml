@@ -2,11 +2,12 @@
 <head>
     @* Local resource links *@
         <link rel="stylesheet" href="~/Content/leaflet.css" />
-        <script src="~/Content/Scripts/leaflet.js"></script> 
+        <script src="~/Content/Scripts/leaflet.js"></script>
+        <script src="~/Content/Scripts/PlusCodes.js"></script>
 </head>
 <body>
-    <div id="mapid" style="height:100%">
-
+    <div id="mapid" style="height:100%; z-index:20;">
+        
     </div>
     <script type="text/javascript">
         var serverKey = "testingKey"; //TODO: lock this page to only localhost or find an alternate way to obfuscate this.
@@ -44,7 +45,38 @@
                 console.log("Starting point set to " + startLat + "," + startLon + " from data " + bb);
                 mymap.setView([startLat, startLon], 15);
             })
-        );        
+        );
+
+        let textbox = L.Control.extend({
+            onAdd: function () {
+                var text = L.DomUtil.create('input');
+                text.id = "txtSearch";
+                text.placeholder = "PlusCode";
+                return text;
+            },
+
+        });
+        new textbox({ position: 'topleft' }).addTo(mymap);
+
+        let searchBtn = L.Control.extend({
+            onAdd: function () {
+                var btn = L.DomUtil.create('button');
+                btn.id = "info_btn";
+                btn.innerHTML = "Jump!";
+                btn.onclick = () => { 
+                    var tb = document.getElementById("txtSearch");
+                    var coord = OpenLocationCode.decode(tb.value);
+                    console.log(coord);
+                   
+                    mymap.setView([coord.latitudeCenter, coord.longitudeCenter], coord.codeLength + 9);
+                };
+                return btn;
+            },
+
+        });
+        new searchBtn({ position: 'topleft' }).addTo(mymap);
+
+
     </script>
 </body>
 </html>
