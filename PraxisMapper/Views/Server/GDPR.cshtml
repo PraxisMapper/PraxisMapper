@@ -1,0 +1,63 @@
+﻿    Account ID:<input id="accountId" placeholder="accountid" style="width:300px;"> <br />
+    Password:<input id="password" placeholder="password"  style="width:300px;"> <br />
+    <div id="responseMessage"></div> <br /><br />
+    <div id="dataContent"></div> <br /><br />
+
+    <button id='btnGetData' onclick='GetData'>Get Data</button> <br />
+    <br /><br />
+    <button id='btnDeleteData' onclick='DeleteData'>Delete All My Data</button> <br />
+    <div id="actualDelete" style="display:none"> 
+        Reminder: it's totally cool to exercise your rights to wipe all the stuff attached to your name off the server. Just be aware that this is entirely irreversible.
+        You will not get to change your mind. There is no spare copy or backup to restore from. There is no 30 day grace period where I set a flag and pretend your data is deleted.
+        You said you wanted to delete all your data off the server, and I believe you. Click the button below, and it's gone forever, for reals, no takebacks. 
+        You'll have to make a new account if you want to resume playing games on this server, but I assume you're not going to.<br />
+        <button id='btnDeleteData2' onclick='DeleteData2'>I said 'Delete All My Data' and I meant it.</button> <br />
+    </div>
+
+<script type="text/javascript">
+var baseSite = window.location.href.toLowerCase().replace("/server/gdpr", "");
+var loginToken ="";
+
+function Login() { 
+    //hit /server/login GET URL, get login token.
+    var data = { accountId= "asdf", password = "fdsa" };
+    fetch(baseSite + "/Server/Login", { body: JSON.stringify(data) }) //TODO: check if this also requires setting headers for content-type
+        .then(b => b.json().then(bb => { 
+            //TODO check if this succeeded first
+            loginToken = bb.authToken;
+        });
+    );
+}
+
+function GetData()
+{
+    //hit /server/GdprExport GET url, see all entries as string.
+    fetch(baseSite + "/Server/GdprExport", { headers: { AuthKey: loginToken } })
+        .then(b => b.text().then(bb => { 
+            //set dataContent div's inner text to bb value. Ensure line breaks remain correct in HTML.
+            var datacontent = document.getElementById("dataContent");
+            datacontent.innerHTML = bb.replaceAll("\r\n", "<br />");
+        });
+    );
+}
+
+function DeleteData() {
+    //show hidden div.
+}
+
+function DeleteData2() {
+    //hit /server/account with DELETE method. 
+    fetch(baseSite + "/Server/Account", { method: "DELETE" })
+        .then(b => b.text().then(bb => { 
+            if (bb == "0") {
+                //Error state, nothing was deleted
+            }
+            else {
+                //Show success information.
+            }
+        });
+    );
+}
+
+</script>
+    

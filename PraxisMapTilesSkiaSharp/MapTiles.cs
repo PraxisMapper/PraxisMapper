@@ -295,8 +295,9 @@ namespace PraxisCore {
                 path.Reset();
                 switch (w.elementGeometry.GeometryType) {
                     case "Polygon":
-                        path.AddPoly(PolygonToSKPoints(((Polygon)w.elementGeometry).ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
-                        foreach (var ir in ((Polygon)w.elementGeometry).Holes) {
+                        var castPoly = w.elementGeometry as Polygon;
+                        path.AddPoly(PolygonToSKPoints((castPoly).ExteriorRing, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
+                        foreach (var ir in castPoly.Holes) {
                             path.AddPoly(PolygonToSKPoints(ir, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY));
                         }
                         canvas.DrawPath(path, paint);
@@ -338,8 +339,10 @@ namespace PraxisCore {
                         var convertedPoint = PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
                         //If this type has an icon, use it. Otherwise draw a circle in that type's color.
                         if (!string.IsNullOrEmpty(w.paintOp.FileName)) {
-                            SKBitmap icon = cachedBitmaps[w.paintOp.FileName]; // SKBitmap.Decode(TagParser.cachedBitmaps[w.paintOp.FileName]);
+                            SKBitmap icon = cachedBitmaps[w.paintOp.FileName];
                             canvas.DrawBitmap(icon, convertedPoint[0]); //draws icon at fixed size (30x30px for most existing items)
+                            //If i want to scale this, i should use the icon's Width, (which draws at 1:1 scale for gameplay tiles (drawsizehint = 1)
+                            //so scale the image by (1/DrawSizeHint)? Remember to use server scale value.
                         }
                         else {
                             var circleRadius = (float)(w.paintOp.LineWidthDegrees / stats.degreesPerPixelX); //I want points to be drawn as 1 Cell10 in diameter usually, but should be adjustable.
@@ -360,6 +363,7 @@ namespace PraxisCore {
                         Log.WriteLog("Unknown geometry type found, not drawn.");
                         break;
                 }
+                canvas.Flush();//TODO test perf with and without this. Hopefully this reduces some RAM use
                 if (w.OverrideColor) //restore original color.
                     paint.Color = originalColor;
             }
@@ -369,7 +373,7 @@ namespace PraxisCore {
             bitmap.Encode(skms, SKEncodedImageFormat.Png, 100);
             var results = ms.ToArray();
             path.Dispose();
-            skms.Dispose(); ms.Close(); ms.Dispose(); canvas.Restore(); canvas.Dispose(); bitmap.Reset(); bitmap.Dispose(); canvas = null; bitmap = null;
+            skms.Dispose(); ms.Close(); ms.Dispose(); canvas.Discard(); canvas.Dispose(); bitmap.Reset(); bitmap.Dispose(); canvas = null; bitmap = null;
             GC.Collect();
             return results;
         }
