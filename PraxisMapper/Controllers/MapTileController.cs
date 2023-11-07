@@ -91,9 +91,7 @@ namespace PraxisMapper.Controllers
                 }
 
                 //Make tile
-                var places = GetPlaces(info.area, null, styleSet: styleSet, dataKey: styleSet); //If pre-tag is on, this makes it a lot faster.
-                if (onlyLayer != "") //TODO: could boost this into the same GetPlaces call as the dataValue
-                    places = places.Where(p => p.StyleName == onlyLayer).ToList();
+                var places = GetPlaces(info.area, null, styleSet: styleSet, filterSize: info.filterSize, dataKey: styleSet, dataValue: onlyLayer); //If pre-tag is on, this makes it a lot faster.
                 var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, styleSet, info);
                 tileData = FinishSlippyMapTile(info, paintOps, tileKey, styleSet);
 

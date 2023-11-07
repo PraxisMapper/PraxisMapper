@@ -188,7 +188,7 @@ namespace PraxisCore
                     && (!po.FromTag || TagParser.GetTagValue(place, place.StyleName, out tagColor))
                     && (!po.StaticColorFromName || TagParser.PickStaticColorByName(TagParser.GetName(place), out tagColor))
                     )
-                             list.Add(new CompletePaintOp(
+                        list.Add(new CompletePaintOp(
                         place.ElementGeometry,
                         place.DrawSizeHint,
                         po,
