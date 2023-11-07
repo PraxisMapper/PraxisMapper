@@ -18,7 +18,7 @@
 
         var baseLayers = {};
         var overlays = {};
-        fetch(baseSite + "/Slippy/Configs", { headers: { 'PraxisAuthKey': serverKey } })
+        fetch(baseSite + "/Slippy/Configs")
             .then(b =>
                 b.json().then(bb => {
                     bb.forEach((c) => {
@@ -26,7 +26,10 @@
                         if (c.isOverlay == true)
                             overlays[c.key] = L.layerGroup([thisEntry]);
                         else
-                            baseLayers[c.key] = thisEntry
+                            baseLayers[c.key] = thisEntry;
+                        if (c.key == "OSMLike")
+                            thisEntry.addTo(mymap);
+                          
                     });
                     L.control.layers(baseLayers, overlays).addTo(mymap);
                 })
@@ -76,6 +79,13 @@
         });
         new searchBtn({ position: 'topleft' }).addTo(mymap);
 
+
+        mymap.on('moveend', function () {
+            var center = mymap.getCenter();
+            var coord = OpenLocationCode.encode(center.lat, center.lng);
+            var tb = document.getElementById("txtSearch");
+            tb.value = coord;
+        });
 
     </script>
 </body>

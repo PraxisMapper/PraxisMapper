@@ -339,8 +339,7 @@ namespace PraxisCore {
                         //If this type has an icon, use it. Otherwise draw a circle in that type's color.
                         if (!string.IsNullOrEmpty(w.paintOp.FileName)) {
                             SKBitmap icon = cachedBitmaps[w.paintOp.FileName]; // SKBitmap.Decode(TagParser.cachedBitmaps[w.paintOp.FileName]);
-                            canvas.DrawBitmap(icon, convertedPoint[0]);
-                            //icon.Dispose();
+                            canvas.DrawBitmap(icon, convertedPoint[0]); //draws icon at fixed size (30x30px for most existing items)
                         }
                         else {
                             var circleRadius = (float)(w.paintOp.LineWidthDegrees / stats.degreesPerPixelX); //I want points to be drawn as 1 Cell10 in diameter usually, but should be adjustable.
