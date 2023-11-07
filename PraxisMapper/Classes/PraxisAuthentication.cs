@@ -15,7 +15,7 @@ namespace PraxisMapper.Classes
     /// </summary>
     public class PraxisAuthentication {
         private readonly RequestDelegate _next;
-        private static ConcurrentDictionary<string, AuthData> authTokens = new ConcurrentDictionary<string, AuthData>(); //string is authtoken (Guid)
+        private static ConcurrentDictionary<string, AuthData> authTokens = new ConcurrentDictionary<string, AuthData>(); //string is authtoken (Guid), AuthData contains username.
         public static ConcurrentBag<string> whitelistedPaths = new ConcurrentBag<string>();
         public static HashSet<string> admins = new HashSet<string>();
         public PraxisAuthentication(RequestDelegate next) {
@@ -52,10 +52,7 @@ namespace PraxisMapper.Classes
 
                 if (key.Key == null || !loggedIn) {
                     if (Startup.Configuration.GetValue<bool>("enablePerformanceTracker")) {
-                        using var db = new PraxisContext();
-                        db.ChangeTracker.AutoDetectChangesEnabled = false;
-                        db.PerformanceInfo.Add(new DbTables.PerformanceInfo() { Notes = "Auth Failed for " + context.Request.Path, FunctionName = "PraxisAuth", CalledAt = DateTime.UtcNow });
-                        db.SaveChanges();
+                        PraxisPerformanceTracker.LogInfoToPerfData("PraxisAuth", "Auth Failed for " + context.Request.Path);
                     }
 
                     System.Threading.Thread.Sleep(2000); //A mild annoyance to anyone attempting to brute-force a key from the outside

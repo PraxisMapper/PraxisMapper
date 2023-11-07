@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
@@ -12,6 +13,7 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using static PraxisCore.DbTables;
 
 namespace PraxisMapper.Controllers
@@ -54,6 +56,8 @@ namespace PraxisMapper.Controllers
             //GDPR compliance requires this to exist and be available to the user. 
             //Custom games that attach players to locations may need additional logic to fully meet legal requirements.
             //These 2 lines require PraxisAuth enabled, which you should have on anyways if you're using accounts.
+
+            //TODO: use the getauthinfo call here.
             var accountId = Response.Headers["X-account"].ToString();
             var password = Response.Headers["X-internalPwd"].ToString();
 
@@ -120,10 +124,20 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
+        [Route("/[controller]/Login")]
         [Route("/[controller]/Login/{accountId}/{password}")]
-        public AuthDataResponse Login(string accountId, string password)
+        public AuthDataResponse Login(string accountId = null, string password = null)
         {
             Response.Headers.Add("X-noPerfTrack", "Server/Login/VARSREMOVED");
+            if (accountId == null)
+            {
+                //read from JSON
+                var data = Request.ReadBody();
+                var decoded = GenericData.DeserializeAnonymousType(data, new { accountId = "", password = "" });
+                accountId = decoded.accountId;
+                password = decoded.password;
+            }
+
             if (GenericData.CheckPassword(accountId, password))
             {
                 int authTimeout = Configuration["authTimeoutSeconds"].ToInt();
@@ -243,7 +257,7 @@ namespace PraxisMapper.Controllers
                     if (entry.IvData == null)
                         sb.AppendLine(entry.DataKey + " : " + entry.DataValue.ToUTF8String());
                     else
-                        sb.AppendLine(entry.DataKey + " : " + GenericData.DecryptValue(entry.IvData, entry.DataValue, password).ToUTF8String());
+                        sb.AppendLine(entry.DataKey + " [Decrypted] : " + GenericData.DecryptValue(entry.IvData, entry.DataValue, password).ToUTF8String());
                 }
             }
 

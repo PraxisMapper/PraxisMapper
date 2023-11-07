@@ -165,9 +165,7 @@ namespace PraxisMapper.Controllers
 
                 //Make tile
                 //tileData = MapTiles.DrawAreaAtSize(info, null, styleSet);
-                var places = GetPlaces(info, null, styleSet);
-                if (onlyLayer != "")
-                    places = places.Where(p => p.StyleName == onlyLayer).ToList();
+                var places = GetPlaces(info.area, null, styleSet:styleSet, filterSize: info.filterSize, dataKey:styleSet, dataValue: onlyLayer);
                 var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, styleSet, info);
                 tileData = FinishMapTile(info, paintOps, code, styleSet);
 

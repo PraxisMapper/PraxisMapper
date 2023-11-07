@@ -11,6 +11,7 @@ using System.IO;
 using System.IO.Pipelines;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text.Json;
 using static PraxisCore.DbTables;
 
 namespace PraxisCore
@@ -1325,6 +1326,11 @@ namespace PraxisCore
             var intPwd = new Guid(DecryptValue(entry.dataIV, bytes, password)).ToString();
 
             return intPwd;
+        }
+
+        public static T? DeserializeAnonymousType<T>(string json, T anonymousTypeObject)
+        {
+            return JsonSerializer.Deserialize<T>(json);
         }
     }
 }
