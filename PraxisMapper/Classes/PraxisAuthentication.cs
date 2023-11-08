@@ -25,8 +25,9 @@ namespace PraxisMapper.Classes
         public async Task Invoke(HttpContext context) {
             var key = context.Request.Headers.FirstOrDefault(h => h.Key == "AuthKey");
             bool loggedIn = false;
+            AuthData data = null;
             if (key.Value.Count > 0) {
-                loggedIn = authTokens.TryGetValue(key.Value, out var data);
+                loggedIn = authTokens.TryGetValue(key.Value, out data);
 
                 if (loggedIn)
                 {
@@ -48,6 +49,9 @@ namespace PraxisMapper.Classes
             }
 
             var path = context.Request.Path.Value;
+            if (data != null && data.isGdprRequest && !path.ToLower().Contains("gdpr"))
+                return;
+
             if (!whitelistedPaths.Any(p => path.Contains(p))) {
 
                 if (key.Key == null || !loggedIn) {
