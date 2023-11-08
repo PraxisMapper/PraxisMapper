@@ -1294,7 +1294,7 @@ namespace PraxisCore
         /// <param name="accountId"></param>
         /// <param name="password"></param>
         /// <returns></returns>
-        public static bool CheckPassword(string accountId, string password)
+        public static bool CheckPassword(string accountId, string password, bool ignoreBan = false)
         {
             using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
@@ -1302,7 +1302,7 @@ namespace PraxisCore
             var entry = db.AuthenticationData.Where(a => a.accountId == accountId).FirstOrDefault();
             if (entry == null)
                 return false;
-            if (entry.bannedUntil.HasValue && entry.bannedUntil.Value > DateTime.UtcNow)
+            if (entry.bannedUntil.HasValue && entry.bannedUntil.Value > DateTime.UtcNow && ignoreBan == false)
                 return false;
 
             bool results = BCrypt.Net.BCrypt.EnhancedVerify(password, entry.loginPassword);

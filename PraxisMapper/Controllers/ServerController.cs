@@ -61,8 +61,6 @@ namespace PraxisMapper.Controllers
             var accountId = Response.Headers["X-account"].ToString();
             var password = Response.Headers["X-internalPwd"].ToString();
 
-            if (!GenericData.CheckPassword(accountId, password))
-                return 0;
 
             using var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
@@ -124,27 +122,30 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpGet]
+        [HttpPut]
         [Route("/[controller]/Login")]
         [Route("/[controller]/Login/{accountId}/{password}")]
         public AuthDataResponse Login(string accountId = null, string password = null)
         {
             Response.Headers.Add("X-noPerfTrack", "Server/Login/VARSREMOVED");
+            bool ignoreBan = false;
             if (accountId == null)
             {
                 //read from JSON
                 var data = Request.ReadBody();
-                var decoded = GenericData.DeserializeAnonymousType(data, new { accountId = "", password = "" });
+                var decoded = GenericData.DeserializeAnonymousType(data, new { accountId = "", password = "", isGDPR = false });
                 accountId = decoded.accountId;
                 password = decoded.password;
+                ignoreBan = decoded.isGDPR; //If this is set, this login is only good for the GDPR page. Ban will still lock you out of game.
             }
 
-            if (GenericData.CheckPassword(accountId, password))
+            if (GenericData.CheckPassword(accountId, password, ignoreBan))
             {
                 int authTimeout = Configuration["authTimeoutSeconds"].ToInt();
                 Guid token = Guid.NewGuid();
                 var intPassword = GenericData.GetInternalPassword(accountId, password);
                 PraxisAuthentication.RemoveEntry(accountId);
-                PraxisAuthentication.AddEntry(new AuthData(accountId, intPassword, token.ToString(), DateTime.UtcNow.AddSeconds(authTimeout)));
+                PraxisAuthentication.AddEntry(new AuthData(accountId, intPassword, token.ToString(), DateTime.UtcNow.AddSeconds(authTimeout), ignoreBan));
                 return new AuthDataResponse(token, authTimeout);
             }
             return null;
@@ -248,7 +249,7 @@ namespace PraxisMapper.Controllers
             {
                 using var db = new PraxisContext();
                 var authInfo = db.AuthenticationData.First(a => a.accountId == accountId);
-                sb.AppendLine("accountID: " + authInfo.accountId + " | bannedUntil: " + authInfo.bannedUntil + " | dataIV: " + authInfo.dataIV.ToBase64String() + " | dataPassword: " + authInfo.dataPassword + " | isAdmin: " + authInfo.isAdmin + " | loginPassword: " + authInfo.loginPassword);
+                sb.AppendLine("accountID: " + authInfo.accountId + " | bannedUntil: " + authInfo.bannedUntil + " | bannedReason: " + authInfo.bannedReason + " | isAdmin: " + authInfo.isAdmin);
 
                 var entries = db.PlayerData.Where(p => p.accountId == accountId).ToList();
 
@@ -262,6 +263,13 @@ namespace PraxisMapper.Controllers
             }
 
             return sb.ToString();
+        }
+
+        [HttpGet]
+        [Route("/[controller]/Gdpr")]
+        public IActionResult GDPR()
+        {
+            return View();
         }
     }
 }
