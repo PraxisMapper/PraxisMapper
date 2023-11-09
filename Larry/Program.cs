@@ -340,9 +340,9 @@ namespace Larry
                 AuditLoadedFile();
             }
 
-            if (args.Any(a => a == "-preTag"))
+            if (args.Any(a => a == "-retag"))
             {
-                PreTagPlace();
+                RetagPlaces();
             }
 
             //This is not currently finished or testing in the current setup. Will return in a future release.
@@ -405,7 +405,7 @@ namespace Larry
                 {
                     r.keepAllBlocksInRam = true; //Faster performance, but files use vastly more RAM than they do HD space. 200MB file = ~6GB total RAM last I checked.
                 }
-                r.ProcessFile(filename, long.Parse(config["UseOneRelationID"]));
+                r.ProcessFileV2(filename, long.Parse(config["UseOneRelationID"]));
                 File.Move(filename, filename + "done");
             }
         }
@@ -1213,7 +1213,7 @@ namespace Larry
             Log.WriteLog("All files audit complete at " + DateTime.Now);
         }
 
-        public static void PreTagPlace()
+        public static void RetagPlaces()
         {
             //In the DB, load up places, run TagParser on them for multiple styles, and save the results to PlaceData
             //This will allow for faster searching for specific styles by using the PlaceData indexes instead of loading all
@@ -1234,7 +1234,7 @@ namespace Larry
             while (keepGoing)
             {
                 sw.Restart();
-                //TODO using the last ID is way more efficient than Skip(int). Apply this anywhere else in the app I use skip/take
+                //using the last ID is way more efficient than Skip(int). TODO Apply this anywhere else in the app I use skip/take
                 var allPlaces = db.Places.Include(p => p.PlaceData).Include(p => p.Tags).Where(p => p.Id > skip && p.PlaceData.Count == 0).Take(take).ToList();
                 if (allPlaces.Count < take)
                     keepGoing = false;
