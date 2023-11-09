@@ -1235,7 +1235,7 @@ namespace Larry
             {
                 sw.Restart();
                 //using the last ID is way more efficient than Skip(int). TODO Apply this anywhere else in the app I use skip/take
-                var allPlaces = db.Places.Include(p => p.PlaceData).Include(p => p.Tags).Where(p => p.Id > skip && p.PlaceData.Count == 0).Take(take).ToList();
+                var allPlaces = db.Places.Include(p => p.PlaceData).Include(p => p.Tags).Where(p => p.Id > skip).Take(take).ToList();
                 if (allPlaces.Count < take)
                     keepGoing = false;
 
