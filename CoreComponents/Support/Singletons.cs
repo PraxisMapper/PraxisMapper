@@ -9,6 +9,7 @@ namespace PraxisCore {
     {
         public static readonly NtsGeometryServices s = new NtsGeometryServices(PrecisionModel.Floating.Value, 4326);
         public static readonly NetTopologySuite.IO.WKTReader geomTextReader = new NetTopologySuite.IO.WKTReader(s); // {DefaultSRID = 4326 };
+        public static readonly NetTopologySuite.IO.WKBReader geomByteReader = new NetTopologySuite.IO.WKBReader(s); // {DefaultSRID = 4326 };
 
         public static GeometryFactory geometryFactory = NtsGeometryServices.Instance.CreateGeometryFactory(4326);
         public static PreparedGeometryFactory preparedGeometryFactory = new PreparedGeometryFactory();

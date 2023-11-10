@@ -1,8 +1,10 @@
 ﻿using NetTopologySuite.Geometries;
+using PraxisCore.Support;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace PraxisCore {
     public class DbTables
@@ -129,6 +131,8 @@ namespace PraxisCore {
         //This is the new, 5th iteration of geography data storage for PraxisMapper.
         //All types can be stored in this one table, though some data will be applied on read
         //because the TagParser will determine it on-demand instead of storing changeable data.
+
+        [JsonConverter(typeof(PlaceJsonConverter))]
         public class Place
         {
             public long Id { get; set; } //Internal primary key, don't pass this to clients.
@@ -164,7 +168,8 @@ namespace PraxisCore {
         {
             public long Id { get; set; }
             public long SourceItemId { get; set; } 
-            public int SourceItemType { get; set; } 
+            public int SourceItemType { get; set; }
+            [JsonIgnore]
             public Place Place { get; set; }
             public string Key { get; set; }
             public string Value { get; set; }
@@ -199,6 +204,7 @@ namespace PraxisCore {
             //for storing collection data server-side per existing map area. Join on that table to get geometry area.
             public long Id { get; set; } //internal primary key
             public long PlaceId { get; set; } //might not be necessary?
+            [JsonIgnore]
             public Place Place { get; set; }
             public string DataKey { get; set; }
             public DateTime? Expiration { get; set; } //optional. If value is in the past, ignore this data.
