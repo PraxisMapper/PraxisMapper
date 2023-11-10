@@ -72,7 +72,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/DrawSlippyTile/{styleSet}/{zoom}/{x}/{y}.png")] //slippy map conventions.
         [Route("/[controller]/Slippy/{styleSet}/{zoom}/{x}/{y}.png")] //slippy map conventions.
         [Route("/[controller]/Slippy/{styleSet}/{onlyLayer}/{zoom}/{x}/{y}.png")] //slippy map conventions.
-        public ActionResult DrawSlippyTile(int zoom, int x, int y, string styleSet, string onlyLayer = "") {
+        public ActionResult DrawSlippyTile(int zoom, int x, int y, string styleSet, string onlyLayer = null) {
             try {
                 Response.Headers.Add("X-noPerfTrack", "Maptiles/Slippy/" + styleSet + "/VARSREMOVED");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString() + onlyLayer;
@@ -145,7 +145,7 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Area/{code}/{styleSet}/{onlyLayer}")]
         [Route("/[controller]/Area/{code}/{styleSet}")]
         [Route("/[controller]/Area/{code}")]
-        public ActionResult DrawTile(string code, string styleSet = "mapTiles", string onlyLayer = "") {
+        public ActionResult DrawTile(string code, string styleSet = "mapTiles", string onlyLayer = null) {
             Response.Headers.Add("X-noPerfTrack", "Maptiles/Area/" + styleSet + "/VARSREMOVED");
             try {
                 var info = new ImageStats(code);
