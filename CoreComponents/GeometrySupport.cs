@@ -82,6 +82,11 @@ namespace PraxisCore
             return geomTextReader.Read(elementGeometry);
         }
 
+        public static Geometry GeometryFromWKB(byte[] elementGeometry)
+        {
+            return geomByteReader.Read(elementGeometry);
+        }
+
         /// <summary>
         /// Run a CCWCheck on a Geometry and (if enabled) simplify the geometry of an object to the minimum
         /// resolution for PraxisMapper gameplay, which is a Cell10 in degrees (.000125). Simplifying areas reduces storage
