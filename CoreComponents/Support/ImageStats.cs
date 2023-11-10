@@ -61,7 +61,7 @@ namespace PraxisCore.Support
             pixelsPerDegreeX = imageSizeX / area.LongitudeWidth;
             pixelsPerDegreeY = imageSizeY / area.LatitudeHeight;
 
-            filterSize = (degreesPerPixelY / ConstantValues.resolutionCell11Lat) * MapTileSupport.GameTileScale;
+            filterSize = (degreesPerPixelY * degreesPerPixelX / ConstantValues.squareCell11Area) / MapTileSupport.GameTileScale;
         }
 
 
@@ -146,7 +146,9 @@ namespace PraxisCore.Support
             pixelsPerDegreeX = imageSizeX / area.LongitudeWidth;
             pixelsPerDegreeY = imageSizeY / area.LatitudeHeight;
 
-            filterSize = (degreesPerPixelY / ConstantValues.resolutionCell11Lat) * MapTileSupport.GameTileScale;
+            //DrawSizeHint is "how many Cell11s at GameTileScale is this?
+            //FilterSize should be "how many Cell11s is one pixel of this image?"
+            filterSize = (degreesPerPixelY * degreesPerPixelX / ConstantValues.squareCell11Area); // / MapTileSupport.GameTileScale;
         }
 
         /// <summary>
@@ -174,6 +176,9 @@ namespace PraxisCore.Support
         {
             //This will create a new area with potentially different proportions. The goal is to get newArea to fit nicely inside the current image size,
             //and that may mean changing the dimentions so that its proportions fit.
+
+            //This is harder than expected, possibly because of projection issues making things look worse after adjusting numbers
+            //Or, am i off, and the fix is to make the smaller side larger, since its already squishing the big side to fit in the image?
 
             //plan: get aspect ratio, resize new area larger to match it
             var aspectRatioImage = (double)imageSizeX / (double)imageSizeY;
