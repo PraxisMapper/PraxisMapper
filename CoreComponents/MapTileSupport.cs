@@ -43,7 +43,7 @@ namespace PraxisCore
         public static double BufferSize = ConstantValues.resolutionCell10;
 
         /// <summary>
-        /// A code reference for how big an image would be using 11-character PlusCodes for pixels, multiplied by GameTileScale (default 2)
+        /// A code reference for how big an image would be using 11-character PlusCodes for pixels, multiplied by GameTileScale (default 4)
         /// </summary>
         /// <param name="code">the code provided to determine image size</param>
         /// <param name="X">out param for image width</param>
@@ -78,7 +78,7 @@ namespace PraxisCore
         }
 
         /// <summary>
-        /// A code reference for how big an image would be using 11-character PlusCodes for pixels, multiplied by GameTileScale (default 2)
+        /// A code reference for how big an image would be using 11-character PlusCodes for pixels, multiplied by GameTileScale (default 4)
         /// </summary>
         /// <param name="code"></param>
         /// <param name="X"></param>

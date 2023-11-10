@@ -61,11 +61,12 @@ namespace PraxisMapper.Controllers {
             int imageMaxEdge = Configuration["imageMaxSide"].ToInt();
             long maxImagePixels = Configuration["maxImagePixels"].ToLong();
 
-            ImageStats istats = new ImageStats(mapArea, (int)(mapArea.LongitudeWidth / ConstantValues.resolutionCell11Lon) * (int)MapTileSupport.GameTileScale, (int)(mapArea.LatitudeHeight / ConstantValues.resolutionCell11Lat) * (int)MapTileSupport.GameTileScale);
+            MapTileSupport.GetPlusCodeImagePixelSize(plusCode, out int X, out int Y);
+            ImageStats istats = new ImageStats(mapArea, X, Y);
             istats = MapTileSupport.ScaleBoundsCheck(istats, imageMaxEdge, maxImagePixels);
 
-            if (filterSize >= 0)
-                istats.filterSize = filterSize;
+            if (filterSize <= 0)
+                istats.filterSize = 0;
 
             //MapTile data
             sw.Start();
