@@ -196,9 +196,8 @@ namespace PraxisDemosPlugin.Controllers
                 imageArea = place.ElementGeometry.Buffer(.000250).Envelope.ToGeoArea();
 
             var longerSide = imageArea.LatitudeHeight >= imageArea.LongitudeWidth ? imageArea.LatitudeHeight : imageArea.LongitudeWidth;
-            //ImageStats istats = new ImageStats(imageArea, (int)(longerSide / ConstantValues.resolutionCell11Lon) * (int)MapTileSupport.GameTileScale, (int)(longerSide / ConstantValues.resolutionCell11Lat) * (int)MapTileSupport.GameTileScale);
             ImageStats istats = new ImageStats(imageArea, 900, 900);
-            //            istats = MapTileSupport.ScaleBoundsCheck(istats, 900, 810000);
+            //istats = MapTileSupport.ScaleBoundsCheck(istats, 900, 810000);
 
             var tile = MapTileSupport.MapTiles.DrawAreaAtSize(istats);
             return File(tile, "image/png");

@@ -211,20 +211,17 @@ namespace PraxisCore
         /// <returns></returns>
         public static double CalculateDrawSizeHint(DbTables.Place place, string styleSet = "mapTiles")
         {
-            //The default assumption here is that a Cell11 is 1 pixel for gameplay tiles before factoring in GameTileScale.
-            //So we take the area of the drawn element in degrees, divide by (the size of a square Cell11 divided by GameTileScale).
-            //That's how many pixels an individual element would take up at typical scale. MapTiles will skip anything below 1. (Slippy tiles scale proportionally)
-            //The value of what to skip will be automatically adjusted based on the area being drawn.
+            //The basic suggestion we need here is how many Cell11s will this place cover. For lines we use an estimate based on the width of the drawn element.
+            //Later, when drawing, we will calculate how many Cell11s are in one pixel, and will exclude any item that's hint is smaller than that nummber.
             var paintOp = TagParser.allStyleGroups[styleSet][place.StyleName].PaintOperations;
-            var pixelMultiplier = MapTileSupport.GameTileScale;
 
             if (place.ElementGeometry.Area > 0)
-                return (place.ElementGeometry.Area / (ConstantValues.squareCell11Area / pixelMultiplier));
+                return (place.ElementGeometry.Area / (ConstantValues.squareCell11Area));
             else if (place.ElementGeometry.Length > 0)
             {
                 var lineWidth = paintOp.Max(p => p.LineWidthDegrees);
                 var rectSize = lineWidth * place.ElementGeometry.Length;
-                return (rectSize / (ConstantValues.squareCell11Area / pixelMultiplier));
+                return (rectSize / (ConstantValues.squareCell11Area));  
             }
             else if (paintOp.Any(p => !string.IsNullOrEmpty(p.FileName)))
             {
@@ -234,28 +231,27 @@ namespace PraxisCore
             else
             {
                 var pointRadius = paintOp.Max(p => p.LineWidthDegrees); //for Points, this is the radius of the circle being drawn.
-                var pointRadiusPixels = ((pointRadius * pointRadius * float.Pi) / (ConstantValues.squareCell11Area / pixelMultiplier));
+                var pointRadiusPixels = ((pointRadius * pointRadius * float.Pi) / ConstantValues.squareCell11Area);
                 return pointRadiusPixels;
             }
         }
 
         public static double CalculateDrawSizeHint(Geometry geometry, ICollection<StylePaint> paintOp)
         {
-            var pixelMultiplier = MapTileSupport.GameTileScale;
             if (geometry.Area > 0)
-                return (geometry.Area / (ConstantValues.squareCell11Area / pixelMultiplier));
+                return (geometry.Area / (ConstantValues.squareCell11Area));
             else if (geometry.Length > 0)
             {
                 var lineWidth = paintOp.Max(p => p.LineWidthDegrees);
                 var rectSize = lineWidth * geometry.Length;
-                return (rectSize / (ConstantValues.squareCell11Area / pixelMultiplier));
+                return (rectSize / (ConstantValues.squareCell11Area));
             }
             else if (paintOp.Any(p => !string.IsNullOrEmpty(p.FileName)))
                 return 32;
             else
             {
                 var pointRadius = paintOp.Max(p => p.LineWidthDegrees); //for Points, this is the radius of the circle being drawn.
-                var pointRadiusPixels = ((pointRadius * pointRadius * float.Pi) / (ConstantValues.squareCell11Area / pixelMultiplier));
+                var pointRadiusPixels = ((pointRadius * pointRadius * float.Pi) / ConstantValues.squareCell11Area);
                 return pointRadiusPixels;
             }
         }

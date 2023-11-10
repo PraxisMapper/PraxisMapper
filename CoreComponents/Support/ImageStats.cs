@@ -54,14 +54,7 @@ namespace PraxisCore.Support
 
             imageSizeX = x;
             imageSizeY = y;
-
-            degreesPerPixelX = area.LongitudeWidth / imageSizeX;
-            degreesPerPixelY = area.LatitudeHeight / imageSizeY;
-
-            pixelsPerDegreeX = imageSizeX / area.LongitudeWidth;
-            pixelsPerDegreeY = imageSizeY / area.LatitudeHeight;
-
-            filterSize = (degreesPerPixelY * degreesPerPixelX / ConstantValues.squareCell11Area) / MapTileSupport.GameTileScale;
+            CalculateDimentions();
         }
 
 
@@ -78,14 +71,7 @@ namespace PraxisCore.Support
 
             imageSizeX = x;
             imageSizeY = y;
-
-            degreesPerPixelX = area.LongitudeWidth / imageSizeX;
-            degreesPerPixelY = area.LatitudeHeight / imageSizeY;
-
-            pixelsPerDegreeX = imageSizeX / area.LongitudeWidth;
-            pixelsPerDegreeY = imageSizeY / area.LatitudeHeight;
-
-            filterSize = (degreesPerPixelY / ConstantValues.resolutionCell11Lat) * MapTileSupport.GameTileScale;
+            CalculateDimentions();
         }
         
         /// <summary>
@@ -148,7 +134,7 @@ namespace PraxisCore.Support
 
             //DrawSizeHint is "how many Cell11s at GameTileScale is this?
             //FilterSize should be "how many Cell11s is one pixel of this image?"
-            filterSize = (degreesPerPixelY * degreesPerPixelX / ConstantValues.squareCell11Area); // / MapTileSupport.GameTileScale;
+            filterSize = (degreesPerPixelY * degreesPerPixelX / ConstantValues.squareCell11Area);
         }
 
         /// <summary>
