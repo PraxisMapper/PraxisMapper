@@ -356,7 +356,11 @@ namespace PraxisCore
         /// <param name="styleSet">which set of maptiles to expire. All tiles if this is an empty string</param>
         public int ExpireMapTiles(Geometry g, string styleSet = "")
         {
-            //TODO: styleSet needs to be sanitized/validated against the DB, since it's user input.
+
+            //Security check: styleSet is provided from external sources, validate that input before dropping it into SQL.
+            if (styleSet != "" && !TagParser.allStyleGroups.ContainsKey(styleSet))
+                return 0;
+
             string SQL = "";
             if (serverMode == "MariaDB")
             {
