@@ -14,10 +14,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Security.AccessControl;
-using System.Text;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
 using static PraxisCore.ConstantValues;
 using static PraxisCore.DbTables;
@@ -73,14 +70,9 @@ namespace Larry
             //    DownloadPbfFile(level1, level2, level3, config["PbfFolder"]);
             //}
 
-            if (args.Any(a => a == "-resetPbf"))
+            if (args.Any(a => a == "-resetFiles"))
             {
                 ResetFiles(config["PbfFolder"]);
-            }
-
-            if (args.Any(a => a == "-resetGeomData"))
-            {
-                ResetFiles(config["OutputDataFolder"]);
             }
 
             if (args.Any(a => a == "-rollDefaultPasswords"))
@@ -91,73 +83,28 @@ namespace Larry
             if (!args.Any(a => a == "-makeServerDb")) //This will not be available until after creating the DB slightly later.
                 TagParser.Initialize(config["ForceStyleDefaults"] == "True", MapTiles); //This last bit of config must be done after DB creation check
 
-            if (args.Any(a => a == "-processPbfs"))
-            {
-                processPbfs();
-            }
 
-            if (args.Any(a => a == "-loadProcessedData"))
+            if (args.Any(a => a == "-loadData"))
             {
-                loadProcessedData();
+                LoadEverything();
             }
 
             //This is the single command to get a server going, assuming you have done all the setup steps yourself beforehand and your config is correct. 
             //NOTE: the simplest setup possible is to grab map data and run PraxisMapper.exe directly now, and this is the 2nd best choice now.
             if (args.Any(a => a == "-makeServerDb"))
             {
-                System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                Stopwatch sw = new Stopwatch();
                 sw.Start();
                 SetEnvValues();
                 SetDefaultPasswords();
-                using var db = new PraxisContext();
+                var db = new PraxisContext();
                 TagParser.Initialize(true, null);
                 createDb();
-                processPbfs();
-                if (config["UseGeomDataFiles"] == "True")
-                    loadProcessedData();
+                db.DropIndexes(); //drop indexes for now, increases load speeds.
+                LoadEverything();
+                db.RecreateIndexes();
                 db.SetServerBounds(long.Parse(config["UseOneRelationID"]));
                 Log.WriteLog("Server setup complete in " + sw.Elapsed);
-            }
-
-            if (args.Any(a => a == "-makeWholeServer")) //Not a release 1 feature, but taking notes now.
-            {
-                SetEnvValues();
-                //This is the wizard command, try to check and do everything at once.
-                Log.WriteLog("Checking for installed DB per config (" + config["DbMode"] + ")");
-                PraxisContext db;
-                try
-                {
-                    db = new PraxisContext();
-                }
-                //Specific exceptions should hint at what to do, a general one covers ones I dont know how to handle.
-                catch (Exception ex)
-                {
-                    Log.WriteLog("Hit an error checking for the existing database that I'm not sure how to handle:" + ex.Message);
-                    return;
-                }
-
-                Log.WriteLog("Creating the Praxis DB per the connection string...");
-                try
-                {
-                    createDb();
-                }
-                catch (Exception ex)
-                {
-                    //figure out why i can't create. Probably account settings?
-                }
-
-                PwdSpeedTest();
-
-
-                //Check for MariaDB and install/configure if missing (including service account)
-                //check for a PBF file and prompt to download one if none found
-                //if data files are present, use them. otherwise process the PBF file per settings
-                //Pre-generate gameplay map tiles, but present it as an option. It's faster to do it ahead of time but uses up more DB space if you aren't gonna need them all immediately.
-                //Possible: Grab the Solar2D example app, adjust it to work with the server running on this machine.
-                //--check external IP, update .lua source file to point to this pc.
-                //Fire up the Kestral exe to get the server working
-                //Open up a browser to the adminview slippytile page.
-                //}
             }
 
             if (args.Any(a => a == "-resetStyles"))
@@ -235,16 +182,6 @@ namespace Larry
                 LoadOneEntryFromFile(vals[1].ToLong());
             }
 
-            if (args.Any(a => a == "-updateDatabase"))
-            {
-                UpdateExistingEntries(config["OutputDataFolder"]);
-            }
-
-            if (args.Any(a => a == "-updateDatabaseFast"))
-            {
-                UpdateExistingEntriesFast(config["OutputDataFolder"]);
-            }
-
             if (args.Any(a => a.StartsWith("-createStandaloneRelation")))
             {
                 //This makes a standalone DB for a specific relation passed in as a paramter. 
@@ -293,6 +230,7 @@ namespace Larry
                 DrawOneImage(args.First(a => a.StartsWith("-drawOneImage:")).Split(":")[1]);
             }
 
+            //TODO: this should 
             if (args.Any(a => a.StartsWith("-processCoastlines:")))
             {
                 //NOTE: this is intended to read through the water polygon file. It'll probably run with the coastline linestring file, but that 
@@ -335,21 +273,16 @@ namespace Larry
                 ExtractSubMap(placeId, placeTypeId);
             }
 
-            if (args.Any(a => a == "-auditDb"))
-            {
-                AuditLoadedFile();
-            }
-
             if (args.Any(a => a == "-retag"))
             {
                 RetagPlaces();
             }
+        }
 
-            //This is not currently finished or testing in the current setup. Will return in a future release.
-            //if (args.Any(a => a.StartsWith("-populateEmptyArea:")))
-            //{
-            //    populateEmptyAreas(args.First(a => a.StartsWith("-populateEmptyArea:")).Split(":")[1]);
-            //}
+        private static void LoadEverything()
+        {
+            processPmds();
+            processPbfs();
         }
 
         private static void SetEnvValues()
@@ -383,6 +316,17 @@ namespace Larry
             db.MakePraxisDB();
         }
 
+        private static void processPmds()
+        {
+            List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.pmd").ToList();
+            foreach (string filename in filenames)
+            {
+                PlaceExport.LoadToDatabase(filename);
+
+                File.Move(filename, filename + "done");
+            }
+        }
+
         private static void processPbfs()
         {
             List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.pbf").ToList();
@@ -408,165 +352,6 @@ namespace Larry
                 r.ProcessFileV2(filename, long.Parse(config["UseOneRelationID"]));
                 File.Move(filename, filename + "done");
             }
-        }
-
-        private static void loadProcessedData()
-        {
-            Log.WriteLog("Starting load from processed files at " + DateTime.Now);
-            System.Diagnostics.Stopwatch fullProcess = new System.Diagnostics.Stopwatch();
-            fullProcess.Start();
-            PraxisContext db = new PraxisContext();
-            db.Database.SetCommandTimeout(Int32.MaxValue);
-            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
-            db.ChangeTracker.AutoDetectChangesEnabled = false;
-
-            List<string> geomFilenames = Directory.EnumerateFiles(config["OutputDataFolder"], "*.geomData").ToList();
-            List<string> tagsFilenames = Directory.EnumerateFiles(config["OutputDataFolder"], "*.tagsData").ToList();
-
-            db.DropIndexes();
-
-            if (config["KeepElementsInMemory"] == "true") //ignore DB, doing some one-off operation.
-            {
-                //Skip database work. Use an in-memory list for a temporary operation.
-                foreach (var fileName in geomFilenames)
-                {
-                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-                    Log.WriteLog("Loading " + fileName + " to memory at " + DateTime.Now);
-                    var entries = File.ReadAllLines(fileName);
-                    foreach (var entry in entries)
-                    {
-                        DbTables.Place stored = GeometrySupport.ConvertSingleTsvPlace(entry);
-                        memorySource.Add(stored);
-                    }
-
-                    Log.WriteLog("File loaded to memory in " + sw.Elapsed);
-                    sw.Stop();
-                }
-                foreach (var fileName in tagsFilenames)
-                {
-                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-                    Log.WriteLog("Loading " + fileName + " to memory at " + DateTime.Now);
-                    var entries = File.ReadAllLines(fileName);
-                    foreach (var entry in entries)
-                    {
-                        PlaceTags stored = GeometrySupport.ConvertSingleTsvTag(entry);
-                        var taggedGeo = memorySource.First(m => m.SourceItemType == stored.SourceItemType && m.SourceItemID == stored.SourceItemId);
-                        //MemorySource will need to be a more efficient collection for searching if this is to be a major feature, but this functions.
-                        taggedGeo.Tags.Add(stored);
-                    }
-
-                    Log.WriteLog("File applied to memory in " + sw.Elapsed);
-                    sw.Stop();
-                }
-                return;
-            }
-            else if (config["UseGeomDataFiles"] == "True")
-            {
-                if (config["DbMode"] == "MariaDB")
-                {
-                    foreach (var fileName in geomFilenames)
-                    {
-
-                        System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-                        sw.Start();
-                        var mariaPath = fileName.Replace("\\", "\\\\"); //TODO: this may need some cross-platform attention.
-                        db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' IGNORE INTO TABLE Places fields terminated by '\t' lines terminated by '\r\n' (sourceItemID, sourceItemType, @elementGeometry, privacyId, DrawSizeHint) SET elementGeometry = ST_GeomFromText(@elementGeometry) ");
-                        sw.Stop();
-                        Log.WriteLog("Geometry loaded from " + fileName + " in " + sw.Elapsed);
-                        Task.Run(() => File.Move(fileName, fileName + "done"));
-                    }
-
-                    foreach (var fileName in tagsFilenames)
-                    {
-                        System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-                        sw.Start();
-                        var mariaPath = fileName.Replace("\\", "\\\\");
-                        db.Database.ExecuteSqlRaw("LOAD DATA INFILE '" + mariaPath + "' IGNORE INTO TABLE PlaceTags fields terminated by '\t' lines terminated by '\r\n' (SourceItemId, SourceItemType, `key`, `value`)");
-                        sw.Stop();
-                        Log.WriteLog("Tags loaded from " + fileName + " in " + sw.Elapsed);
-                        Task.Run(() => File.Move(fileName, fileName + "done"));
-                    }
-                }
-                else if (config["DbMode"] == "SQLServer" || config["DbMode"] == "LocalDB") //UseGeomFiles == true
-                {
-                    foreach (var fileName in geomFilenames)
-                    {
-                        System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-                        sw.Start();
-                        db.Database.ExecuteSqlRaw("CREATE TABLE #tempPlace ( id bigint, osmType int, geoText nvarchar(MAX), privacyID uniqueidentifier, hintsize decimal(30,17)); " +
-                            "BULK INSERT #tempPlace FROM '" + fileName + "';" +
-                            "INSERT INTO dbo.Places (SourceItemId, SourceItemType, ElementGeometry, PrivacyId, DrawSizeHint) SELECT id, osmType, geography::STGeomFromText(geoText, 4326), privacyID, hintSize FROM #tempPlace; " +
-                            "DROP TABLE #tempPlace;"
-                            );
-                        sw.Stop();
-                        Log.WriteLog("Geometry loaded from " + fileName + " in " + sw.Elapsed);
-                        File.Move(fileName, fileName + "done");
-                    }
-
-                    foreach (var fileName in tagsFilenames)
-                    {
-                        System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-                        sw.Start();
-                        db.Database.ExecuteSqlRaw("CREATE TABLE #tempTags ( id bigint, osmType int, tagKey nvarchar(MAX), tagValue nvarchar(MAX)); " +
-                            "BULK INSERT #tempTags FROM '" + fileName + "';" +
-                            "INSERT INTO dbo.PlaceTags (SourceItemId, SourceItemType, [Key], [Value]) SELECT id, osmType, tagKey, tagValue FROM #tempTags; " +
-                            "DROP TABLE #tempTags;"
-                            );
-                        sw.Stop();
-                        Log.WriteLog("Tags loaded from " + fileName + " in " + sw.Elapsed);
-                        File.Move(fileName, fileName + "done");
-                    }
-                }
-            }
-            else //Main path, write directly to DB.
-            {
-                var options = new ParallelOptions();
-                if (singleThread)
-                    options.MaxDegreeOfParallelism = 1;
-
-                foreach (var fileName in geomFilenames)
-                {
-                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-                    sw.Start();
-                    db = new PraxisContext();
-                    db.Database.SetCommandTimeout(Int32.MaxValue);
-                    db.ChangeTracker.AutoDetectChangesEnabled = false;
-                    var lines = File.ReadAllLines(fileName); //Might be faster to use streams and dodge the memory allocation?
-                    var newPlaces = new List<DbTables.Place>(lines.Length);
-                    foreach (var line in lines)
-                    {
-                        db.Places.Add(GeometrySupport.ConvertSingleTsvPlace(line));
-                    }
-                    db.SaveChanges();
-                    sw.Stop();
-                    Log.WriteLog("Geometry loaded from " + fileName + " in " + sw.Elapsed);
-                    File.Move(fileName, fileName + "done");
-                }
-                foreach (var fileName in tagsFilenames)
-                {
-                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-                    sw.Start();
-                    db = new PraxisContext();
-                    db.Database.SetCommandTimeout(Int32.MaxValue);
-                    db.ChangeTracker.AutoDetectChangesEnabled = false;
-                    var lines = File.ReadAllLines(fileName);
-                    foreach (var line in lines)
-                    {
-                        db.PlaceTags.Add(GeometrySupport.ConvertSingleTsvTag(line));
-                    }
-                    db.SaveChanges();
-                    sw.Stop();
-                    Log.WriteLog("Tags loaded from " + fileName + " in " + sw.Elapsed);
-                    File.Move(fileName, fileName + "done");
-                }//);
-            }
-
-            fullProcess.Stop();
-            Log.WriteLog("Files processed in " + fullProcess.Elapsed);
-            fullProcess.Restart();
-            db.RecreateIndexes();
-            fullProcess.Stop();
-            Log.WriteLog("Indexes generated in " + fullProcess.Elapsed);
         }
 
         /// <summary>
@@ -681,80 +466,52 @@ namespace Larry
 
         public static void ReadCoastlineWaterPolyShapefile(string shapePath)
         {
+            //TODO: this should probably process to the actual DB. Throwing it to a file for now to test pmd logic.
             //NOTE: this requires the WGS84 version of the polygons. the Mercator version is UTM, not the Mercator you saw in school.
             Log.WriteLog("Reading water polygon data from " + shapePath);
             Stopwatch sw = Stopwatch.StartNew();
-            string fileBaseName = config["OutputDataFolder"] + "coastlines";
+            string fileBaseName = config["OutputDataFolder"] + "coastlines.pmd";
             EGIS.ShapeFileLib.ShapeFile sf = new EGIS.ShapeFileLib.ShapeFile(shapePath);
             var recordCount = sf.RecordCount;
-            using (StreamWriter geoSW = new StreamWriter(fileBaseName + ".geomData"))
-            using (StreamWriter tagSW = new StreamWriter(fileBaseName + ".tagsData"))
-                for (int i = 0; i < recordCount; i++)
-                {
-                    var shapeData = sf.GetShapeDataD(i);
-                    var poly = Converters.ShapefileRecordToPolygon(shapeData);
-                    geoSW.WriteLine((100000000000 + i) + "\t2\t" + poly.AsText() + "\t" + Guid.NewGuid() + "\t999999\r\n"); //DrawSizeHint is big so these always appear.
-                    tagSW.WriteLine((100000000000 + i) + "\t2\tnatural\twater");
-                    tagSW.WriteLine((100000000000 + i) + "\t2\tbgwater\tpraxismapper");
-                }
+            List<Polygon> polygons = new List<Polygon>(recordCount);
+            for (int i = 0; i < recordCount; i++)
+            {
+                var shapeData = sf.GetShapeDataD(i);
+                var poly = Converters.ShapefileRecordToPolygon(shapeData);
+
+                polygons.Add(poly);
+            }
+
+            //NEXT: condense down entries
+            var notShrinking = polygons.Where(a => a.NumPoints != 5).ToList();
+            List<Geometry> possiblyShrinkable = polygons.Where(a => a.NumPoints == 5).Select(a => (Geometry)a).ToList(); //All squares with no additional details.
+            var resultGeo = (MultiPolygon)NetTopologySuite.Operation.Union.CascadedPolygonUnion.Union(possiblyShrinkable);
+
+            polygons.Clear();
+            polygons.AddRange(notShrinking);
+            polygons.AddRange(resultGeo.Geometries.Select(g => (Polygon)g).ToList());
+            
+            var outputData = new PlaceExport("oceanData.pmd");
+            outputData.Open();
+            int c = 1;
+            //NEXT: save to a place item.
+            foreach (var poly in polygons)
+            {
+                DbTables.Place place = new DbTables.Place();
+                place.SourceItemID = 100000000000 + c;
+                place.SourceItemType = 2;
+                place.DrawSizeHint = poly.Area / ConstantValues.squareCell11Area; //accurate number
+                place.ElementGeometry = poly;
+                place.Tags = new List<PlaceTags>() {
+                    new PlaceTags() { Key = "bgwater", Value = "praxismapper" },
+                    new PlaceTags() { Key = "natural", Value = "water" }};
+                outputData.AddEntry(place);
+                c++;
+            }
+            outputData.Close();
+
             sw.Stop();
-            Log.WriteLog("Water polygon data converted to PraxisMapper geomdata files in " + sw.Elapsed);
-        }
-
-        public static void UpdateExistingEntries(string path)
-        {
-            List<string> filenames = Directory.EnumerateFiles(path, "*.geomData").ToList();
-            ParallelOptions po = new ParallelOptions();
-            //if (singleThread)
-            po.MaxDegreeOfParallelism = 1;
-            Parallel.ForEach(filenames, po, (filename) =>
-            {
-                try
-                {
-                    using var db = new PraxisContext();
-                    Log.WriteLog("Loading " + filename);
-                    var entries = GeometrySupport.ReadPlaceFilesToMemory(filename); //tagsData file loaded automatically here.
-                    Log.WriteLog(entries.Count + " entries to check in database for " + filename);
-                    var updated = db.UpdateExistingEntries(entries);
-                    File.Move(filename, filename + "Done");
-                    Log.WriteLog(filename + " completed at " + DateTime.Now + ", updated " + updated + " rows");
-                }
-                catch (Exception ex)
-                {
-                    Log.WriteLog("Error multithreading: " + ex.Message + ex.StackTrace, Log.VerbosityLevels.Errors);
-                }
-            });
-        }
-
-        public static void UpdateExistingEntriesFast(string path)
-        {
-            List<string> filenames = Directory.EnumerateFiles(path, "*.geomData").ToList();
-            ParallelOptions po = new ParallelOptions();
-            if (singleThread)
-                po.MaxDegreeOfParallelism = 1;
-            else
-                po.MaxDegreeOfParallelism = 4;
-            Parallel.ForEach(filenames, po, (filename) =>
-            {
-                try
-                {
-                    using var db = new PraxisContext();
-                    Log.WriteLog("Loading " + filename);
-                    var entries = GeometrySupport.ReadPlaceFilesToMemory(filename); //tagsData file loaded automatically here.
-                    Log.WriteLog(entries.Count + " entries to check in database for " + filename);
-                    var updated = db.UpdateExistingEntriesFast(entries);
-                    File.Move(filename, filename + "Done");
-                    Log.WriteLog(filename + " completed at " + DateTime.Now + ", updated " + updated + " rows");
-                }
-                catch (Exception ex)
-                {
-                    Log.WriteLog("Error multithreading: " + ex.Message + ex.StackTrace, Log.VerbosityLevels.Errors);
-                }
-            });
-
-            using var db = new PraxisContext();
-            db.ExpireAllMapTiles();
-            db.ExpireAllSlippyMapTiles();
+            Log.WriteLog("Water polygon data converted to PraxisMapper data file in " + sw.Elapsed);
         }
 
         public static void ResetFiles(string folder)
@@ -946,6 +703,7 @@ namespace Larry
             bool keepGoing = true;
             while (keepGoing)
             {
+                //TODO: if keeping this, switch this to use WHERE( > lastLargestID) instead of Skip(number)
                 var places = db.Places.Include(p => p.Tags).Where(p => p.DrawSizeHint > 4000).Skip(groupsDone * groupSize).Take(groupSize).ToList();
                 if (places.Count < groupSize)
                     keepGoing = false;
@@ -1071,7 +829,6 @@ namespace Larry
             Log.WriteLog("Loading offline data complete");
         }
 
-
         public static void BatchOp(Action<DbTables.Place> a)
         {
             using var db = new PraxisContext();
@@ -1108,6 +865,7 @@ namespace Larry
 
         public static void ExtractSubMap(long parentPlace, long parentPlaceType)
         {
+            //TODO: this needs to save to PMD now.
             //Given the id/type of a parent Place (presumably an AdminBound, but not necessarily), extract all places that interesect to a text file(s).
             var db = new PraxisContext();
 
@@ -1115,102 +873,33 @@ namespace Larry
             if (parent == null)
             {
                 Log.WriteLog("Place " + parentPlace + " not found in database, not extracting map.");
-                return; 
+                return;
             }
 
             int skip = 0;
             int take = 1000; //test value.
             bool keepGoing = true;
 
-            StringBuilder geoFileOut = new StringBuilder();
-            StringBuilder tagFileOut = new StringBuilder();
+            //StringBuilder geoFileOut = new StringBuilder();
+            //StringBuilder tagFileOut = new StringBuilder();
+
+            PlaceExport export = new PlaceExport(config["OutputDataFolder"] + parentPlace + "-submap.pmd");
 
             while (keepGoing)
             {
-                geoFileOut.Clear();
-                tagFileOut.Clear();
                 var allPlaces = db.Places.Where(p => p.ElementGeometry.Intersects(parent.ElementGeometry)).Skip(skip).Take(take).ToList();
                 if (allPlaces.Count < take)
                     keepGoing = false;
 
                 skip += take;
-
                 foreach (var p in allPlaces)
                 {
-                    //split place data into appropriate components. Leaving NewGuid here so sub-servers dont have the same data as parent server.
-                    geoFileOut.Append(p.SourceItemID).Append('\t').Append(p.SourceItemType).Append('\t').Append(p.ElementGeometry.AsText()).Append('\t').Append(Guid.NewGuid()).Append('\t').Append(p.DrawSizeHint).Append("\r\n");
-                    foreach (var t in p.Tags)
-                        tagFileOut.Append(p.SourceItemID).Append('\t').Append(p.SourceItemType).Append('\t').Append(t.Key).Append('\t').Append(t.Value.Replace("\r", "").Replace("\n", "")).Append("\r\n");
+                    export.AddEntry(p);
                 }
-
-                File.AppendAllText(config["OutputDataFolder"] + parentPlace + "-submap.geomData", geoFileOut.ToString());
-                File.AppendAllText(config["OutputDataFolder"] + parentPlace + "-submap.tagsData", geoFileOut.ToString());
+                export.WriteToDisk();
                 Log.WriteLog(skip + " items written to file total so far.");
             }
             Log.WriteLog(parentPlace + "-submap files written to OutputData folder at " + DateTime.Now);
-        }
-
-        public static void AuditLoadedFile()
-        {
-            Log.WriteLog("Auditing DB against geomData files started at " + DateTime.Now);
-
-            //First, probably fastest to load a list of stuff from the DB once.
-            var db = new PraxisContext();
-            var allElements = db.Places.Select(p => new { p.SourceItemID, p.SourceItemType }).ToHashSet();
-            Log.WriteLog("Existing DB entries loaded at " + DateTime.Now);
-
-            //Take a geomData file that should have been loaded, and then confirm that each entry is actually in the database.
-            List<string> filenames = System.IO.Directory.EnumerateFiles(config["OutputDataFolder"], "*.geomData").ToList();
-            foreach (var filename in filenames)
-            {
-                var tagFile = filename.Replace("geomData", "tagsData");
-                //faster setup?
-                var geomStream = new StreamReader(filename);
-                var tagStream = new StreamReader(tagFile);
-                string geomLine;
-                string tagLine = "1\t";
-                while ((geomLine = geomStream.ReadLine()) != null)
-                {
-                    var cut1 = geomLine.IndexOf("\t");
-                    var placeID = geomLine.Substring(0, cut1);
-                    var placeIdLong = placeID.ToLong();
-                    var placeTypeId = geomLine.Substring(cut1 + 1, 1);
-                    if (!allElements.Contains(new { SourceItemID = placeIdLong, SourceItemType = placeTypeId.ToInt() }))
-                    {
-                        //Item is missing, add it.
-                        Log.WriteLog("Item " + placeID + " missing, inserting to DB");
-                        DbTables.Place stored = GeometrySupport.ConvertSingleTsvPlace(geomLine);
-
-                        //find all tags and add those too.
-
-                        var cut2 = tagLine.IndexOf("\t");
-                        var tagPlaceID = tagLine.Substring(0, cut2);
-                        var tagPlaceTypeId = tagLine.Substring(cut2 + 1, 1);
-                        while (tagPlaceID.ToLong() < placeIdLong)
-                        {
-                            tagLine = tagStream.ReadLine();
-                            cut2 = tagLine.IndexOf("\t");
-                            tagPlaceID = tagLine.Substring(0, cut2);
-                            tagPlaceTypeId = tagLine.Substring(cut2 + 1, 1);
-                        }
-
-                        //if the Id is now the same, process tags. 
-                        while (tagPlaceID == placeID)
-                        {
-                            stored.Tags.Add(GeometrySupport.ConvertSingleTsvTag(tagLine));
-                            tagLine = tagStream.ReadLine();
-                        }
-
-                        db.Places.Add(stored);
-                        db.SaveChanges();
-                    }
-                }
-                Log.WriteLog(filename + " auditing complete at " + DateTime.Now);
-                tagStream.Close();
-                geomStream.Close();
-            }
-
-            Log.WriteLog("All files audit complete at " + DateTime.Now);
         }
 
         public static void RetagPlaces()

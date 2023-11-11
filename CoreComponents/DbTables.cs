@@ -166,8 +166,12 @@ namespace PraxisCore {
          
         public class PlaceTags
         {
+            [JsonIgnore]
             public long Id { get; set; }
-            public long SourceItemId { get; set; } 
+            //TODO: can I put these 2 fields on JsonIgnore? If they're always attached to the parent Place, they should get set automatically.
+            [JsonIgnore]
+            public long SourceItemId { get; set; }
+            [JsonIgnore]
             public int SourceItemType { get; set; }
             [JsonIgnore]
             public Place Place { get; set; }
@@ -202,7 +206,9 @@ namespace PraxisCore {
         public class PlaceData
         {
             //for storing collection data server-side per existing map area. Join on that table to get geometry area.
+            [JsonIgnore]
             public long Id { get; set; } //internal primary key
+            [JsonIgnore]
             public long PlaceId { get; set; } //might not be necessary?
             [JsonIgnore]
             public Place Place { get; set; }

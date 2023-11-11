@@ -22,6 +22,7 @@ namespace PraxisCore.Support
             {
                 if (reader.TokenType == JsonTokenType.EndObject) 
                 {
+                    Place.PreTag(place); //Applies any styles on this server to the loaded data, so if we have changes they still get applied automatically.
                     return place;
                 }
 
@@ -41,14 +42,14 @@ namespace PraxisCore.Support
                     case "ElementGeometry":
                         place.ElementGeometry = GeometrySupport.GeometryFromWKB(reader.GetBytesFromBase64());
                         break;
-                    case "PlaceData":
-                        place.PlaceData = JsonSerializer.Deserialize<ICollection<DbTables.PlaceData>>(reader.GetString());
-                        break;
+                    //case "PlaceData":
+                        //place.PlaceData = JsonSerializer.Deserialize<ICollection<DbTables.PlaceData>>(reader.GetString());
+                        //break;
                     case "SourceItemID":
                         place.SourceItemID = reader.GetInt64();
                         break;
                     case "SourceItemType":
-                        place.SourceItemID = reader.GetInt32();
+                        place.SourceItemType = reader.GetInt32();
                         break;
                     case "Tags":
                         place.Tags = JsonSerializer.Deserialize<ICollection<DbTables.PlaceTags>>(reader.GetString());
@@ -64,7 +65,7 @@ namespace PraxisCore.Support
             writer.WriteStartObject();
             writer.WriteNumber("DrawSizeHint", value.DrawSizeHint);
             writer.WriteBase64String("ElementGeometry", value.ElementGeometry.AsBinary());
-            writer.WriteString("PlaceData", JsonSerializer.Serialize(value.PlaceData, options));
+            //writer.WriteString("PlaceData", JsonSerializer.Serialize(value.PlaceData, options)); //Removed, this will get filled on load by the server.
             writer.WriteNumber("SourceItemID", value.SourceItemID);
             writer.WriteNumber("SourceItemType", value.SourceItemType);
             writer.WriteString("Tags", JsonSerializer.Serialize(value.Tags, options));
