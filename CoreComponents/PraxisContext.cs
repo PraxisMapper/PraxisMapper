@@ -443,7 +443,6 @@ namespace PraxisCore
 
         public GeoArea SetServerBounds(long singleArea)
         {
-
             //This is an important command if you don't want to track data outside of your initial area.
             GeoArea results = null;
             if (singleArea != 0)
@@ -453,7 +452,6 @@ namespace PraxisCore
                 if (area == null)
                 {
                     //singleArea probably wasn't a valid ID.
-
                 }
                 var envelop = area.ElementGeometry.EnvelopeInternal;
                 results = new GeoArea(envelop.MinY, envelop.MinX, envelop.MaxY, envelop.MaxX);
@@ -477,161 +475,6 @@ namespace PraxisCore
             SaveChanges();
             Log.WriteLog("Server bounds set to (" + settings.SouthBound + "," + settings.WestBound + "), (" + settings.NorthBound + "," + settings.EastBound + ")");
             return results;
-        }
-
-        //Where do I use this? How will I take a list of entries and apply them to the dB?
-        public int UpdateExistingEntries(List<DbTables.Place> entries)
-        {
-            //NOTE: this is not the fastest way to handle this process, but this setup does allow the DB to be updated while the game is running.
-            //It would be faster to update all objects, then expire all map tiles instead of expiring map tiles on every entry, but that requires a server shutdown.
-            //Do 1 DB load to start, then process the whole block.
-            int updateCount = 0;
-
-            var firstPlaceId = entries.Min(e => e.SourceItemID); //these should be ordered, can just use First and Last instead of min/max.
-            var lastPlaceId = entries.Max(e => e.SourceItemID);
-            var itemType = entries.First().SourceItemType;
-            var placesThisBlock = Places.Include(p => p.Tags).Where(p => p.SourceItemType == itemType && (p.SourceItemID <= lastPlaceId && p.SourceItemID >= firstPlaceId)).ToList();
-
-            var placeIds = entries.Select(e => e.SourceItemID).ToList();
-            var placesToRemove = placesThisBlock.Where(p => !placeIds.Contains(p.SourceItemID)).ToList();
-
-            if (placesToRemove.Count > 0)
-            {
-                Log.WriteLog("Removing " + placesToRemove.Count + " entries");
-                foreach (var ptr in placesToRemove)
-                {
-                    Places.Remove(ptr);
-                    ExpireMapTiles(ptr.ElementGeometry);
-                    ExpireSlippyMapTiles(ptr.ElementGeometry);
-                }
-                SaveChanges();
-                Log.WriteLog("Entries Removed");
-            }
-            //Appears to take 3-4 minutes per Way block? Might be faster to just make a new DB at that rate and expire all map tiles, but this one works live no problem.
-            Log.WriteLog("Places loaded, checking entries");
-            foreach (var entry in entries)
-            {
-                try
-                {
-                    //Log.WriteLog("Entry " + entry.SourceItemID);
-                    //check existing entry, see if it requires being updated
-                    var existingData = placesThisBlock.FirstOrDefault(md => md.SourceItemID == entry.SourceItemID);
-                    if (existingData != null)
-                    {
-                        //These are redundant. If geometry changes, areaSize will too. If name changes, tags will too.
-                        //if (existingData.AreaSize != entry.AreaSize) existingData.AreaSize = entry.AreaSize;
-                        //if (existingData.GameElementName != entry.GameElementName) existingData.GameElementName = entry.GameElementName;
-
-                        bool expireTiles = false;
-                        //NOTE: sometimes EqualsTopologically fails. But anything that's an invalid geometry should not have been written to the file in the first place.
-                        if (!existingData.ElementGeometry.EqualsTopologically(entry.ElementGeometry))
-                        {
-                            //update the geometry for this object.
-                            existingData.ElementGeometry = entry.ElementGeometry;
-                            existingData.DrawSizeHint = entry.DrawSizeHint;
-                            expireTiles = true;
-                        }
-                        //This doesn't work. SequenceEquals returns false on identical sets of tags and values.
-                        //if (!existingData.Tags.OrderBy(t => t.Key).SequenceEqual(entry.Tags.OrderBy(t => t.Key)))
-                        if (!(existingData.Tags.Count == entry.Tags.Count && existingData.Tags.All(t => entry.Tags.Any(tt => tt.Equals(t)))))
-                        {
-                            existingData.StyleName = entry.StyleName;
-                            existingData.Tags = entry.Tags;
-                            var styleA = TagParser.GetStyleEntry(existingData);
-                            var styleB = TagParser.GetStyleEntry(entry);
-                            if (styleA != styleB)
-                                expireTiles = true; //don't force a redraw on tags unless we change our drawing rules.
-                        }
-
-                        if (expireTiles) //geometry or style has to change, otherwise we can skip expiring values.
-                        {
-                            //Log.WriteLog("Saving Updated and expiring tiles");
-                            updateCount += SaveChanges(); //save before expiring, so the next redraw absolutely has the latest data. Can't catch it mid-command if we do this first.
-                            ExpireMapTiles(entry.ElementGeometry, "mapTiles");
-                            ExpireSlippyMapTiles(entry.ElementGeometry, "mapTiles");
-                        }
-                        else
-                        {
-                            //Log.WriteLog("No detected changes");
-                        }
-                    }
-                    else
-                    {
-                        //We don't have this item, add it.
-                        //Log.WriteLog("Saving New " + entry.SourceItemID);
-                        Places.Add(entry);
-                        updateCount += SaveChanges(); //again, necessary here to get tiles to draw correctly after expiring.
-                        ExpireMapTiles(entry.ElementGeometry, "mapTiles");
-                        ExpireSlippyMapTiles(entry.ElementGeometry, "mapTiles");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.WriteLog("Error on  " + entry.SourceItemID + ": " + ex.Message + " | " + ex.StackTrace);
-                }
-            }
-            //Log.WriteLog("Final saving");
-            updateCount += SaveChanges(); //final one for anything not yet persisted.
-            return updateCount;
-        }
-
-        public int UpdateExistingEntriesFast(List<DbTables.Place> entries)
-        {
-            //This version assumes the game is down, and should be somewhat faster by not needing to do as much work to ensure live play goes uninterrupted.
-            int updateCount = 0;
-
-            var firstPlaceId = entries.Min(e => e.SourceItemID); //these should be ordered, can just use First and Last instead of min/max.
-            var lastPlaceId = entries.Max(e => e.SourceItemID);
-
-            var itemType = entries.First().SourceItemType;
-            var placesThisBlock = Places.Include(p => p.Tags).Where(p => p.SourceItemType == itemType && (p.SourceItemID <= lastPlaceId && p.SourceItemID >= firstPlaceId)).ToList();
-
-            var placeIds = entries.Select(e => e.SourceItemID).ToList();
-            var placesToRemove = placesThisBlock.Where(p => !placeIds.Contains(p.SourceItemID)).ToList();
-
-            if (placesToRemove.Count > 0)
-            {
-                Log.WriteLog("Removing " + placesToRemove.Count + " entries");
-                foreach (var ptr in placesToRemove)
-                {
-                    Places.Remove(ptr);
-                }
-                Log.WriteLog("Entries Removed");
-            }
-
-            foreach (var entry in entries)
-            {
-                try
-                {
-                    var existingData = placesThisBlock.FirstOrDefault(md => md.SourceItemID == entry.SourceItemID);
-                    if (existingData != null)
-                    {
-                        //NOTE: sometimes EqualsTopologically fails. But anything that's an invalid geometry should not have been written to the file in the first place.
-                        if (!existingData.ElementGeometry.EqualsTopologically(entry.ElementGeometry))
-                        {
-                            //update the geometry for this object.
-                            existingData.ElementGeometry = entry.ElementGeometry;
-                            existingData.DrawSizeHint = entry.DrawSizeHint;
-                        }
-                        if (!(existingData.Tags.Count == entry.Tags.Count && existingData.Tags.All(t => entry.Tags.Any(tt => tt.Equals(t)))))
-                        {
-                            existingData.StyleName = entry.StyleName;
-                            existingData.Tags = entry.Tags;
-                        }
-                    }
-                    else
-                    {
-                        Places.Add(entry);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.WriteLog("Error on  " + entry.SourceItemID + ": " + ex.Message + " | " + ex.StackTrace);
-                }
-            }
-            //Log.WriteLog("Final saving");
-            updateCount += SaveChanges(); //final one for anything not yet persisted.
-            return updateCount;
         }
 
         public void ResetStyles()
