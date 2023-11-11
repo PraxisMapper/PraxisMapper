@@ -13,8 +13,8 @@ namespace PraxisCore {
 
         public static GeometryFactory geometryFactory = NtsGeometryServices.Instance.CreateGeometryFactory(4326);
         public static PreparedGeometryFactory preparedGeometryFactory = new PreparedGeometryFactory();
-        public static PrecisionModel precisionModel = new PrecisionModel(1000000); //scale forces Fixed accuracy, this goes to 6 digits, accurate to .11 meters. Good enough for gameplay, not for zoomed in maps.
-        public static NetTopologySuite.Precision.GeometryPrecisionReducer reducer = new NetTopologySuite.Precision.GeometryPrecisionReducer(precisionModel);
+        public static PrecisionModel reducedPrecisionModel = new PrecisionModel(1000000); //scale forces Fixed accuracy, this goes to 6 digits, accurate to .11 meters. Good enough for gameplay, not for zoomed in maps.
+        public static NetTopologySuite.Precision.GeometryPrecisionReducer reducer = new NetTopologySuite.Precision.GeometryPrecisionReducer(reducedPrecisionModel);
         public static bool SimplifyAreas = false;
 
         /// <summary>

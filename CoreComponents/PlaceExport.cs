@@ -56,6 +56,8 @@ namespace PraxisCore
             var entry = zf.GetEntry(p.SourceItemID + "-" + p.SourceItemType);
             if (entry != null)
                 entry.Delete();
+            else
+                totalEntries++;
             
             entry = zf.CreateEntry(p.SourceItemID + "-" + p.SourceItemType, CompressionLevel.SmallestSize);
 
