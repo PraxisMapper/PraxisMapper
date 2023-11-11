@@ -281,8 +281,27 @@ namespace Larry
 
         private static void LoadEverything()
         {
+            //Index checks
+            var db = new PraxisContext();
+            byte[] pending = "pending".ToByteArrayUTF8();
+
+            if (db.Places.Count() == 0)
+            {
+                db.DropIndexes();
+                db.GlobalData.Add(new GlobalData() { DataKey = "rebuildIndexes", DataValue = pending });
+                db.SaveChanges();
+            }
+
             processPmds();
             processPbfs();
+
+            if (db.GlobalData.Any(g => g.DataKey == "rebuildIndexes" && g.DataValue == pending))
+            {
+                db.RecreateIndexes();
+                var entry = db.GlobalData.First(g => g.DataKey == "rebuildIndexes");
+                entry.DataValue = "done".ToByteArrayUTF8();
+                db.SaveChanges();
+            }
         }
 
         private static void SetEnvValues()
