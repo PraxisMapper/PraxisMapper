@@ -83,6 +83,23 @@ namespace PraxisCore
             return place;
         }
 
+        public DbTables.Place GetSpecificPlace(long sourceItemId, int sourceItemType)
+        {
+            DbTables.Place place = null;
+            var entry = zf.GetEntry(sourceItemId.ToString() + "-" + sourceItemType.ToString());
+            if (entry == null)
+                return null;
+
+            using (Stream s = entry.Open())
+            using (StreamReader sr = new StreamReader(s))
+            {
+                var data = sr.ReadToEnd();
+                place = JsonSerializer.Deserialize<DbTables.Place>(data);
+            }
+
+            return place;
+        }
+
         public static void LoadToDatabase(string pmdFile)
         {
             //This is for an existing file that's getting imported into the current DB.
