@@ -123,7 +123,7 @@ namespace Larry
             //NOTE: this seems to drop out a lot of geometry, so I may not want to support this after all.
             if (args.Any(a => a.StartsWith("-shrinkFiles") || a.StartsWith("-reprocessFiles")))
             {
-                List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.geomData").ToList();
+                List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.pmd").ToList();
                 foreach (string filename in filenames)
                 {
                     Log.WriteLog("Loading " + filename + " at " + DateTime.Now);
@@ -147,6 +147,7 @@ namespace Larry
                 }
             }
 
+            //Takes a styleSet, and saves 1 output file per style in that set. 
             if (args.Any(a => a.StartsWith("-splitPbfByStyle:")))
             {
                 var style = args.First(a => a.StartsWith("-splitPbfByStyle:")).Split(':')[1];
@@ -161,7 +162,7 @@ namespace Larry
                     r.saveToDB = false; //we want these as separate files for later.
                     r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
                     r.reprocessFile = config["reprocessFiles"] == "True";
-                    r.splitByStyleSet = true; //Implies saving to geomdata files.
+                    r.splitByStyleSet = true; //Implies saving to PMD files.
 
                     if (config["ResourceUse"] == "low")
                     {
@@ -356,7 +357,7 @@ namespace Larry
                 r.outputPath = config["OutputDataFolder"];
                 r.styleSet = config["TagParserStyleSet"];
                 r.processingMode = config["processingMode"]; // "normal" and "center" and "minimize" allowed
-                r.saveToDB = config["UseGeomDataFiles"] == "False"; //optional, usually faster to load from files than going straight to the DB.
+                //r.saveToDB = config["UseGeomDataFiles"] == "False";  No longer making this available. This call only loads to DB.
                 r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
                 r.reprocessFile = config["reprocessFiles"] == "True";
 
@@ -470,7 +471,6 @@ namespace Larry
 
             if (config["processingMode"] == "minimize")
             {
-                geometryFactory = NtsGeometryServices.Instance.CreateGeometryFactory(new PrecisionModel(1000000), 4326); //SRID matches 10-character Plus code values.  Precision model means round all points to 7 decimal places to not exceed float's useful range.
                 SimplifyAreas = true; //rounds off points that are within a Cell10's distance of each other. Makes fancy architecture and highly detailed paths less pretty on map tiles, but works for gameplay data.
             }
 
@@ -873,13 +873,8 @@ namespace Larry
         public Action<DbTables.Place> CalcDrawSizeHint = (p) => { p.DrawSizeHint = GeometrySupport.CalculateDrawSizeHint(TagParser.ApplyTags(p, "mapTiles")); };
         public Action<DbTables.Place> ReduceSize = (place) =>
         {
-            place.ElementGeometry = NetTopologySuite.Precision.GeometryPrecisionReducer.Reduce(NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(place.ElementGeometry, ConstantValues.resolutionCell10), PrecisionModel.FloatingSingle.Value);
-            var match = TagParser.GetStyleEntry(place, "mapTiles");
-            var name = TagParser.GetName(place);
-            place.Tags.Clear();
-            if (!string.IsNullOrEmpty(name))
-                place.Tags.Add(new PlaceTags() { Key = "name", Value = name });
-            place.Tags.Add(new PlaceTags() { Key = "styleset", Value = match.Name });
+            place.ElementGeometry = Singletons.reducer.Reduce(NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(place.ElementGeometry, ConstantValues.resolutionCell10));
+
         };
 
         public static void ExtractSubMap(long parentPlace, long parentPlaceType)

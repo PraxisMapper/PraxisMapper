@@ -129,103 +129,40 @@ namespace PraxisCore.PbfReader
             //load up each line of a file from a previous run, and then re-process it according to the current settings.
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
             Log.WriteLog("Loading " + filename + " for processing at " + DateTime.Now);
-            var fr = File.OpenRead(filename);
-            var sr = new StreamReader(fr);
-            var fr2 = File.OpenRead(filename.Replace("geom", "tags"));
-            var sr2 = new StreamReader(fr2);
             sw.Start();
-            var reprocFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + Path.GetFileNameWithoutExtension(filename) + "-reprocessed.geomData", FileMode.OpenOrCreate));
-            var reprocTagsFileStream = new StreamWriter(new FileStream(outputPath + filenameHeader + Path.GetFileNameWithoutExtension(filename).Replace("geom", "tags") + "-reprocessed.tagsData", FileMode.OpenOrCreate));
+            var original = new PlaceExport(filename);
+            var reproced = new PlaceExport(Path.GetFileNameWithoutExtension(filename) + "-reprocessed.pmd");
 
-            StringBuilder sb = new StringBuilder();
-            StringBuilder sbTags = new StringBuilder();
-
-            while (!sr.EndOfStream)
+            var md = original.GetNextPlace();
+            while (md != null)
             {
-                sb.Clear();
-                sbTags.Clear();
-
-                string entry = sr.ReadLine();
-                string tagEntry = sr2.ReadLine();
-                if (entry == "")
-                    continue;
-
-                DbTables.Place md = GeometrySupport.ConvertSingleTsvPlace(entry);
-                if (md == null)
-                    continue;
-
                 if (bounds != null && (!bounds.Intersects(md.ElementGeometry.EnvelopeInternal)))
                     continue;
 
                 if (processingMode == "center")
-                {
                     md.ElementGeometry = md.ElementGeometry.Centroid;
-                    sb.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(md.PrivacyId).Append("\r\n");
-                    reprocFileStream.Write(sb.ToString());
-                }
                 else if (processingMode == "expandPoints")
                 {
                     //Declare that Points aren't sufficient for this game's purpose, expand them to Cell8 size for now
                     //Because actually upgrading them to the geometry for some containing shape requires a full global-loaded database.
                     if (md.SourceItemType == 1) //Only nodes get upgraded.
-                    {
                         md.ElementGeometry = md.ElementGeometry.Buffer(ConstantValues.resolutionCell8);
-                        sb.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(md.PrivacyId).Append("\r\n");
-                    }
-                    else
-                        sb.Append(entry);
-
-                    reprocFileStream.Write(sb.ToString());
                 }
                 else if (processingMode == "minimize") //This may be removed in the near future, since this has a habit of making invalid geometry.
                 {
                     styleSet = "suggestedmini"; //Forcing for now on this option.
-                    var originalGeo = md.ElementGeometry;
-                    var originalTags = new List<PlaceTags>();
-                    var precisionModel = new PrecisionModel(1000000); //scale forces Fixed accuracy, this goes to 6 digits, accurate to .11 meters. Good enough for gameplay, not for zoomed in maps.
-                    var reducer = new NetTopologySuite.Precision.GeometryPrecisionReducer(precisionModel);
                     try
                     {
                         md.ElementGeometry = NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(md.ElementGeometry, ConstantValues.resolutionCell10); //rounds off any points too close together.
-                        md.ElementGeometry = reducer.Reduce(md.ElementGeometry);
-
-                        while (tagEntry.StartsWith(md.SourceItemID.ToString()))
-                        {
-                            string[] pieces = tagEntry.Split('\t');
-                            originalTags.Add(new PlaceTags() { Key = pieces[2], Value = pieces[3], SourceItemId = 1, SourceItemType = 2 });
-                            tagEntry = sr2.ReadLine();
-                        }
-
-                        //Reduce tags to the name (if present) and a single entry to match on a style set.
-                        var match = TagParser.GetStyleEntry(originalTags, styleSet);
-                        var name = TagParser.GetName(originalTags);
-                        md.Tags.Clear();
-                        if (!string.IsNullOrEmpty(name))
-                            md.Tags.Add(new PlaceTags() { Key = "name", Value = name });
-                        md.Tags.Add(new PlaceTags() { Key = "styleset", Value = match.Name });
-
-                        sb.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(md.PrivacyId).Append("\r\n");
-                        reprocFileStream.Write(sb.ToString());
-
-                        foreach (var tag in md.Tags)
-                            sbTags.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(tag.Key).Append('\t').Append(tag.Value).Append("\r\n");
-                        reprocTagsFileStream.Write(sbTags.ToString());
+                        md.ElementGeometry = Singletons.reducer.Reduce(md.ElementGeometry);
                     }
                     catch (Exception ex)
                     {
                         Log.WriteLog("Couldn't reduce element " + md.SourceItemID + ", saving as-is (" + ex.Message + ")");
-                        reprocFileStream.Write(md.SourceItemID + '\t' + md.SourceItemType + '\t' + originalGeo.AsText() + '\t' + md.PrivacyId + '\t' + md.DrawSizeHint + "\r\n");
-                        foreach (var t in originalTags)
-                        {
-                            reprocTagsFileStream.Write(md.SourceItemID + '\t' + md.SourceItemType + '\t' + t.Key + '\t' + t.Value + "\r\n");
-                        }
                     }
                 }
+                reproced.AddEntry(md);
             }
-            sr.Close(); sr.Dispose(); fr.Close(); fr.Dispose();
-            sr2.Close(); sr2.Dispose(); fr2.Close(); fr2.Dispose();
-            reprocFileStream.Close(); reprocFileStream.Dispose();
-            reprocTagsFileStream.Close(); reprocTagsFileStream.Dispose();
         }
 
         /// <summary>
@@ -1639,49 +1576,33 @@ namespace PraxisCore.PbfReader
             {
                 saveFilename = outputPath + Path.GetFileNameWithoutExtension(fi.Name) + "-";
 
-                Dictionary<string, StringBuilder> geomDataByMatch = new Dictionary<string, StringBuilder>();
-                Dictionary<string, StringBuilder> tagDataByMatch = new Dictionary<string, StringBuilder>();
+                PlaceExport pe = new PlaceExport(saveFilename + ".pmd");
+                Dictionary<string, PlaceExport> exportsByMatch = new Dictionary<string, PlaceExport>();
                 foreach (var s in TagParser.allStyleGroups[styleSet])
                 {
-                    geomDataByMatch.Add(s.Value.Name, new StringBuilder(100000));
-                    tagDataByMatch.Add(s.Value.Name, new StringBuilder(40000));
+                    exportsByMatch.Add(s.Value.Name, new PlaceExport(saveFilename + s.Value.Name + ".pmd"));
                 }
                 //Save to separate files based on which style set entry each one matched up to.
                 foreach (var md in elements)
                 {
                     var areatype = TagParser.GetStyleEntry(md, styleSet).Name;
-                    geomDataByMatch[areatype].Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(Guid.NewGuid()).Append('\t').Append(md.DrawSizeHint).Append("\r\n");
-                    foreach (var t in md.Tags)
-                        tagDataByMatch[areatype].Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(t.Key).Append('\t').Append(t.Value.Replace("\r", "").Replace("\n", "")).Append("\r\n"); //Might also need to sanitize / and ' ?
+                    exportsByMatch[areatype].AddEntry(md);
                 }
 
-                foreach (var dataSet in geomDataByMatch)
-                {
-                    if (dataSet.Value.Length > 0)
-                    {
-                        //These 2 appends fix tab-delimiting issues without writing another function.
-                        dataSet.Value.Append("\r\n");
-                        tagDataByMatch[dataSet.Key].Append("\r\n");
-                        QueueWriteTask(saveFilename + dataSet.Key + ".geomData", dataSet.Value);
-                        QueueWriteTask(saveFilename + dataSet.Key + ".tagsData", tagDataByMatch[dataSet.Key]);
-                    }
-                }
+                foreach (var dataSet in exportsByMatch)
+                    if (dataSet.Value.totalEntries > 0)
+                        dataSet.Value.WriteToDisk(); //TODO: queue/async/whatever?
             }
             else
             {
                 //Starts with some data allocated in each 2 stringBuilders to minimize reallocations. In my test setup, 10kb is the median value for all files, and 100kb is enough for 90% of blocks
-                StringBuilder geometryBuilds = new StringBuilder(100000); //100kb
-                StringBuilder tagBuilds = new StringBuilder(40000); //40kb, tags are usually smaller than geometry.
+                PlaceExport pe = new PlaceExport(saveFilename + ".pmd");
                 foreach (var md in elements)
-                {
-                    geometryBuilds.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(md.ElementGeometry.AsText()).Append('\t').Append(Guid.NewGuid()).Append('\t').Append(md.DrawSizeHint).Append("\r\n");
-                    foreach (var t in md.Tags)
-                        tagBuilds.Append(md.SourceItemID).Append('\t').Append(md.SourceItemType).Append('\t').Append(t.Key).Append('\t').Append(t.Value.Replace("\r", "").Replace("\n", "")).Append("\r\n"); //Might also need to sanitize / and ' ?
-                }
+                    pe.AddEntry(md);
+                                    
                 try
                 {
-                    QueueWriteTask(saveFilename + ".geomData", geometryBuilds);
-                    QueueWriteTask(saveFilename + ".tagsData", tagBuilds);
+                    pe.WriteToDisk(); //TODO: thread/queue/async?
                 }
                 catch (Exception ex)
                 {

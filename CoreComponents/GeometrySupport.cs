@@ -189,7 +189,7 @@ namespace PraxisCore
                 }
                 geometry.SRID = 4326;//Required for SQL Server to accept data.
                 place.ElementGeometry = geometry;
-                place.Tags = tags; 
+                place.Tags = tags;
 
                 TagParser.ApplyTags(place, styleSet);
                 if (place.StyleName == "unmatched" || place.StyleName == "background")
@@ -200,6 +200,7 @@ namespace PraxisCore
                 {
                     place.DrawSizeHint = CalculateDrawSizeHint(place, styleSet);
                 }
+                Place.PreTag(place);
                 return place;
             }
             catch(Exception ex)
@@ -259,45 +260,6 @@ namespace PraxisCore
                 var pointRadiusPixels = ((pointRadius * pointRadius * float.Pi) / ConstantValues.squareCell11Area);
                 return pointRadiusPixels;
             }
-        }
-
-        /// <summary>
-        /// Loads up TSV data into RAM for use.
-        /// </summary>
-        /// <param name="filename">the geomData file to parse. Matching .tagsData file is assumed.</param>
-        /// <returns>a list of storedOSMelements</returns>
-        public static List<DbTables.Place> ReadPlaceFilesToMemory(string filename)
-        {
-            StreamReader srGeo = new StreamReader(filename);
-            StreamReader srTags = new StreamReader(filename.Replace(".geomData", ".tagsData"));
-
-            List<DbTables.Place> lm = new List<DbTables.Place>(8000);
-            List<PlaceTags> tagsTemp = new List<PlaceTags>(8000);
-            ILookup<long, PlaceTags> tagDict;
-
-            while (!srTags.EndOfStream)
-            {
-                string line = srTags.ReadLine();
-                PlaceTags tag = ConvertSingleTsvTag(line);
-                tagsTemp.Add(tag);
-            }
-            srTags.Close(); srTags.Dispose();
-            tagDict = tagsTemp.ToLookup(k => k.SourceItemId, v => v);
-
-            while (!srGeo.EndOfStream)
-            {
-                string line = srGeo.ReadLine();
-                var sw = ConvertSingleTsvPlace(line);
-                sw.Tags = tagDict[sw.SourceItemID].ToList();
-                lm.Add(sw);
-            }
-            srGeo.Close(); srGeo.Dispose();
-
-            if (lm.Count == 0)
-                Log.WriteLog("No entries for " + filename + "? why?");
-
-            Log.WriteLog("EOF Reached for " + filename + " at " + DateTime.Now);
-            return lm;
         }
 
         /// <summary>
