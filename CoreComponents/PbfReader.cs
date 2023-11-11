@@ -354,21 +354,7 @@ namespace PraxisCore.PbfReader
             var Bcount = BlockCount();
             if (nextBlockId == Bcount - 1)
                 nextBlockId = 1; //0 is the header.
-
-            //index disable check
-            if (nextBlockId == 1)
-            {
-                var indexCheck = new PraxisContext();
-                if (indexCheck.Places.Count() == 0)
-                {
-                    indexCheck.DropIndexes();
-                    indexCheck.GlobalData.Add(new GlobalData() { DataKey = "createIndexes", DataValue = "pending".ToByteArrayUTF8() });
-                    indexCheck.SaveChanges();
-                }
-                indexCheck.Dispose();
-                indexCheck = null;
-            }
-
+            
             if (relationId != 0)
             {
                 filenameHeader += relationId.ToString() + "-";
@@ -447,22 +433,23 @@ namespace PraxisCore.PbfReader
                                 db.Places.Add(newEntry);
                             else
                             {
+                                var entityData = db.Entry(existing);
                                 //check for update. EFCore will automatically write only changed values this way.
                                 //can skip if Tags are identical, geometry is effectively identical, and pretagged place data is identical
                                 //gameplay relevant placedata entries should be preserved.
                                 if (!existing.ElementGeometry.EqualsTopologically(newEntry.ElementGeometry))
                                 {
-                                    db.Entry(existing).Property(p => p.ElementGeometry).CurrentValue = newEntry.ElementGeometry;
-                                    db.Entry(existing).Property(p => p.DrawSizeHint).CurrentValue = newEntry.DrawSizeHint;
+                                    entityData.Property(p => p.ElementGeometry).CurrentValue = newEntry.ElementGeometry;
+                                    entityData.Property(p => p.DrawSizeHint).CurrentValue = newEntry.DrawSizeHint;
                                 }
                                 if (!(existing.Tags.Count == newEntry.Tags.Count && existing.Tags.All(t => newEntry.Tags.Any(tt => tt.Equals(t)))))
                                 {
-                                    db.Entry(existing).Collection(p => p.Tags).CurrentValue = newEntry.Tags;
+                                    entityData.Collection(p => p.Tags).CurrentValue = newEntry.Tags;
                                 }
 
                                 var entries = existing.PlaceData;
                                 if (entries == null)
-                                    db.Entry(existing).Collection(p => p.PlaceData).CurrentValue = newEntry.PlaceData;
+                                    entityData.Collection(p => p.PlaceData).CurrentValue = newEntry.PlaceData;
                                 else
                                 {
                                     var epd = new List<PlaceData>();
@@ -476,7 +463,7 @@ namespace PraxisCore.PbfReader
                                     if (epd.Count > 0)
                                     {
                                         epd.AddRange(existing.PlaceData.Where(d => !epd.Any(ee => ee.DataKey == d.DataKey)));
-                                        db.Entry(existing).Collection(p => p.PlaceData).CurrentValue = epd;
+                                        entityData.Collection(p => p.PlaceData).CurrentValue = epd;
                                     }
                                 }
                             }
@@ -503,6 +490,8 @@ namespace PraxisCore.PbfReader
                 }
             }
 
+            //NOTE: this may not be appropriate for the PBFReader, since there could be mulitple files to run, or PMD files to process
+            //This generally belongs at a higher level in the process, not here.
             //Create index check
             var indexCheck2 = new PraxisContext();
             var makeIndexes = indexCheck2.GlobalData.FirstOrDefault(d => d.DataKey == "createIndexes");

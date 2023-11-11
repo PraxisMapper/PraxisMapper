@@ -138,7 +138,7 @@ namespace PraxisCore
                 using var db = new PraxisContext();
                 db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
-                return db.Places.Any(md => md.ElementGeometry.Intersects(location));
+                return db.Places.Include(p => p.Tags).Any(md => md.ElementGeometry.Intersects(location) && !md.Tags.Any(t => t.Key == "bgwater")); //Exclude oceans from bounds checks.
             }
             return source.Any(md => md.ElementGeometry.Intersects(location));
         }
@@ -397,7 +397,6 @@ namespace PraxisCore
                     if (update)
                         place.PlaceData.Add(info);
                 }
-                    
             }
         }
 
