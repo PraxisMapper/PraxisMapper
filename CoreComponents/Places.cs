@@ -385,20 +385,23 @@ namespace PraxisCore
             //tag this place.
             foreach (var style in TagParser.allStyleGroups.Where(g => g.Key != "outlines" && g.Key != "paintTown"))
             {
-                bool update = false;
-                PlaceData info = place.PlaceData.FirstOrDefault(d => d.DataKey == style.Key);
-                if (info != null)
-                    update = true;
-
                 TagParser.ApplyTags(place, style.Key);
+                bool update = false;
+                
                 if (place.StyleName != "unmatched" && place.StyleName != "background")
                 {
-                    info = new PlaceData() { DataKey = style.Key, DataValue = place.StyleName.ToByteArrayUTF8() };
-                    if (update)
+                    PlaceData info = place.PlaceData.FirstOrDefault(d => d.DataKey == style.Key);
+                    if (info == null)
+                    {
+                        info = new PlaceData() { DataKey = style.Key, DataValue = place.StyleName.ToByteArrayUTF8() };
                         place.PlaceData.Add(info);
+                    }
+                    else
+                    {
+                        info.DataValue = place.StyleName.ToByteArrayUTF8();
+                    }
                 }
             }
         }
-
     }
 }
