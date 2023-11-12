@@ -1,5 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Query;
 using NetTopologySuite.Geometries;
 using OsmSharp.Complete;
 using OsmSharp.Tags;
@@ -12,12 +11,9 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Numerics;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Xml.Linq;
 using static PraxisCore.DbTables;
 
 namespace PraxisCore.PbfReader
@@ -348,7 +344,7 @@ namespace PraxisCore.PbfReader
                         var processed = geoData.AsParallel().Where(g => g != null).Select(g => { 
                             var place =  GeometrySupport.ConvertOsmEntryToPlace(g, styleSet); 
                             if (place != null) 
-                                Place.PreTag(place);
+                                 Place.PreTag(place);
 
                             if (processingMode == "center")
                                 place.ElementGeometry = place.ElementGeometry.Centroid;
@@ -392,9 +388,13 @@ namespace PraxisCore.PbfReader
                                     var epd = new List<PlaceData>();
                                     foreach (var data in newEntry.PlaceData)
                                     {
-                                        var oldPreTag = existing.PlaceData.First(p => p.DataKey == data.DataKey);
-                                        if (oldPreTag != null && oldPreTag.DataValue != data.DataValue)
+                                        var oldPreTag = existing.PlaceData.FirstOrDefault(p => p.DataKey == data.DataKey);
+                                        if (oldPreTag == null)
                                             epd.Add(data);
+                                        else
+                                            if (oldPreTag.DataValue != data.DataValue)
+                                                oldPreTag.DataValue = data.DataValue;
+
                                     }
 
                                     if (epd.Count > 0)
