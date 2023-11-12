@@ -113,33 +113,7 @@ namespace Larry
 
             TagParser.Initialize(config["ForceStyleDefaults"] == "True", MapTiles);
 
-            //NOTE: this seems to drop out a lot of geometry, so I may not want to support this after all.
-            if (args.Any(a => a.StartsWith("-shrinkFiles") || a.StartsWith("-reprocessFiles")))
-            {
-                List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.pmd").ToList();
-                foreach (string filename in filenames)
-                {
-                    Log.WriteLog("Loading " + filename + " at " + DateTime.Now);
-                    PbfReader r = new PbfReader();
-                    r.outputPath = config["PbfFolder"];
-                    r.processingMode = config["processingMode"]; // "normal" and "center" and 'minimize' allowed
-                    r.saveToDB = false; //we want these as separate files for later.
-                    //r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
-                    //r.reprocessFile = true;
-
-                    if (config["ResourceUse"] == "low")
-                    {
-                        r.lowResourceMode = true;
-                    }
-                    else if (config["ResourceUse"] == "high")
-                    {
-                        r.keepAllBlocksInRam = true; //Faster performance, but files use vastly more RAM than they do HD space. 200MB file = ~6GB total RAM last I checked.
-                    }
-                    r.ProcessFile(filename, long.Parse(config["UseOneRelationID"]));
-                    File.Move(filename, filename + "done");
-                }
-            }
-
+            
             //Takes a styleSet, and saves 1 output file per style in that set. 
             if (args.Any(a => a.StartsWith("-splitPbfByStyle:")))
             {
