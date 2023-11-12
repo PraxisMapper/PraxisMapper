@@ -118,7 +118,7 @@ namespace PraxisMapper.Controllers {
 
             var geoarea = area.ElementGeometry.Envelope.ToGeoArea().PadGeoArea(ConstantValues.resolutionCell10);
 
-            ImageStats istats = new ImageStats(geoarea, (int)(geoarea.LongitudeWidth / ConstantValues.resolutionCell11Lon) * (int)MapTileSupport.GameTileScale, (int)(geoarea.LatitudeHeight / ConstantValues.resolutionCell11Lat) * (int)MapTileSupport.GameTileScale);
+            ImageStats istats = new ImageStats(geoarea, (int)(geoarea.LongitudeWidth / ConstantValues.resolutionCell11Lon), (int)(geoarea.LatitudeHeight / ConstantValues.resolutionCell11Lat));
             istats = MapTileSupport.ScaleBoundsCheck(istats, imageMaxEdge, maxImagePixels);
 
             System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
