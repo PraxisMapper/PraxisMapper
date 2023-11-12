@@ -100,9 +100,7 @@ namespace Larry
                 var db = new PraxisContext();
                 TagParser.Initialize(true, null);
                 createDb();
-                db.DropIndexes(); //drop indexes for now, increases load speeds.
                 LoadEverything();
-                db.RecreateIndexes();
                 db.SetServerBounds(long.Parse(config["UseOneRelationID"]));
                 Log.WriteLog("Server setup complete in " + sw.Elapsed);
             }
@@ -123,11 +121,11 @@ namespace Larry
                 {
                     Log.WriteLog("Loading " + filename + " at " + DateTime.Now);
                     PbfReader r = new PbfReader();
-                    r.outputPath = config["OutputDataFolder"];
+                    r.outputPath = config["PbfFolder"];
                     r.processingMode = config["processingMode"]; // "normal" and "center" and 'minimize' allowed
                     r.saveToDB = false; //we want these as separate files for later.
-                    r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
-                    r.reprocessFile = true;
+                    //r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
+                    //r.reprocessFile = true;
 
                     if (config["ResourceUse"] == "low")
                     {
@@ -151,12 +149,12 @@ namespace Larry
                 {
                     Log.WriteLog("Loading " + filename + " at " + DateTime.Now);
                     PbfReader r = new PbfReader();
-                    r.outputPath = config["OutputDataFolder"];
+                    r.outputPath = config["PbfFolder"];
                     r.styleSet = style;
                     r.processingMode = config["processingMode"]; // "normal" and "center" allowed
                     r.saveToDB = false; //we want these as separate files for later.
-                    r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
-                    r.reprocessFile = config["reprocessFiles"] == "True";
+                    //r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
+                    //r.reprocessFile = config["reprocessFiles"] == "True";
                     r.splitByStyleSet = true; //Implies saving to PMD files.
 
                     if (config["ResourceUse"] == "low")
@@ -170,6 +168,11 @@ namespace Larry
                     r.ProcessFile(filename, long.Parse(config["UseOneRelationID"]));
                     File.Move(filename, filename + "done");
                 }
+            }
+
+            if (args.Any(a => a.StartsWith("-convertPbfs")))
+            {
+                ConvertPBFtoPMD();
             }
 
             if (args.Any(a => a.StartsWith("-addOneElement:")))
@@ -352,12 +355,10 @@ namespace Larry
             {
                 Log.WriteLog("Loading " + filename + " at " + DateTime.Now);
                 PbfReader r = new PbfReader();
-                r.outputPath = config["OutputDataFolder"];
+                r.outputPath = config["PbfFolder"];
                 r.styleSet = config["TagParserStyleSet"];
                 r.processingMode = config["processingMode"]; // "normal" and "center" and "minimize" allowed
-                //r.saveToDB = config["UseGeomDataFiles"] == "False";  No longer making this available. This call only loads to DB.
-                r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
-                r.reprocessFile = config["reprocessFiles"] == "True";
+                //r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
 
                 if (config["ResourceUse"] == "low")
                 {
@@ -371,6 +372,25 @@ namespace Larry
                 File.Move(filename, filename + "done");
             }
         }
+
+        private static void ConvertPBFtoPMD()
+        {
+            List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.pbf").ToList();
+            foreach (string filename in filenames)
+            {
+                Log.WriteLog("Loading " + filename + " at " + DateTime.Now);
+                PbfReader r = new PbfReader();
+                r.outputPath = config["PbfFolder"];
+                r.styleSet = "mapTiles";  //config["TagParserStyleSet"];
+                r.processingMode = "normal";
+                r.saveToDB = false;
+                //r.onlyMatchedAreas = true; //This is always true, probably don't need this option anymore either.
+                r.ProcessFileV2(filename);
+                File.Move(filename, filename + "done");
+            }
+        }
+
+       
 
         /// <summary>
         /// This is intended for pulling a single missing entry into an existing database, and does not process to an external file.
@@ -421,7 +441,7 @@ namespace Larry
             TagParser.ApplyTags(memorySource, "mapTiles");
             ImageStats istats = new ImageStats(OpenLocationCode.DecodeValid(code), 1024, 1024);
             var paintOps = MapTileSupport.GetPaintOpsForPlaces(memorySource, "mapTiles", istats);
-            File.WriteAllBytes(config["OutputDataFolder"] + code + ".png", MapTileSupport.DrawPlusCode(code, paintOps));
+            File.WriteAllBytes(config["PbfFolder"] + code + ".png", MapTileSupport.DrawPlusCode(code, paintOps));
             sw.Stop();
             Log.WriteLog("image drawn from memory in " + sw.Elapsed);
         }
@@ -487,7 +507,7 @@ namespace Larry
             //NOTE: this requires the WGS84 version of the polygons. the Mercator version is UTM, not the Mercator you saw in school.
             Log.WriteLog("Reading water polygon data from " + shapePath);
             Stopwatch sw = Stopwatch.StartNew();
-            string fileBaseName = config["OutputDataFolder"] + "coastlines.pmd";
+            string fileBaseName = config["PbfFolder"] + "coastlines.pmd";
             EGIS.ShapeFileLib.ShapeFile sf = new EGIS.ShapeFileLib.ShapeFile(shapePath);
             var recordCount = sf.RecordCount;
             List<Polygon> polygons = new List<Polygon>(recordCount);
@@ -654,7 +674,7 @@ namespace Larry
                         terrainDict[cell2].TryRemove(cell4, out _);
                     //else
                     //{
-                    //    File.WriteAllText(config["OutputDataFolder"] + cell2 + cell4 + ".json", JsonSerializer.Serialize(terrainDict));
+                    //    File.WriteAllText(config["PbfFolder"] + cell2 + cell4 + ".json", JsonSerializer.Serialize(terrainDict));
                     //    terrainDict[cell2].TryRemove(cell4, out var xx);
                     //    Log.WriteLog("Made file for " + cell2 + cell4 + " at " + DateTime.Now);
                     //}
@@ -663,7 +683,7 @@ namespace Larry
                     terrainDict[cell2].TryRemove(cell2, out _);
                 else
                 {
-                    File.WriteAllText(config["OutputDataFolder"] + cell2 + ".json", JsonSerializer.Serialize(terrainDict));
+                    File.WriteAllText(config["PbfFolder"] + cell2 + ".json", JsonSerializer.Serialize(terrainDict));
                     terrainDict.TryRemove(cell2, out _);
                     Log.WriteLog("Made file for " + cell2 + " at " + DateTime.Now);
                 }
@@ -817,7 +837,7 @@ namespace Larry
             int take = 1000; //test value.
             long maxID = 0;
             bool keepGoing = true;
-            PlaceExport export = new PlaceExport(config["OutputDataFolder"] + parentPlace + "-submap.pmd");
+            PlaceExport export = new PlaceExport(config["PbfFolder"] + parentPlace + "-submap.pmd");
 
             while (keepGoing)
             {

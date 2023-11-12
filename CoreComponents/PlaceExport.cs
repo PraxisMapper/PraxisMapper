@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using NetTopologySuite.Geometries;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -14,6 +15,9 @@ namespace PraxisCore
     - Single file (Zip file, with 1 entry per place, named by sourceitemid-sourceitemtype)
     - Smaller: store geography as binary instead of text (base64 because JSON but still better), compressed.
     - transfer data between databases (no database-specific info or filled-on-demand properties included)
+
+    Missing features vs PBF:
+    - Batch loading for speed (Every write has a read command attached right now, should do that all at once)
     */
 
     public class PlaceExport
@@ -22,9 +26,13 @@ namespace PraxisCore
         public long totalEntries { get; set; }
         ZipArchive zf = null;
         int entryCounter = 0;
+        Envelope bounds = null;
+        public string processingMode = "normal";
+
 
         public PlaceExport(string file) {
             filename = file;
+            Open();
         }    
 
         public void Open()
@@ -43,6 +51,31 @@ namespace PraxisCore
         public void Close()
         {
             zf.Dispose();
+        }
+
+        /// <summary>
+        /// Searches the PMD file for a Place with the given ID, and uses it as the bounds when reading files. Item must fall within the Place's envelope to be loaded.
+        /// </summary>
+        /// <param name="elementId"></param>
+        public void SetBoundary(long elementId)
+        {
+            Geometry bound;
+
+            var boundEntry = GetSpecificPlace(elementId, 3);
+            if (boundEntry == null)
+                boundEntry = GetSpecificPlace(elementId, 2);
+
+            if (boundEntry != null)
+                bounds = boundEntry.ElementGeometry.EnvelopeInternal;
+        }
+
+        /// <summary>
+        /// Sets the bounds for loading Places to the given envelope. Use when the server bounds are not an item inside the PMD file. Item must fall within the Place's envelope to be loaded.
+        /// </summary>
+        /// <param name="boundary"></param>
+        public void SetBoundary(Envelope boundary)
+        {
+            bounds = boundary;
         }
 
         public void SkipTo(int skip)
@@ -74,16 +107,35 @@ namespace PraxisCore
             if (zf.Entries.Count <= entryCounter)
                 return null;
 
+            string data = null;
             DbTables.Place place = null;
             using (Stream s = zf.Entries[entryCounter].Open())
             using (StreamReader sr = new StreamReader(s))
             {
-                var data = sr.ReadToEnd();
-                place = JsonSerializer.Deserialize<DbTables.Place>(data);
-                Place.PreTag(place);
+                while (place == null)
+                {
+                    data = sr.ReadToEnd();
+                    place = JsonSerializer.Deserialize<DbTables.Place>(data);
+                    entryCounter++;
+                    if (bounds == null || bounds.Intersects(place.ElementGeometry.EnvelopeInternal))
+                    {
+                        Place.PreTag(place);
+                        if (processingMode == "center")
+                            place.ElementGeometry = place.ElementGeometry.Centroid;
+                        else if (processingMode == "expandPoints" && place.SourceItemType == 1)
+                        {
+                            place.ElementGeometry = place.ElementGeometry.Buffer(ConstantValues.resolutionCell8);
+                        }
+                        else if (processingMode == "minimize")
+                        {
+                            place.ElementGeometry = Singletons.reducer.Reduce(NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(place.ElementGeometry, ConstantValues.resolutionCell10).Fix());
+                        }
+                    }
+                    else
+                        place = null;
+                }
             }
-            
-            entryCounter++;
+                        
             return place;
         }
 
@@ -102,6 +154,7 @@ namespace PraxisCore
 
         public DbTables.Place GetSpecificPlace(long sourceItemId, int sourceItemType)
         {
+            //Intentionally ignoring bounds check here, since the user is specifically asking for this one item.
             DbTables.Place place = null;
             var entry = zf.GetEntry(sourceItemId.ToString() + "-" + sourceItemType.ToString());
             if (entry == null)
@@ -128,7 +181,7 @@ namespace PraxisCore
                 entryCounter = File.ReadAllText(filename + ".progress").ToInt();
         }
 
-        public static void LoadToDatabase(string pmdFile)
+        public static void LoadToDatabase(string pmdFile, string processingMode = "normal", Envelope bounds = null)
         {
             //This is for an existing file that's getting imported into the current DB.
             //EX: if I have pre-processed files available for coastline data, this should just get pulled in as-is.
@@ -139,13 +192,18 @@ namespace PraxisCore
             var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
 
+
             var entry = new PlaceExport(pmdFile);
+            entry.bounds = bounds;
+            entry.processingMode = processingMode;
             entry.Open();
             entry.LoadProgress();
 
             //Batching this is a lot harder because I can't guarentee that all of these are the same item type.
             //var batchSize = 100;
             //var places = entry.GetNextPlaces(batchSize);
+            //var ids = places.Select(p => p.SourceItemID).ToList();
+            //var entries = db.Places.Include(p => p.Tags).Include(p => p.PlaceData).Where(p => ids.Contains(p.SourceItemID)).ToDictionary(k => k.SourceItemId, v => v);
 
             long placeCounter = 0;
             long entryCounter = 0;

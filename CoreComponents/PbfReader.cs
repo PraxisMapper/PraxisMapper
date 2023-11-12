@@ -14,7 +14,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using static PraxisCore.DbTables;
 
 namespace PraxisCore.PbfReader
 {
@@ -31,8 +30,8 @@ namespace PraxisCore.PbfReader
         static readonly int initialCapacity = 8009; //ConcurrentDictionary says initial capacity shouldn't be divisible by a small prime number, so i picked the prime closes to 8,000 for initial capacity
         static readonly int initialConcurrency = Environment.ProcessorCount;
 
-        public bool saveToDB = false;
-        public bool onlyMatchedAreas = false; //if true, only process geometry if the tags come back with IsGamplayElement== true;
+        public bool saveToDB = true;
+        //public bool onlyMatchedAreas = false; //if true, only process geometry if the tags come back with IsGamplayElement== true;
         public string processingMode = "normal"; //normal: use geometry as it exists. center: save the center point of any geometry provided instead of its actual value. minimize: reduce accuracy to save storage space.
         public string styleSet = "mapTiles"; //which style set to use when parsing entries
         public bool keepIndexFiles = true;
@@ -42,7 +41,7 @@ namespace PraxisCore.PbfReader
         public string filenameHeader = "";
 
         public bool lowResourceMode = false;
-        public bool reprocessFile = false; //if true, we load TSV data from a previous run and re-process that by the rules.
+        //public bool reprocessFile = false; //if true, we load TSV data from a previous run and re-process that by the rules.
         public bool keepAllBlocksInRam = false; //if true, keep all decompressed blocks in memory instead of purging out unused ones each block.
 
         FileInfo fi;
@@ -120,46 +119,47 @@ namespace PraxisCore.PbfReader
             tokensource.Cancel();
         }
 
-        private void ReprocessFile(string filename)
-        {
-            //load up each line of a file from a previous run, and then re-process it according to the current settings.
-            System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-            Log.WriteLog("Loading " + filename + " for processing at " + DateTime.Now);
-            sw.Start();
-            var original = new PlaceExport(filename);
-            var reproced = new PlaceExport(Path.GetFileNameWithoutExtension(filename) + "-reprocessed.pmd");
+        //NOTE: I do not want to export processed data, that can be done on load.
+        //private void ReprocessFile(string filename)
+        //{
+        //    //load up each line of a file from a previous run, and then re-process it according to the current settings.
+        //    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+        //    Log.WriteLog("Loading " + filename + " for processing at " + DateTime.Now);
+        //    sw.Start();
+        //    var original = new PlaceExport(filename);
+        //    var reproced = new PlaceExport(Path.GetFileNameWithoutExtension(filename) + "-reprocessed.pmd");
 
-            var md = original.GetNextPlace();
-            while (md != null)
-            {
-                if (bounds != null && (!bounds.Intersects(md.ElementGeometry.EnvelopeInternal)))
-                    continue;
+        //    var md = original.GetNextPlace();
+        //    while (md != null)
+        //    {
+        //        if (bounds != null && (!bounds.Intersects(md.ElementGeometry.EnvelopeInternal)))
+        //            continue;
 
-                if (processingMode == "center")
-                    md.ElementGeometry = md.ElementGeometry.Centroid;
-                else if (processingMode == "expandPoints")
-                {
-                    //Declare that Points aren't sufficient for this game's purpose, expand them to Cell8 size for now
-                    //Because actually upgrading them to the geometry for some containing shape requires a full global-loaded database.
-                    if (md.SourceItemType == 1) //Only nodes get upgraded.
-                        md.ElementGeometry = md.ElementGeometry.Buffer(ConstantValues.resolutionCell8);
-                }
-                else if (processingMode == "minimize") //This may be removed in the near future, since this has a habit of making invalid geometry.
-                {
-                    styleSet = "suggestedmini"; //Forcing for now on this option.
-                    try
-                    {
-                        md.ElementGeometry = NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(md.ElementGeometry, ConstantValues.resolutionCell10); //rounds off any points too close together.
-                        md.ElementGeometry = Singletons.reducer.Reduce(md.ElementGeometry);
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.WriteLog("Couldn't reduce element " + md.SourceItemID + ", saving as-is (" + ex.Message + ")");
-                    }
-                }
-                reproced.AddEntry(md);
-            }
-        }
+        //        if (processingMode == "center")
+        //            md.ElementGeometry = md.ElementGeometry.Centroid;
+        //        else if (processingMode == "expandPoints")
+        //        {
+        //            //Declare that Points aren't sufficient for this game's purpose, expand them to Cell8 size for now
+        //            //Because actually upgrading them to the geometry for some containing shape requires a full global-loaded database.
+        //            if (md.SourceItemType == 1) //Only nodes get upgraded.
+        //                md.ElementGeometry = md.ElementGeometry.Buffer(ConstantValues.resolutionCell8);
+        //        }
+        //        else if (processingMode == "minimize") //This may be removed in the near future, since this has a habit of making invalid geometry.
+        //        {
+        //            styleSet = "suggestedmini"; //Forcing for now on this option.
+        //            try
+        //            {
+        //                md.ElementGeometry = NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(md.ElementGeometry, ConstantValues.resolutionCell10); //rounds off any points too close together.
+        //                md.ElementGeometry = Singletons.reducer.Reduce(md.ElementGeometry);
+        //            }
+        //            catch (Exception ex)
+        //            {
+        //                Log.WriteLog("Couldn't reduce element " + md.SourceItemID + ", saving as-is (" + ex.Message + ")");
+        //            }
+        //        }
+        //        reproced.AddEntry(md);
+        //    }
+        //}
 
         /// <summary>
         /// Runs through the entire process to convert a PBF file into usable PraxisMapper data. The server bounds for this process must be identified via other functions.
@@ -170,11 +170,11 @@ namespace PraxisCore.PbfReader
         {
             try
             {
-                if (reprocessFile)
-                {
-                    ReprocessFile(filename);
-                    return;
-                }
+                //if (reprocessFile)
+                //{
+                //    ReprocessFile(filename);
+                //    return;
+                //}
 
                 Stopwatch sw = new Stopwatch();
                 sw.Start();
@@ -209,7 +209,7 @@ namespace PraxisCore.PbfReader
                                 System.Diagnostics.Stopwatch swGroup = new System.Diagnostics.Stopwatch();
                                 swGroup.Start();
                                 int thisBlockId = block;
-                                var geoData = GetGeometryFromGroup(thisBlockId, group, onlyMatchedAreas);
+                                var geoData = GetGeometryFromGroup(thisBlockId, group, true);
                                 //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
                                 //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
                                 if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
@@ -282,12 +282,11 @@ namespace PraxisCore.PbfReader
             Stopwatch swFile = new Stopwatch();
             swFile.Start();
 
-            saveToDB = true; //forced for now.
             PrepareFile(filename);
             var Bcount = BlockCount();
             if (nextBlockId == Bcount - 1)
                 nextBlockId = 1; //0 is the header.
-            
+
             if (relationId != 0)
             {
                 filenameHeader += relationId.ToString() + "-";
@@ -336,15 +335,17 @@ namespace PraxisCore.PbfReader
                     int thisBlockId = block;
                     var group = blockData.primitivegroup[groupId];
                     var geoData = GetGeometryFromGroup(thisBlockId, group, true);
+                    int changed = 0;
                     //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
                     //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
                     if (geoData != null && geoData.Count > 0) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
                     {
                         var currentData = db.Places.Include(p => p.Tags).Include(p => p.PlaceData).Where(p => p.SourceItemType == itemType && p.SourceItemID >= groupMin && p.SourceItemID <= groupMax).ToDictionary(k => k.SourceItemID, v => v);
-                        var processed = geoData.AsParallel().Where(g => g != null).Select(g => { 
-                            var place =  GeometrySupport.ConvertOsmEntryToPlace(g, styleSet); 
-                            if (place != null) 
-                                 Place.PreTag(place);
+                        var processed = geoData.AsParallel().Where(g => g != null).Select(g =>
+                        {
+                            var place = GeometrySupport.ConvertOsmEntryToPlace(g, styleSet);
+                            if (place != null)
+                                Place.PreTag(place);
 
                             if (processingMode == "center")
                                 place.ElementGeometry = place.ElementGeometry.Centroid;
@@ -357,26 +358,51 @@ namespace PraxisCore.PbfReader
                             return place;
                         }).Where(p => p != null).ToList();
 
-                        foreach (var newEntry in processed) //EF isn't threadsafe, this must be done sequentially.
+                        if (!saveToDB)
                         {
-                            if (newEntry == null)
-                                continue;
+                            //NOTE: this takes slightly longer on each block. I wonder if the built-in ZIP file stuff is re-writing
+                            //the whole file on each Close(). YEP - speed is based on file size.
+                            //May want to process all of these to their own file per block after all. Otherwise it starts taking far too long
 
-                            if (!currentData.TryGetValue(newEntry.SourceItemID, out var existing))
-                                db.Places.Add(newEntry);
-                            else
+                            //Skip post-processing when writing to disk.
+                            var pe = new PlaceExport(filename.Replace(".pbf", "-" + block + "-" + groupId + ".pmd"));
+                            changed = geoData.Count;
+                            foreach (var place in processed)
+                                pe.AddEntry(place);
+
+                            try
                             {
-                                Place.UpdateChanges(existing, newEntry, db);
+                                pe.Close();
+                                //pe.WriteToDisk(); //TODO: thread/queue/async? One file per group?
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.WriteLog("Error writing data to disk:" + ex.Message, Log.VerbosityLevels.Errors);
                             }
                         }
+                        else
+                        {
+                            foreach (var newEntry in processed)
+                            {
+                                if (newEntry == null)
+                                    continue;
 
-                        //Remove check
-                        var removed = currentData.Values.Where(c => !processed.Any(p => p.SourceItemID == c.SourceItemID)).ToList();
-                        db.Places.RemoveRange(removed);
+                                if (!currentData.TryGetValue(newEntry.SourceItemID, out var existing))
+                                    db.Places.Add(newEntry);
+                                else
+                                {
+                                    Place.UpdateChanges(existing, newEntry, db);
+                                }
+                            }
+
+                            //Remove check
+                            var removed = currentData.Values.Where(c => !processed.Any(p => p.SourceItemID == c.SourceItemID)).ToList();
+                            db.Places.RemoveRange(removed);
+
+                            changed = db.SaveChanges(); //This count includes tags and placedata.
+                            db.Dispose();
+                        }
                     }
-
-                    var changed = db.SaveChanges(); //This count includes tags and placedata.
-                    db.Dispose();
                     SaveCurrentBlockAndGroup(block, groupId);
                     sw.Stop();
                     Log.WriteLog("Block " + block + " Group " + groupId + ": " + changed + (itemType == 1 ? " Node" : itemType == 2 ? " Way" : " Relation") + " and Tag entries modified in " + sw.Elapsed);
@@ -428,7 +454,7 @@ namespace PraxisCore.PbfReader
                     foreach (var relId in group.relations)
                     {
                         Log.WriteLog("Loading relation with " + relId.memids.Count + " members");
-                        geoListOfOne.Add(MakeCompleteRelation(relId.id, onlyMatchedAreas, thisBlock));
+                        geoListOfOne.Add(MakeCompleteRelation(relId.id, true, thisBlock));
                         ProcessReaderResults(geoListOfOne, block, i);
                         activeBlocks.Clear();
                         geoListOfOne.Clear();
@@ -438,7 +464,7 @@ namespace PraxisCore.PbfReader
                 {
                     foreach (var wayId in group.ways)
                     {
-                        geoListOfOne.Add(MakeCompleteWay(wayId.id, -1, onlyMatchedAreas));
+                        geoListOfOne.Add(MakeCompleteWay(wayId.id, -1, true));
                         ProcessReaderResults(geoListOfOne, block, i);
                         activeBlocks.Clear();
                         geoListOfOne.Clear();
@@ -446,7 +472,7 @@ namespace PraxisCore.PbfReader
                 }
                 else if (group.nodes.Count > 0)
                 {
-                    var nodes = GetTaggedNodesFromBlock(thisBlock, onlyMatchedAreas);
+                    var nodes = GetTaggedNodesFromBlock(thisBlock, true);
                     ProcessReaderResults((IEnumerable<CompleteOsmGeo>)nodes, block, i);
                 }
                 SaveCurrentBlockAndGroup(block, i);
@@ -456,19 +482,20 @@ namespace PraxisCore.PbfReader
         public void ProcessAllNodeBlocks(long maxNodeBlock)
         {
             //Throw each node block into its own thread.
-            Parallel.For(1, maxNodeBlock, (block) => //parallel here dies on planet.osm.pbf. Moved to make groups parallel.
+            //Parallel.For(1, maxNodeBlock, (block) => //parallel here dies on planet.osm.pbf. Moved to make groups parallel.
+            for (int b = 1; b < maxNodeBlock; b++)
             {
-                var blockData = GetBlock(block);
-                var geoData = GetTaggedNodesFromBlock(blockData, onlyMatchedAreas);
+                var blockData = GetBlock(b);
+                var geoData = GetTaggedNodesFromBlock(blockData, true);
                 blockData = null;
                 if (geoData != null)
                 {
                     totalProcessEntries += geoData.Count;
-                    ProcessReaderResults(geoData, block, 0);
+                    ProcessReaderResults(geoData, b, 0);
                 }
 
-                activeBlocks.TryRemove(block, out _);
-            });
+                activeBlocks.TryRemove(b, out _);
+            }
         }
 
         private void IndexFile()
@@ -1443,7 +1470,7 @@ namespace PraxisCore.PbfReader
                 var relGroups = relationIndex.Count;
                 var wayGroups = wayIndex.Count;
                 var nodeGroups = nodeIndex.Count;
-                
+
                 while (!token.IsCancellationRequested)
                 {
                     var relationGroupsLeft = relationIndex.Count(w => w.blockId > nextBlockId);
@@ -1492,7 +1519,7 @@ namespace PraxisCore.PbfReader
         /// <returns>the Task handling the conversion process</returns>
         public int ProcessReaderResults(IEnumerable<ICompleteOsmGeo> items, long blockId, int groupId)
         {
-            if (items == null || items.Any())
+            if (items == null || !items.Any())
                 return 0;
 
             //This one is easy, we just dump the geodata to the file.
@@ -1546,14 +1573,14 @@ namespace PraxisCore.PbfReader
             }
             else
             {
-                //Starts with some data allocated in each 2 stringBuilders to minimize reallocations. In my test setup, 10kb is the median value for all files, and 100kb is enough for 90% of blocks
-                PlaceExport pe = new PlaceExport(saveFilename + ".pmd");
+                PlaceExport pe = new PlaceExport(outputPath + Path.GetFileNameWithoutExtension(fi.Name) + ".pmd");
                 foreach (var md in elements)
                     pe.AddEntry(md);
-                                    
+
                 try
                 {
-                    pe.WriteToDisk(); //TODO: thread/queue/async?
+                    pe.Close();
+                    //pe.WriteToDisk(); //TODO: thread/queue/async?
                 }
                 catch (Exception ex)
                 {
