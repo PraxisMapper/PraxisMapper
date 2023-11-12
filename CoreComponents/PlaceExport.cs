@@ -79,6 +79,7 @@ namespace PraxisCore
             {
                 var data = sr.ReadToEnd();
                 place = JsonSerializer.Deserialize<DbTables.Place>(data);
+                Place.PreTag(place);
             }
             
             entryCounter++;
