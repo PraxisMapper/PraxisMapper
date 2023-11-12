@@ -366,43 +366,7 @@ namespace PraxisCore.PbfReader
                                 db.Places.Add(newEntry);
                             else
                             {
-                                var entityData = db.Entry(existing);
-                                //check for update. EFCore will automatically write only changed values this way.
-                                //can skip if Tags are identical, geometry is effectively identical, and pretagged place data is identical
-                                //gameplay relevant placedata entries should be preserved.
-                                if (!existing.ElementGeometry.EqualsTopologically(newEntry.ElementGeometry))
-                                {
-                                    entityData.Property(p => p.ElementGeometry).CurrentValue = newEntry.ElementGeometry;
-                                    entityData.Property(p => p.DrawSizeHint).CurrentValue = newEntry.DrawSizeHint;
-                                }
-                                if (!(existing.Tags.Count == newEntry.Tags.Count && existing.Tags.All(t => newEntry.Tags.Any(tt => tt.Equals(t)))))
-                                {
-                                    entityData.Collection(p => p.Tags).CurrentValue = newEntry.Tags;
-                                }
-
-                                var entries = existing.PlaceData;
-                                if (entries == null)
-                                    entityData.Collection(p => p.PlaceData).CurrentValue = newEntry.PlaceData;
-                                else
-                                {
-                                    var epd = new List<PlaceData>();
-                                    foreach (var data in newEntry.PlaceData)
-                                    {
-                                        var oldPreTag = existing.PlaceData.FirstOrDefault(p => p.DataKey == data.DataKey);
-                                        if (oldPreTag == null)
-                                            epd.Add(data);
-                                        else
-                                            if (oldPreTag.DataValue != data.DataValue)
-                                                oldPreTag.DataValue = data.DataValue;
-
-                                    }
-
-                                    if (epd.Count > 0)
-                                    {
-                                        epd.AddRange(existing.PlaceData.Where(d => !epd.Any(ee => ee.DataKey == d.DataKey)));
-                                        entityData.Collection(p => p.PlaceData).CurrentValue = epd;
-                                    }
-                                }
+                                Place.UpdateChanges(existing, newEntry, db);
                             }
                         }
 

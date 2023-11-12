@@ -303,6 +303,9 @@ namespace Larry
                 entry.DataValue = "done".ToByteArrayUTF8();
                 db.SaveChanges();
             }
+
+            db.ExpireAllMapTiles();
+            db.ExpireAllSlippyMapTiles();
         }
 
         private static void SetEnvValues()
