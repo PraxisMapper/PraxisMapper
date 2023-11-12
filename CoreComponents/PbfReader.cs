@@ -1513,19 +1513,6 @@ namespace PraxisCore.PbfReader
             if (processingMode == "center")
                 foreach (var e in elements)
                     e.ElementGeometry = e.ElementGeometry.Centroid;
-            else if (processingMode == "minimize")
-            {
-                foreach (var e in elements)
-                {
-                    //Geometry was handled automatically by the updated geometryFactory and reducer. Just clean up tags here.
-                    string name = TagParser.GetName(e.Tags);
-                    string style = TagParser.GetStyleName(e, "suggestedmini");
-                    e.Tags.Clear();
-                    e.Tags.Add(new PlaceTags() { Key = "suggestedmini", Value = style });
-                    if (!string.IsNullOrWhiteSpace(name))
-                        e.Tags.Add(new PlaceTags() { Key = "name", Value = name });
-                }
-            }
 
             actualCount = elements.Count;
             if (saveToDB) //If this is on, we skip the file-writing part and send this data directly to the DB. Single threaded, but doesn't waste disk space with intermediate files.
