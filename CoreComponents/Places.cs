@@ -403,5 +403,42 @@ namespace PraxisCore
                 }
             }
         }
+
+        public static void UpdateChanges(DbTables.Place current, DbTables.Place newValues, PraxisContext db)
+        {
+            var entityData = db.Entry(current);
+            if (!current.ElementGeometry.EqualsTopologically(newValues.ElementGeometry))
+            {
+                entityData.Property(p => p.ElementGeometry).CurrentValue = newValues.ElementGeometry;
+                entityData.Property(p => p.DrawSizeHint).CurrentValue = newValues.DrawSizeHint;
+            }
+            if (!(current.Tags.Count == newValues.Tags.Count && current.Tags.All(t => newValues.Tags.Any(tt => tt.Equals(t)))))
+            {
+                entityData.Collection(p => p.Tags).CurrentValue = newValues.Tags;
+            }
+
+            var entries = current.PlaceData;
+            if (entries == null)
+                entityData.Collection(p => p.PlaceData).CurrentValue = newValues.PlaceData;
+            else
+            {
+                var epd = new List<PlaceData>();
+                foreach (var data in newValues.PlaceData)
+                {
+                    var oldPreTag = current.PlaceData.FirstOrDefault(p => p.DataKey == data.DataKey);
+                    if (oldPreTag == null)
+                        epd.Add(data);
+                    else
+                        if (oldPreTag.DataValue != data.DataValue)
+                        oldPreTag.DataValue = data.DataValue;
+                }
+
+                if (epd.Count > 0)
+                {
+                    epd.AddRange(current.PlaceData.Where(d => !epd.Any(ee => ee.DataKey == d.DataKey)));
+                    entityData.Collection(p => p.PlaceData).CurrentValue = epd;
+                }
+            }
+        }
     }
 }

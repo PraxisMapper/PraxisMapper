@@ -1,15 +1,11 @@
-﻿using Microsoft.VisualBasic;
+﻿using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
 using System.Text.Json;
-using System.Threading.Channels;
-using System.Threading.Tasks;
 
 namespace PraxisCore
 {
@@ -49,6 +45,11 @@ namespace PraxisCore
             zf.Dispose();
         }
 
+        public void SkipTo(int skip)
+        {
+            entryCounter = skip;
+        }
+
         public void AddEntry(DbTables.Place p)
         {
             //NOTE: the simple way of updating entries (write new data to stream) doesnt work on its own.
@@ -86,6 +87,19 @@ namespace PraxisCore
             return place;
         }
 
+        public List<DbTables.Place> GetNextPlaces(int count)
+        {
+            List<DbTables.Place> results = new List<DbTables.Place>(count);
+            for (int i =0; i < count; i++)
+            {
+                var place = GetNextPlace();
+                if (place != null)
+                    results.Add(place);
+            }
+
+            return results;
+        }
+
         public DbTables.Place GetSpecificPlace(long sourceItemId, int sourceItemType)
         {
             DbTables.Place place = null;
@@ -103,11 +117,23 @@ namespace PraxisCore
             return place;
         }
 
+        void SaveProgress()
+        {
+            File.WriteAllText(filename + ".progress", entryCounter.ToString());
+        }
+
+        void LoadProgress()
+        {
+            if (File.Exists(filename + ".progress"))
+                entryCounter = File.ReadAllText(filename + ".progress").ToInt();
+        }
+
         public static void LoadToDatabase(string pmdFile)
         {
             //This is for an existing file that's getting imported into the current DB.
             //EX: if I have pre-processed files available for coastline data, this should just get pulled in as-is.
             //This could be thrown into a folder during load, and when its loading PBFs it could just read pmd's in addition.
+
             Stopwatch sw = Stopwatch.StartNew();
             Log.WriteLog("Loading " + pmdFile + " to database at " + DateTime.Now);
             var db = new PraxisContext();
@@ -115,25 +141,33 @@ namespace PraxisCore
 
             var entry = new PlaceExport(pmdFile);
             entry.Open();
+            entry.LoadProgress();
 
-            int counter = 0;
+            //Batching this is a lot harder because I can't guarentee that all of these are the same item type.
+            //var batchSize = 100;
+            //var places = entry.GetNextPlaces(batchSize);
+
+            long placeCounter = 0;
+            long entryCounter = 0;
             DbTables.Place place = entry.GetNextPlace();
             while(place != null) 
             {
-                var thisEntry = db.Places.FirstOrDefault(p => p.SourceItemID == place.SourceItemID && p.SourceItemType == place.SourceItemType);
+                //TODO: batch this work so we can do 1 DB call for 1,000 reads. Will dramatically improve speed.
+                var thisEntry = db.Places.Include(p => p.Tags).Include(p => p.PlaceData).FirstOrDefault(p => p.SourceItemID == place.SourceItemID && p.SourceItemType == place.SourceItemType);
                 if (thisEntry == null)
                     db.Places.Add(place);
                 else
                 {
-                    db.Entry(place).CurrentValues.SetValues(thisEntry);
+                    Place.UpdateChanges(thisEntry, place, db);
                 }
-                counter++;
-                if (counter % 1000 == 0)
+                placeCounter++;
+                if (placeCounter % 1000 == 0)
                 {
-                    db.SaveChanges(); //should probably happen in batches, since we don't know how big a file is.
+                    entryCounter += db.SaveChanges(); //should probably happen in batches, since we don't know how big a file is.
                     db = new PraxisContext();
                     db.ChangeTracker.AutoDetectChangesEnabled = false;
-                    Log.WriteLog("Saved: " + counter + " entries");
+                    entry.SaveProgress();
+                    Log.WriteLog("Saved: " + entryCounter + " total entries");
                 }
                 place = entry.GetNextPlace();
             }
