@@ -530,7 +530,11 @@ namespace PraxisCore {
         {
             foreach (var p in places)
             {
-                ApplyTags(p, styleSet);
+                var data = p.PlaceData.FirstOrDefault(d => d.DataKey == styleSet);
+                if (data != null)
+                    p.StyleName = data.DataValue.ToUTF8String();
+                else
+                    ApplyTags(p, styleSet);
             }
             return places;
         }

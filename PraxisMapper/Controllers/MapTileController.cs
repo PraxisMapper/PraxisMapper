@@ -72,7 +72,8 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/DrawSlippyTile/{styleSet}/{zoom}/{x}/{y}.png")] //slippy map conventions.
         [Route("/[controller]/Slippy/{styleSet}/{zoom}/{x}/{y}.png")] //slippy map conventions.
         [Route("/[controller]/Slippy/{styleSet}/{onlyLayer}/{zoom}/{x}/{y}.png")] //slippy map conventions.
-        public ActionResult DrawSlippyTile(int zoom, int x, int y, string styleSet, string onlyLayer = null) {
+        [Route("/[controller]/Slippy/{styleSet}/{onlyLayer}/{skipType}/{zoom}/{x}/{y}.png")] //slippy map conventions.
+        public ActionResult DrawSlippyTile(int zoom, int x, int y, string styleSet, string onlyLayer = null, string skipType = null) {
             try {
                 Response.Headers.Add("X-noPerfTrack", "Maptiles/Slippy/" + styleSet + "/VARSREMOVED");
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString() + onlyLayer;
@@ -90,8 +91,9 @@ namespace PraxisMapper.Controllers
                     return File(tileData, "image/png");
                 }
 
-                //Make tile
-                var places = GetPlaces(info.area, null, styleSet: styleSet, filterSize: info.filterSize, dataKey: styleSet, dataValue: onlyLayer); //If pre-tag is on, this makes it a lot faster.
+                //Make tile. NEW: skipTags because we're relying on PlaceData now instead.
+                var skipTags = !TagParser.allStyleGroups[styleSet].Any(s => s.Value.PaintOperations.Any(o => o.StaticColorFromName)); //These needs tags for name.
+                var places = GetPlaces(info.area, null, skipTags:skipTags, styleSet: styleSet, filterSize: info.filterSize, dataKey: styleSet, dataValue: onlyLayer); 
                 var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, styleSet, info);
                 tileData = FinishSlippyMapTile(info, paintOps, tileKey, styleSet);
 
@@ -143,9 +145,10 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/DrawPlusCode/{code}/{styleSet}")]
         [Route("/[controller]/DrawPlusCode/{code}")]
         [Route("/[controller]/Area/{code}/{styleSet}/{onlyLayer}")]
+        [Route("/[controller]/Area/{code}/{styleSet}/{onlyLayer}/{skipType}")]
         [Route("/[controller]/Area/{code}/{styleSet}")]
         [Route("/[controller]/Area/{code}")]
-        public ActionResult DrawTile(string code, string styleSet = "mapTiles", string onlyLayer = null) {
+        public ActionResult DrawTile(string code, string styleSet = "mapTiles", string onlyLayer = null, string skipType = null) {
             Response.Headers.Add("X-noPerfTrack", "Maptiles/Area/" + styleSet + "/VARSREMOVED");
             try {
                 var info = new ImageStats(code);
@@ -164,8 +167,8 @@ namespace PraxisMapper.Controllers
                 }
 
                 //Make tile
-                //tileData = MapTiles.DrawAreaAtSize(info, null, styleSet);
-                var places = GetPlaces(info.area, null, styleSet:styleSet, filterSize: info.filterSize, dataKey:styleSet, dataValue: onlyLayer);
+                var skipTags = !TagParser.allStyleGroups[styleSet].Any(s => s.Value.PaintOperations.Any(o => o.StaticColorFromName)); //These needs tags for name.
+                var places = GetPlaces(info.area, null, styleSet:styleSet, skipTags:skipTags, filterSize: info.filterSize, dataKey:styleSet, dataValue: onlyLayer, skipType: skipType);
                 var paintOps = MapTileSupport.GetPaintOpsForPlaces(places, styleSet, info);
                 tileData = FinishMapTile(info, paintOps, code, styleSet);
 
