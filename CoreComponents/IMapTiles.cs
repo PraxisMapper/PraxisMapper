@@ -20,7 +20,7 @@ namespace PraxisCore
         /// <param name="drawnItems"></param>
         /// <param name="styleSet"></param>
         /// <returns></returns>
-        public byte[] DrawAreaAtSize(ImageStats stats, List<DbTables.Place> drawnItems = null, string styleSet = "mapTiles", bool skipBounds = false);
+        public byte[] DrawAreaAtSize(ImageStats stats, List<DbTables.Place> drawnItems = null, string styleSet = "mapTiles", string skipType = null);
         /// <summary>
         /// Draws the Area in stats using the list of given PaintOps.
         /// </summary>

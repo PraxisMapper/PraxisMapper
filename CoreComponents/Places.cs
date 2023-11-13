@@ -5,7 +5,6 @@ using PraxisCore.Support;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
 using static PraxisCore.DbTables;
 
 namespace PraxisCore
@@ -32,13 +31,19 @@ namespace PraxisCore
         /// <param name="skipGeometry">If true, elementGeometry will not be loaded from the database. Defaults to false.</param>
         /// <returns>A list of Places that intersect the area, have a perimter greater than or equal to filtersize.</returns>
         public static List<DbTables.Place> GetPlaces(GeoArea area, List<DbTables.Place> source = null, double filterSize = 0, string styleSet = "mapTiles",
-            bool skipTags = false, bool skipGeometry = false, string tagKey = null, string tagValue = null, string dataKey = null, string dataValue = null, bool skipBounds = false)
+            bool skipTags = false, bool skipGeometry = false, string tagKey = null, string tagValue = null, string dataKey = null, string dataValue = null, string skipType = null)
         {
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
             //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
             IQueryable<DbTables.Place> queryable;
             PraxisContext db = null;
 
+
+            //NOTE: with the EF Core setup, this returns 1 row per tag/PlaceData entry, and each of those will have the elementGeometry
+            //attached. Pulling in a detailed area with lots of tags may be disproportionately slow.
+
+            //TODO: can I use Simplify in EFCore db-side? Probably not but worth checking. Might be OK to send over a reduced version
+            //where the precision is the 1-pixel size so areas with TONS of points get sent over as far fewer.
             List<DbTables.Place> places;
             if (source == null)
             {
@@ -52,38 +57,42 @@ namespace PraxisCore
             else
                 queryable = source.AsQueryable();
 
+            queryable = queryable.Include(q => q.PlaceData); //With pre-tagging enforced you can't skip this.
+            
+            if (dataKey != null)
+                queryable = queryable.Where(p => p.PlaceData.Any(t => t.DataKey == dataKey));
+
+            if (dataValue != null)
+            {
+                byte[] dv = dataValue.ToByteArrayUTF8();
+                queryable = queryable.Where(p => p.PlaceData.Any(t => t.DataValue == dv));
+            }
+
+            if (skipType != null)
+                queryable = queryable.Where(p => !p.PlaceData.Any(t => t.DataKey == skipType));
+
             if (!skipTags)
             {
-                queryable = queryable.Include(q => q.Tags).Include(q => q.PlaceData);
-
-                if (skipBounds) //These are the biggest things to load, and if you're not drawing them this should dramatically speed up results.
-                    queryable = queryable.Where(q => !q.Tags.Any(t => t.Key == "boundary" && t.Value == "administrative"));
+                queryable = queryable.Include(q => q.Tags);
 
                 if (tagKey != null)
                     queryable = queryable.Where(p => p.Tags.Any(t => t.Key == tagKey));
 
                 if (tagValue != null)
                     queryable = queryable.Where(p => p.Tags.Any(t => t.Value == tagValue));
-
-                if (dataKey != null)
-                    queryable = queryable.Where(p => p.PlaceData.Any(t => t.DataKey == dataKey));
-
-                if (dataValue != null)
-                {
-                    byte[] dv = dataValue.ToByteArrayUTF8();
-                    queryable = queryable.Where(p => p.PlaceData.Any(t => t.DataValue == dv));
-                }
             }
 
             var paddedArea = GeometrySupport.MakeBufferedGeoArea(area);
-            var location = paddedArea.ToPolygon(); 
-            queryable = queryable.Where(md => location.Intersects(md.ElementGeometry) && md.DrawSizeHint >= filterSize).OrderByDescending(w => w.ElementGeometry.Area).ThenByDescending(w => w.ElementGeometry.Length);
+            var location = paddedArea.ToPolygon();
             
+            //Splitting this into 2 Where() clauses is a huge improvement in speed on large areas. The spatial index is the slower of the 2, so force it to go 2nd
+            queryable = queryable.Where(md => md.DrawSizeHint >= filterSize).Where(md => location.Intersects(md.ElementGeometry));
+
             if (skipGeometry)
                 queryable = queryable.Select(q => new DbTables.Place() { DrawSizeHint = q.DrawSizeHint, Id = q.Id, PrivacyId = q.PrivacyId, SourceItemID = q.SourceItemID, SourceItemType = q.SourceItemType, Tags = q.Tags });
 
-
             places = queryable.ToList();
+            places = places.OrderByDescending(p => p.DrawSizeHint).ToList(); //Sort server-side on this to make bigger queries faster.
             TagParser.ApplyTags(places, styleSet);
 
             if (db != null)
