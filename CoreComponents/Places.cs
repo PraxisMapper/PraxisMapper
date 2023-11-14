@@ -118,12 +118,13 @@ namespace PraxisCore
             return GetPlaces(stats.area, source, stats.filterSize, styleSet, skipTags, skipGeometry);
         }
 
-        public static DbTables.Place GetPlace(Guid privacyId)
+        public static DbTables.Place GetPlace(Guid privacyId, string styleSet = "mapTiles")
         {
             var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var place = db.Places.Include(q => q.Tags).Include(q => q.PlaceData).FirstOrDefault(p => p.PrivacyId == privacyId);
+            TagParser.ApplyTags(place, styleSet);
             return place;
         }
 

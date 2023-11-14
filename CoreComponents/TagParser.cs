@@ -532,7 +532,10 @@ namespace PraxisCore {
             {
                 var data = p.PlaceData.FirstOrDefault(d => d.DataKey == styleSet);
                 if (data != null)
+                {
                     p.StyleName = data.DataValue.ToUTF8String();
+                    p.IsGameElement = true;
+                }
                 else
                     ApplyTags(p, styleSet);
             }
