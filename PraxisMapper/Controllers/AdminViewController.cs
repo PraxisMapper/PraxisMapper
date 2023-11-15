@@ -103,20 +103,20 @@ namespace PraxisMapper.Controllers {
             using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
-            var area = db.Places.Include(e => e.Tags).FirstOrDefault(e => e.SourceItemID == sourceElementId && e.SourceItemType == sourceElementType);
-            if (area == null)
+            var place = db.Places.Include(e => e.Tags).FirstOrDefault(e => e.SourceItemID == sourceElementId && e.SourceItemType == sourceElementType);
+            if (place == null)
                 return View();
 
             int imageMaxEdge = Configuration["imageMaxSide"].ToInt();
             long maxImagePixels = Configuration["maxImagePixels"].ToLong();
 
-            TagParser.ApplyTags(new List<DbTables.Place>() { area }, "mapTiles");
-            ViewBag.areaname = TagParser.GetName(area);
-            ViewBag.type = area.StyleName;
-            ViewBag.geoType = area.ElementGeometry.GeometryType;
-            ViewBag.tags = String.Join(", ", area.Tags.Select(t => t.Key + ":" + t.Value));
+            TagParser.ApplyTags(new List<DbTables.Place>() { place }, "mapTiles");
+            ViewBag.areaname = TagParser.GetName(place);
+            ViewBag.type = place.StyleName;
+            ViewBag.geoType = place.ElementGeometry.GeometryType;
+            ViewBag.tags = String.Join(", ", place.Tags.Select(t => t.Key + ":" + t.Value));
 
-            var geoarea = area.ElementGeometry.Envelope.ToGeoArea().PadGeoArea(ConstantValues.resolutionCell10);
+            var geoarea = place.ElementGeometry.Envelope.ToGeoArea().PadGeoArea(ConstantValues.resolutionCell10);
 
             ImageStats istats = new ImageStats(geoarea, (int)(geoarea.LongitudeWidth / ConstantValues.resolutionCell11Lon), (int)(geoarea.LatitudeHeight / ConstantValues.resolutionCell11Lat));
             istats = MapTileSupport.ScaleBoundsCheck(istats, imageMaxEdge, maxImagePixels);
