@@ -18,6 +18,7 @@ using System.Linq;
 using System.Net.NetworkInformation;
 using System.Net;
 using System.Reflection;
+using System.Diagnostics;
 
 namespace PraxisMapper {
     public class Startup {
@@ -196,8 +197,8 @@ namespace PraxisMapper {
                 foreach(var path in allowList.Split(","))
                     PraxisAuthentication.whitelistedPaths.Add(path);
 
-                if (!PraxisAuthentication.whitelistedPaths.Any(p => p == "/Server/GdprExport"))
-                    PraxisAuthentication.whitelistedPaths.Add("/Server/GdprExport"); //For legal reasons this one must be available.
+                if (!PraxisAuthentication.whitelistedPaths.Any(p => p == "/Server/Gdpr"))
+                    PraxisAuthentication.whitelistedPaths.Add("/Server/Gdpr"); //For legal reasons this one must be available.
 
                 PraxisAuthentication.admins = db.AuthenticationData.Where(a => a.isAdmin).Select(a => a.accountId).ToHashSet();
             }
