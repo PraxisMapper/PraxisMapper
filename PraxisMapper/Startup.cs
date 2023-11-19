@@ -140,7 +140,7 @@ namespace PraxisMapper {
                         foreach (var i in toRemove)
                             PraxisAntiCheat.antiCheatStatus.TryRemove(i, out var removed);
                     }
-                    System.Threading.Thread.Sleep(1800000); // 30 minutes in milliseconds
+                    System.Threading.Thread.Sleep(Configuration.GetValue<int>("CleanupTimer")); //default 5 minutes
                 }
             });
         }
