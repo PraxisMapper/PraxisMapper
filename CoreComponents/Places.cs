@@ -31,7 +31,7 @@ namespace PraxisCore
         /// <param name="skipGeometry">If true, elementGeometry will not be loaded from the database. Defaults to false.</param>
         /// <returns>A list of Places that intersect the area, have a perimter greater than or equal to filtersize.</returns>
         public static List<DbTables.Place> GetPlaces(GeoArea area, List<DbTables.Place> source = null, double filterSize = 0, string styleSet = "mapTiles",
-            bool skipTags = true, bool skipGeometry = false, string tagKey = null, string tagValue = null, string dataKey = null, string dataValue = null, string skipType = null)
+            bool skipTags = false, bool skipGeometry = false, string tagKey = null, string tagValue = null, string dataKey = null, string dataValue = null, string skipType = null)
         {
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
             //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
@@ -147,6 +147,7 @@ namespace PraxisCore
                 using var db = new PraxisContext();
                 db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
+                //TODO: remove Include here and re-test.
                 return db.Places.Include(p => p.Tags).Any(md => md.ElementGeometry.Intersects(location) && !md.Tags.Any(t => t.Key == "bgwater")); //Exclude oceans from bounds checks.
             }
             return source.Any(md => md.ElementGeometry.Intersects(location));

@@ -249,7 +249,7 @@ namespace PraxisCore {
             //I need a slightly different function for using AreaGameData, or another optional parameter here
 
             if (drawnItems == null)
-                drawnItems = GetPlaces(stats.area, filterSize: stats.filterSize, dataKey:styleSet, skipType: skipType);
+                drawnItems = GetPlaces(stats.area, filterSize: stats.filterSize, skipTags: true, dataKey:styleSet, skipType: skipType);
             var paintOps = MapTileSupport.GetPaintOpsForPlaces(drawnItems, styleSet, stats);
 
             return DrawAreaAtSize(stats, paintOps);
