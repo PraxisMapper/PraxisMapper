@@ -397,10 +397,10 @@ namespace PraxisCore
             {
                 TagParser.ApplyTags(place, style.Key);
                 bool update = false;
-                
+
+                PlaceData info = place.PlaceData.FirstOrDefault(d => d.DataKey == style.Key);
                 if (place.StyleName != "unmatched" && place.StyleName != "background")
                 {
-                    PlaceData info = place.PlaceData.FirstOrDefault(d => d.DataKey == style.Key);
                     if (info == null)
                     {
                         info = new PlaceData() { DataKey = style.Key, DataValue = place.StyleName.ToByteArrayUTF8() };
@@ -410,6 +410,10 @@ namespace PraxisCore
                     {
                         info.DataValue = place.StyleName.ToByteArrayUTF8();
                     }
+                }
+                else
+                {
+                    place.PlaceData.Remove(info);
                 }
             }
         }
