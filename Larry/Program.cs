@@ -256,7 +256,11 @@ namespace Larry
                     RetagPlaces(pieces[1], "");
                 else
                     RetagPlaces();
+            }
 
+            if (args.Any(a => a == "-fudgeIt"))
+            {
+                FudgeIt();
             }
         }
 
@@ -890,6 +894,37 @@ namespace Larry
                 Log.WriteLog(allPlaces.Count + " places tagged in " + sw.ElapsedMilliseconds + "ms");
             }
             Log.WriteLog("Retag Complete at " + DateTime.Now);
+        }
+
+        public static void FudgeIt()
+        {
+            //Adjust some values to make things work better in general for apps
+
+            var db = new PraxisContext();
+
+            //1: Replace "United States of America" (148838) with "Continental United States" (9331155)
+            //Reason: Allows for thumbnails of the US that don't require drawing the entire world. 
+            //Sorry Alaska, Hawaii, Guam, and Puerto Rico, you'll have to be happy without a level 2 adminBound over you.
+            var us = db.Places.Include(p => p.PlaceData).FirstOrDefault(p => p.SourceItemID == 148838 && p.SourceItemType == 3);
+            var cus = db.Places.Include(p => p.PlaceData).FirstOrDefault(p => p.SourceItemID == 9331155 && p.SourceItemType == 3);
+
+            if (us != null && cus != null)
+            {
+                var swapData = us.PlaceData;
+                cus.PlaceData.Clear();
+
+                foreach (var sd in swapData)
+                {
+                    us.PlaceData.Remove(sd);
+                    cus.PlaceData.Add(new PlaceData() { DataKey = sd.DataKey, DataValue = sd.DataValue });
+                }
+            }
+
+            db.SaveChanges();
+
+
+
+
         }
     }
 }
