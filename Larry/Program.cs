@@ -246,9 +246,17 @@ namespace Larry
                 ExtractSubMap(placeId, placeTypeId);
             }
 
-            if (args.Any(a => a == "-retag"))
+            if (args.Any(a => a.StartsWith("-retag")))
             {
-                RetagPlaces();
+                var arg = args.First(a => a.StartsWith("-retag"));
+                string[] pieces = arg.Split(':');
+                if (pieces.Length == 3)
+                    RetagPlaces(pieces[1], pieces[2]);
+                else if (pieces.Length == 2)
+                    RetagPlaces(pieces[1], "");
+                else
+                    RetagPlaces();
+
             }
         }
 
@@ -742,10 +750,9 @@ namespace Larry
             var groupsDone = 0;
             var groupSize = 10000;
             bool keepGoing = true;
-            long lastEntry = 0; //This appears to be faster than Skip. Should confirm.
+            long lastEntry = 0;
             while (keepGoing)
             {
-                //var places = db.Places.Include(p => p.Tags).Skip(groupsDone * groupSize).Take(groupSize).ToList();
                 var places = db.Places.Include(p => p.Tags).Where(p => db.Places.OrderBy(pp => pp.Id).Where(pp => pp.Id > lastEntry).Select(pp => pp.Id).Take(groupSize).Contains(p.Id)).ToList();
                 if (places.Count < groupSize)
                     keepGoing = false;
@@ -832,7 +839,7 @@ namespace Larry
             Log.WriteLog(parentPlace + "-submap files written to OutputData folder at " + DateTime.Now +", completed in " + sw.Elapsed);
         }
 
-        public static void RetagPlaces()
+        public static void RetagPlaces(string styleSet = "", string style = "")
         {
             //In the DB, load up places, run TagParser on them for multiple styles, and save the results to PlaceData
             //This will allow for faster searching for specific styles by using the PlaceData indexes instead of loading all
@@ -854,13 +861,26 @@ namespace Larry
             {
                 sw.Restart();
                 //using the last ID is way more efficient than Skip(int). TODO Apply this anywhere else in the app I use skip/take
-                var allPlaces = db.Places.Include(p => p.PlaceData).Include(p => p.Tags).Where(p => p.Id > skip).Take(take).ToList();
+                var placeQuery = db.Places.Include(p => p.PlaceData).Where(p => p.Id > skip);
+                if (styleSet != null)
+                {
+                    if (style == "")
+                        placeQuery = placeQuery.Where(p => p.PlaceData.Any(d => d.DataKey == styleSet));
+                    else
+                    {
+                        var styleBytes = style.ToByteArrayUTF8();
+                        placeQuery = placeQuery.Where(p => p.PlaceData.Any(d => d.DataKey == styleSet && d.DataValue == styleBytes));
+                    }
+
+                }
+                var allPlaces = placeQuery.Take(take).ToList();
                 if (allPlaces.Count < take)
                     keepGoing = false;
 
                 skip = allPlaces.Max(p => p.Id);
                 foreach (var p in allPlaces)
                 {
+                    p.Tags = db.PlaceTags.Where(t => t.SourceItemType == p.SourceItemType && t.SourceItemId == p.SourceItemID).ToList();
                     PraxisCore.Place.PreTag(p);
                 }
 
