@@ -31,19 +31,17 @@ namespace PraxisCore
         /// <param name="skipGeometry">If true, elementGeometry will not be loaded from the database. Defaults to false.</param>
         /// <returns>A list of Places that intersect the area, have a perimter greater than or equal to filtersize.</returns>
         public static List<DbTables.Place> GetPlaces(GeoArea area, List<DbTables.Place> source = null, double filterSize = 0, string styleSet = "mapTiles",
-            bool skipTags = false, bool skipGeometry = false, string tagKey = null, string tagValue = null, string dataKey = null, string dataValue = null, string skipType = null)
+            bool skipTags = true, bool skipGeometry = false, string tagKey = null, string tagValue = null, string dataKey = null, string dataValue = null, string skipType = null)
         {
             //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
             //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
             IQueryable<DbTables.Place> queryable;
             PraxisContext db = null;
 
-
-            //NOTE: with the EF Core setup, this returns 1 row per tag/PlaceData entry, and each of those will have the elementGeometry
-            //attached. Pulling in a detailed area with lots of tags may be disproportionately slow.
-
             //TODO: can I use Simplify in EFCore db-side? Probably not but worth checking. Might be OK to send over a reduced version
             //where the precision is the 1-pixel size so areas with TONS of points get sent over as far fewer.
+
+            //TODO: see if I can use AsEnumerable() to enable streaming and processing of data instead of waiting for all entries with ToList()?
             List<DbTables.Place> places;
             if (source == null)
             {
@@ -91,8 +89,9 @@ namespace PraxisCore
             if (skipGeometry)
                 queryable = queryable.Select(q => new DbTables.Place() { DrawSizeHint = q.DrawSizeHint, Id = q.Id, PrivacyId = q.PrivacyId, SourceItemID = q.SourceItemID, SourceItemType = q.SourceItemType, Tags = q.Tags });
 
+
             places = queryable.ToList();
-            places = places.OrderByDescending(p => p.DrawSizeHint).ToList(); //Sort server-side on this to make bigger queries faster.
+            places = places.OrderByDescending(p => p.DrawSizeHint).ToList(); //Sort server-side on this to make bigger queries faster. MariaDB 11+ might do this correctly with an index?
             TagParser.ApplyTags(places, styleSet);
 
             if (db != null)
