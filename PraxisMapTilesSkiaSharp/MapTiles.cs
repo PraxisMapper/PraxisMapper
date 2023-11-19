@@ -260,13 +260,13 @@ namespace PraxisCore {
             //I need a slightly different function for using AreaGameData, or another optional parameter here
 
             if (drawnItems == null)
-                drawnItems = GetPlaces(stats.area, filterSize: stats.filterSize, skipType: skipType);
+                drawnItems = GetPlaces(stats.area, filterSize: stats.filterSize, dataKey:styleSet, skipType: skipType);
 
             var paintOps = MapTileSupport.GetPaintOpsForPlaces(drawnItems, styleSet, stats);
             return DrawAreaAtSize(stats, paintOps);
         }
 
-        public byte[] DrawAreaAtSize(ImageStats stats, List<CompletePaintOp> paintOps) {
+            public byte[] DrawAreaAtSize(ImageStats stats, List<CompletePaintOp> paintOps) {
             //This is the new core drawing function. Once the paint operations have been created, I just draw them here.
             //baseline image data stuff           
             SKBitmap bitmap = new SKBitmap(stats.imageSizeX, stats.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);

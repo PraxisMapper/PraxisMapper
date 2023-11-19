@@ -141,7 +141,7 @@ namespace PraxisCore {
             [Column(TypeName = "geography")]
             [Required]
             public Geometry ElementGeometry { get; set; }
-            public ICollection<PlaceTags> Tags { get; set; }
+            public ICollection<PlaceTags> Tags { get; set; } = new List<PlaceTags>();   
             public ICollection<PlaceData> PlaceData { get; set; } = new List<PlaceData>();
             [NotMapped]
             public bool IsGameElement { get; set; } //Gets determined by styles, shouldn't be a persisted property.
