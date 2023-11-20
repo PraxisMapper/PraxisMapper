@@ -15,12 +15,12 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net.NetworkInformation;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Reflection;
-using System.Diagnostics;
 
-namespace PraxisMapper {
+namespace PraxisMapper
+{
     public class Startup {
         string mapTilesEngine;
         bool usePerfTracker;

@@ -59,8 +59,6 @@ namespace PraxisCore
         /// <param name="elementId"></param>
         public void SetBoundary(long elementId)
         {
-            Geometry bound;
-
             var boundEntry = GetSpecificPlace(elementId, 3);
             if (boundEntry == null)
                 boundEntry = GetSpecificPlace(elementId, 2);

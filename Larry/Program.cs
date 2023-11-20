@@ -209,7 +209,7 @@ namespace Larry
                 //NOTE: this is intended to read through the water polygon file. It'll probably run with the coastline linestring file, but that 
                 //isn't going to draw what you want in PraxisMapper.
                 string arg = args.First(a => a.StartsWith("-processCoastlines:"));
-                string filename = arg.Substring(arg.IndexOf(":") + 1);
+                string filename = arg.Substring(arg.IndexOf(':') + 1);
                 ReadCoastlineWaterPolyShapefile(filename);
             }
 
@@ -270,7 +270,7 @@ namespace Larry
             var db = new PraxisContext();
             byte[] pending = "pending".ToByteArrayUTF8();
 
-            if (db.Places.Count() == 0)
+            if (db.Places.Any())
             {
                 db.DropIndexes();
                 db.GlobalData.Add(new GlobalData() { DataKey = "rebuildIndexes", DataValue = pending });
@@ -523,7 +523,7 @@ namespace Larry
                 DbTables.Place place = new DbTables.Place();
                 place.SourceItemID = 100000000000 + c;
                 place.SourceItemType = 2;
-                place.DrawSizeHint = poly.Area / ConstantValues.squareCell11Area; //accurate number
+                place.DrawSizeHint = GeometrySupport.CalculateDrawSizeHint(poly, TagParser.allStyleGroups["mapTiles"]["bgwater"].PaintOperations); //poly.Area / ConstantValues.squareCell11Area; //accurate number
                 place.ElementGeometry = poly;
                 place.Tags = new List<PlaceTags>() {
                     new PlaceTags() { Key = "bgwater", Value = "praxismapper" },

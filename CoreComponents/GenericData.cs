@@ -21,9 +21,9 @@ namespace PraxisCore
     /// </summary>
     public static class GenericData
     {
-        public static Aes baseSec = Aes.Create();
+        static Aes baseSec = Aes.Create();
         public static bool enableCaching = false;
-        public static IMemoryCache memoryCache = null; //TODO: implement config and code for GenericData caching.
+        public static IMemoryCache memoryCache = null;
 
 
         /// <summary>
@@ -1243,7 +1243,7 @@ namespace PraxisCore
             var rr = br.ReadAtLeastAsync(contentLength);
             var wait = rr.GetAwaiter();
             while (!wait.IsCompleted)
-                System.Threading.Thread.Sleep(10);
+                System.Threading.Thread.Sleep(1);
             var endData = rr.Result.Buffer.ToArray();
             br.AdvanceTo(rr.Result.Buffer.Start); // this is required to silence an error in Kestrel on Linux.
             return endData;

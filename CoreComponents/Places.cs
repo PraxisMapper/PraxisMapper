@@ -396,7 +396,6 @@ namespace PraxisCore
             foreach (var style in TagParser.allStyleGroups.Where(g => g.Key != "outlines" && g.Key != "paintTown"))
             {
                 TagParser.ApplyTags(place, style.Key);
-                bool update = false;
 
                 PlaceData info = place.PlaceData.FirstOrDefault(d => d.DataKey == style.Key);
                 if (place.StyleName != "unmatched" && place.StyleName != "background")
@@ -411,7 +410,7 @@ namespace PraxisCore
                         info.DataValue = place.StyleName.ToByteArrayUTF8();
                     }
                 }
-                else
+                else if (info != null)
                 {
                     place.PlaceData.Remove(info);
                 }

@@ -88,7 +88,6 @@ namespace PraxisMapper.Controllers {
         }
 
         [HttpPut]
-        [Route("/[controller]/UpdateStyleSetEntryValues/{styleSet}/{id}/{matchOrder}/{entryName}/{isGameElement}")]
         [Route("/[controller]/MatchRule/{id}/{matchType}/{key}/{value}")]
         public void UpdateMatchRule(long id, string matchType, string key, string value) {
             //Hasnt yet been tested.
