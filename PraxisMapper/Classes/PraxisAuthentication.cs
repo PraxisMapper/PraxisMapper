@@ -31,8 +31,8 @@ namespace PraxisMapper.Classes
 
                 if (loggedIn)
                 {
-                    context.Response.Headers.Add("X-account", data.accountId);
-                    context.Response.Headers.Add("X-internalPwd", data.intPassword);
+                    context.Response.Headers.Append("X-account", data.accountId);
+                    context.Response.Headers.Append("X-internalPwd", data.intPassword);
                 }
 
                 context.Response.OnStarting(() => {

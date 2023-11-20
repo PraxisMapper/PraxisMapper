@@ -62,7 +62,6 @@ namespace PraxisCore
                     //No addditional processing on tags is needed here.
                     var n = osmObject as Node;
                     return geometryFactory.CreatePoint(new Coordinate(n.Longitude.Value, n.Latitude.Value));
-                    break;
                 case OsmGeoType.Way:
                     bool isArea = false;
                     // check for a closed line if area.
@@ -99,7 +98,6 @@ namespace PraxisCore
                         Log.WriteLog("Relation entry is of type " + typeValue + ", unsupported.");
                         return null;
                     }
-                    break;
                 default:
                     throw new ArgumentOutOfRangeException();
             }

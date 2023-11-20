@@ -395,7 +395,7 @@ namespace PraxisCore.PbfReader
                                 }
                             }
 
-                            //Remove check
+                            //check if data is removed
                             var removed = currentData.Values.Where(c => !processed.Any(p => p.SourceItemID == c.SourceItemID)).ToList();
                             db.Places.RemoveRange(removed);
 

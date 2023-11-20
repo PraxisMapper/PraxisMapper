@@ -260,7 +260,6 @@ namespace PraxisCore {
             //baseline image data stuff
             var image = new Image<Rgba32>(stats.imageSizeX, stats.imageSizeY);
             var trimPoly = stats.area.ToPolygon();
-            string originalColor = "";
             Brush originalPaint = null;
             Pen originalPen = null;
 

@@ -143,14 +143,12 @@ namespace PraxisDemosPlugin.Controllers
             }
 
             //Trying to do this faster
-            string sql = "";
             var db = new PraxisContext();
             var maxArea = plusCode10.ToGeoArea().ToPolygon().Buffer(maxDistance.DistanceMetersToDegreesLat()).ToText(); //square, because the geoArea is square before buffering.
             var minArea = plusCode10.ToGeoArea().ToPolygon().Buffer(minDistance.DistanceMetersToDegreesLat()).ToText();
             //NOTE: MariaDB specific SQL here.
             var place = db.Places.FromSql($"SELECT * FROM Places WHERE ST_Intersects(ElementGeometry, ST_GeomFromText({maxArea})) AND NOT ST_Intersects(ElementGeometry, ST_GeomFromText({minArea})) ORDER BY RAND() LIMIT 1").Include(p => p.Tags).Include(p => p.PlaceData).FirstOrDefault();
             //150ms total-ish vs 5000ms below.
-
 
             //This way was about 5 seconds.
             //var places = FindValidPlaces(plusCode10, minDistance, maxDistance);
