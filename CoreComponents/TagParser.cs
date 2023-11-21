@@ -433,7 +433,7 @@ namespace PraxisCore {
         /// <returns>a Name value if one is found, or an empty string if not</returns>
         public static string GetName(ICollection<PlaceTags> tagsO)
         {
-            if (tagsO.Count == 0)
+            if (tagsO == null || tagsO.Count == 0)
                 return "";
             var retVal = tagsO.FirstOrDefault(t => t.Key == "name");
             if (retVal == null)
