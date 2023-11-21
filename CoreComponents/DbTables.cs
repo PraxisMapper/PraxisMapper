@@ -55,6 +55,11 @@ namespace PraxisCore {
             public int Id { get; set; }
             public string DataKey { get; set; }
             public byte[] DataValue { get; set; } //Holds byte data for both normal and encrypted entries. 
+
+            public override string ToString()
+            {
+                return DataKey + ":" + DataValue.ToUTF8String();
+            }
         }
         
 
@@ -69,6 +74,11 @@ namespace PraxisCore {
             public ICollection<StyleMatchRule> StyleMatchRules { get; set; }
             public bool IsGameElement { get; set; } // This tag should be used when asking for game areas, not just map tiles. Would let me use a single table for both again. Arguably, this could just be a second style to search that only contains elements of interest instead of a flag on one.
             public ICollection<StylePaint> PaintOperations { get; set; }
+
+            public override string ToString()
+            {
+                return Name;
+            }
         }
 
         public class StyleMatchRule
@@ -155,7 +165,7 @@ namespace PraxisCore {
 
             public override string ToString()
             {
-                return (SourceItemType == 3 ? "Relation " : SourceItemType == 2 ? "Way " : "Node ") +  SourceItemID.ToString() + " " + TagParser.GetName(Tags);
+                return ((StyleName == null ? "" : StyleName + " ") +  (SourceItemType == 3 ? "Relation " : SourceItemType == 2 ? "Way " : "Node ") +  SourceItemID.ToString() + " " + TagParser.GetName(Tags));
             }
 
             public Place Clone()
@@ -168,7 +178,6 @@ namespace PraxisCore {
         {
             [JsonIgnore]
             public long Id { get; set; }
-            //TODO: can I put these 2 fields on JsonIgnore? If they're always attached to the parent Place, they should get set automatically.
             [JsonIgnore]
             public long SourceItemId { get; set; }
             [JsonIgnore]
@@ -216,6 +225,11 @@ namespace PraxisCore {
             public DateTime? Expiration { get; set; } //optional. If value is in the past, ignore this data.
             public byte[] IvData { get; set; } //Only set if data is encrypted.
             public byte[] DataValue { get; set; } //Holds byte data for both normal and encrypted entries. 
+
+            public override string ToString()
+            {
+                return DataKey + ":" + (IvData == null ? DataValue.ToUTF8String() : "Encrypted");
+            }
         }
 
         public class StyleBitmap
@@ -237,7 +251,7 @@ namespace PraxisCore {
         {
             public long Id { get; set; }
             public string accountId { get; set; }
-            public string loginPassword { get; set; } //The external password the account uses to get an AuthToken
+            public string loginPassword { get; set; } //The external password the account uses to get an AuthToken. Resetting this loses access to dataPassword and all encrypted data.
             public string dataPassword { get; set; } //The internal password the account uses to read/write secure data entries for the player. Inaccesssible to the server owner.
             public byte[] dataIV { get; set; } // encryption values for dataPassword.
             public bool isAdmin { get; set; } = false;

@@ -86,10 +86,20 @@ namespace PraxisCore
             //Splitting this into 2 Where() clauses is a huge improvement in speed on large areas. The spatial index is the slower of the 2, so force it to go 2nd
             queryable = queryable.Where(md => md.DrawSizeHint >= filterSize).Where(md => location.Intersects(md.ElementGeometry));
 
-            if (skipGeometry)
-                queryable = queryable.Select(q => new DbTables.Place() { DrawSizeHint = q.DrawSizeHint, Id = q.Id, PrivacyId = q.PrivacyId, SourceItemID = q.SourceItemID, SourceItemType = q.SourceItemType, Tags = q.Tags });
+            queryable = queryable.Select(q => new DbTables.Place() 
+            { 
+                ElementGeometry = skipGeometry ? null : q.ElementGeometry,
+                DrawSizeHint = q.DrawSizeHint, 
+                Id = q.Id, 
+                PrivacyId = q.PrivacyId, 
+                SourceItemID = q.SourceItemID, 
+                SourceItemType = q.SourceItemType, 
+                Tags = skipTags ? null : q.Tags, 
+                PlaceData = dataKey == null ? q.PlaceData : q.PlaceData.Where(d => d.DataKey == dataKey).ToList()
+            });
 
 
+            var query = queryable.ToQueryString();
             places = queryable.ToList();
             places = places.OrderByDescending(p => p.DrawSizeHint).ToList(); //Sort server-side on this to make bigger queries faster. MariaDB 11+ might do this correctly with an index?
             TagParser.ApplyTags(places, styleSet);
