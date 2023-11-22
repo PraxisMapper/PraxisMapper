@@ -270,7 +270,7 @@ namespace Larry
             var db = new PraxisContext();
             byte[] pending = "pending".ToByteArrayUTF8();
 
-            if (db.Places.Any())
+            if (!db.Places.Any())
             {
                 db.DropIndexes();
                 db.GlobalData.Add(new GlobalData() { DataKey = "rebuildIndexes", DataValue = pending });

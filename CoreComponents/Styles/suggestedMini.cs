@@ -6,7 +6,7 @@ namespace PraxisCore.Styles
     /// <summary>
     /// A condensed version of suggestedGameplay, meant to only be high-quality areas to play games at. 
     /// </summary>
-    public static class suggestedMini
+    public static class suggestedmini
     {
         //This 
         public static List<StyleEntry> style = new List<StyleEntry>()

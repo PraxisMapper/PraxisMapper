@@ -50,7 +50,7 @@ namespace PraxisCore {
             Singletons.defaultStyleEntries.AddRange(Styles.outlines.style);
             Singletons.defaultStyleEntries.AddRange(Styles.paintTown.style);
             Singletons.defaultStyleEntries.AddRange(Styles.suggestedGameplay.style);
-            Singletons.defaultStyleEntries.AddRange(Styles.suggestedMini.style);
+            Singletons.defaultStyleEntries.AddRange(Styles.suggestedmini.style);
             Singletons.defaultStyleEntries.AddRange(Styles.teamColor.style);
 
             MapTiles = mapTiles;
