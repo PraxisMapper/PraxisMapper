@@ -318,7 +318,7 @@ namespace PraxisCore.PbfReader
                     switch (itemType)
                     {
                         case 1:
-                            //Nodes require the whole block to process, so we will process the whole block at once for those.
+                            //Nodes require the whole block to process, so we will process the whole block at once for those, and skip the later groups
                             groupMin = nodeIndex.Where(n => n.blockId == block).Min(n => n.minId);
                             groupMax = nodeIndex.Where(n => n.blockId == block).Max(n => n.maxId);
                             break;
@@ -406,15 +406,18 @@ namespace PraxisCore.PbfReader
                     SaveCurrentBlockAndGroup(block, groupId);
                     sw.Stop();
                     Log.WriteLog("Block " + block + " Group " + groupId + ": " + changed + (itemType == 1 ? " Node" : itemType == 2 ? " Way" : " Relation") + " and Tag entries modified in " + sw.Elapsed);
-                    nextBlockId++;
 
                     if (itemType == 3)
                         timeListRelations.Add(sw.Elapsed);
                     else if (itemType == 2)
                         timeListWays.Add(sw.Elapsed);
                     else
+                    {
                         timeListNodes.Add(sw.Elapsed);
+                        break; //skip all later groups for nodes, they're all handled at once.
+                    }
                 }
+                nextBlockId++;
             }
 
             //NOTE: this may not be appropriate for the PBFReader, since there could be mulitple files to run, or PMD files to process
@@ -1466,10 +1469,6 @@ namespace PraxisCore.PbfReader
         {
             Task.Run(() =>
             {
-                //TODO in process: swap to count up from 1
-                var relGroups = relationIndex.Count;
-                var wayGroups = wayIndex.Count;
-                var nodeGroups = nodeIndex.Count;
 
                 while (!token.IsCancellationRequested)
                 {
