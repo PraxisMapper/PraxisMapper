@@ -296,8 +296,6 @@ namespace Larry
         {
             Log.WriteLog("Setting preferred NET environment variables for performance. A restart may be required for them to apply.");
             System.Environment.SetEnvironmentVariable("DOTNET_CLI_TELEMETRY_OPTOUT", "1", EnvironmentVariableTarget.Machine);
-            System.Environment.SetEnvironmentVariable("COMPlus_TieredCompilation", "1", EnvironmentVariableTarget.Machine);//TODO: not necessary in NET 8
-            System.Environment.SetEnvironmentVariable("DOTNET_TieredPGO", "1", EnvironmentVariableTarget.Machine); //TODO: not necessary in NET 8
         }
 
         private static void PwdSpeedTest()
