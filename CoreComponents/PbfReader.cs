@@ -267,7 +267,7 @@ namespace PraxisCore.PbfReader
             //TODO: Make this the new main 'load' call, and meet all criteria below
             //Reasons:
             //This will both INSERT and UPDATE the database from a PBF file. (OK)
-            //This runs from start to front, so there's a better idea of progress at a glance. (OK)
+            //This runs from start to finish, so there's a better idea of progress at a glance. (OK)
             //Better fits the goal of simplicity for users (one call does it all) instead of requiring a multiple-step setup. (OK)
             //Still needs to be fast. (Generally OK, not explicitly timed vs old 'parse-to-geomdata/bulkload/create indexes/PreTag' path but isn't bad.)
 
@@ -399,8 +399,24 @@ namespace PraxisCore.PbfReader
                             var removed = currentData.Values.Where(c => !processed.Any(p => p.SourceItemID == c.SourceItemID)).ToList();
                             db.Places.RemoveRange(removed);
 
-                            changed = db.SaveChanges(); //This count includes tags and placedata.
+                            try
+                            {
+                                changed = db.SaveChanges(); //This count includes tags and placedata.
+                            }
+                            catch (Exception ex)
+                            {
+                                //TODO: more precise error handling and potentially in-line recovery
+                                //"max_allowed_packet" error may be fixable by splitting up the write commands?
+                                var message = ex.Message;
+                                while (ex.InnerException != null)
+                                {
+                                    ex = ex.InnerException;
+                                    message = ex.Message;
+                                }
+                                Log.WriteLog("Error saving Block " + block + " Group " + group + ": " + message);
+                            }
                             db.Dispose();
+
                         }
                     }
                     SaveCurrentBlockAndGroup(block, groupId);
