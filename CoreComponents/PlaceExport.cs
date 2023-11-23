@@ -189,12 +189,11 @@ namespace PraxisCore
             Log.WriteLog("Loading " + pmdFile + " to database at " + DateTime.Now);
             var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
-
+            db.Database.SetCommandTimeout(300);
 
             var entry = new PlaceExport(pmdFile);
             entry.bounds = bounds;
             entry.processingMode = processingMode;
-            entry.Open();
             entry.LoadProgress();
 
             //Batching this is a lot harder because I can't guarentee that all of these are the same item type.
