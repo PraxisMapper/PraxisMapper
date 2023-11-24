@@ -400,6 +400,24 @@ namespace PraxisCore
             return olc.CodeDigits;
         }
 
+        public static string RandomPoint(GeoArea bounds)
+        {
+            var ranLat = (Random.Shared.NextDouble() * (bounds.NorthLatitude - bounds.SouthLatitude)) + bounds.SouthLatitude;
+            var ranLon = (Random.Shared.NextDouble() * (bounds.EastLongitude - bounds.WestLongitude)) + bounds.WestLongitude;
+
+            var olc = new OpenLocationCode(ranLat, ranLon);
+            return olc.CodeDigits;
+        }
+
+        public static string RandomPoint(Polygon bounds)
+        {
+            var ranLat = (Random.Shared.NextDouble() * (bounds.EnvelopeInternal.MinY - bounds.EnvelopeInternal.MaxY)) + bounds.EnvelopeInternal.MinY;
+            var ranLon = (Random.Shared.NextDouble() * (bounds.EnvelopeInternal.MaxX - bounds.EnvelopeInternal.MinX)) + bounds.EnvelopeInternal.MinX;
+
+            var olc = new OpenLocationCode(ranLat, ranLon);
+            return olc.CodeDigits;
+        }
+
         public static void PreTag(DbTables.Place place)
         {
             //tag this place.
