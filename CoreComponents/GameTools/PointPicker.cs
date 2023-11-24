@@ -14,7 +14,7 @@ namespace PraxisCore.GameTools
         //when possible by selecting  points near teriarty roads or walking trails.
 
         //Given a PlusCode string, get pointCount Cell10s within that area. Bias towards walkable points if possible.
-        public static List<string> GetPoints(string area, int pointCount, bool checkWalkable = true)
+        public static List<string> GetPoints(string area, int pointCount, bool checkWalkable = true, int cellSize = 10)
         {
             if (area.Length >= 10 )
                 return new List<string>() { area }; //Sanity check on this so we don't infinite loop
@@ -41,7 +41,7 @@ namespace PraxisCore.GameTools
                     switch(item.ElementGeometry.GeometryType)
                     {
                         case "Point":
-                            nextPoint = OpenLocationCode.Encode(item.ElementGeometry.Centroid.Y, item.ElementGeometry.Centroid.X);
+                            nextPoint = OpenLocationCode.Encode(item.ElementGeometry.Centroid.Y, item.ElementGeometry.Centroid.X, cellSize);
                             break;
                         case "Polygon":
                             nextPoint = Place.RandomPoint(item.ElementGeometry as Polygon);
