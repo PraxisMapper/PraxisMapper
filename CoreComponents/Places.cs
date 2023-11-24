@@ -391,21 +391,21 @@ namespace PraxisCore
         /// </summary>
         /// <param name="bounds"></param>
         /// <returns></returns>
-        public static string RandomPoint(ServerSetting bounds)
+        public static string RandomPoint(ServerSetting bounds, int cellSize = 10)
         {
             var ranLat = (Random.Shared.NextDouble() * (bounds.NorthBound - bounds.SouthBound)) + bounds.SouthBound;
             var ranLon = (Random.Shared.NextDouble() * (bounds.EastBound - bounds.WestBound)) + bounds.WestBound;
 
-            var olc = new OpenLocationCode(ranLat, ranLon);
+            var olc = new OpenLocationCode(ranLat, ranLon, cellSize);
             return olc.CodeDigits;
         }
 
-        public static string RandomPoint(GeoArea bounds)
+        public static string RandomPoint(GeoArea bounds, int cellSize = 10)
         {
             var ranLat = (Random.Shared.NextDouble() * (bounds.NorthLatitude - bounds.SouthLatitude)) + bounds.SouthLatitude;
             var ranLon = (Random.Shared.NextDouble() * (bounds.EastLongitude - bounds.WestLongitude)) + bounds.WestLongitude;
 
-            var olc = new OpenLocationCode(ranLat, ranLon);
+            var olc = new OpenLocationCode(ranLat, ranLon, cellSize);
             return olc.CodeDigits;
         }
 
