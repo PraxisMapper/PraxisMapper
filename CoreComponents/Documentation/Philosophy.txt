@@ -2,6 +2,9 @@
 To explain some decisions on features and their inclusion/exclusion
 In no particular order
 
+-2) 'Locative games' sounds a whole lot better than "location-based game". It rolls off the tongue better, its shorter, specific, and was used long ago on smaller
+art-project style experiments. I want to bring it back. Expect to see it occasionally in this document and other writings of mine, and feel free to mentally substitute
+"location based games" when you see me use it.
 
 -1) This is open source, hobbyist work. Decisions get made in an non-professional capacity.
 PraxisMappper, in addition to stated goals below, is also meant to be a fun project, done outside the bounds of corporate policies and decisions.
@@ -175,4 +178,3 @@ This may be better handled by only processing areas on demand, so that things on
 EX: A player can place a mine that generates ore daily for them. Instead of having a nightly task that loads all players, and then loads each of their mines and grants ore every 24
 hours, instead store the time resources were last generated, and when a player logs in check to see how many resources they're owed and update the checked time. This way inactive
 players do not contribute to server load.
-
