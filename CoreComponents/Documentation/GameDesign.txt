@@ -83,7 +83,8 @@ is limited to players that are physically in a relatively small block of land. Y
 generalize because you cannot possibly know every point of interest on the planet, even with OSM data.  
 
 As of this writing, PM suggests that the following types of places are acceptable for gameplay:
-water, wetlands, park, beach, university, nature reserve, cemetery, retail, arts&culture, tourism, historical, trails.
+water, wetlands, park, beach, university, nature reserve, cemetery, retail, arts&culture, historical, trails.
+(suggestedMini, removes water, wetlands, beaches, retail, and trails, which cuts down the storage space needed for a server to approx. 10GB globally)
 These are usually open to the public, big enough to get exercise walking through, educational, of cultural interest, or some combination of these factors.
 Most of these categories are unlikely to generate any discussion on if they are appropriate choices. I will cover potential exceptions below.
 
@@ -146,3 +147,38 @@ Are you doing something for the player when they:
 [ ] Continue interacting with a Place?
 [ ] open up the game on their couch at home?
 
+
+--Types of Locative Game--
+I've worked out that inside the sphere of locative games, there's approximately 6 sub-genres. The only real common component is that 
+the games require you to walk around, but thats just an input method.  
+
+1) Movement Makers: The games that don't care WHERE you go, as long as you moved around to play. May not actually use your GPS.
+They work everywhere, but they don't do anything special based on where you are.
+Walkscape is showing up on Reddit as the next entry in this set, and exercise trackers built around a smartwatch or Fitbit could fall in here too.
+
+2) Waypoint Wandering: A game built on having interesting places that give you a reason to go to them repeatedly.
+All of Niantic's games and clones thereof fit in this group.
+These aren't great for rural players because there's fewer interesting places. Sometimes because they're not documented. Sometimes because they're not present.
+A city tour could also fit here, with a better focus on actual Points of Interest and limiting playerbase to people in the city.
+
+3) Routine Reinforcement: Your in-game actions are done around what you were already doing or where you already were.
+Might look like a Waypoint Wandering game, but you can place your own points of interest. Those points may or may not be visible to the public.
+Delta-T had players build their own bases and generators for their team, and attacked those of other teams.
+Badge(r)s builds up areas as more badges are placed, and placing and getting badges is a feedback loop.
+Fitbit stuff pushing you to do a few more steps than normal touch on this a bit, as would gamified chore trackers that promise a level up with a simple walk.
+
+4) In-Game Influences: Uses your location to affect the actual game you're playing. The actual game itself may not care about the specific location. May only use the map as a background.
+Orna has enemy spawns change a bit based on what's around you, based on 1 of 4 biomes, and how far you walk in one session. Monster Hunter Now rotates biomes around you.
+QONQR gives you a HUGE area to interact with by default, plus global event points on a schedule.
+GPS Monster Scouter also fits into this group. It uses GPS and an algorithm to determine what's around you, but has no idea of what the real world map is.
+Some AR games and toys fit here, since they need to know about your surroundings.
+
+5) Suspicious Scams: Any of the previous genres, but with a blockchain component. "Play to win" without explaining what the "Play" or "Win" parts are.
+Elynxir, Dropverse, and Winabom are getting named, only to point out that several of these exist or will exist. Do not install these. They are not games.
+If it makes you interact with a branded location or item, it's not a game, its an ad.
+
+6) Event Experience: The core of this game is a specific event, and participating as a large group simultaneously instead of a single player. 
+Sometimes can involve paid actors participating in real-life tasks guided by the phone game.
+These are pretty close to Waypoint Wandering, with a much stricter guiding hand between the waypoints and often outside puzzles to solve. Usually has an entry fee. 
+Very location specific, sometimes limited to a single building. Mostly a LARP game with an assistant app, sometimes.
+CluedUpp scavenger hunts fit in here, as would the Punchdrunk locative game that never got past the early design phase.
