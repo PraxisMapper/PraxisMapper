@@ -132,7 +132,10 @@ namespace PraxisCore
             var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
-            var place = db.Places.Include(q => q.Tags).Include(q => q.PlaceData).FirstOrDefault(p => p.PrivacyId == privacyId);
+            //NOTE: 2 DB round trips is worse for small geometries, but much faster for large ones, since geometry gets sent over once per tag with EF Core.
+            var place = db.Places.FirstOrDefault(p => p.PrivacyId == privacyId);
+            place.Tags = db.PlaceTags.Where(t => t.SourceItemId == place.SourceItemID && t.SourceItemType == place.SourceItemType).ToList();
+            place.PlaceData = db.PlaceData.Where(t => t.PlaceId == place.Id).ToList();
             TagParser.ApplyTags(place, styleSet);
             return place;
         }
