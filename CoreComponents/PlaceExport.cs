@@ -237,5 +237,21 @@ namespace PraxisCore
             Close();
             Open();
         }
+
+        public static void WritePlacesToFile(string filename, List<DbTables.Place> places)
+        {
+            var pe = new PlaceExport(filename);
+            foreach (var place in places)
+                pe.AddEntry(place);
+
+            try
+            {
+                pe.Close();
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog("Error writing data to disk:" + ex.Message, Log.VerbosityLevels.Errors);
+            }
+        }
     }
 }
