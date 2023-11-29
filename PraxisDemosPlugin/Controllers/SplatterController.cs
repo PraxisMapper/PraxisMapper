@@ -36,7 +36,7 @@ namespace PraxisDemosPlugin.Controllers
         [Route("/[controller]/Splat/{plusCode}/{radius}")]
         public void Splat(string plusCode, double radius)
         {
-
+            Response.Headers.Append("X-noPerfTrack", "Splatter/Splat/VARSREMOVED");
             var points = GenericData.GetPlayerData(accountId, "splatPoints").ToUTF8String().ToInt();
             if (points >= radius)
             {
@@ -76,16 +76,16 @@ namespace PraxisDemosPlugin.Controllers
             var info = new ImageStats(zoom, x, y, MapTileSupport.SlippyTileSizeSquare);
             info = MapTileSupport.ScaleBoundsCheck(info, Configuration["imageMaxSide"].ToInt(), Configuration["maxImagePixels"].ToLong());
 
-            Response.Headers.Add("X-noPerfTrack", "Splatter/Slippy/VARSREMOVED");
+            Response.Headers.Append("X-noPerfTrack", "Splatter/Slippy/VARSREMOVED");
             if (!DataCheck.IsInBounds(info.area))
             {
-                Response.Headers.Add("X-notes", "OOB");
+                Response.Headers.Append("X-notes", "OOB");
                 return StatusCode(500);
             }
             byte[] tileData = MapTileSupport.GetExistingSlippyTile(tileKey, "splatter");
             if (tileData != null)
             {
-                Response.Headers.Add("X-notes", "cached");
+                Response.Headers.Append("X-notes", "cached");
                 return File(tileData, "image/png");
             }
 
@@ -105,10 +105,10 @@ namespace PraxisDemosPlugin.Controllers
         [Route("/[controller]/MapTile/{plusCode}")]
         public ActionResult SplatterTile(string plusCode)
         {
-            Response.Headers.Add("X-noPerfTrack", "Splatter/MapTile/VARSREMOVED");
+            Response.Headers.Append("X-noPerfTrack", "Splatter/MapTile/VARSREMOVED");
             if (!DataCheck.IsInBounds(plusCode))
             {
-                Response.Headers.Add("X-notes", "OOB");
+                Response.Headers.Append("X-notes", "OOB");
                 return StatusCode(500);
             }
 
@@ -117,7 +117,7 @@ namespace PraxisDemosPlugin.Controllers
             var existingResults = MapTileSupport.GetExistingTileImage(plusCode, "splatter");
             if (existingResults != null)
             {
-                Response.Headers.Add("X-notes", "cached");
+                Response.Headers.Append("X-notes", "cached");
                 return File(existingResults, "image/png");
             }
 
@@ -137,6 +137,7 @@ namespace PraxisDemosPlugin.Controllers
         [Route("/[controller]/Enter/{plusCode}")]
         public int Enter(string plusCode)
         {
+            Response.Headers.Add("X-noPerfTrack", "Splatter/Enter/VARSREMOVED");
             //A user has entered a space, grant them a point to use to Splat later.
             SimpleLockable.PerformWithLock("splatEnter-" + accountId, () =>
             {
@@ -159,6 +160,7 @@ namespace PraxisDemosPlugin.Controllers
         [Route("/[controller]/Test/{plusCode8}")]
         public ActionResult TestShapes(string plusCode8)
         {
+            Response.Headers.Add("X-noPerfTrack", "Splatter/Test/VARSREMOVED");
             byte[] results = Array.Empty<byte>();
 
             if (!PraxisAuthentication.IsAdmin(accountId))

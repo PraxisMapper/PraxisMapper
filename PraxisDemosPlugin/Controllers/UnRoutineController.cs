@@ -51,6 +51,7 @@ namespace PraxisDemosPlugin.Controllers
         [Route("/[controller]/Enter/{plusCode10}")]
         public void Enter(string plusCode10)
         {
+            Response.Headers.Add("X-noPerfTrack", "Unroutine/Enter/VARSREMOVED");
             SimpleLockable.PerformWithLock(accountId, () =>
             {
                 var places = Place.GetPlaces(plusCode10.ToGeoArea());
@@ -88,6 +89,7 @@ namespace PraxisDemosPlugin.Controllers
         [Route("/[controller]/Ignore/{privacyId}")]
         public void IgnorePlace(string privacyId)
         {
+            Response.Headers.Add("X-noPerfTrack", "Unroutine/Ignore/VARSREMOVED");
             SimpleLockable.PerformWithLock(accountId, () =>
             {
                 Guid placeId = new Guid(privacyId);
@@ -119,7 +121,7 @@ namespace PraxisDemosPlugin.Controllers
         [Route("/[controller]/Target/{plusCode10}")]
         public string PickTargetPlace(string plusCode10)
         {
-
+            Response.Headers.Add("X-noPerfTrack", "Unroutine/Target/VARSREMOVED");
             var settings = GenericData.GetPlayerData<PlayerSettings>(accountId, "rbSettings");
             if (settings == null)
                 settings = new PlayerSettings() { distancePref = 3, categories = "all" };
@@ -166,9 +168,6 @@ namespace PraxisDemosPlugin.Controllers
                 name = "Unnamed " + place.StyleName;
             }
 
-
-
-
             var distance = GeometrySupport.MetersDistanceTo(plusCode10.ToGeoArea().ToPoint(), place.ElementGeometry.Centroid);
             return JsonSerializer.Serialize(new
             {
@@ -185,6 +184,7 @@ namespace PraxisDemosPlugin.Controllers
         [Route("/[controller]/Image/{placeId}")]
         public FileResult GetTargetImage(string placeId)
         {
+            Response.Headers.Add("X-noPerfTrack", "Unroutine/Image/VARSREMOVED");
             var place = Place.GetPlace(placeId);
 
             //We will lock this preview image to a 900x900px box.
