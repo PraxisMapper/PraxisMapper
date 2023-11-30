@@ -395,9 +395,10 @@ namespace PraxisCore.PbfReader
                                 }
                             }
 
-                            //check if data is removed
-                            var removed = currentData.Values.Where(c => !processed.Any(p => p.SourceItemID == c.SourceItemID)).ToList();
-                            db.Places.RemoveRange(removed);
+                            //check if data is removed - NOPE. This wipes out existing data if we're using a different styleSet or source file. 
+                            //TODO Delete needs to be its own pass, matching everything on an single extract file. 
+                            //var removed = currentData.Values.Where(c => !processed.Any(p => p.SourceItemID == c.SourceItemID)).ToList();
+                            //db.Places.RemoveRange(removed);
 
                             try
                             {
