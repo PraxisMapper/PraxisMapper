@@ -918,11 +918,15 @@ namespace Larry
                 }
             }
 
+            //This is the historic boundary for Ireland, which is not the admin boundary, and I dont want to treat a whole country as
+            //1 historic place for gameplay purposes.
+            var irl = db.Places.Include(p => p.PlaceData).FirstOrDefault(p => p.SourceItemID == 13428950 && p.SourceItemType == 3);
+            if (irl != null)
+            {
+                db.Places.Remove(irl);
+            }
+
             db.SaveChanges();
-
-
-
-
         }
     }
 }
