@@ -99,7 +99,7 @@ namespace PraxisCore
             });
 
 
-            var query = queryable.ToQueryString();
+            //var query = queryable.ToQueryString();
             places = queryable.ToList();
             places = places.OrderByDescending(p => p.DrawSizeHint).ToList(); //Sort server-side on this to make bigger queries faster. MariaDB 11+ might do this correctly with an index?
             TagParser.ApplyTags(places, styleSet);
