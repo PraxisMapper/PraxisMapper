@@ -366,7 +366,7 @@ namespace PraxisCore.PbfReader
 
                             //Skip post-processing when writing to disk.
                             var pe = new PlaceExport(filename.Replace(".pbf", "-" + block + "-" + groupId + ".pmd"));
-                            changed = geoData.Count;
+                            changed = processed.Count;
                             foreach (var place in processed)
                                 pe.AddEntry(place);
 
@@ -414,6 +414,22 @@ namespace PraxisCore.PbfReader
                                     message = ex.Message;
                                 }
                                 Log.WriteLog("Error saving Block " + block + " Group " + group + ": " + message);
+
+                                //NOTE: copy/pasting save to file here as a way to quick-recover this data later.
+                                //TOOD: functionalize this later.
+                                var pe2 = new PlaceExport(filename.Replace(".pbf", "-" + block + "-" + groupId + ".pmd"));
+                                changed = geoData.Count;
+                                foreach (var place in processed)
+                                    pe2.AddEntry(place);
+
+                                try
+                                {
+                                    pe2.Close();
+                                }
+                                catch (Exception ex2)
+                                {
+                                    Log.WriteLog("Error writing data to disk:" + ex2.Message, Log.VerbosityLevels.Errors);
+                                }
                             }
                             db.Dispose();
 
