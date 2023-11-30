@@ -9,11 +9,13 @@ namespace PraxisCore.Styles
     public static class adminBounds
     {
         //adminBounds: Draws only admin boundaries, all levels supported but names match USA's common usage of them
+        //OK, these should probably be fixed-width items, but they also need a max zoom to draw at (no minimum). 
+        //That may be the best looking result
         public static List<StyleEntry> style = new List<StyleEntry>()
         {
             new StyleEntry() { MatchOrder = 1, Name ="country",  StyleSet = "adminBounds",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "E31010", FillOrStroke = "stroke", LineWidthDegrees = 0.00005f, LinePattern= "solid", LayerId = 100 }
+                    new StylePaint() { HtmlColorCode = "E31010", FillOrStroke = "stroke", FixedWidth = 12,  LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
@@ -23,7 +25,7 @@ namespace PraxisCore.Styles
             },
             new StyleEntry() { MatchOrder = 2, Name ="region",  StyleSet = "adminBounds", //dot pattern
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "CC8A58", FillOrStroke = "stroke", LineWidthDegrees = 0.00004f, LinePattern= "10|10", LayerId = 90 }
+                    new StylePaint() { HtmlColorCode = "CC8A58", FillOrStroke = "stroke", FixedWidth = 10, LinePattern= "10|10", LayerId = 90 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
@@ -32,7 +34,7 @@ namespace PraxisCore.Styles
             },
             new StyleEntry() { MatchOrder = 3, Name ="state",   StyleSet = "adminBounds", //dot pattern
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "FFE30D", FillOrStroke = "stroke", LineWidthDegrees = 0.00003f, LinePattern= "10|5", LayerId = 80 }
+                    new StylePaint() { HtmlColorCode = "FFE30D", FillOrStroke = "stroke", FixedWidth = 10, LinePattern= "10|5", LayerId = 80 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
@@ -41,7 +43,7 @@ namespace PraxisCore.Styles
             },
             new StyleEntry() { MatchOrder = 4, Name ="admin5", StyleSet = "adminBounds", //Line pattern is dash-dot-dot
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "369670", FillOrStroke = "stroke", LineWidthDegrees = 0.00002f, LinePattern= "20|10|10|10|10|10", LayerId = 70 }
+                    new StylePaint() { HtmlColorCode = "369670", FillOrStroke = "stroke", FixedWidth = 8, LinePattern= "20|10|10|10|10|10", LayerId = 70 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
@@ -50,7 +52,7 @@ namespace PraxisCore.Styles
             },
             new StyleEntry() { MatchOrder = 5, Name ="county",  StyleSet = "adminBounds", //dash-dot pattern
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "3E8A25", FillOrStroke = "stroke", LineWidthDegrees = 0.00001f, LinePattern= "20|10|10|10", LayerId = 60 }
+                    new StylePaint() { HtmlColorCode = "3E8A25", FillOrStroke = "stroke", FixedWidth = 8, LinePattern= "20|10|10|10", LayerId = 60 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
@@ -59,7 +61,7 @@ namespace PraxisCore.Styles
             },
             new StyleEntry() { MatchOrder = 6, Name ="township",  StyleSet = "adminBounds", //dash
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "32FCF6", FillOrStroke = "stroke", LineWidthDegrees = 0.000009f, LinePattern= "25|10", LayerId = 50 }
+                    new StylePaint() { HtmlColorCode = "32FCF6", FillOrStroke = "stroke", FixedWidth = 6, LinePattern= "25|10", LayerId = 50 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
@@ -68,7 +70,7 @@ namespace PraxisCore.Styles
             },
             new StyleEntry() { MatchOrder = 7, Name ="city",  StyleSet = "adminBounds", //dash
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "0F34BA", FillOrStroke = "stroke", LineWidthDegrees = 0.000007f, LinePattern= "20|10", LayerId = 40 }
+                    new StylePaint() { HtmlColorCode = "0F34BA", FillOrStroke = "stroke", FixedWidth =6, LinePattern= "20|10", LayerId = 40 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
@@ -77,7 +79,7 @@ namespace PraxisCore.Styles
             },
             new StyleEntry() { MatchOrder = 8, Name ="ward",  StyleSet = "adminBounds", //dot
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "A46DFC", FillOrStroke = "stroke", LineWidthDegrees = 0.000005f, LinePattern= "10|10", LayerId = 30 }
+                    new StylePaint() { HtmlColorCode = "A46DFC", FillOrStroke = "stroke", FixedWidth = 4, LinePattern= "10|10", LayerId = 30 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
@@ -86,16 +88,16 @@ namespace PraxisCore.Styles
             },
             new StyleEntry() { MatchOrder = 9, Name ="neighborhood",  StyleSet = "adminBounds", //dot
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "B811B5", FillOrStroke = "stroke", LineWidthDegrees = 0.000003f, LinePattern= "10|5", LayerId = 20 }
+                    new StylePaint() { HtmlColorCode = "B811B5", FillOrStroke = "stroke", FixedWidth = 4, LinePattern= "10|5", LayerId = 20 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
                     new StyleMatchRule() { Key = "admin_level", Value = "10", MatchType = "equals" }
                 }
             },
-            new StyleEntry() { MatchOrder = 10, Name ="admin11", StyleSet = "adminBounds", //not rendered
+            new StyleEntry() { MatchOrder = 10, Name ="admin11", StyleSet = "adminBounds",
                 PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "00FF2020", FillOrStroke = "stroke", LineWidthDegrees = 0.000001f, LinePattern= "solid", LayerId = 10 }
+                    new StylePaint() { HtmlColorCode = "FF2020", FillOrStroke = "stroke", FixedWidth = 4, LinePattern= "solid", LayerId = 10 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "boundary", Value = "administrative", MatchType = "equals" },
