@@ -192,6 +192,14 @@ namespace Larry
                 MapTileSupport.PregenMapTilesForArea(bounds);
             }
 
+            if (args.Any(a => a == "-autoCreateSlippyMapTiles"))
+            {
+                using var db = new PraxisContext();
+                var bounds = db.SetServerBounds(long.Parse(config["UseOneRelationID"]));
+                for(int zoom = 2; zoom <= 18; zoom++)
+                    MapTileSupport.PregenSlippyMapTilesForArea(bounds, zoom);
+            }
+
             if (args.Any(a => a == "-findServerBounds"))
             {
                 using var db = new PraxisContext();
