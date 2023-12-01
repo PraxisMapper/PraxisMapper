@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
+using NetTopologySuite.GeometriesGraph;
 using OsmSharp.Complete;
 using OsmSharp.Tags;
 using ProtoBuf;
@@ -475,6 +476,83 @@ namespace PraxisCore.PbfReader
             CleanupFiles();
             swFile.Stop();
             Log.WriteLog(filename + " completed at " + DateTime.Now + ", session lasted " + swFile.Elapsed);
+        }
+
+        public void DeleteMissingItems(string filename)
+        {
+            //TODO: deleting items from the existing DB is harder than add/update
+            //The user might have picked a particular style set, or multiple ones, or multiple files
+            //Therefore, delete is its own pass with its own rules.
+            //Delete must be done with a file that encompasses ALL the areas previously loaded
+            //(EX: if you loaded NY and NJ state files, you have to use at least the US Northeast extract)
+            //Delete can be fast because it ONLY needs to see if the ID exists in the PBF file,
+            //so I don't have to process the actual geometry. 
+
+            //index helps? 
+            //check DB for IDs between start and end per block
+            //If any in DB are missing from file, delete them
+            //check for values between blocks, if any are in db delete them.
+            PrepareFile(filename);
+            var Bcount = BlockCount();
+
+            var db = new PraxisContext();
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
+
+            for (var block = nextBlockId; block < Bcount; block++)
+            {
+                var blockData = GetBlock(block);
+                //foreach(var group in blockData.primitivegroup)
+                for (int groupId = 0; groupId < blockData.primitivegroup.Count; groupId++)
+                {
+                    var group = blockData.primitivegroup[groupId];
+                    IndexInfo index = new IndexInfo();
+                    int itemType = 0;
+                    if (block < firstWayBlock)
+                        itemType = 1;
+                    else if (block < relationIndex[0].blockId)
+                        itemType = 2;
+                    else
+                        itemType = 3;
+
+                    switch (itemType)
+                    {
+                        case 1:
+                            index = nodeIndex.First(n => n.blockId == block && n.groupId == groupId);
+                            break;
+                        case 2:
+                            index = wayIndex.First(n => n.blockId == block && n.groupId == groupId);
+                            break;
+                        case 3:
+                            index = relationIndex.First(n => n.blockId == block && n.groupId == groupId);
+                            break;
+                    }
+
+                    //TODO: work out correct rules for checking items BETWEEN blocks/groups. This logic will work on planet.osm.pbf, but may not on extracts.
+                    var dbEntries = db.Places.Where(p => p.SourceItemType == itemType && (p.SourceItemID >= index.minId && p.SourceItemID <= index.maxId)).ToList();
+                    foreach(var e in dbEntries)
+                    {
+                        bool isPresent = false;
+                        switch (itemType)
+                        {
+                            case 1:
+                                //Nodes need to be scanned, probably shouldnt be done incrementally in a foreach.
+                                //if (group.)
+                                break;
+                            case 2:
+                                isPresent = (group.ways.FirstOrDefault(w => w.id == e.SourceItemID) == null);
+                                if (!isPresent)
+                                    db.Places.Remove(e);
+                                break;
+                            case 3:
+                                isPresent = (group.relations.FirstOrDefault(r => r.id == e.SourceItemID) == null);
+                                if (!isPresent)
+                                    db.Places.Remove(e);
+                                break;
+                        }
+                    }
+                    db.SaveChanges();
+                }
+            }
         }
 
         public void LastChanceRead(long block)
