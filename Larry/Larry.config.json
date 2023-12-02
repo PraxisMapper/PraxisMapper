@@ -11,26 +11,22 @@
 
   //MariaDB: Free and open-source database. Simpler than SQL Server, but has all the necessary features for PraxisMapper. Suggested for most users that need more than LocalDB.
   //"DbMode": "MariaDB",
-  //"DbConnectionString": "server=localhost;database=praxis;user=root;password=test;",
+  //"DbConnectionString": "server=localhost;database=praxis;user=root;password=test;",ord=asdf;",
 
-  ///The folder to read PBF files from. All PBF files will be read sequentially. 
+  ///The folder to read PBF and PMD files from. Also where any output files will be generated.
   "PbfFolder": "C:\\Praxis\\",
-  //If generating intermediate .geomData/tagsData files, they'll be saved to this folder.
-  "OutputDataFolder": "C:\\Praxis\\",
 
-  //if true, entries in a PBF without tags are skipped. If false, untagged entries will be imported to the PraxisMapper database.
-  "OnlyTaggedAreas": true,
   //If true, Larry ignores the PraxisMapper database and uses only the default styles. False reads all styles present in the database.
   "ForceStyleDefaults": false,
-  //If false, will save directly to DB on baseline processPbf command. If true, saves processed output to .geomData TSV files (and .tagsData TSV files) in the OutputDataFolder
-  "UseGeomDataFiles": false,
+  //If false, will save directly to DB. If true, saves processed output to a .pmd file in the PbfFolder instead.
+  "WritePmdFiles": false,
   //Set this to limit PBF importing to entries that intersect or are overlapped by a relation with this ID. 0 means all entries in the PBF will be processed.
   "UseOneRelationID": 0,
   //How much verbosity to use in console or text-file logging. 1 = None, 2 is Errors Only, 3 is Normal, 4 is Verbose.
   "LogLevel": 3,
   //Set this to true ONLY if you are using the -drawOneImage:#### command, and want to draw the output from a PBF file without actually loading the data to a database.
   "KeepElementsInMemory": false,
-  //When processing PBFs, use this style set to decide if an area if 'unmatched' or not.
+  //When processing PBFs, use this style set to decide if an area if 'unmatched' or not
   "TagParserStyleSet": "mapTiles",
   //How much to multiply the size of a gameplay map tile by. At 1, Cell8 sized plus code images are 80x100, making each pixel a single Cell11. Defaults to 4, for 320x400px tiles.
   "mapTileScaleFactor": 4,
@@ -38,15 +34,12 @@
   "slippyTileSize": 512, //is in db settings already.
   //How much additional area to load when drawing map tiles. Necessary to have points on the edge of a map tile draw correctly. Defaults to a single Cell10 width.
   "AreaBuffer": 0.000125,
-  //normal: Intended functionality. 
+  //normal: Intended functionality. Use data as it is.
+  //expandPoints: Takes any Node entries in the reprocessed file, and converts them to a Cell8-sized Way.
   //center: save only item's center point, instead of it's full data. 
-  //minimize: Larry will round all GPS coordinates to 7 digits and remove points that wouldn't change the Cell10s that Geometry would be drawn over
-  //minimize also reduces tags saved to 2: a name, if present, and the suggestedmini style name for the area.
+  //minimize: Saves a reduced-accuracy version of elements that uses fewer points. Looks fine zoomed out, tends to be very inaccurate up close.
   //If you are EXTREMELY limited on space, and not drawing map tiles to be served, but want to detect what areas a user is present at, minimize might be the option you want.
   "processingMode": "normal",
-  //false: normal behavior, reads PBF files. true: loads an existing .geomdata file and follow normal processing rules on it, then re-do output.
-  //If this is true, you are probably either regenerating files to fix DrawSizeHints to match changes you made to the mapTiles style, or seeing what minimize processingMode does to geometry.
-  "reprocessFiles": false,
   //When creating images, load this IMapTiles interface to do it. Valid options are "SkiaSharp" and "ImageSharp".
   //SkiaSharp is faster and generally looks better, but only works on Windows because of native dependencies. ImageSharp works on everything, but about 30% of the speed.
   "MapTilesEngine": "SkiaSharp",
