@@ -11,7 +11,7 @@ Looking for a start on client development? Grab <a href="https://github.com/Prax
 
 # Requirements
 * Visual Studio 2022 17.0+ Community (or the mac/linux equivalent)
-* .NET 7.0
+* .NET 8.0
 * [optionally] MariaDB 10.6+ (Recommended) OR SQL Server 2016+ OR PostgreSQL
 * System resources may vary with content.
 * * Running a county-sized game (500 square miles/1200 square kilometers)? A server can run with as little as 1GB RAM and storage space, with the webserver and DB on the same box.
