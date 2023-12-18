@@ -73,9 +73,23 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Slippy/{styleSet}/{zoom}/{x}/{y}.png")] //slippy map conventions.
         [Route("/[controller]/Slippy/{styleSet}/{onlyLayer}/{zoom}/{x}/{y}.png")] //slippy map conventions.
         [Route("/[controller]/Slippy/{styleSet}/{onlyLayer}/{skipType}/{zoom}/{x}/{y}.png")] //slippy map conventions.
-        public ActionResult DrawSlippyTile(int zoom, int x, int y, string styleSet, string onlyLayer = null, string skipType = null) {
+        [Route("/[controller]/Slippy/")] //slippy map conventions.
+        public ActionResult DrawSlippyTile(int zoom = -1, int x = -1, int y = -1, string styleSet = null, string onlyLayer = null, string skipType = null) {
             try {
                 Response.Headers.Add("X-noPerfTrack", "Maptiles/Slippy/" + styleSet + "/VARSREMOVED");
+
+                if (styleSet == null)
+                {
+                    var data = Request.ReadBody();
+                    var decoded = GenericData.DeserializeAnonymousType(data, new { zoom = -1, x = -1, y = -1, styleSet = "mapTiles", onlyLayer = "", skipType = "" });
+                    zoom = decoded.zoom;
+                    x = decoded.x;
+                    y = decoded.y;
+                    styleSet = decoded.styleSet == "" ? null : decoded.styleSet;
+                    onlyLayer = decoded.onlyLayer == "" ? null : decoded.onlyLayer;
+                    skipType = decoded.skipType == "" ? null : decoded.skipType;
+                }
+
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString() + onlyLayer;
                 var info = new ImageStats(zoom, x, y, MapTileSupport.SlippyTileSizeSquare);
                 info = MapTileSupport.ScaleBoundsCheck(info, Configuration["imageMaxSide"].ToInt(), Configuration["maxImagePixels"].ToLong());
@@ -110,9 +124,21 @@ namespace PraxisMapper.Controllers
         [HttpGet]
         [Route("/[controller]/DrawSlippyTileAreaData/{styleSet}/{zoom}/{x}/{y}.png")] //slippy map conventions.
         [Route("/[controller]/SlippyAreaData/{styleSet}/{zoom}/{x}/{y}.png")] //slippy map conventions.
-        public ActionResult DrawSlippyTileAreaData(int zoom, int x, int y, string styleSet) {
+        [Route("/[controller]/SlippyAreaData/")]
+        public ActionResult DrawSlippyTileAreaData(int zoom = -1, int x = -1, int y = -1, string styleSet = null) {
             try {
                 Response.Headers.Add("X-noPerfTrack", "Maptiles/SlippyAreaData/" + styleSet + "/VARSREMOVED");
+
+                if (styleSet == null)
+                {
+                    var data = Request.ReadBody();
+                    var decoded = GenericData.DeserializeAnonymousType(data, new { zoom = -1, x = -1, y = -1, styleSet = "mapTiles"});
+                    zoom = decoded.zoom;
+                    x = decoded.x;
+                    y = decoded.y;
+                    styleSet = decoded.styleSet == "" ? null : decoded.styleSet;
+                }
+
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString();
                 var info = new ImageStats(zoom, x, y, MapTileSupport.SlippyTileSizeSquare);
                 info = MapTileSupport.ScaleBoundsCheck(info, Configuration["imageMaxSide"].ToInt(), Configuration["maxImagePixels"].ToLong());
@@ -148,8 +174,20 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Area/{code}/{styleSet}/{onlyLayer}/{skipType}")]
         [Route("/[controller]/Area/{code}/{styleSet}")]
         [Route("/[controller]/Area/{code}")]
-        public ActionResult DrawTile(string code, string styleSet = "mapTiles", string onlyLayer = null, string skipType = null) {
+        [Route("/[controller]/Area/")]
+        public ActionResult DrawTile(string code =null, string styleSet = "mapTiles", string onlyLayer = null, string skipType = null) {
             Response.Headers.Add("X-noPerfTrack", "Maptiles/Area/" + styleSet + "/VARSREMOVED");
+
+            if (code == null)
+            {
+                var data = Request.ReadBody();
+                var decoded = GenericData.DeserializeAnonymousType(data, new { code = "", styleSet = "mapTiles", onlyLayer = "", skipType = "" });
+                code = decoded.code;
+                styleSet = decoded.styleSet == "" ? "mapTiles" : decoded.styleSet;
+                onlyLayer = decoded.onlyLayer == "" ? null : decoded.onlyLayer;
+                skipType = decoded.skipType == "" ? null : decoded.skipType;
+            }
+
             try {
                 var info = new ImageStats(code);
                 info = MapTileSupport.ScaleBoundsCheck(info, Configuration["imageMaxSide"].ToInt(), Configuration["maxImagePixels"].ToLong());
@@ -184,8 +222,18 @@ namespace PraxisMapper.Controllers
         [HttpGet]
         [Route("/[controller]/AreaData/{code}/{styleSet}")]
         [Route("/[controller]/AreaData/{code}")]
-        public ActionResult DrawTileAreaData(string code, string styleSet = "mapTiles") {
+        [Route("/[controller]/AreaData/")]
+        public ActionResult DrawTileAreaData(string code = null, string styleSet = "mapTiles") {
             Response.Headers.Add("X-noPerfTrack", "Maptiles/AreaData/" + styleSet + "/VARSREMOVED");
+
+            if (code == null)
+            {
+                var data = Request.ReadBody();
+                var decoded = GenericData.DeserializeAnonymousType(data, new { code = "", styleSet = "mapTiles", onlyLayer = "", skipType = "" });
+                code = decoded.code;
+                styleSet = decoded.styleSet == "" ? "mapTiles" : decoded.styleSet;
+            }
+
             try {
                 var info = new ImageStats(code);
                 info = MapTileSupport.ScaleBoundsCheck(info, Configuration["imageMaxSide"].ToInt(), Configuration["maxImagePixels"].ToLong());
@@ -226,13 +274,23 @@ namespace PraxisMapper.Controllers
         [HttpGet]
         [Route("/[controller]/GetTileGenerationId/{plusCode}/{styleSet}")]
         [Route("/[controller]/Generation/{plusCode}/{styleSet}")]
-        public long GetTileGenerationId(string plusCode, string styleSet) {
+        [Route("/[controller]/Generation/")]
+        public long GetTileGenerationId(string plusCode = null, string styleSet = null) {
             //Returns generationID on the tile on the server
             //if value is *more* than previous value, client should refresh it.
             //if value is equal to previous value, tile has not changed.
             //As is, the client will probably download map tiles twice on change. Once when its expired and being redrawn (-1 return value),
             //and once when the generationID value is incremented from the previous value.
             //Avoiding that might require an endpoint for 'please draw this tile' that returns true or false rather than the actual maptile.
+
+            if (plusCode == null)
+            {
+                var data = Request.ReadBody();
+                var decoded = GenericData.DeserializeAnonymousType(data, new { plusCode = "", styleSet = ""});
+                plusCode = decoded.plusCode;
+                styleSet = decoded.styleSet == "" ? null : decoded.styleSet;
+            }
+
             Response.Headers.Add("X-noPerfTrack", "Maptiles/Generation/" + styleSet + "/VARSREMOVED");
             try {
                 using var db = new PraxisContext();
@@ -254,11 +312,22 @@ namespace PraxisMapper.Controllers
         [HttpGet]
         [Route("/[controller]/GetSlippyTileGenerationId/{x}/{y}/{zoom}/{styleSet}")]
         [Route("/[controller]/Generation/{zoom}/{x}/{y}/{styleSet}")]
-        public long GetSlippyTileGenerationId(string x, string y, string zoom, string styleSet) {
+        public long GetSlippyTileGenerationId(string x = null, string y = null, string zoom = null, string styleSet = null) {
             //Returns generationID on the tile on the server
             //if value is *more* than previous value, client should refresh it.
             //if value is equal to previous value, tile has not changed.
             Response.Headers.Add("X-noPerfTrack", "Maptiles/SlippyGeneration/" + styleSet + "/VARSREMOVED");
+
+            if (styleSet == null)
+            {
+                var data = Request.ReadBody();
+                var decoded = GenericData.DeserializeAnonymousType(data, new { zoom = "", x = "", y = "", styleSet = "mapTiles" });
+                zoom = decoded.zoom;
+                x = decoded.x;
+                y = decoded.y;
+                styleSet = decoded.styleSet == "" ? null : decoded.styleSet;
+            }
+
             try {
                 using var db = new PraxisContext();
                 db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;

@@ -138,6 +138,10 @@ namespace PraxisMapper.Controllers
                 password = decoded.password;
                 ignoreBan = decoded.isGDPR; //If this is set, this login is only good for the GDPR page. Ban will still lock you out of game.
             }
+            else
+            {
+                PraxisPerformanceTracker.LogInfoToPerfData("Login-LegacyPath", "HEY ADMIN - update the client to pass account/password in the body for /Server/Login. ");
+            }
 
             if (GenericData.CheckPassword(accountId, password, ignoreBan))
             {
@@ -152,10 +156,24 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpPut]
+        [Route("/[controller]/CreateAccount")]
         [Route("/[controller]/CreateAccount/{accountId}/{password}")]
-        public bool CreateAccount(string accountId, string password)
+        public bool CreateAccount(string accountId = null, string password = null)
         {
             Response.Headers.Add("X-noPerfTrack", "Server/CreateAccount/VARSREMOVED");
+
+            if (accountId == null)
+            {
+                //read from JSON
+                var data = Request.ReadBody();
+                var decoded = GenericData.DeserializeAnonymousType(data, new { accountId = "", password = ""});
+                accountId = decoded.accountId;
+                password = decoded.password;
+            }
+            else
+            {
+                PraxisPerformanceTracker.LogInfoToPerfData("CreateAccount-LegacyPath", "HEY ADMIN - update the client to pass account/password in the body for /Server/CreateAccount.");
+            }
 
             using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
@@ -168,10 +186,25 @@ namespace PraxisMapper.Controllers
         }
 
         [HttpPut]
+        [Route("/[controller]/ChangePassword")]
         [Route("/[controller]/ChangePassword/{accountId}/{passwordOld}/{passwordNew}")]
-        public bool ChangePassword(string accountId, string passwordOld, string passwordNew)
+        public bool ChangePassword(string accountId = null, string passwordOld = null, string passwordNew = null)
         {
             Response.Headers.Add("X-noPerfTrack", "Server/ChangePassword/VARSREMOVED");
+            if (accountId == null)
+            {
+                //read from JSON
+                var data = Request.ReadBody();
+                var decoded = GenericData.DeserializeAnonymousType(data, new { accountId = "", passwordOld = "", passwordNew = "" });
+                accountId = decoded.accountId;
+                passwordOld = decoded.passwordOld;
+                passwordNew = decoded.passwordNew;
+            }
+            else
+            {
+                PraxisPerformanceTracker.LogInfoToPerfData("ChangePassword-LegacyPath", "HEY ADMIN - update the client to pass account/passwordOld/passwordNew in the body for /Server/ChangePassword.");
+            }
+
             if (GenericData.CheckPassword(accountId, passwordOld))
             {
                 GenericData.EncryptPassword(accountId, passwordNew, Configuration.GetValue<int>("PasswordRounds"));
@@ -233,6 +266,7 @@ namespace PraxisMapper.Controllers
             }
             else
             {
+                PraxisPerformanceTracker.LogInfoToPerfData("GdprExport-LegacyPath", "HEY ADMIN - Use one of the login tokens instead of username/password for GdprExport");
                 if (!GenericData.CheckPassword(username, pwd))
                 {
                     System.Threading.Thread.Sleep(3500);
