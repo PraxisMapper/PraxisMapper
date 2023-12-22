@@ -305,6 +305,44 @@ namespace PraxisMapper.Controllers
         {
             return View();
         }
+
+        [HttpGet]
+        [Route("/[controller]/PrivacyPolicy")]
+        public string GetAllPrivacyPolicyInfo()
+        {
+            //Default is hard-coded.
+            //Addendum is loaded from DB.
+            //Rest is loaded from plugins.
+
+            StringBuilder fullPolicy = new StringBuilder();
+
+            //Default text
+            fullPolicy.AppendLine("<h1>PraxisMapper Core Privacy Policy</h1><br />");
+
+            fullPolicy.AppendLine("<h2>Data Collected:</h2><br />");
+            fullPolicy.AppendLine("As a locative game, PraxisMapper uses your location when and as provided by a client application. No other personal data is " +
+                "required or used. Data is only collected during gameplay, when a client is open and the user is logged in to play. " +
+                "Game-specific information may be created and relayed between client and server, and game-specific interactions may be visible in-game " +
+                "to other players. It is possible for some data to be logged by other applications or infrastructure depending on setup and function calls used by " +
+                "client. A good-faith effort is made to keep identification data and location data separate when possible to minimize the possibility of a server owner " +
+                "identifying individual players when possible. All data that connects a user, a location, and a time is stored encrypted by a key only accessible for " +
+                "that user while they are actively logged in.<br />" + 
+                "Data collected may include: IP address, precise location, other information captured by server logs such as User-Agent strings."
+            );
+
+            fullPolicy.AppendLine("<h2>Data Use:</h2><br />");
+            fullPolicy.AppendLine("No data used by the server is shared with any outside person, company, or other entity. Analytics are not present in an " +
+                "unmodified Praxismapper server. Data is used exclusively for gameplay purposes. You can request all data attached to your account for your viewing, and can request that data be deleted. If requested, the data " +
+                "will be decrypted before being provided, since it's your data and not a secret to you.<br />");
+
+            //TODO: server-specific addendum
+
+            //TODO: Plugin information.
+
+
+            return fullPolicy.ToString();
+        }
+
     }
 }
 

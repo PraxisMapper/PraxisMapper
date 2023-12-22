@@ -182,3 +182,12 @@ Sometimes can involve paid actors participating in real-life tasks guided by the
 These are pretty close to Waypoint Wandering, with a much stricter guiding hand between the waypoints and often outside puzzles to solve. Usually has an entry fee. 
 Very location specific, sometimes limited to a single building. Mostly a LARP game with an assistant app, sometimes.
 CluedUpp scavenger hunts fit in here, as would the Punchdrunk locative game that never got past the early design phase.
+
+
+--Other Design Notes--
+
+Players generally do not want to play where they aren't. That is, they want the game to reflect their local surroundings, and not a remote location.
+TIBO, being limited to Ohio for gameplay boundaries, allowed players to Proxy-Play and transpose their movements to a location inside Ohio for gameplay.
+This was not popular. Remote interactions are better served as one-offs or specific interactions. Proxy-Play isn't a bad idea, but your core audience is going
+to be inside your server's boundaries and not pretending to be. Ingress-style remote actions are more viable, where you're doing a secondary action (supporting
+other stuff at that location, not doing the stuff the first time)
