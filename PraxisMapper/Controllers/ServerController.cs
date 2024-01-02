@@ -148,11 +148,25 @@ namespace PraxisMapper.Controllers
                 int authTimeout = Configuration["authTimeoutSeconds"].ToInt();
                 Guid token = Guid.NewGuid();
                 var intPassword = GenericData.GetInternalPassword(accountId, password);
-                PraxisAuthentication.RemoveEntry(accountId);
+                if (Request.Headers.ContainsKey("AuthKey"))
+                {
+                    var authToken = Request.Headers["AuthKey"];
+                    PraxisAuthentication.RemoveEntry(authToken);
+                }
                 PraxisAuthentication.AddEntry(new AuthData(accountId, intPassword, token.ToString(), DateTime.UtcNow.AddSeconds(authTimeout), ignoreBan));
                 return new AuthDataResponse(token, authTimeout);
             }
             return null;
+        }
+
+        [HttpGet]
+        [HttpPut]
+        [Route("/[controller]/Logout")]
+        public void Logout()
+        {
+            if (!Request.Headers.ContainsKey("AuthKey"))
+                return;
+            PraxisAuthentication.RemoveEntry(Request.Headers["AuthKey"]);
         }
 
         [HttpPut]
@@ -166,7 +180,7 @@ namespace PraxisMapper.Controllers
             {
                 //read from JSON
                 var data = Request.ReadBody();
-                var decoded = GenericData.DeserializeAnonymousType(data, new { accountId = "", password = ""});
+                var decoded = GenericData.DeserializeAnonymousType(data, new { accountId = "", password = "" });
                 accountId = decoded.accountId;
                 password = decoded.password;
             }
@@ -276,7 +290,7 @@ namespace PraxisMapper.Controllers
                 accountId = username;
                 var innerPwd = GenericData.GetInternalPassword(accountId, password);
                 password = innerPwd;
-            }            
+            }
 
             StringBuilder sb = new StringBuilder();
             if (!string.IsNullOrWhiteSpace(accountId))
@@ -326,7 +340,7 @@ namespace PraxisMapper.Controllers
                 "to other players. It is possible for some data to be logged by other applications or infrastructure depending on setup and function calls used by " +
                 "client. A good-faith effort is made to keep identification data and location data separate when possible to minimize the possibility of a server owner " +
                 "identifying individual players when possible. All data that connects a user, a location, and a time is stored encrypted by a key only accessible for " +
-                "that user while they are actively logged in.<br />" + 
+                "that user while they are actively logged in.<br />" +
                 "Data collected may include: IP address, precise location, other information captured by server logs such as User-Agent strings."
             );
 
