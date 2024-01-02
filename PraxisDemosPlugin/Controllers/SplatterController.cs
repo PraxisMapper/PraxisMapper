@@ -61,6 +61,8 @@ namespace PraxisDemosPlugin.Controllers
                     var db = new PraxisContext();
                     db.ExpireMapTiles(newGeo, "splatter");
                     db.ExpireSlippyMapTiles(newGeo, "splatter");
+                    PraxisCacheHelper.Remove(plusCode + "-splatter");
+
 
                     Task.WaitAll(updateTasks);
                 });
@@ -166,13 +168,13 @@ namespace PraxisDemosPlugin.Controllers
             if (!PraxisAuthentication.IsAdmin(accountId))
                 return File(results, "image/png");
 
-            var mapTile1 = MapTileSupport.DrawPlusCode(plusCode8);
+            var mapTile1 = MapTileSupport.DrawPlusCode(plusCode8); 
             var possiblePoints = plusCode8.GetSubCells();
-
+                             
             List<DbTables.Place> places = new List<DbTables.Place>();
 
             int splatCount = 48;
-            for (int i = 0; i < splatCount; i++)
+            for (int i = 0; i < splatCount; i++) 
             {
                 var thisPoint = possiblePoints.PickOneRandom();
                 var color = Random.Shared.Next(DemoStyles.splatterStyle.Count - 2); //-2, to exclude background.

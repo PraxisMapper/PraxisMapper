@@ -4,6 +4,8 @@ namespace PraxisCore.Support
 {
     public interface IPraxisPlugin
     {
+        //NOTE: additions here need to be made to Chat, Demos, Muni, Offline?, Slippy, and Version plugins, plus actual games.
+        //public string PrivacyPolicy; //
     }
 
     public interface IPraxisStartup

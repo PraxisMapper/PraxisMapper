@@ -31,5 +31,10 @@ namespace PraxisMapper.Classes
         {
             cache.Set(key, value, new DateTimeOffset(DateTime.Now.AddSeconds(secondsToSave)));
         }
+
+        public static void Remove(string key)
+        {
+            cache.Remove(key);
+        }
     }
 }

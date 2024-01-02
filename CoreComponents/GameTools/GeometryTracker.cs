@@ -1,5 +1,6 @@
 ﻿using NetTopologySuite.Geometries;
 using System;
+using System.Linq;
 using System.Text.Json.Serialization;
 
 namespace PraxisCore.GameTools {
@@ -35,7 +36,14 @@ namespace PraxisCore.GameTools {
         /// </summary>
         public void RemoveGeometry(Geometry geo)
         {
-            explored = explored.Difference(geo).Simplify(0.00000001);
+            explored = explored.Difference(geo);
+            //TODO: test that this works as expected.
+            if (explored is GeometryCollection ex)
+            {
+                explored = Singletons.geometryFactory.CreateMultiPolygon(ex.Geometries.Where(g => g.GeometryType == "Polygon").Select(g => (Polygon)g).ToArray());
+                
+            }
+            explored = explored.Simplify(0.00000001);
         }
 
     }
