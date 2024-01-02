@@ -9,18 +9,30 @@
     <div id="mapid" style="height:100%; z-index:20;">
     </div>
     <script type="text/javascript">
-        //This is the Splatter web interface/toy. Things to do here:
+        //This is the Splatter web interface/toy. No login required. Things to do here:
         //list of colors you could select from the splatter palette.
         //Have clicks on the map trigger a splat effect in selected color
         //Load only mapTiles base layer, and only splatter overlay.
+        //Use tilelayer.redraw on a timer to update all tiles, or check TileGen value to save bandwidth. May require adding random number or timestamp to tiles URL to avoid browser cache.
         var serverKey = "testingKey"; //TODO: lock this page to only localhost or find an alternate way to obfuscate this.
         var baseSite = window.location.href.toLowerCase().replace("/slippy", "");
-        var url = baseSite + '/{id}/{z}/{x}/{y}.png?PraxisAuthKey=' + serverKey;
+        var url = baseSite + '/{id}/{z}/{x}/{y}.png?PraxisAuthKey=' + serverKey + "&t=" + Date.now();
         var baseData = L.tileLayer(url, { id: "MapTile/Slippy", tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
         var splatterData = L.tileLayer(url, { id: "Splatter/Slippy", tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
+        var splatterTiles = [];
         var mymap = L.map('mapid');
         baseData.addTo(mymap);
         splatterData.addTo(mymap);
+        var currentColorId = 0;
+
+        var autoRefresh = setInterval(redraw, 15000);
+
+        splatterData.on('tileload', function (ev) {
+            splatterTiles[ev.coords.x + "|" + ev.coords.y + "|" + ev.coord.z] = ev.tile;
+        });
+        splatterData.on('tileunload', function (ev) {
+            delete splatterTiles[ev.coords.x + "|" + ev.coords.y + "|" + ev.coord.z];
+        });
 
         //var baseLayers = {};
         // var overlays = {};
@@ -85,13 +97,63 @@
         // });
         //new searchBtn({ position: 'topleft' }).addTo(mymap);
 
+        //TODO: get splatter colors
+        fetch(baseSite + "/StyleData/json/splatter", { headers: { 'PraxisAuthKey': serverKey } })
+            .then(s => s.json().then(ss => { 
+                //TODO: parse
+                let palette = L.Control.extend({
+                    onAdd: function () { 
+                        var div = L.DomUtil.create('div');
+                    }
+                });
+                var paletteB = "<div id='palette'>"
+                ss.paintOperations.forEach((p) => { 
+                    if (p.Name != "background") {
+                        // add a swatch with p.HtmlColorCode to some palette control. use p.Name to handle index
+                        //probably uses L.control.create to make a new div with the BG color set from the style, and an onclick to set currentColorId to that id.
+                    }
+                });
 
-        mymap.on('moveend', function () {
+                palette += "</div>";
+
+        });
+
+        mymap.on('click', function (mouseEvent) { 
+            var plusCode = OpenLocationCode.encode(mouseEvent.latlng.lat, mouseEvent.latlng.lng);
+            console.log(pluscode);
+            //now call splat. A Cell10 is about zoom 15.7, which is the radius of 1 on the game-side. 
+            //var radius = (15.7 / mymap.getZoom()); 
+            // //zoom15 == 1.05, 16 = 0.98, 20=.8, 2 = 7.98. This is probably too small when zoomed out. Needs an extra factor.
+            var radius = (15.7 / mymap.getZoom()) * (mymap.maxZoom - mymap.getZoom());
+            //1 * 5 = 5, 1 * 4 = 4, .8 * 2 = 1.6, 8 * 18 = 144. Seems better, will have to see in practice if thats sufficient.
+            fetch(baseSite + "/Splatter/FreeSplat/" + plusCode + "/" + radius, { headers: { 'PraxisAuthKey': serverKey } })
+                .then(s => s.text().then(ss => { 
+                    //todo: get new tile here. we clicked, we know this one needs updated. TileEvent.coords would have what i want, but i got a mouseEvent.
+                    //May just refresh the whole layer? I could invalidate the individual tile with its x/y/z coords and the array. Maybe mouseEvent.target has it?
+                    redraw();
+                }));
+
+        });
+
+        //mymap.on('moveend', function () {
             // var center = mymap.getCenter();
             // var coord = OpenLocationCode.encode(center.lat, center.lng);
             // var tb = document.getElementById("txtSearch");
             // tb.value = coord;
-        });
+        //});
+
+        function redraw()
+        {
+            splatterData.setUrl(baseSite + '/Splatter/Slippy/{z}/{x}/{y}.png?PraxisAuthKey=' + serverKey + "&t=" + Date.now());
+            splatterData.redraw();
+        }
+
+        function reloadOne(x, y, z) { 
+            if (splatterTiles[x + "|" + y + "|" + z] != null)
+            {
+                splatterTiles[x + "|" + y + "|" + z].src += "&t=" + Date.now(); //TODO: may change this to reset value instead of appending a timestamp
+            }
+        }
 
     </script>
 </body>

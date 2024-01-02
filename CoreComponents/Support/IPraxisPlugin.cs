@@ -6,6 +6,7 @@ namespace PraxisCore.Support
     {
         //NOTE: additions here need to be made to Chat, Demos, Muni, Offline?, Slippy, and Version plugins, plus actual games.
         //public string PrivacyPolicy; //
+        //public List<DbTables.StyleEntry> Styles; //could automatically import styles?
     }
 
     public interface IPraxisStartup

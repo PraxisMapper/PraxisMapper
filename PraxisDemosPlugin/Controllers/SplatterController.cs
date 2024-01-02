@@ -31,6 +31,14 @@ namespace PraxisDemosPlugin.Controllers
             context.CheckCache(Request.Path, accountId); //If cached, sets context.Response and skips further processing
         }
 
+        [HttpGet]
+        [Route("/[controller]/")]
+        [Route("/[controller]/Index")]
+        public ActionResult Index()
+        {
+            return View();
+        }
+
 
         [HttpPut]
         [Route("/[controller]/Splat/{plusCode}/{radius}")]
@@ -67,6 +75,38 @@ namespace PraxisDemosPlugin.Controllers
                     Task.WaitAll(updateTasks);
                 });
             }
+        }
+
+        [HttpPut]
+        [Route("/[controller]/FreeSplat/{plusCode}/{radius}/{colorId}")]
+        public void FreeSplat(string plusCode, double radius, int colorId)
+        {
+            Response.Headers.Append("X-noPerfTrack", "Splatter/Splat/VARSREMOVED");
+            //A user wants to throw down a paint mark in the center of {plusCode} with a size of {radius} (in Cell10 tiles)
+            var newGeo = MakeSplatShape(plusCode.ToGeoArea().ToPoint(), radius * ConstantValues.resolutionCell10);
+            //var color = Random.Shared.Next(colors);
+            var updateTasks = new Task[colors];
+
+            SimpleLockable.PerformWithLock("splatter", () =>
+            {
+                GenericData.IncrementPlayerData(accountId, "splatPoints", -radius);
+
+                foreach (var s in splatCollection)
+                {
+                    if (s.Key == colorId)
+                        s.Value.AddGeometry(newGeo);
+                    else
+                        s.Value.RemoveGeometry(newGeo);
+                    updateTasks[s.Key] = Task.Run(() => GenericData.SetGlobalDataJson("splat-" + s.Key, s.Value));
+                }
+
+                var db = new PraxisContext();
+                db.ExpireMapTiles(newGeo, "splatter");
+                db.ExpireSlippyMapTiles(newGeo, "splatter");
+                PraxisCacheHelper.Remove(plusCode + "-splatter");
+
+                Task.WaitAll(updateTasks);
+            });
         }
 
         [HttpGet]
@@ -168,13 +208,13 @@ namespace PraxisDemosPlugin.Controllers
             if (!PraxisAuthentication.IsAdmin(accountId))
                 return File(results, "image/png");
 
-            var mapTile1 = MapTileSupport.DrawPlusCode(plusCode8); 
+            var mapTile1 = MapTileSupport.DrawPlusCode(plusCode8);
             var possiblePoints = plusCode8.GetSubCells();
-                             
+
             List<DbTables.Place> places = new List<DbTables.Place>();
 
             int splatCount = 48;
-            for (int i = 0; i < splatCount; i++) 
+            for (int i = 0; i < splatCount; i++)
             {
                 var thisPoint = possiblePoints.PickOneRandom();
                 var color = Random.Shared.Next(DemoStyles.splatterStyle.Count - 2); //-2, to exclude background.
@@ -269,11 +309,11 @@ namespace PraxisDemosPlugin.Controllers
                     t2 = new Point(outerCircle.EnvelopeInternal.MinX, outerCircle.Centroid.Y);
                 }
 
-                var connector = Singletons.geometryFactory.CreatePolygon(new Coordinate[] { 
-                    new Coordinate(centerGeo.Centroid.X, centerGeo.Centroid.Y), 
-                    new Coordinate(t1.X, t1.Y), 
-                    new Coordinate(t2.X, t2.Y), 
-                    new Coordinate(centerGeo.Centroid.X, centerGeo.Centroid.Y) 
+                var connector = Singletons.geometryFactory.CreatePolygon(new Coordinate[] {
+                    new Coordinate(centerGeo.Centroid.X, centerGeo.Centroid.Y),
+                    new Coordinate(t1.X, t1.Y),
+                    new Coordinate(t2.X, t2.Y),
+                    new Coordinate(centerGeo.Centroid.X, centerGeo.Centroid.Y)
                 });
                 geometries.Add(connector);
             }
