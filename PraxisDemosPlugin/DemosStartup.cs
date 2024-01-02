@@ -3,12 +3,15 @@ using PraxisCore;
 using PraxisDemosPlugin.Controllers;
 using PraxisCore.GameTools;
 using System.Diagnostics;
+using PraxisMapper.Classes;
 
 namespace PraxisDemosPlugin
 {
     public class DemosStartup : IPraxisStartup
     {
         public static void Startup() {
+
+            PraxisAuthentication.whitelistedPaths.Add("/Splatter/FreeSplat"); //Added to allow webview toy mode.
             //Insert Slippy values for map viewer
             GenericData.SetGlobalData("SlippyOverlay-Splatter", "Splatter/Slippy");
 
