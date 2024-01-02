@@ -1,0 +1,98 @@
+﻿<html>
+<head>
+    @* Local resource links *@
+    <link rel="stylesheet" href="~/Content/leaflet.css" />
+    <script src="~/Content/Scripts/leaflet.js"></script>
+    <script src="~/Content/Scripts/PlusCodes.js"></script>
+</head>
+<body>
+    <div id="mapid" style="height:100%; z-index:20;">
+    </div>
+    <script type="text/javascript">
+        //This is the Splatter web interface/toy. Things to do here:
+        //list of colors you could select from the splatter palette.
+        //Have clicks on the map trigger a splat effect in selected color
+        //Load only mapTiles base layer, and only splatter overlay.
+        var serverKey = "testingKey"; //TODO: lock this page to only localhost or find an alternate way to obfuscate this.
+        var baseSite = window.location.href.toLowerCase().replace("/slippy", "");
+        var url = baseSite + '/{id}/{z}/{x}/{y}.png?PraxisAuthKey=' + serverKey;
+        var baseData = L.tileLayer(url, { id: "MapTile/Slippy", tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
+        var splatterData = L.tileLayer(url, { id: "Splatter/Slippy", tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
+        var mymap = L.map('mapid');
+        baseData.addTo(mymap);
+        splatterData.addTo(mymap);
+
+        //var baseLayers = {};
+        // var overlays = {};
+        // fetch(baseSite + "/Slippy/Configs")
+        //     .then(b =>
+        //         b.json().then(bb => {
+        //             bb.forEach((c) => {
+        //                 var thisEntry = L.tileLayer(url, { id: c.value, tileSize: 512, maxZoom: 20, minZoom: 3, zoomOffset: -1 });
+        //                 if (c.isOverlay == true)
+        //                     overlays[c.key] = L.layerGroup([thisEntry]);
+        //                 else
+        //                     baseLayers[c.key] = thisEntry;
+        //                 if (c.key == "OSMLike")
+        //                     thisEntry.addTo(mymap);
+
+        //             });
+        //             L.control.layers(baseLayers, overlays).addTo(mymap);
+        //         })
+        //     );
+
+        var startLat = 0;
+        var startLon = 0;
+        fetch(baseSite + "/Server/ServerBounds", { headers: { 'PraxisAuthKey': serverKey } })
+            .then(b =>
+                b.text().then(bb => {
+                    var points = bb.split("|");
+                    for (var i = 0; i < 4; i++)
+                        points[i] = points[i] * 1; //quick conversion to numbers from strings.
+                    startLat = points[0] + (points[2] - points[0]) / 2;  //south + (north - south) / 2
+                    startLon = points[1] + (points[3] - points[1]) / 2; //west + (east - west) / 2
+                    console.log("Starting point set to " + startLat + "," + startLon + " from data " + bb);
+                    mymap.setView([startLat, startLon], 15);
+                })
+            );
+
+        // let textbox = L.Control.extend({
+        //     onAdd: function () {
+        //         var text = L.DomUtil.create('input');
+        //         text.id = "txtSearch";
+        //         text.placeholder = "PlusCode";
+        //         return text;
+        //     },
+
+        // });
+        // new textbox({ position: 'topleft' }).addTo(mymap);
+
+        // let searchBtn = L.Control.extend({
+        //     onAdd: function () {
+        //         var btn = L.DomUtil.create('button');
+        //         btn.id = "info_btn";
+        //         btn.innerHTML = "Jump!";
+        //         btn.onclick = () => {
+        //             var tb = document.getElementById("txtSearch");
+        //             var coord = OpenLocationCode.decode(tb.value);
+        //             console.log(coord);
+
+        //             mymap.setView([coord.latitudeCenter, coord.longitudeCenter], coord.codeLength + 9);
+        //         };
+        //         return btn;
+        //     },
+
+        // });
+        //new searchBtn({ position: 'topleft' }).addTo(mymap);
+
+
+        mymap.on('moveend', function () {
+            // var center = mymap.getCenter();
+            // var coord = OpenLocationCode.encode(center.lat, center.lng);
+            // var tb = document.getElementById("txtSearch");
+            // tb.value = coord;
+        });
+
+    </script>
+</body>
+</html>

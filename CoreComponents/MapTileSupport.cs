@@ -363,8 +363,6 @@ namespace PraxisCore
         public static void PregenSlippyMapTilesForArea(GeoArea buffered, int zoomLevel)
         {
             //There is a very similar function for this in Standalone.cs, but this one writes back to the main DB.
-            using var db = new PraxisContext();
-            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var intersectCheck = buffered.ToPolygon();
 
             //start drawing maptiles and sorting out data.
@@ -386,7 +384,7 @@ namespace PraxisCore
             //foreach (var y in yCoords)
             for (var y = neCornerLat; y <= swCornerLat; y++)
             {
-                //Make a collision box for just this row of Cell8s, and send the loop below just the list of things that might be relevant.
+                //Make a collision box for just this row of tiles, and send the loop below just the list of things that might be relevant.
                 //Add a Cell8 buffer space so all elements are loaded and drawn without needing to loop through the entire area.
                 GeoArea thisRow = new GeoArea(Converters.SlippyYToLat(y + 1, zoomLevel) - ConstantValues.resolutionCell8,
                     Converters.SlippyXToLon(swCornerLon, zoomLevel) - ConstantValues.resolutionCell8,
@@ -408,8 +406,11 @@ namespace PraxisCore
 
                     mapTileCounter++;
                 });
+                var db = new PraxisContext();
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
                 db.SlippyMapTiles.AddRange(tilesToSave);
                 db.SaveChanges();
+                db.Dispose();
                 Log.WriteLog(mapTileCounter + " tiles processed, " + Math.Round(((mapTileCounter / (double)totalTiles * 100)), 2) + "% complete");
 
             }//);
