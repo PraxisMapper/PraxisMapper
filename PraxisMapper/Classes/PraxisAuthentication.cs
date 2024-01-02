@@ -70,8 +70,8 @@ namespace PraxisMapper.Classes
         public static bool AddEntry(AuthData entry) {
             return authTokens.TryAdd(entry.authToken, entry);
         }
-        public static bool RemoveEntry(string accountId) {
-            return authTokens.TryRemove(accountId, out _);
+        public static bool RemoveEntry(string authToken) {
+            return authTokens.TryRemove(authToken, out _);
         }
 
         public static void DropExpiredEntries() {
