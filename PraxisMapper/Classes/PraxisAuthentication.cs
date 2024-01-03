@@ -22,7 +22,7 @@ namespace PraxisMapper.Classes
             this._next = next;
         }
 
-        public async Task Invoke(HttpContext context) {
+        public async Task Invoke(HttpContext context) { 
             var key = context.Request.Headers.FirstOrDefault(h => h.Key == "AuthKey");
             bool loggedIn = false;
             AuthData data = null;
