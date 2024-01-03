@@ -78,14 +78,18 @@ namespace PraxisDemosPlugin.Controllers
         }
 
         [HttpPut]
+        [Route("/[controller]/FreeSplat/{plusCode}/{radius}")]
         [Route("/[controller]/FreeSplat/{plusCode}/{radius}/{colorId}")]
-        public void FreeSplat(string plusCode, double radius, int colorId)
+        public void FreeSplat(string plusCode, double radius, int colorId = -1)
         {
             Response.Headers.Append("X-noPerfTrack", "Splatter/Splat/VARSREMOVED");
             //A user wants to throw down a paint mark in the center of {plusCode} with a size of {radius} (in Cell10 tiles)
             var newGeo = MakeSplatShape(plusCode.ToGeoArea().ToPoint(), radius * ConstantValues.resolutionCell10);
             //var color = Random.Shared.Next(colors);
             var updateTasks = new Task[colors];
+
+            if (colorId == -1)
+                colorId = Random.Shared.Next(colors);
 
             SimpleLockable.PerformWithLock("splatter", () =>
             {
