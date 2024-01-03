@@ -4,6 +4,11 @@
     <link rel="stylesheet" href="~/Content/leaflet.css" />
     <script src="~/Content/Scripts/leaflet.js"></script>
     <script src="~/Content/Scripts/PlusCodes.js"></script>
+    <style>
+        palette {border-width: 3px; border-radius: 8px;width: 256px; padding: 10px;}
+        palette-entry { border-color:dimgrey; border-width:3px; border-radius:8px; width:48px; height:48px; }
+        palette-entry:active{ border-color:black border-width:5px;}
+    </style>
 </head>
 <body>
     <div id="mapid" style="height:100%; z-index:20;">
@@ -12,8 +17,6 @@
         //This is the Splatter web interface/toy. No login required. Things to do here:
         //list of colors you could select from the splatter palette.
         //Have clicks on the map trigger a splat effect in selected color
-        //Load only mapTiles base layer, and only splatter overlay.
-        //Use tilelayer.redraw on a timer to update all tiles, or check TileGen value to save bandwidth. May require adding random number or timestamp to tiles URL to avoid browser cache.
         var serverKey = "testingKey"; //TODO: lock this page to only localhost or find an alternate way to obfuscate this.
         var baseSite = window.location.href.toLowerCase().split("/splatter")[0];
         console.log(baseSite);
@@ -24,7 +27,7 @@
         var mymap = L.map('mapid');
         baseData.addTo(mymap);
         splatterData.addTo(mymap);
-        var currentColorId = 0;
+        var currentColorId = -1;
 
         var autoRefresh = setInterval(redraw, 15000);
 
@@ -67,6 +70,29 @@
         // });
         // new textbox({ position: 'topleft' }).addTo(mymap);
 
+        //The smaller widgets that get clicked. shows one color in a small box, set currentColorId to that id.
+        let paletteBox = L.Control.extend({
+            onAdd: function () {
+                var div = L.DomUtil.create('div');
+                L.DomUtil.addClass(div, "palette-entry");
+                div.onclick = () => { currentColorId = this.colorId; stopPropagation(); };
+                return div;
+            },
+        });
+
+        //the div that holds all the color choice divs.
+        let palette = L.Control.extend({
+            onAdd: function () {
+                var div = L.DomUtil.create('div');
+                L.DomUtil.addClass(div, "palette");
+                div.id = "palette"
+                return div;
+            },
+        });
+
+        var activePalette = new palette({ position: 'topleft' });
+        activePalette.addTo(mymap);
+
         // let searchBtn = L.Control.extend({
         //     onAdd: function () {
         //         var btn = L.DomUtil.create('button');
@@ -85,53 +111,39 @@
         // });
         //new searchBtn({ position: 'topleft' }).addTo(mymap);
 
-        //TODO: get splatter colors
-        // fetch(baseSite + "/StyleData/json/splatter", { headers: { 'PraxisAuthKey': serverKey } })
-        //     .then(s => s.json().then(ss => {
-        //         //TODO: parse
-        //         // let palette = L.Control.extend({
-        //         //     onAdd: function () {
-        //         //         var div = L.DomUtil.create('div');
-        //         //     },
-        //         // })
-        //     });
-            
-        //         var paletteB = "<div id='palette'>";
-        //         ss.paintOperations.forEach((p) => { 
-        //             if (p.Name != "background") {
-        //                 // add a swatch with p.HtmlColorCode to some palette control. use p.Name to handle index
-        //                 //probably uses L.control.create to make a new div with the BG color set from the style, and an onclick to set currentColorId to that id.
-        //             }
-        //         });
-
-        //         //palette += "</div>";
-        // });
+        //TEST 
+        fetch(baseSite + "/StyleData/json/splatter", { headers: { 'PraxisAuthKey': serverKey } })
+            .then(s => s.json().then(ss => {
+                //TODO: parse
+                var palette = document.getElementById("palette");
+                ss.paintOperations.forEach((p) => {
+                    if (p.Name != "background") {
+                        var colorBox = new paletteBox();
+                        colorBox.colorId = p.Name;
+                        palette.appendChild(colorBox);
+                    }
+                });
+            });
+        });
 
         mymap.on('click', function (mouseEvent) { 
-            //console.log(JSON.stringify(mouseEvent));
             var plusCode = OpenLocationCode.encode(mouseEvent.latlng.lat, mouseEvent.latlng.lng);
             plusCode = plusCode.replace("+", "");
             console.log(plusCode);
             //now call splat. A Cell10 is about zoom 15.7, which is the radius of 1 on the game-side. 
-            //var radius = (15.7 / mymap.getZoom()); 
-            // //zoom15 == 1.05, 16 = 0.98, 20=.8, 2 = 7.98. This is probably too small when zoomed out. Needs an extra factor.
             var radius = (15.7 / mymap._zoom) * (mymap._layersMaxZoom - mymap._zoom);
-            //1 * 5 = 5, 1 * 4 = 4, .8 * 2 = 1.6, 8 * 18 = 144. Seems better, will have to see in practice if thats sufficient.
-            fetch(baseSite + "/Splatter/FreeSplat/" + plusCode + "/" + radius, { method:"PUT", headers: { 'PraxisAuthKey': serverKey } })
+            //1 * 5 = 5, 1 * 4 = 4, .8 * 2 = 1.6, 8 * 18 = 144. Isn't right when zoomed out more.
+            var scaleFactor2 = Math.max(1, 20 ^ (15 - mymap._zoom) / 4); //This might be big enough? zoom 2 = 20^3.
+            radius *= scaleFactor2;
+            
+            fetch(baseSite + "/Splatter/FreeSplat/" + plusCode + "/" + radius + "/" + currentColorId, { method: "PUT", headers: { 'PraxisAuthKey': serverKey } })
                 .then(s => s.text().then(ss => { 
                     //todo: get new tile here. we clicked, we know this one needs updated. TileEvent.coords would have what i want, but i got a mouseEvent.
                     //May just refresh the whole layer? I could invalidate the individual tile with its x/y/z coords and the array. Maybe mouseEvent.target has it?
-                    redraw();
+                    redraw(); //This does make the screen blink a bit as tiles are dropped and reloaded
                 }));
 
         });
-
-        //mymap.on('moveend', function () {
-            // var center = mymap.getCenter();
-            // var coord = OpenLocationCode.encode(center.lat, center.lng);
-            // var tb = document.getElementById("txtSearch");
-            // tb.value = coord;
-        //});
 
         function redraw()
         {
