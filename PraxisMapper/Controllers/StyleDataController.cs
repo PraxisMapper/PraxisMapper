@@ -57,7 +57,7 @@ namespace PraxisMapper.Controllers {
             JsonOptions jo = new JsonOptions();
             jo.JsonSerializerOptions.IncludeFields = true;
             jo.JsonSerializerOptions.MaxDepth = 2;
-            var data = db.StyleEntries.Include("TagParserMatchRules").Include("paintOperations").Where(t => t.StyleSet == styleSet).ToList();
+            var data = db.StyleEntries.Include(s => s.StyleMatchRules).Include(s => s.PaintOperations).Where(t => t.StyleSet == styleSet).ToList();
             var returnData = data.Select(x => new {
                 x.Id,
                 x.Name,

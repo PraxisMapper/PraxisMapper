@@ -5,19 +5,17 @@
     <script src="~/Content/Scripts/leaflet.js"></script>
     <script src="~/Content/Scripts/PlusCodes.js"></script>
     <style>
-        palette {border-width: 3px; border-radius: 8px;width: 256px; padding: 10px;}
-        palette-entry { border-color:dimgrey; border-width:3px; border-radius:8px; width:48px; height:48px; }
-        palette-entry:active{ border-color:black border-width:5px;}
+        .palette {display:flex; flex-wrap:wrap; border-width: 3px; border-radius: 8px;width: 256px; padding: 10px; background-color:whitesmoke}
+        .palette-entry { border-color:dimgrey; border-width:3px; border-radius:8px; width:48px; height:48px;min-width:32px; }
+        .palette-entry:active{ border-color:black border-width:5px;}
     </style>
 </head>
 <body>
     <div id="mapid" style="height:100%; z-index:20;">
     </div>
     <script type="text/javascript">
-        //This is the Splatter web interface/toy. No login required. Things to do here:
-        //list of colors you could select from the splatter palette.
-        //Have clicks on the map trigger a splat effect in selected color
-        var serverKey = "testingKey"; //TODO: lock this page to only localhost or find an alternate way to obfuscate this.
+        //This is the Splatter web interface/toy. No login required.
+        var serverKey = "testingKey"; //TODO: probably drop this.
         var baseSite = window.location.href.toLowerCase().split("/splatter")[0];
         console.log(baseSite);
         var url = baseSite + '/{id}/{z}/{x}/{y}.png?PraxisAuthKey=' + serverKey;
@@ -28,6 +26,7 @@
         baseData.addTo(mymap);
         splatterData.addTo(mymap);
         var currentColorId = -1;
+        var callsTotal = 0;
 
         var autoRefresh = setInterval(redraw, 15000);
 
@@ -59,82 +58,79 @@
                 })
             );
 
-        // let textbox = L.Control.extend({
-        //     onAdd: function () {
-        //         var text = L.DomUtil.create('input');
-        //         text.id = "txtSearch";
-        //         text.placeholder = "PlusCode";
-        //         return text;
-        //     },
-
-        // });
-        // new textbox({ position: 'topleft' }).addTo(mymap);
-
-        //The smaller widgets that get clicked. shows one color in a small box, set currentColorId to that id.
-        let paletteBox = L.Control.extend({
-            onAdd: function () {
-                var div = L.DomUtil.create('div');
-                L.DomUtil.addClass(div, "palette-entry");
-                div.onclick = () => { currentColorId = this.colorId; stopPropagation(); };
-                return div;
-            },
-        });
-
+        var paletteInnerData = "";
         //the div that holds all the color choice divs.
         let palette = L.Control.extend({
-            onAdd: function () {
-                var div = L.DomUtil.create('div');
-                L.DomUtil.addClass(div, "palette");
-                div.id = "palette"
+            onAdd: function (map) {
+                var div = L.DomUtil.create('div', "palette");
+                div.id = "palette";
+                div.innerHTML = paletteInnerData;
                 return div;
             },
         });
 
-        var activePalette = new palette({ position: 'topleft' });
-        activePalette.addTo(mymap);
-
-        // let searchBtn = L.Control.extend({
-        //     onAdd: function () {
-        //         var btn = L.DomUtil.create('button');
-        //         btn.id = "info_btn";
-        //         btn.innerHTML = "Jump!";
-        //         btn.onclick = () => {
-        //             var tb = document.getElementById("txtSearch");
-        //             var coord = OpenLocationCode.decode(tb.value);
-        //             console.log(coord);
-
-        //             mymap.setView([coord.latitudeCenter, coord.longitudeCenter], coord.codeLength + 9);
-        //         };
-        //         return btn;
-        //     },
-
-        // });
-        //new searchBtn({ position: 'topleft' }).addTo(mymap);
-
-        //TEST 
-        fetch(baseSite + "/StyleData/json/splatter", { headers: { 'PraxisAuthKey': serverKey } })
-            .then(s => s.json().then(ss => {
-                //TODO: parse
-                var palette = document.getElementById("palette");
-                ss.paintOperations.forEach((p) => {
-                    if (p.Name != "background") {
-                        var colorBox = new paletteBox();
-                        colorBox.colorId = p.Name;
-                        palette.appendChild(colorBox);
-                    }
-                });
+        function parseStyle(styleData) { 
+            console.log("parsing style");
+            styleData.forEach(sd => { 
+                console.log(sd.name);
+                if (sd.name != "background") {
+                    paletteInnerData += "<div class='palette-entry' onclick='currentColorId=" + sd.name + ";preventDefault();' style='background-color:" + sd.paintOperations[1].htmlColorCode + "'></div> ";
+                }
             });
-        });
+
+            var activePalette = new palette({ position: 'topleft' });
+            activePalette.addTo(mymap);
+        }
+
+        fetch(baseSite + "/StyleData/json/splatter", { headers: { 'PraxisAuthKey': serverKey }, })
+            .then(s => {  
+                s.json().then(ss => { parseStyle(ss); });
+            });
 
         mymap.on('click', function (mouseEvent) { 
             var plusCode = OpenLocationCode.encode(mouseEvent.latlng.lat, mouseEvent.latlng.lng);
             plusCode = plusCode.replace("+", "");
             console.log(plusCode);
-            //now call splat. A Cell10 is about zoom 15.7, which is the radius of 1 on the game-side. 
+            //now call splat. A Cell10 is about 20 pixels at zoom 15.7, which is the radius of 1 on the server-side. 
+            //Radius doesn't scale out as much as expected in Cell10s. Boosting it up some for the toy.
             var radius = (15.7 / mymap._zoom) * (mymap._layersMaxZoom - mymap._zoom);
-            //1 * 5 = 5, 1 * 4 = 4, .8 * 2 = 1.6, 8 * 18 = 144. Isn't right when zoomed out more.
-            var scaleFactor2 = Math.max(1, 20 ^ (15 - mymap._zoom) / 4); //This might be big enough? zoom 2 = 20^3.
-            radius *= scaleFactor2;
+            var scale2 = 1;
+            //Good enough for now. Hand-jammed values after scaling mathematically didn't quite work as expected.
+            switch(mymap._zoom)
+            {
+                case 20:
+                case 19:
+                case 18:
+                    scale2 = 0.8;
+                    break;
+                case 17:
+                case 16:
+                case 15:
+                    scale2 = 1;
+                    break;
+                case 14:
+                case 13:
+                case 12:
+                    scale2 = 4;
+                    break;
+                case 11:
+                case 10:
+                case 9:
+                    scale2 = 16;
+                    break;
+                case 8:
+                case 7:
+                case 6:
+                    scale2 = 500;
+                    break;
+                case 5:
+                case 4:
+                case 3:
+                case 2:
+                    scale2 = 1000;
+                    break;
+            }
+            radius *= scale2;
             
             fetch(baseSite + "/Splatter/FreeSplat/" + plusCode + "/" + radius + "/" + currentColorId, { method: "PUT", headers: { 'PraxisAuthKey': serverKey } })
                 .then(s => s.text().then(ss => { 
@@ -147,14 +143,16 @@
 
         function redraw()
         {
-            splatterData.setUrl(baseSite + '/Splatter/Slippy/{z}/{x}/{y}.png?PraxisAuthKey=' + serverKey + "&t=" + Date.now());
+            callsTotal++;
+            splatterData.setUrl(baseSite + '/Splatter/Slippy/{z}/{x}/{y}.png?PraxisAuthKey=' + serverKey + "&t=" + callsTotal);
             splatterData.redraw();
         }
 
         function reloadOne(x, y, z) { 
             if (splatterTiles[x + "|" + y + "|" + z] != null)
             {
-                splatterTiles[x + "|" + y + "|" + z].src += "&t=" + Date.now(); //TODO: may change this to reset value instead of appending a timestamp
+                callsTotal++;
+                splatterTiles[x + "|" + y + "|" + z].src += "&t=" + callsTotal;
             }
         }
 

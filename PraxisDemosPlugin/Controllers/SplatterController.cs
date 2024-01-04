@@ -83,6 +83,10 @@ namespace PraxisDemosPlugin.Controllers
         public void FreeSplat(string plusCode, double radius, int colorId = -1)
         {
             Response.Headers.Append("X-noPerfTrack", "Splatter/Splat/VARSREMOVED");
+
+            if (radius == 0)
+                return;
+
             //A user wants to throw down a paint mark in the center of {plusCode} with a size of {radius} (in Cell10 tiles)
             var newGeo = MakeSplatShape(plusCode.ToGeoArea().ToPoint(), radius * ConstantValues.resolutionCell10);
             //var color = Random.Shared.Next(colors);
