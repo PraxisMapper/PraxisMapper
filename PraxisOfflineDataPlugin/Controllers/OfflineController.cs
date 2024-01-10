@@ -1,6 +1,7 @@
 using Google.OpenLocationCode;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NetTopologySuite.Geometries;
 using PraxisCore;
 using PraxisCore.Support;
 using PraxisMapper.Classes;
@@ -167,6 +168,97 @@ namespace PraxisOfflineDataPlugin.Controllers {
                 }
 
             return list;
+        }
+
+        //TODO: test these formats and clean them up to take less space. short-names and all that.
+        public class OfflineDataV2
+        {
+            public List<OfflinePlaceEntry> entries { get; set; }
+            public Dictionary<string, int> nameTable { get; set; }
+            public int[][] nameIds { get; set; }
+        }
+
+        public class OfflinePlaceEntry {
+            public int nameTableId { get; set; }
+            public int terrainId { get; set; } //which style entry this place is
+            public int geoType { get; set; } //1 = point, 2 = line OR hollow shape, 3 = filled shape.
+            //public string geometry { get; set; }
+            public string Points { get; set; } //alt-take on geometry.
+        }
+
+        [HttpGet]
+        [Route("/[controller]/V2/{plusCode8}")]
+        [Route("/[controller]/V2/{plusCode8}/{styleSet}")]
+        public string GetOfflineDataV2(string plusCode8, string styleSet = "mapTiles")
+        {
+            //Trying a second approach to this. I want a smaller set of data, but I also want to expand whats available in this.
+            //This assumes that a server exists, but it lives primarily NOT to draw tiles itself, but to parse data down for a specific game client which does that work.
+            //adding: nametable per Cell10, and possibly geometry. This may get limited to the cell8 itself so its self-contained and only whats used gets loaded.
+            using var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
+
+            var addGeo = true;
+
+            //save and load this from the db if we've generated it before.
+            var existingData = db.AreaData.FirstOrDefault(a => a.PlusCode == plusCode8 && a.DataKey == "offlineV2");
+            if (existingData != null)
+                return existingData.DataValue.ToUTF8String();
+
+            var cell8 = plusCode8.ToGeoArea();
+            var cell8Poly = cell8.ToPolygon();
+            var placeData = Place.GetPlaces(cell8, styleSet: styleSet, dataKey: styleSet);
+            int nameCounter = 0; //used to determine nametable key
+
+            List<OfflinePlaceEntry> entries = new List<OfflinePlaceEntry>(placeData.Count);
+            Dictionary<string, int> nametable = new Dictionary<string, int>(); //name, id
+
+            foreach(var place in placeData)
+            {
+                var offline = new OfflinePlaceEntry();
+                offline.terrainId = (int)TagParser.allStyleGroups[styleSet][place.StyleName].Id; //Client will need to know what this ID means.
+                //Crop this geometry to the Cell8 we're looking at to minimize data sent over, and simplify it to a Cell10 resolution.
+                if (addGeo)
+                {
+                    //TODO: this may need to convert a polygon to a line before calling Intersection if the style only has Stroke items.
+                    //TODO: convert points to 0,100 pixel-space coordinates. Subtract min-coord value for the plus code, then value / Cell1res?
+
+                    var min = cell8.Min;
+                    place.ElementGeometry = place.ElementGeometry.Intersection(cell8Poly).Simplify(ConstantValues.resolutionCell10);
+                    //offline.geometry = place.ElementGeometry.AsText();
+                    offline.geoType = place.ElementGeometry.GeometryType == "Point" ? 1 : place.ElementGeometry.GeometryType == "LineString" ? 2 : 3;
+
+                    //NOTE: if I'm locking these geometry items to a tile, I could convert these points in the geometry to integers between 0 and 100, effectively
+                    //letting me draw Cell11 pixel-precise points from this info for an 80x100 base-scale image, and would be shorter stringified for JSON vs floats/doubles.
+                    offline.Points = string.Join("|", place.ElementGeometry.Coordinates.Select(c => (int)((c.X - min.Longitude) / ConstantValues.resolutionCell11Lon) + "," + ((int)(c.Y - min.Latitude) / ConstantValues.resolutionCell11Lat)));
+                }
+
+                //TODO: AreaStyle.GetAreaDetails() style crawl over all listed places to determine names and values?
+
+                var name = TagParser.GetName(place);
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    if (!nametable.TryGetValue(name, out var nameid))
+                    {
+                        nameid = nameCounter;
+                        nametable.Add(name, nameid);
+                        nameCounter++;
+                        //attach to this item.
+                    }
+                    offline.nameTableId = nameid;
+                }
+                entries.Add(offline);
+            }
+
+            var finalData = new OfflineDataV2();
+            finalData.nameTable = nametable;
+            finalData.entries = entries;
+
+            string data = JsonSerializer.Serialize(finalData);
+            db.AreaData.Add(new DbTables.AreaData() { PlusCode = plusCode8, DataKey = "offlineV2", DataValue = data.ToByteArrayUTF8(), Expiration = DateTime.UtcNow.AddYears(10) });
+            db.SaveChanges();
+
+            return data;
         }
     }
 }
