@@ -6,9 +6,11 @@ using PraxisCore;
 using PraxisCore.Support;
 using PraxisMapper.Classes;
 using System.Collections.Concurrent;
+using System.Text;
 using System.Text.Json;
 using System.Xml.Schema;
 using static Azure.Core.HttpHeader;
+using static PraxisCore.DbTables;
 
 namespace PraxisOfflineDataPlugin.Controllers
 {
@@ -24,7 +26,7 @@ namespace PraxisOfflineDataPlugin.Controllers
         {
             Response.Headers.Add("X-noPerfTrack", "Offline/Small/VARSREMOVED");
             GeoArea box6 = plusCode6.ToGeoArea();
-            var quickplaces = Place.GetPlaces(box6);
+            var quickplaces = PraxisCore.Place.GetPlaces(box6);
             if (quickplaces.Count == 0)
                 return "";
 
@@ -53,12 +55,12 @@ namespace PraxisOfflineDataPlugin.Controllers
             {
                 string pluscode = plusCode6 + cell8;
                 GeoArea box = pluscode.ToGeoArea();
-                var places = Place.GetPlaces(box, quickplaces);
-                if (places.Count == 0)
+                var places = PraxisCore.Place.GetPlaces(box, quickplaces);
+                if (places.Count() == 0)
                     return;
 
                 places = places.Where(p => p.IsGameElement).ToList();
-                if (places.Count == 0)
+                if (places.Count() == 0)
                     return;
                 var terrainInfo = AreaStyle.GetAreaDetails(ref box, ref places);
                 var terrainsPresent = terrainInfo.Select(t => t.data.style).Distinct().ToList();
@@ -107,7 +109,7 @@ namespace PraxisOfflineDataPlugin.Controllers
                     {
                         string pluscode6 = cell2 + cell4 + cell6;
                         GeoArea box6 = pluscode6.ToGeoArea();
-                        var quickplaces = Place.GetPlaces(box6);
+                        var quickplaces = PraxisCore.Place.GetPlaces(box6);
                         if (quickplaces.Count == 0)
                             continue;
 
@@ -121,7 +123,7 @@ namespace PraxisOfflineDataPlugin.Controllers
                         {
                             string pluscode = pluscode6 + cell8;
                             GeoArea box = pluscode.ToGeoArea();
-                            var places = Place.GetPlaces(box, quickplaces);
+                            var places = PraxisCore.Place.GetPlaces(box, quickplaces);
                             if (places.Count == 0)
                                 return;
 
@@ -225,7 +227,7 @@ namespace PraxisOfflineDataPlugin.Controllers
 
             var cell8 = plusCode.ToGeoArea();
             var cell8Poly = cell8.ToPolygon();
-            var placeData = Place.GetPlaces(cell8, styleSet: styleSet, dataKey: styleSet);
+            var placeData = PraxisCore.Place.GetPlaces(cell8, styleSet: styleSet, dataKey: styleSet);
             int nameCounter = 1; //used to determine nametable key
 
             List<OfflinePlaceEntry> entries = new List<OfflinePlaceEntry>(placeData.Count);
@@ -251,21 +253,18 @@ namespace PraxisOfflineDataPlugin.Controllers
                 }
 
                 var style = TagParser.allStyleGroups[styleSet][place.StyleName];
+
+                //I'm locking these geometry items to a tile, So I convert these points in the geometry to integers, effectively
+                //letting me draw Cell11 pixel-precise points from this info, and is shorter stringified for JSON vs floats/doubles.
                 var coordSets = GetCoordEntries(place, cell8.Min);
                 foreach (var coordSet in coordSets)
                 {
-                    //This is where most of the stuff below should actually be handled.
                     var offline = new OfflinePlaceEntry();
                     offline.nid = nameID;
-                    offline.tid = (int)style.Id; //Client will need to know what this ID means.
+                    offline.tid = style.MatchOrder; //Client will need to know what this ID means.
                     
-                    //This should be the same for all items in the place. Multipolygons will either be 
-                    offline.gt = place.ElementGeometry.GeometryType == "Point" ? 1 : place.ElementGeometry.GeometryType == "LineString" ? 2 : style.PaintOperations.All(p => p.FillOrStroke == "stroke") ? 2 : 3;
-
-                    //NOTE: if I'm locking these geometry items to a tile, I could convert these points in the geometry to integers between 0 and 100, effectively
-                    //letting me draw Cell11 pixel-precise points from this info for an 80x100 base-scale image, and would be shorter stringified for JSON vs floats/doubles.
-                    offline.p = string.Join("|", place.ElementGeometry.Coordinates.Select(c => (int)((c.X - min.Longitude) / ConstantValues.resolutionCell11Lon) + "," + ((int)((c.Y - min.Latitude) / ConstantValues.resolutionCell11Lat))));
-
+                    offline.gt = place.ElementGeometry.GeometryType == "Point" ? 1 : place.ElementGeometry.GeometryType == "LineString" ? 2 : style.PaintOperations.All(p => p.FillOrStroke == "stroke") ? 2 : 3;   
+                    offline.p = coordSet;
                     entries.Add(offline);
                 }
             }
@@ -293,29 +292,88 @@ namespace PraxisOfflineDataPlugin.Controllers
             {
                 foreach (var poly in ((MultiPolygon)place.ElementGeometry).Geometries) //This should be the same as the Polygon code below.
                 {
-                    points.Add(string.Join("|", poly.Coordinates.Select(c => (int)((c.X - min.Longitude) / ConstantValues.resolutionCell11Lon) + "," + ((int)((c.Y - min.Latitude) / ConstantValues.resolutionCell11Lat)))));
+                    points.AddRange(GetPolygonPoints(poly as Polygon, min));
                 }
             }
             else if (place.ElementGeometry.GeometryType == "Polygon")
             {
-                var poly = place.ElementGeometry as Polygon;
-                if (poly.Holes.Length == 0)
-                    points.Add(string.Join("|", poly.Coordinates.Select(c => (int)((c.X - min.Longitude) / ConstantValues.resolutionCell11Lon) + "," + ((int)((c.Y - min.Latitude) / ConstantValues.resolutionCell11Lat)))));
-                else
-                {
-                    //How to handle ones with holes?
-                    //split the outer ring on the center of the hole? Draw a straight line through all holes and split on that?
-
-                }
+                points.AddRange(GetPolygonPoints(place.ElementGeometry as Polygon, min));
             }
             else
-                points.Add(string.Join("|", place.ElementGeometry.Coordinates.Select(c => (int)((c.X - min.Longitude) / ConstantValues.resolutionCell11Lon) + "," + ((int)((c.Y - min.Latitude) / ConstantValues.resolutionCell11Lat)))));
-
-
-            //NOTE: if I'm locking these geometry items to a tile, I could convert these points in the geometry to integers between 0 and 100, effectively
-            //letting me draw Cell11 pixel-precise points from this info for an 80x100 base-scale image, and would be shorter stringified for JSON vs floats/doubles.
+                points.Add(string.Join("|", place.ElementGeometry.Coordinates.Select(c => (int)((c.X - min.Longitude) / ConstantValues.resolutionCell11Lon) + "," + ((int)((c.Y - min.Latitude) / ConstantValues.resolutionCell11Lat)))));           
 
             return points;
+        }
+
+        public static List<string> GetPolygonPoints(Polygon p, GeoPoint min)
+        {
+            List<string> results = new List<string>();
+            if (p.Holes.Length == 0)
+                results.Add(string.Join("|", p.Coordinates.Select(c => (int)((c.X - min.Longitude) / ConstantValues.resolutionCell11Lon) + "," + ((int)((c.Y - min.Latitude) / ConstantValues.resolutionCell11Lat)))));
+            else
+            {
+                //Split this polygon into smaller pieces, split on the center of each hole present longitudinally
+                //West to east direction chosen arbitrarily.
+                var westEdge = p.Coordinates.Min(c => c.X);
+                var northEdge = p.Coordinates.Max(c => c.Y);
+                var southEdge = p.Coordinates.Min(c => c.Y);
+
+                List<double> splitPoints = new List<double>();
+                foreach (var hole in p.Holes.OrderBy(h => h.Centroid.X))
+                    splitPoints.Add(hole.Centroid.X);
+
+                foreach (var point in splitPoints)
+                {
+                    var splitPoly = new GeoArea(southEdge, westEdge, northEdge, point).ToPolygon();
+                    var subPoly = p.Intersection(splitPoly);
+
+                    //Still need to check that we have reasonable geometry here.
+                    if (subPoly.GeometryType == "Polygon")
+                        results.AddRange(GetPolygonPoints(subPoly as Polygon, min));
+                    else if (subPoly.GeometryType == "MultiPolygon")
+                    {
+                        foreach (var p2 in ((MultiPolygon)subPoly).Geometries)
+                            results.AddRange(GetPolygonPoints(p2 as Polygon, min));
+                    }
+                    else
+                        ErrorLogger.LogError(new Exception("Offline proccess error: Got geoType " + subPoly.GeometryType + ", which wasnt expected"));
+                    westEdge = point;
+                }
+            }
+            return results.Distinct().ToList(); //In the unlikely case splitting ends up processing the same part twice
+        }
+
+        public class OfflineDrawOps
+        {
+            public string color { get; set; }
+            public double sizePx { get; set; }
+        }
+
+        public class OfflineStyleItem
+        {
+            public List<OfflineDrawOps> drawOps { get; set; }
+
+        }
+
+        [HttpGet]
+        [Route("/[controller]/Style/{styleSet}")]
+        public string GetStyleForClient(string styleSet)
+        {
+            Dictionary<string, OfflineStyleItem> styles = new Dictionary<string, OfflineStyleItem>();
+
+            //OR is this a Dict<string, OfflineSTyleITem>?
+            var style = TagParser.allStyleGroups[styleSet];
+            foreach(var styleEntry in style)
+            {
+                var entry = new OfflineStyleItem()
+                {
+                    drawOps = styleEntry.Value.PaintOperations.OrderByDescending(p => p.LayerId).Select(p => new OfflineDrawOps()
+                    { color = p.HtmlColorCode, sizePx = Math.Round(p.LineWidthDegrees / ConstantValues.resolutionCell11Lat, 1)}).ToList()
+                };
+                styles.Add(styleEntry.Value.MatchOrder.ToString(), entry);
+            }
+
+            return JsonSerializer.Serialize(styles);
         }
     }
 }
