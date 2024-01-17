@@ -460,7 +460,7 @@ namespace PraxisCore.Styles
                 new StyleMatchRule() { Key="leisure", Value="sports_centre|stadium", MatchType="or"},
                 new StyleMatchRule() { Key="landuse", Value="recreation_ground", MatchType="or"},
             }},
-            new StyleEntry() { MatchOrder = 440, Name ="railway", StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 450, Name ="railway", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "ffc0cb", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
@@ -468,7 +468,7 @@ namespace PraxisCore.Styles
             {
                 new StyleMatchRule() { Key="landuse", Value="railway", MatchType="equals"},
             }},
-            new StyleEntry() { MatchOrder = 450, Name ="airportapron", StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 460, Name ="airportapron", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "dbdbe1", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
@@ -476,7 +476,7 @@ namespace PraxisCore.Styles
             {
                 new StyleMatchRule() { Key="aeroway", Value="apron", MatchType="equals"},
             }},
-            new StyleEntry() { MatchOrder = 451, Name ="airportrunway", StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 471, Name ="airportrunway", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "bbbbcc", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
@@ -484,7 +484,7 @@ namespace PraxisCore.Styles
             {
                 new StyleMatchRule() { Key="aeroway", Value="runway|taxiway|helipad", MatchType="equals"}, //TODO: helipad is the same color, but has a symbol.
             }},
-            new StyleEntry() { MatchOrder = 453, Name ="airporterminal", StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 473, Name ="airporterminal", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "c5b7ad", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
@@ -495,7 +495,7 @@ namespace PraxisCore.Styles
                 new StyleMatchRule() { Key="aerialway", Value="station", MatchType="or"},
                 new StyleMatchRule() { Key="public_transport", Value="station", MatchType="or"},
             }},
-            new StyleEntry() { MatchOrder = 460, Name ="raceway", StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 480, Name ="raceway", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "ffc0cb", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
@@ -579,7 +579,7 @@ namespace PraxisCore.Styles
                 {
                     new StyleMatchRule() { Key="landuse", Value="orchard|vineyard|plant_nursery", MatchType="any"},
             }},
-            new StyleEntry() { MatchOrder = 570, Name ="allotments", StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 580, Name ="allotments", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "c9e1bf", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                 },
