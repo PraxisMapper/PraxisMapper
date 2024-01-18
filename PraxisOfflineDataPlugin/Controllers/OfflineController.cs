@@ -236,7 +236,10 @@ namespace PraxisOfflineDataPlugin.Controllers
             var min = cell8.Min;
             foreach (var place in placeData)
             {
-                place.ElementGeometry = place.ElementGeometry.Intersection(cell8Poly).Simplify(ConstantValues.resolutionCell11Lon);
+                place.ElementGeometry = place.ElementGeometry.Intersection(cell8Poly);
+                place.ElementGeometry = place.ElementGeometry.Simplify(ConstantValues.resolutionCell11Lon);
+                if (place.ElementGeometry.IsEmpty)
+                    continue; //Probably an element on the border thats getting pulled in by buffer.
 
                 var name = TagParser.GetName(place);
                 int nameID = 0;
@@ -259,6 +262,9 @@ namespace PraxisOfflineDataPlugin.Controllers
                 var coordSets = GetCoordEntries(place, cell8.Min);
                 foreach (var coordSet in coordSets)
                 {
+                    if (coordSet == "")
+                        continue;
+                        //System.Diagnostics.Debugger.Break();
                     var offline = new OfflinePlaceEntry();
                     offline.nid = nameID;
                     offline.tid = style.MatchOrder; //Client will need to know what this ID means.
@@ -301,6 +307,11 @@ namespace PraxisOfflineDataPlugin.Controllers
             }
             else
                 points.Add(string.Join("|", place.ElementGeometry.Coordinates.Select(c => (int)((c.X - min.Longitude) / ConstantValues.resolutionCell11Lon) + "," + ((int)((c.Y - min.Latitude) / ConstantValues.resolutionCell11Lat)))));           
+
+            if (points.Count == 0)
+            {
+                System.Diagnostics.Debugger.Break();
+            }
 
             return points;
         }
