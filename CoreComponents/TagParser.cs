@@ -44,6 +44,7 @@ namespace PraxisCore {
             allStyleGroups.Clear();
             cachedBitmaps.Clear();
 
+            Singletons.defaultStyleEntries.AddRange(Styles.importAll.style);
             Singletons.defaultStyleEntries.AddRange(Styles.adminBounds.style);
             Singletons.defaultStyleEntries.AddRange(Styles.adminBoundsFilled.style);
             Singletons.defaultStyleEntries.AddRange(Styles.mapTiles.style);
@@ -339,6 +340,10 @@ namespace PraxisCore {
 
                         if (!isPresent || actualvalue != entry.Value)
                             return false;
+                        break;
+                    case "tagged": //Used in the importAll style to pick all tagged entries
+                        if (tags.Count > 0)
+                            return true;
                         break;
                     case "none":
                         //never matches anything. Useful for background color or other special styles that need to exist but don't want to appear normally.
