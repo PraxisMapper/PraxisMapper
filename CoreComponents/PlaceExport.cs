@@ -223,6 +223,7 @@ namespace PraxisCore
                     db.ChangeTracker.AutoDetectChangesEnabled = false;
                     entry.SaveProgress();
                     Log.WriteLog("Saved: " + entryCounter + " total entries");
+                    db.ChangeTracker.Clear();
                 }
                 place = entry.GetNextPlace();
             }
