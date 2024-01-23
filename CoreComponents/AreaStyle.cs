@@ -2,8 +2,10 @@
 using NetTopologySuite.Geometries;
 using PraxisCore.Support;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using static PraxisCore.ConstantValues;
 using static PraxisCore.Place;
 
@@ -24,7 +26,7 @@ namespace PraxisCore
             var results = new List<AreaInfo>(entriesHere.Count);
             foreach (var e in entriesHere)
             {
-                results.Add(new AreaInfo(TagParser.GetName(e), e.StyleName, e.PrivacyId));
+                results.Add(new AreaInfo(e.Name, e.StyleName, e.PrivacyId));
             }
             return results;
         }
@@ -40,7 +42,7 @@ namespace PraxisCore
             //This one only returns the smallest entry, for games that only need to check the most interesting area in a cell.
             //loading data through GetPlaces() will sort them largest to smallest, so we dont sort again here.
             var entry = entriesHere.Last();
-            return new AreaInfo(TagParser.GetName(entry), entry.StyleName, entry.PrivacyId);
+            return new AreaInfo(entry.Name, entry.StyleName, entry.PrivacyId);
         }
 
         /// <summary>
@@ -49,7 +51,8 @@ namespace PraxisCore
         /// <param name="area">GeoArea from a decoded PlusCode</param>
         /// <param name="elements">A list of OSM elements</param>
         /// <returns>returns a dictionary using PlusCode as the key and name/areatype/client facing Id of the smallest element intersecting that PlusCode</returns>
-        public static List<AreaDetail> GetAreaDetails(ref GeoArea area, ref List<DbTables.Place> elements) {
+        public static List<AreaDetail> GetAreaDetails(ref GeoArea area, ref List<DbTables.Place> elements)
+        {
             List<AreaDetail> results = new List<AreaDetail>(400); //starting capacity for a full Cell8
 
             //Singular function, returns 1 item entry per cell10.
@@ -64,11 +67,15 @@ namespace PraxisCore
             AreaDetail? placeFound;
             Polygon searchAreaPoly = null;
 
-            while (x < area.Max.Longitude) {
+            while (x < area.Max.Longitude)
+            {
                 searchArea = new GeoArea(area.Min.Latitude, x - resolutionCell10, area.Max.Latitude, x + resolutionCell10);
                 searchAreaPoly = searchArea.ToPolygon();
                 searchPlaces = elements.Where(e => e.ElementGeometry.Intersects(searchAreaPoly)).ToList();
-                while (y < area.Max.Latitude) {
+                if (searchPlaces.Count == 0)
+                    continue;
+                while (y < area.Max.Latitude)
+                {
                     placeFound = GetAreaDetailForCell10(x, y, ref searchPlaces);
                     if (placeFound.HasValue)
                         results.Add(placeFound.Value);
@@ -80,6 +87,50 @@ namespace PraxisCore
             }
 
             return results;
+        }
+
+        public static List<AreaDetail> GetAreaDetailsParallel(GeoArea area, List<DbTables.Place> elements)
+        {
+            ConcurrentBag<AreaDetail> results = new ConcurrentBag<AreaDetail>();
+            //List<AreaDetail> results2; = new List<AreaDetail>(400); //starting capacity for a full Cell8
+
+            //Singular function, returns 1 item entry per cell10.
+            if (elements.Count == 0)
+                return new List<AreaDetail>();
+
+            double x = area.Min.Longitude;
+            double y = area.Min.Latitude;
+
+            List<double> xs = new List<double>(20);
+            List<double> ys = new List<double>(20);
+
+            while (x < area.Max.Longitude)
+            {
+                xs.Add(x);
+                x = Math.Round(x + resolutionCell10, 6);
+            }
+
+            while (y < area.Max.Latitude)
+            {
+                ys.Add(y);
+                y = Math.Round(y + resolutionCell10, 6);
+            }
+
+            System.Threading.Tasks.Parallel.ForEach(xs, x =>
+            {
+                var searchArea = new GeoArea(area.Min.Latitude, x - resolutionCell10, area.Max.Latitude, x + resolutionCell10);
+                var searchAreaPoly = searchArea.ToPolygon();
+                var searchPlaces = elements.Where(e => e.ElementGeometry.Intersects(searchAreaPoly)).ToList();
+                if (searchPlaces.Count > 0)
+                    System.Threading.Tasks.Parallel.ForEach(ys, y =>
+                    {
+                        var placeFound = GetAreaDetailForCell10(x, y, ref searchPlaces);
+                        if (placeFound.HasValue)
+                            results.Add(placeFound.Value);
+                    });
+            });
+
+            return results.ToList();
         }
 
         /// <summary>
@@ -103,7 +154,7 @@ namespace PraxisCore
             Polygon searchAreaPoly = null;
             List<DbTables.Place> searchPlaces;
             AreaDetailAll? placesFound;
-            
+
             while (x < area.Max.Longitude)
             {
                 searchArea = new GeoArea(area.Min.Latitude, x - resolutionCell10, area.Max.Latitude, x + resolutionCell10);
@@ -156,6 +207,8 @@ namespace PraxisCore
         /// <returns>a tuple of the 10-digit plus code and the name/areatype/client facing ID for the smallest element in that pluscode.</returns>
         public static AreaDetail? GetAreaDetailForCell10(double x, double y, ref List<DbTables.Place> places)
         {
+            //TODO: for very large areas, this is particularly slow. I may want to limit down places before callling this, or 
+            //use some kind of PreparedGeometry to save time?
             //singular function, only returns the smallest area in a cell.           
             var olc = new OpenLocationCode(y, x);
             var box = olc.Decode();

@@ -61,7 +61,7 @@ namespace PraxisDemosPlugin.Controllers
 
                 foreach (var p in places)
                     if (!placeTracker.Any(pt => pt.placeId == p.PrivacyId))
-                        placeTracker.Add(new VisitedPlace() { placeId = p.PrivacyId, Name = TagParser.GetName(p), Category = p.StyleName });
+                        placeTracker.Add(new VisitedPlace() { placeId = p.PrivacyId, Name = p.Name, Category = p.StyleName });
 
                 GenericData.SetSecurePlayerDataJson(accountId, "placesVisitedRB", placeTracker, password);
             });
@@ -113,7 +113,7 @@ namespace PraxisDemosPlugin.Controllers
                 return "";
 
             var place = Place.GetPlace(target);
-            var placeData = new { Name = TagParser.GetName(place), Category = place.StyleName, Location = new OpenLocationCode(place.ElementGeometry.Centroid.Centroid.Y, place.ElementGeometry.Centroid.X).Code };
+            var placeData = new { Name = place.Name, Category = place.StyleName, Location = new OpenLocationCode(place.ElementGeometry.Centroid.Centroid.Y, place.ElementGeometry.Centroid.X).Code };
             return JsonSerializer.Serialize(placeData);
         }
 
@@ -162,8 +162,8 @@ namespace PraxisDemosPlugin.Controllers
 
             TagParser.ApplyTags(place, "suggestedGameplay");
             //Name checking stuff.
-            string name = TagParser.GetName(place);
-            if (string.IsNullOrEmpty(name))
+            string name = place.Name;
+            if (string.IsNullOrEmpty(place.Name))
             {
                 name = "Unnamed " + place.StyleName;
             }

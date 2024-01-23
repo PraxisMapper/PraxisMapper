@@ -297,9 +297,8 @@ namespace PraxisMapper.Controllers {
             //Might be better in PraxisCore to be reused.
 
             var place = AreaStyle.GetSinglePlaceFromArea(plusCode);
-            var name = TagParser.GetName(place);
             StringBuilder sb = new StringBuilder();
-            sb.Append(plusCode).Append('|').Append(name).Append('|').Append(place.StyleName).Append('|').Append(place.PrivacyId);
+            sb.Append(plusCode).Append('|').Append(place.Name).Append('|').Append(place.StyleName).Append('|').Append(place.PrivacyId);
 
             return sb.ToString();
         }
