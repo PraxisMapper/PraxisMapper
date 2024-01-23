@@ -423,8 +423,9 @@ namespace PraxisCore
 
         public static void PreTag(DbTables.Place place)
         {
+            place.Name = TagParser.GetName(place);
             //tag this place.
-            foreach (var style in TagParser.allStyleGroups.Where(g => g.Key != "outlines" && g.Key != "paintTown"))
+            foreach (var style in TagParser.allStyleGroups.Where(g => g.Key != "outlines" && g.Key != "paintTown" && g.Key != "importAll"))
             {
                 TagParser.ApplyTags(place, style.Key);
 
