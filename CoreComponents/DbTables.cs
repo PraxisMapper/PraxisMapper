@@ -162,6 +162,7 @@ namespace PraxisCore {
             /// </summary>
             public Guid PrivacyId { get; set; } = Guid.NewGuid(); //Pass this Id to clients, so we can attempt to block attaching players to locations in the DB.
             public double DrawSizeHint { get; set; } //optimization. This is estimated pixels to draw at standard scale. Calculate your floor if you zoom in or out differently, and skip loading if its too small to see.
+            public string Name { get; set; } //Putting this here so I can skip loading tags most of the time.
 
             public override string ToString()
             {

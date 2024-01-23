@@ -186,7 +186,7 @@ namespace PraxisCore
                     && stats.degreesPerPixelX > po.MinDrawRes //dppX should be between max and min draw range.
                     && !(po.HtmlColorCode.Length == 8 && po.HtmlColorCode.StartsWith("00")) //color is NOT transparent.
                     && (!po.FromTag || TagParser.GetTagValue(place, place.StyleName, out tagColor))
-                    && (!po.StaticColorFromName || TagParser.PickStaticColorByName(TagParser.GetName(place), out tagColor))
+                    && (!po.StaticColorFromName || TagParser.PickStaticColorByName(place.Name, out tagColor))
                     )
                         list.Add(new CompletePaintOp(
                         place.ElementGeometry,

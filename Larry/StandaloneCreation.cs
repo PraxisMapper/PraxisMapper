@@ -66,10 +66,10 @@ namespace Larry {
             }
             string commonStart = minCode.Substring(0, removableLetters);
 
-            var wikiList = allPlaces.Where(a => a.Tags.Any(t => t.Key == "wikipedia") && TagParser.GetName(a) != "").Select(a => TagParser.GetName(a)).Distinct().ToList();
+            var wikiList = allPlaces.Where(a => a.Tags.Any(t => t.Key == "wikipedia") && a.Name != "").Select(a => a.Name).Distinct().ToList();
             //Leaving this nearly wide open, since it's not the main driver of DB size.
-            var basePlaces = allPlaces.Where(a => TagParser.GetName(a) != "" || a.StyleName != "unmatched").ToList(); //.Where(a => a.name != "").ToList();// && (a.IsGameElement || wikiList.Contains(a.name))).ToList();
-            var distinctNames = basePlaces.Select(p => TagParser.GetName(p)).Distinct().ToList();//This distinct might be causing things in multiple pieces to only detect one of them, not all of them?
+            var basePlaces = allPlaces.Where(a => a.Name != "" || a.StyleName != "unmatched").ToList(); //.Where(a => a.name != "").ToList();// && (a.IsGameElement || wikiList.Contains(a.name))).ToList();
+            var distinctNames = basePlaces.Select(p => p.Name).Distinct().ToList();//This distinct might be causing things in multiple pieces to only detect one of them, not all of them?
 
             var placeInfo = Standalone.GetPlaceInfo(basePlaces);
             //Remove trails later.

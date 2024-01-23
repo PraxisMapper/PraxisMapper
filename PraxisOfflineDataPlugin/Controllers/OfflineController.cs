@@ -194,6 +194,7 @@ namespace PraxisOfflineDataPlugin.Controllers
         //TODO: test these formats and clean them up to take less space. short-names and all that.
         public class OfflineDataV2
         {
+            public string PlusCode { get; set; }
             public List<OfflinePlaceEntry> entries { get; set; }
             public Dictionary<int, string> nameTable { get; set; } //id, name
             public Dictionary<string, int> gridNames { get; set; } //pluscode, nameTable entry id
@@ -213,6 +214,7 @@ namespace PraxisOfflineDataPlugin.Controllers
         [Route("/[controller]/V2/{plusCode}/{styleSet}")]
         public string GetOfflineDataV2(string plusCode, string styleSet = "mapTiles")
         {
+            //TODO: may want to move this logic to PraxisCore so Larry and the plugin can share it?
             //Trying a second approach to this. I want a smaller set of data, but I also want to expand whats available in this.
             //This assumes that a server exists, but it lives primarily NOT to draw tiles itself, but to parse data down for a specific game client which does that work.
             //adding: nametable per Cell10, and possibly geometry. This may get limited to the cell8 itself so its self-contained and only whats used gets loaded.
@@ -233,22 +235,26 @@ namespace PraxisOfflineDataPlugin.Controllers
             List<OfflinePlaceEntry> entries = new List<OfflinePlaceEntry>(placeData.Count);
             Dictionary<string, int> nametable = new Dictionary<string, int>(); //name, id
 
+            //List<DbTables.Place> toRemove = new List<DbTables.Place>(); //not worth the effort. tiny percentage of places.
+
             var min = cell8.Min;
             foreach (var place in placeData)
             {
                 place.ElementGeometry = place.ElementGeometry.Intersection(cell8Poly);
                 place.ElementGeometry = place.ElementGeometry.Simplify(ConstantValues.resolutionCell11Lon);
                 if (place.ElementGeometry.IsEmpty)
-                    continue; //Probably an element on the border thats getting pulled in by buffer.
-
-                var name = TagParser.GetName(place);
-                int nameID = 0;
-                if (!string.IsNullOrWhiteSpace(name))
                 {
-                    if (!nametable.TryGetValue(name, out var nameval))
+                    //toRemove.Add(place);
+                    continue; //Probably an element on the border thats getting pulled in by buffer.
+                }
+
+                int nameID = 0;
+                if (!string.IsNullOrWhiteSpace(place.Name))
+                {
+                    if (!nametable.TryGetValue(place.Name, out var nameval))
                     {
                         nameval = nameCounter;
-                        nametable.Add(name, nameval);
+                        nametable.Add(place.Name, nameval);
                         nameCounter++;
                         //attach to this item.
                     }
@@ -275,18 +281,22 @@ namespace PraxisOfflineDataPlugin.Controllers
                 }
             }
 
-            //TODO: this is not yet totally optimized, but it's sufficient fast as-is for use.
+            //placeData = placeData.Except(toRemove).ToList();
+
+            //TODO: this is not yet totally optimized, but it's sufficient fast as-is for use on a Cell6 or smaller area. Cell4 takes way longer.
             var cell82 = (GeoArea)cell8;
             var terrainInfo = AreaStyle.GetAreaDetails(ref cell82, ref placeData);
-            Dictionary<string, int> nameInfo = terrainInfo.Where(t => t.data.name != "").Select(t => new { t.plusCode, nameId = nametable[t.data.name] }).ToDictionary(k => k.plusCode.Replace(plusCode, ""), v => v.nameId);
+            var stringSize = plusCode.Length;
+            Dictionary<string, int> nameInfo = terrainInfo.Where(t => t.data.name != "").Select(t => new { t.plusCode, nameId = nametable[t.data.name] }).ToDictionary(k => k.plusCode.Substring(stringSize), v => v.nameId);
 
             var finalData = new OfflineDataV2();
+            finalData.PlusCode = plusCode;
             finalData.nameTable = nametable.ToDictionary(k => k.Value, v => v.Key);
             finalData.entries = entries;
             finalData.gridNames = nameInfo;
 
             string data = JsonSerializer.Serialize(finalData);
-            GenericData.SetAreaData(plusCode, "offlineV2", data, (10 * 365 * 24 * 60 * 1000.0)); //10 years in ms?
+            GenericData.SetAreaData(plusCode, "offlineV2", data);
             return data;
         }
 

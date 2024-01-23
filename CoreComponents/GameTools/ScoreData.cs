@@ -34,7 +34,7 @@ namespace PraxisCore.GameTools
             {
                 var containedArea = md.ElementGeometry.Intersection(areaPoly);
                 var areaCell10Count = GetScoreForSinglePlace(containedArea);
-                areaSizes.Add(new Tuple<string, long, Guid>(TagParser.GetName(md), areaCell10Count, md.PrivacyId));
+                areaSizes.Add(new Tuple<string, long, Guid>(md.Name, areaCell10Count, md.PrivacyId));
             }
             return string.Join("\r\n", areaSizes.Select(a => a.Item1 + "|" + a.Item2 + "|" + a.Item3));
         }
@@ -50,7 +50,7 @@ namespace PraxisCore.GameTools
             List<Tuple<string, long, Guid>> areaSizes = new List<Tuple<string, long, Guid>>(places.Count);
             foreach (var place in places)
             {
-                areaSizes.Add(Tuple.Create(TagParser.GetName(place), GetScoreForSinglePlace(place.ElementGeometry), place.PrivacyId));
+                areaSizes.Add(Tuple.Create(place.Name, GetScoreForSinglePlace(place.ElementGeometry), place.PrivacyId));
             }
             return string.Join("\r\n", areaSizes.Select(a => a.Item1 + "|" + a.Item2 + "|" + a.Item3));
         }
