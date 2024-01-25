@@ -166,7 +166,7 @@ namespace PraxisCore {
 
             public override string ToString()
             {
-                return ((StyleName == null ? "" : StyleName + " ") +  (SourceItemType == 3 ? "Relation " : SourceItemType == 2 ? "Way " : "Node ") +  SourceItemID.ToString() + " " + TagParser.GetName(Tags));
+                return ((StyleName == null ? "" : StyleName + " ") +  (SourceItemType == 3 ? "Relation " : SourceItemType == 2 ? "Way " : "Node ") +  SourceItemID.ToString() + " " + Name);
             }
 
             public Place Clone()

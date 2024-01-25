@@ -95,7 +95,8 @@ namespace PraxisCore
                 SourceItemID = q.SourceItemID, 
                 SourceItemType = q.SourceItemType, 
                 Tags = skipTags ? null : q.Tags, 
-                PlaceData = dataKey == null ? q.PlaceData : q.PlaceData.Where(d => d.DataKey == dataKey).ToList()
+                PlaceData = dataKey == null ? q.PlaceData : q.PlaceData.Where(d => d.DataKey == dataKey).ToList(),
+                Name = q.Name
             });
 
 
