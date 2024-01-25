@@ -113,7 +113,7 @@ namespace Larry
 
             TagParser.Initialize(config["ForceStyleDefaults"] == "True", MapTiles);
 
-            
+
             //Takes a styleSet, and saves 1 output file per style in that set. 
             if (args.Any(a => a.StartsWith("-splitPbfByStyle:")))
             {
@@ -196,7 +196,7 @@ namespace Larry
             {
                 using var db = new PraxisContext();
                 var bounds = db.SetServerBounds(long.Parse(config["UseOneRelationID"]));
-                for(int zoom = 2; zoom <= 18; zoom++)
+                for (int zoom = 2; zoom <= 18; zoom++)
                     MapTileSupport.PregenSlippyMapTilesForArea(bounds, zoom);
             }
 
@@ -238,7 +238,10 @@ namespace Larry
 
             if (args.Any(a => a == "-makeOfflineFiles"))
             {
-                MakeOfflineFilesCell8();
+                //TODO: create lastofflineentry file here, remove check for file existin inside makeOfflineJson
+                //MakeOfflineFilesCell8();
+                MakeOfflineJson("");
+                File.Delete("lastOfflineEntry.txt");
             }
 
             if (args.Any(a => a == "-recalcDrawHints"))
@@ -331,11 +334,14 @@ namespace Larry
 
         private static void processPmds()
         {
+            var db = new PraxisContext();
+            var settings = db.ServerSettings.FirstOrDefault();
+            var bounds = new GeoArea(settings.SouthBound, settings.WestBound, settings.NorthBound, settings.EastBound).ToPolygon().EnvelopeInternal;
+
             List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.pmd").ToList();
             foreach (string filename in filenames)
             {
-                PlaceExport.LoadToDatabase(filename);
-
+                PlaceExport.LoadToDatabase(filename, bounds: bounds);
                 File.Move(filename, filename + "done");
             }
         }
@@ -382,7 +388,7 @@ namespace Larry
             }
         }
 
-       
+
 
         /// <summary>
         /// This is intended for pulling a single missing entry into an existing database, and does not process to an external file.
@@ -519,7 +525,7 @@ namespace Larry
             polygons.Clear();
             polygons.AddRange(notShrinking);
             polygons.AddRange(resultGeo.Geometries.Select(g => (Polygon)g).ToList());
-            
+
             var outputData = new PlaceExport("oceanData.pmd");
             outputData.Open();
             int c = 1;
@@ -724,35 +730,6 @@ namespace Larry
             File.WriteAllText("appsettings.json", newFileText);
         }
 
-        public static void ReduceServerSize() //Extremely similar to the PBFReader reprocessing, but online instead of against files.
-        {
-            using var db = new PraxisContext();
-            var groupsDone = 0;
-            var groupSize = 1000;
-            bool keepGoing = true;
-            while (keepGoing)
-            {
-                //TODO: if keeping this, switch this to use WHERE( > lastLargestID) instead of Skip(number)
-                var places = db.Places.Include(p => p.Tags).Where(p => p.DrawSizeHint > 4000).Skip(groupsDone * groupSize).Take(groupSize).ToList();
-                if (places.Count < groupSize)
-                    keepGoing = false;
-
-                foreach (var place in places)
-                {
-                    place.ElementGeometry = NetTopologySuite.Precision.GeometryPrecisionReducer.Reduce(NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(place.ElementGeometry, ConstantValues.resolutionCell10), PrecisionModel.FloatingSingle.Value);
-                    var match = TagParser.GetStyleEntry(place, "mapTiles");
-                    var name = TagParser.GetName(place);
-                    place.Tags.Clear();
-                    if (!string.IsNullOrEmpty(name))
-                        place.Tags.Add(new PlaceTags() { Key = "name", Value = name });
-                    place.Tags.Add(new PlaceTags() { Key = "styleset", Value = match.Name });
-                }
-                Log.WriteLog("Saving " + groupSize + " changes");
-                db.SaveChanges();
-                groupsDone++;
-            }
-        }
-
         public static void RecalcDrawSizeHints()
         {
             //TODO: write something that lets me quick and easy batch commands on the entities.
@@ -846,7 +823,7 @@ namespace Larry
                 Log.WriteLog(runningcount + " items written to file total so far.");
             }
             sw.Stop();
-            Log.WriteLog(parentPlace + "-submap files written to OutputData folder at " + DateTime.Now +", completed in " + sw.Elapsed);
+            Log.WriteLog(parentPlace + "-submap files written to OutputData folder at " + DateTime.Now + ", completed in " + sw.Elapsed);
         }
 
         public static void RetagPlaces(string styleSet = "", string style = "")
@@ -872,7 +849,7 @@ namespace Larry
                 sw.Restart();
                 //using the last ID is way more efficient than Skip(int). TODO Apply this anywhere else in the app I use skip/take
                 var placeQuery = db.Places.Include(p => p.PlaceData).Where(p => p.Id > skip);
-                if (styleSet != null)
+                if (!String.IsNullOrWhiteSpace(styleSet))
                 {
                     if (style == "")
                         placeQuery = placeQuery.Where(p => p.PlaceData.Any(d => d.DataKey == styleSet));
@@ -936,5 +913,254 @@ namespace Larry
 
             db.SaveChanges();
         }
+
+        public class OfflineDataV2
+        {
+            public string PlusCode { get; set; }
+            public List<OfflinePlaceEntry> entries { get; set; }
+            public Dictionary<int, string> nameTable { get; set; } //id, name
+            public Dictionary<string, int> gridNames { get; set; } //pluscode, nameTable entry id
+        }
+
+        public class OfflinePlaceEntry
+        {
+            public int? nid { get; set; } = null; //nametable id
+            public int tid { get; set; } //terrain id, which style entry this place is
+            public int gt { get; set; } //geometry type. 1 = point, 2 = line OR hollow shape, 3 = filled shape.
+            //public string geometry { get; set; }
+            public string p { get; set; } //Points, local to the given PlusCode
+        }
+        public static void MakeOfflineJson(string plusCode, Polygon bounds = null, bool saveToFile = true)
+        {
+            //Make offline data for PlusCode6s, repeatedly if the one given is a 4 or 2.
+            var styleSet = "mapTiles";
+
+
+            if (bounds == null)
+            {
+                var dbB = new PraxisContext();
+                var settings = dbB.ServerSettings.FirstOrDefault();
+                bounds = new GeoArea(settings.SouthBound, settings.WestBound, settings.NorthBound, settings.EastBound).ToPolygon();
+                dbB.Dispose();
+            }
+
+            var area = plusCode.ToPolygon();
+            if (!area.Intersects(bounds))
+                return;
+
+            if (plusCode.Length < 6)
+            {
+                if (!PraxisCore.Place.DoPlacesExist(plusCode.ToGeoArea()))
+                    return;
+
+                if (plusCode.Length == 4)
+                {
+                    ParallelOptions po = new ParallelOptions();
+                    po.MaxDegreeOfParallelism = 4;
+                    Parallel.ForEach(GetCellCombos(), po, pair =>
+                    {
+                        MakeOfflineJson(plusCode + pair, bounds, saveToFile);
+                    });
+
+                    return;
+                }
+                else
+                {
+                    var doneCell2s = "0";
+                    if (File.Exists("lastOfflineEntry.txt"))
+                        doneCell2s = File.ReadAllText("lastOfflineEntry.txt");
+                    if (doneCell2s.Contains(plusCode) && plusCode != "")
+                        return;
+
+                    foreach (var pair in GetCellCombos())
+                        MakeOfflineJson(plusCode + pair, bounds, saveToFile);
+                    File.AppendAllText("lastOfflineEntry.txt", "|" + plusCode);
+                    return;
+                }
+            }
+
+            //This is to let us be resumable if this stop for some reason.
+            //+ "\\" + plusCode.Substring(2, 2) +
+            if (File.Exists(config["PbfFolder"] + plusCode.Substring(0,2) + "\\" + plusCode + ".json"))
+                return;
+
+            Directory.CreateDirectory(config["PbfFolder"] + plusCode.Substring(0, 2));
+
+            var sw = Stopwatch.StartNew();
+            using var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
+
+            var cell8 = plusCode.ToGeoArea();
+            var cell8Poly = cell8.ToPolygon();
+            var placeData = PraxisCore.Place.GetPlaces(cell8, styleSet: styleSet, dataKey: styleSet, skipTags: true);
+            int nameCounter = 1; //used to determine nametable key
+
+            if (placeData.Count == 0)
+                return;
+
+            List<OfflinePlaceEntry> entries = new List<OfflinePlaceEntry>(placeData.Count);
+            Dictionary<string, int> nametable = new Dictionary<string, int>(); //name, id
+
+            //List<DbTables.Place> toRemove = new List<DbTables.Place>(); //not worth the effort. tiny percentage of places.
+
+            var min = cell8.Min;
+            foreach (var place in placeData)
+            {
+                place.ElementGeometry = place.ElementGeometry.Intersection(cell8Poly);
+                place.ElementGeometry = place.ElementGeometry.Simplify(ConstantValues.resolutionCell11Lon);
+                if (place.ElementGeometry.IsEmpty)
+                {
+                    //toRemove.Add(place);
+                    continue; //Probably an element on the border thats getting pulled in by buffer.
+                }
+
+                //var name = TagParser.GetName(place);
+                int? nameID = null;
+                if (!string.IsNullOrWhiteSpace(place.Name))
+                {
+                    if (!nametable.TryGetValue(place.Name, out var nameval))
+                    {
+                        nameval = nameCounter;
+                        nametable.Add(place.Name, nameval);
+                        nameCounter++;
+                        //attach to this item.
+                        nameID = nameval;
+                    }
+                }
+
+                var style = TagParser.allStyleGroups[styleSet][place.StyleName];
+
+                //I'm locking these geometry items to a tile, So I convert these points in the geometry to integers, effectively
+                //letting me draw Cell11 pixel-precise points from this info, and is shorter stringified for JSON vs floats/doubles.
+                var coordSets = GetCoordEntries(place, cell8.Min);
+                foreach (var coordSet in coordSets)
+                {
+                    if (coordSet == "")
+                        continue;
+                    //System.Diagnostics.Debugger.Break();
+                    var offline = new OfflinePlaceEntry();
+                    offline.nid = nameID;
+                    offline.tid = style.MatchOrder; //Client will need to know what this ID means from the offline style endpoint output.
+
+                    offline.gt = place.ElementGeometry.GeometryType == "Point" ? 1 : place.ElementGeometry.GeometryType == "LineString" ? 2 : style.PaintOperations.All(p => p.FillOrStroke == "stroke") ? 2 : 3;
+                    offline.p = coordSet;
+                    entries.Add(offline);
+                }
+            }
+
+            //placeData = placeData.Except(toRemove).ToList();
+
+            //removing this, because the client should be able to draw names as a color on an image with the available data now.
+            //a nametable is entirely unnecessary
+            //var cell82 = (GeoArea)cell8;
+            //var terrainInfo = AreaStyle.GetAreaDetailsParallel(cell82, placeData);
+            //var stringSize = plusCode.Length;
+            //Dictionary<string, int> nameInfo = terrainInfo.Where(t => t.data.name != "").Select(t => new { t.plusCode, nameId = nametable[t.data.name] }).ToDictionary(k => k.plusCode.Substring(stringSize), v => v.nameId);
+            //TODO: work out some special values for nameInfo here I can assign names to a square instead of each individual cell
+            //That will dramatically reduce nametable storage space.
+            //opt1: if all entries start with the same plusCode and occupy that entire Cell, just use that value (removes 400 entries).
+            //opt2: add new values to a new object that indicate 2 corners of a square that hold the name in question. This is MORE data if each square is unique
+            //but much less if it's a big block.
+            //opt3: have the client use the geoData to 'draw' a table with the values attached to each item. This can be done separately from the graphics using the same data.
+            //but would need a way to map names to colors or something.
+
+
+            var finalData = new OfflineDataV2();
+            finalData.PlusCode = plusCode;
+            finalData.nameTable = nametable.Count > 0 ? nametable.ToDictionary(k => k.Value, v => v.Key) : null;
+            finalData.entries = entries;
+            //finalData.gridNames = nameInfo;
+
+            JsonSerializerOptions jso = new JsonSerializerOptions();
+            jso.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+            string data = JsonSerializer.Serialize(finalData, jso);
+
+            if (saveToFile)
+            {
+                //+ "\\" + plusCode.Substring(2, 2) +
+                File.WriteAllText(config["PbfFolder"] + plusCode.Substring(0,2) + "\\" + plusCode + ".json", data);
+            }
+            else
+            {
+                GenericData.SetAreaData(plusCode, "offlineV2", data);
+            }
+            sw.Stop();
+            Log.WriteLog("Created and saved offline data for " + plusCode + " in " + sw.Elapsed);
+
+        }
+
+
+        public static List<string> GetCoordEntries(DbTables.Place place, GeoPoint min)
+        {
+            List<string> points = new List<string>();
+
+            if (place.ElementGeometry.GeometryType == "MultiPolygon")
+            {
+                foreach (var poly in ((MultiPolygon)place.ElementGeometry).Geometries) //This should be the same as the Polygon code below.
+                {
+                    points.AddRange(GetPolygonPoints(poly as Polygon, min));
+                }
+            }
+            else if (place.ElementGeometry.GeometryType == "Polygon")
+            {
+                points.AddRange(GetPolygonPoints(place.ElementGeometry as Polygon, min));
+            }
+            else
+                points.Add(string.Join("|", place.ElementGeometry.Coordinates.Select(c => (int)((c.X - min.Longitude) / ConstantValues.resolutionCell11Lon) + "," + ((int)((c.Y - min.Latitude) / ConstantValues.resolutionCell11Lat)))));
+
+            if (points.Count == 0)
+            {
+                //System.Diagnostics.Debugger.Break();
+            }
+
+            return points;
+        }
+
+        public static List<string> GetPolygonPoints(Polygon p, GeoPoint min)
+        {
+            List<string> results = new List<string>();
+            if (p.Holes.Length == 0)
+                results.Add(string.Join("|", p.Coordinates.Select(c => (int)((c.X - min.Longitude) / ConstantValues.resolutionCell11Lon) + "," + ((int)((c.Y - min.Latitude) / ConstantValues.resolutionCell11Lat)))));
+            else
+            {
+                //Split this polygon into smaller pieces, split on the center of each hole present longitudinally
+                //West to east direction chosen arbitrarily.
+                var westEdge = p.Coordinates.Min(c => c.X);
+                var northEdge = p.Coordinates.Max(c => c.Y);
+                var southEdge = p.Coordinates.Min(c => c.Y);
+
+                List<double> splitPoints = new List<double>();
+                foreach (var hole in p.Holes.OrderBy(h => h.Centroid.X))
+                    splitPoints.Add(hole.Centroid.X);
+
+                foreach (var point in splitPoints)
+                {
+                    try
+                    {
+                        var splitPoly = new GeoArea(southEdge, westEdge, northEdge, point).ToPolygon();
+                        var subPoly = p.Intersection(splitPoly);
+
+                        //Still need to check that we have reasonable geometry here.
+                        if (subPoly.GeometryType == "Polygon")
+                            results.AddRange(GetPolygonPoints(subPoly as Polygon, min));
+                        else if (subPoly.GeometryType == "MultiPolygon")
+                        {
+                            foreach (var p2 in ((MultiPolygon)subPoly).Geometries)
+                                results.AddRange(GetPolygonPoints(p2 as Polygon, min));
+                        }
+                        else
+                            Log.WriteLog("Offline proccess error: Got geoType " + subPoly.GeometryType + ", which wasnt expected");
+                    }
+                    catch(Exception ex)
+                    {
+                        Log.WriteLog("Offline proccess error: " + ex.Message);
+                    }
+                    westEdge = point;
+                }
+            }
+            return results.Distinct().ToList(); //In the unlikely case splitting ends up processing the same part twice
+        }
+
     }
 }
