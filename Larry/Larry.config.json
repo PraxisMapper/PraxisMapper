@@ -44,6 +44,16 @@
   //SkiaSharp is faster and generally looks better, but only works on Windows because of native dependencies. ImageSharp works on everything, but about 30% of the speed.
   "MapTilesEngine": "SkiaSharp",
   // normal: multithreading, conserve RAM betwen blocks. low: singlethread, conserve RAM, high: multithread, keep all read blocks in RAM. Don't use 'high' unless you are working on a very small area.
-  // On extremely problematic geometries, normal mode will attempt to drop into low mode for a single block instead of quitting on an error. 
-  "ResourceUse": "normal"
+  // On extremely problematic geometries, normal mode will attempt to drop into low mode for a single block instead of quitting on an error.
+  "ResourceUse": "normal",
+
+  //Configuration values for making Offline JSON files. The default create data that can be drawn with 1 Cell11 as 1 pixel, and geometry simplified to remove points that 
+  //wouldn't make a significant difference on the output. These numbers can be made smaller (ideally to Cell12 resolution values) if higher accuracy is required.
+  //For Cell8 game tiles they are the following sizes at x1 scale:
+  //Cell10 resolution: 20x20,  1.0 aspect ratio .000125
+  //Cell11 resolution: 80x100 - the original default, .8 aspect ratio, what the current client setup is intended to handle.
+  //Cell12 resolution: 320x500 - .64 aspect ratio, expected new default, would require spacing adjustments in the demo client.
+  "offlineSimplifyResolution": ".0000078125", //0 to disable simplification. .000025 for Cell1 resolution, 0.0000078125 for Cell12 resolution
+  "offlineXPixelResolution": ".0000078125", // .00003125 for Cell1 resolution, .0000078125 for Cell12 resolution
+  "offlineYPixelResolution": ".000005" //.000025 for Cell1 resolution, .000005 for Cell12 resolution
 }
