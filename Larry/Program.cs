@@ -985,6 +985,7 @@ namespace Larry
                 return;
 
             Directory.CreateDirectory(config["PbfFolder"] + plusCode.Substring(0, 2));
+            //TODO: should probably also make the cell4 subfolder honestly.
 
             var sw = Stopwatch.StartNew();
             using var db = new PraxisContext();
@@ -994,37 +995,40 @@ namespace Larry
             var cell8 = plusCode.ToGeoArea();
             var cell8Poly = cell8.ToPolygon();
             var placeData = PraxisCore.Place.GetPlaces(cell8, styleSet: styleSet, dataKey: styleSet, skipTags: true);
-            int nameCounter = 1; //used to determine nametable key
 
             if (placeData.Count == 0)
                 return;
 
+            //Adding variables here so that an instance can process these at higher or lower accuracy if desired. Higher accuracy or not simplifying items
+            //will make larger files but the output would be a closer match to the server's images.
+            var simplifyRes = config["offlineSimplifyResolution"].ToDouble(); //default = cell11Lon
+            var xRes = config["offlineXPixelResolution"].ToDouble(); //default = cell11Lon
+            var yRes = config["offlineYPixelResolution"].ToDouble(); //default = cell11Lat
+
             List<OfflinePlaceEntry> entries = new List<OfflinePlaceEntry>(placeData.Count);
             Dictionary<string, int> nametable = new Dictionary<string, int>(); //name, id
 
-            //List<DbTables.Place> toRemove = new List<DbTables.Place>(); //not worth the effort. tiny percentage of places.
+
+            var nameIdCounter = 0;
+            nametable = placeData.Where(p => !string.IsNullOrWhiteSpace(p.Name)).Select(p => p.Name).Distinct().ToDictionary(k => k, v => ++nameIdCounter);
 
             var min = cell8.Min;
             foreach (var place in placeData)
             {
                 place.ElementGeometry = place.ElementGeometry.Intersection(cell8Poly);
-                place.ElementGeometry = place.ElementGeometry.Simplify(ConstantValues.resolutionCell11Lon);
+                if (simplifyRes > 0)
+                    place.ElementGeometry = place.ElementGeometry.Simplify(simplifyRes);
                 if (place.ElementGeometry.IsEmpty)
                 {
                     //toRemove.Add(place);
                     continue; //Probably an element on the border thats getting pulled in by buffer.
                 }
 
-                //var name = TagParser.GetName(place);
                 int? nameID = null;
                 if (!string.IsNullOrWhiteSpace(place.Name))
                 {
                     if (!nametable.TryGetValue(place.Name, out var nameval))
                     {
-                        nameval = nameCounter;
-                        nametable.Add(place.Name, nameval);
-                        nameCounter++;
-                        //attach to this item.
                         nameID = nameval;
                     }
                 }
@@ -1033,7 +1037,7 @@ namespace Larry
 
                 //I'm locking these geometry items to a tile, So I convert these points in the geometry to integers, effectively
                 //letting me draw Cell11 pixel-precise points from this info, and is shorter stringified for JSON vs floats/doubles.
-                var coordSets = GetCoordEntries(place, cell8.Min);
+                var coordSets = GetCoordEntries(place, cell8.Min, xRes, yRes);
                 foreach (var coordSet in coordSets)
                 {
                     if (coordSet == "")
@@ -1070,7 +1074,6 @@ namespace Larry
             finalData.PlusCode = plusCode;
             finalData.nameTable = nametable.Count > 0 ? nametable.ToDictionary(k => k.Value, v => v.Key) : null;
             finalData.entries = entries;
-            //finalData.gridNames = nameInfo;
 
             JsonSerializerOptions jso = new JsonSerializerOptions();
             jso.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
@@ -1091,7 +1094,7 @@ namespace Larry
         }
 
 
-        public static List<string> GetCoordEntries(DbTables.Place place, GeoPoint min)
+        public static List<string> GetCoordEntries(DbTables.Place place, GeoPoint min, double xRes = ConstantValues.resolutionCell11Lon, double yRes = ConstantValues.resolutionCell11Lat)
         {
             List<string> points = new List<string>();
 
@@ -1099,15 +1102,15 @@ namespace Larry
             {
                 foreach (var poly in ((MultiPolygon)place.ElementGeometry).Geometries) //This should be the same as the Polygon code below.
                 {
-                    points.AddRange(GetPolygonPoints(poly as Polygon, min));
+                    points.AddRange(GetPolygonPoints(poly as Polygon, min, xRes, yRes));
                 }
             }
             else if (place.ElementGeometry.GeometryType == "Polygon")
             {
-                points.AddRange(GetPolygonPoints(place.ElementGeometry as Polygon, min));
+                points.AddRange(GetPolygonPoints(place.ElementGeometry as Polygon, min, xRes, yRes));
             }
             else
-                points.Add(string.Join("|", place.ElementGeometry.Coordinates.Select(c => (int)((c.X - min.Longitude) / ConstantValues.resolutionCell11Lon) + "," + ((int)((c.Y - min.Latitude) / ConstantValues.resolutionCell11Lat)))));
+                points.Add(string.Join("|", place.ElementGeometry.Coordinates.Select(c => (int)((c.X - min.Longitude) / xRes) + "," + ((int)((c.Y - min.Latitude) / yRes)))));
 
             if (points.Count == 0)
             {
@@ -1117,11 +1120,11 @@ namespace Larry
             return points;
         }
 
-        public static List<string> GetPolygonPoints(Polygon p, GeoPoint min)
+        public static List<string> GetPolygonPoints(Polygon p, GeoPoint min, double xRes = ConstantValues.resolutionCell11Lon, double yRes = ConstantValues.resolutionCell11Lat)
         {
             List<string> results = new List<string>();
             if (p.Holes.Length == 0)
-                results.Add(string.Join("|", p.Coordinates.Select(c => (int)((c.X - min.Longitude) / ConstantValues.resolutionCell11Lon) + "," + ((int)((c.Y - min.Latitude) / ConstantValues.resolutionCell11Lat)))));
+                results.Add(string.Join("|", p.Coordinates.Select(c => (int)((c.X - min.Longitude) / xRes) + "," + ((int)((c.Y - min.Latitude) / yRes)))));
             else
             {
                 //Split this polygon into smaller pieces, split on the center of each hole present longitudinally
@@ -1143,11 +1146,11 @@ namespace Larry
 
                         //Still need to check that we have reasonable geometry here.
                         if (subPoly.GeometryType == "Polygon")
-                            results.AddRange(GetPolygonPoints(subPoly as Polygon, min));
+                            results.AddRange(GetPolygonPoints(subPoly as Polygon, min, xRes, yRes));
                         else if (subPoly.GeometryType == "MultiPolygon")
                         {
                             foreach (var p2 in ((MultiPolygon)subPoly).Geometries)
-                                results.AddRange(GetPolygonPoints(p2 as Polygon, min));
+                                results.AddRange(GetPolygonPoints(p2 as Polygon, min, xRes, yRes));
                         }
                         else
                             Log.WriteLog("Offline proccess error: Got geoType " + subPoly.GeometryType + ", which wasnt expected");
