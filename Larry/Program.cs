@@ -916,10 +916,9 @@ namespace Larry
 
         public class OfflineDataV2
         {
-            public string PlusCode { get; set; }
+            public string olc { get; set; } //PlusCode
             public List<OfflinePlaceEntry> entries { get; set; }
             public Dictionary<int, string> nameTable { get; set; } //id, name
-            public Dictionary<string, int> gridNames { get; set; } //pluscode, nameTable entry id
         }
 
         public class OfflinePlaceEntry
@@ -927,7 +926,6 @@ namespace Larry
             public int? nid { get; set; } = null; //nametable id
             public int tid { get; set; } //terrain id, which style entry this place is
             public int gt { get; set; } //geometry type. 1 = point, 2 = line OR hollow shape, 3 = filled shape.
-            //public string geometry { get; set; }
             public string p { get; set; } //Points, local to the given PlusCode
         }
         public static void MakeOfflineJson(string plusCode, Polygon bounds = null, bool saveToFile = true)
@@ -980,11 +978,11 @@ namespace Larry
             }
 
             //This is to let us be resumable if this stop for some reason.
-            //+ "\\" + plusCode.Substring(2, 2) +
-            if (File.Exists(config["PbfFolder"] + plusCode.Substring(0,2) + "\\" + plusCode + ".json"))
+            if (File.Exists(config["PbfFolder"] + plusCode.Substring(0,2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode + ".json"))
                 return;
 
             Directory.CreateDirectory(config["PbfFolder"] + plusCode.Substring(0, 2));
+            Directory.CreateDirectory(config["PbfFolder"] + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2,2));
             //TODO: should probably also make the cell4 subfolder honestly.
 
             var sw = Stopwatch.StartNew();
@@ -1027,10 +1025,8 @@ namespace Larry
                 int? nameID = null;
                 if (!string.IsNullOrWhiteSpace(place.Name))
                 {
-                    if (!nametable.TryGetValue(place.Name, out var nameval))
-                    {
+                    if (nametable.TryGetValue(place.Name, out var nameval))
                         nameID = nameval;
-                    }
                 }
 
                 var style = TagParser.allStyleGroups[styleSet][place.StyleName];
@@ -1071,7 +1067,7 @@ namespace Larry
 
 
             var finalData = new OfflineDataV2();
-            finalData.PlusCode = plusCode;
+            finalData.olc = plusCode;
             finalData.nameTable = nametable.Count > 0 ? nametable.ToDictionary(k => k.Value, v => v.Key) : null;
             finalData.entries = entries;
 
@@ -1081,8 +1077,7 @@ namespace Larry
 
             if (saveToFile)
             {
-                //+ "\\" + plusCode.Substring(2, 2) +
-                File.WriteAllText(config["PbfFolder"] + plusCode.Substring(0,2) + "\\" + plusCode + ".json", data);
+                File.WriteAllText(config["PbfFolder"] + plusCode.Substring(0,2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode + ".json", data);
             }
             else
             {
