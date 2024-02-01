@@ -55,5 +55,6 @@
   //Cell12 resolution: 320x500 - .64 aspect ratio, expected new default, would require spacing adjustments in the demo client.
   "offlineSimplifyResolution": ".0000078125", //0 to disable simplification. .000025 for Cell1 resolution, 0.0000078125 for Cell12 resolution
   "offlineXPixelResolution": ".0000078125", // .00003125 for Cell1 resolution, .0000078125 for Cell12 resolution
-  "offlineYPixelResolution": ".000005" //.000025 for Cell1 resolution, .000005 for Cell12 resolution
+  "offlineYPixelResolution": ".000005", //.000025 for Cell1 resolution, .000005 for Cell12 resolution
+  "offlineStyleSets":  "mapTiles,adminBounds" //comma separated list of styles to render into offline data format in a single file.
 }
