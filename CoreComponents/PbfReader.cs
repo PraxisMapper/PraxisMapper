@@ -57,6 +57,7 @@ namespace PraxisCore.PbfReader
         Dictionary<long, int> blockSizes = new Dictionary<long, int>(initialCapacity);
 
         Envelope bounds = null; //If not null, reject elements not within it
+        public Polygon importBounds = null; //If set, we're only importing data that fits inside this polygon.
 
         ConcurrentDictionary<long, PrimitiveBlock> activeBlocks = new ConcurrentDictionary<long, PrimitiveBlock>(initialConcurrency, initialCapacity);
         ConcurrentDictionary<long, bool> accessedBlocks = new ConcurrentDictionary<long, bool>(initialConcurrency, initialCapacity);
@@ -296,6 +297,8 @@ namespace PraxisCore.PbfReader
                 var NTSrelation = GeometrySupport.ConvertOsmEntryToPlace(relation, styleSet);
                 bounds = NTSrelation.ElementGeometry.EnvelopeInternal;
             }
+            else if (importBounds != null)
+                bounds = importBounds.EnvelopeInternal;
 
             for (var block = nextBlockId; block < Bcount; block++)
             {
@@ -314,6 +317,7 @@ namespace PraxisCore.PbfReader
                     var sw = Stopwatch.StartNew();
                     using var db = new PraxisContext(); //create a new one each group to free up RAM faster
                     db.ChangeTracker.AutoDetectChangesEnabled = false; //automatic change tracking disabled for performance, we only track the stuff we actually change.
+                    db.Database.SetCommandTimeout(600);
                     long groupMin = 0;
                     long groupMax = 0;
                     switch (itemType)
@@ -341,12 +345,13 @@ namespace PraxisCore.PbfReader
                     //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
                     if (geoData != null && geoData.Count > 0) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
                     {
-                        var currentData = db.Places.Include(p => p.Tags).Include(p => p.PlaceData).Where(p => p.SourceItemType == itemType && p.SourceItemID >= groupMin && p.SourceItemID <= groupMax).ToDictionary(k => k.SourceItemID, v => v);
+                        var placeIds = geoData.Where(g => g != null).Select(g => g.Id).ToList();
+                        var currentData = db.Places.Include(p => p.PlaceData).Where(p => p.SourceItemType == itemType && placeIds.Contains(p.SourceItemID)).ToDictionary(k => k.SourceItemID, v => v);
                         var processed = geoData.AsParallel().Where(g => g != null).Select(g =>
                         {
                             var place = GeometrySupport.ConvertOsmEntryToPlace(g, styleSet);
-                            if (place != null)
-                                Place.PreTag(place);
+                            //if (place != null)
+                                //Place.PreTag(place); //already called in the convert function.
 
                             if (processingMode == "center")
                                 place.ElementGeometry = place.ElementGeometry.Centroid;
@@ -361,11 +366,10 @@ namespace PraxisCore.PbfReader
 
                         if (!saveToDB)
                         {
-                            //NOTE: this takes slightly longer on each block. I wonder if the built-in ZIP file stuff is re-writing
-                            //the whole file on each Close(). YEP - speed is based on file size.
-                            //May want to process all of these to their own file per block after all. Otherwise it starts taking far too long
+                            //NOTE: this writes each group to its own file, because updating a single existing file causes a full rewrite of the
+                            //file at this time. Writing separate files keeps the app running fast.
 
-                            //Skip post-processing when writing to disk.
+                            //Skip post-processing when writing to disk, let databases handle that.
                             var pe = new PlaceExport(filename.Replace(".pbf", "-" + block + "-" + groupId + ".pmd"));
                             changed = processed.Count;
                             foreach (var place in processed)
@@ -374,7 +378,6 @@ namespace PraxisCore.PbfReader
                             try
                             {
                                 pe.Close();
-                                //pe.WriteToDisk(); //TODO: thread/queue/async? One file per group?
                             }
                             catch (Exception ex)
                             {
@@ -1781,7 +1784,7 @@ namespace PraxisCore.PbfReader
                     SaveCurrentBlockAndGroup(nextBlockId, 0);
                 }
                 else
-                    nextBlockId = lastBlock;
+                    nextBlockId = lastBlock + 1;
             }
 
             if (displayStatus)
