@@ -22,18 +22,19 @@ namespace PraxisCore
 
     public class PlaceExport
     {
-        public string filename { get;set; }
+        public string filename { get; set; }
         public long totalEntries { get; set; }
         ZipArchive zf = null;
         int entryCounter = 0;
         Envelope bounds = null;
         public string processingMode = "normal";
+        public string styleSet = "importAll";
 
-
-        public PlaceExport(string file) {
+        public PlaceExport(string file)
+        {
             filename = file;
             Open();
-        }    
+        }
 
         public void Open()
         {
@@ -51,6 +52,10 @@ namespace PraxisCore
         public void Close()
         {
             zf.Dispose();
+            if (totalEntries == 0)
+            {
+                File.Delete(filename);
+            }
         }
 
         /// <summary>
@@ -90,7 +95,7 @@ namespace PraxisCore
                 entry.Delete();
             else
                 totalEntries++;
-            
+
             entry = zf.CreateEntry(p.SourceItemID + "-" + p.SourceItemType, CompressionLevel.SmallestSize);
 
             using (var entryStream = entry.Open())
@@ -102,22 +107,28 @@ namespace PraxisCore
 
         public DbTables.Place GetNextPlace()
         {
-            if (zf.Entries.Count <= entryCounter)
-                return null;
-
             string data = null;
             DbTables.Place place = null;
-            using (Stream s = zf.Entries[entryCounter].Open())
-            using (StreamReader sr = new StreamReader(s))
+            while (place == null)
             {
-                while (place == null)
+                if (zf.Entries.Count <= entryCounter)
+                    return null;
+
+                using (Stream s = zf.Entries[entryCounter].Open())
+                using (StreamReader sr = new StreamReader(s))
                 {
                     data = sr.ReadToEnd();
                     place = JsonSerializer.Deserialize<DbTables.Place>(data);
                     entryCounter++;
                     if (bounds == null || bounds.Intersects(place.ElementGeometry.EnvelopeInternal))
                     {
-                        Place.PreTag(place);
+                        //Place.PreTag(place); //This is done automatically by the deserializer.
+                        if (styleSet != "importAll" && !place.PlaceData.Any(d => d.DataKey == styleSet))
+                        {
+                            place = null;
+                            continue;
+                        }
+
                         if (processingMode == "center")
                             place.ElementGeometry = place.ElementGeometry.Centroid;
                         else if (processingMode == "expandPoints" && place.SourceItemType == 1)
@@ -133,14 +144,14 @@ namespace PraxisCore
                         place = null;
                 }
             }
-                        
+
             return place;
         }
 
         public List<DbTables.Place> GetNextPlaces(int count)
         {
             List<DbTables.Place> results = new List<DbTables.Place>(count);
-            for (int i =0; i < count; i++)
+            for (int i = 0; i < count; i++)
             {
                 var place = GetNextPlace();
                 if (place != null)
@@ -190,6 +201,7 @@ namespace PraxisCore
             var db = new PraxisContext();
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             db.Database.SetCommandTimeout(300);
+            int batchSize = 10000; //10,000 should be small enough for most block-as-file imports, but the ocean data file is larger than that, and files could be merged.
 
             var entry = new PlaceExport(pmdFile);
             entry.bounds = bounds;
@@ -205,9 +217,9 @@ namespace PraxisCore
             long placeCounter = 0;
             long entryCounter = 0;
             DbTables.Place place = entry.GetNextPlace();
-            while(place != null) 
+            while (place != null)
             {
-                //TODO: batch this work so we can do 1 DB call for 1,000 reads. Will dramatically improve speed.
+                //TODO: batch this work so we can do 1 DB call for batchSize reads. Will dramatically improve speed.
                 var thisEntry = db.Places.Include(p => p.Tags).Include(p => p.PlaceData).FirstOrDefault(p => p.SourceItemID == place.SourceItemID && p.SourceItemType == place.SourceItemType);
                 if (thisEntry == null)
                     db.Places.Add(place);
@@ -216,18 +228,17 @@ namespace PraxisCore
                     Place.UpdateChanges(thisEntry, place, db);
                 }
                 placeCounter++;
-                if (placeCounter % 1000 == 0)
+                if (placeCounter % batchSize == 0)
                 {
                     entryCounter += db.SaveChanges(); //should probably happen in batches, since we don't know how big a file is.
-                    db = new PraxisContext();
-                    db.ChangeTracker.AutoDetectChangesEnabled = false;
+                    db.ChangeTracker.Clear();
                     entry.SaveProgress();
                     Log.WriteLog("Saved: " + entryCounter + " total entries");
                     db.ChangeTracker.Clear();
                 }
                 place = entry.GetNextPlace();
             }
-            db.SaveChanges(); //should probably happen in batches, since we don't know how big a file is.
+            db.SaveChanges();
             entry.Close();
             sw.Stop();
             Log.WriteLog("Loaded " + entry.filename + " in " + sw.Elapsed);
