@@ -6,6 +6,7 @@ using NetTopologySuite.Geometries;
 using OsmSharp.Complete;
 using PraxisCore;
 using PraxisCore.PbfReader;
+using PraxisCore.Styles;
 using PraxisCore.Support;
 using System;
 using System.Collections.Concurrent;
@@ -70,6 +71,9 @@ namespace Larry
             //    DownloadPbfFile(level1, level2, level3, config["PbfFolder"]);
             //}
 
+
+            
+
             if (args.Any(a => a == "-resetFiles"))
             {
                 ResetFiles(config["PbfFolder"]);
@@ -82,6 +86,8 @@ namespace Larry
 
             if (!args.Any(a => a == "-makeServerDb")) //This will not be available until after creating the DB slightly later.
                 TagParser.Initialize(config["ForceStyleDefaults"] == "True", MapTiles); //This last bit of config must be done after DB creation check
+
+            //ConsolidatePmdFiles();
 
 
             if (args.Any(a => a == "-loadData"))
@@ -336,6 +342,7 @@ namespace Larry
         {
             var db = new PraxisContext();
             var settings = db.ServerSettings.FirstOrDefault();
+            //TODO: may need a config option to determine if bounds are ignored, using server setting, or using polygon value from the config?
             var bounds = new GeoArea(settings.SouthBound, settings.WestBound, settings.NorthBound, settings.EastBound).ToPolygon().EnvelopeInternal;
 
             List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.pmd").ToList();
@@ -379,7 +386,7 @@ namespace Larry
                 Log.WriteLog("Loading " + filename + " at " + DateTime.Now);
                 PbfReader r = new PbfReader();
                 r.outputPath = config["PbfFolder"];
-                r.styleSet = "mapTiles";  //config["TagParserStyleSet"];
+                r.styleSet = config["TagParserStyleSet"];
                 r.processingMode = "normal";
                 r.saveToDB = false;
                 //r.onlyMatchedAreas = true; //This is always true, probably don't need this option anymore either.
@@ -917,7 +924,7 @@ namespace Larry
         public class OfflineDataV2
         {
             public string olc { get; set; } //PlusCode
-            public List<OfflinePlaceEntry> entries { get; set; }
+            public Dictionary<string, List<OfflinePlaceEntry>> entries { get; set; }
             public Dictionary<int, string> nameTable { get; set; } //id, name
         }
 
@@ -932,7 +939,6 @@ namespace Larry
         {
             //Make offline data for PlusCode6s, repeatedly if the one given is a 4 or 2.
             var styleSet = "mapTiles";
-
 
             if (bounds == null)
             {
@@ -992,85 +998,73 @@ namespace Larry
 
             var cell8 = plusCode.ToGeoArea();
             var cell8Poly = cell8.ToPolygon();
-            var placeData = PraxisCore.Place.GetPlaces(cell8, styleSet: styleSet, dataKey: styleSet, skipTags: true);
-
-            if (placeData.Count == 0)
-                return;
+            
 
             //Adding variables here so that an instance can process these at higher or lower accuracy if desired. Higher accuracy or not simplifying items
             //will make larger files but the output would be a closer match to the server's images.
-            var simplifyRes = config["offlineSimplifyResolution"].ToDouble(); //default = cell11Lon
-            var xRes = config["offlineXPixelResolution"].ToDouble(); //default = cell11Lon
-            var yRes = config["offlineYPixelResolution"].ToDouble(); //default = cell11Lat
-
-            List<OfflinePlaceEntry> entries = new List<OfflinePlaceEntry>(placeData.Count);
-            Dictionary<string, int> nametable = new Dictionary<string, int>(); //name, id
-
-
-            var nameIdCounter = 0;
-            nametable = placeData.Where(p => !string.IsNullOrWhiteSpace(p.Name)).Select(p => p.Name).Distinct().ToDictionary(k => k, v => ++nameIdCounter);
+            var simplifyRes = config["offlineSimplifyResolution"].ToDouble(); //default = cell12Lat
+            var xRes = config["offlineXPixelResolution"].ToDouble(); //default = cell12Lon
+            var yRes = config["offlineYPixelResolution"].ToDouble(); //default = cell12Lat
+            var styles = config["offlineStyleSets"].Split(",");
 
             var min = cell8.Min;
-            foreach (var place in placeData)
-            {
-                place.ElementGeometry = place.ElementGeometry.Intersection(cell8Poly);
-                if (simplifyRes > 0)
-                    place.ElementGeometry = place.ElementGeometry.Simplify(simplifyRes);
-                if (place.ElementGeometry.IsEmpty)
-                {
-                    //toRemove.Add(place);
-                    continue; //Probably an element on the border thats getting pulled in by buffer.
-                }
-
-                int? nameID = null;
-                if (!string.IsNullOrWhiteSpace(place.Name))
-                {
-                    if (nametable.TryGetValue(place.Name, out var nameval))
-                        nameID = nameval;
-                }
-
-                var style = TagParser.allStyleGroups[styleSet][place.StyleName];
-
-                //I'm locking these geometry items to a tile, So I convert these points in the geometry to integers, effectively
-                //letting me draw Cell11 pixel-precise points from this info, and is shorter stringified for JSON vs floats/doubles.
-                var coordSets = GetCoordEntries(place, cell8.Min, xRes, yRes);
-                foreach (var coordSet in coordSets)
-                {
-                    if (coordSet == "")
-                        continue;
-                    //System.Diagnostics.Debugger.Break();
-                    var offline = new OfflinePlaceEntry();
-                    offline.nid = nameID;
-                    offline.tid = style.MatchOrder; //Client will need to know what this ID means from the offline style endpoint output.
-
-                    offline.gt = place.ElementGeometry.GeometryType == "Point" ? 1 : place.ElementGeometry.GeometryType == "LineString" ? 2 : style.PaintOperations.All(p => p.FillOrStroke == "stroke") ? 2 : 3;
-                    offline.p = coordSet;
-                    entries.Add(offline);
-                }
-            }
-
-            //placeData = placeData.Except(toRemove).ToList();
-
-            //removing this, because the client should be able to draw names as a color on an image with the available data now.
-            //a nametable is entirely unnecessary
-            //var cell82 = (GeoArea)cell8;
-            //var terrainInfo = AreaStyle.GetAreaDetailsParallel(cell82, placeData);
-            //var stringSize = plusCode.Length;
-            //Dictionary<string, int> nameInfo = terrainInfo.Where(t => t.data.name != "").Select(t => new { t.plusCode, nameId = nametable[t.data.name] }).ToDictionary(k => k.plusCode.Substring(stringSize), v => v.nameId);
-            //TODO: work out some special values for nameInfo here I can assign names to a square instead of each individual cell
-            //That will dramatically reduce nametable storage space.
-            //opt1: if all entries start with the same plusCode and occupy that entire Cell, just use that value (removes 400 entries).
-            //opt2: add new values to a new object that indicate 2 corners of a square that hold the name in question. This is MORE data if each square is unique
-            //but much less if it's a big block.
-            //opt3: have the client use the geoData to 'draw' a table with the values attached to each item. This can be done separately from the graphics using the same data.
-            //but would need a way to map names to colors or something.
-
+            Dictionary<string, int> nametable = new Dictionary<string, int>(); //name, id
+            var nameIdCounter = 0;
 
             var finalData = new OfflineDataV2();
             finalData.olc = plusCode;
-            finalData.nameTable = nametable.Count > 0 ? nametable.ToDictionary(k => k.Value, v => v.Key) : null;
-            finalData.entries = entries;
+            foreach (var style in styles)
+            {
+                var placeData = PraxisCore.Place.GetPlaces(cell8, styleSet: style, dataKey: style, skipTags: true);
 
+                if (placeData.Count == 0)
+                    continue;
+                List<OfflinePlaceEntry> entries = new List<OfflinePlaceEntry>(placeData.Count);
+                nametable = nametable.Union(placeData.Where(p => !string.IsNullOrWhiteSpace(p.Name)).Select(p => p.Name).Distinct().ToDictionary(k => k, v => ++nameIdCounter)).Distinct().ToDictionary();
+
+                foreach (var place in placeData)
+                {
+                    place.ElementGeometry = place.ElementGeometry.Intersection(cell8Poly);
+                    if (simplifyRes > 0)
+                        place.ElementGeometry = place.ElementGeometry.Simplify(simplifyRes);
+                    if (place.ElementGeometry.IsEmpty)
+                        continue; //Probably an element on the border thats getting pulled in by buffer.
+
+                    int? nameID = null;
+                    if (!string.IsNullOrWhiteSpace(place.Name))
+                    {
+                        if (nametable.TryGetValue(place.Name, out var nameval))
+                            nameID = nameval;
+                    }
+
+                    var styleEntry = TagParser.allStyleGroups[style][place.StyleName];
+
+                    //I'm locking these geometry items to a tile, So I convert these points in the geometry to integers, effectively
+                    //letting me draw Cell11 pixel-precise points from this info, and is shorter stringified for JSON vs floats/doubles.
+                    var coordSets = GetCoordEntries(place, cell8.Min, xRes, yRes);
+                    foreach (var coordSet in coordSets)
+                    {
+                        if (coordSet == "")
+                            continue;
+                        //System.Diagnostics.Debugger.Break();
+                        var offline = new OfflinePlaceEntry();
+                        offline.nid = nameID;
+                        offline.tid = styleEntry.MatchOrder; //Client will need to know what this ID means from the offline style endpoint output.
+
+                        offline.gt = place.ElementGeometry.GeometryType == "Point" ? 1 : place.ElementGeometry.GeometryType == "LineString" ? 2 : styleEntry.PaintOperations.All(p => p.FillOrStroke == "stroke") ? 2 : 3;
+                        offline.p = coordSet;
+                        entries.Add(offline);
+                    }
+                }
+
+                finalData.entries[style] = entries;
+            }
+
+            if (finalData.entries.Count == 0)
+                return;
+            
+            finalData.nameTable = nametable.Count > 0 ? nametable.ToDictionary(k => k.Value, v => v.Key) : null;
+            
             JsonSerializerOptions jso = new JsonSerializerOptions();
             jso.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
             string data = JsonSerializer.Serialize(finalData, jso);
@@ -1158,6 +1152,74 @@ namespace Larry
                 }
             }
             return results.Distinct().ToList(); //In the unlikely case splitting ends up processing the same part twice
+        }
+
+        public void SplitDbIntoCell2()
+        {
+            //A way to created merged data from separate database.
+            //This should load all elements in each Cell2 area, and export those to a PMD file in a sub-folder.
+            //Do that manually to all databases with the same export folder, and then each folder can be merged together to create a combined area. Mostly useful for
+            //areas where multiple continents cross inside a single cell.
+
+            foreach(var cell2 in GetCell2Combos()) //Custom function because this is a 9x18 grid.
+            {
+                var area = cell2.ToGeoArea();
+                var db = new PraxisContext();
+                var places = PraxisCore.Place.GetPlaces(area);
+
+                //ConvertPBFtoPMD();
+
+
+            }
+        }
+
+        public static void ConsolidatePmdFiles()
+        {
+            //Take a folder of pmd files, and merge them all into a smaller number of bigger files.
+            //NOTE: may not want this to be 1 total file, because on some scales that will be multiple gigabytes.
+
+            var files = Directory.EnumerateFiles(config["PbfFolder"], "*.pmd").Where(f => !Path.GetFileName(f).StartsWith("consolidated")).ToList();
+            var completed = Directory.EnumerateFiles(config["PbfFolder"], "consolidated-*.pmd").ToList();
+
+            var currentCounter = completed.Count + 1;
+
+            var filename = "consolidated-";
+            var currentPmd = new PlaceExport(config["PbfFolder"] + filename + currentCounter.ToString() + ".pmd");
+            Stopwatch sw = Stopwatch.StartNew();
+            List<string> filesToRemove = new List<string>();
+            foreach (var file in files)
+            {
+                //check if we need a new output file.
+                if (currentPmd.totalEntries > 6000)
+                {
+                    currentPmd.Close();
+                    currentCounter++;
+                    currentPmd = new PlaceExport(config["PbfFolder"] + filename + currentCounter.ToString() + ".pmd");
+                    foreach (var delete in filesToRemove)
+                        File.Delete(delete);
+
+                    Log.WriteLog(filesToRemove.Count + " files consolidated into 1 in " + sw.Elapsed);
+                    sw.Restart();
+                    filesToRemove.Clear();
+                }
+
+                var thisFile = new PlaceExport(file);
+                if (thisFile.totalEntries > 6000)
+                {
+                    thisFile.Close();
+                    continue;
+                }
+                thisFile.styleSet = "importAll";
+                var entry = thisFile.GetNextPlace();
+                while (entry != null)
+                {
+                    currentPmd.AddEntry(entry);
+                    entry = thisFile.GetNextPlace();
+                }
+
+                filesToRemove.Add(file);
+                thisFile.Close();
+            }
         }
 
     }
