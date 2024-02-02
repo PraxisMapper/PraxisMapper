@@ -311,8 +311,15 @@ namespace Larry
 
         private static void SetEnvValues()
         {
+            try
+            {
             Log.WriteLog("Setting preferred NET environment variables for performance. A restart may be required for them to apply.");
             System.Environment.SetEnvironmentVariable("DOTNET_CLI_TELEMETRY_OPTOUT", "1", EnvironmentVariableTarget.Machine);
+        }
+            catch(Exception ex)
+            {
+                Log.WriteLog("Failed to update NET environment variables: " + ex.Message, Log.VerbosityLevels.Errors);
+            }
         }
 
         private static void PwdSpeedTest()
