@@ -27,7 +27,7 @@
   //Set this to true ONLY if you are using the -drawOneImage:#### command, and want to draw the output from a PBF file without actually loading the data to a database.
   "KeepElementsInMemory": false,
   //When processing PBFs, use this style set to decide if an area if 'unmatched' or not
-  "TagParserStyleSet": "mapTiles",
+  "TagParserStyleSet": "importAll",
   //How much to multiply the size of a gameplay map tile by. At 1, Cell8 sized plus code images are 80x100, making each pixel a single Cell11. Defaults to 4, for 320x400px tiles.
   "mapTileScaleFactor": 4,
   //How large to render Slippy tiles (Google Maps or Leaflet type viewers, that 'slip' around as you drag the mouse). Usually 256 or 512. PraxisSlippy plugin expects 512.
