@@ -11,7 +11,7 @@
 
   //MariaDB: Free and open-source database. Simpler than SQL Server, but has all the necessary features for PraxisMapper. Suggested for most users that need more than LocalDB.
   //"DbMode": "MariaDB",
-  //"DbConnectionString": "server=localhost;database=praxis;user=root;password=test;",ord=asdf;",
+  //"DbConnectionString": "server=localhost;database=praxis;user=root;password=test;"
 
   ///The folder to read PBF and PMD files from. Also where any output files will be generated.
   "PbfFolder": "C:\\Praxis\\",
