@@ -348,8 +348,15 @@ namespace Larry
             List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.pmd").ToList();
             foreach (string filename in filenames)
             {
+                try
+                {
                 PlaceExport.LoadToDatabase(filename, bounds: bounds);
                 File.Move(filename, filename + "done");
+            }
+                catch(Exception ex)
+                {
+                    Log.WriteLog("File " + filename + " was not processed: " + ex.Message);
+                }
             }
         }
 
