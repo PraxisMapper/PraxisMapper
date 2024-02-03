@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using NetTopologySuite;
 using NetTopologySuite.Geometries;
+using NetTopologySuite.Noding;
 using OsmSharp.Complete;
 using PraxisCore;
 using PraxisCore.PbfReader;
@@ -1013,6 +1014,7 @@ namespace Larry
 
             var finalData = new OfflineDataV2();
             finalData.olc = plusCode;
+            finalData.entries = new Dictionary<string, List<OfflinePlaceEntry>>();
             foreach (var style in styles)
             {
                 var placeData = PraxisCore.Place.GetPlaces(cell8, styleSet: style, dataKey: style, skipTags: true);
@@ -1020,7 +1022,10 @@ namespace Larry
                 if (placeData.Count == 0)
                     continue;
                 List<OfflinePlaceEntry> entries = new List<OfflinePlaceEntry>(placeData.Count);
-                nametable = nametable.Union(placeData.Where(p => !string.IsNullOrWhiteSpace(p.Name)).Select(p => p.Name).Distinct().ToDictionary(k => k, v => ++nameIdCounter)).Distinct().ToDictionary();
+                var names = placeData.Where(p => !string.IsNullOrWhiteSpace(p.Name) && !nametable.ContainsKey(p.Name)).Select(p => p.Name).Distinct();
+                foreach (var name in names)
+                    nametable.Add(name, ++nameIdCounter);
+                //nametable = nametable.Union(placeData.Where(p => !string.IsNullOrWhiteSpace(p.Name)).Select(p => p.Name).Distinct().ToDictionary(k => k, v => ++nameIdCounter)).Distinct().ToDictionary();
 
                 foreach (var place in placeData)
                 {
@@ -1060,7 +1065,7 @@ namespace Larry
                 finalData.entries[style] = entries;
             }
 
-            if (finalData.entries.Count == 0)
+            if (finalData.entries == null || finalData.entries.Count == 0)
                 return;
             
             finalData.nameTable = nametable.Count > 0 ? nametable.ToDictionary(k => k.Value, v => v.Key) : null;
