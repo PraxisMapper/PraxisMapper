@@ -42,7 +42,8 @@ namespace PraxisCore
             //where the precision is the 1-pixel size so areas with TONS of points get sent over as far fewer.
 
             //TODO: see if I can use AsEnumerable() to enable streaming and processing of data instead of waiting for all entries with ToList()?
-            List<DbTables.Place> places;
+            List<DbTables.Place> places = null;
+
             if (source == null)
             {
                 db = new PraxisContext();
@@ -56,9 +57,12 @@ namespace PraxisCore
                 queryable = source.AsQueryable();
 
             queryable = queryable.Include(q => q.PlaceData); //With pre-tagging enforced you can't skip this.
-            
+
             if (dataKey != null)
                 queryable = queryable.Where(p => p.PlaceData.Any(t => t.DataKey == dataKey));
+                //queryable.Join(db.PlaceData, p => p.Id, pd => pd.PlaceId, (p, pd) => new DbTables.Place() {    
+                    //p.StyleName, p.DrawSizeHint, p.ElementGeometry, p.
+                //});
 
             if (dataValue != null)
             {
@@ -82,9 +86,12 @@ namespace PraxisCore
 
             var paddedArea = GeometrySupport.MakeBufferedGeoArea(area);
             var location = paddedArea.ToPolygon();
-            
+
             //Splitting this into 2 Where() clauses is a huge improvement in speed on large areas. The spatial index is the slower of the 2, so force it to go 2nd
-            queryable = queryable.Where(md => md.DrawSizeHint >= filterSize).Where(md => location.Intersects(md.ElementGeometry));
+            if (filterSize != 0)
+                queryable = queryable.Where(md => md.DrawSizeHint >= filterSize);
+
+            queryable = queryable.Where(md => location.Intersects(md.ElementGeometry));
 
             queryable = queryable.Select(q => new DbTables.Place() 
             { 
@@ -99,11 +106,21 @@ namespace PraxisCore
                 Name = q.Name
             });
 
+            try
+            {
+                
+                places = queryable.ToList();
+                places = places.OrderByDescending(p => p.DrawSizeHint).ToList();
+                TagParser.ApplyTags(places, styleSet);
+            }
+            catch (Exception ex)
+            {
+                var query = queryable.ToQueryString();
+                //System.Diagnostics.Debugger.Break();
+            }
 
-            //var query = queryable.ToQueryString();
-            places = queryable.ToList();
-            places = places.OrderByDescending(p => p.DrawSizeHint).ToList(); //Sort server-side on this to make bigger queries faster. MariaDB 11+ might do this correctly with an index?
-            TagParser.ApplyTags(places, styleSet);
+
+
 
             if (db != null)
             {
@@ -161,7 +178,7 @@ namespace PraxisCore
                 using var db = new PraxisContext();
                 db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
-                //TODO: remove Include here and re-test.
+                db.Database.SetCommandTimeout(600);
                 return db.Places.Include(p => p.Tags).Any(md => md.ElementGeometry.Intersects(location) && !md.Tags.Any(t => t.Key == "bgwater")); //Exclude oceans from bounds checks.
             }
             return source.Any(md => md.ElementGeometry.Intersects(location));
@@ -425,6 +442,7 @@ namespace PraxisCore
         public static void PreTag(DbTables.Place place)
         {
             place.Name = TagParser.GetName(place);
+
             //tag this place.
             foreach (var style in TagParser.allStyleGroups.Where(g => g.Key != "outlines" && g.Key != "paintTown" && g.Key != "importAll"))
             {
