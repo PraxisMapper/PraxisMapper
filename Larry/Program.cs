@@ -312,8 +312,15 @@ namespace Larry
 
         private static void SetEnvValues()
         {
+            try
+            {
             Log.WriteLog("Setting preferred NET environment variables for performance. A restart may be required for them to apply.");
             System.Environment.SetEnvironmentVariable("DOTNET_CLI_TELEMETRY_OPTOUT", "1", EnvironmentVariableTarget.Machine);
+        }
+            catch(Exception ex)
+            {
+                Log.WriteLog("Failed to update NET environment variables: " + ex.Message, Log.VerbosityLevels.Errors);
+            }
         }
 
         private static void PwdSpeedTest()
@@ -349,8 +356,15 @@ namespace Larry
             List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.pmd").ToList();
             foreach (string filename in filenames)
             {
+                try
+                {
                 PlaceExport.LoadToDatabase(filename, bounds: bounds);
                 File.Move(filename, filename + "done");
+            }
+                catch(Exception ex)
+                {
+                    Log.WriteLog("File " + filename + " was not processed: " + ex.Message);
+                }
             }
         }
 
