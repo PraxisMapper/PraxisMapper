@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
@@ -76,9 +77,11 @@ namespace PraxisCore
             model.Entity<PlaceTags>().HasOne(m => m.Place).WithMany(m => m.Tags).HasForeignKey(m => new { m.SourceItemId, m.SourceItemType }).HasPrincipalKey(m => new { m.SourceItemID, m.SourceItemType });
 
             model.Entity<PlaceData>().HasIndex(m => m.DataKey);
-            model.Entity<PlaceData>().HasIndex(m => m.DataValue); //If you save the TagParser values to PlaceData, this index saves TONS of time.
+            model.Entity<PlaceData>().HasIndex(m => m.DataValue); 
             model.Entity<PlaceData>().HasIndex(m => m.PlaceId);
             model.Entity<PlaceData>().HasIndex(m => m.Expiration);
+            //TODO: add this index below to the drop/create functions for indexes.
+            model.Entity<PlaceData>().HasIndex(["PlaceId", "DataKey"]); //MariaDB needs this to be able to use both indexes at once. Required for creating offline data in a timely manner.
 
             model.Entity<AreaData>().HasIndex(m => m.DataKey);
             model.Entity<AreaData>().HasIndex(m => m.PlusCode);
@@ -285,10 +288,6 @@ namespace PraxisCore
             }
             else if (serverMode == "MariaDB")
             {
-                //NOTE: loading entries directly from files occasionally causes MariaDB to save a blank geometry entry. 
-                //This corrects for that unexpected behavior. In the future, I should log which ones get removed.
-                //Database.ExecuteSqlRaw("DELETE FROM Places WHERE ElementGeometry = '' OR ElementGeometry = NULL");
-                
                 //db.Database.ExecuteSqlRaw(GeneratedMapDataIndex);
                 Database.ExecuteSqlRaw(MapTileIndex);
                 Log.WriteLog("MapTiles indexed.");
