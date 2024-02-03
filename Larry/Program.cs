@@ -1,5 +1,6 @@
 ﻿using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.Extensions.Configuration;
 using NetTopologySuite;
 using NetTopologySuite.Geometries;
@@ -247,6 +248,7 @@ namespace Larry
             {
                 //TODO: create lastofflineentry file here, remove check for file existin inside makeOfflineJson
                 //MakeOfflineFilesCell8();
+                File.WriteAllText("lastOfflineEntry.txt", "");
                 MakeOfflineJson("");
                 File.Delete("lastOfflineEntry.txt");
             }
@@ -953,8 +955,6 @@ namespace Larry
         public static void MakeOfflineJson(string plusCode, Polygon bounds = null, bool saveToFile = true)
         {
             //Make offline data for PlusCode6s, repeatedly if the one given is a 4 or 2.
-            var styleSet = "mapTiles";
-
             if (bounds == null)
             {
                 var dbB = new PraxisContext();
@@ -985,9 +985,7 @@ namespace Larry
                 }
                 else
                 {
-                    var doneCell2s = "0";
-                    if (File.Exists("lastOfflineEntry.txt"))
-                        doneCell2s = File.ReadAllText("lastOfflineEntry.txt");
+                    var doneCell2s = File.ReadAllText("lastOfflineEntry.txt");
                     if (doneCell2s.Contains(plusCode) && plusCode != "")
                         return;
 
@@ -998,7 +996,8 @@ namespace Larry
                 }
             }
 
-            //This is to let us be resumable if this stop for some reason.
+            //This is to let us be resumable if this stop for some reason, and to keep the number of files in a folder manageable.
+            //Each file is a Cell6, so a Cell4 folder has 200 files, and a Cell2 folder would have 40,000
             if (File.Exists(config["PbfFolder"] + plusCode.Substring(0,2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode + ".json"))
                 return;
 
@@ -1011,8 +1010,8 @@ namespace Larry
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
 
-            var cell8 = plusCode.ToGeoArea();
-            var cell8Poly = cell8.ToPolygon();
+            var cell = plusCode.ToGeoArea();
+            var cellPoly = cell.ToPolygon();
             
 
             //Adding variables here so that an instance can process these at higher or lower accuracy if desired. Higher accuracy or not simplifying items
@@ -1022,16 +1021,23 @@ namespace Larry
             var yRes = config["offlineYPixelResolution"].ToDouble(); //default = cell12Lat
             var styles = config["offlineStyleSets"].Split(",");
 
-            var min = cell8.Min;
+            var min = cell.Min;
             Dictionary<string, int> nametable = new Dictionary<string, int>(); //name, id
             var nameIdCounter = 0;
+
+            //Console.WriteLine(plusCode + ":Checking if places exist");
+            if (!PraxisCore.Place.DoPlacesExist(cell))
+               return;
+            //Console.WriteLine(plusCode + ":places found");
 
             var finalData = new OfflineDataV2();
             finalData.olc = plusCode;
             finalData.entries = new Dictionary<string, List<OfflinePlaceEntry>>();
             foreach (var style in styles)
             {
-                var placeData = PraxisCore.Place.GetPlaces(cell8, styleSet: style, dataKey: style, skipTags: true);
+                //Console.WriteLine(plusCode + ":getting places with " + style);
+                var placeData = PraxisCore.Place.GetPlaces(cell, styleSet: style, dataKey: style, skipTags: true);
+                //Console.WriteLine(plusCode + ":places got - " + placeData.Count);
 
                 if (placeData.Count == 0)
                     continue;
@@ -1043,7 +1049,7 @@ namespace Larry
 
                 foreach (var place in placeData)
                 {
-                    place.ElementGeometry = place.ElementGeometry.Intersection(cell8Poly);
+                    place.ElementGeometry = place.ElementGeometry.Intersection(cellPoly);
                     if (simplifyRes > 0)
                         place.ElementGeometry = place.ElementGeometry.Simplify(simplifyRes);
                     if (place.ElementGeometry.IsEmpty)
@@ -1060,7 +1066,7 @@ namespace Larry
 
                     //I'm locking these geometry items to a tile, So I convert these points in the geometry to integers, effectively
                     //letting me draw Cell11 pixel-precise points from this info, and is shorter stringified for JSON vs floats/doubles.
-                    var coordSets = GetCoordEntries(place, cell8.Min, xRes, yRes);
+                    var coordSets = GetCoordEntries(place, cell.Min, xRes, yRes);
                     foreach (var coordSet in coordSets)
                     {
                         if (coordSet == "")
@@ -1079,7 +1085,7 @@ namespace Larry
                 finalData.entries[style] = entries;
             }
 
-            if (finalData.entries == null || finalData.entries.Count == 0)
+            if (finalData.entries.Count == 0)
                 return;
             
             finalData.nameTable = nametable.Count > 0 ? nametable.ToDictionary(k => k.Value, v => v.Key) : null;
