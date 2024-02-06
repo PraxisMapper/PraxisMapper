@@ -35,6 +35,7 @@ namespace PraxisCore.PbfReader
         //public bool onlyMatchedAreas = false; //if true, only process geometry if the tags come back with IsGamplayElement== true;
         public string processingMode = "normal"; //normal: use geometry as it exists. center: save the center point of any geometry provided instead of its actual value. minimize: reduce accuracy to save storage space.
         public string styleSet = "mapTiles"; //which style set to use when parsing entries
+        public string[] styleSets;
         public bool keepIndexFiles = true;
         public bool splitByStyleSet = false;
 
@@ -281,6 +282,7 @@ namespace PraxisCore.PbfReader
             //This one starts from the start and works it ways towards the end, one block/group at a time, directly against the database.
             //NOTE: styleSet is used to determine what counts as matched/unmatched, but matched elements are pre-tagged against all style sets.
 
+            styleSets = styleSet.Split(",");
             Stopwatch swFile = new Stopwatch();
             swFile.Start();
 
@@ -346,12 +348,15 @@ namespace PraxisCore.PbfReader
                     if (geoData != null && geoData.Count > 0) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
                     {
                         var placeIds = geoData.Where(g => g != null).Select(g => g.Id).ToList();
-                        var currentData = db.Places.Include(p => p.PlaceData).Where(p => p.SourceItemType == itemType && placeIds.Contains(p.SourceItemID)).ToDictionary(k => k.SourceItemID, v => v);
+
+                        Dictionary<long, DbTables.Place> currentData = null;
+                        if (saveToDB)
+                            currentData = db.Places.Include(p => p.PlaceData).Where(p => p.SourceItemType == itemType && placeIds.Contains(p.SourceItemID)).ToDictionary(k => k.SourceItemID, v => v);
                         var processed = geoData.AsParallel().Where(g => g != null).Select(g =>
                         {
                             var place = GeometrySupport.ConvertOsmEntryToPlace(g, styleSet);
                             //if (place != null)
-                                //Place.PreTag(place); //already called in the convert function.
+                            //Place.PreTag(place); //already called in the convert function.
 
                             if (processingMode == "center")
                                 place.ElementGeometry = place.ElementGeometry.Centroid;
@@ -532,7 +537,7 @@ namespace PraxisCore.PbfReader
 
                     //TODO: work out correct rules for checking items BETWEEN blocks/groups. This logic will work on planet.osm.pbf, but may not on extracts.
                     var dbEntries = db.Places.Where(p => p.SourceItemType == itemType && (p.SourceItemID >= index.minId && p.SourceItemID <= index.maxId)).ToList();
-                    foreach(var e in dbEntries)
+                    foreach (var e in dbEntries)
                     {
                         bool isPresent = false;
                         switch (itemType)
@@ -854,12 +859,13 @@ namespace PraxisCore.PbfReader
                 if (!canProcess)
                     return null;
 
-                TagsCollection tags = GetTags(stringData, rel.keys, rel.vals);
 
+                TagsCollection tags = GetTags(stringData, rel.keys, rel.vals);
+                //TODO: test and move this logic to allow PBFReader to handle multiple style sets at once.
                 if (ignoreUnmatched)
                 {
-                    if (TagParser.GetStyleEntry(tags, styleSet).Name == TagParser.defaultStyle.Name)
-                        return null; //This is 'unmatched', skip processing this entry.
+                    if (!EntryMatchesSet(tags))
+                        return null; //This is 'unmatched' by all our style sets, skip processing this entry.
                 }
 
                 //If I only want elements that show up in the map, and exclude areas I don't currently match,
@@ -985,8 +991,8 @@ namespace PraxisCore.PbfReader
 
                     if (ignoreUnmatched)
                     {
-                        if (TagParser.GetStyleEntry(tags, styleSet).Name == TagParser.defaultStyle.Name)
-                            return null; //don't process this one, we said not to load entries that aren't already in our style list.
+                        if (!EntryMatchesSet(tags))
+                            return null; //This is 'unmatched' by all our style sets, skip processing this entry.
                     }
                 }
 
@@ -1110,8 +1116,8 @@ namespace PraxisCore.PbfReader
                     var tc = new OsmSharp.Tags.TagsCollection(decodedTags[index]); //Tags are needed first, so pull them out here for the ignoreUnmatched check.
                     if (ignoreUnmatched)
                     {
-                        if (TagParser.GetStyleEntry(tc, styleSet).Name == "unmatched")
-                            continue;
+                        if (!EntryMatchesSet(tc))
+                            return null; //This is 'unmatched' by all our style sets, skip processing this entry.
                     }
 
                     OsmSharp.Node n = new OsmSharp.Node();
@@ -1828,6 +1834,16 @@ namespace PraxisCore.PbfReader
                 sw.Write(data.ToString());
                 sw.Close(); sw.Dispose(); file.Close(); file.Dispose();
             });
+        }
+
+        public bool EntryMatchesSet(TagsCollection tags)
+        {
+            foreach (var set in styleSets)
+            {
+                if (TagParser.GetStyleEntry(tags, set).Name != TagParser.defaultStyle.Name)
+                    return true;
+            }
+            return false;
         }
     }
 }
