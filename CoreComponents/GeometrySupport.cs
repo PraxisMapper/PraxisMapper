@@ -191,14 +191,18 @@ namespace PraxisCore
                 place.ElementGeometry = geometry;
                 place.Tags = tags;
 
-                TagParser.ApplyTags(place, styleSet);
-                if (place.StyleName == "unmatched" || place.StyleName == "background")
+                foreach (var set in styleSet.Split(","))
                 {
-                    //skip, leave value at 0.
-                }
-                else
-                {
-                    place.DrawSizeHint = CalculateDrawSizeHint(place, styleSet);
+                    TagParser.ApplyTags(place, set);
+                    if (place.StyleName == "unmatched" || place.StyleName == "background")
+                    {
+                        //skip, leave value at 0.
+                    }
+                    else
+                    {
+                        place.DrawSizeHint = CalculateDrawSizeHint(place, set);
+                        break;
+                    }
                 }
                 Place.PreTag(place);
                 return place;
