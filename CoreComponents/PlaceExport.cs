@@ -190,6 +190,12 @@ namespace PraxisCore
                 entryCounter = File.ReadAllText(filename + ".progress").ToInt();
         }
 
+        void DeleteProgressFile()
+        {
+            if (File.Exists(filename + ".progress"))
+                File.Delete(filename + ".progress");
+        }
+
         public static void LoadToDatabase(string pmdFile, string processingMode = "normal", Envelope bounds = null)
         {
             //This is for an existing file that's getting imported into the current DB.
@@ -220,12 +226,12 @@ namespace PraxisCore
             while (place != null)
             {
                 //TODO: batch this work so we can do 1 DB call for batchSize reads. Will dramatically improve speed.
-                var thisEntry = db.Places.Include(p => p.Tags).Include(p => p.PlaceData).FirstOrDefault(p => p.SourceItemID == place.SourceItemID && p.SourceItemType == place.SourceItemType);
-                if (thisEntry == null)
+                //var thisEntry = db.Places.Include(p => p.Tags).Include(p => p.PlaceData).FirstOrDefault(p => p.SourceItemID == place.SourceItemID && p.SourceItemType == place.SourceItemType);
+                if (true) // (thisEntry == null)
                     db.Places.Add(place);
                 else
                 {
-                    Place.UpdateChanges(thisEntry, place, db);
+                    //Place.UpdateChanges(thisEntry, place, db);
                 }
                 placeCounter++;
                 if (placeCounter % batchSize == 0)
@@ -239,6 +245,7 @@ namespace PraxisCore
                 place = entry.GetNextPlace();
             }
             db.SaveChanges();
+            entry.DeleteProgressFile();
             entry.Close();
             sw.Stop();
             Log.WriteLog("Loaded " + entry.filename + " in " + sw.Elapsed);
