@@ -11,6 +11,7 @@ using PraxisCore.PbfReader;
 using PraxisCore.Styles;
 using PraxisCore.Support;
 using System;
+using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -950,7 +951,7 @@ namespace Larry
             public int? nid { get; set; } = null; //nametable id
             public int tid { get; set; } //terrain id, which style entry this place is
             public int gt { get; set; } //geometry type. 1 = point, 2 = line OR hollow shape, 3 = filled shape.
-            public string p { get; set; } //Points, local to the given PlusCode
+            public string p { get; set; } //Points, local to the given PlusCode. If human-readable, is string pairs, if not is base64 encoded integers.
         }
         public static void MakeOfflineJson(string plusCode, Polygon bounds = null, bool saveToFile = true)
         {
@@ -1011,7 +1012,7 @@ namespace Larry
             db.ChangeTracker.AutoDetectChangesEnabled = false;
 
             var cell = plusCode.ToGeoArea();
-            var cellPoly = cell.ToPolygon();
+            //var cellPoly = cell.ToPolygon();
             
 
             //Adding variables here so that an instance can process these at higher or lower accuracy if desired. Higher accuracy or not simplifying items
@@ -1049,7 +1050,8 @@ namespace Larry
 
                 foreach (var place in placeData)
                 {
-                    place.ElementGeometry = place.ElementGeometry.Intersection(cellPoly);
+                    //POTENTIAL TODO: I may need to crop all places first, then sort by their total area to process these largest-to-smallest on the client
+                    place.ElementGeometry = place.ElementGeometry.Intersection(area);
                     if (simplifyRes > 0)
                         place.ElementGeometry = place.ElementGeometry.Simplify(simplifyRes);
                     if (place.ElementGeometry.IsEmpty)
@@ -1060,17 +1062,36 @@ namespace Larry
                     {
                         if (nametable.TryGetValue(place.Name, out var nameval))
                             nameID = nameval;
+                        //else
+                        //{
+                        //    nametable.Add(place.Name, ++nameIdCounter);
+                        //    nameID = nameIdCounter;
+                        //}
                     }
+
 
                     var styleEntry = TagParser.allStyleGroups[style][place.StyleName];
 
                     //I'm locking these geometry items to a tile, So I convert these points in the geometry to integers, effectively
                     //letting me draw Cell11 pixel-precise points from this info, and is shorter stringified for JSON vs floats/doubles.
-                    var coordSets = GetCoordEntries(place, cell.Min, xRes, yRes);
+                    var coordSets = GetCoordEntries(place, cell.Min, xRes, yRes); //Original human-readable strings
+                    //var coordSets = GetCoordEntriesInt(place, cell.Min, xRes, yRes); //base64 encoded integers. Uses about half the space unzipped, works out the same zipped.
                     foreach (var coordSet in coordSets)
                     {
                         if (coordSet == "")
+                        //if (coordSet.Count == 0)
                             continue;
+
+                        //Now to encode the ints.
+                        //byte[] encoded = new byte[coordSet.Count * 4];
+                        //for (int x = 0; x < coordSet.Count; x++)
+                        //{
+                        //    var tempByte = new byte[4];
+                        //    BinaryPrimitives.TryWriteInt32LittleEndian(tempByte, coordSet[x]);
+                        //    tempByte.CopyTo(encoded, x * 4);
+                        //}
+                        //var stringifiedInts = Convert.ToBase64String(encoded);
+
                         //System.Diagnostics.Debugger.Break();
                         var offline = new OfflinePlaceEntry();
                         offline.nid = nameID;
@@ -1132,6 +1153,86 @@ namespace Larry
             }
 
             return points;
+        }
+
+        public static List<List<int>> GetCoordEntriesInt(DbTables.Place place, GeoPoint min, double xRes = ConstantValues.resolutionCell11Lon, double yRes = ConstantValues.resolutionCell11Lat)
+        {
+            //Encoded coords: val = (yPix * 40,000) + xPix
+            //Decoded coords: val / 40000 = y, val % 40,000 = x
+            //each list is a shape or line to draw.
+            List<List<int>> points = new List<List<int>>();
+
+            if (place.ElementGeometry.GeometryType == "MultiPolygon")
+            {
+                foreach (var poly in ((MultiPolygon)place.ElementGeometry).Geometries) //This should be the same as the Polygon code below.
+                {
+                    points.AddRange(GetPolygonPointsInt(poly as Polygon, min, xRes, yRes));
+                }
+            }
+            else if (place.ElementGeometry.GeometryType == "Polygon")
+            {
+                points.AddRange(GetPolygonPointsInt(place.ElementGeometry as Polygon, min, xRes, yRes));
+            }
+            else
+                points.Add(place.ElementGeometry.Coordinates.Select(c => ((int)((c.Y - min.Latitude) / yRes)) * 40000 + (int)((c.X - min.Longitude) / xRes)).ToList());
+            //index = (row * size) + column. (May only work if you multiply by the larger value, so we'd get Y first on these taller images)
+            //so our images are 40,000 Y and 25,600 X pixels. 
+
+            //I could probably test this separately in the test app.
+            //Take a place, convert it to strings like I do now, then convert it to ints and base64 that somehow.
+            //This is probably not the direction i need to be focusing on right now, i should get styles done and updated and the client self-contained.
+
+            if (points.Count == 0)
+            {
+                //System.Diagnostics.Debugger.Break();
+            }
+
+            return points;
+        }
+        public static List<List<int>> GetPolygonPointsInt(Polygon p, GeoPoint min, double xRes = ConstantValues.resolutionCell11Lon, double yRes = ConstantValues.resolutionCell11Lat)
+        {
+            List<List<int>> results = new List<List<int>>();
+            if (p.Holes.Length == 0)
+                results.Add(p.Coordinates.Select(c => ((int)((c.Y - min.Latitude) / yRes)) * 40000 + (int)((c.X - min.Longitude) / xRes)).ToList());
+            else
+            {
+                //Split this polygon into smaller pieces, split on the center of each hole present longitudinally
+                //West to east direction chosen arbitrarily.
+                var westEdge = p.Coordinates.Min(c => c.X);
+                var northEdge = p.Coordinates.Max(c => c.Y);
+                var southEdge = p.Coordinates.Min(c => c.Y);
+
+                List<double> splitPoints = new List<double>();
+                foreach (var hole in p.Holes.OrderBy(h => h.Centroid.X))
+                    splitPoints.Add(hole.Centroid.X);
+
+                foreach (var point in splitPoints)
+                {
+                    try
+                    {
+                        var splitPoly = new GeoArea(southEdge, westEdge, northEdge, point).ToPolygon();
+                        var subPoly = p.Intersection(splitPoly);
+
+                        //Still need to check that we have reasonable geometry here.
+                        if (subPoly.GeometryType == "Polygon")
+                            results.AddRange(GetPolygonPointsInt(subPoly as Polygon, min, xRes, yRes));
+                        else if (subPoly.GeometryType == "MultiPolygon")
+                        {
+                            foreach (var p2 in ((MultiPolygon)subPoly).Geometries)
+                                results.AddRange(GetPolygonPointsInt(p2 as Polygon, min, xRes, yRes));
+                        }
+                        else
+                            Log.WriteLog("Offline proccess error: Got geoType " + subPoly.GeometryType + ", which wasnt expected");
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.WriteLog("Offline proccess error: " + ex.Message);
+                    }
+                    westEdge = point;
+                }
+            }
+
+            return results.Distinct().ToList();
         }
 
         public static List<string> GetPolygonPoints(Polygon p, GeoPoint min, double xRes = ConstantValues.resolutionCell11Lon, double yRes = ConstantValues.resolutionCell11Lat)
