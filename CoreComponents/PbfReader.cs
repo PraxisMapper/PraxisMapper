@@ -282,6 +282,11 @@ namespace PraxisCore.PbfReader
             //This one starts from the start and works it ways towards the end, one block/group at a time, directly against the database.
             //NOTE: styleSet is used to determine what counts as matched/unmatched, but matched elements are pre-tagged against all style sets.
 
+
+            var dbS = new PraxisContext();
+            var skipExisting = !dbS.Places.Any();
+            dbS.Dispose();
+
             styleSets = styleSet.Split(",");
             Stopwatch swFile = new Stopwatch();
             swFile.Start();
@@ -350,7 +355,7 @@ namespace PraxisCore.PbfReader
                         var placeIds = geoData.Where(g => g != null).Select(g => g.Id).ToList();
 
                         Dictionary<long, DbTables.Place> currentData = null;
-                        if (saveToDB)
+                        if (saveToDB && !skipExisting)
                             currentData = db.Places.Include(p => p.PlaceData).Where(p => p.SourceItemType == itemType && placeIds.Contains(p.SourceItemID)).ToDictionary(k => k.SourceItemID, v => v);
                         var processed = geoData.AsParallel().Where(g => g != null).Select(g =>
                         {
@@ -396,7 +401,7 @@ namespace PraxisCore.PbfReader
                                 if (newEntry == null)
                                     continue;
 
-                                if (!currentData.TryGetValue(newEntry.SourceItemID, out var existing))
+                                if (skipExisting || !currentData.TryGetValue(newEntry.SourceItemID, out var existing))
                                     db.Places.Add(newEntry);
                                 else
                                 {
@@ -1117,7 +1122,7 @@ namespace PraxisCore.PbfReader
                     if (ignoreUnmatched)
                     {
                         if (!EntryMatchesSet(tc))
-                            return null; //This is 'unmatched' by all our style sets, skip processing this entry.
+                            continue; 
                     }
 
                     OsmSharp.Node n = new OsmSharp.Node();
@@ -1379,8 +1384,11 @@ namespace PraxisCore.PbfReader
                         try
                         {
                             var nodes = GetTaggedNodesFromBlock(block, onlyTagMatchedEntries);
-                            totalProcessEntries += nodes.Count;
-                            results = new ConcurrentBag<ICompleteOsmGeo>(nodes);
+                            if (nodes != null)
+                            {
+                                totalProcessEntries += nodes.Count;
+                                results = new ConcurrentBag<ICompleteOsmGeo>(nodes);
+                            }
                         }
                         catch (Exception ex)
                         {
