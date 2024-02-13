@@ -247,7 +247,6 @@ namespace Larry
 
             if (args.Any(a => a == "-makeOfflineFiles"))
             {
-                //TODO: create lastofflineentry file here, remove check for file existin inside makeOfflineJson
                 //MakeOfflineFilesCell8();
                 File.WriteAllText("lastOfflineEntry.txt", "");
                 OfflineData.simplifyRes = config["offlineSimplifyResolution"].ToDouble();
