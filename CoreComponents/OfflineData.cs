@@ -16,6 +16,7 @@ namespace PraxisCore
 {
     public class OfflineData
     {
+        static object zipLock = new object();
         public class OfflineDataV2
         {
             public string olc { get; set; } //PlusCode
@@ -38,8 +39,8 @@ namespace PraxisCore
             public Dictionary<int, string> nameTable { get; set; } //id, name
         }
 
-        public class MinOfflineData 
-        { 
+        public class MinOfflineData
+        {
             public string c { get; set; } //Point Center, as a pluscode? Or pixel coords? Probably pixel coords
             public int r { get; set; }  //radius for a circle representing roughly the place, in pixels on the client image (1 Cell11 or 12)
             public int? nid { get; set; } = null; //nametable id, as regular offline data.
@@ -54,7 +55,7 @@ namespace PraxisCore
         public static string[] styles = ["suggestedmini", "adminBoundsFilled"];
         public static string filePath = "";
 
-        public static void MakeOfflineJson(string plusCode, Polygon bounds = null, bool saveToFile = true)
+        public static void MakeOfflineJson(string plusCode, Polygon bounds = null, bool saveToFile = true, ZipArchive inner_zip = null)
         {
             //Make offline data for PlusCode6s, repeatedly if the one given is a 4 or 2.
             if (bounds == null)
@@ -71,43 +72,54 @@ namespace PraxisCore
 
             if (plusCode.Length < 6)
             {
-                //NOTE: Removed for ocean processing. Put back later.
-                //if (!PraxisCore.Place.DoPlacesExist(plusCode.ToGeoArea()))
-                    //return;
+                if (!PraxisCore.Place.DoPlacesExist(plusCode.ToGeoArea()))
+                    return;
 
                 if (plusCode.Length == 4)
                 {
+                    //NOTE: may do processing directly to zip file now.
                     //CHECK: if we have a zip file, unzip it for processing.
-                    if (File.Exists(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode.Substring(0, 4) + ".zip"))
+                    Directory.CreateDirectory(filePath + plusCode.Substring(0, 2));
+                    if (!File.Exists(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip"))
                     {
-                        Log.WriteLog("Unzipping existing data for " + plusCode.Substring(0, 4));
-                        //unzip that file
-                        ZipFile.ExtractToDirectory(File.OpenRead(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode.Substring(0, 4) + ".zip"), filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2));
-                        File.Delete(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode.Substring(0, 4) + ".zip");
+                        inner_zip = new ZipArchive(File.Create(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip"), ZipArchiveMode.Update);
+
+                        //Log.WriteLog("Unzipping existing data for " + plusCode.Substring(0, 4));
+                        ////unzip that file
+                        //var fs = File.OpenRead(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip");
+                        //ZipFile.ExtractToDirectory(fs, filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2));
+                        //fs.Close();
+                        //File.Delete(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip");
+                        //inner_zip = ZipFile.Open(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip", ZipArchiveMode.Update);
                     }
+                    else
+                        inner_zip = ZipFile.Open(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip", ZipArchiveMode.Update);
 
                     ParallelOptions po = new ParallelOptions();
                     po.MaxDegreeOfParallelism = 4;
                     Parallel.ForEach(GetCellCombos(), po, pair =>
                     {
-                        MakeOfflineJson(plusCode + pair, bounds, saveToFile);
+                        MakeOfflineJson(plusCode + pair, bounds, saveToFile, inner_zip);
                     });
+
+                    if (inner_zip != null)
+                        inner_zip.Dispose();
 
                     //ADDED: Because a LOT of these files are incredibly small, they take up a proprotionally HUGE amount of disk space thats actually empty.
                     //so we now zip the files after they're created, so that all 64,000 1kb files can be as small as 64MB instead of 64GB of slack space.
                     //But only do this is there are files at all.
-                    var files = Directory.EnumerateFiles(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2));
-                    if (files.Any())
-                    {
-                        Log.WriteLog("Zipping data for " + plusCode.Substring(0, 4));
-                        var zip = ZipFile.Open(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip", ZipArchiveMode.Create);
-                        foreach (var file in files)
-                        {
-                            zip.CreateEntryFromFile(file, Path.GetFileName(file));
-                            File.Delete(file);
-                        }
-                        zip.Dispose();
-                    }
+                    //var files = Directory.EnumerateFiles(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2));
+                    //if (files.Any())
+                    //{
+                    //    Log.WriteLog("Zipping data for " + plusCode.Substring(0, 4));
+                    //    var zip = ZipFile.Open(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip", ZipArchiveMode.Create);
+                    //    foreach (var file in files)
+                    //    {
+                    //        zip.CreateEntryFromFile(file, Path.GetFileName(file));
+                    //        File.Delete(file);
+                    //    }
+                    //    zip.Dispose();
+                    //}
                     return;
                 }
                 else
@@ -128,10 +140,10 @@ namespace PraxisCore
 
             //NOTE: This is getting replaced with the merge logic from now on. Breakpoints will have to be on the Cell2 level if you want to resume.
             //if (File.Exists(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode + ".json"))
-                //return;
+            //return;
 
-            Directory.CreateDirectory(filePath + plusCode.Substring(0, 2));
-            Directory.CreateDirectory(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2));
+
+            //Directory.CreateDirectory(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2));
             //TODO: should probably also make the cell4 subfolder honestly.
 
             var sw = Stopwatch.StartNew();
@@ -145,7 +157,7 @@ namespace PraxisCore
 
             //Adding variables here so that an instance can process these at higher or lower accuracy if desired. Higher accuracy or not simplifying items
             //will make larger files but the output would be a closer match to the server's images.
-            
+
 
             var min = cell.Min;
             Dictionary<string, int> nametable = new Dictionary<string, int>(); //name, id
@@ -153,9 +165,8 @@ namespace PraxisCore
 
             //Console.WriteLine(plusCode + ":Checking if places exist");
 
-            //NOTE: Removed for ocean data. Replace this once ocean database has been processed.
-            //if (!PraxisCore.Place.DoPlacesExist(cell))
-              //  return;
+            if (!PraxisCore.Place.DoPlacesExist(cell))
+                return;
             //Console.WriteLine(plusCode + ":places found");
 
             var finalData = new OfflineDataV2();
@@ -238,23 +249,40 @@ namespace PraxisCore
 
             finalData.nameTable = nametable.Count > 0 ? nametable.ToDictionary(k => k.Value, v => v.Key) : null;
 
-            if (File.Exists(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode + ".json"))
+            lock (zipLock)
             {
-                OfflineDataV2 existingData = JsonSerializer.Deserialize<OfflineDataV2>(File.ReadAllText(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode + ".json"));
-                finalData = MergeOfflineFiles(finalData, existingData);
-            }
+                //if (File.Exists(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode + ".json"))
+                var entry = inner_zip.GetEntry(plusCode + ".json");
+                if (entry != null)
+                {
+                    OfflineDataV2 existingData = JsonSerializer.Deserialize<OfflineDataV2>(entry.Open());
+                    finalData = MergeOfflineFiles(finalData, existingData);
+                }
+                else
+                    entry = inner_zip.CreateEntry(plusCode + ".json");
 
-            JsonSerializerOptions jso = new JsonSerializerOptions();
-            jso.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
-            string data = JsonSerializer.Serialize(finalData, jso);
+                JsonSerializerOptions jso = new JsonSerializerOptions();
+                jso.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+                string data = JsonSerializer.Serialize(finalData, jso);
 
-            if (saveToFile)
-            {
-                File.WriteAllText(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode + ".json", data);
-            }
-            else
-            {
-                GenericData.SetAreaData(plusCode, "offlineV2", data);
+                if (saveToFile)
+                {
+                    if (finalData.nameTable == null && finalData.entries.Count == 0)
+                        return;
+                    //File.WriteAllText(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode + ".json", data);
+                    //ZipArchiveEntry entry = inner_zip.GetEntry(plusCode + ".json");
+                    //if (entry == null)
+                    //entry = inner_zip.CreateEntry(plusCode + ".json");
+
+                    using var entryStream = entry.Open();
+                    using (var streamWriter = new StreamWriter(entryStream))
+                        streamWriter.Write(data);
+                }
+
+                else
+                {
+                    GenericData.SetAreaData(plusCode, "offlineV2", data);
+                }
             }
             sw.Stop();
             Log.WriteLog("Created and saved offline data for " + plusCode + " in " + sw.Elapsed);
@@ -574,7 +602,7 @@ namespace PraxisCore
                     }
                     else if (place.ElementGeometry.GeometryType == "MultiPolygon")
                     {
-                        foreach(var p in ((MultiPolygon)place.ElementGeometry).Geometries)
+                        foreach (var p in ((MultiPolygon)place.ElementGeometry).Geometries)
                         {
                             var offline = new MinOfflineData();
                             offline.nid = nameID;
@@ -624,33 +652,38 @@ namespace PraxisCore
         {
             //Step 1: Update name table
 
-            Dictionary<int, int> newNameMap= new Dictionary<int, int>(); //<addingTableKey, exisitngTAbleKey>
+            Dictionary<int, int> newNameMap = new Dictionary<int, int>(); //<addingTableKey, exisitngTAbleKey>
+            if (existing.nameTable == null)
+                existing.nameTable = new Dictionary<int, string>();
             int maxKey = existing.nameTable.Count();
 
-            foreach(var name in adding.nameTable)
+            if (adding.nameTable != null)
             {
-                if (existing.nameTable.ContainsValue(name.Value))
+                foreach (var name in adding.nameTable)
                 {
-                    newNameMap.Add(name.Key, existing.nameTable.First(n => n.Value == name.Value).Key);
-                }
-                else
-                {
-                    existing.nameTable.Add(++maxKey, name.Value);
-                    newNameMap.Add(name.Key, maxKey);
+                    if (existing.nameTable.ContainsValue(name.Value))
+                    {
+                        newNameMap.Add(name.Key, existing.nameTable.First(n => n.Value == name.Value).Key);
+                    }
+                    else
+                    {
+                        existing.nameTable.Add(++maxKey, name.Value);
+                        newNameMap.Add(name.Key, maxKey);
+                    }
                 }
             }
 
             //Step 2: merge sets of entries
-            foreach(var entryList in adding.entries)
+            foreach (var entryList in adding.entries)
             {
                 if (existing.entries[entryList.Key] != null)
                 {
                     //merge entries
                     var list1 = existing.entries[entryList.Key];
                     var list2 = entryList.Value;
-                    list2 =  list2.Select(e => new OfflinePlaceEntry() { p =e.p, gt = e.gt, tid = e.tid, nid = e.nid.HasValue ? newNameMap[e.nid.Value] : null  }).ToList();
+                    list2 = list2.Select(e => new OfflinePlaceEntry() { p = e.p, gt = e.gt, tid = e.tid, nid = e.nid.HasValue ? newNameMap[e.nid.Value] : null }).ToList();
                     //Remove duplicates
-                    var remove = list2.Where(l => list1.Contains(l)).ToList();
+                    var remove = list2.Where(l2 => list1.Any(l1 => l1.p == l2.p && l1.nid == l2.nid && l1.tid == l2.tid && l1.gt == l2.gt)).ToList();
                     foreach (var r in remove)
                         list2.Remove(r);
 
@@ -659,6 +692,9 @@ namespace PraxisCore
                 else
                     existing.entries.Add(entryList.Key, entryList.Value);
             }
+
+            if (newNameMap.Count == 0)
+                existing.nameTable = null;
 
             return existing;
         }
