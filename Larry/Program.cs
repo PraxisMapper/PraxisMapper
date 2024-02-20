@@ -941,6 +941,19 @@ namespace Larry
                 db.Places.Remove(irl);
             }
 
+            //Aleutian Islands Wilderness area is 750+ polygons in a multipolygon. MariaDB does not like Intersects() checks on this.
+            var aiwa = db.Places.Include(p => p.PlaceData).FirstOrDefault(p => p.SourceItemID == 16685152 && p.SourceItemType == 3);
+            if (aiwa != null)
+            {
+                //TODO: might need to copy/clone tags and placedata instead of just assigning.
+                var newPlaces = ((MultiPolygon)aiwa.ElementGeometry).Select(p => new DbTables.Place() { ElementGeometry = p, Name = aiwa.Name, PlaceData = aiwa.PlaceData, Tags = aiwa.Tags, SourceItemID = aiwa.SourceItemID, SourceItemType = aiwa.SourceItemType });
+                foreach (var np in newPlaces)
+                    np.DrawSizeHint = GeometrySupport.CalculateDrawSizeHint(np, "mapTiles");
+
+                db.Places.AddRange(newPlaces);
+                db.Places.Remove(aiwa);
+            }
+
             db.SaveChanges();
         }
 
