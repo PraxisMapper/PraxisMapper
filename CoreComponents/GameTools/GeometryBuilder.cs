@@ -12,7 +12,7 @@ namespace PraxisCore.GameTools
     {
         //GeometryBuilder is a GameTool for allowing players to create simple polygon geometry in-play.
         //This class handles tracking partial geometry progress and enforcing rules on the results
-        //Each point is a Cell10, 
+        //Each point is a Cell10, and the output should be a simple (No self-crossing lines, no duplicate points, no holes) polygon.
 
         public List<string> currentPoints { get; set; }
 
