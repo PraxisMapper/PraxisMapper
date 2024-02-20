@@ -162,7 +162,7 @@ namespace PraxisCore
         public static DbTables.Place ConvertOsmEntryToPlace(OsmSharp.Complete.ICompleteOsmGeo g, string styleSet = "mapTiles")
         {
             var tags = TagParser.getFilteredTags(g.Tags);
-            if (tags == null || tags.Count == 0)
+            if (tags == null || tags.Count == 0) //TODO: can probably remove this check, since filtering should never un-match an element and i no longer allow saving unmatched items.
                 return null; //untagged elements are not useful, do not store them.
 
             try
