@@ -248,7 +248,8 @@ namespace Larry
             if (args.Any(a => a == "-makeOfflineFiles"))
             {
                 //MakeOfflineFilesCell8();
-                File.WriteAllText("lastOfflineEntry.txt", "");
+                if (!File.Exists("lastOfflineEntry.txt")) //Dont overwrite existing file, that means we're resuming an interrupted run.
+                    File.WriteAllText("lastOfflineEntry.txt", "");
                 OfflineData.simplifyRes = config["offlineSimplifyResolution"].ToDouble();
                 OfflineData.xRes = config["offlineXPixelResolution"].ToDouble();
                 OfflineData.yRes = config["offlineYPixelResolution"].ToDouble();
@@ -1027,5 +1028,19 @@ namespace Larry
             }
         }
 
+        public static void PruneFolders(string basepath)
+        {
+            var folders = Directory.GetDirectories(basepath);
+            foreach(var folder in folders)
+            {
+                PruneFolders(folder);
+            }
+            
+            var folderCount = Directory.GetDirectories(basepath).Length;
+            var fileCount = Directory.GetFiles(basepath, "*").Length;
+
+            if (folderCount == 0 && fileCount == 0)
+                Directory.Delete(basepath, false);
+        }
     }
 }
