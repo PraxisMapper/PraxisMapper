@@ -214,6 +214,7 @@ namespace PraxisOfflineDataPlugin.Controllers
         [Route("/[controller]/V2/{plusCode}/{styleSet}")]
         public string GetOfflineDataV2(string plusCode, string styleSet = "mapTiles")
         {
+            //TODO: use PraxisCore.OfflineData instead of local code here, and check for map size
             //TODO: may want to move this logic to PraxisCore so Larry and the plugin can share it?
             //Trying a second approach to this. I want a smaller set of data, but I also want to expand whats available in this.
             //This assumes that a server exists, but it lives primarily NOT to draw tiles itself, but to parse data down for a specific game client which does that work.
@@ -372,6 +373,7 @@ namespace PraxisOfflineDataPlugin.Controllers
 
         public class OfflineStyleItem
         {
+            public string name { get; set; }
             public List<OfflineDrawOps> drawOps { get; set; }
 
         }
@@ -388,8 +390,9 @@ namespace PraxisOfflineDataPlugin.Controllers
             {
                 var entry = new OfflineStyleItem()
                 {
+                    name = styleEntry.Value.Name,
                     drawOps = styleEntry.Value.PaintOperations.OrderByDescending(p => p.LayerId).Select(p => new OfflineDrawOps()
-                    { color = p.HtmlColorCode, sizePx = Math.Round(p.LineWidthDegrees / ConstantValues.resolutionCell11Lat, 1)}).ToList()
+                    { color = p.HtmlColorCode, sizePx = Math.Round(p.LineWidthDegrees / ConstantValues.resolutionCell12Lat, 1)}).ToList()
                 };
                 styles.Add(styleEntry.Value.MatchOrder.ToString(), entry);
             }
