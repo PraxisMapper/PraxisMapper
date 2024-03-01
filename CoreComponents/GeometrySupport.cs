@@ -162,8 +162,8 @@ namespace PraxisCore
         public static DbTables.Place ConvertOsmEntryToPlace(OsmSharp.Complete.ICompleteOsmGeo g, string styleSet = "mapTiles")
         {
             var tags = TagParser.getFilteredTags(g.Tags);
-            if (tags == null || tags.Count == 0) //TODO: can probably remove this check, since filtering should never un-match an element and i no longer allow saving unmatched items.
-                return null; //untagged elements are not useful, do not store them.
+            //if (tags == null || tags.Count == 0) //TODO: can probably remove this check, since filtering should never un-match an element and i no longer allow saving unmatched items.
+                //return null; //untagged elements are not useful, do not store them.
 
             try
             {
@@ -173,7 +173,8 @@ namespace PraxisCore
                     Log.WriteLog("Error: " + g.Type.ToString() + " " + g.Id + "-" + TagParser.GetName(g) + " didn't interpret into a Geometry object", Log.VerbosityLevels.Errors);
                     return null;
                 }
-                if (geometry.GeometryType == "LinearRing" || (geometry.GeometryType == "LineString" && geometry.Coordinates.First() == geometry.Coordinates.Last())) {
+                //TODO: re-test this to confrim this doesn't break when importing closed linestrings.
+                if (geometry.GeometryType == "LinearRing" || (geometry.GeometryType == "LineString" &&  (geometry as LineString).IsClosed)) {
                     //I want to update all LinearRings to Polygons, and let the style determine if they're Filled or Stroked.
                     geometry = Singletons.geometryFactory.CreatePolygon((LinearRing)geometry);
                 }
