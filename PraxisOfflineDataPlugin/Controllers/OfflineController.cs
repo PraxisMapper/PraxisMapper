@@ -211,94 +211,29 @@ namespace PraxisOfflineDataPlugin.Controllers
 
         [HttpGet]
         [Route("/[controller]/V2/{plusCode}")]
-        [Route("/[controller]/V2/{plusCode}/{styleSet}")]
-        public string GetOfflineDataV2(string plusCode, string styleSet = "mapTiles")
+        [Route("/[controller]/V2/{plusCode}/{styles}")]
+        public string GetOfflineDataV2(string plusCode, string styles = "mapTiles")
         {
-            //TODO: use PraxisCore.OfflineData instead of local code here, and check for map size
-            //TODO: may want to move this logic to PraxisCore so Larry and the plugin can share it?
-            //Trying a second approach to this. I want a smaller set of data, but I also want to expand whats available in this.
-            //This assumes that a server exists, but it lives primarily NOT to draw tiles itself, but to parse data down for a specific game client which does that work.
-            //adding: nametable per Cell10, and possibly geometry. This may get limited to the cell8 itself so its self-contained and only whats used gets loaded.
-            using var db = new PraxisContext();
-            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
-            db.ChangeTracker.AutoDetectChangesEnabled = false;
+            //OfflineData.MakeOfflineJson(plusCode); //TODO: this doesnt work for a single file, this is currently hard-set to use the zip file logic.
 
-            //save and load this from the db if we've generated it before.
-            var existingData = db.AreaData.FirstOrDefault(a => a.PlusCode == plusCode && a.DataKey == "offlineV2");
-            if (existingData != null)
-                return existingData.DataValue.ToUTF8String();
+            var data = OfflineData.MakeEntries(plusCode, styles);
+            var stringData = JsonSerializer.Serialize(data);
+            GenericData.SetAreaData(plusCode, "offlineV2", stringData);
+            return stringData;
+        }
 
-            var cell8 = plusCode.ToGeoArea();
-            var cell8Poly = cell8.ToPolygon();
-            var placeData = PraxisCore.Place.GetPlaces(cell8, styleSet: styleSet, dataKey: styleSet);
-            int nameCounter = 1; //used to determine nametable key
+        [HttpGet]
+        [Route("/[controller]/V2Min/{plusCode}")]
+        [Route("/[controller]/V2Min/{plusCode}/{styles}")]
+        public string GetOfflineDataV2Min(string plusCode, string styles = "mapTiles")
+        {
+            //OfflineData.MakeOfflineJson(plusCode); //TODO: this doesnt work for a single file, this is currently hard-set to use the zip file logic.
 
-            List<OfflinePlaceEntry> entries = new List<OfflinePlaceEntry>(placeData.Count);
-            Dictionary<string, int> nametable = new Dictionary<string, int>(); //name, id
-
-            //List<DbTables.Place> toRemove = new List<DbTables.Place>(); //not worth the effort. tiny percentage of places.
-
-            var min = cell8.Min;
-            foreach (var place in placeData)
-            {
-                place.ElementGeometry = place.ElementGeometry.Intersection(cell8Poly);
-                place.ElementGeometry = place.ElementGeometry.Simplify(ConstantValues.resolutionCell11Lon);
-                if (place.ElementGeometry.IsEmpty)
-                {
-                    //toRemove.Add(place);
-                    continue; //Probably an element on the border thats getting pulled in by buffer.
-                }
-
-                int nameID = 0;
-                if (!string.IsNullOrWhiteSpace(place.Name))
-                {
-                    if (!nametable.TryGetValue(place.Name, out var nameval))
-                    {
-                        nameval = nameCounter;
-                        nametable.Add(place.Name, nameval);
-                        nameCounter++;
-                        //attach to this item.
-                    }
-                    nameID = nameval;
-                }
-
-                var style = TagParser.allStyleGroups[styleSet][place.StyleName];
-
-                //I'm locking these geometry items to a tile, So I convert these points in the geometry to integers, effectively
-                //letting me draw Cell11 pixel-precise points from this info, and is shorter stringified for JSON vs floats/doubles.
-                var coordSets = GetCoordEntries(place, cell8.Min);
-                foreach (var coordSet in coordSets)
-                {
-                    if (coordSet == "")
-                        continue;
-                        //System.Diagnostics.Debugger.Break();
-                    var offline = new OfflinePlaceEntry();
-                    offline.nid = nameID;
-                    offline.tid = style.MatchOrder; //Client will need to know what this ID means.
-                    
-                    offline.gt = place.ElementGeometry.GeometryType == "Point" ? 1 : place.ElementGeometry.GeometryType == "LineString" ? 2 : style.PaintOperations.All(p => p.FillOrStroke == "stroke") ? 2 : 3;   
-                    offline.p = coordSet;
-                    entries.Add(offline);
-                }
-            }
-
-            //placeData = placeData.Except(toRemove).ToList();
-
-            //TODO: this is not yet totally optimized, but it's sufficient fast as-is for use on a Cell6 or smaller area. Cell4 takes way longer.
-            var cell82 = (GeoArea)cell8;
-            var terrainInfo = AreaStyle.GetAreaDetails(ref cell82, ref placeData);
-            var stringSize = plusCode.Length;
-            Dictionary<string, int> nameInfo = terrainInfo.Where(t => t.data.name != "").Select(t => new { t.plusCode, nameId = nametable[t.data.name] }).ToDictionary(k => k.plusCode.Substring(stringSize), v => v.nameId);
-
-            var finalData = new OfflineDataV2();
-            finalData.PlusCode = plusCode;
-            finalData.nameTable = nametable.ToDictionary(k => k.Value, v => v.Key);
-            finalData.entries = entries;
-            finalData.gridNames = nameInfo;
-
-            string data = JsonSerializer.Serialize(finalData);
-            GenericData.SetAreaData(plusCode, "offlineV2", data);
-            return data;
+            var data = OfflineData.MakeMinimizedOfflineEntries(plusCode, styles);
+            var jso = new JsonSerializerOptions() { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull };
+            var stringData = JsonSerializer.Serialize(data, jso);
+            GenericData.SetAreaData(plusCode, "offlineV2Min", stringData);
+            return stringData;
         }
 
         public List<string> GetCoordEntries(DbTables.Place place, GeoPoint min)
@@ -392,7 +327,7 @@ namespace PraxisOfflineDataPlugin.Controllers
                 {
                     name = styleEntry.Value.Name,
                     drawOps = styleEntry.Value.PaintOperations.OrderByDescending(p => p.LayerId).Select(p => new OfflineDrawOps()
-                    { color = p.HtmlColorCode, sizePx = Math.Round(p.LineWidthDegrees / ConstantValues.resolutionCell12Lat, 1)}).ToList()
+                    { color = p.HtmlColorCode.Length == 8 ? p.HtmlColorCode.Substring(2) : p.HtmlColorCode, sizePx = Math.Round(p.LineWidthDegrees / ConstantValues.resolutionCell12Lat, 1)}).ToList()
                 };
                 styles.Add(styleEntry.Value.MatchOrder.ToString(), entry);
             }

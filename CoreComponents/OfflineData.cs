@@ -55,6 +55,7 @@ namespace PraxisCore
         public static string[] styles = ["suggestedmini", "adminBoundsFilled"];
         public static string filePath = "";
 
+        //TODO: rename this to 'makeofflinezipfile", since making json is going to become its own function this one will zip up.
         public static void MakeOfflineJson(string plusCode, Polygon bounds = null, bool saveToFile = true, ZipArchive inner_zip = null)
         {
             //Make offline data for PlusCode6s, repeatedly if the one given is a 4 or 2.
@@ -151,25 +152,81 @@ namespace PraxisCore
 
             Directory.CreateDirectory(filePath + plusCode.Substring(0, 2));
             //Directory.CreateDirectory(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2));
+            
+            var sw = Stopwatch.StartNew();
+            var finalData = MakeEntries(plusCode, string.Join(",", styles));
 
+            lock (zipLock)
+            {
+                Stream entryStream;
+                //if (File.Exists(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode + ".json"))
+                var entry = inner_zip.GetEntry(plusCode + ".json");
+                if (entry != null)
+                {
+                    entryStream = entry.Open();
+                    OfflineDataV2 existingData = JsonSerializer.Deserialize<OfflineDataV2>(entryStream);
+                    finalData = MergeOfflineFiles(finalData, existingData);
+                    entryStream.Position = 0;
+                    //entry.Delete();
+                    //entry = inner_zip.CreateEntry(plusCode + ".json");
+                    //entryStream = entry.Open();
+                }
+                else
+                {
+                    entry = inner_zip.CreateEntry(plusCode + ".json");
+                    entryStream = entry.Open();
+                }
+
+                JsonSerializerOptions jso = new JsonSerializerOptions();
+                jso.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+                string data = JsonSerializer.Serialize(finalData, jso);
+
+                if (saveToFile)
+                {
+                    if (finalData.nameTable == null && finalData.entries.Count == 0)
+                        return;
+                    //File.WriteAllText(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode + ".json", data);
+                    //ZipArchiveEntry entry = inner_zip.GetEntry(plusCode + ".json");
+                    //if (entry == null)
+                    //entry = inner_zip.CreateEntry(plusCode + ".json");
+
+                    //using var entryStream = entry.Open();
+                    using (var streamWriter = new StreamWriter(entryStream))
+                        streamWriter.Write(data);
+                    entryStream.Close();
+                    entryStream.Dispose();
+                }
+
+                else
+                {
+                    GenericData.SetAreaData(plusCode, "offlineV2", data);
+                }
+            }
+            sw.Stop();
+            Log.WriteLog("Created and saved offline data for " + plusCode + " in " + sw.Elapsed);
+        }
+
+        public static OfflineDataV2 MakeEntries(string plusCode, string stylesToUse)
+        {
             //TODO: Most of the stuff from here on should be put into its own function that can be called from this big recursive function
             //OR from the offline plugin for a single area and return data. 
             //May also want an alternate version that queries all places first, then loops based on placeData key matching the styles. 
             //should see if thats faster on some of these very slow blocks I keep hitting.
 
-            var sw = Stopwatch.StartNew();
+            
             using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
 
             var cell = plusCode.ToGeoArea();
-            //var cellPoly = cell.ToPolygon();
+            var area = plusCode.ToPolygon();
 
+            var styles = stylesToUse.Split(",");
 
             //Adding variables here so that an instance can process these at higher or lower accuracy if desired. Higher accuracy or not simplifying items
             //will make larger files but the output would be a closer match to the server's images.
 
-            
+
             var min = cell.Min;
             Dictionary<string, int> nametable = new Dictionary<string, int>(); //name, id
             var nameIdCounter = 0;
@@ -177,7 +234,7 @@ namespace PraxisCore
             //Console.WriteLine(plusCode + ":Checking if places exist");
 
             if (!PraxisCore.Place.DoPlacesExist(cell))
-                return;
+                return null;
             //Console.WriteLine(plusCode + ":places found");
 
             var finalData = new OfflineDataV2();
@@ -256,59 +313,11 @@ namespace PraxisCore
             }
 
             if (finalData.entries.Count == 0)
-                return;
+                return null;
 
             finalData.nameTable = nametable.Count > 0 ? nametable.ToDictionary(k => k.Value, v => v.Key) : null;
 
-            lock (zipLock)
-            {
-                Stream entryStream;
-                //if (File.Exists(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode + ".json"))
-                var entry = inner_zip.GetEntry(plusCode + ".json");
-                if (entry != null)
-                {
-                    entryStream = entry.Open();
-                    OfflineDataV2 existingData = JsonSerializer.Deserialize<OfflineDataV2>(entryStream);
-                    finalData = MergeOfflineFiles(finalData, existingData);
-                    entryStream.Position = 0;
-                    //entry.Delete();
-                    //entry = inner_zip.CreateEntry(plusCode + ".json");
-                    //entryStream = entry.Open();
-                }
-                else
-                {
-                    entry = inner_zip.CreateEntry(plusCode + ".json");
-                    entryStream = entry.Open();
-                }
-
-                JsonSerializerOptions jso = new JsonSerializerOptions();
-                jso.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
-                string data = JsonSerializer.Serialize(finalData, jso);
-
-                if (saveToFile)
-                {
-                    if (finalData.nameTable == null && finalData.entries.Count == 0)
-                        return;
-                    //File.WriteAllText(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode + ".json", data);
-                    //ZipArchiveEntry entry = inner_zip.GetEntry(plusCode + ".json");
-                    //if (entry == null)
-                    //entry = inner_zip.CreateEntry(plusCode + ".json");
-
-                    //using var entryStream = entry.Open();
-                    using (var streamWriter = new StreamWriter(entryStream))
-                        streamWriter.Write(data);
-                    entryStream.Close();
-                    entryStream.Dispose();
-                }
-
-                else
-                {
-                    GenericData.SetAreaData(plusCode, "offlineV2", data);
-                }
-            }
-            sw.Stop();
-            Log.WriteLog("Created and saved offline data for " + plusCode + " in " + sw.Elapsed);
-
+            return finalData;
         }
 
 
@@ -539,7 +548,7 @@ namespace PraxisCore
                     po.MaxDegreeOfParallelism = 6;
                     Parallel.ForEach(GetCellCombos(), po, pair =>
                     {
-                        MakeOfflineJson(plusCode + pair, bounds, saveToFile, inner_zip);
+                        MakeMinimizedOfflineData(plusCode + pair, bounds, saveToFile, inner_zip);
                     });
 
                     bool removeFile = false;
@@ -592,112 +601,7 @@ namespace PraxisCore
             //TODO: should probably also make the cell4 subfolder honestly.
 
             var sw = Stopwatch.StartNew();
-            using var db = new PraxisContext();
-            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
-            db.ChangeTracker.AutoDetectChangesEnabled = false;
-
-            var cell = plusCode.ToGeoArea();
-            //var cellPoly = cell.ToPolygon();
-
-
-            //Adding variables here so that an instance can process these at higher or lower accuracy if desired. Higher accuracy or not simplifying items
-            //will make larger files but the output would be a closer match to the server's images.
-
-
-            var min = cell.Min;
-            Dictionary<string, int> nametable = new Dictionary<string, int>(); //name, id
-            var nameIdCounter = 0;
-
-            //Console.WriteLine(plusCode + ":Checking if places exist");
-            if (!PraxisCore.Place.DoPlacesExist(cell))
-                return;
-            //Console.WriteLine(plusCode + ":places found");
-
-            const double innerRes = ConstantValues.resolutionCell10;
-
-            var finalData = new OfflineDataV2Min();
-            finalData.olc = plusCode;
-            finalData.entries = new Dictionary<string, List<MinOfflineData>>();
-            foreach (var style in styles)
-            {
-                //Console.WriteLine(plusCode + ":getting places with " + style);
-                var placeData = PraxisCore.Place.GetPlaces(cell, styleSet: style, dataKey: style, skipTags: true);
-                //Console.WriteLine(plusCode + ":places got - " + placeData.Count);
-
-                if (placeData.Count == 0)
-                    continue;
-                List<MinOfflineData> entries = new List<MinOfflineData>(placeData.Count);
-                var names = placeData.Where(p => !string.IsNullOrWhiteSpace(p.Name) && !nametable.ContainsKey(p.Name)).Select(p => p.Name).Distinct();
-                foreach (var name in names)
-                    nametable.Add(name, ++nameIdCounter);
-                //nametable = nametable.Union(placeData.Where(p => !string.IsNullOrWhiteSpace(p.Name)).Select(p => p.Name).Distinct().ToDictionary(k => k, v => ++nameIdCounter)).Distinct().ToDictionary();
-
-                foreach (var place in placeData)
-                {
-                    //POTENTIAL TODO: I may need to crop all places first, then sort by their total area to process these largest-to-smallest on the client
-                    place.ElementGeometry = place.ElementGeometry.Intersection(area);
-                    if (place.ElementGeometry.IsEmpty)
-                        continue; //Probably an element on the border thats getting pulled in by buffer.
-
-                    int? nameID = null;
-                    if (!string.IsNullOrWhiteSpace(place.Name))
-                    {
-                        if (nametable.TryGetValue(place.Name, out var nameval))
-                            nameID = nameval;
-                    }
-
-                    var styleEntry = TagParser.allStyleGroups[style][place.StyleName];
-                    if (place.ElementGeometry.GeometryType == "Point")
-                    {
-                        var offline = new MinOfflineData();
-                        offline.nid = nameID;
-                        offline.c = (int)Math.Round((place.ElementGeometry.Coordinate.X - min.Longitude) / innerRes) + "," + ((int)Math.Round((place.ElementGeometry.Coordinate.Y - min.Latitude) / innerRes));
-                        offline.r = 2; //5 == Cell11 resolution. Use 22 for Cell12, use 2 for Cell10 (the space the point is in, and the ones surrounding it.
-                        offline.tid = styleEntry.MatchOrder;
-                        entries.Add(offline);
-                    }
-                    else if (place.ElementGeometry.GeometryType == "Polygon")
-                    {
-                        var offline = new MinOfflineData();
-                        offline.nid = nameID;
-                        offline.c = (int)Math.Round((place.ElementGeometry.Centroid.X - min.Longitude) / innerRes) + "," + ((int)Math.Round((place.ElementGeometry.Centroid.Y - min.Latitude) / innerRes));
-                        offline.r = (int)Math.Round(((place.ElementGeometry.EnvelopeInternal.Width + place.ElementGeometry.EnvelopeInternal.Height) * 0.5) / innerRes);
-                        offline.tid = styleEntry.MatchOrder;
-                        entries.Add(offline);
-                    }
-                    else if (place.ElementGeometry.GeometryType == "MultiPolygon")
-                    {
-                        foreach (var p in ((MultiPolygon)place.ElementGeometry).Geometries)
-                        {
-                            var offline = new MinOfflineData();
-                            offline.nid = nameID;
-                            offline.c = (int)Math.Round((p.Centroid.X - min.Longitude) / innerRes) + "," + ((int)Math.Round((p.Centroid.Y - min.Latitude) / innerRes));
-                            offline.r = (int)Math.Round(((p.EnvelopeInternal.Width + p.EnvelopeInternal.Height) * 0.5) / innerRes);
-                            offline.tid = styleEntry.MatchOrder;
-                            entries.Add(offline);
-                        }
-                    }
-                    //TODO: not sure how to handle just lines. Excluding for now, but I do want to work out how to include trails on this.
-                    //Accurate-ish line handling would probably be:
-                    // take the center of each line segment, make it a point with radius == length of that line segment.
-                    //But I don't include trails on suggestedmini, so the presence of lines vs areas is probably minimal.
-                    //else if (place.ElementGeometry.GeometryType == "LineString")
-                    //{
-                    //}
-                    //else if (place.ElementGeometry.GeometryType == "MultiLineString")
-                    //{
-                    //}
-
-                    entries = entries.OrderByDescending(e => e.r).ToList(); //so they'll be drawn biggest to smallest for sure.
-                }
-
-                finalData.entries[style] = entries;
-            }
-
-            if (finalData.entries.Count == 0)
-                return;
-            finalData.nameTable = nametable.Count > 0 ? nametable.ToDictionary(k => k.Value, v => v.Key) : null;
-
+            var finalData = MakeMinimizedOfflineEntries(plusCode, string.Join(",", styles));
 
             lock (zipLock)
             {
@@ -747,6 +651,134 @@ namespace PraxisCore
             }
             sw.Stop();
             Log.WriteLog("Created and saved minimized offline data for " + plusCode + " in " + sw.Elapsed);
+        }
+
+        public static OfflineDataV2Min MakeMinimizedOfflineEntries(string plusCode, string stylesToUse)
+        {
+            using var db = new PraxisContext();
+            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+            db.ChangeTracker.AutoDetectChangesEnabled = false;
+            var styles = stylesToUse.Split(",");
+
+            var cell = plusCode.ToGeoArea();
+            var area = plusCode.ToPolygon();
+            //var cellPoly = cell.ToPolygon();
+
+            //Adding variables here so that an instance can process these at higher or lower accuracy if desired. Higher accuracy or not simplifying items
+            //will make larger files but the output would be a closer match to the server's images.
+
+
+            var min = cell.Min;
+            Dictionary<string, int> nametable = new Dictionary<string, int>(); //name, id
+            var nameIdCounter = 0;
+
+            //Console.WriteLine(plusCode + ":Checking if places exist");
+            if (!PraxisCore.Place.DoPlacesExist(cell))
+                return null;
+            //Console.WriteLine(plusCode + ":places found");
+
+            const double innerRes = ConstantValues.resolutionCell10;
+
+            var finalData = new OfflineDataV2Min();
+            finalData.olc = plusCode;
+            finalData.entries = new Dictionary<string, List<MinOfflineData>>();
+            foreach (var style in styles)
+            {
+                //Console.WriteLine(plusCode + ":getting places with " + style);
+                var placeData = PraxisCore.Place.GetPlaces(cell, styleSet: style, dataKey: style, skipTags: true);
+                //Console.WriteLine(plusCode + ":places got - " + placeData.Count);
+
+                if (placeData.Count == 0)
+                    continue;
+                List<MinOfflineData> entries = new List<MinOfflineData>(placeData.Count);
+                var names = placeData.Where(p => !string.IsNullOrWhiteSpace(p.Name) && !nametable.ContainsKey(p.Name)).Select(p => p.Name).Distinct();
+                foreach (var name in names)
+                    nametable.Add(name, ++nameIdCounter);
+                //nametable = nametable.Union(placeData.Where(p => !string.IsNullOrWhiteSpace(p.Name)).Select(p => p.Name).Distinct().ToDictionary(k => k, v => ++nameIdCounter)).Distinct().ToDictionary();
+
+                foreach (var place in placeData)
+                {
+                    //This is a catch-fix for a different issue, where apparently some closed lineStrings aren't converted to polygons on load.
+                    if (place.ElementGeometry.GeometryType == "LineString" && ((LineString)place.ElementGeometry).IsClosed)
+                        place.ElementGeometry = Singletons.geometryFactory.CreatePolygon(place.ElementGeometry.Coordinates);
+
+                    //POTENTIAL TODO: I may need to crop all places first, then sort by their total area to process these largest-to-smallest on the client
+                    place.ElementGeometry = place.ElementGeometry.Intersection(area);
+                    if (place.ElementGeometry.IsEmpty)
+                        continue; //Probably an element on the border thats getting pulled in by buffer.
+
+                    int? nameID = null;
+                    if (!string.IsNullOrWhiteSpace(place.Name))
+                    {
+                        if (nametable.TryGetValue(place.Name, out var nameval))
+                            nameID = nameval;
+                    }
+
+                    var styleEntry = TagParser.allStyleGroups[style][place.StyleName];
+                    if (place.ElementGeometry.GeometryType == "Point")
+                    {
+                        var offline = new MinOfflineData();
+                        offline.nid = nameID;
+                        offline.c = (int)Math.Round((place.ElementGeometry.Coordinate.X - min.Longitude) / innerRes) + "," + ((int)Math.Round((place.ElementGeometry.Coordinate.Y - min.Latitude) / innerRes));
+                        offline.r = 2; //5 == Cell11 resolution. Use 22 for Cell12, use 2 for Cell10 (the space the point is in, and the ones surrounding it.
+                        offline.tid = styleEntry.MatchOrder;
+                        entries.Add(offline);
+                    }
+                    else if (place.ElementGeometry.GeometryType == "Polygon")
+                    {
+                        var offline = new MinOfflineData();
+                        offline.nid = nameID;
+                        offline.c = (int)Math.Round((place.ElementGeometry.Centroid.X - min.Longitude) / innerRes) + "," + ((int)Math.Round((place.ElementGeometry.Centroid.Y - min.Latitude) / innerRes));
+                        offline.r = (int)Math.Round(((place.ElementGeometry.EnvelopeInternal.Width + place.ElementGeometry.EnvelopeInternal.Height) * 0.5) / innerRes);
+                        offline.tid = styleEntry.MatchOrder;
+                        entries.Add(offline);
+                    }
+                    else if (place.ElementGeometry.GeometryType == "MultiPolygon")
+                    {
+                        foreach (var p in ((MultiPolygon)place.ElementGeometry).Geometries)
+                        {
+                            var offline = new MinOfflineData();
+                            offline.nid = nameID;
+                            offline.c = (int)Math.Round((p.Centroid.X - min.Longitude) / innerRes) + "," + ((int)Math.Round((p.Centroid.Y - min.Latitude) / innerRes));
+                            offline.r = (int)Math.Round(((p.EnvelopeInternal.Width + p.EnvelopeInternal.Height) * 0.5) / innerRes);
+                            offline.tid = styleEntry.MatchOrder;
+                            entries.Add(offline);
+                        }
+                    }
+                    else if (place.ElementGeometry.GeometryType == "LineString")
+                    {
+                        var lp = place.ElementGeometry as LineString;
+                        if (lp.IsClosed) //Treat this as a polygon.
+                        {
+                            var offline = new MinOfflineData();
+                            offline.nid = nameID;
+                            offline.c = (int)Math.Round((place.ElementGeometry.Centroid.X - min.Longitude) / innerRes) + "," + ((int)Math.Round((place.ElementGeometry.Centroid.Y - min.Latitude) / innerRes));
+                            offline.r = (int)Math.Round(((place.ElementGeometry.EnvelopeInternal.Width + place.ElementGeometry.EnvelopeInternal.Height) * 0.5) / innerRes);
+                            offline.tid = styleEntry.MatchOrder;
+                            entries.Add(offline);
+                        }
+                    }
+                    //TODO: not sure how to handle just lines. Excluding for now, but I do want to work out how to include trails on this.
+                    //Accurate-ish line handling would probably be:
+                    // take the center of each line segment, make it a point with radius == length of that line segment.
+                    //But I don't include trails on suggestedmini, so the presence of lines vs areas is probably minimal.
+                    //else if (place.ElementGeometry.GeometryType == "LineString")
+                    //{
+                    //}
+                    //else if (place.ElementGeometry.GeometryType == "MultiLineString")
+                    //{
+                    //}
+                }
+                entries = entries.OrderByDescending(e => e.r).ToList(); //so they'll be drawn biggest to smallest for sure.
+                finalData.entries[style] = entries;
+            }
+
+            if (finalData.entries.Count == 0)
+                return null;
+            finalData.nameTable = nametable.Count > 0 ? nametable.ToDictionary(k => k.Value, v => v.Key) : null;
+
+            return finalData;
+
         }
 
         public static OfflineDataV2Min MergeMinimumOfflineFiles(OfflineDataV2Min existing, OfflineDataV2Min adding)
