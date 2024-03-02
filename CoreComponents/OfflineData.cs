@@ -757,17 +757,45 @@ namespace PraxisCore
                             offline.tid = styleEntry.MatchOrder;
                             entries.Add(offline);
                         }
+                        else
+                        {
+                            //We're gonna assumed this is a named trail. Make the start and end of it Points (radius = 2) with the trail's name.
+                            var offline = new MinOfflineData();
+                            offline.nid = nameID;
+                            offline.c = (int)Math.Round((place.ElementGeometry.Coordinates.First().X - min.Longitude) / innerRes) + "," + ((int)Math.Round((place.ElementGeometry.Coordinates.First().Y - min.Latitude) / innerRes));
+                            offline.r = 2;
+                            offline.tid = styleEntry.MatchOrder;
+                            entries.Add(offline);
+
+                            var offline2 = new MinOfflineData();
+                            offline2.nid = nameID;
+                            offline2.c = (int)Math.Round((place.ElementGeometry.Coordinates.Last().X - min.Longitude) / innerRes) + "," + ((int)Math.Round((place.ElementGeometry.Coordinates.Last().Y - min.Latitude) / innerRes));
+                            offline2.r = 2;
+                            offline2.tid = styleEntry.MatchOrder;
+                            entries.Add(offline2);
+                        }
                     }
-                    //TODO: not sure how to handle just lines. Excluding for now, but I do want to work out how to include trails on this.
-                    //Accurate-ish line handling would probably be:
-                    // take the center of each line segment, make it a point with radius == length of that line segment.
-                    //But I don't include trails on suggestedmini, so the presence of lines vs areas is probably minimal.
-                    //else if (place.ElementGeometry.GeometryType == "LineString")
-                    //{
-                    //}
-                    //else if (place.ElementGeometry.GeometryType == "MultiLineString")
-                    //{
-                    //}
+                    else if (place.ElementGeometry.GeometryType == "MultiLineString")
+                    {
+                        //Not totally sure why this would show up, but again assume its segments of a named trail
+                        var mls = place.ElementGeometry as MultiLineString;
+                        foreach (var line in mls)
+                        {
+                            var offline = new MinOfflineData();
+                            offline.nid = nameID;
+                            offline.c = (int)Math.Round((place.ElementGeometry.Coordinates.First().X - min.Longitude) / innerRes) + "," + ((int)Math.Round((place.ElementGeometry.Coordinates.First().Y - min.Latitude) / innerRes));
+                            offline.r = 2;
+                            offline.tid = styleEntry.MatchOrder;
+                            entries.Add(offline);
+
+                            var offline2 = new MinOfflineData();
+                            offline2.nid = nameID;
+                            offline2.c = (int)Math.Round((place.ElementGeometry.Coordinates.Last().X - min.Longitude) / innerRes) + "," + ((int)Math.Round((place.ElementGeometry.Coordinates.Last().Y - min.Latitude) / innerRes));
+                            offline2.r = 2;
+                            offline2.tid = styleEntry.MatchOrder;
+                            entries.Add(offline2);
+                        }
+                    }
                 }
                 entries = entries.OrderByDescending(e => e.r).ToList(); //so they'll be drawn biggest to smallest for sure.
                 finalData.entries[style] = entries;
