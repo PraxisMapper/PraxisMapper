@@ -206,7 +206,7 @@ namespace PraxisCore
             Log.WriteLog("Created and saved offline data for " + plusCode + " in " + sw.Elapsed);
         }
 
-        public static OfflineDataV2 MakeEntries(string plusCode, string stylesToUse)
+        public static OfflineDataV2 MakeEntries(string plusCode, string stylesToUse, List<DbTables.Place> places = null)
         {
             //TODO: Most of the stuff from here on should be put into its own function that can be called from this big recursive function
             //OR from the offline plugin for a single area and return data. 
@@ -243,7 +243,7 @@ namespace PraxisCore
             foreach (var style in styles)
             {
                 //Console.WriteLine(plusCode + ":getting places with " + style);
-                var placeData = PraxisCore.Place.GetPlaces(cell, styleSet: style, dataKey: style, skipTags: true);
+                var placeData = PraxisCore.Place.GetPlaces(cell, source: places, styleSet: style, dataKey: style, skipTags: true);
                 //Console.WriteLine(plusCode + ":places got - " + placeData.Count);
 
                 if (placeData.Count == 0)
@@ -257,10 +257,10 @@ namespace PraxisCore
                 foreach (var place in placeData)
                 {
                     //POTENTIAL TODO: I may need to crop all places first, then sort by their total area to process these largest-to-smallest on the client
-                    place.ElementGeometry = place.ElementGeometry.Intersection(area);
+                    var geo =  place.ElementGeometry.Intersection(area);
                     if (simplifyRes > 0)
-                        place.ElementGeometry = place.ElementGeometry.Simplify(simplifyRes);
-                    if (place.ElementGeometry.IsEmpty)
+                        geo = geo.Simplify(simplifyRes);
+                    if (geo.IsEmpty)
                         continue; //Probably an element on the border thats getting pulled in by buffer.
 
                     int? nameID = null;
@@ -280,7 +280,7 @@ namespace PraxisCore
 
                     //I'm locking these geometry items to a tile, So I convert these points in the geometry to integers, effectively
                     //letting me draw Cell11 pixel-precise points from this info, and is shorter stringified for JSON vs floats/doubles.
-                    var coordSets = GetCoordEntries(place, cell.Min, xRes, yRes); //Original human-readable strings
+                    var coordSets = GetCoordEntries(geo, cell.Min, xRes, yRes); //Original human-readable strings
                     //var coordSets = GetCoordEntriesInt(place, cell.Min, xRes, yRes); //base64 encoded integers. Uses about half the space unzipped, works out the same zipped.
                     foreach (var coordSet in coordSets)
                     {
@@ -303,7 +303,7 @@ namespace PraxisCore
                         offline.nid = nameID;
                         offline.tid = styleEntry.MatchOrder; //Client will need to know what this ID means from the offline style endpoint output.
 
-                        offline.gt = place.ElementGeometry.GeometryType == "Point" ? 1 : place.ElementGeometry.GeometryType == "LineString" ? 2 : styleEntry.PaintOperations.All(p => p.FillOrStroke == "stroke") ? 2 : 3;
+                        offline.gt = geo.GeometryType == "Point" ? 1 : geo.GeometryType == "LineString" ? 2 : styleEntry.PaintOperations.All(p => p.FillOrStroke == "stroke") ? 2 : 3;
                         offline.p = coordSet;
                         entries.Add(offline);
                     }
@@ -321,23 +321,23 @@ namespace PraxisCore
         }
 
 
-        public static List<string> GetCoordEntries(DbTables.Place place, GeoPoint min, double xRes = ConstantValues.resolutionCell11Lon, double yRes = ConstantValues.resolutionCell11Lat)
+        public static List<string> GetCoordEntries(Geometry geo, GeoPoint min, double xRes = ConstantValues.resolutionCell11Lon, double yRes = ConstantValues.resolutionCell11Lat)
         {
             List<string> points = new List<string>();
 
-            if (place.ElementGeometry.GeometryType == "MultiPolygon")
+            if (geo.GeometryType == "MultiPolygon")
             {
-                foreach (var poly in ((MultiPolygon)place.ElementGeometry).Geometries) //This should be the same as the Polygon code below.
+                foreach (var poly in ((MultiPolygon)geo).Geometries) //This should be the same as the Polygon code below.
                 {
                     points.AddRange(GetPolygonPoints(poly as Polygon, min, xRes, yRes));
                 }
             }
-            else if (place.ElementGeometry.GeometryType == "Polygon")
+            else if (geo.GeometryType == "Polygon")
             {
-                points.AddRange(GetPolygonPoints(place.ElementGeometry as Polygon, min, xRes, yRes));
+                points.AddRange(GetPolygonPoints(geo as Polygon, min, xRes, yRes));
             }
             else
-                points.Add(string.Join("|", place.ElementGeometry.Coordinates.Select(c => (int)Math.Round((c.X - min.Longitude) / xRes) + "," + ((int)Math.Round((c.Y - min.Latitude) / yRes)))));
+                points.Add(string.Join("|", geo.Coordinates.Select(c => (int)Math.Round((c.X - min.Longitude) / xRes) + "," + ((int)Math.Round((c.Y - min.Latitude) / yRes)))));
 
             if (points.Count == 0)
             {
@@ -345,86 +345,6 @@ namespace PraxisCore
             }
 
             return points;
-        }
-
-        public static List<List<int>> GetCoordEntriesInt(DbTables.Place place, GeoPoint min, double xRes = ConstantValues.resolutionCell11Lon, double yRes = ConstantValues.resolutionCell11Lat)
-        {
-            //Encoded coords: val = (yPix * 40,000) + xPix
-            //Decoded coords: val / 40000 = y, val % 40,000 = x
-            //each list is a shape or line to draw.
-            List<List<int>> points = new List<List<int>>();
-
-            if (place.ElementGeometry.GeometryType == "MultiPolygon")
-            {
-                foreach (var poly in ((MultiPolygon)place.ElementGeometry).Geometries) //This should be the same as the Polygon code below.
-                {
-                    points.AddRange(GetPolygonPointsInt(poly as Polygon, min, xRes, yRes));
-                }
-            }
-            else if (place.ElementGeometry.GeometryType == "Polygon")
-            {
-                points.AddRange(GetPolygonPointsInt(place.ElementGeometry as Polygon, min, xRes, yRes));
-            }
-            else
-                points.Add(place.ElementGeometry.Coordinates.Select(c => ((int)((c.Y - min.Latitude) / yRes)) * 40000 + (int)((c.X - min.Longitude) / xRes)).ToList());
-            //index = (row * size) + column. (May only work if you multiply by the larger value, so we'd get Y first on these taller images)
-            //so our images are 40,000 Y and 25,600 X pixels. 
-
-            //I could probably test this separately in the test app.
-            //Take a place, convert it to strings like I do now, then convert it to ints and base64 that somehow.
-            //This is probably not the direction i need to be focusing on right now, i should get styles done and updated and the client self-contained.
-
-            if (points.Count == 0)
-            {
-                //System.Diagnostics.Debugger.Break();
-            }
-
-            return points;
-        }
-        public static List<List<int>> GetPolygonPointsInt(Polygon p, GeoPoint min, double xRes = ConstantValues.resolutionCell11Lon, double yRes = ConstantValues.resolutionCell11Lat)
-        {
-            List<List<int>> results = new List<List<int>>();
-            if (p.Holes.Length == 0)
-                results.Add(p.Coordinates.Select(c => ((int)Math.Round((c.Y - min.Latitude) / yRes)) * 40000 + (int)((c.X - min.Longitude) / xRes)).ToList());
-            else
-            {
-                //Split this polygon into smaller pieces, split on the center of each hole present longitudinally
-                //West to east direction chosen arbitrarily.
-                var westEdge = p.Coordinates.Min(c => c.X);
-                var northEdge = p.Coordinates.Max(c => c.Y);
-                var southEdge = p.Coordinates.Min(c => c.Y);
-
-                List<double> splitPoints = new List<double>();
-                foreach (var hole in p.Holes.OrderBy(h => h.Centroid.X))
-                    splitPoints.Add(hole.Centroid.X);
-
-                foreach (var point in splitPoints)
-                {
-                    try
-                    {
-                        var splitPoly = new GeoArea(southEdge, westEdge, northEdge, point).ToPolygon();
-                        var subPoly = p.Intersection(splitPoly);
-
-                        //Still need to check that we have reasonable geometry here.
-                        if (subPoly.GeometryType == "Polygon")
-                            results.AddRange(GetPolygonPointsInt(subPoly as Polygon, min, xRes, yRes));
-                        else if (subPoly.GeometryType == "MultiPolygon")
-                        {
-                            foreach (var p2 in ((MultiPolygon)subPoly).Geometries)
-                                results.AddRange(GetPolygonPointsInt(p2 as Polygon, min, xRes, yRes));
-                        }
-                        else
-                            Log.WriteLog("Offline proccess error: Got geoType " + subPoly.GeometryType + ", which wasnt expected");
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.WriteLog("Offline proccess error: " + ex.Message);
-                    }
-                    westEdge = point;
-                }
-            }
-
-            return results.Distinct().ToList();
         }
 
         public static List<string> GetPolygonPoints(Polygon p, GeoPoint min, double xRes = ConstantValues.resolutionCell11Lon, double yRes = ConstantValues.resolutionCell11Lat)
@@ -653,7 +573,7 @@ namespace PraxisCore
             Log.WriteLog("Created and saved minimized offline data for " + plusCode + " in " + sw.Elapsed);
         }
 
-        public static OfflineDataV2Min MakeMinimizedOfflineEntries(string plusCode, string stylesToUse)
+        public static OfflineDataV2Min MakeMinimizedOfflineEntries(string plusCode, string stylesToUse, List<DbTables.Place> places = null)
         {
             using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
@@ -685,7 +605,7 @@ namespace PraxisCore
             foreach (var style in styles)
             {
                 //Console.WriteLine(plusCode + ":getting places with " + style);
-                var placeData = PraxisCore.Place.GetPlaces(cell, styleSet: style, dataKey: style, skipTags: true);
+                var placeData = PraxisCore.Place.GetPlaces(cell, source: places, styleSet: style, dataKey: style, skipTags: true);
                 //Console.WriteLine(plusCode + ":places got - " + placeData.Count);
 
                 if (placeData.Count == 0)
@@ -698,13 +618,14 @@ namespace PraxisCore
 
                 foreach (var place in placeData)
                 {
+
                     //This is a catch-fix for a different issue, where apparently some closed lineStrings aren't converted to polygons on load.
                     if (place.ElementGeometry.GeometryType == "LineString" && ((LineString)place.ElementGeometry).IsClosed)
                         place.ElementGeometry = Singletons.geometryFactory.CreatePolygon(place.ElementGeometry.Coordinates);
 
                     //POTENTIAL TODO: I may need to crop all places first, then sort by their total area to process these largest-to-smallest on the client
-                    place.ElementGeometry = place.ElementGeometry.Intersection(area);
-                    if (place.ElementGeometry.IsEmpty)
+                    var geo = place.ElementGeometry.Intersection(area);
+                    if (geo.IsEmpty)
                         continue; //Probably an element on the border thats getting pulled in by buffer.
 
                     int? nameID = null;
@@ -715,27 +636,30 @@ namespace PraxisCore
                     }
 
                     var styleEntry = TagParser.allStyleGroups[style][place.StyleName];
-                    if (place.ElementGeometry.GeometryType == "Point")
+                    if (geo.GeometryType == "Point")
                     {
                         var offline = new MinOfflineData();
                         offline.nid = nameID;
-                        offline.c = (int)Math.Round((place.ElementGeometry.Coordinate.X - min.Longitude) / innerRes) + "," + ((int)Math.Round((place.ElementGeometry.Coordinate.Y - min.Latitude) / innerRes));
+                        offline.c = (int)Math.Round((geo.Coordinate.X - min.Longitude) / innerRes) + "," + ((int)Math.Round((geo.Coordinate.Y - min.Latitude) / innerRes));
                         offline.r = 2; //5 == Cell11 resolution. Use 22 for Cell12, use 2 for Cell10 (the space the point is in, and the ones surrounding it.
                         offline.tid = styleEntry.MatchOrder;
                         entries.Add(offline);
                     }
-                    else if (place.ElementGeometry.GeometryType == "Polygon")
+                    else if (geo.GeometryType == "Polygon")
                     {
                         var offline = new MinOfflineData();
                         offline.nid = nameID;
-                        offline.c = (int)Math.Round((place.ElementGeometry.Centroid.X - min.Longitude) / innerRes) + "," + ((int)Math.Round((place.ElementGeometry.Centroid.Y - min.Latitude) / innerRes));
-                        offline.r = (int)Math.Round(((place.ElementGeometry.EnvelopeInternal.Width + place.ElementGeometry.EnvelopeInternal.Height) * 0.5) / innerRes);
+                        offline.c = (int)Math.Round((geo.Centroid.X - min.Longitude) / innerRes) + "," + ((int)Math.Round((geo.Centroid.Y - min.Latitude) / innerRes));
+                        offline.r = (int)Math.Round(((geo.EnvelopeInternal.Width + geo.EnvelopeInternal.Height) * 0.5) / innerRes);
+                        //TODO: Alternate formula, more accurate in area but possibly less in position. Worth testing.
+                        var r2 = (int)Math.Round(Math.Sqrt(geo.Area / Math.PI) / ConstantValues.squareCell10Area); //TODO: divide by squarecell10 area before or after sqrt? Or irrelevant?
+                        Console.WriteLine("Area-envelope is " + offline.r + ", versus actual area calcuation of " + r2);
                         offline.tid = styleEntry.MatchOrder;
                         entries.Add(offline);
                     }
-                    else if (place.ElementGeometry.GeometryType == "MultiPolygon")
+                    else if (geo.GeometryType == "MultiPolygon")
                     {
-                        foreach (var p in ((MultiPolygon)place.ElementGeometry).Geometries)
+                        foreach (var p in ((MultiPolygon)geo).Geometries)
                         {
                             var offline = new MinOfflineData();
                             offline.nid = nameID;
@@ -745,15 +669,15 @@ namespace PraxisCore
                             entries.Add(offline);
                         }
                     }
-                    else if (place.ElementGeometry.GeometryType == "LineString")
+                    else if (geo.GeometryType == "LineString")
                     {
-                        var lp = place.ElementGeometry as LineString;
+                        var lp = geo as LineString;
                         if (lp.IsClosed) //Treat this as a polygon.
                         {
                             var offline = new MinOfflineData();
                             offline.nid = nameID;
-                            offline.c = (int)Math.Round((place.ElementGeometry.Centroid.X - min.Longitude) / innerRes) + "," + ((int)Math.Round((place.ElementGeometry.Centroid.Y - min.Latitude) / innerRes));
-                            offline.r = (int)Math.Round(((place.ElementGeometry.EnvelopeInternal.Width + place.ElementGeometry.EnvelopeInternal.Height) * 0.5) / innerRes);
+                            offline.c = (int)Math.Round((lp.Centroid.X - min.Longitude) / innerRes) + "," + ((int)Math.Round((lp.Centroid.Y - min.Latitude) / innerRes));
+                            offline.r = (int)Math.Round(((lp.EnvelopeInternal.Width + lp.EnvelopeInternal.Height) * 0.5) / innerRes);
                             offline.tid = styleEntry.MatchOrder;
                             entries.Add(offline);
                         }
@@ -762,14 +686,14 @@ namespace PraxisCore
                             //We're gonna assumed this is a named trail. Make the start and end of it Points (radius = 2) with the trail's name.
                             var offline = new MinOfflineData();
                             offline.nid = nameID;
-                            offline.c = (int)Math.Round((place.ElementGeometry.Coordinates.First().X - min.Longitude) / innerRes) + "," + ((int)Math.Round((place.ElementGeometry.Coordinates.First().Y - min.Latitude) / innerRes));
+                            offline.c = (int)Math.Round((geo.Coordinates.First().X - min.Longitude) / innerRes) + "," + ((int)Math.Round((geo.Coordinates.First().Y - min.Latitude) / innerRes));
                             offline.r = 2;
                             offline.tid = styleEntry.MatchOrder;
                             entries.Add(offline);
 
                             var offline2 = new MinOfflineData();
                             offline2.nid = nameID;
-                            offline2.c = (int)Math.Round((place.ElementGeometry.Coordinates.Last().X - min.Longitude) / innerRes) + "," + ((int)Math.Round((place.ElementGeometry.Coordinates.Last().Y - min.Latitude) / innerRes));
+                            offline2.c = (int)Math.Round((geo.Coordinates.Last().X - min.Longitude) / innerRes) + "," + ((int)Math.Round((geo.Coordinates.Last().Y - min.Latitude) / innerRes));
                             offline2.r = 2;
                             offline2.tid = styleEntry.MatchOrder;
                             entries.Add(offline2);
@@ -783,14 +707,14 @@ namespace PraxisCore
                         {
                             var offline = new MinOfflineData();
                             offline.nid = nameID;
-                            offline.c = (int)Math.Round((place.ElementGeometry.Coordinates.First().X - min.Longitude) / innerRes) + "," + ((int)Math.Round((place.ElementGeometry.Coordinates.First().Y - min.Latitude) / innerRes));
+                            offline.c = (int)Math.Round((geo.Coordinates.First().X - min.Longitude) / innerRes) + "," + ((int)Math.Round((geo.Coordinates.First().Y - min.Latitude) / innerRes));
                             offline.r = 2;
                             offline.tid = styleEntry.MatchOrder;
                             entries.Add(offline);
 
                             var offline2 = new MinOfflineData();
                             offline2.nid = nameID;
-                            offline2.c = (int)Math.Round((place.ElementGeometry.Coordinates.Last().X - min.Longitude) / innerRes) + "," + ((int)Math.Round((place.ElementGeometry.Coordinates.Last().Y - min.Latitude) / innerRes));
+                            offline2.c = (int)Math.Round((geo.Coordinates.Last().X - min.Longitude) / innerRes) + "," + ((int)Math.Round((geo.Coordinates.Last().Y - min.Latitude) / innerRes));
                             offline2.r = 2;
                             offline2.tid = styleEntry.MatchOrder;
                             entries.Add(offline2);
