@@ -1,5 +1,6 @@
 ﻿using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
+using NetTopologySuite.Algorithm.Match;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Operation.Buffer;
 using System;
@@ -56,7 +57,7 @@ namespace PraxisCore
         public static string filePath = "";
 
         //TODO: rename this to 'makeofflinezipfile", since making json is going to become its own function this one will zip up.
-        public static void MakeOfflineJson(string plusCode, Polygon bounds = null, bool saveToFile = true, ZipArchive inner_zip = null)
+        public static void MakeOfflineJson(string plusCode, Polygon bounds = null, bool saveToFile = true, ZipArchive inner_zip = null, List<DbTables.Place> places = null)
         {
             //Make offline data for PlusCode6s, repeatedly if the one given is a 4 or 2.
             if (bounds == null)
@@ -84,23 +85,25 @@ namespace PraxisCore
                     if (!File.Exists(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip"))
                     {
                         inner_zip = new ZipArchive(File.Create(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip"), ZipArchiveMode.Update);
-
-                        //Log.WriteLog("Unzipping existing data for " + plusCode.Substring(0, 4));
-                        ////unzip that file
-                        //var fs = File.OpenRead(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip");
-                        //ZipFile.ExtractToDirectory(fs, filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2));
-                        //fs.Close();
-                        //File.Delete(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip");
-                        //inner_zip = ZipFile.Open(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip", ZipArchiveMode.Update);
                     }
                     else
                         inner_zip = ZipFile.Open(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip", ZipArchiveMode.Update);
+
+                    try
+                    {
+                        places = Place.GetPlaces(plusCode.ToGeoArea());
+                    }
+                    catch(Exception ex)
+                    {
+                        //Do nothing, we'll load places up per Cell6 if we can't pull the whole Cell4 into RAM.
+                        places = null;
+                    }
 
                     ParallelOptions po = new ParallelOptions();
                     po.MaxDegreeOfParallelism = 6;
                     Parallel.ForEach(GetCellCombos(), po, pair =>
                     {
-                        MakeOfflineJson(plusCode + pair, bounds, saveToFile, inner_zip);
+                        MakeOfflineJson(plusCode + pair, bounds, saveToFile, inner_zip, places);
                     });
 
                     bool removeFile = false;
@@ -137,7 +140,7 @@ namespace PraxisCore
                         return;
 
                     foreach (var pair in GetCellCombos())
-                        MakeOfflineJson(plusCode + pair, bounds, saveToFile);
+                        MakeOfflineJson(plusCode + pair, bounds, saveToFile, inner_zip, places);
                     File.AppendAllText("lastOfflineEntry.txt", "|" + plusCode);
                     return;
                 }
@@ -206,6 +209,7 @@ namespace PraxisCore
             Log.WriteLog("Created and saved offline data for " + plusCode + " in " + sw.Elapsed);
         }
 
+        //TODO: test out performance by passing in the list of places to use from Cell4 vs loading hte Cell6 from DB each call.
         public static OfflineDataV2 MakeEntries(string plusCode, string stylesToUse, List<DbTables.Place> places = null)
         {
             //TODO: Most of the stuff from here on should be put into its own function that can be called from this big recursive function
@@ -233,7 +237,7 @@ namespace PraxisCore
 
             //Console.WriteLine(plusCode + ":Checking if places exist");
 
-            if (!PraxisCore.Place.DoPlacesExist(cell))
+            if (!PraxisCore.Place.DoPlacesExist(cell, places))
                 return null;
             //Console.WriteLine(plusCode + ":places found");
 
@@ -416,7 +420,7 @@ namespace PraxisCore
             return list;
         }
 
-        public static void MakeMinimizedOfflineData(string plusCode, Polygon bounds = null, bool saveToFile = true, ZipArchive inner_zip = null)
+        public static void MakeMinimizedOfflineData(string plusCode, Polygon bounds = null, bool saveToFile = true, ZipArchive inner_zip = null, List<DbTables.Place> places = null)
         {
             //This produces JSON with 1 row per item and a few fields:
             //Name (possibly a table saved separately), PlusCode (centerpoint), radius (SQUARE SHAPED, but calculated based on the envelope for non-points), and terrain type.
@@ -464,11 +468,21 @@ namespace PraxisCore
                     else
                         inner_zip = ZipFile.Open(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip", ZipArchiveMode.Update);
 
+
+                    try
+                    {
+                        places = Place.GetPlaces(plusCode.ToGeoArea(), styleSet : "suggestedmini");
+                    }
+                    catch (Exception ex)
+                    {
+                        places = null;
+                    }
+
                     ParallelOptions po = new ParallelOptions();
                     po.MaxDegreeOfParallelism = 6;
                     Parallel.ForEach(GetCellCombos(), po, pair =>
                     {
-                        MakeMinimizedOfflineData(plusCode + pair, bounds, saveToFile, inner_zip);
+                        MakeMinimizedOfflineData(plusCode + pair, bounds, saveToFile, inner_zip, places);
                     });
 
                     bool removeFile = false;
@@ -481,33 +495,26 @@ namespace PraxisCore
                     if (removeFile)
                         File.Delete(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip");
 
-                    //ADDED: Because a LOT of these files are incredibly small, they take up a proprotionally HUGE amount of disk space thats actually empty.
-                    //so we now zip the files after they're created, so that all 64,000 1kb files can be as small as 64MB instead of 64GB of slack space.
-                    //But only do this is there are files at all.
-                    //var files = Directory.EnumerateFiles(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2));
-                    //if (files.Any())
-                    //{
-                    //    Log.WriteLog("Zipping data for " + plusCode.Substring(0, 4));
-                    //    var zip = ZipFile.Open(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip", ZipArchiveMode.Create);
-                    //    foreach (var file in files)
-                    //    {
-                    //        zip.CreateEntryFromFile(file, Path.GetFileName(file));
-                    //        File.Delete(file);
-                    //    }
-                    //    zip.Dispose();
-                    //}
                     return;
                 }
-                else
+                else if (plusCode.Length == 2)
                 {
                     var doneCell2s = File.ReadAllText("lastOfflineEntry.txt");
                     if (doneCell2s.Contains(plusCode) && plusCode != "")
                         return;
 
+                    Directory.CreateDirectory(filePath + plusCode.Substring(0, 2));
                     foreach (var pair in GetCellCombos())
                         MakeMinimizedOfflineData(plusCode + pair, bounds, saveToFile);
+
                     File.AppendAllText("lastOfflineEntry.txt", "|" + plusCode);
                     return;
+                }
+                else
+                {
+                    //Called with an empty string, to mean 'run for all Cell2s'
+                    foreach (var pair in GetCell2Combos())
+                        MakeMinimizedOfflineData(plusCode + pair, bounds, saveToFile);
                 }
             }
 
@@ -516,58 +523,55 @@ namespace PraxisCore
             //if (File.Exists(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode + ".json"))
                 //return;
 
-            Directory.CreateDirectory(filePath + plusCode.Substring(0, 2));
-            Directory.CreateDirectory(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2));
-            //TODO: should probably also make the cell4 subfolder honestly.
+            
+            //Directory.CreateDirectory(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2));
 
             var sw = Stopwatch.StartNew();
-            var finalData = MakeMinimizedOfflineEntries(plusCode, string.Join(",", styles));
-
-            lock (zipLock)
-            {
-                Stream entryStream;
-                //if (File.Exists(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode + ".json"))
-                var entry = inner_zip.GetEntry(plusCode + ".json");
-                if (entry != null)
+            var finalData = MakeMinimizedOfflineEntries(plusCode, string.Join(",", styles), places);
+            if (finalData == null)
+                return;
+            
+                lock (zipLock)
                 {
-                    entryStream = entry.Open();
-                    OfflineDataV2Min existingData = JsonSerializer.Deserialize<OfflineDataV2Min>(entryStream);
-                    finalData = MergeMinimumOfflineFiles(finalData, existingData);
-                    entryStream.Position = 0;
-                    //entry.Delete();
-                    //entry = inner_zip.CreateEntry(plusCode + ".json");
-                    //entryStream = entry.Open();
-                }
-                else
-                {
-                    entry = inner_zip.CreateEntry(plusCode + ".json");
-                    entryStream = entry.Open();
-                }
+                    Stream entryStream;
+                    //if (File.Exists(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode + ".json"))
+                    var entry = inner_zip.GetEntry(plusCode + ".json");
+                    if (entry != null)
+                    {
+                        entryStream = entry.Open();
+                        OfflineDataV2Min existingData = JsonSerializer.Deserialize<OfflineDataV2Min>(entryStream);
+                        finalData = MergeMinimumOfflineFiles(finalData, existingData);
+                        entryStream.Position = 0;
+                        //entry.Delete();
+                        //entry = inner_zip.CreateEntry(plusCode + ".json");
+                        //entryStream = entry.Open();
+                    }
+                    else
+                    {
+                        entry = inner_zip.CreateEntry(plusCode + ".json");
+                        entryStream = entry.Open();
+                    }
 
-                JsonSerializerOptions jso = new JsonSerializerOptions();
-                jso.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
-                string data = JsonSerializer.Serialize(finalData, jso);
+                    JsonSerializerOptions jso = new JsonSerializerOptions();
+                    jso.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+                    string data = JsonSerializer.Serialize(finalData, jso);
 
-                if (saveToFile)
-                {
-                    if (finalData.nameTable == null && finalData.entries.Count == 0)
-                        return;
-                    //File.WriteAllText(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode + ".json", data);
-                    //ZipArchiveEntry entry = inner_zip.GetEntry(plusCode + ".json");
-                    //if (entry == null)
-                    //entry = inner_zip.CreateEntry(plusCode + ".json");
+                    if (saveToFile)
+                    {
+                        if (finalData.nameTable == null && finalData.entries.Count == 0)
+                            return;
 
-                    //using var entryStream = entry.Open();
-                    using (var streamWriter = new StreamWriter(entryStream))
-                        streamWriter.Write(data);
-                    entryStream.Close();
-                    entryStream.Dispose();
-                }
+                        using (var streamWriter = new StreamWriter(entryStream))
+                            streamWriter.Write(data);
+                        entryStream.Close();
+                        entryStream.Dispose();
+                    }
 
-                else
-                {
-                    GenericData.SetAreaData(plusCode, "offlineV2", data);
-                }
+                    else
+                    {
+                        GenericData.SetAreaData(plusCode, "offlineV2", data);
+                    }
+                
             }
             sw.Stop();
             Log.WriteLog("Created and saved minimized offline data for " + plusCode + " in " + sw.Elapsed);
@@ -584,25 +588,21 @@ namespace PraxisCore
             var area = plusCode.ToPolygon();
             //var cellPoly = cell.ToPolygon();
 
-            //Adding variables here so that an instance can process these at higher or lower accuracy if desired. Higher accuracy or not simplifying items
-            //will make larger files but the output would be a closer match to the server's images.
-
+            //Minimized offline files do not benefit from variables, they're fairly fixed and changing anything here doesn't really help.
 
             var min = cell.Min;
             Dictionary<string, int> nametable = new Dictionary<string, int>(); //name, id
             var nameIdCounter = 0;
 
-            //Console.WriteLine(plusCode + ":Checking if places exist");
-            if (!PraxisCore.Place.DoPlacesExist(cell))
+            if (!PraxisCore.Place.DoPlacesExist(cell, places))
                 return null;
-            //Console.WriteLine(plusCode + ":places found");
 
             const double innerRes = ConstantValues.resolutionCell10;
 
             var finalData = new OfflineDataV2Min();
             finalData.olc = plusCode;
             finalData.entries = new Dictionary<string, List<MinOfflineData>>();
-            foreach (var style in styles)
+             foreach (var style in styles)
             {
                 //Console.WriteLine(plusCode + ":getting places with " + style);
                 var placeData = PraxisCore.Place.GetPlaces(cell, source: places, styleSet: style, dataKey: style, skipTags: true);
