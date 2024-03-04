@@ -260,6 +260,16 @@ namespace Larry
                 File.Delete("lastOfflineEntry.txt");
             }
 
+            if (args.Any(a => a == "-makeMinimizedFiles"))
+            {
+                if (!File.Exists("lastOfflineEntry.txt")) //Dont overwrite existing file, that means we're resuming an interrupted run.
+                    File.WriteAllText("lastOfflineEntry.txt", "");
+                OfflineData.filePath = config["PbfFolder"];
+                OfflineData.styles = ["suggestedmini"]; //Fixed for minimized mode, along with most other variables.
+                OfflineData.MakeMinimizedOfflineData("");
+                File.Delete("lastOfflineEntry.txt");
+            }
+
             if (args.Any(a => a == "-recalcDrawHints"))
             {
                 RecalcDrawSizeHints();
@@ -273,6 +283,7 @@ namespace Larry
                 ExtractSubMap(placeId, placeTypeId);
             }
 
+            //TODO: rename this to something else. I know this is PlaceData but this sure sounds like Tags are involved.
             if (args.Any(a => a.StartsWith("-retag")))
             {
                 var arg = args.First(a => a.StartsWith("-retag"));
