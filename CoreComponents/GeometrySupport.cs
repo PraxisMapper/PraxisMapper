@@ -176,7 +176,7 @@ namespace PraxisCore
                 //TODO: re-test this to confrim this doesn't break when importing closed linestrings.
                 if (geometry.GeometryType == "LinearRing" || (geometry.GeometryType == "LineString" &&  (geometry as LineString).IsClosed)) {
                     //I want to update all LinearRings to Polygons, and let the style determine if they're Filled or Stroked.
-                    geometry = Singletons.geometryFactory.CreatePolygon((LinearRing)geometry);
+                    geometry = Singletons.geometryFactory.CreatePolygon(geometry.Coordinates);
                 }
 
                 var place = new DbTables.Place();

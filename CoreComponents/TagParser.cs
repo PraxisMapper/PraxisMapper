@@ -159,6 +159,10 @@ namespace PraxisCore {
         /// <returns></returns>
         public static StyleEntry GetStyleEntry(DbTables.Place place, string styleSet = "mapTiles")
         {
+            if (place.Tags == null || place.Tags.Count == 0)
+                if (!string.IsNullOrWhiteSpace(place.StyleName) && place.StyleName != "unmatched")
+                    return allStyleGroups[styleSet][place.StyleName];
+
             var allTags = new Dictionary<string, string>(place.Tags.Count + place.PlaceData.Count);
             foreach (var t in place.Tags)
                 allTags.TryAdd(t.Key, t.Value);
