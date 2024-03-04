@@ -448,7 +448,7 @@ namespace PraxisCore
 
             if (plusCode.Length < 6)
             {
-                if (!PraxisCore.Place.DoPlacesExist(plusCode.ToGeoArea()))
+                if (!PraxisCore.Place.DoPlacesExist(plusCode.ToGeoArea(), places))
                     return;
 
                 if (plusCode.Length == 4)
@@ -471,7 +471,10 @@ namespace PraxisCore
 
                     try
                     {
-                        places = Place.GetPlaces(plusCode.ToGeoArea(), styleSet : "suggestedmini");
+                        Stopwatch load = Stopwatch.StartNew();
+                        places = Place.GetPlaces(plusCode.ToGeoArea(), dataKey: "suggestedmini", styleSet : "suggestedmini", skipTags: true);
+                        load.Stop();
+                        Console.WriteLine("Places loaded in " + load.Elapsed);
                     }
                     catch (Exception ex)
                     {
@@ -515,6 +518,8 @@ namespace PraxisCore
                     //Called with an empty string, to mean 'run for all Cell2s'
                     foreach (var pair in GetCell2Combos())
                         MakeMinimizedOfflineData(plusCode + pair, bounds, saveToFile);
+
+                    return;
                 }
             }
 
@@ -650,10 +655,11 @@ namespace PraxisCore
                         var offline = new MinOfflineData();
                         offline.nid = nameID;
                         offline.c = (int)Math.Round((geo.Centroid.X - min.Longitude) / innerRes) + "," + ((int)Math.Round((geo.Centroid.Y - min.Latitude) / innerRes));
-                        offline.r = (int)Math.Round(((geo.EnvelopeInternal.Width + geo.EnvelopeInternal.Height) * 0.5) / innerRes);
+                        //offline.r = (int)Math.Round(((geo.EnvelopeInternal.Width + geo.EnvelopeInternal.Height) * 0.5) / innerRes);
                         //TODO: Alternate formula, more accurate in area but possibly less in position. Worth testing.
-                        var r2 = (int)Math.Round(Math.Sqrt(geo.Area / Math.PI) / ConstantValues.squareCell10Area); //TODO: divide by squarecell10 area before or after sqrt? Or irrelevant?
-                        Console.WriteLine("Area-envelope is " + offline.r + ", versus actual area calcuation of " + r2);
+                        //var r2 = (int)Math.Round(Math.Sqrt(geo.Area / Math.PI) / ConstantValues.resolutionCell10); //Get area in degrees, conver to Cell10 pixels
+                        //Console.WriteLine("Area-envelope is " + offline.r + ", versus actual area calcuation of " + r2);
+                        offline.r = (int)Math.Round(Math.Sqrt(geo.Area / Math.PI) / ConstantValues.resolutionCell10); //Get area in degrees, conver to Cell10 pixels
                         offline.tid = styleEntry.MatchOrder;
                         entries.Add(offline);
                     }
