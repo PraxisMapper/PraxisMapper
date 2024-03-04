@@ -186,6 +186,17 @@ namespace PraxisCore.Styles
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "tourism", Value = "zoo", MatchType = "equal" },
             }},
+            new StyleEntry() { IsGameElement = true, MatchOrder = 25, Name ="named trail", StyleSet = "suggestedmini",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "CCF0E68C", FillOrStroke = "fill", LineWidthDegrees=0.000025F, LinePattern= "solid", LayerId = 100 },
+                },
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() {Key="highway", Value="path|bridleway|cycleway|footway|living_street", MatchType="any"},
+                    new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
+                    new StyleMatchRule() { Key="area", Value="yes", MatchType="equals"},
+                    new StyleMatchRule() { Key="name", Value="*", MatchType="any"},
+
+            }},
             new StyleEntry() { IsGameElement = true, MatchOrder = 7000, Name ="serverGenerated", StyleSet = "suggestedmini",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "CC76E3E1", FillOrStroke = "fill", LineWidthDegrees=0.0000625F, LinePattern= "solid", LayerId = 100 },
@@ -194,6 +205,14 @@ namespace PraxisCore.Styles
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() {Key="suggstedmini", Value="generated", MatchType="equals"},
             }},
+            //Not sure if i actually want this to be drawable as part of this set
+            //new StyleEntry() { MatchOrder = 79, Name ="bgwater", StyleSet = "suggestedmini", //allows us to import and draw oceans on this mode.
+            //    PaintOperations = new List<StylePaint>() {
+            //        new StylePaint() { HtmlColorCode = "aad3df", FillOrStroke = "fill", LineWidthDegrees=0.0000625F, LinePattern= "solid", LayerId = 101 }
+            //    },
+            //    StyleMatchRules = new List<StyleMatchRule>() {
+            //        new StyleMatchRule() {Key = "bgwater", Value = "praxismapper", MatchType = "equals"}, //ensures that this specific element was processed by PM for this purpose.
+            //    }},
             //background is a mandatory style entry name, but its transparent here..
             new StyleEntry() { MatchOrder = 10000, Name ="background",  StyleSet = "suggestedmini",
                 PaintOperations = new List<StylePaint>() {
