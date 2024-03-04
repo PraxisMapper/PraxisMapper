@@ -58,133 +58,133 @@ namespace PraxisCore.Styles
                     new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "amenity", Value = "theatre", MatchType = "equal" },
+                    new StyleMatchRule() { Key = "amenity", Value = "theatre", MatchType = "equals" },
             }},
             new StyleEntry() { IsGameElement = true, MatchOrder = 7, Name ="concert hall", StyleSet = "suggestedmini",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "amenity", Value = "concert hall", MatchType = "equal" },
+                    new StyleMatchRule() { Key = "amenity", Value = "concert hall", MatchType = "equals" },
             }},
             new StyleEntry() { IsGameElement = true, MatchOrder = 8, Name ="arts centre", StyleSet = "suggestedmini",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "amenity", Value = "arts_centre", MatchType = "equal" },
+                    new StyleMatchRule() { Key = "amenity", Value = "arts_centre", MatchType = "equals" },
             }},
             new StyleEntry() { IsGameElement = true, MatchOrder = 9, Name ="planetarium", StyleSet = "suggestedmini",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "amenity", Value = "planetarium", MatchType = "equal" },
+                    new StyleMatchRule() { Key = "amenity", Value = "planetarium", MatchType = "equals" },
             }},
             new StyleEntry() { IsGameElement = true, MatchOrder = 10, Name ="artsCulture", StyleSet = "suggestedmini",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "amenity", Value = "planetarium", MatchType = "equal" },
+                    new StyleMatchRule() { Key = "amenity", Value = "planetarium", MatchType = "equals" },
             }},
             new StyleEntry() { IsGameElement = true, MatchOrder = 11, Name ="library", StyleSet = "suggestedmini",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "amenity", Value = "library", MatchType = "equal" },
+                    new StyleMatchRule() { Key = "amenity", Value = "library", MatchType = "equals" },
             }},
             new StyleEntry() { IsGameElement = true, MatchOrder = 12, Name ="public bookcase", StyleSet = "suggestedmini",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "amenity", Value = "public_bookcase", MatchType = "equal" },
+                    new StyleMatchRule() { Key = "amenity", Value = "public_bookcase", MatchType = "equals" },
             }},
             new StyleEntry() { IsGameElement = true, MatchOrder = 13, Name ="community centre", StyleSet = "suggestedmini",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "amenity", Value = "community_centre", MatchType = "equal" },
+                    new StyleMatchRule() { Key = "amenity", Value = "community_centre", MatchType = "equals" },
             }},
             new StyleEntry() { IsGameElement = true, MatchOrder = 14, Name ="conference centre", StyleSet = "suggestedmini",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "amenity", Value = "conference_centre", MatchType = "equal" },
+                    new StyleMatchRule() { Key = "amenity", Value = "conference_centre", MatchType = "equals" },
             }},
             new StyleEntry() { IsGameElement = true, MatchOrder = 15, Name ="exhibition centre", StyleSet = "suggestedmini",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "amenity", Value = "exhibition_centre", MatchType = "equal" },
+                    new StyleMatchRule() { Key = "amenity", Value = "exhibition_centre", MatchType = "equals" },
             }},
             new StyleEntry() { IsGameElement = true, MatchOrder = 16, Name ="events_venue", StyleSet = "suggestedmini",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "amenity", Value = "events_venue", MatchType = "equal" },
+                    new StyleMatchRule() { Key = "amenity", Value = "events_venue", MatchType = "equals" },
             }},
             new StyleEntry() { IsGameElement = true, MatchOrder = 17, Name ="aquarium", StyleSet = "suggestedmini",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "tourism", Value = "aquarium", MatchType = "equal" },
+                    new StyleMatchRule() { Key = "tourism", Value = "aquarium", MatchType = "equals" },
             }},
             new StyleEntry() { IsGameElement = true, MatchOrder = 18, Name ="artwork", StyleSet = "suggestedmini",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "tourism", Value = "artwork", MatchType = "equal" },
+                    new StyleMatchRule() { Key = "tourism", Value = "artwork", MatchType = "equals" },
             }},
             new StyleEntry() { IsGameElement = true, MatchOrder = 19, Name ="attraction", StyleSet = "suggestedmini",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "tourism", Value = "attraction", MatchType = "equal" },
+                    new StyleMatchRule() { Key = "tourism", Value = "attraction", MatchType = "equals" },
             }},
             new StyleEntry() { IsGameElement = true, MatchOrder = 20, Name ="gallery", StyleSet = "suggestedmini",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "tourism", Value = "gallery", MatchType = "equal" },
+                    new StyleMatchRule() { Key = "tourism", Value = "gallery", MatchType = "equals" },
             }},
             new StyleEntry() { IsGameElement = true, MatchOrder = 21, Name ="museum", StyleSet = "suggestedmini",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "tourism", Value = "museum", MatchType = "equal" },
+                    new StyleMatchRule() { Key = "tourism", Value = "museum", MatchType = "equals" },
             }},
             new StyleEntry() { IsGameElement = true, MatchOrder = 22, Name ="theme_park", StyleSet = "suggestedmini",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "tourism", Value = "theme_park", MatchType = "equal" },
+                    new StyleMatchRule() { Key = "tourism", Value = "theme_park", MatchType = "equals" },
             }},
             new StyleEntry() { IsGameElement = true, MatchOrder = 23, Name ="viewpoint", StyleSet = "suggestedmini",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "tourism", Value = "viewpoint", MatchType = "equal" },
+                    new StyleMatchRule() { Key = "tourism", Value = "viewpoint", MatchType = "equals" },
             }},
             new StyleEntry() { IsGameElement = true, MatchOrder = 24, Name ="zoo", StyleSet = "suggestedmini",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "tourism", Value = "zoo", MatchType = "equal" },
+                    new StyleMatchRule() { Key = "tourism", Value = "zoo", MatchType = "equals" },
             }},
             new StyleEntry() { IsGameElement = true, MatchOrder = 25, Name ="named trail", StyleSet = "suggestedmini",
                 PaintOperations = new List<StylePaint>() {
@@ -193,7 +193,6 @@ namespace PraxisCore.Styles
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() {Key="highway", Value="path|bridleway|cycleway|footway|living_street", MatchType="any"},
                     new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
-                    new StyleMatchRule() { Key="area", Value="yes", MatchType="equals"},
                     new StyleMatchRule() { Key="name", Value="*", MatchType="any"},
 
             }},
