@@ -92,7 +92,7 @@ namespace PraxisCore
                     try
                     {
                         Stopwatch load = Stopwatch.StartNew();
-                        places = Place.GetPlaces(plusCode.ToGeoArea());
+                        places = Place.GetPlaces(plusCode.ToGeoArea(), skipTags: true);
                         load.Stop();
                         Console.WriteLine("Places for " + plusCode + " loaded in " + load.Elapsed);
                     }
@@ -636,7 +636,15 @@ namespace PraxisCore
                         place.ElementGeometry = Singletons.geometryFactory.CreatePolygon(place.ElementGeometry.Coordinates);
 
                     //POTENTIAL TODO: I may need to crop all places first, then sort by their total area to process these largest-to-smallest on the client
-                    var geo = place.ElementGeometry.Intersection(area);
+                    Geometry geo = Singletons.geometryFactory.CreateEmpty(Dimension.Surface);
+                    try
+                    {
+                        geo = place.ElementGeometry.Intersection(area);
+                    }
+                    catch(Exception ex)
+                    {
+                        //Do nothing for now.
+                    }
                     if (geo.IsEmpty)
                         continue; //Probably an element on the border thats getting pulled in by buffer.
 
