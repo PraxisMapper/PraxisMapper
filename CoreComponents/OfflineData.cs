@@ -74,7 +74,7 @@ namespace PraxisCore
 
             if (plusCode.Length < 6)
             {
-                if (!PraxisCore.Place.DoPlacesExist(plusCode.ToGeoArea()))
+                if (!PraxisCore.Place.DoPlacesExist(plusCode.ToGeoArea(), places))
                     return;
 
                 if (plusCode.Length == 4)
@@ -91,11 +91,15 @@ namespace PraxisCore
 
                     try
                     {
+                        Stopwatch load = Stopwatch.StartNew();
                         places = Place.GetPlaces(plusCode.ToGeoArea());
+                        load.Stop();
+                        Console.WriteLine("Places for " + plusCode + " loaded in " + load.Elapsed);
                     }
                     catch(Exception ex)
                     {
                         //Do nothing, we'll load places up per Cell6 if we can't pull the whole Cell4 into RAM.
+                        Console.WriteLine("Places for " + plusCode + " wouldn't load, doing it per Cell6");
                         places = null;
                     }
 
@@ -158,6 +162,8 @@ namespace PraxisCore
             
             var sw = Stopwatch.StartNew();
             var finalData = MakeEntries(plusCode, string.Join(",", styles));
+            if (finalData == null)
+                return;
 
             lock (zipLock)
             {
@@ -478,6 +484,7 @@ namespace PraxisCore
                     }
                     catch (Exception ex)
                     {
+                        Console.WriteLine("Places for " + plusCode + " wouldn't load, doing it per Cell6");
                         places = null;
                     }
 
@@ -607,7 +614,7 @@ namespace PraxisCore
             var finalData = new OfflineDataV2Min();
             finalData.olc = plusCode;
             finalData.entries = new Dictionary<string, List<MinOfflineData>>();
-             foreach (var style in styles)
+            foreach (var style in styles)
             {
                 //Console.WriteLine(plusCode + ":getting places with " + style);
                 var placeData = PraxisCore.Place.GetPlaces(cell, source: places, styleSet: style, dataKey: style, skipTags: true);
