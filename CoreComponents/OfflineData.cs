@@ -540,9 +540,15 @@ namespace PraxisCore
 
             var sw = Stopwatch.StartNew();
             var finalData = MakeMinimizedOfflineEntries(plusCode, string.Join(",", styles), places);
-            if (finalData == null)
+            if (finalData == null || (finalData.nameTable == null && finalData.entries.Count == 0))
                 return;
-            
+
+            JsonSerializerOptions jso = new JsonSerializerOptions();
+            jso.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+            string data = JsonSerializer.Serialize(finalData, jso);
+
+            if (saveToFile)
+            {
                 lock (zipLock)
                 {
                     Stream entryStream;
@@ -564,27 +570,21 @@ namespace PraxisCore
                         entryStream = entry.Open();
                     }
 
-                    JsonSerializerOptions jso = new JsonSerializerOptions();
-                    jso.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
-                    string data = JsonSerializer.Serialize(finalData, jso);
 
-                    if (saveToFile)
-                    {
-                        if (finalData.nameTable == null && finalData.entries.Count == 0)
-                            return;
-
-                        using (var streamWriter = new StreamWriter(entryStream))
-                            streamWriter.Write(data);
-                        entryStream.Close();
-                        entryStream.Dispose();
-                    }
-
-                    else
-                    {
-                        GenericData.SetAreaData(plusCode, "offlineV2", data);
-                    }
-                
+                    using (var streamWriter = new StreamWriter(entryStream))
+                        streamWriter.Write(data);
+                    entryStream.Close();
+                    entryStream.Dispose();
+                }
             }
+
+
+            else
+            {
+                GenericData.SetAreaData(plusCode, "offlineV2", data);
+            }
+                
+            
             sw.Stop();
             Log.WriteLog("Created and saved minimized offline data for " + plusCode + " in " + sw.Elapsed);
         }
