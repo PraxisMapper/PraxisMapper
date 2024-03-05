@@ -670,11 +670,9 @@ namespace PraxisCore
                         var offline = new MinOfflineData();
                         offline.nid = nameID;
                         offline.c = (int)Math.Round((geo.Centroid.X - min.Longitude) / innerRes) + "," + ((int)Math.Round((geo.Centroid.Y - min.Latitude) / innerRes));
+                        //First attempt at formula: Nearly ensures the full area will be covered, but dramatically overshoots almost all areas.
                         //offline.r = (int)Math.Round(((geo.EnvelopeInternal.Width + geo.EnvelopeInternal.Height) * 0.5) / innerRes);
-                        //TODO: Alternate formula, more accurate in area but possibly less in position. Worth testing.
-                        //var r2 = (int)Math.Round(Math.Sqrt(geo.Area / Math.PI) / ConstantValues.resolutionCell10); //Get area in degrees, conver to Cell10 pixels
-                        //Console.WriteLine("Area-envelope is " + offline.r + ", versus actual area calcuation of " + r2);
-                        offline.r = (int)Math.Round(Math.Sqrt(geo.Area / Math.PI) / ConstantValues.resolutionCell10); //Get area in degrees, conver to Cell10 pixels
+                        offline.r = Math.Min(2, (int)Math.Round(Math.Sqrt(geo.Area / Math.PI) / ConstantValues.resolutionCell10)); //Get area in degrees, conver to Cell10 pixels, minimum 2.
                         offline.tid = styleEntry.MatchOrder;
                         entries.Add(offline);
                     }
@@ -685,7 +683,7 @@ namespace PraxisCore
                             var offline = new MinOfflineData();
                             offline.nid = nameID;
                             offline.c = (int)Math.Round((p.Centroid.X - min.Longitude) / innerRes) + "," + ((int)Math.Round((p.Centroid.Y - min.Latitude) / innerRes));
-                            offline.r = (int)Math.Round(((p.EnvelopeInternal.Width + p.EnvelopeInternal.Height) * 0.5) / innerRes);
+                            offline.r = Math.Min(2, (int)Math.Round(Math.Sqrt(p.Area / Math.PI) / ConstantValues.resolutionCell10)); //Get area in degrees, conver to Cell10 pixels, minimum 2.
                             offline.tid = styleEntry.MatchOrder;
                             entries.Add(offline);
                         }
