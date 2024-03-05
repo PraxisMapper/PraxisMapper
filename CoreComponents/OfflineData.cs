@@ -4,6 +4,7 @@ using NetTopologySuite.Algorithm.Match;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Operation.Buffer;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -91,12 +92,13 @@ namespace PraxisCore
 
                     try
                     {
+                        Console.WriteLine("Loading places for " + plusCode);
                         Stopwatch load = Stopwatch.StartNew();
                         places = Place.GetPlaces(plusCode.ToGeoArea(), skipTags: true);
                         load.Stop();
                         Console.WriteLine("Places for " + plusCode + " loaded in " + load.Elapsed);
                     }
-                    catch(Exception ex)
+                    catch (Exception ex)
                     {
                         //Do nothing, we'll load places up per Cell6 if we can't pull the whole Cell4 into RAM.
                         Console.WriteLine("Places for " + plusCode + " wouldn't load, doing it per Cell6");
@@ -159,61 +161,56 @@ namespace PraxisCore
 
             Directory.CreateDirectory(filePath + plusCode.Substring(0, 2));
             //Directory.CreateDirectory(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2));
-            
+
             var sw = Stopwatch.StartNew();
-            var finalData = MakeEntries(plusCode, string.Join(",", styles));
-            if (finalData == null)
+            var finalData = MakeEntries(plusCode, string.Join(",", styles), places);
+            if (finalData == null || (finalData.nameTable == null && finalData.entries.Count == 0))
                 return;
 
-            lock (zipLock)
+            JsonSerializerOptions jso = new JsonSerializerOptions();
+            jso.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+            string data = JsonSerializer.Serialize(finalData, jso);
+
+            if (saveToFile)
             {
-                Stream entryStream;
-                //if (File.Exists(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode + ".json"))
-                var entry = inner_zip.GetEntry(plusCode + ".json");
-                if (entry != null)
+                lock (zipLock)
                 {
-                    entryStream = entry.Open();
-                    OfflineDataV2 existingData = JsonSerializer.Deserialize<OfflineDataV2>(entryStream);
-                    finalData = MergeOfflineFiles(finalData, existingData);
-                    entryStream.Position = 0;
-                    //entry.Delete();
-                    //entry = inner_zip.CreateEntry(plusCode + ".json");
-                    //entryStream = entry.Open();
-                }
-                else
-                {
-                    entry = inner_zip.CreateEntry(plusCode + ".json");
-                    entryStream = entry.Open();
-                }
+                    Stream entryStream;
+                    //if (File.Exists(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode + ".json"))
+                    var entry = inner_zip.GetEntry(plusCode + ".json");
+                    if (entry != null)
+                    {
+                        entryStream = entry.Open();
+                        OfflineDataV2 existingData = JsonSerializer.Deserialize<OfflineDataV2>(entryStream);
+                        finalData = MergeOfflineFiles(finalData, existingData);
+                        entryStream.Position = 0;
+                        //entry.Delete();
+                        //entry = inner_zip.CreateEntry(plusCode + ".json");
+                        //entryStream = entry.Open();
+                    }
+                    else
+                    {
+                        entry = inner_zip.CreateEntry(plusCode + ".json");
+                        entryStream = entry.Open();
+                    }
 
-                JsonSerializerOptions jso = new JsonSerializerOptions();
-                jso.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
-                string data = JsonSerializer.Serialize(finalData, jso);
-
-                if (saveToFile)
-                {
-                    if (finalData.nameTable == null && finalData.entries.Count == 0)
-                        return;
-                    //File.WriteAllText(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode + ".json", data);
-                    //ZipArchiveEntry entry = inner_zip.GetEntry(plusCode + ".json");
-                    //if (entry == null)
-                    //entry = inner_zip.CreateEntry(plusCode + ".json");
-
-                    //using var entryStream = entry.Open();
                     using (var streamWriter = new StreamWriter(entryStream))
                         streamWriter.Write(data);
                     entryStream.Close();
                     entryStream.Dispose();
                 }
 
-                else
-                {
-                    GenericData.SetAreaData(plusCode, "offlineV2", data);
-                }
+
+
+                sw.Stop();
+                Log.WriteLog("Created and saved offline data for " + plusCode + " in " + sw.Elapsed);
             }
-            sw.Stop();
-            Log.WriteLog("Created and saved offline data for " + plusCode + " in " + sw.Elapsed);
+            else
+            {
+                GenericData.SetAreaData(plusCode, "offlineV2", data);
+            }
         }
+
 
         //TODO: test out performance by passing in the list of places to use from Cell4 vs loading hte Cell6 from DB each call.
         public static OfflineDataV2 MakeEntries(string plusCode, string stylesToUse, List<DbTables.Place> places = null)
@@ -223,7 +220,7 @@ namespace PraxisCore
             //May also want an alternate version that queries all places first, then loops based on placeData key matching the styles. 
             //should see if thats faster on some of these very slow blocks I keep hitting.
 
-            
+
             using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
@@ -265,9 +262,10 @@ namespace PraxisCore
                 //nametable = nametable.Union(placeData.Where(p => !string.IsNullOrWhiteSpace(p.Name)).Select(p => p.Name).Distinct().ToDictionary(k => k, v => ++nameIdCounter)).Distinct().ToDictionary();
 
                 foreach (var place in placeData)
+                //Parallel.ForEach(placeData, (place) => //This set is NOT done in parallel because we need to keep them ordered.
                 {
                     //POTENTIAL TODO: I may need to crop all places first, then sort by their total area to process these largest-to-smallest on the client
-                    var geo =  place.ElementGeometry.Intersection(area);
+                    var geo = place.ElementGeometry.Intersection(area);
                     if (simplifyRes > 0)
                         geo = geo.Simplify(simplifyRes);
                     if (geo.IsEmpty)
@@ -291,7 +289,7 @@ namespace PraxisCore
                     //I'm locking these geometry items to a tile, So I convert these points in the geometry to integers, effectively
                     //letting me draw Cell11 pixel-precise points from this info, and is shorter stringified for JSON vs floats/doubles.
                     var coordSets = GetCoordEntries(geo, cell.Min, xRes, yRes); //Original human-readable strings
-                    //var coordSets = GetCoordEntriesInt(place, cell.Min, xRes, yRes); //base64 encoded integers. Uses about half the space unzipped, works out the same zipped.
+                                                                                //var coordSets = GetCoordEntriesInt(place, cell.Min, xRes, yRes); //base64 encoded integers. Uses about half the space unzipped, works out the same zipped.
                     foreach (var coordSet in coordSets)
                     {
                         if (coordSet == "")
@@ -478,7 +476,7 @@ namespace PraxisCore
                     try
                     {
                         Stopwatch load = Stopwatch.StartNew();
-                        places = Place.GetPlaces(plusCode.ToGeoArea(), dataKey: "suggestedmini", styleSet : "suggestedmini", skipTags: true);
+                        places = Place.GetPlaces(plusCode.ToGeoArea(), dataKey: "suggestedmini", styleSet: "suggestedmini", skipTags: true);
                         load.Stop();
                         Console.WriteLine("Places loaded in " + load.Elapsed);
                     }
@@ -533,9 +531,9 @@ namespace PraxisCore
             //This is to let us be resumable if this stop for some reason, and to keep the number of files in a folder manageable.
             //Each file is a Cell6, so a Cell4 folder has 200 files, and a Cell2 folder would have 40,000
             //if (File.Exists(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode + ".json"))
-                //return;
+            //return;
 
-            
+
             //Directory.CreateDirectory(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2));
 
             var sw = Stopwatch.StartNew();
@@ -583,8 +581,8 @@ namespace PraxisCore
             {
                 GenericData.SetAreaData(plusCode, "offlineV2", data);
             }
-                
-            
+
+
             sw.Stop();
             Log.WriteLog("Created and saved minimized offline data for " + plusCode + " in " + sw.Elapsed);
         }
@@ -622,13 +620,15 @@ namespace PraxisCore
 
                 if (placeData.Count == 0)
                     continue;
-                List<MinOfflineData> entries = new List<MinOfflineData>(placeData.Count);
+                //List<MinOfflineData> entries = new List<MinOfflineData>(placeData.Count);
+                ConcurrentBag<MinOfflineData> entries = new ConcurrentBag<MinOfflineData>();
                 var names = placeData.Where(p => !string.IsNullOrWhiteSpace(p.Name) && !nametable.ContainsKey(p.Name)).Select(p => p.Name).Distinct();
                 foreach (var name in names)
                     nametable.Add(name, ++nameIdCounter);
                 //nametable = nametable.Union(placeData.Where(p => !string.IsNullOrWhiteSpace(p.Name)).Select(p => p.Name).Distinct().ToDictionary(k => k, v => ++nameIdCounter)).Distinct().ToDictionary();
 
-                foreach (var place in placeData)
+                //foreach (var place in placeData)
+                Parallel.ForEach(placeData, (place) =>
                 {
 
                     //This is a catch-fix for a different issue, where apparently some closed lineStrings aren't converted to polygons on load.
@@ -641,12 +641,12 @@ namespace PraxisCore
                     {
                         geo = place.ElementGeometry.Intersection(area);
                     }
-                    catch(Exception ex)
+                    catch (Exception ex)
                     {
                         //Do nothing for now.
                     }
                     if (geo.IsEmpty)
-                        continue; //Probably an element on the border thats getting pulled in by buffer.
+                        return; // continue; //Probably an element on the border thats getting pulled in by buffer.
 
                     int? nameID = null;
                     if (!string.IsNullOrWhiteSpace(place.Name))
@@ -739,9 +739,9 @@ namespace PraxisCore
                             entries.Add(offline2);
                         }
                     }
-                }
-                entries = entries.OrderByDescending(e => e.r).ToList(); //so they'll be drawn biggest to smallest for sure.
-                finalData.entries[style] = entries;
+                });
+                var finalEntries = entries.OrderByDescending(e => e.r).ToList(); //so they'll be drawn biggest to smallest for sure.
+                finalData.entries[style] = finalEntries;
             }
 
             if (finalData.entries.Count == 0)
