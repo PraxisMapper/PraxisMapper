@@ -1,17 +1,12 @@
 ﻿using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.Extensions.Configuration;
-using NetTopologySuite;
 using NetTopologySuite.Geometries;
-using NetTopologySuite.Noding;
 using OsmSharp.Complete;
 using PraxisCore;
 using PraxisCore.PbfReader;
-using PraxisCore.Styles;
 using PraxisCore.Support;
 using System;
-using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -247,7 +242,6 @@ namespace Larry
 
             if (args.Any(a => a == "-makeOfflineFiles"))
             {
-                //MakeOfflineFilesCell8();
                 if (!File.Exists("lastOfflineEntry.txt")) //Dont overwrite existing file, that means we're resuming an interrupted run.
                     File.WriteAllText("lastOfflineEntry.txt", "");
                 OfflineData.simplifyRes = config["offlineSimplifyResolution"].ToDouble();
@@ -255,6 +249,13 @@ namespace Larry
                 OfflineData.yRes = config["offlineYPixelResolution"].ToDouble();
                 OfflineData.styles = config["offlineStyleSets"].Split(",");
                 OfflineData.filePath = config["PbfFolder"];
+
+                //Call this so we sort-of hint to MariaDB to use the right indexes later
+                var db = new PraxisContext();
+                var bounds = db.ServerSettings.FirstOrDefault();
+                var randomPlace  = PraxisCore.Place.RandomPoint(bounds);
+                GetPlaces(randomPlace.Substring(0,4).ToGeoArea(), skipTags: true, dataKey: OfflineData.styles[0]);
+
                 OfflineData.MakeOfflineJson("");
                 //OfflineData.MakeMinimizedOfflineData("");
                 File.Delete("lastOfflineEntry.txt");
@@ -266,6 +267,13 @@ namespace Larry
                     File.WriteAllText("lastOfflineEntry.txt", "");
                 OfflineData.filePath = config["PbfFolder"];
                 OfflineData.styles = ["suggestedmini"]; //Fixed for minimized mode, along with most other variables.
+
+                //Call this so we sort-of hint to MariaDB to use the right indexes later
+                var db = new PraxisContext();
+                var bounds = db.ServerSettings.FirstOrDefault();
+                var randomPlace = PraxisCore.Place.RandomPoint(bounds);
+                GetPlaces(randomPlace.Substring(0, 4).ToGeoArea(), skipTags: true, dataKey: OfflineData.styles[0]);
+
                 OfflineData.MakeMinimizedOfflineData("");
                 File.Delete("lastOfflineEntry.txt");
             }
