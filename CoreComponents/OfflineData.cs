@@ -32,6 +32,7 @@ namespace PraxisCore
             public int tid { get; set; } //terrain id, which style entry this place is
             public int gt { get; set; } //geometry type. 1 = point, 2 = line OR hollow shape, 3 = filled shape.
             public string p { get; set; } //Points, local to the given PlusCode. If human-readable, is string pairs, if not is base64 encoded integers.
+            public double? size { get; set; } //Removed after sorting.
         }
 
         public class OfflineDataV2Min//Still a Cell6 to draw, but minimized as much as possible.
@@ -261,15 +262,16 @@ namespace PraxisCore
                     nametable.Add(name, ++nameIdCounter);
                 //nametable = nametable.Union(placeData.Where(p => !string.IsNullOrWhiteSpace(p.Name)).Select(p => p.Name).Distinct().ToDictionary(k => k, v => ++nameIdCounter)).Distinct().ToDictionary();
 
-                foreach (var place in placeData)
-                //Parallel.ForEach(placeData, (place) => //This set is NOT done in parallel because we need to keep them ordered.
+                //foreach (var place in placeData)
+                Parallel.ForEach(placeData, (place) => //This set is NOT done in parallel because we need to keep them ordered.
                 {
+                    var sizeOrder = place.DrawSizeHint; //TODO: add this in somewhere so I can order by size and run these in parallel.
                     //POTENTIAL TODO: I may need to crop all places first, then sort by their total area to process these largest-to-smallest on the client
                     var geo = place.ElementGeometry.Intersection(area);
                     if (simplifyRes > 0)
                         geo = geo.Simplify(simplifyRes);
                     if (geo.IsEmpty)
-                        continue; //Probably an element on the border thats getting pulled in by buffer.
+                        return; // continue; //Probably an element on the border thats getting pulled in by buffer.
 
                     int? nameID = null;
                     if (!string.IsNullOrWhiteSpace(place.Name))
@@ -313,11 +315,14 @@ namespace PraxisCore
 
                         offline.gt = geo.GeometryType == "Point" ? 1 : geo.GeometryType == "LineString" ? 2 : styleEntry.PaintOperations.All(p => p.FillOrStroke == "stroke") ? 2 : 3;
                         offline.p = coordSet;
+                        offline.size = sizeOrder;
                         entries.Add(offline);
                     }
-                }
+                });
 
-                finalData.entries[style] = entries;
+                finalData.entries[style] = entries.OrderByDescending(e => e.size).ToList();
+                foreach (var e in finalData.entries[style])
+                    e.size = null; //Dont save this to the output file.
             }
 
             if (finalData.entries.Count == 0)
