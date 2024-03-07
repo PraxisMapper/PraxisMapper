@@ -257,7 +257,6 @@ namespace Larry
                 GetPlaces(randomPlace.Substring(0,4).ToGeoArea(), skipTags: true, dataKey: OfflineData.styles[0]);
 
                 OfflineData.MakeOfflineJson("");
-                //OfflineData.MakeMinimizedOfflineData("");
                 File.Delete("lastOfflineEntry.txt");
             }
 
@@ -890,7 +889,7 @@ namespace Larry
             db.Database.SetCommandTimeout(600); //while i'm still loading geometry, some entries are huge and need a big timeout to succeed.
 
             long skip = 0;
-            int take = 1000; //test value.
+            int take = 4000; //test value.
             bool keepGoing = true;
 
             Stopwatch sw = new Stopwatch();
@@ -914,17 +913,23 @@ namespace Larry
                 if (allPlaces.Count < take)
                     keepGoing = false;
 
-                skip = allPlaces.Max(p => p.Id);
-                foreach (var p in allPlaces)
+
+                var newSkip = allPlaces.Max(p => p.Id);
+                var allTags = db.PlaceTags.Where(t => t.SourceItemId >= skip && t.SourceItemId <= newSkip).ToList();
+
+                skip = newSkip;
+
+                //foreach (var p in allPlaces)
+                Parallel.ForEach(allPlaces, (p) =>
                 {
-                    p.Tags = db.PlaceTags.Where(t => t.SourceItemType == p.SourceItemType && t.SourceItemId == p.SourceItemID).ToList();
+                    p.Tags = allTags.Where(t => t.SourceItemType == p.SourceItemType && t.SourceItemId == p.SourceItemID).ToList();
                     PraxisCore.Place.PreTag(p);
-                }
+                }); 
 
                 db.SaveChanges();
                 db.ChangeTracker.Clear();
                 sw.Stop();
-                Log.WriteLog(allPlaces.Count + " places tagged in " + sw.ElapsedMilliseconds + "ms");
+                Log.WriteLog(allPlaces.Count + " places tagged in " + sw.ElapsedMilliseconds + "ms   (" + (allPlaces.Count + skip).ToString() + " total done.)");
             }
             Log.WriteLog("Retag Complete at " + DateTime.Now);
         }
