@@ -897,7 +897,7 @@ namespace Larry
             {
                 sw.Restart();
                 //using the last ID is way more efficient than Skip(int). TODO Apply this anywhere else in the app I use skip/take
-                var placeQuery = db.Places.Include(p => p.PlaceData).Where(p => p.Id > skip);
+                var placeQuery = db.Places.Include(p => p.Tags).Include(p => p.PlaceData).Where(p => p.Id > skip);
                 if (!String.IsNullOrWhiteSpace(styleSet))
                 {
                     if (style == "")
@@ -915,18 +915,21 @@ namespace Larry
 
 
                 var newSkip = allPlaces.Max(p => p.Id);
-                var allTags = db.PlaceTags.Where(t => t.SourceItemId >= skip && t.SourceItemId <= newSkip).ToList();
+                //var tagMin = allPlaces.Min(p => p.SourceItemID);
+                //var tagMax = allPlaces.Max(p => p.SourceItemID);
+                //var allTags = db.PlaceTags.Where(t => t.SourceItemId >= tagMin && t.SourceItemId <= tagMax).ToList();
 
                 skip = newSkip;
 
-                //foreach (var p in allPlaces)
-                Parallel.ForEach(allPlaces, (p) =>
+                foreach (var p in allPlaces)
+                //Parallel.ForEach(allPlaces, (p) =>
                 {
-                    p.Tags = allTags.Where(t => t.SourceItemType == p.SourceItemType && t.SourceItemId == p.SourceItemID).ToList();
+                    //p.Tags = allTags.Where(t => t.SourceItemType == p.SourceItemType && t.SourceItemId == p.SourceItemID).ToList();
                     PraxisCore.Place.PreTag(p);
-                }); 
+                    db.PlaceData.UpdateRange(p.PlaceData); //This is necessary, and blocks parallel operations because its on the EF context.
+                } //); 
 
-                db.SaveChanges();
+                var changes = db.SaveChanges();
                 db.ChangeTracker.Clear();
                 sw.Stop();
                 Log.WriteLog(allPlaces.Count + " places tagged in " + sw.ElapsedMilliseconds + "ms   (" + (allPlaces.Count + skip).ToString() + " total done.)");

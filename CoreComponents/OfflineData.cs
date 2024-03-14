@@ -181,10 +181,21 @@ namespace PraxisCore
                     var entry = inner_zip.GetEntry(plusCode + ".json");
                     if (entry != null)
                     {
+                        //Still having issues with this, particularly when the PREVIOUS run wrote a smaller entry.
                         entryStream = entry.Open();
                         OfflineDataV2 existingData = JsonSerializer.Deserialize<OfflineDataV2>(entryStream);
+                        var dataSize = data.Length;
                         finalData = MergeOfflineFiles(finalData, existingData);
+                        data = JsonSerializer.Serialize(finalData, jso); //Need to re-serialize it here, THATS the issue.
+                        if (data.Length < dataSize)
+                        {
+                            Debugger.Break();
+                            Console.WriteLine("Data got smaller after merging! check this out!");
+                        }
+
                         entryStream.Position = 0;
+                        entryStream.SetLength(data.Length);
+                        //entryStream.Close();
                         //entry.Delete();
                         //entry = inner_zip.CreateEntry(plusCode + ".json");
                         //entryStream = entry.Open();
