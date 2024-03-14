@@ -163,9 +163,11 @@ namespace PraxisCore {
                 if (!string.IsNullOrWhiteSpace(place.StyleName) && place.StyleName != "unmatched")
                     return allStyleGroups[styleSet][place.StyleName];
 
-            var allTags = new Dictionary<string, string>(place.Tags.Count + place.PlaceData.Count);
-            foreach (var t in place.Tags)
-                allTags.TryAdd(t.Key, t.Value);
+
+            var allTags = new Dictionary<string, string>(); // place.Tags.Count + place.PlaceData.Count);
+            if (place.Tags != null)
+                foreach (var t in place.Tags)
+                    allTags.TryAdd(t.Key, t.Value);
 
             foreach (var d in place.PlaceData)
                 if (d.IvData == null) //dont add encrypted entries.
