@@ -889,6 +889,12 @@ namespace Larry
             db.Database.SetCommandTimeout(600); //while i'm still loading geometry, some entries are huge and need a big timeout to succeed.
 
             long skip = 0;
+            if (File.Exists("lastRetaggedId.txt"))
+            {
+                var lastRetagged = File.ReadAllText("lastRetaggedId.txt");
+                skip = lastRetagged.ToLong();
+            }
+
             int take = 4000; //test value.
             bool keepGoing = true;
 
@@ -931,10 +937,12 @@ namespace Larry
 
                 var changes = db.SaveChanges();
                 db.ChangeTracker.Clear();
+                File.WriteAllText("lastRetaggedId.txt", skip.ToString());
                 sw.Stop();
                 Log.WriteLog(allPlaces.Count + " places tagged in " + sw.ElapsedMilliseconds + "ms   (" + (allPlaces.Count + skip).ToString() + " total done.)");
             }
             Log.WriteLog("Retag Complete at " + DateTime.Now);
+            File.Delete("lastRetaggedId.txt");
         }
 
         public static void FudgeIt()
