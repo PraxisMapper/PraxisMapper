@@ -1,5 +1,6 @@
 ﻿using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using NetTopologySuite.Algorithm.Match;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Operation.Buffer;
@@ -96,6 +97,9 @@ namespace PraxisCore
                         Console.WriteLine("Loading places for " + plusCode);
                         Stopwatch load = Stopwatch.StartNew();
                         places = Place.GetPlaces(plusCode.ToGeoArea(), skipTags: true);
+                        //For the really big areas, if we crop it once here, should save about 3 minutes of processing later.
+                        foreach (var place in places)
+                            place.ElementGeometry = place.ElementGeometry.Intersection(area); 
                         load.Stop();
                         Console.WriteLine("Places for " + plusCode + " loaded in " + load.Elapsed);
                     }
