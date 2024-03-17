@@ -334,8 +334,8 @@ namespace PraxisCore
                         entries.Add(offline);
                     }
                 });
-
-                finalData.entries[style] = entries.OrderByDescending(e => e.size).ToList();
+                //TODO: determine why one south america place was null.
+                finalData.entries[style] = entries.Where(e => e != null).OrderByDescending(e => e.size).ToList();
                 foreach (var e in finalData.entries[style])
                     e.size = null; //Dont save this to the output file.
             }
