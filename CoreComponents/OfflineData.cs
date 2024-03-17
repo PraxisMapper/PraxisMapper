@@ -34,6 +34,7 @@ namespace PraxisCore
             public int gt { get; set; } //geometry type. 1 = point, 2 = line OR hollow shape, 3 = filled shape.
             public string p { get; set; } //Points, local to the given PlusCode. If human-readable, is string pairs, if not is base64 encoded integers.
             public double? size { get; set; } //Removed after sorting.
+            public int? layerOrder { get; set; } //removed after sorting as well.
         }
 
         public class OfflineDataV2Min//Still a Cell6 to draw, but minimized as much as possible.
@@ -331,13 +332,18 @@ namespace PraxisCore
                         offline.gt = geo.GeometryType == "Point" ? 1 : geo.GeometryType == "LineString" ? 2 : styleEntry.PaintOperations.All(p => p.FillOrStroke == "stroke") ? 2 : 3;
                         offline.p = coordSet;
                         offline.size = sizeOrder;
+                        offline.layerOrder = styleEntry.PaintOperations.Min(p => p.LayerId);
                         entries.Add(offline);
                     }
                 });
                 //TODO: determine why one south america place was null.
-                finalData.entries[style] = entries.Where(e => e != null).OrderByDescending(e => e.size).ToList();
+                finalData.entries[style] = entries.Where(e => e != null).OrderBy(e => e.layerOrder).ThenByDescending(e => e.size).ToList();
                 foreach (var e in finalData.entries[style])
-                    e.size = null; //Dont save this to the output file.
+                {
+                    //Dont save this to the output file.
+                    e.size = null;
+                    e.layerOrder = null;
+                }
             }
 
             if (finalData.entries.Count == 0)
