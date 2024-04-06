@@ -81,13 +81,6 @@ namespace PraxisCore.Styles
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "amenity", Value = "planetarium", MatchType = "equals" },
             }},
-            new StyleEntry() { IsGameElement = true, MatchOrder = 10, Name ="artsCulture", StyleSet = "suggestedmini",
-                PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
-                },
-                StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "amenity", Value = "planetarium", MatchType = "equals" },
-            }},
             new StyleEntry() { IsGameElement = true, MatchOrder = 11, Name ="library", StyleSet = "suggestedmini",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
