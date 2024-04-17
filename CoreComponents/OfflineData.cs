@@ -95,6 +95,7 @@ namespace PraxisCore
 
                     try
                     {
+                        //Far future TODO: Work out out to start loading the next set of places from the DB while processing data for the current set
                         Console.WriteLine("Loading places for " + plusCode);
                         Stopwatch load = Stopwatch.StartNew();
                         places = Place.GetPlaces(plusCode.ToGeoArea(), skipTags: true);
@@ -111,9 +112,7 @@ namespace PraxisCore
                         places = null;
                     }
 
-                    ParallelOptions po = new ParallelOptions();
-                    po.MaxDegreeOfParallelism = 6;
-                    Parallel.ForEach(GetCellCombos(), po, pair =>
+                    Parallel.ForEach(GetCellCombos(), pair =>
                     {
                         MakeOfflineJson(plusCode + pair, bounds, saveToFile, inner_zip, places);
                     });
@@ -337,6 +336,7 @@ namespace PraxisCore
                     }
                 });
                 //TODO: determine why one south america place was null.
+                //Smaller number layers get drawn first, and bigger places get drawn first.
                 finalData.entries[style] = entries.Where(e => e != null).OrderBy(e => e.layerOrder).ThenByDescending(e => e.size).ToList();
                 foreach (var e in finalData.entries[style])
                 {
@@ -512,9 +512,7 @@ namespace PraxisCore
                         places = null;
                     }
 
-                    ParallelOptions po = new ParallelOptions();
-                    po.MaxDegreeOfParallelism = 6;
-                    Parallel.ForEach(GetCellCombos(), po, pair =>
+                    Parallel.ForEach(GetCellCombos(), pair =>
                     {
                         MakeMinimizedOfflineData(plusCode + pair, bounds, saveToFile, inner_zip, places);
                     });
