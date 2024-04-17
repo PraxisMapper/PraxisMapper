@@ -112,7 +112,9 @@ namespace PraxisCore
                         places = null;
                     }
 
-                    Parallel.ForEach(GetCellCombos(), pair =>
+                    //This block isnt limited by IO, and will suffer from swapping threads constantly.
+                    ParallelOptions po = new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount };
+                    Parallel.ForEach(GetCellCombos(), po, pair =>
                     {
                         MakeOfflineJson(plusCode + pair, bounds, saveToFile, inner_zip, places);
                     });
@@ -512,7 +514,9 @@ namespace PraxisCore
                         places = null;
                     }
 
-                    Parallel.ForEach(GetCellCombos(), pair =>
+                    //This block isnt limited by IO, and will suffer from swapping threads constantly.
+                    ParallelOptions po = new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount };
+                    Parallel.ForEach(GetCellCombos(), po, pair =>
                     {
                         MakeMinimizedOfflineData(plusCode + pair, bounds, saveToFile, inner_zip, places);
                     });
