@@ -11,14 +11,18 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Xml;
 using static PraxisCore.ConstantValues;
 using static PraxisCore.DbTables;
 using static PraxisCore.Place;
 using static PraxisCore.Singletons;
+
+
 
 namespace Larry
 {
@@ -70,7 +74,7 @@ namespace Larry
             //}
 
 
-            
+
 
             if (args.Any(a => a == "-resetFiles"))
             {
@@ -253,8 +257,8 @@ namespace Larry
                 //Call this so we sort-of hint to MariaDB to use the right indexes later
                 var db = new PraxisContext();
                 var bounds = db.ServerSettings.FirstOrDefault();
-                var randomPlace  = PraxisCore.Place.RandomPoint(bounds);
-                GetPlaces(randomPlace.Substring(0,4).ToGeoArea(), skipTags: true, dataKey: OfflineData.styles[0]);
+                var randomPlace = PraxisCore.Place.RandomPoint(bounds);
+                GetPlaces(randomPlace.Substring(0, 4).ToGeoArea(), skipTags: true, dataKey: OfflineData.styles[0]);
 
                 OfflineData.MakeOfflineJson("");
                 File.Delete("lastOfflineEntry.txt");
@@ -275,6 +279,11 @@ namespace Larry
 
                 OfflineData.MakeMinimizedOfflineData("");
                 File.Delete("lastOfflineEntry.txt");
+            }
+
+            if (args.Any(a => a == "-mergeOfflineSets"))
+            {
+                MergeOfflineSets(config["PbfFolder"]);
             }
 
             if (args.Any(a => a == "-recalcDrawHints"))
@@ -341,10 +350,10 @@ namespace Larry
         {
             try
             {
-            Log.WriteLog("Setting preferred NET environment variables for performance. A restart may be required for them to apply.");
-            System.Environment.SetEnvironmentVariable("DOTNET_CLI_TELEMETRY_OPTOUT", "1", EnvironmentVariableTarget.Machine);
-        }
-            catch(Exception ex)
+                Log.WriteLog("Setting preferred NET environment variables for performance. A restart may be required for them to apply.");
+                System.Environment.SetEnvironmentVariable("DOTNET_CLI_TELEMETRY_OPTOUT", "1", EnvironmentVariableTarget.Machine);
+            }
+            catch (Exception ex)
             {
                 Log.WriteLog("Failed to update NET environment variables: " + ex.Message, Log.VerbosityLevels.Errors);
             }
@@ -385,10 +394,10 @@ namespace Larry
             {
                 try
                 {
-                PlaceExport.LoadToDatabase(filename, bounds: bounds);
-                File.Move(filename, filename + "done");
-            }
-                catch(Exception ex)
+                    PlaceExport.LoadToDatabase(filename, bounds: bounds);
+                    File.Move(filename, filename + "done");
+                }
+                catch (Exception ex)
                 {
                     Log.WriteLog("File " + filename + " was not processed: " + ex.Message);
                 }
@@ -626,7 +635,7 @@ namespace Larry
             foreach (var Yletter in OpenLocationCode.CodeAlphabet)
                 foreach (var Xletter in OpenLocationCode.CodeAlphabet)
                 {
-                    list.Add(String.Concat(Yletter, Xletter));
+                    list.Add(System.String.Concat(Yletter, Xletter));
                 }
 
             return list;
@@ -1002,7 +1011,7 @@ namespace Larry
             //Do that manually to all databases with the same export folder, and then each folder can be merged together to create a combined area. Mostly useful for
             //areas where multiple continents cross inside a single cell.
 
-            foreach(var cell2 in GetCell2Combos()) //Custom function because this is a 9x18 grid.
+            foreach (var cell2 in GetCell2Combos()) //Custom function because this is a 9x18 grid.
             {
                 var area = cell2.ToGeoArea();
                 var db = new PraxisContext();
@@ -1066,16 +1075,122 @@ namespace Larry
         public static void PruneFolders(string basepath)
         {
             var folders = Directory.GetDirectories(basepath);
-            foreach(var folder in folders)
+            foreach (var folder in folders)
             {
                 PruneFolders(folder);
             }
-            
+
             var folderCount = Directory.GetDirectories(basepath).Length;
             var fileCount = Directory.GetFiles(basepath, "*").Length;
 
             if (folderCount == 0 && fileCount == 0)
                 Directory.Delete(basepath, false);
+        }
+
+        public static void MergeOfflineSets(string parentFolder)
+        {
+            //given D:\data\merging\, expect stuff like D:\Data\merging\maptiles\22\2223.zip
+            var folders = Directory.GetDirectories(parentFolder);
+
+            Console.WriteLine("merging files into " + folders[0] + " files");
+            var writeFolder = folders[0];
+
+            EnumerationOptions eo = new EnumerationOptions() { RecurseSubdirectories = true };
+            var allZipFiles = Directory.EnumerateFiles(writeFolder, "*", eo).ToList();
+
+            var existingFiles = allZipFiles.Select(f => Path.GetFileName(f)).Distinct().ToList();
+            foreach(var folder in folders.Skip(1))
+            {
+                var allFiles = Directory.EnumerateFiles(writeFolder, "*", eo);
+                var absentFiles = allFiles.Where(f => !existingFiles.Contains(Path.GetFileName(f))).ToList();
+                //copy these wholesale.
+                foreach (var file in absentFiles)
+                {
+                    File.Copy(file, writeFolder + Path.GetFileName(file));
+                    allZipFiles.Add(writeFolder + Path.GetFileName(file));
+                }
+            }
+
+            JsonSerializerOptions jso = new JsonSerializerOptions();
+            jso.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+
+            foreach (var zip in allZipFiles)
+            {
+                //If this file isn't present in the other sets, don't merge it.
+                bool merge = false;
+                foreach (var folder in folders.Skip(1)) //dont check same folder we're writing to.
+                {
+                    var subPath = zip.Replace(writeFolder, folder);
+                    if (File.Exists(subPath))
+                        merge = true;
+                }
+                if (merge == false)
+                    continue;
+
+                Console.WriteLine("Merging " + zip);
+                var finalEntries = new Dictionary<string, OfflineData.OfflineDataV2>();
+                var zipFileA = new ZipArchive(File.Open(zip, FileMode.Open), ZipArchiveMode.Update);
+                foreach (var entry in zipFileA.Entries)
+                {
+                    var streamA = entry.Open();
+                    var dataA = JsonSerializer.Deserialize<OfflineData.OfflineDataV2>(streamA);
+                    finalEntries.Add(entry.Name, dataA);
+                    streamA.Close();
+                    streamA.Dispose();
+                }
+                zipFileA.Dispose();
+
+                foreach (var folder in folders.Skip(1)) //dont check same folder we're writing to.
+                {
+                    var subPath = zip.Replace(writeFolder, folder);
+                    if (File.Exists(subPath))
+                    {
+                        var zipFileB = new ZipArchive(File.Open(subPath, FileMode.Open), ZipArchiveMode.Read);
+
+                        var mergingEntries = zipFileB.Entries.Where(e => finalEntries.ContainsKey(e.Name));
+                        foreach (var entry in mergingEntries)
+                        {
+                            var streamB = entry.Open();
+                            var dataB = JsonSerializer.Deserialize<OfflineData.OfflineDataV2>(streamB);
+                            streamB.Close();
+                            streamB.Dispose();
+
+                            var dataA = finalEntries[entry.Name];
+                            dataA = OfflineData.MergeOfflineFiles(dataA, dataB);
+                        }
+
+                        mergingEntries = zipFileB.Entries.Where(e => !finalEntries.ContainsKey(e.Name));
+                        foreach (var entry in mergingEntries)
+                        {
+                            var streamC = entry.Open();
+                            var dataC = JsonSerializer.Deserialize<OfflineData.OfflineDataV2>(streamC);
+                            streamC.Close();
+                            streamC.Dispose();
+                            finalEntries.Add(entry.Name, dataC);
+                        }
+                    }
+                }
+                //Write new file.
+                File.Delete(zip);
+                var newZip = ZipFile.Open(zip, ZipArchiveMode.Create);
+                foreach (var entry in finalEntries)
+                {
+                    var e = newZip.CreateEntry(entry.Key).Open();
+                    using (var streamWriter = new StreamWriter(e))
+                        streamWriter.Write(JsonSerializer.Serialize(entry.Value, jso));
+                    e.Close();
+                    e.Dispose();
+                }
+                newZip.Dispose();
+            }
+
+            //Now go through and copy files that weren't in the main one.
+
+            var subFolderSets = new Dictionary<string, string>();
+            foreach (var folder in folders.Skip(1))
+            {
+
+            }
         }
     }
 }
