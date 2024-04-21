@@ -1183,14 +1183,6 @@ namespace Larry
                 }
                 newZip.Dispose();
             }
-
-            //Now go through and copy files that weren't in the main one.
-
-            var subFolderSets = new Dictionary<string, string>();
-            foreach (var folder in folders.Skip(1))
-            {
-
-            }
         }
     }
 }
