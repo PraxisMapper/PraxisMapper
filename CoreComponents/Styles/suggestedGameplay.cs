@@ -100,19 +100,20 @@ namespace PraxisCore.Styles
                     new StyleMatchRule() {Key="highway", Value="path|bridleway|cycleway|footway|living_street", MatchType="any"},
                     new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"}
             }},
-            new StyleEntry() { IsGameElement = true, MatchOrder = 13, Name ="theatre", StyleSet = "suggestedGameplay",
+            new StyleEntry() { IsGameElement = true, MatchOrder = 13, Name ="concert hall", StyleSet = "suggestedGameplay",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
+                },
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "amenity", Value = "concert hall", MatchType = "or" },
+                    new StyleMatchRule() { Key = "theatre:type", Value = "concert_hall", MatchType = "or" },
+            }},
+            new StyleEntry() { IsGameElement = true, MatchOrder = 14, Name ="theatre", StyleSet = "suggestedGameplay",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "amenity", Value = "theatre", MatchType = "equals" },
-            }},
-            new StyleEntry() { IsGameElement = true, MatchOrder = 14, Name ="concert hall", StyleSet = "suggestedGameplay",
-                PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
-                },
-                StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "amenity", Value = "concert hall", MatchType = "equals" },
             }},
             new StyleEntry() { IsGameElement = true, MatchOrder = 15, Name ="arts centre", StyleSet = "suggestedGameplay",
                 PaintOperations = new List<StylePaint>() {
