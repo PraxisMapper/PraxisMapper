@@ -304,6 +304,7 @@ namespace PraxisOfflineDataPlugin.Controllers
         {
             public string color { get; set; }
             public double sizePx { get; set; }
+            public int drawOrder { get; set; }
         }
 
         public class OfflineStyleItem
@@ -327,7 +328,12 @@ namespace PraxisOfflineDataPlugin.Controllers
                 {
                     name = styleEntry.Value.Name,
                     drawOps = styleEntry.Value.PaintOperations.OrderByDescending(p => p.LayerId).Select(p => new OfflineDrawOps()
-                    { color = p.HtmlColorCode.Length == 8 ? p.HtmlColorCode.Substring(2) : p.HtmlColorCode, sizePx = Math.Round(p.LineWidthDegrees / ConstantValues.resolutionCell12Lat, 1)}).ToList()
+                    { 
+                        color = p.HtmlColorCode.Length == 8 ? p.HtmlColorCode.Substring(2) : p.HtmlColorCode, 
+                        sizePx = Math.Round(p.LineWidthDegrees / ConstantValues.resolutionCell12Lat, 1),
+                        drawOrder = p.LayerId
+
+                    }).ToList()
                 };
                 styles.Add(styleEntry.Value.MatchOrder.ToString(), entry);
             }
