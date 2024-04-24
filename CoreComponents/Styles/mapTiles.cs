@@ -57,19 +57,20 @@ namespace PraxisCore.Styles
                     new StyleMatchRule() {Key="building", Value="retail|commercial", MatchType="or" },
                     new StyleMatchRule() {Key="shop", Value="*", MatchType="or" }
             }},
-            new StyleEntry() { IsGameElement = true, MatchOrder = 40, Name ="theatre", StyleSet = "mapTiles",
+            new StyleEntry() { IsGameElement = true, MatchOrder = 40, Name ="concert hall", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
+                },
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "amenity", Value = "concert hall", MatchType = "or" },
+                    new StyleMatchRule() { Key = "theatre:type", Value = "concert_hall", MatchType = "or" },
+            }},
+            new StyleEntry() { IsGameElement = true, MatchOrder = 50, Name ="theatre", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "amenity", Value = "theatre", MatchType = "equals" },
-            }},
-            new StyleEntry() { IsGameElement = true, MatchOrder = 50, Name ="concert hall", StyleSet = "mapTiles",
-                PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
-                },
-                StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "amenity", Value = "concert hall", MatchType = "equals" },
             }},
             new StyleEntry() { IsGameElement = true, MatchOrder = 60, Name ="arts centre", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
