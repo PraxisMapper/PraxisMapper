@@ -6,11 +6,8 @@ using PraxisCore;
 using PraxisCore.Support;
 using PraxisMapper.Classes;
 using System.Collections.Concurrent;
-using System.Text;
+using System.IO.Compression;
 using System.Text.Json;
-using System.Xml.Schema;
-using static Azure.Core.HttpHeader;
-using static PraxisCore.DbTables;
 
 namespace PraxisOfflineDataPlugin.Controllers
 {
@@ -252,7 +249,7 @@ namespace PraxisOfflineDataPlugin.Controllers
                 points.AddRange(GetPolygonPoints(place.ElementGeometry as Polygon, min));
             }
             else
-                points.Add(string.Join("|", place.ElementGeometry.Coordinates.Select(c => (int)((c.X - min.Longitude) / ConstantValues.resolutionCell11Lon) + "," + ((int)((c.Y - min.Latitude) / ConstantValues.resolutionCell11Lat)))));           
+                points.Add(string.Join("|", place.ElementGeometry.Coordinates.Select(c => (int)((c.X - min.Longitude) / ConstantValues.resolutionCell11Lon) + "," + ((int)((c.Y - min.Latitude) / ConstantValues.resolutionCell11Lat)))));
 
             if (points.Count == 0)
             {
@@ -322,14 +319,14 @@ namespace PraxisOfflineDataPlugin.Controllers
 
             //OR is this a Dict<string, OfflineSTyleITem>?
             var style = TagParser.allStyleGroups[styleSet];
-            foreach(var styleEntry in style)
+            foreach (var styleEntry in style)
             {
                 var entry = new OfflineStyleItem()
                 {
                     name = styleEntry.Value.Name,
                     drawOps = styleEntry.Value.PaintOperations.OrderByDescending(p => p.LayerId).Select(p => new OfflineDrawOps()
-                    { 
-                        color = p.HtmlColorCode.Length == 8 ? p.HtmlColorCode.Substring(2) : p.HtmlColorCode, 
+                    {
+                        color = p.HtmlColorCode.Length == 8 ? p.HtmlColorCode.Substring(2) : p.HtmlColorCode,
                         sizePx = Math.Round(p.LineWidthDegrees / ConstantValues.resolutionCell12Lat, 1),
                         drawOrder = p.LayerId
 
@@ -339,6 +336,34 @@ namespace PraxisOfflineDataPlugin.Controllers
             }
 
             return JsonSerializer.Serialize(styles);
+        }
+
+        [HttpGet]
+        [Route("/[controller]/FromZip/{plusCode}")]
+        public string GetJsonFromZippedFile(string plusCode)
+        {
+            //This is a helper file for pulling smaller files from the Cell4 zips.
+
+            string cell4 = plusCode.Substring(0, 4);
+            string cell6 = plusCode.Substring(0, 6);
+
+            string zipPath = "./Content/OfflineData/" + cell4.Substring(0, 2) + "/" + cell4 + ".zip";
+
+            string results = "";
+            using (var fs = new FileStream(zipPath, FileMode.Open))
+            {
+                using (var zip = new ZipArchive(fs, ZipArchiveMode.Read))
+                {
+                    var entry = zip.GetEntry(cell6 + ".json");
+
+                    var innerstream = entry.Open();
+                    results = new StreamReader(innerstream).ReadToEnd();
+                    innerstream.Close();
+                    innerstream.Dispose();
+                }
+            }
+
+            return results;
         }
     }
 }
