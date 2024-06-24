@@ -5,6 +5,7 @@ using NetTopologySuite.Algorithm.Match;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Operation.Buffer;
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -280,7 +281,7 @@ namespace PraxisCore
                 //nametable = nametable.Union(placeData.Where(p => !string.IsNullOrWhiteSpace(p.Name)).Select(p => p.Name).Distinct().ToDictionary(k => k, v => ++nameIdCounter)).Distinct().ToDictionary();
 
                 //foreach (var place in placeData)
-                Parallel.ForEach(placeData, (place) => //This set is NOT done in parallel because we need to keep them ordered.
+                Parallel.ForEach(placeData, (place) => //we save data and re-order stuff after.
                 {
                     var sizeOrder = place.DrawSizeHint; //TODO: add this in somewhere so I can order by size and run these in parallel.
                     //POTENTIAL TODO: I may need to crop all places first, then sort by their total area to process these largest-to-smallest on the client
@@ -861,7 +862,10 @@ namespace PraxisCore
             foreach (var entryList in adding.entries)
             {
                 if (!existing.entries.ContainsKey(entryList.Key))
-                    existing.entries.Add(entryList.Key, entryList.Value);
+                {
+                    var addList = entryList.Value.Select(e => new OfflinePlaceEntry() { p = e.p, gt = e.gt, tid = e.tid, nid = e.nid.HasValue ? newNameMap[e.nid.Value] : null }).ToList();
+                    existing.entries.Add(entryList.Key, addList);
+                }
                 else if (existing.entries[entryList.Key] != null)
                 {
                     //merge entries
