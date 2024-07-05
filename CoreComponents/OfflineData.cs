@@ -420,7 +420,7 @@ namespace PraxisCore
                         Stopwatch load = Stopwatch.StartNew();
                         places = Place.GetPlaces(plusCode.ToGeoArea(), dataKey: "suggestedmini", styleSet: "suggestedmini", skipTags: true);
                         load.Stop();
-                        Console.WriteLine("Places loaded in " + load.Elapsed);
+                        Console.WriteLine("Places loaded in " + load.Elapsed + ", count " + places.Count().ToString()  + ", biggest " + places.Max(p => p.ElementGeometry.Coordinates.Count()).ToString());
                     }
                     catch (Exception ex)
                     {
