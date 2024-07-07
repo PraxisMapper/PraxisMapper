@@ -33,6 +33,7 @@ namespace PraxisCore
         public DbSet<StyleBitmap> StyleBitmaps { get; set; }
         public DbSet<AntiCheatEntry> AntiCheatEntries { get; set; }
         public DbSet<AuthenticationData> AuthenticationData { get; set; }
+        public DbSet<OfflinePlace> OfflinePlaces { get; set; }
 
         public static string connectionString = "Data Source=localhost\\SQLDEV;UID=PraxisService;PWD=lamepassword;Initial Catalog=Praxis;"; //Needs a default value.
         public static string serverMode = "SQLServer";
@@ -92,6 +93,10 @@ namespace PraxisCore
 
             model.Entity<AuthenticationData>().HasIndex(m => m.accountId);
 
+            model.Entity<OfflinePlace>().HasIndex(m => m.DrawSizeHint); //Enables server-side sorting on biggest-to-smallest draw order.
+
+
+
             if (serverMode == "PostgreSQL")
             {
                 model.HasPostgresExtension("postgis");
@@ -103,6 +108,7 @@ namespace PraxisCore
         public static string SlippyMapTileIndex = "CREATE SPATIAL INDEX SlippyMapTileSpatialIndex ON SlippyMapTiles(areaCovered)";
         public static string PlacesIndex = "CREATE SPATIAL INDEX PlacesIndex ON Places(elementGeometry)";
         public static string AreaDataSpatialIndex = "CREATE SPATIAL INDEX areaDataSpatialIndex ON AreaData(AreaCovered)";
+        public static string OfflinePlacesIndex = "CREATE SPATIAL INDEX OfflinePlacesIndex ON OfflinePlaces(elementGeometry)";
 
         //Text to recreate these indexes if I drop them for database loading.
         public static string drawSizeHintIndexMaria = "CREATE OR REPLACE INDEX IX_Places_DrawSizeHint on Places(DrawSizeHint)";
