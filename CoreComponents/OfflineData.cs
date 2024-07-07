@@ -387,6 +387,14 @@ namespace PraxisCore
             //This is worth considering for games that DONT need geometry and can do a little bit of lookup on their own.
             //This may also be created per Cell2/4/6 block for comparison vs drawable data.
 
+            //Called with an empty string, to mean 'run for all Cell2s'
+            if (plusCode == "")
+            {
+                foreach (var pair in GetCell2Combos())
+                    MakeMinimizedOfflineData(plusCode + pair, bounds, saveToFile);
+                return;
+            }
+
 
             //Make offline data for PlusCode6s, repeatedly if the one given is a 4 or 2.
             if (bounds == null)
@@ -459,14 +467,6 @@ namespace PraxisCore
                         MakeMinimizedOfflineData(plusCode + pair, bounds, saveToFile);
 
                     File.AppendAllText("lastOfflineEntry.txt", "|" + plusCode);
-                    return;
-                }
-                else
-                {
-                    //Called with an empty string, to mean 'run for all Cell2s'
-                    foreach (var pair in GetCell2Combos())
-                        MakeMinimizedOfflineData(plusCode + pair, bounds, saveToFile);
-
                     return;
                 }
             }
