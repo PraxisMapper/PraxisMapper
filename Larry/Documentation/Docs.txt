@@ -12,8 +12,6 @@ DbMode: Which database backend to use. Valid options are SQLServer, MariaDB, or 
 DbConnectionString: The connection string for the selected database. 
 PbfFolder: The path to the folder containing 1 or more .osm.pbf files to process. Must end with the trailing slash (\ on windows, / elsewhere)
 OutputDataFolder: The path to the folder containing the output files from processing. Must end with the trailing slash (\ on windows, / elsewhere)
-Solar2dExportFolder: Not currently used. Will allow for updating an example game to your server in a future release.
-UseHighAccuracy: If true, uses data as it was loaded. If false, simplifies down areas to work the same for gameplay while using 30% less space, but makes maptiles inaccurate.
 OnlyTaggedAreas: If true, only loads data that matches from a style set into your database. If false, loads all data from the source into your database, allowing for updating styles without reparsing files.
 ForceStyleDefaults: if true, skips connecting to the database and uses the default styles and gameplay areas. If false, loads styles from the database, allowing for customization and additional styles.
 UseGeomDataFiles: If true, will save output files to a different format that may load to the database faster.
@@ -36,3 +34,9 @@ Advanced Commands:
 -autoCreateMapTiles --Searches the database for areas that need map tiles created, skips empty ones. Runs a search on a global scale, but doesn't draw tiles with no data. Intended for very large game areas, not required for a typical server setup.
 -drawOneImage:234567 --given a PlusCode after the colon, draws a PNG file of that PlusCode. Requires KeepElementsInMemory to be true to work.
 -processCoastlines:file.shp --Reads a shapefile to create polygons representing the oceans, which don't usually have elements in OSM to represent them.
+
+
+NOTES:
+
+You may need to use the SqlLocalDb command from powershell in order to start/stop/delete a localdb instance.
+When using the LocalDB option, you CAN connect to it from SSMS. The connection string will be "(localdb)\Praxis" on default settings.

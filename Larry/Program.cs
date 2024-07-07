@@ -312,6 +312,11 @@ namespace Larry
                     RetagPlaces();
             }
 
+            if (args.Any(a => a == "-loadAsOffline"))
+            {
+                LoadAsOffline();
+            }
+
             if (args.Any(a => a == "-fudgeIt"))
             {
                 FudgeIt();
@@ -1182,6 +1187,35 @@ namespace Larry
                     e.Dispose();
                 }
                 newZip.Dispose();
+            }
+        }
+
+        public static void LoadAsOffline()
+        {
+            //TODO: make a new table thats self-contained. Get rid of joins and multiple indexes on it. 
+            //It's not intended for live use (though maybe it could be, if we did attach placeInfo to it)
+            //and then load the necessary data into that table.
+
+            List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.pbf").ToList();
+            foreach (string filename in filenames)
+            {
+                Log.WriteLog("Loading " + filename + " at " + DateTime.Now);
+                PbfReader r = new PbfReader();
+                r.outputPath = config["PbfFolder"];
+                r.styleSet = config["TagParserStyleSet"];
+                r.processingMode = "offline";
+                //r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
+
+                if (config["ResourceUse"] == "low")
+                {
+                    r.lowResourceMode = true;
+                }
+                else if (config["ResourceUse"] == "high")
+                {
+                    r.keepAllBlocksInRam = true; //Faster performance, but files use vastly more RAM than they do HD space. 200MB file = ~6GB total RAM last I checked.
+                }
+                r.ProcessFileV2(filename, long.Parse(config["UseOneRelationID"]));
+                File.Move(filename, filename + "done");
             }
         }
     }

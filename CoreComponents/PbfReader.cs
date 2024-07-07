@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.GeometriesGraph;
 using OsmSharp.Complete;
@@ -33,7 +34,7 @@ namespace PraxisCore.PbfReader
 
         public bool saveToDB = true;
         //public bool onlyMatchedAreas = false; //if true, only process geometry if the tags come back with IsGamplayElement== true;
-        public string processingMode = "normal"; //normal: use geometry as it exists. center: save the center point of any geometry provided instead of its actual value. minimize: reduce accuracy to save storage space.
+        public string processingMode = "normal"; //normal: use geometry as it exists. center: save the center point of any geometry provided instead of its actual value. minimize: reduce accuracy to save storage space. offline: data is only going to be used to make separate files, not run in a live server.
         public string styleSet = "mapTiles"; //which style set to use when parsing entries
         public string[] styleSets;
         public bool keepIndexFiles = true;
@@ -396,6 +397,12 @@ namespace PraxisCore.PbfReader
                         }
                         else
                         {
+                            if (processingMode ==  "offline")
+                            {
+                                var entries = processed.Where(p => p != null).Select(p => DbTables.OfflinePlace.FromPlace(p, styleSet)).ToList();
+                                db.OfflinePlaces.AddRange(entries);
+                            }
+                            else
                             foreach (var newEntry in processed)
                             {
                                 if (newEntry == null)
@@ -466,6 +473,9 @@ namespace PraxisCore.PbfReader
                 }
                 nextBlockId++;
             }
+
+            //TODO: If this run created any PMD files because a block failed to be added to the database, this is where we'll try again.
+            //may also need to increase packet size, as thats the most common error.
 
             //NOTE: this may not be appropriate for the PBFReader, since there could be mulitple files to run, or PMD files to process
             //This generally belongs at a higher level in the process, not here.

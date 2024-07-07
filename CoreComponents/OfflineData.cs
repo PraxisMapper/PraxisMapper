@@ -453,7 +453,7 @@ namespace PraxisCore
             return list;
         }
 
-        public static void MakeMinimizedOfflineData(string plusCode, Polygon bounds = null, bool saveToFile = true, ZipArchive inner_zip = null, List<DbTables.Place> places = null)
+        public static void MakeMinimizedOfflineData(string plusCode, Polygon bounds = null, bool saveToFile = true, ZipArchive inner_zip = null, List<DbTables.OfflinePlace> places = null)
         {
             //This produces JSON with 1 row per item and a few fields:
             //Name (possibly a table saved separately), PlusCode (centerpoint), radius (SQUARE SHAPED, but calculated based on the envelope for non-points), and terrain type.
@@ -481,8 +481,9 @@ namespace PraxisCore
 
             if (plusCode.Length < 6)
             {
-                if (!PraxisCore.Place.DoPlacesExist(plusCode.ToGeoArea(), places))
-                    return;
+                //if (!PraxisCore.Place.DoPlacesExist(plusCode.ToGeoArea(), places))
+                if (!PraxisCore.Place.DoOfflinePlacesExist(plusCode.ToGeoArea(), places))
+                return;
 
                 if (plusCode.Length == 4)
                 {
@@ -505,7 +506,7 @@ namespace PraxisCore
                     try
                     {
                         Stopwatch load = Stopwatch.StartNew();
-                        places = Place.GetPlaces(plusCode.ToGeoArea(), dataKey: "suggestedmini", styleSet: "suggestedmini", skipTags: true);
+                        places = Place.GetOfflinePlaces(plusCode.ToGeoArea());
                         load.Stop();
                         Console.WriteLine("Places loaded in " + load.Elapsed);
                     }
@@ -616,7 +617,7 @@ namespace PraxisCore
             Log.WriteLog("Created and saved minimized offline data for " + plusCode + " in " + sw.Elapsed);
         }
 
-        public static OfflineDataV2Min MakeMinimizedOfflineEntries(string plusCode, string stylesToUse, List<DbTables.Place> places = null)
+        public static OfflineDataV2Min MakeMinimizedOfflineEntries(string plusCode, string stylesToUse, List<DbTables.OfflinePlace> places = null)
         {
             using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
@@ -633,7 +634,7 @@ namespace PraxisCore
             Dictionary<string, int> nametable = new Dictionary<string, int>(); //name, id
             var nameIdCounter = 0;
 
-            if (!PraxisCore.Place.DoPlacesExist(cell, places))
+            if (!PraxisCore.Place.DoOfflinePlacesExist(cell, places))
                 return null;
 
             const double innerRes = ConstantValues.resolutionCell10;
@@ -644,7 +645,7 @@ namespace PraxisCore
             foreach (var style in styles)
             {
                 //Console.WriteLine(plusCode + ":getting places with " + style);
-                var placeData = PraxisCore.Place.GetPlaces(cell, source: places, styleSet: style, dataKey: style, skipTags: true);
+                var placeData = PraxisCore.Place.GetOfflinePlaces(cell, source: places);
                 //Console.WriteLine(plusCode + ":places got - " + placeData.Count);
 
                 if (placeData.Count == 0)

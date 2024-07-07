@@ -174,7 +174,49 @@ namespace PraxisCore {
                 return (Place)this.MemberwiseClone();
             }
         }
-         
+
+        public class OfflinePlace
+        {
+            //OfflinePlace is meant to hold data that isn't going to be handled live by a server in play, or updated piecemeal,
+            //and can discard a fair amount of the complexity and hopefully increase performance for making games that dont need live data.
+            public long Id { get; set; } //Internal primary key, don't pass this to clients.
+            public long SourceItemID { get; set; } //Try to use PrivacyId instead of this where possible to avoid connecting players to locations.
+            public int SourceItemType { get; set; } //1: node, 2: way, 3: relation
+            [Column(TypeName = "geography")]
+            [Required]
+            public Geometry ElementGeometry { get; set; }
+            public string StyleName { get; set; } //this IS persisted here, set on load.          
+            public double DrawSizeHint { get; set; } //optimization. This is estimated pixels to draw at standard scale. Calculate your floor if you zoom in or out differently, and skip loading if its too small to see.
+            public string Name { get; set; } //Putting this here so I can skip loading tags most of the time.
+
+            public override string ToString()
+            {
+                return ((StyleName == null ? "" : StyleName + " ") + (SourceItemType == 3 ? "Relation " : SourceItemType == 2 ? "Way " : "Node ") + SourceItemID.ToString() + " " + Name);
+            }
+
+            public OfflinePlace Clone()
+            {
+                return (OfflinePlace)this.MemberwiseClone();
+            }
+
+            public OfflinePlace() { 
+            }
+
+            //This will save me from needing a new workflow entirely, and just adapt the save step.
+            public static OfflinePlace FromPlace(Place p)
+            {
+                return new OfflinePlace() { 
+                    Id = p.Id,
+                    SourceItemID = p.SourceItemID,
+                    SourceItemType = p.SourceItemType,
+                    ElementGeometry = p.ElementGeometry,
+                    StyleName = p.StyleName,
+                    DrawSizeHint = p.DrawSizeHint,
+                    Name = p.Name
+                };
+            }
+        }
+
         public class PlaceTags
         {
             [JsonIgnore]

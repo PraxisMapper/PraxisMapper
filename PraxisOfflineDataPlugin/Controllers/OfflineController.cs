@@ -17,6 +17,8 @@ namespace PraxisOfflineDataPlugin.Controllers
         //NOTE: for more accurate data, I could save cell10 info in the final dictionary.
         //THis would be be better saved for a Cell6 or smaller area, but that could be generated on demand once,
         //then saved and sent on every other request.
+
+        //TODO: the offline CONTROLLER will use the Places table because its a live server. The Larry Offline commands will use the OfflinePlaces table.
         [HttpGet]
         [Route("/[controller]/Small/{plusCode6}")]
         public string GetSmallTerrainData(string plusCode6)
@@ -340,7 +342,7 @@ namespace PraxisOfflineDataPlugin.Controllers
 
         [HttpGet]
         [Route("/[controller]/FromZip/{plusCode}")]
-        public string GetJsonFromZippedFile(string plusCode)
+        public ActionResult GetJsonFromZippedFile(string plusCode)
         {
             //This is a helper file for pulling smaller files from the Cell4 zips.
 
@@ -363,7 +365,9 @@ namespace PraxisOfflineDataPlugin.Controllers
                 }
             }
 
-            return results;
+            var byteResults = results.ToByteArrayUTF8();
+            Response.ContentLength = byteResults.Length;
+            return File(byteResults, "text/plain");
         }
     }
 }
