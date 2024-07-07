@@ -1,18 +1,13 @@
 ﻿using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Conventions;
-using NetTopologySuite.Algorithm.Match;
 using NetTopologySuite.Geometries;
-using NetTopologySuite.Operation.Buffer;
 using System;
-using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -54,14 +49,12 @@ namespace PraxisCore
 
         }
 
-
         public static double simplifyRes = 0.0000078125; //default = cell12Lat
         public static double xRes = 0.0000078125; //default = cell12Lon
         public static double yRes = 0.000005; //default = cell12Lat
         public static string[] styles = ["suggestedmini", "adminBoundsFilled"];
         public static string filePath = "";
 
-        //TODO: rename this to 'makeofflinezipfile", since making json is going to become its own function this one will zip up.
         public static void MakeOfflineJson(string plusCode, Polygon bounds = null, bool saveToFile = true, ZipArchive inner_zip = null, List<DbTables.Place> places = null)
         {
             //Make offline data for PlusCode6s, repeatedly if the one given is a 4 or 2.
@@ -84,8 +77,6 @@ namespace PraxisCore
 
                 if (plusCode.Length == 4)
                 {
-                    //NOTE: may do processing directly to zip file now.
-                    //CHECK: if we have a zip file, unzip it for processing.
                     Directory.CreateDirectory(filePath + plusCode.Substring(0, 2));
                     if (!File.Exists(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip"))
                     {
@@ -97,6 +88,7 @@ namespace PraxisCore
                     try
                     {
                         //Far future TODO: Work out out to start loading the next set of places from the DB while processing data for the current set
+                        //OR find a way to consistently improve MariaDB performance reading places where there's huge ones.
                         Console.WriteLine("Loading places for " + plusCode);
                         Stopwatch load = Stopwatch.StartNew();
                         places = Place.GetPlaces(plusCode.ToGeoArea(), skipTags: true);
@@ -130,21 +122,6 @@ namespace PraxisCore
                     if (removeFile)
                         File.Delete(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip");
 
-                    //ADDED: Because a LOT of these files are incredibly small, they take up a proprotionally HUGE amount of disk space thats actually empty.
-                    //so we now zip the files after they're created, so that all 64,000 1kb files can be as small as 64MB instead of 64GB of slack space.
-                    //But only do this is there are files at all.
-                    //var files = Directory.EnumerateFiles(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2));
-                    //if (files.Any())
-                    //{
-                    //    Log.WriteLog("Zipping data for " + plusCode.Substring(0, 4));
-                    //    var zip = ZipFile.Open(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip", ZipArchiveMode.Create);
-                    //    foreach (var file in files)
-                    //    {
-                    //        zip.CreateEntryFromFile(file, Path.GetFileName(file));
-                    //        File.Delete(file);
-                    //    }
-                    //    zip.Dispose();
-                    //}
                     return;
                 }
                 else
@@ -160,15 +137,7 @@ namespace PraxisCore
                 }
             }
 
-            //This is to let us be resumable if this stop for some reason, and to keep the number of files in a folder manageable.
-            //Each file is a Cell6, so a Cell4 folder has 200 files, and a Cell2 folder would have 40,000
-
-            //NOTE: This is getting replaced with the merge logic from now on. Breakpoints will have to be on the Cell2 level if you want to resume.
-            //if (File.Exists(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode + ".json"))
-            //return;
-
             Directory.CreateDirectory(filePath + plusCode.Substring(0, 2));
-            //Directory.CreateDirectory(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2));
 
             var sw = Stopwatch.StartNew();
             var finalData = MakeEntries(plusCode, string.Join(",", styles), places);
@@ -184,11 +153,9 @@ namespace PraxisCore
                 lock (zipLock)
                 {
                     Stream entryStream;
-                    //if (File.Exists(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode + ".json"))
                     var entry = inner_zip.GetEntry(plusCode + ".json");
                     if (entry != null)
                     {
-                        //Still having issues with this, particularly when the PREVIOUS run wrote a smaller entry.
                         entryStream = entry.Open();
                         OfflineDataV2 existingData = JsonSerializer.Deserialize<OfflineDataV2>(entryStream);
                         var dataSize = data.Length;
@@ -202,14 +169,10 @@ namespace PraxisCore
 
                         entryStream.Position = 0;
                         entryStream.SetLength(data.Length);
-                        //entryStream.Close();
-                        //entry.Delete();
-                        //entry = inner_zip.CreateEntry(plusCode + ".json");
-                        //entryStream = entry.Open();
                     }
                     else
                     {
-                        entry = inner_zip.CreateEntry(plusCode + ".json");
+                        entry = inner_zip.CreateEntry(plusCode + ".json", CompressionLevel.Optimal);
                         entryStream = entry.Open();
                     }
 
@@ -218,8 +181,6 @@ namespace PraxisCore
                     entryStream.Close();
                     entryStream.Dispose();
                 }
-
-
 
                 sw.Stop();
                 Log.WriteLog("Created and saved offline data for " + plusCode + " in " + sw.Elapsed);
@@ -230,16 +191,8 @@ namespace PraxisCore
             }
         }
 
-
-        //TODO: test out performance by passing in the list of places to use from Cell4 vs loading hte Cell6 from DB each call.
         public static OfflineDataV2 MakeEntries(string plusCode, string stylesToUse, List<DbTables.Place> places = null)
         {
-            //TODO: Most of the stuff from here on should be put into its own function that can be called from this big recursive function
-            //OR from the offline plugin for a single area and return data. 
-            //May also want an alternate version that queries all places first, then loops based on placeData key matching the styles. 
-            //should see if thats faster on some of these very slow blocks I keep hitting.
-
-
             using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
@@ -252,25 +205,19 @@ namespace PraxisCore
             //Adding variables here so that an instance can process these at higher or lower accuracy if desired. Higher accuracy or not simplifying items
             //will make larger files but the output would be a closer match to the server's images.
 
-
             var min = cell.Min;
             Dictionary<string, int> nametable = new Dictionary<string, int>(); //name, id
             var nameIdCounter = 0;
 
-            //Console.WriteLine(plusCode + ":Checking if places exist");
-
             if (!PraxisCore.Place.DoPlacesExist(cell, places))
                 return null;
-            //Console.WriteLine(plusCode + ":places found");
 
             var finalData = new OfflineDataV2();
             finalData.olc = plusCode;
             finalData.entries = new Dictionary<string, List<OfflinePlaceEntry>>();
             foreach (var style in styles)
             {
-                //Console.WriteLine(plusCode + ":getting places with " + style);
                 var placeData = PraxisCore.Place.GetPlaces(cell, source: places, styleSet: style, dataKey: style, skipTags: true);
-                //Console.WriteLine(plusCode + ":places got - " + placeData.Count);
 
                 if (placeData.Count == 0)
                     continue;
@@ -278,13 +225,11 @@ namespace PraxisCore
                 var names = placeData.Where(p => !string.IsNullOrWhiteSpace(p.Name) && !nametable.ContainsKey(p.Name)).Select(p => p.Name).Distinct();
                 foreach (var name in names)
                     nametable.Add(name, ++nameIdCounter);
-                //nametable = nametable.Union(placeData.Where(p => !string.IsNullOrWhiteSpace(p.Name)).Select(p => p.Name).Distinct().ToDictionary(k => k, v => ++nameIdCounter)).Distinct().ToDictionary();
 
                 //foreach (var place in placeData)
                 Parallel.ForEach(placeData, (place) => //we save data and re-order stuff after.
                 {
                     var sizeOrder = place.DrawSizeHint; //TODO: add this in somewhere so I can order by size and run these in parallel.
-                    //POTENTIAL TODO: I may need to crop all places first, then sort by their total area to process these largest-to-smallest on the client
                     var geo = place.ElementGeometry.Intersection(area);
                     if (simplifyRes > 0)
                         geo = geo.Simplify(simplifyRes);
@@ -296,37 +241,19 @@ namespace PraxisCore
                     {
                         if (nametable.TryGetValue(place.Name, out var nameval))
                             nameID = nameval;
-                        //else
-                        //{
-                        //    nametable.Add(place.Name, ++nameIdCounter);
-                        //    nameID = nameIdCounter;
-                        //}
                     }
-
 
                     var styleEntry = TagParser.allStyleGroups[style][place.StyleName];
 
                     //I'm locking these geometry items to a tile, So I convert these points in the geometry to integers, effectively
                     //letting me draw Cell11 pixel-precise points from this info, and is shorter stringified for JSON vs floats/doubles.
                     var coordSets = GetCoordEntries(geo, cell.Min, xRes, yRes); //Original human-readable strings
-                                                                                //var coordSets = GetCoordEntriesInt(place, cell.Min, xRes, yRes); //base64 encoded integers. Uses about half the space unzipped, works out the same zipped.
-                    foreach (var coordSet in coordSets)
+                     foreach (var coordSet in coordSets)
                     {
                         if (coordSet == "")
                             //if (coordSet.Count == 0)
                             continue;
 
-                        //Now to encode the ints.
-                        //byte[] encoded = new byte[coordSet.Count * 4];
-                        //for (int x = 0; x < coordSet.Count; x++)
-                        //{
-                        //    var tempByte = new byte[4];
-                        //    BinaryPrimitives.TryWriteInt32LittleEndian(tempByte, coordSet[x]);
-                        //    tempByte.CopyTo(encoded, x * 4);
-                        //}
-                        //var stringifiedInts = Convert.ToBase64String(encoded);
-
-                        //System.Diagnostics.Debugger.Break();
                         var offline = new OfflinePlaceEntry();
                         offline.nid = nameID;
                         offline.tid = styleEntry.MatchOrder; //Client will need to know what this ID means from the offline style endpoint output.
@@ -456,12 +383,10 @@ namespace PraxisCore
         public static void MakeMinimizedOfflineData(string plusCode, Polygon bounds = null, bool saveToFile = true, ZipArchive inner_zip = null, List<DbTables.OfflinePlace> places = null)
         {
             //This produces JSON with 1 row per item and a few fields:
-            //Name (possibly a table saved separately), PlusCode (centerpoint), radius (SQUARE SHAPED, but calculated based on the envelope for non-points), and terrain type.
+            //Name (table in the file), PlusCode (centerpoint), radius, and terrain type.
             //This is worth considering for games that DONT need geometry and can do a little bit of lookup on their own.
             //This may also be created per Cell2/4/6 block for comparison vs drawable data.
-            //I may also reduce this to a Cell10 resolution?
 
-            //Minimized data could be drawn at the Cell11 resolution, or Cell10, since it's not intended to be displayed to the user.
 
             //Make offline data for PlusCode6s, repeatedly if the one given is a 4 or 2.
             if (bounds == null)
@@ -476,9 +401,6 @@ namespace PraxisCore
             if (!area.Intersects(bounds))
                 return;
 
-            //Hmm. Is this actually any different from just exporting data as before, but cropping every element to its envelope? (or a 
-            //it might not be, and thats still 
-
             if (plusCode.Length < 6)
             {
                 //if (!PraxisCore.Place.DoPlacesExist(plusCode.ToGeoArea(), places))
@@ -490,25 +412,16 @@ namespace PraxisCore
                     if (!File.Exists(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip"))
                     {
                         inner_zip = new ZipArchive(File.Create(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip"), ZipArchiveMode.Update);
-
-                        //Log.WriteLog("Unzipping existing data for " + plusCode.Substring(0, 4));
-                        ////unzip that file
-                        //var fs = File.OpenRead(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip");
-                        //ZipFile.ExtractToDirectory(fs, filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2));
-                        //fs.Close();
-                        //File.Delete(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip");
-                        //inner_zip = ZipFile.Open(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip", ZipArchiveMode.Update);
                     }
                     else
                         inner_zip = ZipFile.Open(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip", ZipArchiveMode.Update);
-
 
                     try
                     {
                         Stopwatch load = Stopwatch.StartNew();
                         places = Place.GetOfflinePlaces(plusCode.ToGeoArea());
                         load.Stop();
-                        Console.WriteLine("Places loaded in " + load.Elapsed);
+                        Console.WriteLine("Places loaded in " + load.Elapsed + ", count " + places.Count().ToString()  + ", biggest " + places.Max(p => p.ElementGeometry.Coordinates.Count()).ToString());
                     }
                     catch (Exception ex)
                     {
@@ -558,14 +471,6 @@ namespace PraxisCore
                 }
             }
 
-            //This is to let us be resumable if this stop for some reason, and to keep the number of files in a folder manageable.
-            //Each file is a Cell6, so a Cell4 folder has 200 files, and a Cell2 folder would have 40,000
-            //if (File.Exists(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode + ".json"))
-            //return;
-
-
-            //Directory.CreateDirectory(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2));
-
             var sw = Stopwatch.StartNew();
             var finalData = MakeMinimizedOfflineEntries(plusCode, string.Join(",", styles), places);
             if (finalData == null || (finalData.nameTable == null && finalData.entries.Count == 0))
@@ -580,7 +485,6 @@ namespace PraxisCore
                 lock (zipLock)
                 {
                     Stream entryStream;
-                    //if (File.Exists(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(2, 2) + "\\" + plusCode + ".json"))
                     var entry = inner_zip.GetEntry(plusCode + ".json");
                     if (entry != null)
                     {
@@ -588,13 +492,10 @@ namespace PraxisCore
                         OfflineDataV2Min existingData = JsonSerializer.Deserialize<OfflineDataV2Min>(entryStream);
                         finalData = MergeMinimumOfflineFiles(finalData, existingData);
                         entryStream.Position = 0;
-                        //entry.Delete();
-                        //entry = inner_zip.CreateEntry(plusCode + ".json");
-                        //entryStream = entry.Open();
                     }
                     else
                     {
-                        entry = inner_zip.CreateEntry(plusCode + ".json");
+                        entry = inner_zip.CreateEntry(plusCode + ".json", CompressionLevel.Optimal);
                         entryStream = entry.Open();
                     }
 
@@ -626,7 +527,6 @@ namespace PraxisCore
 
             var cell = plusCode.ToGeoArea();
             var area = plusCode.ToPolygon();
-            //var cellPoly = cell.ToPolygon();
 
             //Minimized offline files do not benefit from variables, they're fairly fixed and changing anything here doesn't really help.
 
@@ -650,22 +550,18 @@ namespace PraxisCore
 
                 if (placeData.Count == 0)
                     continue;
-                //List<MinOfflineData> entries = new List<MinOfflineData>(placeData.Count);
                 ConcurrentBag<MinOfflineData> entries = new ConcurrentBag<MinOfflineData>();
                 var names = placeData.Where(p => !string.IsNullOrWhiteSpace(p.Name) && !nametable.ContainsKey(p.Name)).Select(p => p.Name).Distinct();
                 foreach (var name in names)
                     nametable.Add(name, ++nameIdCounter);
-                //nametable = nametable.Union(placeData.Where(p => !string.IsNullOrWhiteSpace(p.Name)).Select(p => p.Name).Distinct().ToDictionary(k => k, v => ++nameIdCounter)).Distinct().ToDictionary();
 
                 //foreach (var place in placeData)
                 Parallel.ForEach(placeData, (place) =>
                 {
-
                     //This is a catch-fix for a different issue, where apparently some closed lineStrings aren't converted to polygons on load.
                     if (place.ElementGeometry.GeometryType == "LineString" && ((LineString)place.ElementGeometry).IsClosed)
                         place.ElementGeometry = Singletons.geometryFactory.CreatePolygon(place.ElementGeometry.Coordinates);
 
-                    //POTENTIAL TODO: I may need to crop all places first, then sort by their total area to process these largest-to-smallest on the client
                     Geometry geo = Singletons.geometryFactory.CreateEmpty(Dimension.Surface);
                     try
                     {
@@ -700,8 +596,6 @@ namespace PraxisCore
                         var offline = new MinOfflineData();
                         offline.nid = nameID;
                         offline.c = (int)Math.Round((geo.Centroid.X - min.Longitude) / innerRes) + "," + ((int)Math.Round((geo.Centroid.Y - min.Latitude) / innerRes));
-                        //First attempt at formula: Nearly ensures the full area will be covered, but dramatically overshoots almost all areas.
-                        //offline.r = (int)Math.Round(((geo.EnvelopeInternal.Width + geo.EnvelopeInternal.Height) * 0.5) / innerRes);
                         offline.r = Math.Max(2, (int)Math.Round(Math.Sqrt(geo.Area / Math.PI) / ConstantValues.resolutionCell10)); //Get area in degrees, conver to Cell10 pixels, minimum 2.
                         offline.tid = styleEntry.MatchOrder;
                         entries.Add(offline);
@@ -779,13 +673,11 @@ namespace PraxisCore
             finalData.nameTable = nametable.Count > 0 ? nametable.ToDictionary(k => k.Value, v => v.Key) : null;
 
             return finalData;
-
         }
 
         public static OfflineDataV2Min MergeMinimumOfflineFiles(OfflineDataV2Min existing, OfflineDataV2Min adding)
         {
             //Step 1: Update name table
-
             Dictionary<int, int> newNameMap = new Dictionary<int, int>(); //<addingTableKey, exisitngTAbleKey>
             if (existing.nameTable == null)
                 existing.nameTable = new Dictionary<int, string>();
@@ -837,7 +729,6 @@ namespace PraxisCore
         public static OfflineDataV2 MergeOfflineFiles(OfflineDataV2 existing, OfflineDataV2 adding)
         {
             //Step 1: Update name table
-
             Dictionary<int, int> newNameMap = new Dictionary<int, int>(); //<addingTableKey, exisitngTAbleKey>
             if (existing.nameTable == null)
                 existing.nameTable = new Dictionary<int, string>();
