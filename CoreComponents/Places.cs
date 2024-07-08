@@ -93,6 +93,8 @@ namespace PraxisCore
 
             queryable = queryable.Where(md => location.Intersects(md.ElementGeometry));
 
+            //TODO: determine if this change is actually necessary, or was some fluke.
+            List<PlaceTags> placeholder = new List<PlaceTags>();
             queryable = queryable.Select(q => new DbTables.Place() 
             { 
                 ElementGeometry = skipGeometry ? null : q.ElementGeometry,
@@ -101,7 +103,7 @@ namespace PraxisCore
                 PrivacyId = q.PrivacyId, 
                 SourceItemID = q.SourceItemID, 
                 SourceItemType = q.SourceItemType, 
-                Tags = skipTags ? null : q.Tags, 
+                Tags = skipTags ? placeholder : q.Tags, 
                 PlaceData = dataKey == null ? q.PlaceData : q.PlaceData.Where(d => d.DataKey == dataKey).ToList(),
                 Name = q.Name
             });
@@ -119,15 +121,80 @@ namespace PraxisCore
                 //System.Diagnostics.Debugger.Break();
             }
 
-
-
-
             if (db != null)
             {
                 db.ChangeTracker.Clear();
                 db.Dispose();
             }
         
+            return places;
+        }
+
+        public static List<DbTables.OfflinePlace> GetOfflinePlaces(GeoArea area, List<DbTables.OfflinePlace> source = null, double filterSize = 0, string styleName = "",
+            bool skipGeometry = false)
+        {
+            //The flexible core of the lookup functions. Takes an area, returns results that intersect from Source. If source is null, looks into the DB.
+            //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
+            IQueryable<DbTables.OfflinePlace> queryable;
+            PraxisContext db = null;
+
+            //TODO: can I use Simplify in EFCore db-side? Probably not but worth checking. Might be OK to send over a reduced version
+            //where the precision is the 1-pixel size so areas with TONS of points get sent over as far fewer.
+
+            //TODO: see if I can use AsEnumerable() to enable streaming and processing of data instead of waiting for all entries with ToList()?
+            List<DbTables.OfflinePlace> places = null;
+
+            if (source == null)
+            {
+                db = new PraxisContext();
+                db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
+                db.Database.SetCommandTimeout(new TimeSpan(0, 5, 0));
+                queryable = db.OfflinePlaces;
+
+            }
+            else
+                queryable = source.AsQueryable();
+
+            var paddedArea = GeometrySupport.MakeBufferedGeoArea(area);
+            var location = paddedArea.ToPolygon();
+
+            if (filterSize != 0)
+                queryable = queryable.Where(md => md.DrawSizeHint >= filterSize);
+
+            if (styleName != "")
+                queryable = queryable.Where(md => md.StyleName == styleName);
+
+            queryable = queryable.Where(md => location.Intersects(md.ElementGeometry));
+
+            queryable = queryable.Select(q => new DbTables.OfflinePlace()
+            {
+                ElementGeometry = skipGeometry ? null : q.ElementGeometry,
+                DrawSizeHint = q.DrawSizeHint,
+                Id = q.Id,
+                SourceItemID = q.SourceItemID,
+                SourceItemType = q.SourceItemType,
+                StyleName = q.StyleName,
+                Name = q.Name
+            });
+
+            try
+            {
+                places = queryable.ToList();
+                places = places.OrderByDescending(p => p.DrawSizeHint).ToList();
+            }
+            catch (Exception ex)
+            {
+                var query = queryable.ToQueryString();
+                //System.Diagnostics.Debugger.Break();
+            }
+
+            if (db != null)
+            {
+                db.ChangeTracker.Clear();
+                db.Dispose();
+            }
+
             return places;
         }
 
@@ -180,6 +247,20 @@ namespace PraxisCore
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
                 db.Database.SetCommandTimeout(600);
                 return db.Places.Include(p => p.Tags).Any(md => md.ElementGeometry.Intersects(location) && !md.Tags.Any(t => t.Key == "bgwater")); //Exclude oceans from bounds checks.
+            }
+            return source.Any(md => md.ElementGeometry.Intersects(location));
+        }
+
+        public static bool DoOfflinePlacesExist(GeoArea area, List<DbTables.OfflinePlace> source = null)
+        {
+            var location = area.ToPolygon();
+            if (source == null)
+            {
+                using var db = new PraxisContext();
+                db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
+                db.Database.SetCommandTimeout(600);
+                return db.OfflinePlaces.Any(md => md.ElementGeometry.Intersects(location)); //Exclude oceans from bounds checks.
             }
             return source.Any(md => md.ElementGeometry.Intersects(location));
         }

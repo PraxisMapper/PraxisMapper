@@ -255,10 +255,10 @@ namespace Larry
                 OfflineData.filePath = config["PbfFolder"];
 
                 //Call this so we sort-of hint to MariaDB to use the right indexes later
-                var db = new PraxisContext();
-                var bounds = db.ServerSettings.FirstOrDefault();
-                var randomPlace = PraxisCore.Place.RandomPoint(bounds);
-                GetPlaces(randomPlace.Substring(0, 4).ToGeoArea(), skipTags: true, dataKey: OfflineData.styles[0]);
+                //var db = new PraxisContext();
+                //var bounds = db.ServerSettings.FirstOrDefault();
+                //var randomPlace = PraxisCore.Place.RandomPoint(bounds);
+                //GetPlaces(randomPlace.Substring(0, 4).ToGeoArea(), skipTags: true, dataKey: OfflineData.styles[0]);
 
                 OfflineData.MakeOfflineJson("");
                 File.Delete("lastOfflineEntry.txt");
@@ -272,10 +272,10 @@ namespace Larry
                 OfflineData.styles = ["suggestedmini"]; //Fixed for minimized mode, along with most other variables.
 
                 //Call this so we sort-of hint to MariaDB to use the right indexes later
-                var db = new PraxisContext();
-                var bounds = db.ServerSettings.FirstOrDefault();
-                var randomPlace = PraxisCore.Place.RandomPoint(bounds);
-                GetPlaces(randomPlace.Substring(0, 4).ToGeoArea(), skipTags: true, dataKey: OfflineData.styles[0]);
+                //var db = new PraxisContext();
+                //var bounds = db.ServerSettings.FirstOrDefault();
+                //var randomPlace = PraxisCore.Place.RandomPoint(bounds);
+                //GetPlaces(randomPlace.Substring(0, 4).ToGeoArea(), skipTags: true, dataKey: OfflineData.styles[0]);
 
                 OfflineData.MakeMinimizedOfflineData("");
                 File.Delete("lastOfflineEntry.txt");
