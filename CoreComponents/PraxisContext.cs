@@ -225,6 +225,7 @@ namespace PraxisCore
                 Database.ExecuteSqlRaw(SlippyMapTileIndex);
                 Database.ExecuteSqlRaw(PlacesIndex);
                 Database.ExecuteSqlRaw(AreaDataSpatialIndex);
+                Database.ExecuteSqlRaw(OfflinePlacesIndex);
             }
 
             if (serverMode == "SQLServer" || serverMode == "LocalDB")
