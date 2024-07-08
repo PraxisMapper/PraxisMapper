@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Linq;
 using System.Text.Json.Serialization;
 
 namespace PraxisCore {
@@ -203,14 +204,14 @@ namespace PraxisCore {
             }
 
             //This will save me from needing a new workflow entirely, and just adapt the save step.
-            public static OfflinePlace FromPlace(Place p)
+            public static OfflinePlace FromPlace(Place p, string styleSet)
             {
                 return new OfflinePlace() { 
                     Id = p.Id,
                     SourceItemID = p.SourceItemID,
                     SourceItemType = p.SourceItemType,
                     ElementGeometry = p.ElementGeometry,
-                    StyleName = p.StyleName,
+                    StyleName = p.PlaceData.FirstOrDefault(d => d.DataKey == styleSet).DataValue.ToUTF8String(),
                     DrawSizeHint = p.DrawSizeHint,
                     Name = p.Name
                 };
