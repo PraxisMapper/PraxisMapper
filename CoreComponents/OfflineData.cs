@@ -387,15 +387,6 @@ namespace PraxisCore
             //This is worth considering for games that DONT need geometry and can do a little bit of lookup on their own.
             //This may also be created per Cell2/4/6 block for comparison vs drawable data.
 
-            //Called with an empty string, to mean 'run for all Cell2s'
-            if (plusCode == "")
-            {
-                foreach (var pair in GetCell2Combos())
-                    MakeMinimizedOfflineData(plusCode + pair, bounds, saveToFile);
-                return;
-            }
-
-
             //Make offline data for PlusCode6s, repeatedly if the one given is a 4 or 2.
             if (bounds == null)
             {
@@ -403,6 +394,14 @@ namespace PraxisCore
                 var settings = dbB.ServerSettings.FirstOrDefault();
                 bounds = new GeoArea(settings.SouthBound, settings.WestBound, settings.NorthBound, settings.EastBound).ToPolygon();
                 dbB.Dispose();
+            }
+
+            //Called with an empty string, to mean 'run for all Cell2s'
+            if (plusCode == "")
+            {
+                foreach (var pair in GetCell2Combos())
+                    MakeMinimizedOfflineData(plusCode + pair, bounds, saveToFile);
+                return;
             }
 
             var area = plusCode.ToPolygon();
@@ -521,6 +520,7 @@ namespace PraxisCore
         public static OfflineDataV2Min MakeMinimizedOfflineEntries(string plusCode, string stylesToUse, List<DbTables.OfflinePlace> places = null)
         {
             using var db = new PraxisContext();
+            db.Database.SetCommandTimeout(600);
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             db.ChangeTracker.AutoDetectChangesEnabled = false;
             var styles = stylesToUse.Split(",");
@@ -667,6 +667,7 @@ namespace PraxisCore
                 var finalEntries = entries.OrderByDescending(e => e.r).ToList(); //so they'll be drawn biggest to smallest for sure.
                 finalData.entries[style] = finalEntries;
             }
+            db.Dispose();
 
             if (finalData.entries.Count == 0)
                 return null;
