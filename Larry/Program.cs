@@ -279,6 +279,8 @@ namespace Larry
 
                 OfflineData.MakeMinimizedOfflineData("");
                 File.Delete("lastOfflineEntry.txt");
+
+                ZipFolders();
             }
 
             if (args.Any(a => a == "-mergeOfflineSets"))
@@ -1217,6 +1219,20 @@ namespace Larry
                 r.ProcessFileV2(filename, long.Parse(config["UseOneRelationID"]));
                 File.Move(filename, filename + "done");
             }
+        }
+
+        //For zipping up the output from making minimized offline data
+        public static void ZipFolders()
+        {
+            Log.WriteLog("Zipping all folders");
+            var folders = Directory.EnumerateDirectories(config["PbfFolder"]);
+
+            foreach (string folder in folders)
+            {
+                ZipFile.CreateFromDirectory(folder, config["PbfFolder"] + Path.GetFileName(folder) + ".zip", CompressionLevel.SmallestSize, false);
+                Log.WriteLog(folder + " zipped");
+            }
+            Log.WriteLog("Zipping files complete");
         }
     }
 }
