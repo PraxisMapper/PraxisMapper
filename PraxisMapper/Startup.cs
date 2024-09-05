@@ -164,7 +164,10 @@ namespace PraxisMapper
                     reader.saveToDB = true;
                     reader.ProcessFileV2(candidates.First(), relationAsBounds);
                     Log.WriteLog("Done populating DB from " + candidates.First());
-                    db.SetServerBounds(relationAsBounds);
+                    //Load this relation from the file, JUST IN CASE it wasn't merged into the DB.
+                    var relation = reader.MakeCompleteRelation(relationAsBounds);
+                    var NTSrelation = GeometrySupport.ConvertOsmEntryToPlace(relation, "importAll");
+                    db.SetServerBounds(NTSrelation.ElementGeometry);
                 }
             }
          }
