@@ -61,6 +61,8 @@ namespace PraxisCore.PbfReader
         Envelope bounds = null; //If not null, reject elements not within it
         public Polygon importBounds = null; //If set, we're only importing data that fits inside this polygon.
 
+        //TODO: see if activeBlocks can be swapped to an array, to avoid resizing of the dictionary between blocks.
+        //and accessedBlocks can be just an array of longs.
         ConcurrentDictionary<long, PrimitiveBlock> activeBlocks = new ConcurrentDictionary<long, PrimitiveBlock>(initialConcurrency, initialCapacity);
         ConcurrentDictionary<long, bool> accessedBlocks = new ConcurrentDictionary<long, bool>(initialConcurrency, initialCapacity);
 
@@ -846,7 +848,7 @@ namespace PraxisCore.PbfReader
         /// <param name="relationId">the relation to load and process</param>
         /// <param name="ignoreUnmatched">if true, skip entries that don't get a TagParser match applied to them.</param>
         /// <returns>an OSMSharp CompleteRelation, or null if entries are missing, the elements were unmatched and ignoreUnmatched is true, or there were errors creating the object.</returns>
-        private CompleteRelation MakeCompleteRelation(long relationId, bool ignoreUnmatched = false, PrimitiveBlock relationBlock = null)
+        public CompleteRelation MakeCompleteRelation(long relationId, bool ignoreUnmatched = false, PrimitiveBlock relationBlock = null)
         {
             try
             {
