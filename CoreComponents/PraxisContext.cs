@@ -1,6 +1,7 @@
 ﻿using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
+using OsmSharp.Complete;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -221,6 +222,8 @@ namespace PraxisCore
             }
             else //SQL Server and MariaDB share the same syntax here
             {
+                //NOTE: SQL/LocalDB and MariaDB no longer can use this same text. SQL wants a bounding box defined, Mariadb doesnt.
+                //(or this might be a consequence of changing from geography to geometry)
                 Database.ExecuteSqlRaw(MapTileIndex);
                 Database.ExecuteSqlRaw(SlippyMapTileIndex);
                 Database.ExecuteSqlRaw(PlacesIndex);
@@ -447,20 +450,40 @@ namespace PraxisCore
             Database.ExecuteSqlRaw(SQL);
         }
 
-        public GeoArea SetServerBounds(long singleArea)
+        public GeoArea SetServerBounds(Geometry relation)
+        {
+            var envelop = relation.EnvelopeInternal;
+            var results = new GeoArea(envelop.MinY, envelop.MinX, envelop.MaxY, envelop.MaxX);
+
+            var settings = ServerSettings.FirstOrDefault();
+            if (settings == null) //Shouldn't happen, but an error in the right spot and re-running the process can cause this.
+            {
+                settings = new ServerSetting();
+                ServerSettings.Add(settings);
+            }
+            settings.NorthBound = results.NorthLatitude;
+            settings.SouthBound = results.SouthLatitude;
+            settings.EastBound = results.EastLongitude;
+            settings.WestBound = results.WestLongitude;
+            SaveChanges();
+            Log.WriteLog("Server bounds set to (" + settings.SouthBound + "," + settings.WestBound + "), (" + settings.NorthBound + "," + settings.EastBound + ")");
+            return results;
+        }
+
+        public GeoArea SetServerBounds(long singlePlace)
         {
             //This is an important command if you don't want to track data outside of your initial area.
             GeoArea results = null;
-            if (singleArea != 0)
+            if (singlePlace != 0)
             {
-                Log.WriteLog("Setting server bounds to envelope of " + singleArea);
-                var area = Places.FirstOrDefault(e => e.SourceItemID == singleArea);
+                Log.WriteLog("Setting server bounds to envelope of " + singlePlace);
+                var area = Places.FirstOrDefault(e => e.SourceItemID == singlePlace);
                 if (area == null)
                 {
                     //singleArea probably wasn't a valid ID.
+                    throw new Exception("Could not find Place ID " + singlePlace + "in database");
                 }
-                var envelop = area.ElementGeometry.EnvelopeInternal;
-                results = new GeoArea(envelop.MinY, envelop.MinX, envelop.MaxY, envelop.MaxX);
+                return SetServerBounds(area.ElementGeometry);
             }
             else
             {
