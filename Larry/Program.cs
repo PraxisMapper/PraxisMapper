@@ -73,8 +73,10 @@ namespace Larry
             //    DownloadPbfFile(level1, level2, level3, config["PbfFolder"]);
             //}
 
-
-
+            if (args.Any(a => a == "-openCellId"))
+            {
+                ConvertOpenCellIdToPMD();
+            }
 
             if (args.Any(a => a == "-resetFiles"))
             {
@@ -119,8 +121,7 @@ namespace Larry
                 db.ResetStyles();
             }
 
-            TagParser.Initialize(config["ForceStyleDefaults"] == "True", MapTiles);
-
+            TagParser.Initialize(config["ForceStyleDefaults"] == "True", MapTiles);            
 
             //Takes a styleSet, and saves 1 output file per style in that set. 
             if (args.Any(a => a.StartsWith("-splitPbfByStyle:")))
@@ -1233,6 +1234,43 @@ namespace Larry
                 Log.WriteLog(folder + " zipped");
             }
             Log.WriteLog("Zipping files complete");
+        }
+
+        public static void ConvertOpenCellIdToPMD()
+        {
+            Log.WriteLog("Starting conversion from OpenCellId CSV to PMD file at " + DateTime.Now);
+            //Load the CSV file from OpenCellID
+            var sourceCsv = File.ReadAllLines(config["PbfFolder"] + "openCellId.csv").Skip(1);
+            //Translate it to PMD entries (Points, with a tag for Radius and a Style:OpenCellId)
+            var cellTowerPmd = new PlaceExport(config["PbfFolder"] + "openCellId.pmd");
+            var counter = 200000000000; //Ocean entries start at 100000000000, cell towers start at 200000000000
+
+            foreach (var item in sourceCsv)
+            {
+                counter++;
+                var data = item.Split(",");
+                var lon = data[6];
+                var lat = data[7];
+                var radius = data[8]; //assuming this is meters, not feet.
+
+                var place = new DbTables.Place() {
+                    SourceItemID = counter,
+                    SourceItemType = 2, //its a way now, not a point.
+                    //DrawSizeHint = GetDrawSizeHint(),
+                    
+                    ElementGeometry = new Point(lon.ToDouble(), lat.ToDouble()).Buffer(radius.ToDouble() * ConstantValues.oneMeterLat),
+                    Tags = new List<PlaceTags>() { new PlaceTags() { Key = "openCellId", Value = "yes" } }
+                };
+
+                place.DrawSizeHint = (radius.ToDouble() * radius.ToDouble() * Math.PI) / ConstantValues.squareCell11Area;
+
+                cellTowerPmd.AddEntry(place);
+            }
+
+            //Save to file.
+            Log.WriteLog("Saving data...");
+            cellTowerPmd.WriteToDisk();
+            Log.WriteLog("Conversion completed at " + DateTime.Now);
         }
     }
 }

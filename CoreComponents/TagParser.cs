@@ -53,6 +53,7 @@ namespace PraxisCore {
             Singletons.defaultStyleEntries.AddRange(Styles.suggestedGameplay.style);
             Singletons.defaultStyleEntries.AddRange(Styles.suggestedmini.style);
             Singletons.defaultStyleEntries.AddRange(Styles.teamColor.style);
+            Singletons.defaultStyleEntries.AddRange(Styles.openCellId.style);
 
             MapTiles = mapTiles;
             List<StyleEntry> styles;
