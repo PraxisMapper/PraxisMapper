@@ -39,6 +39,8 @@
   //center: save only item's center point, instead of it's full data. 
   //minimize: Saves a reduced-accuracy version of elements that uses fewer points. Looks fine zoomed out, tends to be very inaccurate up close.
   //If you are EXTREMELY limited on space, and not drawing map tiles to be served, but want to detect what areas a user is present at, minimize might be the option you want.
+  //offline: Loads places to the OfflinePlace table, which ignores all tags and PlaceData items in favor of storing the name and matched style entry inline.
+  //offline should be used if you're not going to update the data or are making offline files for a client app.
   "processingMode": "normal",
   //When creating images, load this IMapTiles interface to do it. Valid options are "SkiaSharp" and "ImageSharp".
   //SkiaSharp is faster and generally looks better, but only works on Windows because of native dependencies. ImageSharp works on everything, but about 30% of the speed.
