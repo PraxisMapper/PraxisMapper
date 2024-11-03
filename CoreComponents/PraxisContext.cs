@@ -113,6 +113,7 @@ namespace PraxisCore
 
         //Text to recreate these indexes if I drop them for database loading.
         public static string drawSizeHintIndexMaria = "CREATE OR REPLACE INDEX IX_Places_DrawSizeHint on Places(DrawSizeHint)";
+        public static string offlineDrawSizeHintIndexMaria = "CREATE OR REPLACE INDEX IX_OfflinePlaces_DrawSizeHint on OfflinePlaces(DrawSizeHint)";
         public static string privacyIdIndexMaria = "CREATE OR REPLACE INDEX IX_Places_privacyId on Places(privacyId)";
         public static string sourceItemIdIndexMaria = "CREATE OR REPLACE INDEX IX_Places_sourceItemID on Places(sourceItemID)";
         public static string sourceItemTypeIndexMaria = "CREATE OR REPLACE INDEX IX_Places_sourceItemType on Places(sourceItemType)";
@@ -120,6 +121,7 @@ namespace PraxisCore
         public static string tagSourceIndexMaria = "CREATE OR REPLACE INDEX IX_PlaceTags_SourceItemId_SourceItemType on PlaceTags(SourceItemId, SourceItemType)";
 
         public static string drawSizeHintIndexSQL = "CREATE INDEX IX_Places_DrawSizeHint on Places(DrawSizeHint)";
+        public static string offlineDrawSizeHintIndexSQL = "CREATE INDEX IX_OfflinePlaces_DrawSizeHint on OfflinePlaces(DrawSizeHint)";
         public static string privacyIdIndexSQL = "CREATE INDEX IX_Places_privacyId on Places(privacyId)";
         public static string sourceItemIdIndexSQL = "CREATE INDEX IX_Places_sourceItemID on Places(sourceItemID)";
         public static string sourceItemTypeIndexSQL = "CREATE INDEX IX_Places_sourceItemType on Places(sourceItemType)";
@@ -137,8 +139,10 @@ namespace PraxisCore
         public static string DropMapTileIndex = "DROP INDEX IF EXISTS MapTileSpatialIndex on MapTiles";
         public static string DropSlippyMapTileIndex = "DROP INDEX IF EXISTS SlippyMapTileSpatialIndex on SlippyMapTiles";
         public static string DropPlacesSpatialIndex = "DROP INDEX IF EXISTS PlacesIndex on Places";
+        public static string DropOfflinePlacesSpatialIndex = "DROP INDEX IF EXISTS OfflinePlacesIndex on OfflinePlaces";
         public static string DropAreaDataCoveredIndex = "DROP INDEX IF EXISTS areaDataSpatialIndex on AreaData";
         public static string DropPlacesDrawSizeHintIndex = "DROP INDEX IF EXISTS IX_Places_DrawSizeHint on Places";
+        public static string DropOfflinePlacesDrawSizeHintIndex = "DROP INDEX IF EXISTS IX_OfflinePlaces_DrawSizeHint on OfflinePlaces";
         public static string DropPLacesPrivacyIdIndex = "DROP INDEX IF EXISTS IX_Places_privacyId on Places";
         public static string DropPlacesSourceItemIdIndex = "DROP INDEX IF EXISTS IX_Places_sourceItemID on Places";
         public static string DropPlacesSourceItemTypeIndex = "DROP INDEX IF EXISTS IX_Places_sourceItemType on Places";
@@ -305,9 +309,12 @@ namespace PraxisCore
                 Log.WriteLog("SlippyMapTiles indexed.");
                 Database.ExecuteSqlRaw(PlacesIndex);
                 Log.WriteLog("Places geometry indexed.");
+                Database.ExecuteSqlRaw(OfflinePlacesIndex);
+                Log.WriteLog("Offline Places geometry indexed.");
 
                 //now also add the automatic ones we took out in DropIndexes.
                 Database.ExecuteSqlRaw(drawSizeHintIndexMaria);
+                Database.ExecuteSqlRaw(offlineDrawSizeHintIndexMaria);
                 Database.ExecuteSqlRaw(sourceItemIdIndexMaria);
                 Database.ExecuteSqlRaw(sourceItemTypeIndexMaria);
                 Database.ExecuteSqlRaw(privacyIdIndexMaria);
@@ -327,9 +334,12 @@ namespace PraxisCore
                 Log.WriteLog("SlippyMapTiles indexed.");
                 Database.ExecuteSqlRaw(PlacesIndex);
                 Log.WriteLog("Places geometry indexed.");
+                Database.ExecuteSqlRaw(OfflinePlacesIndex);
+                Log.WriteLog("Offline Places geometry indexed.");
 
                 //now also add the automatic ones we took out in DropIndexes.
                 Database.ExecuteSqlRaw(drawSizeHintIndexSQL);
+                Database.ExecuteSqlRaw(offlineDrawSizeHintIndexSQL);
                 Database.ExecuteSqlRaw(sourceItemIdIndexSQL);
                 Database.ExecuteSqlRaw(sourceItemTypeIndexSQL);
                 Database.ExecuteSqlRaw(privacyIdIndexSQL);
@@ -347,13 +357,16 @@ namespace PraxisCore
             Log.WriteLog("Dropping indexes.....");
             Database.ExecuteSqlRaw(DropMapTileIndex);
             Database.ExecuteSqlRaw(DropPlacesSpatialIndex);
+            Database.ExecuteSqlRaw(DropOfflinePlacesSpatialIndex);
             Database.ExecuteSqlRaw(DropSlippyMapTileIndex);
             Database.ExecuteSqlRaw(DropAreaDataCoveredIndex);
             Database.ExecuteSqlRaw(DropPlacesDrawSizeHintIndex);
+            Database.ExecuteSqlRaw(DropOfflinePlacesDrawSizeHintIndex);
             Database.ExecuteSqlRaw(DropPLacesPrivacyIdIndex);
             Database.ExecuteSqlRaw(DropPlacesSourceItemTypeIndex);
             Database.ExecuteSqlRaw(DropPlacesSourceItemIdIndex);
             Database.ExecuteSqlRaw(DropTagKeyIndex);
+            //TODO: drop and recreate offlinePlaces indexes.
             //Not dropping the sourceItemId index because of a requirement from a foreign key.
             Log.WriteLog("Indexes dropped.");
         }
