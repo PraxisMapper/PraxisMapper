@@ -1,5 +1,6 @@
 ﻿using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
+using MySqlConnector;
 using NetTopologySuite.Geometries;
 using System;
 using System.Collections.Concurrent;
@@ -91,7 +92,7 @@ namespace PraxisCore
                         //OR find a way to consistently improve MariaDB performance reading places where there's huge ones.
                         Console.WriteLine("Loading places for " + plusCode);
                         Stopwatch load = Stopwatch.StartNew();
-                        places = Place.GetPlaces(plusCode.ToGeoArea(), skipTags: true);
+                        places = Place.GetPlaces(plusCode.ToGeoArea().PadGeoArea(ConstantValues.resolutionCell8), skipTags: true);
                         //For the really big areas, if we crop it once here, should save about 3 minutes of processing later.
                         foreach (var place in places)
                             place.ElementGeometry = place.ElementGeometry.Intersection(area); 
@@ -193,95 +194,110 @@ namespace PraxisCore
 
         public static OfflineDataV2 MakeEntries(string plusCode, string stylesToUse, List<DbTables.Place> places = null)
         {
-            using var db = new PraxisContext();
-            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
-            db.ChangeTracker.AutoDetectChangesEnabled = false;
-
-            var cell = plusCode.ToGeoArea();
-            var area = plusCode.ToPolygon();
-
-            var styles = stylesToUse.Split(",");
-
-            //Adding variables here so that an instance can process these at higher or lower accuracy if desired. Higher accuracy or not simplifying items
-            //will make larger files but the output would be a closer match to the server's images.
-
-            var min = cell.Min;
-            Dictionary<string, int> nametable = new Dictionary<string, int>(); //name, id
-            var nameIdCounter = 0;
-
-            if (!PraxisCore.Place.DoPlacesExist(cell, places))
-                return null;
-
-            var finalData = new OfflineDataV2();
-            finalData.olc = plusCode;
-            finalData.entries = new Dictionary<string, List<OfflinePlaceEntry>>();
-            foreach (var style in styles)
+            var counter = 1;
+            try
             {
-                var placeData = PraxisCore.Place.GetPlaces(cell, source: places, styleSet: style, dataKey: style, skipTags: true);
+                using var db = new PraxisContext();
+                db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
 
-                if (placeData.Count == 0)
-                    continue;
-                List<OfflinePlaceEntry> entries = new List<OfflinePlaceEntry>(placeData.Count);
-                var names = placeData.Where(p => !string.IsNullOrWhiteSpace(p.Name) && !nametable.ContainsKey(p.Name)).Select(p => p.Name).Distinct();
-                foreach (var name in names)
-                    nametable.Add(name, ++nameIdCounter);
+                var cell = plusCode.ToGeoArea();
+                var area = plusCode.ToPolygon();
 
-                //foreach (var place in placeData)
-                Parallel.ForEach(placeData, (place) => //we save data and re-order stuff after.
+                var styles = stylesToUse.Split(",");
+
+                //Adding variables here so that an instance can process these at higher or lower accuracy if desired. Higher accuracy or not simplifying items
+                //will make larger files but the output would be a closer match to the server's images.
+
+                var min = cell.Min;
+                Dictionary<string, int> nametable = new Dictionary<string, int>(); //name, id
+                var nameIdCounter = 0;
+
+                if (!PraxisCore.Place.DoPlacesExist(cell, places))
+                    return null;
+
+                var finalData = new OfflineDataV2();
+                finalData.olc = plusCode;
+                finalData.entries = new Dictionary<string, List<OfflinePlaceEntry>>();
+                foreach (var style in styles)
                 {
-                    var sizeOrder = place.DrawSizeHint; //TODO: add this in somewhere so I can order by size and run these in parallel.
-                    var geo = place.ElementGeometry.Intersection(area);
-                    if (simplifyRes > 0)
-                        geo = geo.Simplify(simplifyRes);
-                    if (geo.IsEmpty)
-                        return; // continue; //Probably an element on the border thats getting pulled in by buffer.
+                    var placeData = PraxisCore.Place.GetPlaces(cell, source: places, styleSet: style, dataKey: style, skipTags: true);
 
-                    int? nameID = null;
-                    if (!string.IsNullOrWhiteSpace(place.Name))
+                    if (placeData.Count == 0)
+                        continue;
+                    List<OfflinePlaceEntry> entries = new List<OfflinePlaceEntry>(placeData.Count);
+                    var names = placeData.Where(p => !string.IsNullOrWhiteSpace(p.Name) && !nametable.ContainsKey(p.Name)).Select(p => p.Name).Distinct();
+                    foreach (var name in names)
+                        nametable.Add(name, ++nameIdCounter);
+
+                    //foreach (var place in placeData)
+                    Parallel.ForEach(placeData, (place) => //we save data and re-order stuff after.
                     {
-                        if (nametable.TryGetValue(place.Name, out var nameval))
-                            nameID = nameval;
-                    }
+                        var sizeOrder = place.DrawSizeHint; //TODO: add this in somewhere so I can order by size and run these in parallel.
+                        var geo = place.ElementGeometry.Intersection(area);
+                        if (simplifyRes > 0)
+                            geo = geo.Simplify(simplifyRes);
+                        if (geo.IsEmpty)
+                            return; // continue; //Probably an element on the border thats getting pulled in by buffer.
 
-                    var styleEntry = TagParser.allStyleGroups[style][place.StyleName];
+                        int? nameID = null;
+                        if (!string.IsNullOrWhiteSpace(place.Name))
+                        {
+                            if (nametable.TryGetValue(place.Name, out var nameval))
+                                nameID = nameval;
+                        }
 
-                    //I'm locking these geometry items to a tile, So I convert these points in the geometry to integers, effectively
-                    //letting me draw Cell11 pixel-precise points from this info, and is shorter stringified for JSON vs floats/doubles.
-                    var coordSets = GetCoordEntries(geo, cell.Min, xRes, yRes); //Original human-readable strings
-                     foreach (var coordSet in coordSets)
+                        var styleEntry = TagParser.allStyleGroups[style][place.StyleName];
+
+                        //I'm locking these geometry items to a tile, So I convert these points in the geometry to integers, effectively
+                        //letting me draw Cell11 pixel-precise points from this info, and is shorter stringified for JSON vs floats/doubles.
+                        var coordSets = GetCoordEntries(geo, cell.Min, xRes, yRes); //Original human-readable strings
+                        foreach (var coordSet in coordSets)
+                        {
+                            if (coordSet == "")
+                                //if (coordSet.Count == 0)
+                                continue;
+
+                            var offline = new OfflinePlaceEntry();
+                            offline.nid = nameID;
+                            offline.tid = styleEntry.MatchOrder; //Client will need to know what this ID means from the offline style endpoint output.
+
+                            offline.gt = geo.GeometryType == "Point" ? 1 : geo.GeometryType == "LineString" ? 2 : styleEntry.PaintOperations.All(p => p.FillOrStroke == "stroke") ? 2 : 3;
+                            offline.p = coordSet;
+                            offline.size = sizeOrder;
+                            offline.layerOrder = styleEntry.PaintOperations.Min(p => p.LayerId);
+                            entries.Add(offline);
+                        }
+                    });
+                    //TODO: determine why one south america place was null.
+                    //Smaller number layers get drawn first, and bigger places get drawn first.
+                    finalData.entries[style] = entries.Where(e => e != null).OrderBy(e => e.layerOrder).ThenByDescending(e => e.size).ToList();
+                    foreach (var e in finalData.entries[style])
                     {
-                        if (coordSet == "")
-                            //if (coordSet.Count == 0)
-                            continue;
-
-                        var offline = new OfflinePlaceEntry();
-                        offline.nid = nameID;
-                        offline.tid = styleEntry.MatchOrder; //Client will need to know what this ID means from the offline style endpoint output.
-
-                        offline.gt = geo.GeometryType == "Point" ? 1 : geo.GeometryType == "LineString" ? 2 : styleEntry.PaintOperations.All(p => p.FillOrStroke == "stroke") ? 2 : 3;
-                        offline.p = coordSet;
-                        offline.size = sizeOrder;
-                        offline.layerOrder = styleEntry.PaintOperations.Min(p => p.LayerId);
-                        entries.Add(offline);
+                        //Dont save this to the output file.
+                        e.size = null;
+                        e.layerOrder = null;
                     }
-                });
-                //TODO: determine why one south america place was null.
-                //Smaller number layers get drawn first, and bigger places get drawn first.
-                finalData.entries[style] = entries.Where(e => e != null).OrderBy(e => e.layerOrder).ThenByDescending(e => e.size).ToList();
-                foreach (var e in finalData.entries[style])
-                {
-                    //Dont save this to the output file.
-                    e.size = null;
-                    e.layerOrder = null;
                 }
+
+                if (finalData.entries.Count == 0)
+                    return null;
+
+                finalData.nameTable = nametable.Count > 0 ? nametable.ToDictionary(k => k.Value, v => v.Key) : null;
+
+                return finalData;
             }
-
-            if (finalData.entries.Count == 0)
+            catch (MySqlException ex1)
+            {
+                counter++;
+                System.Threading.Thread.Sleep(1000 * counter);
+                return MakeEntries(plusCode, stylesToUse, places);
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog("Caught unexpected error: " + ex.Message);
                 return null;
-
-            finalData.nameTable = nametable.Count > 0 ? nametable.ToDictionary(k => k.Value, v => v.Key) : null;
-
-            return finalData;
+            }
         }
 
 
@@ -426,7 +442,7 @@ namespace PraxisCore
                     try
                     {
                         Stopwatch load = Stopwatch.StartNew();
-                        places = Place.GetOfflinePlaces(plusCode.ToGeoArea());
+                        places = Place.GetOfflinePlaces(plusCode.ToGeoArea()); // Not padded, because this isn't drawing stuff.
                         load.Stop();
                         Console.WriteLine("Places loaded in " + load.Elapsed + ", count " + places.Count().ToString()  + ", biggest " + places.Max(p => p.ElementGeometry.Coordinates.Count()).ToString());
                     }
