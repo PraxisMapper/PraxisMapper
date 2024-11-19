@@ -21,7 +21,7 @@ public class PraxisHeaderCheck {
     }
 
     public async Task Invoke(HttpContext context) {
-        if (protectedControllers.Any(c => context.Request.Path.Value.ToLower().Contains(c))
+        if (protectedControllers.Any(c => context.Request.Path.Value.Contains(c, System.StringComparison.OrdinalIgnoreCase))
             && !(context.Request.Headers.Any(h => h.Key == "PraxisAuthKey" && h.Value == ServerAuthKey)
             || context.Request.Query.Any(q => q.Key.ToLower() == "praxisauthkey" && q.Value == ServerAuthKey))) {
             context.Abort();
