@@ -353,7 +353,7 @@ namespace PraxisCore.PbfReader
                     int changed = 0;
                     //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
                     //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
-                    if (geoData != null && geoData.Count > 0) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
+                    if (geoData != null && !geoData.IsEmpty) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
                     {
                         var placeIds = geoData.Where(g => g != null).Select(g => g.Id).ToList();
 
@@ -673,7 +673,7 @@ namespace PraxisCore.PbfReader
                 blockSizes.Add(blockCounter, bh.datasize);
 
                 byte[] thisblob = new byte[bh.datasize];
-                fs.Read(thisblob, 0, bh.datasize);
+                fs.ReadExactly(thisblob, 0, bh.datasize);
 
                 var passedBC = blockCounter;
                 //NOTE: this might be a good place to look at variable capture instead of letting thisblock get captured by
@@ -784,7 +784,7 @@ namespace PraxisCore.PbfReader
             using (var fs = File.OpenRead(fi.FullName))
             {
                 fs.Seek(pos1, SeekOrigin.Begin);
-                fs.Read(thisblob1, 0, size1);
+                fs.ReadExactly(thisblob1, 0, size1);
             }
 
             return DecodeBlock(thisblob1);

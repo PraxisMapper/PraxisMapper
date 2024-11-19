@@ -49,7 +49,7 @@ namespace PraxisMapper.Classes
             }
 
             var path = context.Request.Path.Value;
-            if (data != null && data.isGdprRequest && !path.ToLower().Contains("gdpr"))
+            if (data != null && data.isGdprRequest && !path.Contains("gdpr", StringComparison.OrdinalIgnoreCase))
                 return;
 
             if (!whitelistedPaths.Any(p => path.Contains(p))) {
@@ -87,10 +87,10 @@ namespace PraxisMapper.Classes
         public static void GetAuthInfo(HttpResponse response, out string account, out string password) {
             account = "";
             password = "";
-            if (response.Headers.ContainsKey("X-account"))
-                account = response.Headers["X-account"].ToString();
-            if (response.Headers.ContainsKey("X-internalPwd"))
-                password = response.Headers["X-internalPwd"].ToString();
+            if (response.Headers.TryGetValue("X-account", out var xAccount))
+                account = xAccount;
+            if (response.Headers.TryGetValue("X-internalPwd", out var xIntPwd))
+                password = xIntPwd;
         }
 
         public static bool IsAdmin(string accountId) {

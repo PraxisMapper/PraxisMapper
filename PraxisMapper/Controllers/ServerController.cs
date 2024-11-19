@@ -148,10 +148,9 @@ namespace PraxisMapper.Controllers
                 int authTimeout = Configuration["authTimeoutSeconds"].ToInt();
                 Guid token = Guid.NewGuid();
                 var intPassword = GenericData.GetInternalPassword(accountId, password);
-                if (Request.Headers.ContainsKey("AuthKey"))
+                if (Request.Headers.TryGetValue("AuthKey", out var auth))
                 {
-                    var authToken = Request.Headers["AuthKey"];
-                    PraxisAuthentication.RemoveEntry(authToken);
+                    PraxisAuthentication.RemoveEntry(auth);
                 }
                 PraxisAuthentication.AddEntry(new AuthData(accountId, intPassword, token.ToString(), DateTime.UtcNow.AddSeconds(authTimeout), ignoreBan));
                 return new AuthDataResponse(token, authTimeout);
@@ -164,9 +163,9 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Logout")]
         public void Logout()
         {
-            if (!Request.Headers.ContainsKey("AuthKey"))
+            if (!Request.Headers.TryGetValue("AuthKey", out var key))
                 return;
-            PraxisAuthentication.RemoveEntry(Request.Headers["AuthKey"]);
+            PraxisAuthentication.RemoveEntry(key);
         }
 
         [HttpPut]

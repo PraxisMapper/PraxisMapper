@@ -59,14 +59,14 @@ namespace PraxisMapper.Controllers
             return results;
         }
 
-        private void FinishMapTile(byte[] tiledata, string code, string styleSet)
-        {
-            if (SaveMapTiles())
-            {
-                var currentGen = MapTileSupport.SaveMapTile(code, styleSet, tiledata);
-                cache.Set("gen" + code + styleSet, currentGen);
-            }
-        }
+        //private void FinishMapTile(byte[] tiledata, string code, string styleSet)
+        //{
+        //    if (SaveMapTiles())
+        //    {
+        //        var currentGen = MapTileSupport.SaveMapTile(code, styleSet, tiledata);
+        //        cache.Set("gen" + code + styleSet, currentGen);
+        //    }
+        //}
 
         [HttpGet]
         [Route("/[controller]/DrawSlippyTile/{styleSet}/{zoom}/{x}/{y}.png")] //slippy map conventions.
@@ -191,7 +191,6 @@ namespace PraxisMapper.Controllers
             try {
                 var info = new ImageStats(code);
                 info = MapTileSupport.ScaleBoundsCheck(info, Configuration["imageMaxSide"].ToInt(), Configuration["maxImagePixels"].ToLong());
-
 
                 if (!DataCheck.IsInBounds(info.area)) {
                     Response.Headers.Add("X-notes", "OOB");

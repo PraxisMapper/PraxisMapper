@@ -78,13 +78,15 @@ namespace PraxisCore
 
                 if (plusCode.Length == 4)
                 {
-                    Directory.CreateDirectory(filePath + plusCode.Substring(0, 2));
-                    if (!File.Exists(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip"))
+                    var folder2 = string.Concat(filePath, plusCode.AsSpan(0, 2));
+                    var file = string.Concat(folder2, "\\", plusCode.AsSpan(0, 4), ".zip");
+                    Directory.CreateDirectory(folder2);
+                    if (!File.Exists(file))
                     {
-                        inner_zip = new ZipArchive(File.Create(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip"), ZipArchiveMode.Update);
+                        inner_zip = new ZipArchive(File.Create(file), ZipArchiveMode.Update);
                     }
                     else
-                        inner_zip = ZipFile.Open(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip", ZipArchiveMode.Update);
+                        inner_zip = ZipFile.Open(file, ZipArchiveMode.Update);
 
                     try
                     {
@@ -138,7 +140,8 @@ namespace PraxisCore
                 }
             }
 
-            Directory.CreateDirectory(filePath + plusCode.Substring(0, 2));
+            var folder = string.Concat(filePath, plusCode.Substring(0, 2));
+            Directory.CreateDirectory(folder);
 
             var sw = Stopwatch.StartNew();
             var finalData = MakeEntries(plusCode, string.Join(",", styles), places);
@@ -396,6 +399,7 @@ namespace PraxisCore
             return list;
         }
 
+        static readonly JsonSerializerOptions jso = new JsonSerializerOptions() { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull };
         public static void MakeMinimizedOfflineData(string plusCode, Polygon bounds = null, bool saveToFile = true, ZipArchive inner_zip = null, List<DbTables.OfflinePlace> places = null)
         {
             //This produces JSON with 1 row per item and a few fields:
@@ -444,7 +448,7 @@ namespace PraxisCore
                         Stopwatch load = Stopwatch.StartNew();
                         places = Place.GetOfflinePlaces(plusCode.ToGeoArea()); // Not padded, because this isn't drawing stuff.
                         load.Stop();
-                        Console.WriteLine("Places loaded in " + load.Elapsed + ", count " + places.Count().ToString()  + ", biggest " + places.Max(p => p.ElementGeometry.Coordinates.Count()).ToString());
+                        Console.WriteLine("Places loaded in " + load.Elapsed + ", count " + places.Count.ToString()  + ", biggest " + places.Max(p => p.ElementGeometry.Coordinates.Length).ToString());
                     }
                     catch (Exception ex)
                     {
@@ -477,7 +481,8 @@ namespace PraxisCore
                     if (doneCell2s.Contains(plusCode) && plusCode != "")
                         return;
 
-                    Directory.CreateDirectory(filePath + plusCode.Substring(0, 2));
+                    var folder = string.Concat(filePath, plusCode.AsSpan(0, 2));
+                    Directory.CreateDirectory(folder);
                     foreach (var pair in GetCellCombos())
                         MakeMinimizedOfflineData(plusCode + pair, bounds, saveToFile);
 
@@ -491,8 +496,6 @@ namespace PraxisCore
             if (finalData == null || (finalData.nameTable == null && finalData.entries.Count == 0))
                 return;
 
-            JsonSerializerOptions jso = new JsonSerializerOptions();
-            jso.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
             string data = JsonSerializer.Serialize(finalData, jso);
 
             if (saveToFile)
@@ -699,7 +702,7 @@ namespace PraxisCore
             if (existing.nameTable == null)
                 existing.nameTable = new Dictionary<int, string>();
 
-            int maxKey = existing.nameTable.Count();
+            int maxKey = existing.nameTable.Count;
             if (adding.nameTable != null)
             {
                 foreach (var name in adding.nameTable)
@@ -719,20 +722,23 @@ namespace PraxisCore
             //Step 2: merge sets of entries
             foreach (var entryList in adding.entries)
             {
-                if (!existing.entries.ContainsKey(entryList.Key))
+                //if (!existing.entries.ContainsKey(entryList.Key))
+                if (!existing.entries.TryGetValue(entryList.Key, out var entry))
                     existing.entries.Add(entryList.Key, entryList.Value);
-                else if (existing.entries[entryList.Key] != null)
+                //else if (existing.entries[entryList.Key] != null)
+                else if (entry != null)
                 {
                     //merge entries
-                    var list1 = existing.entries[entryList.Key];
+                    //var list1 = entry; //existing.entries[entryList.Key];
                     var list2 = entryList.Value;
                     list2 = list2.Select(e => new MinOfflineData() { c = e.c, r = e.r, tid = e.tid, nid = e.nid.HasValue ? newNameMap[e.nid.Value] : null }).ToList();
                     //Remove duplicates
-                    var remove = list2.Where(l2 => list1.Any(l1 => l1.c == l2.c && l1.nid == l2.nid && l1.tid == l2.tid && l1.r == l2.r)).ToList();
+                    var remove = list2.Where(l2 => entry.Any(l1 => l1.c == l2.c && l1.nid == l2.nid && l1.tid == l2.tid && l1.r == l2.r)).ToList();
                     foreach (var r in remove)
                         list2.Remove(r);
 
-                    existing.entries[entryList.Key].AddRange(list2);
+                    entry.AddRange(list2);
+                    //existing.entries[entryList.Key].AddRange(list2);
                 }
             }
 
@@ -750,7 +756,7 @@ namespace PraxisCore
             if (existing.nameTable == null)
                 existing.nameTable = new Dictionary<int, string>();
 
-            int maxKey = existing.nameTable.Count();
+            int maxKey = existing.nameTable.Count;
             if (adding.nameTable != null)
             {
                 foreach (var name in adding.nameTable)
@@ -770,23 +776,22 @@ namespace PraxisCore
             //Step 2: merge sets of entries
             foreach (var entryList in adding.entries)
             {
-                if (!existing.entries.ContainsKey(entryList.Key))
+                if (!existing.entries.TryGetValue(entryList.Key, out var entry))
                 {
                     var addList = entryList.Value.Select(e => new OfflinePlaceEntry() { p = e.p, gt = e.gt, tid = e.tid, nid = e.nid.HasValue ? newNameMap[e.nid.Value] : null }).ToList();
                     existing.entries.Add(entryList.Key, addList);
                 }
-                else if (existing.entries[entryList.Key] != null)
+                else if (entry != null)
                 {
                     //merge entries
-                    var list1 = existing.entries[entryList.Key];
                     var list2 = entryList.Value;
                     list2 = list2.Select(e => new OfflinePlaceEntry() { p = e.p, gt = e.gt, tid = e.tid, nid = e.nid.HasValue ? newNameMap[e.nid.Value] : null }).ToList();
                     //Remove duplicates
-                    var remove = list2.Where(l2 => list1.Any(l1 => l1.p == l2.p && l1.nid == l2.nid && l1.tid == l2.tid && l1.gt == l2.gt)).ToList();
+                    var remove = list2.Where(l2 => entry.Any(l1 => l1.p == l2.p && l1.nid == l2.nid && l1.tid == l2.tid && l1.gt == l2.gt)).ToList();
                     foreach (var r in remove)
                         list2.Remove(r);
 
-                    existing.entries[entryList.Key].AddRange(list2);
+                    entry.AddRange(list2);
                 }
             }
 

@@ -72,7 +72,7 @@ namespace PraxisCore.Standalone {
             {
                 var foundElements = allPlaces.Where(a => TagParser.MatchOnTags(gameElementTags.Value, a.Tags) && !string.IsNullOrWhiteSpace(a.Name)).Select(a => a.Name).Distinct().ToList();
                 scavengerHunts.Add(gameElementTags.Value.Name, foundElements);
-                Log.WriteLog(foundElements.Count() + " " + gameElementTags.Value.Name + " items found for scavenger hunt.");
+                Log.WriteLog(foundElements.Count + " " + gameElementTags.Value.Name + " items found for scavenger hunt.");
             }
 
             foreach (var hunt in scavengerHunts)

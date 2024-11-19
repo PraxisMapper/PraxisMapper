@@ -366,7 +366,6 @@ namespace PraxisCore
             Database.ExecuteSqlRaw(DropPlacesSourceItemTypeIndex);
             Database.ExecuteSqlRaw(DropPlacesSourceItemIdIndex);
             Database.ExecuteSqlRaw(DropTagKeyIndex);
-            //TODO: drop and recreate offlinePlaces indexes.
             //Not dropping the sourceItemId index because of a requirement from a foreign key.
             Log.WriteLog("Indexes dropped.");
         }
