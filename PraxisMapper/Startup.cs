@@ -148,7 +148,7 @@ namespace PraxisMapper
         /// <summary>
         /// This function allows PraxisMapper to populate itself from a .pbf file in the same folder. Allows for the fastest setup of a functioning server.
         /// </summary>
-        private void BuildAndLoadDB() {
+        private static void BuildAndLoadDB() {
             using var db = new PraxisContext();
             db.MakePraxisDB(); //Does nothing if DB already exists, creates DB if not.
 

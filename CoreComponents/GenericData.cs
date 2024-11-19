@@ -875,7 +875,7 @@ namespace PraxisCore
                     db.Entry(row).State = EntityState.Modified;
                     sourcevalue = row.DataValue;
                 }
-                Double.TryParse(sourcevalue.ToUTF8String(), out double val);
+                _ = Double.TryParse(sourcevalue.ToUTF8String(), out double val);
                 val += value;
                 row.DataValue = val.ToString().ToByteArrayUTF8();
                 db.SaveChanges();
@@ -919,7 +919,7 @@ namespace PraxisCore
                 else
                     row.Expiration = null;
 
-                Double.TryParse(sourcevalue.ToUTF8String(), out double val);
+                _ = Double.TryParse(sourcevalue.ToUTF8String(), out double val);
                 val += value;
                 row.DataValue = val.ToString().ToByteArrayUTF8();
                 db.SaveChanges();
@@ -964,7 +964,7 @@ namespace PraxisCore
                 else
                     row.Expiration = null;
 
-                Double.TryParse(sourcevalue.ToUTF8String(), out double val);
+                _ = Double.TryParse(sourcevalue.ToUTF8String(), out double val);
                 val += value;
                 row.DataValue = val.ToString().ToByteArrayUTF8();
                 db.SaveChanges();
@@ -1009,7 +1009,7 @@ namespace PraxisCore
                 else
                     row.Expiration = null;
 
-                Double.TryParse(sourcevalue.ToUTF8String(), out double val);
+                _ = Double.TryParse(sourcevalue.ToUTF8String(), out double val);
                 val += value;
                 row.DataValue = val.ToString().ToByteArrayUTF8();
                 db.SaveChanges();
@@ -1060,7 +1060,7 @@ namespace PraxisCore
                 else
                     row.Expiration = null;
 
-                Double.TryParse(sourceValue.ToUTF8String(), out double val);
+                _ = Double.TryParse(sourceValue.ToUTF8String(), out double val);
                 val += value;
                 var encryptedValue = EncryptValue(val.ToString().ToByteArrayUTF8(), password, out byte[] IVs);
                 row.DataValue = encryptedValue;
@@ -1114,7 +1114,7 @@ namespace PraxisCore
                 else
                     row.Expiration = null;
 
-                Double.TryParse(sourceValue.ToUTF8String(), out double val);
+                _ = Double.TryParse(sourceValue.ToUTF8String(), out double val);
                 val += value;
                 var encryptedValue = EncryptValue(val.ToString().ToByteArrayUTF8(), password, out byte[] IVs);
                 row.DataValue = encryptedValue;
@@ -1166,7 +1166,7 @@ namespace PraxisCore
                 else
                     row.Expiration = null;
 
-                Double.TryParse(sourceValue.ToUTF8String(), out double val);
+                _ = Double.TryParse(sourceValue.ToUTF8String(), out double val);
                 val += value;
                 var encryptedValue = EncryptValue(val.ToString().ToByteArrayUTF8(), password, out byte[] IVs);
                 row.DataValue = encryptedValue;
@@ -1242,6 +1242,7 @@ namespace PraxisCore
         {
             var rr = br.ReadAtLeastAsync(contentLength);
             var wait = rr.GetAwaiter();
+
             while (!wait.IsCompleted)
                 System.Threading.Thread.Sleep(1);
             var endData = rr.Result.Buffer.ToArray();

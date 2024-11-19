@@ -23,7 +23,7 @@ namespace PraxisMapper.Classes {
 
         public async Task Invoke(HttpContext context) {
 
-            if (!context.Request.Path.Value.ToLower().Contains("anticheat"))
+            if (!context.Request.Path.Value.Contains("anticheat", StringComparison.OrdinalIgnoreCase))
             {
                 //do anti-cheat lookup.
                 //TODO: correct logic

@@ -309,7 +309,7 @@ namespace PraxisCore {
                 //it doesn't ALWAYS cause problems if I skip this, but when it does it takes forever to draw some tiles. Keep this in even if it only seems to happen with debug mode on.
                 if (w.elementGeometry.Coordinates.Length > 800) //800 seems to be the sweet spot between 'cropping geometry is slow' and 'drawing big geometry is slow.'
                     thisGeometry = w.elementGeometry.Intersection(trimPoly);
-                if (!thisGeometry.Coordinates.Any()) //After trimming, linestrings may not have any points in the drawing area.
+                if (thisGeometry.Coordinates.Length == 0) //After trimming, linestrings may not have any points in the drawing area.
                     continue;
 
                 switch (thisGeometry.GeometryType) {

@@ -148,7 +148,7 @@ namespace PraxisCore.GameTools
                             sb.Append(vowels.PickOneRandom());
                             break;
                     case 3: //vowel-r. Not generatable otherwise
-                        sb.Append(vowels.PickOneRandom()).Append("r");
+                        sb.Append(vowels.PickOneRandom()).Append('r');
                         break;
                 }
             }

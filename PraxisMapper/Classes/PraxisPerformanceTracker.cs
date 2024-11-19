@@ -20,10 +20,10 @@ namespace PraxisMapper.Classes {
             context.Response.OnStarting(() => {
                 sw.Stop();
                 pi.RunTime = sw.ElapsedMilliseconds;
-                if (context.Response.Headers.ContainsKey("X-notes"))
-                    pi.Notes = context.Response.Headers["X-notes"];
-                if (context.Response.Headers.ContainsKey("X-noPerfTrack"))
-                    pi.FunctionName = context.Response.Headers["X-noPerfTrack"];
+                if (context.Response.Headers.TryGetValue("X-notes", out var notes))
+                    pi.Notes = notes;
+                if (context.Response.Headers.TryGetValue("X-noPerfTrack", out var sanitized))
+                    pi.FunctionName = sanitized;
                 PraxisContext db = new PraxisContext();
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
                 db.PerformanceInfo.Add(pi);

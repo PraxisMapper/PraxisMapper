@@ -55,11 +55,11 @@ namespace PraxisOfflineDataPlugin.Controllers
                 string pluscode = plusCode6 + cell8;
                 GeoArea box = pluscode.ToGeoArea();
                 var places = PraxisCore.Place.GetPlaces(box, quickplaces);
-                if (places.Count() == 0)
+                if (places.Count == 0)
                     return;
 
                 places = places.Where(p => p.IsGameElement).ToList();
-                if (places.Count() == 0)
+                if (places.Count == 0)
                     return;
                 var terrainInfo = AreaStyle.GetAreaDetails(ref box, ref places);
                 var terrainsPresent = terrainInfo.Select(t => t.data.style).Distinct().ToList();
@@ -221,6 +221,7 @@ namespace PraxisOfflineDataPlugin.Controllers
             return stringData;
         }
 
+        static readonly JsonSerializerOptions jso = new JsonSerializerOptions() { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull };
         [HttpGet]
         [Route("/[controller]/V2Min/{plusCode}")]
         [Route("/[controller]/V2Min/{plusCode}/{styles}")]
@@ -229,7 +230,6 @@ namespace PraxisOfflineDataPlugin.Controllers
             //OfflineData.MakeOfflineJson(plusCode); //TODO: this doesnt work for a single file, this is currently hard-set to use the zip file logic.
 
             var data = OfflineData.MakeMinimizedOfflineEntries(plusCode, styles);
-            var jso = new JsonSerializerOptions() { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull };
             var stringData = JsonSerializer.Serialize(data, jso);
             GenericData.SetAreaData(plusCode, "offlineV2Min", stringData);
             return stringData;

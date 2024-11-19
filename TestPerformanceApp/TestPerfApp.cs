@@ -2,6 +2,7 @@
 using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions;
+using Microsoft.EntityFrameworkCore.Query;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Prepared;
 using OsmSharp;
@@ -14,6 +15,7 @@ using PraxisCore.PbfReader;
 using PraxisCore.Support;
 using SkiaSharp;
 using System;
+using System.Buffers.Binary;
 using System.Collections.Concurrent;
 //using System.Collections.Frozen;
 using System.Collections.Generic;
@@ -51,8 +53,9 @@ namespace PerformanceTestApp
 
         static void Main(string[] args)
         {
-            //var asm = Assembly.LoadFrom(@"PraxisMapTilesSkiaSharp.dll");
-            //var MapTiles = Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
+            var asm = Assembly.LoadFrom(@"PraxisMapTilesSkiaSharp.dll");
+            var MapTiles = Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
+            MapTileSupport.MapTiles = (IMapTiles)MapTiles;
 
             //PraxisContext.serverMode = "LocalDB";
             //PraxisContext.connectionString = "Server=(localdb)\\Praxis;Integrated Security=true;";
@@ -61,7 +64,7 @@ namespace PerformanceTestApp
             //PraxisContext.connectionString = "Data Source=localhost\\SQLDEV;UID=GpsExploreService;PWD=lamepassword;Initial Catalog=Praxis;";
 
             PraxisContext.serverMode = "MariaDB";
-            PraxisContext.connectionString = "server=localhost;database=praxis-test;user=root;password=asdf;";
+            PraxisContext.connectionString = "server=localhost;database=praxis-ohio;user=root;password=asdf;";
 
             //PraxisContext.serverMode = "PostgreSQL";
             //PraxisContext.connectionString = "server=localhost;database=praxis;user=root;password=asdf;";
@@ -119,7 +122,21 @@ namespace PerformanceTestApp
             //TestMeterGrid();
             //TestSimpleLockable();
             //TestAltHintMath();
-            TestGeoTrackers();
+            //TestGeoTrackers();
+            //TestDbSideCropping();
+            //TestPlaceDataVsTagParser();
+            //SanityTestConvert();
+            //DrawImageSpeedTest();
+            //TestSErializerPlace();
+            //TestPlaceJson();
+            //ReduceCoastlineItems();
+            //TestFilterResults();
+            //TestWhereOrder();
+            //TestMariaDbFlags();
+            //TestCoordsAsInts();
+            //TestOfflineCreationSpeed();
+            TestThreadingLimit();
+
 
 
             //NOTE: EntityFramework cannot change provider after the first configuration/new() call. 
@@ -201,7 +218,6 @@ namespace PerformanceTestApp
             //Fun reminder: my tablet can't process Ohio via the normal Larry pbfToJson call. 
             //This takes ~4GB RAM and 3-6 minutes per relation block on north-america-latest. (it has 150 relation blocks, 15,132 Way blocks, 189k total)
             //~900 minutes = 15 hours
-            var skipCount = 0;
             Log.WriteLog("starting data Load at " + DateTime.Now);
             //    for (var block = reader.BlockCount() - 1 - skipCount; block > 0; block--)
             //    {
@@ -376,8 +392,6 @@ namespace PerformanceTestApp
             foreach (int splitcount in splitChecks)
             {
                 sw.Restart();
-                List<DbTables.Place>[] placeArray;
-                GeoArea[] areaArray;
                 StringBuilder[] sbArray = new StringBuilder[splitcount * splitcount];
                 //Converters.SplitArea(box, splitcount, places, out placeArray, out areaArray);
                 //System.Threading.Tasks.Parallel.For(0, placeArray.Length, (i) =>
@@ -2480,7 +2494,7 @@ namespace PerformanceTestApp
             //This one return all entries, for a game mode that might need all of them.
             var results = new List<TerrainDataStandalone>(entriesHere.Count);
             foreach (var e in entriesHere)
-                results.Add(new TerrainDataStandalone() { Name = TagParser.GetName(e), areaType = e.StyleName, PrivacyId = e.PrivacyId });
+                results.Add(new TerrainDataStandalone() { Name = e.Name, areaType = e.StyleName, PrivacyId = e.PrivacyId });
 
             return results;
         }
@@ -3329,7 +3343,7 @@ namespace PerformanceTestApp
                 string randLock = Random.Shared.Next(10).ToString();
                 //tasks.Add(SimpleLockable.PerformWithLockAsTask(randLock, () => { Thread.Sleep(Random.Shared.Next(50)); Log.WriteLog("Thread Exiting"); }));
                 //SimpleLockable.PerformWithLock(randLock, () => { File.AppendAllText("test.txt", Thread.CurrentThread.ManagedThreadId.ToString()); });
-                tasks.Add(SimpleLockable.PerformWithLockAsTask(randLock, () => { var id = Thread.CurrentThread.ManagedThreadId.ToString(); File.AppendAllText("test" + id + ".txt", id); }));
+                tasks.Add(SimpleLockable.PerformWithLockAsTask(randLock, () => { var id = Environment.CurrentManagedThreadId.ToString(); File.AppendAllText("test" + id + ".txt", id); }));
             }
 
             Task.WaitAll(tasks.ToArray());
@@ -3634,18 +3648,18 @@ namespace PerformanceTestApp
             Stopwatch sw9 = Stopwatch.StartNew();
             var save1 = JsonSerializer.Serialize(original);
             sw9.Stop();
-            Log.WriteLog("Original:  Serialized 20000 random cells in " + sw9.Elapsed + ", is " + save1.Count() + " bytes");
+            Log.WriteLog("Original:  Serialized 20000 random cells in " + sw9.Elapsed + ", is " + save1.Length + " bytes");
 
 
             Stopwatch sw10 = Stopwatch.StartNew();
             var save2 = JsonSerializer.Serialize(alt);
             sw10.Stop();
-            Log.WriteLog("Alternate:  Serialized 20000 random cells in " + sw10.Elapsed + ", is " + save2.Count() + " bytes");
+            Log.WriteLog("Alternate:  Serialized 20000 random cells in " + sw10.Elapsed + ", is " + save2.Length + " bytes");
 
             Stopwatch sw10a = Stopwatch.StartNew();
             var save2a = JsonSerializer.Serialize(alt2);
             sw10a.Stop();
-            Log.WriteLog("Alternate2: Serialized 20000 random cells in " + sw10a.Elapsed + ", is " + save2a.Count() + " bytes");
+            Log.WriteLog("Alternate2: Serialized 20000 random cells in " + sw10a.Elapsed + ", is " + save2a.Length + " bytes");
 
 
             Stopwatch swsave1 = Stopwatch.StartNew();
@@ -3708,6 +3722,400 @@ namespace PerformanceTestApp
             sw8a.Stop();
             results.Add(sw8a.Elapsed);
             Log.WriteLog("Alternate2: removed 20000 random cells in " + sw8a.Elapsed);
+        }
+
+        public static void TestDbSideCropping()
+        {
+            string testSQL = "SELECT Id, SourceItemId, SourceItemType, ST_INTERSECTION(@p0, ElementGeometry) as ElementGeometry, PrivacyId, DrawSizeHint FROM Places WHERE ST_INTERSECTS(ElementGeometry, @p0)";
+
+            var db = new PraxisContext();
+            var shape1 = new Polygon(new LinearRing(new Coordinate[] { new Coordinate(-81.7, 41.5), new Coordinate(-81.5, 41.5), new Coordinate(-81.5, 41.3), new Coordinate(-81.7, 41.3), new Coordinate(-81.7, 41.5) }));
+
+            var area1 = shape1.ToGeoArea();
+            var controlResults = GetPlaces(area1);
+
+            var testResults = db.Places.FromSqlRaw(testSQL, shape1).Include(d => d.Tags).Include(d => d.PlaceData).ToList();
+        }
+
+        public static void TestPlaceDataVsTagParser()
+        {
+            var db = new PraxisContext();
+            db.Database.SetCommandTimeout(600);
+            var sw = new Stopwatch();
+            byte[] country = "country".ToByteArrayUTF8();
+
+
+            sw.Restart();
+            //var partB = db.PlaceData.Where(d => d.DataKey == "adminBounds" && d.DataValue == country);
+            //var testB = partB.ToList();
+            var testB= PraxisCore.Place.GetPlacesByTags("adminBounds", "country");
+            sw.Stop();
+            Log.WriteLog("Searched all countries by placeData directly in " + sw.ElapsedMilliseconds + "ms");
+            //~20 seconds to load from 2.8GB table. No index on DataValue. Also, 32k results for "country?"
+            //1.5 seconds with index on DataValue, skipping geometry.
+
+            //Index adds 600MB, cuts search time to 400ms.
+
+
+            sw.Restart();
+            var partA = db.Places.Include(p => p.PlaceData).Include(p => p.Tags).Where(p => p.PlaceData.Any(d => d.DataKey == "adminBounds" && d.DataValue == country));
+            var q = partA.ToQueryString();
+            Log.WriteLog(q);
+            var testA = partA.ToList();
+            sw.Stop();
+            Log.WriteLog("Searched all countries by placeData keys in " + sw.ElapsedMilliseconds + "ms");
+
+
+
+            var a = 1;
+        }
+
+        public static void TestSErializerPlace()
+        {
+            //Current status: failure via JSON. This needs some custom reader/writer to handle that.
+            var db = new PraxisContext();
+            var place = db.Places.Include(p => p.Tags).Include(p => p.PlaceData).First();
+
+            JsonSerializerOptions o = new JsonSerializerOptions() { 
+                NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
+                ReferenceHandler = ReferenceHandler.IgnoreCycles };
+            string json = JsonSerializer.Serialize(place, o);
+        }
+
+        public static void SanityTestConvert()
+        {
+            //COnfirming this is what i remember
+
+            var a = new { Thing = "asdfsadf", Stuff = 3333 };
+            var b = new { Another = DateTime.UtcNow };
+
+            var c = a.ToJsonByteArray();
+            //var d = c.FromJsonBytesTo<DateTime>(); //fails with an exception.
+            var d = c.FromJsonBytesTo<DbTables.PlayerData>(); //succeeds, with all default/null properties.
+
+            //maybe I dont need this generic converter? Or does something else cause it to fail?
+
+            var e = 1;
+        }
+
+        public static void DrawImageSpeedTest()
+        {
+            //Cell6 results: almost twice as fast with skipBounds.
+            string pluscode = "86HWGGGP";
+            var stats = new ImageStats(pluscode);
+
+            var imagez = MapTileSupport.MapTiles.DrawAreaAtSize(stats, null, "mapTiles", skipType:"adminBounds");
+            var imagez2 = MapTileSupport.MapTiles.DrawAreaAtSize(stats, null, "mapTiles");
+
+            List<TimeSpan> main = new List<TimeSpan>(20);
+            List<TimeSpan> skip = new List<TimeSpan>(20);
+
+            for (int i = 0; i < 20; i++)
+            {
+                Stopwatch sw = new Stopwatch();
+                sw.Start();
+                MapTileSupport.DrawPlusCode(pluscode);
+                sw.Stop();
+                Log.WriteLog("Main drawing done in " + sw.ElapsedMilliseconds + "ms");
+                main.Add(sw.Elapsed);
+
+                sw.Restart();
+                var placesA = PraxisCore.Place.GetPlaces(stats.area);
+                var drawOpsA = MapTileSupport.GetPaintOpsForPlaces(placesA, "mapTiles", stats);
+                var imageA = MapTileSupport.MapTiles.DrawAreaAtSize(stats, drawOpsA);
+                sw.Stop();
+                Log.WriteLog("3-step drawing done in " + sw.ElapsedMilliseconds + "ms");
+
+                sw.Restart();
+                
+                //var places = PraxisCore.Place.GetPlaces(stats.area, skipBounds: true);
+                //var drawOps = MapTileSupport.GetPaintOpsForPlaces(places, "mapTiles", stats);
+                
+                sw.Stop();
+                Log.WriteLog("SkipBounds drawing done in " + sw.ElapsedMilliseconds + "ms");
+                skip.Add(sw.Elapsed);
+            }
+
+            Log.WriteLog("main " + main.Sum(m => m.TotalMilliseconds) + "ms total, " + main.Average(m => m.TotalMilliseconds) + "ms avg");
+            Log.WriteLog("skip " + skip.Sum(m => m.TotalMilliseconds) + "ms total, " + skip.Average(m => m.TotalMilliseconds) + "ms avg");
+
+        }
+
+        public static void TestPlaceJson()
+        {
+            var db = new PraxisContext();
+
+            var testPlace = db.Places.Include(p => p.Tags).Include(p => p.PlaceData).First();
+
+            var json = JsonSerializer.Serialize(testPlace);
+            var converted = JsonSerializer.Deserialize<DbTables.Place>(json);
+
+            var txtSize = testPlace.ElementGeometry.AsText().Length;
+            var binsize = testPlace.ElementGeometry.AsBinary().Length;
+
+            var a = 1;
+
+
+            var testExport = new PlaceExport("test.pmd");
+
+            testExport.Open();
+
+            for (int i = 0; i < 1000; i++)
+            {
+                var p = db.Places.Include(p => p.Tags).Include(p => p.PlaceData).Skip(i).First();
+                testExport.AddEntry(p);
+            }
+
+            var test2 = testExport.GetNextPlace();
+
+            //Testing writing stuff to DB.
+            test2.SourceItemID = test2.SourceItemID + 1000000001;
+            test2.Id = 0;
+            db.Places.Add(test2);
+            db.SaveChanges();
+
+            testExport.Close();
+
+            var b = 2;
+        }
+
+        public static void ReduceCoastlineItems()
+        {
+            var db = new PraxisContext();
+
+            //53356 items, will be reduced to 14214
+            var allItems = db.Places.Include(p => p.Tags).Where(p => p.Tags.Any(t => t.Key == "bgwater")).ToList(); //bgWater are the ones I've processed.
+
+            //39630
+            var possiblyShrinkable = allItems.Where(a => a.ElementGeometry.NumPoints == 5).Select(e => e.ElementGeometry).ToList(); //All squares.
+
+            //488 polys
+            var resultGeo = NetTopologySuite.Operation.Union.CascadedPolygonUnion.Union(possiblyShrinkable);
+            //foreach poly, pop that out into its own new entry.
+            //this should all be in coastline processing actually and it should write to a pmd file.
+
+            var b = 1;
+        }
+
+        public static void TestFilterResults()
+        {
+            //SkipBounds was way more important than filterSize.
+            var db = new PraxisContext();
+
+            var testPlace = db.Places.Where(p => p.SourceItemID == 350381).First(); //CC
+            var area = testPlace.ElementGeometry.ToGeoArea();
+
+            ImageStats stats1 = new ImageStats(area, 250, 250);
+            ImageStats stats2 = new ImageStats(area, 500, 500);
+            var places1 = PraxisCore.Place.GetPlaces(stats1.area, filterSize: stats1.filterSize, skipType: "adminBounds");
+            var places2 = PraxisCore.Place.GetPlaces(stats1.area, filterSize: stats1.filterSize * 32, skipType: "adminBounds");
+
+            var a = 1;
+
+        }
+
+        public static void TestWhereOrder()
+        {
+            var db = new PraxisContext();
+            //var testPlace = db.Places.Where(p => p.SourceItemID == 350381).First(); //CC 
+            var testPlace = db.Places.Where(p => p.SourceItemID == 162061).First(); //OH
+            var area = testPlace.ElementGeometry.ToGeoArea(); 
+            ImageStats stats1 = new ImageStats(area, 250, 250);
+
+            Stopwatch sw = new Stopwatch();
+            List<TimeSpan> og = new List<TimeSpan>();
+            List<TimeSpan> test = new List<TimeSpan>();
+            for (int i = 0; i < 10; i++)
+            {
+                sw.Restart();
+                var query1 = db.Places.Where(md => testPlace.ElementGeometry.Intersects(md.ElementGeometry) && md.DrawSizeHint >= stats1.filterSize).ToList();
+                sw.Stop();
+                og.Add(sw.Elapsed);
+                sw.Restart();
+                var query2 = db.Places.Where(md => md.DrawSizeHint >= stats1.filterSize).Where(md => testPlace.ElementGeometry.Intersects(md.ElementGeometry)).ToList();
+                sw.Stop();
+                test.Add(sw.Elapsed);
+            }
+
+            var a1 = og.Average(t => t.Milliseconds); //580 for CC, 45,000 for OH
+            var a2 = test.Average(t => t.Milliseconds); //309 for CC, 2700 for OH
+
+            var b = 1;
+        }
+
+        public static void TestMariaDbFlags()
+        {
+            var db = new PraxisContext();
+            db.Database.SetCommandTimeout(new TimeSpan(0, 10, 0));
+            //lets see what these do, if anything, to the db performance.
+
+
+            //but first a quick detour on GetPlaces speed
+
+            var area = "85".ToGeoArea();
+            var stats = new ImageStats(area, 250, 250); //very high filter size by using small image size.
+            var poly = area.ToPolygon();
+
+            var queryable = db.Places.
+                Include(p => p.PlaceData)
+                .Where(p => p.PlaceData.Any(d => d.DataKey == "mapTiles"))
+                .Where(md => md.DrawSizeHint >= stats.filterSize)
+                .Where(md => poly.Intersects(md.ElementGeometry));
+
+            
+
+            for (int i = 0; i < 20; i++)
+            {
+                var sw = Stopwatch.StartNew();
+
+                //set flags.
+                db.Database.ExecuteSqlRaw("SET optimizer_switch='mrr=on'; SET optimizer_switch='mrr_cost_based=off'; SET optimizer_switch='index_merge_sort_intersection=on';");
+                sw.Restart();
+                var places2 = queryable.ToList();
+                sw.Stop();
+                Log.WriteLog("flag-swapped GetPlaces-ish ran in " + sw.Elapsed);
+
+                //set flags.
+                db.Database.ExecuteSqlRaw("SET optimizer_switch='mrr=off'; SET optimizer_switch='mrr_cost_based=on'; SET optimizer_switch='index_merge_sort_intersection=off';");
+                sw.Restart();
+                var places1 = queryable.ToList();
+                sw.Stop();
+                Log.WriteLog("Normal GetPlaces-ish ran in " + sw.Elapsed);
+                
+            }
+        }
+
+        public static void TestCoordsAsInts()
+        {
+            Log.WriteLog("Testing out encoding coords as ints instead of strings for offline use.");
+
+            List<int> stringSizes = new List<int>();
+            List<int> intSizes = new List<int>();
+            List<int> byteSizes = new List<int>();
+
+            List<TimeSpan> stringTimes = new List<TimeSpan>();
+            List<TimeSpan> intTimes = new List<TimeSpan>();
+            List<TimeSpan> byteTimes = new List<TimeSpan>();
+
+            for (int i = 0; i < 100; i++)
+            {
+                
+                var shapeSize = Random.Shared.Next(1, 50);
+                List<Coordinate> coords = new List<Coordinate>(shapeSize);
+                for (int j = 0; j < shapeSize; j++)
+                    coords.Add(new Coordinate(Random.Shared.Next(25600), Random.Shared.Next(40000)));
+
+                //This may not be a good comparison on time vs actual data, since this doesn't have to do the 2 divisions and 2 subtractions.
+                Stopwatch sw = Stopwatch.StartNew();
+                var stringCoords = string.Join("|", coords.Select(c => c.X.ToString() + "," + c.Y.ToString()));
+                sw.Stop();
+                stringTimes.Add(sw.Elapsed);
+
+                sw.Restart();
+                var intCoords = coords.Select(c => (int)(c.Y * 40000 + c.X)).ToList();
+
+                //Now to encode the ints.
+                byte[] encoded = new byte[intCoords.Count * 4];
+                for(int x = 0; x < intCoords.Count; x++)
+                {
+                    var tempByte = new byte[4];
+                    BinaryPrimitives.TryWriteInt32LittleEndian(tempByte, intCoords[x]);
+                    tempByte.CopyTo(encoded, x * 4); //This is slightly faster than 4 separate ops.
+                    //encoded[x * 4 + 0] = tempByte[0];
+                    //encoded[x * 4 + 1] = tempByte[1];
+                    //encoded[x * 4 + 2] = tempByte[2];
+                    //encoded[x * 4 + 3] = tempByte[3];
+                }
+                var stringifiedInts = Convert.ToBase64String(encoded);
+                Log.WriteLog(stringifiedInts);
+
+                sw.Stop();
+                intTimes.Add(sw.Elapsed);
+
+                stringSizes.Add(stringCoords.Length);
+                intSizes.Add(stringifiedInts.Length);
+                byteSizes.Add(encoded.Length);
+
+                Log.WriteLog(shapeSize + "-coord shape is " + stringCoords.Length + " long as string, " + stringifiedInts.Length + " long as Base64-ints (" + ((stringifiedInts.Length * 1.0 / stringCoords.Length) * 100.0).ToString() + "% size)");
+                Log.WriteLog(shapeSize + "-coord shape is " + stringCoords.Length + " long as string, " + encoded.Length + " long as raw byte-ints (" + ((encoded.Length * 1.0 / stringCoords.Length) * 100.0).ToString() + "% size)");
+            }
+
+            Log.WriteLog("Avereage string set is " + stringSizes.Average());
+            Log.WriteLog("Avereage Base64-int set is " + intSizes.Average());
+            Log.WriteLog("Avereage byte[] set is " + byteSizes.Average());
+
+            Log.WriteLog("Avereage string set time is " + stringTimes.Average(s => s.TotalMilliseconds));
+            Log.WriteLog("Avereage Base64-int set time is " + intTimes.Average(s => s.TotalMilliseconds));
+        }
+
+        public static void TestOfflineCreationSpeed()
+        {
+            Log.WriteLog("Starting offline data generation");
+
+            List<TimeSpan> noPlaceTimes = new List<TimeSpan>();
+            List<TimeSpan> placeTimes = new List<TimeSpan>();
+
+
+            var testArea = "86FR";
+
+            foreach(var combo in GetCellCombos())
+            {
+                var preloadTime = Stopwatch.StartNew();
+                var places = PraxisCore.Place.GetOfflinePlaces((testArea + combo).ToGeoArea());
+                OfflineData.MakeMinimizedOfflineData((testArea + combo), null, false, null, places);
+                preloadTime.Stop();
+
+                var noPlaceTime = Stopwatch.StartNew();
+                OfflineData.MakeMinimizedOfflineData((testArea + combo), null, false, null, null);
+                noPlaceTime.Stop();
+
+                Log.WriteLog("Places-supplied ran in " + preloadTime.Elapsed );
+                Log.WriteLog("No-places-supplied ran in " + noPlaceTime.Elapsed);
+
+                noPlaceTimes.Add(noPlaceTime.Elapsed);
+                placeTimes.Add(preloadTime.Elapsed);
+            }
+
+
+            Log.WriteLog("AVG Places-supplied ran in " + placeTimes.Average(e => e.Milliseconds));
+            Log.WriteLog("AVG No-places-supplied ran in " + noPlaceTimes.Average(e => e.Milliseconds));
+
+            //Conclusion: When the data is cold, supplying places is much faster, a little more than 2x the speed on average.
+            //When the data is hot, there is  less difference between the two.
+        }
+
+        //Unlimited is slightly faster on this machine.
+        public static void TestThreadingLimit()
+        {
+            //Cheating: gonna take 2 JSON files, 1 big 1 small, and see what those look like as PNGs
+            //Then, compare those PNGs to the actual data fol....
+            //I dont need this app for this, just use the actual app.
+            var db = new PraxisContext();
+            //var area = "86HW".ToGeoArea();
+            //var data = GetPlaces(area);
+
+            var limiteds = new List<TimeSpan>(10);
+            var unlimiteds = new List<TimeSpan>(10);
+
+
+            for (int i = 0; i < 10; i++)
+            {
+                //Now test!
+                Stopwatch sw = Stopwatch.StartNew();
+                OfflineData.MakeMinimizedOfflineData("86HW"); //limit"false
+                sw.Stop();
+                Console.WriteLine("Unlimited data done in " + sw.Elapsed);
+                unlimiteds.Add(sw.Elapsed);
+
+                sw = Stopwatch.StartNew();
+                OfflineData.MakeMinimizedOfflineData("86HW"); //limit:true
+                sw.Stop();
+                Console.WriteLine("Limited data done in " + sw.Elapsed);
+                limiteds.Add(sw.Elapsed);
+            }
+            Console.WriteLine("Limited avg:" + limiteds.Average(e=>e.TotalMilliseconds) + "ms");
+            Console.WriteLine("unlimited avg:" + unlimiteds.Average(e => e.TotalMilliseconds) + "ms");
+
         }
     }
 }

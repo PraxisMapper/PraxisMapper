@@ -402,7 +402,7 @@ namespace Larry
             {
                 try
                 {
-                    PlaceExport.LoadToDatabase(filename, bounds: bounds);
+                    PlaceExport.LoadToDatabase(filename, config["processingMode"], bounds);
                     File.Move(filename, filename + "done");
                 }
                 catch (Exception ex)
@@ -1012,7 +1012,7 @@ namespace Larry
 
 
 
-        public void SplitDbIntoCell2()
+        public static void SplitDbIntoCell2()
         {
             //A way to created merged data from separate database.
             //This should load all elements in each Cell2 area, and export those to a PMD file in a sub-folder.
@@ -1122,7 +1122,7 @@ namespace Larry
             JsonSerializerOptions jso = new JsonSerializerOptions();
             jso.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
 
-            foreach (var zip in allZipFiles)
+            foreach (var zip in allZipFiles) //Parallel this? Disk acces is the issue for speed here
             {
                 //If this file isn't present in the other sets, don't merge it.
                 bool merge = false;
