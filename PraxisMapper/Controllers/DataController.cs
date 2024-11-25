@@ -291,17 +291,17 @@ namespace PraxisMapper.Controllers {
             return results;
         }
 
-        public string GetTerrainDataNew(string plusCode) {
-            //NOTE: plusCode has no plus here.
-            //for individual Cell10 or Cell11 checks. Existing terrain calls only do Cell10s in a Cell8 or larger area.
-            //Might be better in PraxisCore to be reused.
+        //public string GetTerrainDataNew(string plusCode) {
+        //    //NOTE: plusCode has no plus here.
+        //    //for individual Cell10 or Cell11 checks. Existing terrain calls only do Cell10s in a Cell8 or larger area.
+        //    //Might be better in PraxisCore to be reused.
 
-            var place = AreaStyle.GetSinglePlaceFromArea(plusCode);
-            StringBuilder sb = new StringBuilder();
-            sb.Append(plusCode).Append('|').Append(place.Name).Append('|').Append(place.StyleName).Append('|').Append(place.PrivacyId);
+        //    var place = AreaStyle.GetSinglePlaceFromArea(plusCode);
+        //    StringBuilder sb = new StringBuilder();
+        //    sb.Append(plusCode).Append('|').Append(place.Name).Append('|').Append(place.StyleName).Append('|').Append(place.PrivacyId);
 
-            return sb.ToString();
-        }
+        //    return sb.ToString();
+        //}
 
         [HttpGet]
         [Route("/[controller]/GetScoreForPlace/{elementId}")]

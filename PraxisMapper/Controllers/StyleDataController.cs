@@ -141,19 +141,19 @@ namespace PraxisMapper.Controllers {
             db.SaveChanges();
         }
 
-        public void AskForCreatedAreas(string plusCode) {
-            //This may belong somewhere else, but this should be a server-side function.
-            //Check if there are areas in the listed plusCode, and if not make one or two.
-            using var db = new PraxisContext();
-            var area = OpenLocationCode.DecodeValid(plusCode);
-            var places = PraxisCore.Place.GetPlaces(area);
-            places = places.Where(p => p.Tags.Any(t => t.Key == "generated" && t.Value == "praxisMapper")).ToList();
+        //public void AskForCreatedAreas(string plusCode) {
+        //    //This may belong somewhere else, but this should be a server-side function.
+        //    //Check if there are areas in the listed plusCode, and if not make one or two.
+        //    using var db = new PraxisContext();
+        //    var area = OpenLocationCode.DecodeValid(plusCode);
+        //    var places = PraxisCore.Place.GetPlaces(area);
+        //    places = places.Where(p => p.Tags.Any(t => t.Key == "generated" && t.Value == "praxisMapper")).ToList();
 
-            if (places.Count == 0)
-                return;
+        //    if (places.Count == 0)
+        //        return;
 
-            //now generate a place here.
-            //PraxisCore.Place.CreateInterestingPlaces(plusCode, true);
-        }
+        //    //now generate a place here.
+        //    //PraxisCore.Place.CreateInterestingPlaces(plusCode, true);
+        //}
     }
 }
