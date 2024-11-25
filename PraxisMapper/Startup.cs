@@ -64,6 +64,9 @@ namespace PraxisMapper
             services.AddMemoryCache(); //AddMvc calls this quietly, but I'm calling it explicitly here anyways.
             services.AddResponseCompression();
 
+            services.AddEndpointsApiExplorer();
+            services.AddSwaggerGen();
+
             var executionFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             IMapTiles mapTiles = null;
 
@@ -177,6 +180,8 @@ namespace PraxisMapper
             using var db = new PraxisContext();
 
             if (env.IsDevelopment()) {
+                app.UseSwagger();
+                app.UseSwaggerUI();
                 app.UseDeveloperExceptionPage();
             }
 

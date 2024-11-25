@@ -52,6 +52,7 @@ namespace PraxisMapper.Controllers {
             return View();
         }
 
+        [HttpGet]
         [Route("/[controller]/GetAreaInfo/{plusCode}")]
         [Route("/[controller]/GetAreaInfo/{plusCode}/{filterSize}")]
         public ActionResult GetAreaInfo(string plusCode, int filterSize = -1) {

@@ -25,7 +25,7 @@ namespace PraxisChatPlugin.Controllers {
         [Route("/[controller]/Region/{region}")]
         public List<string> WriteRegionChat(string region) {
             PraxisAuthentication.GetAuthInfo(Response, out var accountId, out var password);
-            if (IsUserBanned(accountId))
+            if (ChatFunctions.IsUserBanned(accountId))
                 return null;
 
             var message = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength).ToUTF8String();
@@ -57,7 +57,7 @@ namespace PraxisChatPlugin.Controllers {
         [Route("/[controller]/Channel/{channel}")]
         public List<string> WriteChannelChat(string channel) {
             PraxisAuthentication.GetAuthInfo(Response, out var accountId, out var password);
-            if (IsUserBanned(accountId))
+            if (ChatFunctions.IsUserBanned(accountId))
                 return null;
 
             var message = GenericData.ReadBody(Request.BodyReader, (int)Request.ContentLength).ToUTF8String();
@@ -122,9 +122,6 @@ namespace PraxisChatPlugin.Controllers {
             return "OK";
         }
 
-        public bool IsUserBanned(string username) {
-            var result = GenericData.GetPlayerData<bool>(username, "isChatBanned");
-            return result;
-        }
+
     }
 }
