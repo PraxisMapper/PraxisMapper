@@ -26,6 +26,10 @@ namespace PraxisMapper.Controllers {
                 HttpContext.Abort();
         }
 
+        /// <summary>
+        /// Opens the core AdminView page
+        /// </summary>
+        /// <returns>Not an API endpoint. Opens the View in a browser window. Intended to be opened on localhost rather than a remote system.</returns>
         [HttpGet]
         [Route("/[controller]")]
         [Route("/[controller]/Index")]
@@ -33,6 +37,13 @@ namespace PraxisMapper.Controllers {
             return View();
         }
 
+        /// <summary>
+        /// Displays some information on the Slippy MapTile requested
+        /// </summary>
+        /// <param name="x">X Slippy coord</param>
+        /// <param name="y">Y Slippy coord</param>
+        /// <param name="zoom">Zoom level Slippy coord</param>
+        /// <returns>The View with the map tile requested, containing some performance-related stats and info on places contained. </returns>
         [HttpGet]
         [Route("/[controller]/GetMapTileInfo/{zoom}/{x}/{y}")]
         public ActionResult GetMapTileInfo(int x, int y, int zoom) {
@@ -52,6 +63,12 @@ namespace PraxisMapper.Controllers {
             return View();
         }
 
+        /// <summary>
+        /// Displays some information on the PlusCode area requested
+        /// </summary>
+        /// <param name="plusCode">The PlusCode to analyze.</param>
+        /// <param name="filterSize">Ignore elements with an area/length below this value. Use -1 to see all areas.</param>
+        /// <returns>The View with the map tile requested, containing some performance-related stats and info on places contained.</returns>
         [HttpGet]
         [Route("/[controller]/GetAreaInfo/{plusCode}")]
         [Route("/[controller]/GetAreaInfo/{plusCode}/{filterSize}")]
@@ -98,6 +115,12 @@ namespace PraxisMapper.Controllers {
         }
 
 
+        /// <summary>
+        /// Displays some information on the Place requested and the surrounding area.
+        /// </summary>
+        /// <param name="sourceElementId">The OpenStreetMap Id of the Place</param>
+        /// <param name="sourceElementType">The OpenStreetMap type of the Place. 1 = Point, 2 = Way, 3 = Relation</param>
+        /// <returns>The View with a custom map tile focused on the Place requested, and some performance-related stats and info.</returns>
         [HttpGet]
         [Route("/[controller]/GetPlaceInfo/{sourceElementId}/{sourceElementType}")]
         public ActionResult GetPlaceInfo(long sourceElementId, int sourceElementType) {
@@ -145,6 +168,11 @@ namespace PraxisMapper.Controllers {
             return View();
         }
 
+        /// <summary>
+        /// Displays some information on the Place requested and the surrounding area.
+        /// </summary>
+        /// <param name="privacyId">The GUID associated to the Place in this PraxisMapper server</param>
+        /// <returns>The View with a custom map tile focused on the Place requested, and some performance-related stats and info.</returns>
         [HttpGet]
         [Route("/[controller]/GetPlaceInfo/{privacyId}/")]
         public ActionResult GetPlaceInfo(Guid privacyId) {
@@ -158,6 +186,10 @@ namespace PraxisMapper.Controllers {
             return null;
         }
 
+        /// <summary>
+        /// An endpoint to edit some data live.
+        /// </summary>
+        /// <returns>The (simple, incomplete) View for editing data</returns>
         [HttpGet]
         [Route("/[controller]/EditData")]
         public ActionResult EditData() {
@@ -176,12 +208,20 @@ namespace PraxisMapper.Controllers {
             return View(model);
         }
 
+        /// <summary>
+        /// A View to edit geography
+        /// </summary>
+        /// <returns>The View. May be incomplete or nonfunctional.</returns>
         [HttpGet]
         [Route("/[controller]/EditGeography")]
         public ActionResult EditGeography() {
             return View();
         }
 
+        /// <summary>
+        /// A View to get a quick preview of all Styles.
+        /// </summary>
+        /// <returns>A View full of circles, each drawn using a different StyleEntry in the database.</returns>
         [HttpGet]
         [Route("/[controller]/StyleTest")]
         public ActionResult StyleTest() {
@@ -229,6 +269,12 @@ namespace PraxisMapper.Controllers {
             return View();
         }
 
+        /// <summary>
+        /// Forces all map tiles on the server to be expired
+        /// </summary>
+        /// <returns>The base AdminView</returns>
+        /// <remarks>This only sets the expiration date, and tiles will be redrawn the next time they are requested.
+        /// Should only be necessary when map data is updated</remarks>
         [HttpGet]
         [Route("/[controller]/ExpireTiles")]
         public IActionResult ExpireTiles()
@@ -240,6 +286,11 @@ namespace PraxisMapper.Controllers {
             return Index();
         }
 
+        /// <summary>
+        /// Forces all styles on the database to be reset to defaults
+        /// </summary>
+        /// <returns>the default AdminView page</returns>
+        /// <remarks>This is mostly intended for development while editing styles, if a need to clear out changes occurs</remarks>
         [HttpGet]
         [Route("/[controller]/ResetStyles")]
         public IActionResult ResetStyles()
