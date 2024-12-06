@@ -7,12 +7,19 @@ namespace PraxisChatPlugin.Controllers {
     [ApiController]
     [Route("[controller]")]
     public class ChatController : Controller, IPraxisPlugin {
+        public static string PrivacyPolicy = "";
         readonly int chatLengthLines = 100;
 
         public ChatController() //TODO: cache chat for performance, allow configuration.
         {
         }
 
+        //TODO: set up logic so plugin xml comments appear in swagger docs.
+        /// <summary>
+        /// Loads the current info for Regional chat
+        /// </summary>
+        /// <param name="region"></param>
+        /// <returns></returns>
         [HttpGet]
         [Route("/[controller]/Region/{region}")]
         public List<string> ReadRegionChat(string region) {

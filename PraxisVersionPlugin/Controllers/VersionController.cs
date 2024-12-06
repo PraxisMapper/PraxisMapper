@@ -6,6 +6,8 @@ namespace PraxisVersionPlugin.Controllers {
     [ApiController]
     [Route("[controller]")]
     public class VersionController : Controller, IPraxisPlugin {
+        public static string PrivacyPolicy = "";
+
         [HttpGet]
         [Route("/[controller]")]
         [Route("/[controller]/Index")]

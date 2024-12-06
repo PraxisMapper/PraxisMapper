@@ -14,6 +14,7 @@ namespace PraxisOfflineDataPlugin.Controllers
     [Route("[controller]")]
     public class OfflineController : Controller, IPraxisPlugin
     {
+        public static string PrivacyPolicy = "";
         //NOTE: for more accurate data, I could save cell10 info in the final dictionary.
         //THis would be be better saved for a Cell6 or smaller area, but that could be generated on demand once,
         //then saved and sent on every other request.
