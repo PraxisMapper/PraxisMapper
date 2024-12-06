@@ -5,8 +5,6 @@ using Microsoft.EntityFrameworkCore;
 using PraxisCore;
 using PraxisCore.Support;
 using PraxisMapper.Classes;
-using System.Dynamic;
-using System.Text;
 using System.Text.Json;
 
 namespace PraxisDemosPlugin.Controllers
@@ -28,6 +26,7 @@ namespace PraxisDemosPlugin.Controllers
     [Route("/[controller]")]
     public class UnRoutineController : Controller, IPraxisPlugin
     {
+        public static string PrivacyPolicy = "";
         //RoutineBreaker demo. Controller named UnRoutine to shorten it up a little.
         //Saves location history for a player to find places where they haven't been before.
 

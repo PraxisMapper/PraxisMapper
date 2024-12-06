@@ -12,6 +12,7 @@ namespace PraxisDemosPlugin.Controllers
     [Route("/[controller]")]
     public class SplatterController : Controller, IPraxisPlugin
     {
+        public static string PrivacyPolicy = "";
         string accountId, password;
         public static int colors = 32;
         public static Dictionary<int, GeometryTracker> splatCollection = new Dictionary<int, GeometryTracker>();
