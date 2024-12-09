@@ -344,8 +344,8 @@ namespace PraxisCore.PbfReader
                         var processed = geoData.AsParallel().Where(g => g != null).Select(g =>
                         {
                             var place = GeometrySupport.ConvertOsmEntryToPlace(g, styleSet);
-                            if (place != null)
-                                Place.PreTag(place);
+                            //if (place != null) 
+                                //Place.PreTag(place); //this is already called in the convert function
 
                             if (processingMode == "center")
                                 place.ElementGeometry = place.ElementGeometry.Centroid;
