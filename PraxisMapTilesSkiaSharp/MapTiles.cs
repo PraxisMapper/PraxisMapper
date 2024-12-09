@@ -14,6 +14,7 @@ namespace PraxisCore {
     /// </summary>
     public class MapTiles : IMapTiles {
         static readonly SKPaint eraser = new SKPaint() { Color = SKColors.Transparent, BlendMode = SKBlendMode.Src, Style = SKPaintStyle.StrokeAndFill }; //BlendMode is the important part for an Eraser.
+        static readonly SKPaint text = new SKPaint() { Color = SKColors.Black, Style = SKPaintStyle.StrokeAndFill };
         static readonly Random r = new Random();
         static Dictionary<string, SKBitmap> cachedBitmaps = new Dictionary<string, SKBitmap>(); //Icons for points separate from pattern fills, though I suspect if I made a pattern fill with the same size as the icon I wouldn't need this.
         static Dictionary<long, SKPaint> cachedPaints = new Dictionary<long, SKPaint>();
@@ -358,6 +359,15 @@ namespace PraxisCore {
                         //    canvas.DrawPicture(svg, convertedPoint);
 
                         //}
+                        break;
+                    case "MultiPoint":
+                        //This is text, draw it at the first point in the item.
+                        var textPoint = PolygonToSKPoints(w.elementGeometry, stats.area, stats.degreesPerPixelX, stats.degreesPerPixelY);
+                        var textPoint2 = new SKPoint(textPoint[0].X, stats.imageSizeY - textPoint[0].Y);
+                        //Text is also upside down.
+                        canvas.Scale(1, -1, stats.imageSizeX / 2, stats.imageSizeY / 2);
+                        canvas.DrawText(w.tagValue, textPoint2, text);
+                        canvas.Scale(1, -1, stats.imageSizeX / 2, stats.imageSizeY / 2);
                         break;
                     default:
                         Log.WriteLog("Unknown geometry type found, not drawn.");
