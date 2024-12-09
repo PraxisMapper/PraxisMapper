@@ -7,6 +7,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text.Json;
+using static PraxisCore.DbTables;
 
 namespace PraxisCore
 {
@@ -14,11 +15,7 @@ namespace PraxisCore
     Goals:
     - Single file (Zip file, with 1 entry per place, named by sourceitemid-sourceitemtype)
     - Smaller: store geography as binary instead of text (base64 because JSON but still better), compressed.
-    - transfer data between databases (no database-specific info or filled-on-demand properties included)
-
-    Missing features vs PBF:
-    - Batch loading for speed (Every write has a read command attached right now, should do that all at once)
-    */
+    - transfer data between databases (no database-specific info or filled-on-demand properties included)    */
 
     public class PlaceExport
     {
@@ -196,7 +193,7 @@ namespace PraxisCore
                 File.Delete(filename + ".progress");
         }
 
-        public static void LoadToDatabase(string pmdFile, string processingMode = "normal", Envelope bounds = null)
+        public static void LoadToDatabase(string pmdFile, string processingMode = "normal", Envelope bounds = null, string styleSet = "importAll")
         {
             //This is for an existing file that's getting imported into the current DB.
             //EX: if I have pre-processed files available for coastline data, this should just get pulled in as-is.
@@ -214,29 +211,22 @@ namespace PraxisCore
             entry.processingMode = processingMode;
             entry.LoadProgress();
 
-            //Batching this is a lot harder because I can't guarentee that all of these are the same item type.
-            //var batchSize = 100;
-            //var places = entry.GetNextPlaces(batchSize);
-            //var ids = places.Select(p => p.SourceItemID).ToList();
-            //var entries = db.Places.Include(p => p.Tags).Include(p => p.PlaceData).Where(p => ids.Contains(p.SourceItemID)).ToDictionary(k => k.SourceItemId, v => v);
-
             long placeCounter = 0;
             long entryCounter = 0;
             DbTables.Place place = entry.GetNextPlace();
             while (place != null)
-            {
-                //TODO: batch this work so we can do 1 DB call for batchSize reads. Will dramatically improve speed.
-                //var thisEntry = db.Places.Include(p => p.Tags).Include(p => p.PlaceData).FirstOrDefault(p => p.SourceItemID == place.SourceItemID && p.SourceItemType == place.SourceItemType);
-                if (true) // (thisEntry == null)
-                    db.Places.Add(place);
+            {               
+                if (processingMode == "offline") // (thisEntry == null)
+                    db.OfflinePlaces.Add(OfflinePlace.FromPlace(place, styleSet));
+                
                 else
                 {
-                    //Place.UpdateChanges(thisEntry, place, db);
+                    db.Places.Add(place);
                 }
                 placeCounter++;
                 if (placeCounter % batchSize == 0)
                 {
-                    entryCounter += db.SaveChanges(); //should probably happen in batches, since we don't know how big a file is.
+                    entryCounter += db.SaveChanges();
                     db.ChangeTracker.Clear();
                     entry.SaveProgress();
                     Log.WriteLog("Saved: " + entryCounter + " total entries");
