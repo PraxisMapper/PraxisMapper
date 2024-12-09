@@ -54,6 +54,7 @@ namespace PraxisCore {
             Singletons.defaultStyleEntries.AddRange(Styles.suggestedmini.style);
             Singletons.defaultStyleEntries.AddRange(Styles.teamColor.style);
             Singletons.defaultStyleEntries.AddRange(Styles.openCellId.style);
+            Singletons.defaultStyleEntries.AddRange(Styles.roadsOnly.style);
 
             MapTiles = mapTiles;
             List<StyleEntry> styles;
