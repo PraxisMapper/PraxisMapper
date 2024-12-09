@@ -11,6 +11,8 @@ namespace PraxisVersionPlugin.Controllers {
         [HttpGet]
         [Route("/[controller]")]
         [Route("/[controller]/Index")]
+        [EndpointSummary("Returns the expected client version")]
+        [EndpointDescription("This does not enforce the minimum client version, this only tells a client the expected version (and it can determine that a newer version is available).")]
         public string GetVersion() {
             return GenericData.GetGlobalData("clientVersion").ToUTF8String();
         }

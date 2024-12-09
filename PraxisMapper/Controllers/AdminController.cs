@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -6,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using PraxisCore;
 using PraxisMapper.Classes;
 using System;
+using System.ComponentModel;
 using System.Linq;
 
 namespace PraxisMapper.Controllers {
@@ -31,16 +33,11 @@ namespace PraxisMapper.Controllers {
                 HttpContext.Abort();
         }
 
-
-        /// <summary>
-        /// Returns a weeks worth of summarized performance data
-        /// </summary>
-        /// <param name="password">The admin password, as set in the config file.</param>
-        /// <returns>A pre-formatted string with the Average, Maximum, and CallCount values for functions within the last week.</returns>
-        /// <remarks>A quick way to get an idea of which calls are slow or frequently used while debugging.</remarks>
         [HttpGet]
         [Route("/[controller]/PerfData/{password}")]
-        public string PerfData(string password) {
+        [EndpointSummary("Returns a weeks worth of summarized performance data")]
+        [EndpointDescription("A quick way to get an idea of which calls are slow or frequently used while debugging. Returns a pre-formatted string with the Average, Maximum, and CallCount values for functions within the last week.")]
+        public string PerfData([Description("The admin password, as set in the config file")]string password) {
             if (password != Configuration.GetValue<string>("adminPwd"))
                 return "";
 
@@ -71,18 +68,12 @@ namespace PraxisMapper.Controllers {
             return results;
         }
 
-        /// <summary>
-        /// Sets the server maintenance message.
-        /// </summary>
-        /// <param name="message">The message to return to all calls instead of their normal result.</param>
-        /// <returns>true if the message was set, false if the request was not by an admin</returns>
-        /// <remarks>This is used to keep the server up while some database work is being done.
-        /// Set the message to a non-empty string to lock out non-admin users from calling endpoints. 
-        /// Set it to an empty string or whitespace to restore access.
-        /// </remarks>
         [HttpPut]
         [Route("/[controller]/MaintMessage/{message}")]
-        public bool SetMaintenanceMessage(string message) {
+        [EndpointSummary("Sets the server maintenance message.")]
+        [EndpointDescription("This is used to keep the server up while some database work is being done. Set the message to a non-empty string to lock out non-admin users from calling endpoints. Set it to an empty string or whitespace to restore access.")]
+        public bool SetMaintenanceMessage(
+            [Description("The message to return to all calls instead of their normal result, or blank for normal operations.")]string message) {
             PraxisAuthentication.GetAuthInfo(Response, out var accountId, out _);
             if (!PraxisAuthentication.IsAdmin(accountId) && !Request.Host.IsLocalIpAddress()) {
                 return false;
