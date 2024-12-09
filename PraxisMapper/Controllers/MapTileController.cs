@@ -410,13 +410,14 @@ namespace PraxisMapper.Controllers
         [HttpGet]
         [Route("/[controller]/StyleTest/{styleSet}")]
         public ActionResult DrawAllStyleEntries(string styleSet) {
-            var styleData = TagParser.allStyleGroups[styleSet].ToList();
+            var entryName = TagParser.allStyleGroups.Keys.First(s => string.Equals(s, styleSet, StringComparison.OrdinalIgnoreCase));
+            var styleData = TagParser.allStyleGroups[entryName].ToList();
             //Draw style as an X by X grid of circles, where X is square root of total sets
             int gridSize = (int)Math.Ceiling(Math.Sqrt(styleData.Count));
 
-            ImageStats stats = new ImageStats("234567"); //Constructor is ignored, all the values are overridden.
+            ImageStats stats = new ImageStats("89238J"); //Constructor is ignored, all the values are overridden. Use this for even-sized cells.
             stats.imageSizeX = gridSize * 60;
-            stats.imageSizeY = gridSize * 60;
+            stats.imageSizeY = gridSize * 80;
             stats.degreesPerPixelX = stats.area.LongitudeWidth / stats.imageSizeX;
             stats.degreesPerPixelY = stats.area.LatitudeHeight / stats.imageSizeY;
             var circleSize = stats.degreesPerPixelX * 25;
@@ -424,7 +425,7 @@ namespace PraxisMapper.Controllers
             List<CompletePaintOp> testCircles = new List<CompletePaintOp>();
 
             var spacingX = stats.area.LongitudeWidth / gridSize;
-            var spacingY = stats.area.LatitudeHeight / gridSize;
+            var spacingY = stats.area.LatitudeHeight / gridSize + (stats.degreesPerPixelY * 10); //20 is space for text items.
 
             for (int x = 0; x < gridSize; x++)
                 for (int y = 0; y < gridSize; y++) {
@@ -437,6 +438,13 @@ namespace PraxisMapper.Controllers
                             var entry = new CompletePaintOp() { paintOp = op, elementGeometry = circle, lineWidthPixels = 3 };
                             testCircles.Add(entry);
                         }
+                        //Quite hacky. Needed a geometry type not currently used right now to avoid other flags for this.
+                        var textX = stats.area.WestLongitude + (spacingX * x) + (circleSize * .45);
+                        var textY = stats.area.NorthLatitude - (spacingY * y) - (circleSize * .40);
+                        var textPoint = new NetTopologySuite.Geometries.MultiPoint([new NetTopologySuite.Geometries.Point(textX, textY)]);
+                        var text = new CompletePaintOp() { paintOp = styleData[index].Value.PaintOperations.First(), elementGeometry = textPoint, lineWidthPixels = 3, tagValue = styleData[index].Key };
+                        testCircles.Add(text);
+
                     }
                 }
 
