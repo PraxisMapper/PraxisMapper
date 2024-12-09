@@ -63,7 +63,7 @@ namespace PraxisMapper
             services.AddMvc();
             services.AddMemoryCache(); //AddMvc calls this quietly, but I'm calling it explicitly here anyways.
             services.AddResponseCompression();
-
+            services.AddOpenApi();
             services.AddEndpointsApiExplorer();
 
             var executionFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
@@ -226,6 +226,7 @@ namespace PraxisMapper
 
             app.UseEndpoints(endpoints => {
                 endpoints.MapControllers();
+                endpoints.MapOpenApi();
             });
 
             //Populate the memory cache with some data we won't edit until a restart occurs.
