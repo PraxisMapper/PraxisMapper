@@ -87,7 +87,7 @@ namespace PraxisMapper
                     try {
                         var assembly = Assembly.LoadFile(potentialPlugin);
                         var types = assembly.GetTypes().Where(t => t.IsAssignableTo(typeof(IPraxisPlugin)));
-                        GlobalPlugins.plugins.AddRange(types.Select(t => (IPraxisPlugin)t).ToList());
+                        GlobalPlugins.plugins.AddRange(types.Select(t => (IPraxisPlugin)Activator.CreateInstance(t)).ToList());
                         var startupTypes = assembly.GetTypes().Where(t => t.IsAssignableTo(typeof(IPraxisStartup)));
                         if (startupTypes.Any()) {
                             foreach (var s in startupTypes) {
@@ -228,7 +228,9 @@ namespace PraxisMapper
 
             app.UseEndpoints(endpoints => {
                 endpoints.MapControllers();
+            #if DEBUG
                 endpoints.MapOpenApi();
+            #endif
             });
 
             //Populate the memory cache with some data we won't edit until a restart occurs.

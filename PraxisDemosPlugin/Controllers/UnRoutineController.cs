@@ -24,7 +24,7 @@ namespace PraxisDemosPlugin.Controllers
 
     [ApiController]
     [Route("/[controller]")]
-    public class UnRoutineController : Controller, IPraxisPlugin
+    public class UnRoutineController : Controller
     {
         public static string PrivacyPolicy = "";
         //RoutineBreaker demo. Controller named UnRoutine to shorten it up a little.

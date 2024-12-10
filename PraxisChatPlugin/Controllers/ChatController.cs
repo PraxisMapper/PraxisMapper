@@ -6,7 +6,7 @@ using PraxisMapper.Classes;
 namespace PraxisChatPlugin.Controllers {
     [ApiController]
     [Route("[controller]")]
-    public class ChatController : Controller, IPraxisPlugin {
+    public class ChatController : Controller {
         public static string PrivacyPolicy = "";
         readonly int chatLengthLines = 100;
 

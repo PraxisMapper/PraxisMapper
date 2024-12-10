@@ -6,7 +6,7 @@ using PraxisCore.Support;
 namespace PraxisMunicipalityPlugin.Controllers {
     [ApiController]
     [Route("[controller]")]
-    public class MunicipalityController : Controller, IPraxisPlugin {
+    public class MunicipalityController : Controller {
         public static string PrivacyPolicy = "";
         public class MuniData {
             public string name { get; set; }

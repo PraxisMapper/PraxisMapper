@@ -10,7 +10,7 @@ namespace PraxisDemosPlugin.Controllers
 {
     [ApiController]
     [Route("/[controller]")]
-    public class SplatterController : Controller, IPraxisPlugin
+    public class SplatterController : Controller
     {
         public static string PrivacyPolicy = "";
         string accountId, password;
@@ -253,6 +253,7 @@ namespace PraxisDemosPlugin.Controllers
             return File(results, "image/png");
         }
 
+        [ExcludeFromDescription]
         private static Geometry MakeSplatShapeSimple(Point p, double radius) //~6ms average
         {
             //The lazy option for this: a few random circles.
@@ -272,6 +273,7 @@ namespace PraxisDemosPlugin.Controllers
             return resultGeo;
         }
 
+        [ExcludeFromDescription]
         private static Geometry MakeSplatShape(Point p, double radius) //12ms average
         {
             //Do some geometry actions to make a shape to put on the map.
