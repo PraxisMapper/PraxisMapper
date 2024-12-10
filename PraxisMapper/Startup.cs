@@ -18,6 +18,7 @@ using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Reflection;
+using System.Threading.RateLimiting;
 
 namespace PraxisMapper
 {
@@ -86,6 +87,7 @@ namespace PraxisMapper
                     try {
                         var assembly = Assembly.LoadFile(potentialPlugin);
                         var types = assembly.GetTypes().Where(t => t.IsAssignableTo(typeof(IPraxisPlugin)));
+                        GlobalPlugins.plugins.AddRange(types.Select(t => (IPraxisPlugin)t).ToList());
                         var startupTypes = assembly.GetTypes().Where(t => t.IsAssignableTo(typeof(IPraxisStartup)));
                         if (startupTypes.Any()) {
                             foreach (var s in startupTypes) {
